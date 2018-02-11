@@ -1,0 +1,6 @@
+# Requirements for setup a development environment
+setuptools
+lxml
+Sphinx
+sphinx_rtd_theme
+-e .

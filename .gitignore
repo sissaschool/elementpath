@@ -1,0 +1,13 @@
+*.pyc
+*.pyo
+*~
+*.so
+*.egg-info
+.idea/
+.project
+.ipynb_checkpoints/
+doc/_*
+__pycache__/
+dist/
+build/
+tmp/
