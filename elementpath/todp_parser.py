@@ -15,7 +15,7 @@ import re
 from decimal import Decimal
 from abc import ABCMeta
 from collections import MutableSequence
-from .exceptions import ElementPathSyntaxError
+from .exceptions import ElementPathSyntaxError, ElementPathValueError, ElementPathTypeError
 
 
 def create_tokenizer(symbols):
@@ -39,6 +39,8 @@ def create_tokenizer(symbols):
             s = '%s\s*%s' % (s[:-2], s[-2:])
         elif s[-4:] == r'\:\:':
             s = '%s\s*%s' % (s[:-4], s[-4:])
+        else:
+            s.replace(r'\ ', '\s+')
         return s
 
     symbols = sorted([s2 for s2 in (s1.strip() for s1 in symbols) if s2], key=lambda x: -len(x))
@@ -93,13 +95,21 @@ class Token(MutableSequence):
         self._operands.insert(i, item)
 
     def __str__(self):
-        if self:
-            return u'(%s %s)' % (self.value, ' '.join(str(item) for item in self))
+        symbol = self.symbol
+        if len(symbol) <= 3:
+            return '%r operator' % symbol
+        elif symbol.endswith('('):
+            return '%s(%s)' % (symbol[:-1], ', '.join(repr(t.value) for t in self))
+        elif self.symbol.startswith('(') and self.symbol.endswith(')'):
+            return '%r %s' % (self.value, self.symbol[1:-1])
         else:
-            return u'(%s)' % self.value
+            return '%r operator' % symbol
 
     def __repr__(self):
-        return u'%s(value=%r)' % (self.__class__.__name__, self.value)
+        if self.value != self.symbol:
+            return u'%s(value=%r)' % (self.__class__.__name__, self.value)
+        else:
+            return u'%s()' % self.__class__.__name__
 
     def __cmp__(self, other):
         return self.symbol == other.symbol and self.value == other.value
@@ -108,15 +118,22 @@ class Token(MutableSequence):
     def arity(self):
         return len(self)
 
+    @property
+    def tree(self):
+        if self:
+            return u'(%s %s)' % (self.value, ' '.join(item.tree for item in self))
+        else:
+            return u'(%s)' % self.value
+
     def nud(self):
         """Null denotation method"""
-        raise ElementPathSyntaxError("Undefined operator for %r." % self.symbol)
+        self.wrong_symbol()
 
     def led(self, left):
         """Left denotation method"""
-        raise ElementPathSyntaxError("Undefined operator for %r." % self.symbol)
+        self.wrong_symbol()
 
-    def eval(self):
+    def eval(self, *args, **kwargs):
         """Evaluation method"""
         return self.value
 
@@ -129,13 +146,38 @@ class Token(MutableSequence):
             for token in t.iter():
                 yield token
 
-    def expected(self, symbol):
-        if self.symbol != symbol:
-            raise ElementPathSyntaxError("Expected %r token, found %r." % (symbol, str(self.value)))
+    def expected(self, *symbols):
+        if symbols and self.symbol not in symbols:
+            self.wrong_symbol()
 
-    def unexpected(self, symbol=None):
-        if not symbol or self.symbol == symbol:
-            raise ElementPathSyntaxError("Unexpected %r token." % str(self.value))
+    def unexpected(self, *symbols):
+        if not symbols or self.symbol in symbols:
+            self.wrong_symbol()
+
+    def wrong_symbol(self):
+        if self.symbol in {'(end)', '(ref)', '(string)', '(decimal)', '(integer)'}:
+            value = self.value
+        else:
+            value = self.symbol
+        pos = self.parser.position
+        token = self.parser.token
+        if self is not token and token is not None:
+            raise ElementPathSyntaxError(
+                "unexpected token %r after %s at line %d, column %d." % (value, token, pos[0], pos[1])
+            )
+        else:
+            raise ElementPathSyntaxError(
+                "unexpected token %r at line %d, column %d." % (value, pos[0], pos[1])
+            )
+
+    def wrong_syntax(self, message):
+        raise ElementPathSyntaxError("%s: %s." % (self, message or 'unknown error'))
+
+    def wrong_value(self, message):
+        raise ElementPathValueError("%s: %s." % (self, message or 'unknown error'))
+
+    def wrong_type(self, message):
+        raise ElementPathTypeError("%s: %s." % (self, message or 'unknown error'))
 
 
 class Parser(object):
@@ -151,9 +193,11 @@ class Parser(object):
         self.next_token = None
         self.match = None
         self.tokens = iter(())
+        self.source = ''
 
     def parse(self, source):
         try:
+            self.source = source
             self.tokens = iter(self.tokenizer.finditer(source))
             self.advance()
             root_token = self.expression()
@@ -164,16 +208,16 @@ class Parser(object):
             self.tokens = iter(())
             self.next_token = None
 
-    def advance(self, symbol=None):
+    def advance(self, *symbols):
         if getattr(self.next_token, 'symbol', None) == '(end)':
+            pos = self.position
             raise ElementPathSyntaxError(
-                "Unexpected end of source at position %d, after %r." % (self.match.span()[1], self.token.symbol)
+                "Unexpected end of source after %s: line %d, column %d." % (self.token, pos[0], pos[1]-1)
             )
+        elif self.next_token is not None:
+            self.next_token.expected(*symbols)
 
         self.token = self.next_token
-        if symbol and symbol not in (self.next_token.symbol, self.next_token.value):
-            self.next_token.expected(symbol)
-
         while True:
             try:
                 self.match = next(self.tokens)
@@ -221,6 +265,17 @@ class Parser(object):
             self.advance()
             left = token.led(left)
         return left
+
+    @property
+    def position(self):
+        if self.match is None:
+            return (1, 0)
+        column = self.match.span()[0]
+        line = self.source[:column].count('\n') + 1
+        if line == 1:
+            return (line, column + 1)
+        else:
+            return (line, column - self.source[:column].rindex('\n'))
 
     @classmethod
     def begin(cls):
@@ -273,7 +328,7 @@ class Parser(object):
                 token_class = cls.symbol_table[symbol]
 
         except KeyError:
-            name = '_%s_%s' % (symbol, cls.token_base_class.__name__)
+            name = '%s_%s' % (symbol, cls.token_base_class.__name__)
             kwargs['symbol'] = symbol
             token_class = ABCMeta(name, (cls.token_base_class,), kwargs)
             cls.symbol_table[symbol] = token_class

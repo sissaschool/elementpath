@@ -16,7 +16,12 @@ class XPath2Parser(XPath1Parser):
     XPath 2.0 expression parser class.
     """
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
-    SYMBOLS = XPath1Parser.SYMBOLS + ('union', 'intersect')
+    SYMBOLS = XPath1Parser.SYMBOLS + (
+        'union', 'intersect', 'instance of', 'castable as', 'if', 'then', 'else', '$', 'for',
+        'some', 'every', 'in', 'satisfies', 'validate', 'type', 'item', 'satisfies', 'context',
+        'cast as', 'treat as', 'as', 'of', 'return', 'except', 'is', 'isnot', '<<', '>>', '?',
+        'untyped'
+    )
     RELATIVE_PATH_SYMBOLS = XPath1Parser.RELATIVE_PATH_SYMBOLS | {s for s in SYMBOLS if s.endswith("::")}
 
     @property

@@ -17,8 +17,9 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 
-from .exceptions import ElementPathError, ElementPathSyntaxError, ElementPathValueError
+from .exceptions import ElementPathError, ElementPathSyntaxError, ElementPathValueError, ElementPathTypeError
 from .todp_parser import Token, Parser
+from .context import ElementPathContext
 from .xpath1 import XPathToken, XPath1Parser
 from .xpath2 import XPath2Parser
 
@@ -53,14 +54,14 @@ def relative_path(path, levels, namespaces=None, parser=XPath2Parser):
     return ''.join(path_parts[i:])
 
 
-class XPathSelector(object):
+class ElementPathSelector(object):
     """
 
     """
     def __init__(self, path, namespaces=None, parser=XPath2Parser):
         self.path = path
         self.parser = parser(namespaces)
-        self._selector = self.parser.parse(path)
+        self.root_token = self.parser.parse(path)
 
     def __repr__(self):
         return u'%s(path=%r, namespaces=%r, parser=%s)' % (
@@ -71,29 +72,16 @@ class XPathSelector(object):
     def namespaces(self):
         return self.parser.namespaces
 
-    def iter_select(self, context):
-        return self._selector.iter_select(context)
+    def select(self, elem):
+        context = ElementPathContext(elem)
+        return [result for result in self.root_token.select(context)]
 
 
-_selector_cache = {}
-
-
-def element_path_iterfind(context, path, namespaces=None):
-    if path[:1] == "/":
-        path = "." + path
-
-    path_key = (id(context), path)
-    try:
-        return _selector_cache[path_key].iter_select(context)
-    except KeyError:
-        pass
-
+def iterfind(elem, path, namespaces=None):
     parser = XPath1Parser(namespaces)
-    selector = parser.parse(path)
-    if len(_selector_cache) > 100:
-        _selector_cache.clear()
-    _selector_cache[path] = selector
-    return selector.iter_select(context)
+    root_token = parser.parse(path)
+    context = ElementPathContext(elem)
+    return root_token.select(context, [elem])
 
 
 class ElementPathMixin(object):

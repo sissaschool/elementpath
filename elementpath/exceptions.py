@@ -19,3 +19,7 @@ class ElementPathSyntaxError(ElementPathError, SyntaxError):
 
 class ElementPathValueError(ElementPathError, ValueError):
     pass
+
+
+class ElementPathTypeError(ElementPathError, TypeError):
+    pass
