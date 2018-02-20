@@ -190,8 +190,9 @@ class Parser(object):
         if '(end)' not in self.symbol_table or self.tokenizer is None:
             raise ValueError("Incomplete parser class %s registration." % self.__class__.__name__)
         self.token = None
-        self.next_token = None
         self.match = None
+        self.next_token = None
+        self.next_match = None
         self.tokens = iter(())
         self.source = ''
 
@@ -218,14 +219,15 @@ class Parser(object):
             self.next_token.expected(*symbols)
 
         self.token = self.next_token
+        self.match = self.next_match
         while True:
             try:
-                self.match = next(self.tokens)
+                self.next_match = next(self.tokens)
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, operator, ref = self.match.groups()
+                literal, operator, ref = self.next_match.groups()
                 if operator is not None:
                     try:
                         self.next_token = self.symbol_table[operator.replace(' ', '')](self)
@@ -243,8 +245,8 @@ class Parser(object):
                 elif ref is not None:
                     self.next_token = self.symbol_table['(ref)'](self, ref)
                     break
-                elif str(self.match.group()).strip():
-                    raise ElementPathSyntaxError("unexpected token: %r" % self.match)
+                elif str(self.next_match.group()).strip():
+                    raise ElementPathSyntaxError("unexpected token: %r" % self.next_match)
 
         return self.next_token
 
@@ -270,12 +272,26 @@ class Parser(object):
     def position(self):
         if self.match is None:
             return (1, 0)
-        column = self.match.span()[0]
-        line = self.source[:column].count('\n') + 1
+        token_index = self.match.span()[0]
+        line = self.source[:token_index].count('\n') + 1
         if line == 1:
-            return (line, column + 1)
+            return (line, token_index + 1)
         else:
-            return (line, column - self.source[:column].rindex('\n'))
+            return (line, token_index - self.source[:token_index].rindex('\n'))
+
+    @property
+    def source_first(self):
+        if self.match is None:
+            return True
+        return not bool(self.source[0:self.match.span()[0]].strip())
+
+    @property
+    def line_first(self):
+        if self.match is None:
+            return True
+        token_index = self.match.span()[0]
+        line_start = self.source[0:token_index].rindex('\n') + 1
+        return not bool(self.source[line_start:token_index].strip())
 
     @classmethod
     def begin(cls):

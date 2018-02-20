@@ -76,6 +76,17 @@ class XPath1Parser(Parser):
         return '1.0'
 
     @classmethod
+    def axis(cls, symbol, bp=0):
+        def nud(self):
+            self.parser.next_token.expected(
+                '(ref)', '*', 'text(', 'node(', 'document-node(', 'comment(', 'processing-instruction(',
+                'attribute', 'schema-attribute', 'element', 'schema-element'
+            )
+            self[0:] = self.parser.expression(rbp=bp),
+            return self
+        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud)
+
+    @classmethod
     def function(cls, symbol, nargs=None, bp=0):
         def nud(self):
             if nargs is None:
@@ -129,13 +140,6 @@ class XPath1Parser(Parser):
 
         return cls.register(symbol, lbp=bp, rbp=bp, select=select)
 
-    def parse(self, path):
-        if not path:
-            raise ElementPathSyntaxError("empty XPath expression.")
-        if path[:1] == "/":
-            path = "." + path
-        return super(XPath1Parser, self).parse(path)
-
     def map_reference(self, ref):
         """
         Map a reference into a fully qualified name using the instance namespace map.
@@ -178,6 +182,7 @@ prefix = XPath1Parser.prefix
 infix = XPath1Parser.infix
 method = XPath1Parser.method
 function = XPath1Parser.function
+axis = XPath1Parser.axis
 
 
 register(',')
@@ -229,43 +234,32 @@ def select(self, context):
 
 ###
 # Forward Axes
-@method('child::', bp=80)
-def nud(self):
-    self.parser.next_token.expected('(ref)', '*', 'text(', 'node(')
-    self[0:] = self.parser.expression(80),
-    return self
-
-
-@method('child::')
+@method(axis('self::', bp=80))
 def select(self, context):
-    for _ in context.iterchildren():
-        for result in self[0].select(context):
+    for result in self[0].select(context):
+        yield result
+
+
+@method(axis('child::', bp=80))
+def select(self, context):
+    for child in context.iter_children():
+        for result in self[0].select(child):
             yield result
 
 
-def select2(self, context):
-    if context.node is None:
-        context.size, context.position, context.node = 1, 0, context.root
-        for result in self[0].select(context):
-            yield result
-    else:
-        elem = context.node
-        context.size = len(elem)
-        for context.position, context.node in enumerate(elem):
-            for result in self[0].select(context):
+@method(axis('descendant::', bp=80))
+def select(self, context):
+    for descendant in context.copy().iter_descendants():
+        if descendant.node is not context.node:
+            for result in self[0].select(descendant):
                 yield result
 
 
-@method('descendant::', bp=80)
-@method('descendant-or-self::', bp=80)
-def select(self, context, results):
-    for elem in results:
-        if self.iselement(elem):
-            if self.symbol == 'descendant-or-self::':
-                yield elem
-            for e in elem.iter():
-                if e is not elem:
-                    yield e
+@method(axis('descendant-or-self::', bp=80))
+def select(self, context):
+    for descendant in context.copy().iter_descendants():
+        for result in self[0].select(descendant):
+            yield result
 
 
 @method('@')
@@ -359,12 +353,6 @@ def select(self, _context, results):
                         yield attr == value
 
 
-@method('self::', bp=80)
-def select(self, context, results):
-    for _ in results:
-        yield self
-
-
 @method('following-sibling::', bp=80)
 def select(self, context, results):
     parent_map = context.parent_map
@@ -403,7 +391,6 @@ def select(self, context, results):
             element_class = elem.__class__
             for prefix, uri in self.parser.namespaces.items():
                 yield element_class(tag=prefix, text=uri)
-
 
 
 ###
@@ -472,16 +459,15 @@ function('comment(', nargs=0, bp=90)
 
 
 @method(function('text(', nargs=0, bp=90))
-def select(self, context=None):
+def select(self, context):
     if self.iselement(context.node):
         if context.node.text is not None:
             yield context.node.text  # adding tails??
 
 
 @method(function('node(', nargs=0, bp=90))
-def select(self, context=None):
-    if self.iselement(context.node):
-        yield context.node
+def select(self, context):
+    yield context.node if context.node is not None else context.root
 
 
 ###
@@ -626,17 +612,10 @@ def eval(self, context=None):
     return False
 
 
-@method('*')
+@method(literal('*'))
 def select(self, context):
-    """Select all element children."""
     if self.iselement(context.node):
         yield context.node
-
-
-@method('*')
-def nud(self):
-    self.parser.next_token.expected('/', '[', '(end)', ')')
-    return self
 
 
 @method(infix('*', bp=45))
@@ -788,19 +767,9 @@ infix('div', bp=45)
 infix('mod', bp=45)
 
 
-@method('self::', bp=60)
-def select(self, _context, results):
-    """Self selector."""
-    for elem in results:
-        yield elem
-
-
-@method(literal('.', bp=60))
-def select(self, _context, results):
-    """Self node selector."""
-    for elem in results:
-        if self.iselement(elem):
-            yield elem
+@method(literal('.'))
+def select(self, context):
+    yield context.node if context.node is not None else context.root
 
 
 @method(prefix('..', bp=60))
@@ -819,57 +788,66 @@ def select(_self, _context, results):
                 yield parent
 
 
-# @register_nud('ancestor::', bp=60)
-# def parent_token_nud(self):
-#    self.select = self.parent_selector()
-#    return self
+@method('//', bp=80)
+@method('/', bp=80)
+def nud(self):
+    if not self.parser.source_first:
+        self.wrong_symbol()
+    elif self.parser.next_token.symbol == '(end)' and self.symbol == '/':
+        return self
+    elif self.parser.next_token.symbol not in self.parser.RELATIVE_PATH_SYMBOLS:
+        self.parser.next_token.wrong_symbol()
+    self[0:] = self.parser.expression(80),
+    return self
 
+
+@method('//', bp=80)
 @method('/', bp=80)
 def led(self, left):
+    if self.parser.next_token.symbol not in self.parser.RELATIVE_PATH_SYMBOLS:
+        self.parser.next_token.wrong_symbol()
     self[0:1] = left, self.parser.expression(100)
-    if self[1].symbol not in self.parser.RELATIVE_PATH_SYMBOLS:
-        raise ElementPathSyntaxError("invalid child %r." % self[1])
     return self
 
 
 @method('/')
-def select(self, context, results):
-    results = self[0].select(context, results)
-    return self[1].select(context, results)
-
-
-@method('//', bp=80)
-def led(self, left):
-    self[0:1] = left, self.parser.expression(100)
-    if self[1].symbol not in self.parser.RELATIVE_PATH_SYMBOLS:
-        raise ElementPathSyntaxError("invalid descendant %r." % self[1])
-    if self[0].symbol in ('*', '(ref)'):
-        delattr(self[0], 'select')
-        self.value = self[0].value
+def select(self, context):
+    if not self:
+        yield context.root
+    elif len(self) == 1:
+        if self[0].symbol in ('*', '(ref)'):
+            for child in context.copy().iter_children():
+                for result in self[0].select(child):
+                    yield result
+        else:
+            for result in self[0].select(context):
+                yield result
     else:
-        self.value = None
-    return self
+        for elem in self[0].select(context.copy()):
+            if not self.iselement(elem):
+                raise ElementPathTypeError("left operand of %s must returns nodes: %r" % (self, elem))
+            if self[1].symbol in ('*', '(ref)'):
+                for child in ElementPathContext(context.root, node=elem).iter_children():
+                    for result in self[1].select(child):
+                        yield result
+            else:
+                for result in self[1].select(ElementPathContext(context.root, node=elem)):
+                    yield result
 
-
-@method('//')
-def select(self, _context, results):
-    """Descendants selector."""
-    results = self[0].select(_context, results)
-    for elem in results:
-        if self.iselement(elem):
-            for e in elem.iter(self[1].value):
-                if e is not elem:
-                    yield e
 
 @method('//')
 def select(self, context):
-    """Descendants selector."""
-    for results in self[0].select(context):
-        for elem in results:
-            if self.iselement(elem):
-                for e in elem.iter(self[1].value):
-                    if e is not elem:
-                        yield e
+    if len(self) == 1:
+        for descendant in context.copy().iter_descendants():
+            for result in self[0].select(descendant.copy()):
+                yield result
+    else:
+        for elem in self[0].select(context):
+            if not self.iselement(elem):
+                raise ElementPathTypeError("left operand of %s must returns nodes: %r" % (self, elem))
+            for descendant in ElementPathContext(context.root, node=elem).iter_descendants():
+                for result in self[1].select(descendant):
+                    yield result
 
 
 @method('(', bp=90)

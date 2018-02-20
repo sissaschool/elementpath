@@ -72,7 +72,7 @@ class XPath1ParserTest(unittest.TestCase):
     def check_tree(self, path, expected):
         self.assertEqual(self.parser.parse(path).tree, expected)
 
-    def check_select(self, path, namespaces, root, expected):
+    def check_select(self, path, root, expected, namespaces=None):
         selector = ElementPathSelector(path, namespaces, parser=XPath1Parser)
         self.assertEqual(list(selector.select(root)), expected)
 
@@ -138,29 +138,68 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_child_operator(self):
         root = etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_select('/', None, root, [])
+        self.check_select('/', root, [root])  # Should be the XML "document"
+        self.check_select('/B1', root, [])
+        self.check_select('/A1', root, [])
+        self.check_select('/A', root, [root])
+        self.check_select('/A/B1', root, [root[0]])
+        self.check_select('/A/*', root, [root[0], root[1], root[2]])
+        self.check_select('/*/*', root, [root[0], root[1], root[2]])
+        self.check_select('/A/B1/C', root, [root[0][0]])
+        self.check_select('/A/B1/*', root, [root[0][0]])
+        self.check_select('/A/B3/*', root, [root[2][0], root[2][1]])
+        #self.check_select('child::*/child::B1', root, [root[0]])
+        #self.check_select('/A/child::C', root, [root[0]])
+
+    def test_self_shortcut(self):
+        root = etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+        self.check_select('.', root, [root])
+        self.check_select('/././.', root, [root])
+        self.check_select('/A/.', root, [root])
+        self.check_select('/A/B1/.', root, [root[0]])
+        self.check_select('/A/B1/././.', root, [root[0]])
+
+    def test_descendant_operator(self):
+        root = etree.XML('<A><B1><C/></B1><B2/><B3><C/><C1/></B3></A>')
+        self.check_select('//.', root, [root] + [e for e in root.iter()])
+        self.check_select('/A//.', root, [e for e in root.iter()])
+        self.check_select('//C1', root, [root[2][1]])
+        self.check_select('//B2', root, [root[1]])
+        self.check_select('//C', root, [root[0][0], root[2][0]])
+        self.check_select('//*', root, [e for e in root.iter()])
+
+    def test_self_axis(self):
+        root = etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
+        self.check_select('self::node()', root, [root])
+        self.check_select('self::text()', root, [])
 
     def test_child_axis(self):
         root = etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
-        self.check_select('child::B1', None, root, [])
-        self.check_select('child::A', None, root, [root])
-        self.check_select('child::text()', None, root, ['A text'])
-        self.check_select('child::node()', None, root, [root])
-        self.check_select('child::*', None, root, [root])
-        self.check_select('child::1', None, root, [root])
+        self.check_select('child::B1', root, [])
+        self.check_select('child::A', root, [root])
+        self.check_select('child::text()', root, ['A text'])
+        self.check_select('child::node()', root, [root])
+        self.check_select('child::*', root, [root])
+
+    def test_descendant_axis(self):
+        root = etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+        self.check_select('descendant::node()', root, [e for e in root.iter()])
+        self.check_select('descendant-or-self::node()', root, [root] + [e for e in root.iter()])
+        self.check_select('descendant-or-self::node()/.', root, [root] + [e for e in root.iter()])
 
     def test_attribute_axis(self):
         root = etree.XML('<A id="1" a="alpha"><B1 b="beta1"/><B2/><B3/></A>')
-        self.check_select('child::B1', None, root, [])
+        self.check_select('child::B1', root, [])
 
 
     def test_token_tree(self):
         self.check_tree('child::B1', '(child:: (B1))')
 
 
-    def test_wrong_path(self):
+    def test_wrong_syntax(self):
         # self.check_value("*", '')
         self.wrong_syntax("     \n     \n   )")
+        self.wrong_syntax('child::1')
 
 
 class LxmlEtreeTest(unittest.TestCase):
