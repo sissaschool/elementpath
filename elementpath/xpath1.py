@@ -10,27 +10,26 @@
 #
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Token, Parser
-from .context import ElementPathContext
+from .utils import is_etree_element
 
 
 class XPathToken(Token):
 
     def eval(self, context=None):
+        """
+        Evaluate from the context.
+
+        :param context: The XPath evaluation context.
+        """
         return self.value
 
-    def select(self, context, results):
+    def select(self, context):
         """
         Select operator that generates results
 
         :param context: The XPath evaluation context.
-        :param results: The XPath selector results. Must be an iterable producing \
-        context nodes or other values (simple types or None).
         """
-        self.wrong_symbol()
-
-    @staticmethod
-    def iselement(elem):
-        return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and hasattr(elem, 'text')
+        yield self.eval(context)
 
     def __str__(self):
         if self.symbol.endswith('::') and len(self.symbol) > 3:
@@ -126,20 +125,6 @@ class XPath1Parser(Parser):
 
         return cls.register(symbol, lbp=bp, rbp=bp, nud=nud)
 
-    @classmethod
-    def selector(cls, symbol, bp=0):
-        def select(self, context, results):
-            for elem in results:
-                if self.iselement(elem):
-                    context.size = len(elem)
-                    for context.position, context.node in enumerate(elem):
-                        yield self.eval(context)
-                elif elem is not None:
-                    context.node, context.position, context.size = elem, 0, 0
-                    yield self.eval(context)
-
-        return cls.register(symbol, lbp=bp, rbp=bp, select=select)
-
     def map_reference(self, ref):
         """
         Map a reference into a fully qualified name using the instance namespace map.
@@ -227,9 +212,36 @@ def nud(self):
 
 
 @method('(ref)')
+def eval(self, context=None):
+    if context is not None:
+        return context.variables.get(self.value)
+
+
+@method('(ref)')
 def select(self, context):
-    if self.iselement(context.node) and context.node.tag == self.value:
+    if context.is_element_node() and context.node.tag == self.value:
         yield context.node
+    elif context.node == self.value:
+        yield context.node
+
+
+@method(literal('.'))
+def select(self, context):
+    yield context.node if context.node is not None else context.root
+
+
+@method(literal('..'))
+def select(self, context):
+    try:
+        parent = context.parent_map[context.node]
+    except KeyError:
+        pass
+    else:
+        if is_etree_element(parent):
+            yield parent
+
+
+literal('*')
 
 
 ###
@@ -242,209 +254,115 @@ def select(self, context):
 
 @method(axis('child::', bp=80))
 def select(self, context):
-    for child in context.iter_children():
-        for result in self[0].select(child):
+    for child_context in context.iter_children():
+        for result in self[0].select(child_context):
             yield result
 
 
 @method(axis('descendant::', bp=80))
 def select(self, context):
-    for descendant in context.copy().iter_descendants():
-        if descendant.node is not context.node:
-            for result in self[0].select(descendant):
+    for descendant_context in context.copy().iter_descendants():
+        if descendant_context.node is not context.node:
+            for result in self[0].select(descendant_context):
                 yield result
 
 
 @method(axis('descendant-or-self::', bp=80))
 def select(self, context):
-    for descendant in context.copy().iter_descendants():
-        for result in self[0].select(descendant):
+    for descendant_context in context.copy().iter_descendants():
+        for result in self[0].select(descendant_context):
             yield result
 
 
-@method('@')
-@method('attribute::')
-def nud(self):
-    self[0:] = self.parser.expression(),
-    if self[0].symbol not in ('*', '(ref)'):
-        raise ElementPathSyntaxError("invalid attribute specification for XPath.")
-    if self.parser.next_token.symbol == '=':
-        self.parser.advance('=')
-        self[0][0:] = self.parser.advance('(string)'),
-    return self
-
-
-
-@method('@')
-@method('attribute::')
-def select(self, _context, results):
-    """
-    Attribute selector.
-    """
-    if self[0].symbol != '=':
-        # @attribute
-        key = self.value
-        if key is None:
-            for elem in results:
-                if self.iselement(elem):
-                    for attr in elem.attrib.values():
-                        yield attr
-        elif '{' == key[0]:
-            for elem in results:
-                if elem is not None and key in elem.attrib:
-                    yield elem.attrib[key]
+@method(axis('following-sibling::', bp=80))
+def select(self, context):
+    if context.is_element_node():
+        elem = context.node
+        try:
+            parent = context.parent_map[elem]
+        except KeyError:
+            return
         else:
-            for elem in results:
-                if elem is None:
-                    continue
-                elif key in elem.attrib:
-                    yield elem.attrib[key]
-    else:
-        # @attribute='value'
-        key = self.value
-        value = self[0].value
-        if key is not None:
-            for elem in results:
-                if elem is not None:
-                    yield elem.get(key) == value
-        else:
-            for elem in results:
-                if elem is not None:
-                    for attr in elem.attrib.values():
-                        yield attr == value
+            follows = False
+            for sibling_context in context.copy(node=parent).iter_children():
+                if follows:
+                    for result in self[0].select(sibling_context):
+                        yield result
+                elif sibling_context.node is elem:
+                    follows = True
 
 
-@method('_@')
-@method('_attribute::')
-def select(self, _context, results):
-    """
-    Attribute selector.
-    """
-    if self[0].symbol != '=':
-        # @attribute
-        key = self.value
-        if key is None:
-            for elem in results:
-                if elem is not None:
-                    for attr in elem.attrib.values():
-                        yield attr
-        elif '{' == key[0]:
-            for elem in results:
-                if elem is not None and key in elem.attrib:
-                    yield elem.attrib[key]
-        else:
-            for elem in results:
-                if elem is None:
-                    continue
-                elif key in elem.attrib:
-                    yield elem.attrib[key]
-    else:
-        # @attribute='value'
-        key = self.value
-        value = self[0].value
-        if key is not None:
-            for elem in results:
-                if elem is not None:
-                    yield elem.get(key) == value
-        else:
-            for elem in results:
-                if elem is not None:
-                    for attr in elem.attrib.values():
-                        yield attr == value
+@method(axis('following::', bp=80))
+def select(self, context):
+    descendants = {c.node for c in context.copy().iter_descendants()}
+    follows = False
+    for elem in context.root.iter():
+        if follows:
+            if elem not in descendants:
+                for result in self[0].select(context.copy(elem)):
+                    yield result
+        elif context.node is elem:
+            follows = True
 
 
-@method('following-sibling::', bp=80)
-def select(self, context, results):
-    parent_map = context.parent_map
-    for elem in results:
-        if self.iselement(elem):
-            try:
-                parent = parent_map[elem]
-            except KeyError:
-                pass
-            else:
-                follows = False
-                for child in parent:
-                    if follows:
-                        yield child
-                    elif child is elem:
-                        follows = True
-
-
-@method('following::', bp=80)
-def select(self, context, results):
-    for elem in results:
-        ancestors = set(context.get_ancestors(elem))
-        follows = False
-        for e in context.root.iter():
-            if follows:
-                if e not in ancestors:
-                    yield e
-            elif e is elem:
-                follows = True
-
-
-@method('namespace::', bp=80)
-def select(self, context, results):
-    for elem in results:
-        if self.iselement(elem):
-            element_class = elem.__class__
-            for prefix, uri in self.parser.namespaces.items():
-                yield element_class(tag=prefix, text=uri)
+@method(axis('namespace::', bp=80))
+def select(self, context):
+    if context.is_element_node():
+        element_class = context.node.__class__
+        for prefix, uri in self.parser.namespaces.items():
+            yield element_class(tag=prefix, text=uri)
 
 
 ###
 # Reverse Axes
-@method('parent::', bp=80)
-def select(self, context, results):
-    parent_map = context.parent_map
-    parents = {}  # Check if it is needed (maybe repetitions admitted?)
-    for elem in results:
+@method(axis('parent::', bp=80))
+def select(self, context):
+    try:
+        parent = context.parent_map[context.node]
+    except KeyError:
+        pass
+    else:
+        for result in self[0].select(context.copy(node=parent)):
+            yield result
+
+
+@method(axis('ancestor::', bp=80))
+def select(self, context):
+    results = [
+        item for ancestor_context in context.copy().iter_ancestors()
+        for item in self[0].select(ancestor_context)
+    ]
+    for result in reversed(results):
+        yield result
+
+
+@method(axis('ancestor-or-self::', bp=80))
+def select(self, context):
+    for elem in reversed([c.node for c in context.copy().iter_ancestors()]):
+        yield elem
+    yield context.node
+
+
+@method(axis('preceding-sibling::', bp=80))
+def select(self, context):
+    if context.is_element_node():
+        elem = context.node
         try:
-            p = parent_map[elem]
+            parent = context.parent_map[elem]
         except KeyError:
             pass
         else:
-            if p not in parents:
-                yield p
-                parents[p] = None
+            for child in parent:
+                if child is elem:
+                    break
+                yield child
 
 
-@method('ancestor::', bp=80)
-def select(self, context, results):
-    for elem in results:
-        for e in context.get_ancestors(elem):
-            yield e
-
-
-@method('ancestor-or-self::', bp=80)
-def select(self, context, results):
-    for elem in results:
-        for e in context.get_ancestors(elem):
-            yield e
-        yield elem
-
-
-@method('preceding-sibling::', bp=80)
-def select(self, context, results):
-    parent_map = context.parent_map
-    for elem in results:
-        if self.iselement(elem):
-            try:
-                parent = parent_map[elem]
-            except KeyError:
-                pass
-            else:
-                for child in parent:
-                    if child is elem:
-                        break
-                    yield child
-
-
-@method('preceding::', bp=80)
-def select(self, context, results):
-    for elem in results:
-        ancestors = set(context.get_ancestors(elem))
+@method(axis('preceding::', bp=80))
+def select(self, context):
+    if context.is_element_node():
+        elem = context.node
+        ancestors = {c.node for c in context.copy().iter_ancestors()}
         for e in context.root.iter():
             if e is elem:
                 break
@@ -460,7 +378,7 @@ function('comment(', nargs=0, bp=90)
 
 @method(function('text(', nargs=0, bp=90))
 def select(self, context):
-    if self.iselement(context.node):
+    if context.is_element_node():
         if context.node.text is not None:
             yield context.node.text  # adding tails??
 
@@ -482,7 +400,10 @@ def eval(self, context=None):
     return context.position
 
 
-function('count(', nargs=1, bp=90)
+@method(function('count(', nargs=1, bp=90))
+def select(self, context):
+    pass
+
 function('id(', nargs=1, bp=90)
 function('local-name(', nargs=1, bp=90)
 function('namespace-uri(', nargs=1, bp=90)
@@ -612,110 +533,74 @@ def eval(self, context=None):
     return False
 
 
-@method(literal('*'))
-def select(self, context):
-    if self.iselement(context.node):
-        yield context.node
-
-
 @method(infix('*', bp=45))
 def eval(self, context=None):
     return self[0].eval(context) * self[1].eval(context)
 
 
-@method('@')
-@method('attribute::')
+@method('*', bp=45)
+def select(self, context):
+    if not self:
+        # Wildcard literal
+        if context.is_attribute_node():
+            yield context.node[1]
+        elif context.node is not None:
+            yield context.node
+    else:
+        # Product operator
+        yield self[0].eval(context)
+
+
+@method('@', bp=80)
+@method('attribute::', bp=80)
 def nud(self):
-    self[0:] = self.parser.expression(),
+    self[0:] = self.parser.expression(rbp=80),
     if self[0].symbol not in ('*', '(ref)'):
         raise ElementPathSyntaxError("invalid attribute specification for XPath.")
-    if self.parser.next_token.symbol == '=':
-        self.parser.advance('=')
-        self[0][0:] = self.parser.advance('(string)'),
     return self
 
 
 @method('@')
-@method('attribute::')
-def select(self, _context, results):
-    """
-    Attribute selector.
-    """
-    if self[0].symbol != '=':
-        # @attribute
-        key = self.value
-        if key is None:
-            for elem in results:
-                if elem is not None:
-                    for attr in elem.attrib.values():
-                        yield attr
-        elif '{' == key[0]:
-            for elem in results:
-                if elem is not None and key in elem.attrib:
-                    yield elem.attrib[key]
-        else:
-            for elem in results:
-                if elem is None:
-                    continue
-                elif key in elem.attrib:
-                    yield elem.attrib[key]
-    else:
-        # @attribute='value'
-        key = self.value
-        value = self[0].value
-        if key is not None:
-            for elem in results:
-                if elem is not None:
-                    yield elem.get(key) == value
-        else:
-            for elem in results:
-                if elem is not None:
-                    for attr in elem.attrib.values():
-                        yield attr == value
+@method(axis('attribute::'))
+def select(self, context):
+    if context.is_element_node():
+        elem = context.node
+        for context.node in elem.attrib.items():
+            for result in self[0].select(context):
+                yield result
+        context.node = elem
 
 
-# [tag='value']
-@method('unknown')
-def select(self, _context, results):
-    for elem in results:
-        if elem is not None:
-            for e in elem.findall(self.symbol):
-                if "".join(e.itertext()) == self.value:
-                    yield elem
-                    break
-
-
+###
+# Logical Operators
 @method(infix('or', bp=20))
-@method(infix('|', bp=50))
-@method(infix('union', bp=50))
-def select(self, _context, results):
-    left_results = list(self[0].select(_context, results))
-    right_results = list(self[1].select(_context, results))
-    for elem in left_results:
-        yield elem
-    for elem in right_results:
-        yield elem
+def eval(self, context=None):
+    return bool(self[0].eval(context) or self[1].eval(context))
 
 
 @method(infix('and', bp=25))
-def select(self, _context, results):
-    right_results = set(self[1].select(_context, results))
-    for elem in self[0].select(_context, results):
-        if elem in right_results:
-            yield elem
+def eval(self, context=None):
+    return bool(self[0].eval(context) and self[1].eval(context))
 
 
-# prefix('=', bp=30)
-# prefix('<', bp=30)
-# prefix('>', bp=30)
-# prefix('!=', bp=30)
-# prefix('<=', bp=30)
-# prefix('>=', bp=30)
+@method(infix('=', bp=30))
+def eval(self, context=None):
+    return self[0].eval(context) == self[1].eval(context)
 
-infix('=', bp=30)
-infix('<', bp=30)
-infix('>', bp=30)
-infix('!=', bp=30)
+
+@method(infix('!=', bp=30))
+def eval(self, context=None):
+    return self[0].eval(context) != self[1].eval(context)
+
+
+@method(infix('<', bp=30))
+def eval(self, context=None):
+    return self[0].eval(context) < self[1].eval(context)
+
+
+@method(infix('>', bp=30))
+def eval(self, context=None):
+    return self[0].eval(context) > self[1].eval(context)
 
 
 @method(infix('<=', bp=30))
@@ -723,7 +608,10 @@ def eval(self, context=None):
     return self[0].eval(context) <= self[1].eval(context)
 
 
-infix('>=', bp=30)
+@method(infix('>=', bp=30))
+def eval(self, context=None):
+    return self[0].eval(context) >= self[1].eval(context)
+
 
 prefix('+')
 @method(infix('+', bp=40))
@@ -735,7 +623,7 @@ def eval(self, context=None):
             raise ElementPathTypeError("a numeric value is required: %r." % self[0])
     else:
         try:
-            return +self[0].value()
+            return +self[0].eval(context)
         except TypeError:
             raise ElementPathTypeError("numeric values are required: %r." % self[:])
 
@@ -743,49 +631,33 @@ def eval(self, context=None):
 prefix('-')
 @method(infix('-', bp=40))
 def eval(self, context=None):
-    if len(self) > 1:
+    try:
         try:
             return self[0].eval(context) - self[1].eval(context)
         except TypeError:
-            raise ElementPathTypeError("a numeric value is required: %r." % self[0])
-    else:
-        try:
-            return -self[0].value()
-        except TypeError:
-            raise ElementPathTypeError("numeric values are required: %r." % self[:])
-
-
-@method(infix('-', bp=40))
-def eval(self, context=None):
-    try:
-        return self[0].eval(context) - self[1].eval(context)
+            self.wrong_type("values must be numeric: %r" % [tk.eval(context) for tk in self])
     except IndexError:
-        return - self[0].eval(context)
+        try:
+            return -self[0].eval(context)
+        except TypeError:
+            self.wrong_type("value must be numeric: %r" % self[0].eval(context))
 
 
-infix('div', bp=45)
+@method(infix('div', bp=45))
+def eval(self, context=None):
+    return self[0].eval(context) / self[1].eval(context)
+
+
 infix('mod', bp=45)
 
 
-@method(literal('.'))
+# @method(infix('union', bp=50))
+@method(infix('|', bp=50))
 def select(self, context):
-    yield context.node if context.node is not None else context.root
-
-
-@method(prefix('..', bp=60))
-def select(_self, _context, results):
-    """Parent selector."""
-    parent_map = _context.parent_map
-    results_parents = []
-    for elem in results:
-        try:
-            parent = parent_map[elem]
-        except KeyError:
-            pass
-        else:
-            if parent not in results_parents:
-                results_parents.append(parent)
-                yield parent
+    for elem in self[0].select(context):
+        yield elem
+    for elem in self[1].select(context):
+        yield elem
 
 
 @method('//', bp=80)
@@ -812,41 +684,55 @@ def led(self, left):
 
 @method('/')
 def select(self, context):
+    """
+    Child path expression. Selects child:: axis as default (when bind to '*' or '(ref)').
+    """
     if not self:
         yield context.root
     elif len(self) == 1:
         if self[0].symbol in ('*', '(ref)'):
-            for child in context.copy().iter_children():
-                for result in self[0].select(child):
+            for child_context in context.copy().iter_children():
+                for result in self[0].select(child_context):
                     yield result
         else:
             for result in self[0].select(context):
                 yield result
     else:
+        nodes = set()
         for elem in self[0].select(context.copy()):
-            if not self.iselement(elem):
-                raise ElementPathTypeError("left operand of %s must returns nodes: %r" % (self, elem))
+            if not is_etree_element(elem):
+                self.wrong_type("left operand must returns nodes: %r" % elem)
             if self[1].symbol in ('*', '(ref)'):
-                for child in ElementPathContext(context.root, node=elem).iter_children():
-                    for result in self[1].select(child):
-                        yield result
+                for child_context in context.copy(node=elem).iter_children():
+                    for result in self[1].select(child_context):
+                        if is_etree_element(result) or isinstance(result, tuple):
+                            if result not in nodes:
+                                yield result
+                                nodes.add(result)
+                        else:
+                            yield result
             else:
-                for result in self[1].select(ElementPathContext(context.root, node=elem)):
-                    yield result
+                for result in self[1].select(context.copy(node=elem)):
+                    if is_etree_element(result) or isinstance(result, tuple):
+                        if result not in nodes:
+                            yield result
+                            nodes.add(result)
+                    else:
+                        yield result
 
 
 @method('//')
 def select(self, context):
     if len(self) == 1:
-        for descendant in context.copy().iter_descendants():
-            for result in self[0].select(descendant.copy()):
+        for descendant_context in context.copy().iter_descendants():
+            for result in self[0].select(descendant_context):
                 yield result
     else:
         for elem in self[0].select(context):
-            if not self.iselement(elem):
-                raise ElementPathTypeError("left operand of %s must returns nodes: %r" % (self, elem))
-            for descendant in ElementPathContext(context.root, node=elem).iter_descendants():
-                for result in self[1].select(descendant):
+            if not is_etree_element(elem):
+                self.wrong_type("left operand must returns nodes: %r" % elem)
+            for descendant_context in context.copy(node=elem).iter_descendants():
+                for result in self[1].select(descendant_context):
                     yield result
 
 

@@ -24,6 +24,33 @@ class XPath2Parser(XPath1Parser):
     )
     RELATIVE_PATH_SYMBOLS = XPath1Parser.RELATIVE_PATH_SYMBOLS | {s for s in SYMBOLS if s.endswith("::")}
 
+    RESERVED_FUNCTIONS = """
+attribute
+
+comment
+
+document-node
+
+element
+
+empty-sequence
+
+if
+
+item
+
+node
+
+processing-instruction
+
+schema-attribute
+
+schema-element
+
+text
+
+typeswitch
+"""
     @property
     def version(self):
         return '2.0'

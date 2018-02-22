@@ -22,6 +22,7 @@ from .todp_parser import Token, Parser
 from .context import ElementPathContext
 from .xpath1 import XPathToken, XPath1Parser
 from .xpath2 import XPath2Parser
+from .utils import is_etree_element
 
 
 ###
