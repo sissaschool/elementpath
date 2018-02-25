@@ -16,52 +16,31 @@ __copyright__ = "Copyright 2018, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
+from abc import ABC, abstractmethod
 
-from .exceptions import ElementPathError, ElementPathSyntaxError, ElementPathValueError, ElementPathTypeError
+from .exceptions import (
+    ElementPathError, ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
+)
 from .todp_parser import Token, Parser
-from .context import ElementPathContext
-from .xpath1 import XPathToken, XPath1Parser
-from .xpath2 import XPath2Parser
-from .utils import is_etree_element
+from .xpath_base import is_etree_element, XPathToken, XPathContext
+from .xpath1_parser import XPath1Parser
+from .xpath2_parser import XPath2Parser
 
 
 ###
 # XPath selectors
 #
-def relative_path(path, levels, namespaces=None, parser=XPath2Parser):
+class Selector(object):
     """
-    Return a relative XPath expression.
+    XPath selector. For default uses XPath 2.0.
 
-    :param path: An XPath expression.
-    :param levels: Number of path levels to remove.
-    :param namespaces: Is an optional mapping from namespace prefix \
-    to full qualified name.
-    :param parser: Is an optional XPath parser class. If not given the XPath2Parser is used.
-    :return: A string with a relative XPath expression.
+    :ivar path: The path expression string.
+    :ivar namespaces:
     """
-    token_tree = parser(namespaces).parse(path)
-    path_parts = [t.value for t in token_tree.iter()]
-    i = 0
-    if path_parts[0] == '.':
-        i += 1
-    if path_parts[i] == '/':
-        i += 1
-    for value in path_parts[i:]:
-        if levels <= 0:
-            break
-        if value == '/':
-            levels -= 1
-        i += 1
-    return ''.join(path_parts[i:])
-
-
-class ElementPathSelector(object):
-    """
-
-    """
-    def __init__(self, path, namespaces=None, parser=XPath2Parser):
+    def __init__(self, path, namespaces=None, schema=None, parser=XPath2Parser):
         self.path = path
         self.parser = parser(namespaces)
+        self.schema = schema
         self.root_token = self.parser.parse(path)
 
     def __repr__(self):
@@ -73,16 +52,16 @@ class ElementPathSelector(object):
     def namespaces(self):
         return self.parser.namespaces
 
-    def select(self, elem):
-        context = ElementPathContext(elem)
-        return [result for result in self.root_token.select(context)]
+    def findall(self, elem):
+        context = XPathContext(elem)
+        return list(self.root_token.select(context))
 
 
-def iterfind(elem, path, namespaces=None):
-    parser = XPath1Parser(namespaces)
+def select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
+    parser = parser(namespaces, schema)
     root_token = parser.parse(path)
-    context = ElementPathContext(elem)
-    return root_token.select(context, [elem])
+    context = XPathContext(elem)
+    return root_token.select(context)
 
 
 class ElementPathMixin(object):
@@ -106,7 +85,7 @@ class ElementPathMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching declarations in the XSD/XML order.
         """
-        return element_path_iterfind(self, path, namespaces or self.xpath_namespaces)
+        return select(self, path, namespaces or self.xpath_namespaces)
 
     def find(self, path, namespaces=None):
         """
@@ -117,7 +96,7 @@ class ElementPathMixin(object):
         :param namespaces: an optional mapping from namespace prefix to full name.
         :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
         """
-        return next(element_path_iterfind(self, path, namespaces or self.xpath_namespaces), None)
+        return next(select(self, path, namespaces or self.xpath_namespaces), None)
 
     def findall(self, path, namespaces=None):
         """
@@ -129,7 +108,7 @@ class ElementPathMixin(object):
         :return: a list containing all matching XSD/XML elements or attributes. An empty list \
         is returned if there is no match.
         """
-        return list(element_path_iterfind(self, path, namespaces or self.xpath_namespaces))
+        return list(select(self, path, namespaces or self.xpath_namespaces))
 
     @property
     def xpath_namespaces(self):
@@ -144,3 +123,42 @@ class ElementPathMixin(object):
 
     def iterchildren(self, name=None):
         raise NotImplementedError
+
+
+class AbstractSchemaProxy(ABC):
+    """
+    Proxy abstract class for binding a schema infoset to XPath selectors.
+    """
+    def __init__(self, schema):
+        super(AbstractSchemaProxy, self).__init__()
+        self._schema = schema
+
+    @property
+    @abstractmethod
+    def root(self):
+        pass
+
+    @property
+    @abstractmethod
+    def xpath_namespaces(self):
+        pass
+
+    @property
+    @abstractmethod
+    def attributes(self):
+        pass
+
+    @property
+    @abstractmethod
+    def elements(self):
+        pass
+
+    @property
+    @abstractmethod
+    def types(self):
+        pass
+
+    @property
+    @abstractmethod
+    def substitution_groups(self):
+        pass

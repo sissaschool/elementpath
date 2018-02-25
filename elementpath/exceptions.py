@@ -17,9 +17,17 @@ class ElementPathSyntaxError(ElementPathError, SyntaxError):
     pass
 
 
+class ElementPathNameError(ElementPathError, NameError):
+    pass
+
+
 class ElementPathValueError(ElementPathError, ValueError):
     pass
 
 
 class ElementPathTypeError(ElementPathError, TypeError):
+    pass
+
+
+class ElementPathKeyError(ElementPathError, KeyError):
     pass

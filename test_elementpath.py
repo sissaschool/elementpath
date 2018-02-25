@@ -26,11 +26,17 @@ class ElementPathTest(unittest.TestCase):
         self.assertEqual(self.parser.parse(path).tree, expected)
 
     def check_value(self, path, expected, context=None):
-        self.assertEqual(self.parser.parse(path).eval(context), expected)
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, self.parser.parse(path).eval, context)
+        else:
+            self.assertEqual(self.parser.parse(path).eval(context), expected)
 
-    def check_select(self, path, root, expected, namespaces=None):
-        selector = ElementPathSelector(path, namespaces, parser=self.parser.__class__)
-        self.assertEqual(list(selector.select(root)), expected)
+    def check_select(self, path, root, expected, namespaces=None, schema=None):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, select, root, path, namespaces, schema, self.parser.__class__)
+        else:
+            selector = select(root, path, namespaces, schema, self.parser.__class__)
+            self.assertEqual(list(selector), expected)
 
     def wrong_syntax(self, path):
         self.assertRaises(ElementPathSyntaxError, self.parser.parse, path)
@@ -47,6 +53,7 @@ class XPath1ParserTest(ElementPathTest):
     @classmethod
     def setUpClass(cls):
         cls.parser = XPath1Parser()
+        cls.etree = ElementTree
 
     def test_xpath_tokenizer(self):
         def check_tokens(path, expected):
@@ -63,8 +70,7 @@ class XPath1ParserTest(ElementPathTest):
         check_tokens("para[last()]", ['para', '[', 'last(', ')', ']'])
         check_tokens("*/para", ['*', '/', 'para'])
         check_tokens("/doc/chapter[5]/section[2]",
-              ['/', 'doc', '/', 'chapter', '[', '5', ']',
-               '/', 'section', '[', '2', ']'])
+                     ['/', 'doc', '/', 'chapter', '[', '5', ']', '/', 'section', '[', '2', ']'])
         check_tokens("chapter//para", ['chapter', '//', 'para'])
         check_tokens("//para", ['//', 'para'])
         check_tokens("//olist/item", ['//', 'olist', '/', 'item'])
@@ -73,8 +79,8 @@ class XPath1ParserTest(ElementPathTest):
         check_tokens("..", ['..'])
         check_tokens("../@lang", ['..', '/', '@', 'lang'])
         check_tokens("chapter[title]", ['chapter', '[', 'title', ']'])
-        check_tokens("employee[@secretary and @assistant]", ['employee',
-              '[', '@', 'secretary', '', 'and', '', '@', 'assistant', ']'])
+        check_tokens("employee[@secretary and @assistant]",
+                     ['employee', '[', '@', 'secretary', '', 'and', '', '@', 'assistant', ']'])
 
         # additional tests from Python XML etree test cases
         check_tokens("{http://spam}egg", ['{http://spam}egg'])
@@ -164,7 +170,7 @@ class XPath1ParserTest(ElementPathTest):
         self.check_value("1 and 1", True)
         self.check_value("1 and 'jupiter'", True)
         self.check_value("0 and 'mars'", False)
-        self.check_value("1 and mars", False)
+        #self.check_value("1 and mars", False)
 
     def test_numerical_expressions(self):
         self.check_value("9 - 1 + 6", 14)
@@ -174,17 +180,10 @@ class XPath1ParserTest(ElementPathTest):
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
 
-
-class XPath1SelectorTest(ElementPathTest):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath1Parser()
-        cls.etree = ElementTree
-
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_value("1 and mars", True, ElementPathContext(root, variables={'mars': True}))
+        self.check_value("$alpha", ElementPathNameError)
+        self.check_value("$alpha", 10, XPathContext(root, variables={'alpha': 10}))
 
     def test_child_operator(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -288,16 +287,31 @@ class XPath1SelectorTest(ElementPathTest):
         ])
 
 
-class LxmlXPath1ParserTest(XPath1SelectorTest):
+class LxmlXPath1ParserTest(XPath1ParserTest):
 
     @classmethod
     def setUpClass(cls):
         cls.parser = XPath1Parser()
         cls.etree = lxml.etree
 
-    def check_select(self, path, root, expected, namespaces=None):
-        selector = ElementPathSelector(path, namespaces, parser=self.parser.__class__)
-        self.assertEqual(list(selector.select(root)), expected)
+
+class XPath2ParserTest(XPath1ParserTest):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath2Parser()
+
+    def test_token_tree2(self):
+        self.check_tree('(1 + 6, 2, 10 - 4)', '(, (, (+ (1) (6)) (2)) (- (10) (4)))')
+
+    def test_wrong_syntax2(self):
+        self.wrong_syntax("count(0, 1, 2)")
+
+    def test_aggregate_functions(self):
+        self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
+
+    def test_if_expression(self):
+        self.check_value("if (1) then 2 else 3", 2)
 
 
 if __name__ == '__main__':

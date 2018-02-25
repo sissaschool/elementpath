@@ -15,7 +15,9 @@ import re
 from decimal import Decimal
 from abc import ABCMeta
 from collections import MutableSequence
-from .exceptions import ElementPathSyntaxError, ElementPathValueError, ElementPathTypeError
+from .exceptions import (
+    ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError, ElementPathKeyError
+)
 
 
 def create_tokenizer(symbols):
@@ -29,7 +31,7 @@ def create_tokenizer(symbols):
     tokenizer_pattern_template = r"""
         ('[^']*' | "[^"]*" | \d+(?:\.\d?)? | \.\d+) |   # Literals (strings or numbers)
         (%s|[%s]) |                                     # Symbols
-        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |               # References and other names   
+        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |               # Names
         \s+                                             # Skip extra spaces
     """
 
@@ -41,6 +43,8 @@ def create_tokenizer(symbols):
             s = '%s\s*%s' % (s[:-4], s[-4:])
         else:
             s.replace(r'\ ', '\s+')
+            if s.isalpha():
+                s = r'\b%s\b' % s
         return s
 
     symbols = sorted([s2 for s2 in (s1.strip() for s1 in symbols) if s2], key=lambda x: -len(x))
@@ -96,12 +100,8 @@ class Token(MutableSequence):
 
     def __str__(self):
         symbol = self.symbol
-        if len(symbol) <= 3:
-            return '%r operator' % symbol
-        elif symbol.endswith('('):
-            return '%s(%s)' % (symbol[:-1], ', '.join(repr(t.value) for t in self))
-        elif self.symbol.startswith('(') and self.symbol.endswith(')'):
-            return '%r %s' % (self.value, self.symbol[1:-1])
+        if symbol[1:-1].isalpha() and symbol.startswith('(') and symbol.endswith(')'):
+            return '%r %s' % (self.value, symbol[1:-1])
         else:
             return '%r operator' % symbol
 
@@ -155,7 +155,7 @@ class Token(MutableSequence):
             self.wrong_symbol()
 
     def wrong_symbol(self):
-        if self.symbol in {'(end)', '(ref)', '(string)', '(decimal)', '(integer)'}:
+        if self.symbol in {'(end)', '(name)', '(string)', '(decimal)', '(integer)'}:
             value = self.value
         else:
             value = self.symbol
@@ -172,6 +172,9 @@ class Token(MutableSequence):
 
     def wrong_syntax(self, message):
         raise ElementPathSyntaxError("%s: %s." % (self, message or 'unknown error'))
+
+    def wrong_name(self, message):
+        raise ElementPathNameError("%s: %s." % (self, message or 'unknown error'))
 
     def wrong_value(self, message):
         raise ElementPathValueError("%s: %s." % (self, message or 'unknown error'))
@@ -227,7 +230,7 @@ class Parser(object):
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, operator, ref = self.next_match.groups()
+                literal, operator, name = self.next_match.groups()
                 if operator is not None:
                     try:
                         self.next_token = self.symbol_table[operator.replace(' ', '')](self)
@@ -242,8 +245,8 @@ class Parser(object):
                     else:
                         self.next_token = self.symbol_table['(integer)'](self, int(literal))
                     break
-                elif ref is not None:
-                    self.next_token = self.symbol_table['(ref)'](self, ref)
+                elif name is not None:
+                    self.next_token = self.symbol_table['(name)'](self, name)
                     break
                 elif str(self.next_match.group()).strip():
                     raise ElementPathSyntaxError("unexpected token: %r" % self.next_match)
@@ -271,13 +274,13 @@ class Parser(object):
     @property
     def position(self):
         if self.match is None:
-            return (1, 0)
+            return 1, 0
         token_index = self.match.span()[0]
         line = self.source[:token_index].count('\n') + 1
         if line == 1:
-            return (line, token_index + 1)
+            return line, token_index + 1
         else:
-            return (line, token_index - self.source[:token_index].rindex('\n'))
+            return line, token_index - self.source[:token_index].rindex('\n')
 
     @property
     def source_first(self):
@@ -316,7 +319,7 @@ class Parser(object):
         cls.register('(end)')
         cls.tokenizer = create_tokenizer(
             s for s in cls.symbol_table
-            if s.strip() not in {'(end)', '(ref)', '(string)', '(decimal)', '(integer)'}
+            if s.strip() not in {'(end)', '(name)', '(string)', '(decimal)', '(integer)'}
         )
 
     @classmethod
@@ -349,6 +352,8 @@ class Parser(object):
             token_class = ABCMeta(name, (cls.token_base_class,), kwargs)
             cls.symbol_table[symbol] = token_class
             cls.tokenizer = None
+
+            # noinspection PyCallByClass
             ABCMeta.register(MutableSequence, token_class)
         else:
             for key, value in kwargs.items():
@@ -358,6 +363,14 @@ class Parser(object):
                     setattr(token_class, key, value)
 
         return token_class
+
+    @classmethod
+    def alias(cls, symbol, other):
+        symbol = symbol.strip()
+        try:
+            cls.symbol_table[symbol] = cls.symbol_table[other]
+        except KeyError:
+            raise ElementPathKeyError("%r is not a registered symbol for %r." % (other, cls))
 
     @classmethod
     def unregistered(cls):

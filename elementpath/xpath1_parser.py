@@ -9,33 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
-from .todp_parser import Token, Parser
-from .utils import is_etree_element
-
-
-class XPathToken(Token):
-
-    def eval(self, context=None):
-        """
-        Evaluate from the context.
-
-        :param context: The XPath evaluation context.
-        """
-        return self.value
-
-    def select(self, context):
-        """
-        Select operator that generates results
-
-        :param context: The XPath evaluation context.
-        """
-        yield self.eval(context)
-
-    def __str__(self):
-        if self.symbol.endswith('::') and len(self.symbol) > 3:
-            return '%s axis' % self.symbol[:-2]
-        else:
-            return super(XPathToken, self).__str__()
+from .todp_parser import Parser
+from .xpath_base import is_etree_element, XPathToken
 
 
 class XPath1Parser(Parser):
@@ -52,7 +27,7 @@ class XPath1Parser(Parser):
         'following::', 'namespace::', 'preceding::', 'ancestor::', 'comment(', 'parent::',
         'child::', 'self::', 'text(', 'node(', 'and', 'mod', 'div', 'or',
         '..', '//', '!=', '<=', '>=', '(', ')', '[', ']', '.', '@', ',', '/', '|', '*',
-        '-', '=', '+', '<', '>', '(:', ':)',
+        '-', '=', '+', '<', '>', '(:', ':)', '$',
 
         # XPath Core function library
         'last(', 'position(', 'count(', 'id(', 'local-name(',   # Node set functions
@@ -63,12 +38,13 @@ class XPath1Parser(Parser):
         'boolean(', 'not(', 'true(', 'false('                   # Boolean functions
     )
     RELATIVE_PATH_SYMBOLS = {s for s in SYMBOLS if s.endswith("::")} | {
-        '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
+        '(integer)', '(string)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
     }
 
-    def __init__(self, namespaces=None):
+    def __init__(self, namespaces=None, schema=None):
         super(XPath1Parser, self).__init__()
         self.namespaces = namespaces if namespaces is not None else {}
+        self.schema = schema
 
     @property
     def version(self):
@@ -78,7 +54,7 @@ class XPath1Parser(Parser):
     def axis(cls, symbol, bp=0):
         def nud(self):
             self.parser.next_token.expected(
-                '(ref)', '*', 'text(', 'node(', 'document-node(', 'comment(', 'processing-instruction(',
+                '(name)', '*', 'text(', 'node(', 'document-node(', 'comment(', 'processing-instruction(',
                 'attribute', 'schema-attribute', 'element', 'schema-element'
             )
             self[0:] = self.parser.expression(rbp=bp),
@@ -136,7 +112,7 @@ class XPath1Parser(Parser):
             return ref
 
         try:
-            ns_prefix, name = ref.split(':')
+            ns_prefix, local_name = ref.split(':')
         except ValueError:
             if ':' in ref:
                 raise ElementPathValueError("wrong format for reference name %r" % ref)
@@ -147,14 +123,14 @@ class XPath1Parser(Parser):
             else:
                 return u'{%s}%s' % (uri, ref) if uri else ref
         else:
-            if not ns_prefix or not name:
+            if not ns_prefix or not local_name:
                 raise ElementPathValueError("wrong format for reference name %r" % ref)
             try:
                 uri = self.namespaces[ns_prefix]
             except KeyError:
                 raise ElementPathValueError("prefix %r not found in namespace map" % ns_prefix)
             else:
-                return u'{%s}%s' % (uri, name) if uri else name
+                return u'{%s}%s' % (uri, local_name) if uri else local_name
 
 
 ##
@@ -204,20 +180,14 @@ literal('(decimal)')
 literal('(integer)')
 
 
-@method(literal('(ref)'))
+@method(literal('(name)'))
 def nud(self):
     if self.value[0] != '{' and ':' in self.value:
         self.value = self.parser.map_reference(self.value)
     return self
 
 
-@method('(ref)')
-def eval(self, context=None):
-    if context is not None:
-        return context.variables.get(self.value)
-
-
-@method('(ref)')
+@method('(name)')
 def select(self, context):
     if context.is_element_node() and context.node.tag == self.value:
         yield context.node
@@ -242,6 +212,25 @@ def select(self, context):
 
 
 literal('*')
+
+
+###
+# Variables
+@method('$', bp=90)
+def nud(self):
+    self.parser.next_token.expected('(name)')
+    self[0:] = self.parser.expression(rbp=90),
+    return self
+
+
+@method('$')
+def eval(self, context=None):
+    varname = self[0].eval(context)
+    try:
+        return context.variables[varname]
+    except (KeyError, AttributeError):
+        pass
+    self.wrong_name('unknown variable')
 
 
 ###
@@ -401,8 +390,9 @@ def eval(self, context=None):
 
 
 @method(function('count(', nargs=1, bp=90))
-def select(self, context):
-    pass
+def eval(self, context=None):
+    return len(list(filter(self.node_filter, self[0].select(context))))
+
 
 function('id(', nargs=1, bp=90)
 function('local-name(', nargs=1, bp=90)
@@ -515,12 +505,12 @@ def eval(self, context=None):
 # Boolean functions
 @method(function('boolean(', nargs=1, bp=90))
 def eval(self, context=None):
-    return bool(self[0].eval(context))
+    return self.boolean(self[0].eval(context))
 
 
 @method(function('not(', nargs=1, bp=90))
 def eval(self, context=None):
-    return not bool(self[0].eval(context))
+    return not self.boolean(self[0].eval(context))
 
 
 @method(function('true(', nargs=0, bp=90))
@@ -555,7 +545,7 @@ def select(self, context):
 @method('attribute::', bp=80)
 def nud(self):
     self[0:] = self.parser.expression(rbp=80),
-    if self[0].symbol not in ('*', '(ref)'):
+    if self[0].symbol not in ('*', '(name)'):
         raise ElementPathSyntaxError("invalid attribute specification for XPath.")
     return self
 
@@ -651,13 +641,12 @@ def eval(self, context=None):
 infix('mod', bp=45)
 
 
-# @method(infix('union', bp=50))
 @method(infix('|', bp=50))
 def select(self, context):
-    for elem in self[0].select(context):
-        yield elem
-    for elem in self[1].select(context):
-        yield elem
+    results = {self.filter_node(elem) for k in range(2) for elem in self[k].select(context)}
+    for elem in self.root.iter():
+        if elem in results:
+            yield elem
 
 
 @method('//', bp=80)
@@ -685,12 +674,12 @@ def led(self, left):
 @method('/')
 def select(self, context):
     """
-    Child path expression. Selects child:: axis as default (when bind to '*' or '(ref)').
+    Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
     if not self:
         yield context.root
     elif len(self) == 1:
-        if self[0].symbol in ('*', '(ref)'):
+        if self[0].symbol in ('*', '(name)'):
             for child_context in context.copy().iter_children():
                 for result in self[0].select(child_context):
                     yield result
@@ -702,7 +691,7 @@ def select(self, context):
         for elem in self[0].select(context.copy()):
             if not is_etree_element(elem):
                 self.wrong_type("left operand must returns nodes: %r" % elem)
-            if self[1].symbol in ('*', '(ref)'):
+            if self[1].symbol in ('*', '(name)'):
                 for child_context in context.copy(node=elem).iter_children():
                     for result in self[1].select(child_context):
                         if is_etree_element(result) or isinstance(result, tuple):
