@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from .xpath_base import is_document_node, is_attribute_node
 from .xpath1_parser import XPath1Parser
 
 
@@ -24,36 +25,16 @@ class XPath2Parser(XPath1Parser):
 
         # Mathematical operators
         'idiv',
+
+        # XPath 2.0 added functions
+        'document-node(',                                   # Node test functions
     )
     RELATIVE_PATH_SYMBOLS = XPath1Parser.RELATIVE_PATH_SYMBOLS | {s for s in SYMBOLS if s.endswith("::")}
 
-    RESERVED_FUNCTIONS = """
-attribute
-
-comment
-
-document-node
-
-element
-
-empty-sequence
-
-if
-
-item
-
-node
-
-processing-instruction
-
-schema-attribute
-
-schema-element
-
-text
-
-typeswitch
-"""
+    RESERVED_FUNCTIONS = {
+        'attribute(', 'comment(', 'document-node(', 'element(', 'empty-sequence(', 'if', 'item', 'node(',
+        'processing-instruction(', 'schema-attribute(', 'schema-element(', 'text(', 'typeswitch'
+    }
 
     @property
     def version(self):
@@ -193,6 +174,19 @@ def nud(self):
 @method(infix('idiv', bp=45))
 def evaluate(self, context=None):
     return self[0].evaluate(context) // self[1].evaluate(context)
+
+
+###
+# Node types
+@method(function('document-node(', nargs=(0, 1), bp=90))
+def select(self, context):
+    if context.item is None and is_document_node(context.root):
+        if not self:
+            yield context.root
+        else:
+            for elem in self[0].select(context):
+                context.item = elem
+                yield elem
 
 
 XPath2Parser.end()

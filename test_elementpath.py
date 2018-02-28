@@ -208,20 +208,20 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax("$id()")
 
     def test_child_operator(self):
-        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_select('/', root, [root])  # Should be the XML "document"
+        root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        self.check_select('/', root, [root])  # root element is the child of the document
         self.check_select('/B1', root, [])
         self.check_select('/A1', root, [])
         self.check_select('/A', root, [root])
         self.check_select('/A/B1', root, [root[0]])
         self.check_select('/A/*', root, [root[0], root[1], root[2]])
         self.check_select('/*/*', root, [root[0], root[1], root[2]])
-        self.check_select('/A/B1/C', root, [root[0][0]])
+        self.check_select('/A/B1/C1', root, [root[0][0]])
         self.check_select('/A/B1/*', root, [root[0][0]])
         self.check_select('/A/B3/*', root, [root[2][0], root[2][1]])
-        self.check_select('child::*/child::B1', root, [root[0]])
+        self.check_select('child::*/child::C1', root, [root[0][0], root[2][0]])
         self.check_select('/A/child::B3', root, [root[2]])
-        self.check_select('/A/child::C', root, [])
+        self.check_select('/A/child::C1', root, [])
 
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -239,26 +239,26 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_child_axis(self):
         root = self.etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
-        self.check_select('child::B1', root, [])
-        self.check_select('child::A', root, [root])
+        self.check_select('child::B1', root, [root[0]])
+        self.check_select('child::A', root, [])
         self.check_select('child::text()', root, ['A text'])
-        self.check_select('child::node()', root, [root])
-        self.check_select('child::*', root, [root])
+        self.check_select('child::node()', root, ['A text'] + root[:])
+        self.check_select('child::*', root, root[:])
 
     def test_descendant_axis(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_select('descendant::node()', root, [e for e in root.iter()])
-        self.check_select('descendant::node()', root, [e for e in root.iter()])
+        self.check_select('descendant::node()', root, [e for e in root.iter()][1:])
+        self.check_select('/descendant::node()', root, [e for e in root.iter()])
 
     def test_descendant_or_self_axis(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C/><C1/></B3></A>')
-        self.check_select('//.', root, [root] + [e for e in root.iter()])
+        self.check_select('//.', root, [e for e in root.iter()])
         self.check_select('/A//.', root, [e for e in root.iter()])
         self.check_select('//C1', root, [root[2][1]])
         self.check_select('//B2', root, [root[1]])
         self.check_select('//C', root, [root[0][0], root[2][0]])
         self.check_select('//*', root, [e for e in root.iter()])
-        self.check_select('descendant-or-self::node()', root, [root] + [e for e in root.iter()])
+        self.check_select('descendant-or-self::node()', root, [e for e in root.iter()])
         self.check_select('descendant-or-self::node()/.', root, [e for e in root.iter()])
 
     def test_parent_axis_and_abbreviation(self):

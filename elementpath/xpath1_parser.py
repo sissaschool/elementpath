@@ -12,8 +12,10 @@ from __future__ import division
 
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
-from .xpath_base import is_xpath_node, is_etree_element, XPathToken, is_element_node, is_attribute_node
-
+from .xpath_base import (
+    XPathToken, is_etree_element, is_xpath_node, is_element_node, is_comment_node,
+    is_processing_instruction_node, is_attribute_node, is_text_node
+)
 
 class XPath1Parser(Parser):
     """
@@ -24,20 +26,23 @@ class XPath1Parser(Parser):
     token_base_class = XPathToken
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
     SYMBOLS = (
-        'processing-instruction(', 'descendant-or-self::', 'following-sibling::',
-        'preceding-sibling::', 'ancestor-or-self::', 'descendant::', 'attribute::',
-        'following::', 'namespace::', 'preceding::', 'ancestor::', 'comment(', 'parent::',
-        'child::', 'self::', 'text(', 'node(', 'and', 'mod', 'div', 'or',
-        '..', '//', '!=', '<=', '>=', '(', ')', '[', ']', '.', '@', ',', '/', '|', '*',
-        '-', '=', '+', '<', '>', '(:', ':)', '$',
+        # Axes
+        'descendant-or-self::', 'following-sibling::', 'preceding-sibling::',
+        'ancestor-or-self::', 'descendant::', 'attribute::', 'following::',
+        'namespace::', 'preceding::', 'ancestor::', 'parent::', 'child::', 'self::',
+
+        # Operators
+        'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[', ']',
+        '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '(:', ':)', '$',
 
         # XPath Core function library
-        'last(', 'position(', 'count(', 'id(', 'local-name(',   # Node set functions
+        'node(', 'text(', 'comment(', 'processing-instruction(', # Node test functions
+        'last(', 'position(', 'count(', 'id(', 'local-name(',    # Node set functions
         'namespace-uri(', 'name(',
-        'string(', 'concat(', 'starts-with(', 'contains(',      # String functions
+        'string(', 'concat(', 'starts-with(', 'contains(',       # String functions
         'substring-before(', 'substring-after(', 'substring(',
         'string-length(', 'normalize-space(', 'translate(',
-        'boolean(', 'not(', 'true(', 'false('                   # Boolean functions
+        'boolean(', 'not(', 'true(', 'false('                    # Boolean functions
     )
     RELATIVE_PATH_SYMBOLS = {s for s in SYMBOLS if s.endswith("::")} | {
         '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
@@ -57,7 +62,7 @@ class XPath1Parser(Parser):
         def nud_(self):
             self.parser.next_token.expected(
                 '(name)', '*', 'text(', 'node(', 'document-node(', 'comment(', 'processing-instruction(',
-                'attribute', 'schema-attribute', 'element', 'schema-element'
+                'attribute(', 'schema-attribute(', 'element(', 'schema-element('
             )
             self[0:] = self.parser.expression(rbp=bp),
             return self
@@ -226,7 +231,7 @@ def select(self, context):
     except KeyError:
         pass
     else:
-        if is_etree_element(parent):
+        if is_element_node(parent):
             context.item = parent
             yield parent
 
@@ -387,20 +392,31 @@ def select(self, context):
 
 ###
 # Node types
-function('processing-instruction(', nargs=0, bp=90)
-function('comment(', nargs=0, bp=90)
+@method(function('node(', nargs=0, bp=90))
+def select(self, context):
+    item = context.item
+    if item is None:
+        yield context.root
+    elif is_xpath_node(item):
+        yield item
+
+
+@method(function('processing-instruction(', nargs=(0, 1), bp=90))
+def select(self, context):
+    if is_processing_instruction_node(context.item):
+        yield context.item
+
+
+@method(function('comment(', nargs=0, bp=90))
+def select(self, context):
+    if is_comment_node(context.item):
+        yield context.item
 
 
 @method(function('text(', nargs=0, bp=90))
 def select(self, context):
-    if is_element_node(context.item):
-        if context.item.text is not None:
-            yield context.item.text  # adding tails??
-
-
-@method(function('node(', nargs=0, bp=90))
-def select(self, context):
-    yield context.item if context.item is not None else context.root
+    if is_text_node(context.item):
+        yield context.item
 
 
 ###
@@ -436,8 +452,6 @@ function('id(', nargs=1, bp=90)
 
 @method(function('name(', nargs=(0, 1), bp=90))
 def evaluate(self, context=None):
-    import pdb
-    pdb.set_trace()
     try:
         return self.name(self[0].evaluate(context))
     except IndexError:
@@ -752,13 +766,14 @@ def select(self, context):
     if not self:
         yield context.root
     elif len(self) == 1:
+        context.item = None
         for result in self[0].select(context):
             yield result
     else:
         items = set()
         for elem in self[0].select(context):
-            if not is_etree_element(elem):
-                self.wrong_type("left operand must returns Element items: %r" % elem)
+            if not is_element_node(elem):
+                self.wrong_type("left operand must returns element nodes: %r" % elem)
             for result in self[1].select(context.copy(item=elem)):
                 if is_etree_element(result) or isinstance(result, tuple):
                     if result not in items:
@@ -776,8 +791,8 @@ def select(self, context):
                 yield result
     else:
         for elem in self[0].select(context):
-            if not is_etree_element(elem):
-                self.wrong_type("left operand must returns Element items: %r" % elem)
+            if not is_element_node(elem):
+                self.wrong_type("left operand must returns element nodes: %r" % elem)
             for _ in context.iter_descendants(item=elem):
                 for result in self[1].select(context):
                     yield result

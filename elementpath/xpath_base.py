@@ -8,42 +8,70 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .todp_parser import Token
 
 
 ###
-# Node test helper functions
-def is_etree_element(element):
-    return hasattr(element, 'tag') and hasattr(element, 'attrib') and hasattr(element, 'text')
+# XPath node types test functions
+#
+# In XPath there are 7 kinds of nodes:
+#
+#    element, attribute, text, namespace, processing-instruction, comment, document
+#
+# Element-like objects are used for representing elements and comments, ElementTree-like objects
+# for documents. Generic tuples are used for representing attributes and named-tuples
+# for namespaces.
+#
+def is_etree_element(obj):
+    return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
+
+
+def is_element_node(obj, tag=None):
+    if tag is None:
+        return is_etree_element(obj) and not callable(obj.tag)
+    else:
+        return is_etree_element(obj) and obj.tag == tag
+
+
+def is_comment_node(obj):
+    return is_etree_element(obj) and callable(obj.tag) and not hasattr(obj, 'target')
+
+
+def is_processing_instruction_node(obj):
+    return is_etree_element(obj) and callable(obj.tag) and hasattr(obj, 'target')
+
+
+def is_document_node(obj):
+    return all(hasattr(obj, name) for name in ('getroot', 'iter', 'iterfind', 'parse'))
+
+
+def is_attribute_node(obj, name=None):
+    if name is None:
+        return isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace'
+    elif isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace':
+        return name == obj[0]
+
+
+def is_namespace_node(obj):
+    return isinstance(obj, tuple) and getattr(obj, '__name__', '') == 'Namespace'
+
+
+if sys.version_info[0] < 3:
+    def is_text_node(obj):
+        return isinstance(obj, (str, unicode))
+else:
+    def is_text_node(obj):
+        return isinstance(obj, str)
 
 
 def is_xpath_node(obj):
-    return obj is None or isinstance(obj, tuple) or is_etree_element(obj)
+    return isinstance(obj, tuple) or is_etree_element(obj) or is_document_node(obj) or is_text_node(obj)
 
 
-def is_element_node(item, tag=None):
-    if tag is None:
-        return is_etree_element(item)
-    else:
-        return is_etree_element(item) and item.tag == tag
-
-
-def is_document_node(item):
-    return all(hasattr(item, name) for name in ('getroot', 'iter', 'iterfind', 'parse'))
-
-
-def is_attribute_node(item, name=None):
-    if name is None:
-        return isinstance(item, tuple) and getattr(item, '__name__', '') != 'Namespace'
-    elif isinstance(item, tuple) and getattr(item, '__name__', '') != 'Namespace':
-        return name == item[0]
-
-
-def is_namespace_node(item):
-    return isinstance(item, tuple) and getattr(item, '__name__', '') == 'Namespace'
-
-
+###
+# XPathToken
 class XPathToken(Token):
 
     def evaluate(self, context=None):
@@ -76,12 +104,6 @@ class XPathToken(Token):
         return super(XPathToken, self).__str__()
 
     # Helper methods
-    def node(self, value):
-        """Node test. If value is a node returns it, else raises a type error."""
-        if not is_xpath_node(value):
-            self.wrong_type("an XPath node required")
-        return value
-
     def boolean(self, value):
         """The effective boolean value, computed by fn:boolean()."""
         if isinstance(value, list):
@@ -93,7 +115,7 @@ class XPathToken(Token):
                 self.wrong_type("not a test expression")
             else:
                 return bool(value[0])
-        elif is_xpath_node(value):
+        elif isinstance(value, tuple) or is_etree_element(value):
             self.wrong_type("not a test expression")
         else:
             return bool(value)
@@ -127,10 +149,16 @@ class XPathContext(object):
     :ivar variables: Dictionary of context variables that maps a QName to a value.
     """
     def __init__(self, root, item=None, position=0, size=1, variables=None):
-        if not is_etree_element(root) and not is_document_node(root):
+        if not is_element_node(root) and not is_document_node(root):
             raise ElementPathTypeError("argument 'root' must be an Element: %r" % root)
         self.root = root
-        self.item = item
+        if item is not None:
+            self.item = item
+        elif is_element_node(root):
+            self.item = root
+        else:
+            self.item = root.getroot()
+
         self.position = position
         self.size = size
         self.variables = {} if variables is None else variables
@@ -209,8 +237,8 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            yield self.item
-            self.item = self.root
+            yield self.root
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
         elif not is_etree_element(self.item):
             return
 
@@ -227,9 +255,10 @@ class XPathContext(object):
             self.item = item
 
         if self.item is None:
-            self.size, self.position, self.item = 1, 0, self.root
+            self.size, self.position = 1, 0
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
             yield self.item
-        elif is_etree_element(self.item):
+        elif is_element_node(self.item):
             elem = self.item
             if elem.text is not None:
                 self.item = elem.text
