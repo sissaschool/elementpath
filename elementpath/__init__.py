@@ -16,7 +16,6 @@ __copyright__ = "Copyright 2018, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
-from abc import ABC, abstractmethod
 
 from .exceptions import (
     ElementPathError, ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
@@ -123,42 +122,3 @@ class ElementPathMixin(object):
 
     def iterchildren(self, name=None):
         raise NotImplementedError
-
-
-class AbstractSchemaProxy(ABC):
-    """
-    Proxy abstract class for binding a schema infoset to XPath selectors.
-    """
-    def __init__(self, schema):
-        super(AbstractSchemaProxy, self).__init__()
-        self._schema = schema
-
-    @property
-    @abstractmethod
-    def root(self):
-        pass
-
-    @property
-    @abstractmethod
-    def xpath_namespaces(self):
-        pass
-
-    @property
-    @abstractmethod
-    def attributes(self):
-        pass
-
-    @property
-    @abstractmethod
-    def elements(self):
-        pass
-
-    @property
-    @abstractmethod
-    def types(self):
-        pass
-
-    @property
-    @abstractmethod
-    def substitution_groups(self):
-        pass

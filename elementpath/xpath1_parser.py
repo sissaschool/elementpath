@@ -8,9 +8,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from __future__ import division
+
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
-from .xpath_base import is_etree_element, XPathToken
+from .xpath_base import is_xpath_node, is_etree_element, XPathToken, is_element_node, is_attribute_node
 
 
 class XPath1Parser(Parser):
@@ -38,7 +40,7 @@ class XPath1Parser(Parser):
         'boolean(', 'not(', 'true(', 'false('                   # Boolean functions
     )
     RELATIVE_PATH_SYMBOLS = {s for s in SYMBOLS if s.endswith("::")} | {
-        '(integer)', '(string)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
+        '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
     }
 
     def __init__(self, namespaces=None, schema=None):
@@ -52,18 +54,18 @@ class XPath1Parser(Parser):
 
     @classmethod
     def axis(cls, symbol, bp=0):
-        def nud(self):
+        def nud_(self):
             self.parser.next_token.expected(
                 '(name)', '*', 'text(', 'node(', 'document-node(', 'comment(', 'processing-instruction(',
                 'attribute', 'schema-attribute', 'element', 'schema-element'
             )
             self[0:] = self.parser.expression(rbp=bp),
             return self
-        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud)
+        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud_)
 
     @classmethod
     def function(cls, symbol, nargs=None, bp=0):
-        def nud(self):
+        def nud_(self):
             if nargs is None:
                 del self[:]
                 while True:
@@ -72,11 +74,11 @@ class XPath1Parser(Parser):
                         break
                     self.parser.advance(',')
                 self.parser.advance(')')
-                self.value = self.eval()
+                self.value = self.evaluate()
                 return self
             elif nargs == 0:
                 self.parser.advance(')')
-                self.value = self.eval()
+                self.value = self.evaluate()
                 return self
             elif isinstance(nargs, (tuple, list)):
                 min_args, max_args = nargs
@@ -93,13 +95,16 @@ class XPath1Parser(Parser):
                 if self.parser.next_token.symbol == ',':
                     self.parser.advance(',')
                     self[k:] = self.parser.expression(90),
+                elif k == 0 and self.parser.next_token.symbol != ')':
+                    self[k:] = self.parser.expression(90),
                 else:
                     break
+                k += 1
             self.parser.advance(')')
-            self.value = self.eval()
+            self.value = self.evaluate()
             return self
 
-        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud)
+        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud_)
 
     def map_reference(self, ref):
         """
@@ -141,6 +146,7 @@ register = XPath1Parser.register
 literal = XPath1Parser.literal
 prefix = XPath1Parser.prefix
 infix = XPath1Parser.infix
+postfix = XPath1Parser.postfix
 method = XPath1Parser.method
 function = XPath1Parser.function
 axis = XPath1Parser.axis
@@ -176,11 +182,12 @@ register(':)')
 ###
 # Literals
 literal('(string)')
+literal('(float)')
 literal('(decimal)')
 literal('(integer)')
 
 
-@method(literal('(name)'))
+@method('(name)', bp=10)
 def nud(self):
     if self.value[0] != '{' and ':' in self.value:
         self.value = self.parser.map_reference(self.value)
@@ -188,26 +195,39 @@ def nud(self):
 
 
 @method('(name)')
+def evaluate(self, context=None):
+    if context is None:
+        return None
+    elif is_element_node(context.item, self.value) or is_attribute_node(context.item, self.value):
+        return context.item
+
+
+@method('(name)')
 def select(self, context):
-    if context.is_element_node() and context.node.tag == self.value:
-        yield context.node
-    elif context.node == self.value:
-        yield context.node
+    value = self.value
+    if context.active_iterator is None:
+        for item in context.iter_children():
+            if is_element_node(item, value) or is_attribute_node(item, value):
+                yield item
+    else:
+        if is_element_node(context.item, value) or is_attribute_node(context.item, value):
+            yield context.item
 
 
 @method(literal('.'))
 def select(self, context):
-    yield context.node if context.node is not None else context.root
+    yield context.item if context.item is not None else context.root
 
 
 @method(literal('..'))
 def select(self, context):
     try:
-        parent = context.parent_map[context.node]
+        parent = context.parent_map[context.item]
     except KeyError:
         pass
     else:
         if is_etree_element(parent):
+            context.item = parent
             yield parent
 
 
@@ -224,8 +244,8 @@ def nud(self):
 
 
 @method('$')
-def eval(self, context=None):
-    varname = self[0].eval(context)
+def evaluate(self, context=None):
+    varname = self[0].value
     try:
         return context.variables[varname]
     except (KeyError, AttributeError):
@@ -237,69 +257,73 @@ def eval(self, context=None):
 # Forward Axes
 @method(axis('self::', bp=80))
 def select(self, context):
-    for result in self[0].select(context):
-        yield result
+    for _ in context.iter_self():
+        for result in self[0].select(context):
+            yield result
 
 
 @method(axis('child::', bp=80))
 def select(self, context):
-    for child_context in context.iter_children():
-        for result in self[0].select(child_context):
+    for _ in context.iter_children():
+        for result in self[0].select(context):
             yield result
 
 
 @method(axis('descendant::', bp=80))
 def select(self, context):
-    for descendant_context in context.copy().iter_descendants():
-        if descendant_context.node is not context.node:
-            for result in self[0].select(descendant_context):
+    item = context.item
+    for _ in context.iter_descendants():
+        if item is not context.item:
+            for result in self[0].select(context):
                 yield result
 
 
 @method(axis('descendant-or-self::', bp=80))
 def select(self, context):
-    for descendant_context in context.copy().iter_descendants():
-        for result in self[0].select(descendant_context):
+    for _ in context.iter_descendants():
+        for result in self[0].select(context):
             yield result
 
 
 @method(axis('following-sibling::', bp=80))
 def select(self, context):
-    if context.is_element_node():
-        elem = context.node
+    if is_element_node(context.item):
+        elem = context.item
         try:
             parent = context.parent_map[elem]
         except KeyError:
             return
         else:
             follows = False
-            for sibling_context in context.copy(node=parent).iter_children():
+            for item in context.iter_children(item=parent):
                 if follows:
-                    for result in self[0].select(sibling_context):
+                    for result in self[0].select(context):
                         yield result
-                elif sibling_context.node is elem:
+                elif item is elem:
                     follows = True
 
 
 @method(axis('following::', bp=80))
 def select(self, context):
-    descendants = {c.node for c in context.copy().iter_descendants()}
+    descendants = set(context.iter_descendants())
+    item = context.item
     follows = False
-    for elem in context.root.iter():
+    for elem in context.iter_descendants(item=context.root):
         if follows:
             if elem not in descendants:
-                for result in self[0].select(context.copy(elem)):
+                for result in self[0].select(context):
                     yield result
-        elif context.node is elem:
+        elif item is elem:
             follows = True
 
 
 @method(axis('namespace::', bp=80))
 def select(self, context):
-    if context.is_element_node():
-        element_class = context.node.__class__
-        for prefix, uri in self.parser.namespaces.items():
-            yield element_class(tag=prefix, text=uri)
+    if is_element_node(context.item):
+        element_class = context.item.__class__
+        for prefix_, uri in sorted(self.parser.namespaces.items()):
+            context.item = element_class(tag=prefix_, text=uri)
+            yield context.item
 
 
 ###
@@ -307,35 +331,35 @@ def select(self, context):
 @method(axis('parent::', bp=80))
 def select(self, context):
     try:
-        parent = context.parent_map[context.node]
+        parent = context.parent_map[context.item]
     except KeyError:
         pass
     else:
-        for result in self[0].select(context.copy(node=parent)):
+        for result in self[0].select(context.copy(item=parent)):
             yield result
 
 
 @method(axis('ancestor::', bp=80))
 def select(self, context):
-    results = [
-        item for ancestor_context in context.copy().iter_ancestors()
-        for item in self[0].select(ancestor_context)
-    ]
+    results = [item for _ in context.iter_ancestors() for item in self[0].select(context)]
     for result in reversed(results):
+        context.item = result
         yield result
 
 
 @method(axis('ancestor-or-self::', bp=80))
 def select(self, context):
-    for elem in reversed([c.node for c in context.copy().iter_ancestors()]):
+    item = context.item
+    for elem in reversed(list(context.iter_ancestors())):
+        context.item = elem
         yield elem
-    yield context.node
+    yield item
 
 
 @method(axis('preceding-sibling::', bp=80))
 def select(self, context):
-    if context.is_element_node():
-        elem = context.node
+    if is_element_node(context.item):
+        elem = context.item
         try:
             parent = context.parent_map[elem]
         except KeyError:
@@ -344,18 +368,20 @@ def select(self, context):
             for child in parent:
                 if child is elem:
                     break
+                context.item = child
                 yield child
 
 
 @method(axis('preceding::', bp=80))
 def select(self, context):
-    if context.is_element_node():
-        elem = context.node
-        ancestors = {c.node for c in context.copy().iter_ancestors()}
+    if is_element_node(context.item):
+        elem = context.item
+        ancestors = set(context.iter_ancestors())
         for e in context.root.iter():
             if e is elem:
                 break
             if e not in ancestors:
+                context.item = e
                 yield e
 
 
@@ -367,56 +393,93 @@ function('comment(', nargs=0, bp=90)
 
 @method(function('text(', nargs=0, bp=90))
 def select(self, context):
-    if context.is_element_node():
-        if context.node.text is not None:
-            yield context.node.text  # adding tails??
+    if is_element_node(context.item):
+        if context.item.text is not None:
+            yield context.item.text  # adding tails??
 
 
 @method(function('node(', nargs=0, bp=90))
 def select(self, context):
-    yield context.node if context.node is not None else context.root
+    yield context.item if context.item is not None else context.root
 
 
 ###
 # Node set functions
 @method(function('last(', nargs=0, bp=90))
-def eval(self, context=None):
-    return context.size
+def evaluate(self, context=None):
+    return context.size if context is not None else 0
 
 
 @method(function('position(', nargs=0, bp=90))
-def eval(self, context=None):
-    return context.position
+def evaluate(self, context=None):
+    return context.position + 1 if context is not None else 0
 
 
 @method(function('count(', nargs=1, bp=90))
-def eval(self, context=None):
-    return len(list(filter(self.node_filter, self[0].select(context))))
+def evaluate(self, context=None):
+    results = self[0].evaluate(context)
+    if isinstance(results, list):
+        return len(results)
+    elif results is not None:
+        return 1
+    else:
+        return 0
+
+
+@method('count(')
+def select(self, context):
+    yield len(list(self[0].select(context)))
 
 
 function('id(', nargs=1, bp=90)
-function('local-name(', nargs=1, bp=90)
+
+
+@method(function('name(', nargs=(0, 1), bp=90))
+def evaluate(self, context=None):
+    import pdb
+    pdb.set_trace()
+    try:
+        return self.name(self[0].evaluate(context))
+    except IndexError:
+        if context is None:
+            self.missing_context()
+        return self.name(context.item)
+
+
+@method(function('local-name(', nargs=(0, 1), bp=90))
+def evaluate(self, context=None):
+    try:
+        name = self.name(self[0])
+    except IndexError:
+        if context is None:
+            self.missing_context()
+        name = self.name(context.item)
+    if name[0] != '{':
+        return name
+    else:
+        return name.split('}')[1]
+
+
 function('namespace-uri(', nargs=1, bp=90)
-function('name(', nargs=1, bp=90)
 
 
 ###
 # String functions
 @method(function('string(', nargs=1, bp=90))
-def eval(self, context=None):
-    return str(self[0].eval(context))
+def evaluate(self, context=None):
+    return str(self[0].evaluate(context))
 
 
 @method(function('contains(', nargs=2, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
-        return self[1].eval(context) in self[0].eval(context)
+        return self[1].evaluate(context) in self[0].evaluate(context)
     except TypeError:
         self.wrong_type("the arguments must be strings")
 
 
 @method(function('concat(', bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
         return ''.join(tk.value for tk in self)
     except TypeError:
@@ -424,31 +487,31 @@ def eval(self, context=None):
 
 
 @method(function('string-length(', nargs=1, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
-        return len(self[0].eval(context))
+        return len(self[0].evaluate(context))
     except TypeError:
         self.wrong_type("the argument must be a string")
 
 
 @method(function('normalize-space(', nargs=1, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
-        return ' '.join(self[0].eval(context).strip().split())
+        return ' '.join(self[0].evaluate(context).strip().split())
     except TypeError:
         self.wrong_type("the argument must be a string")
 
 
 @method(function('starts-with(', nargs=2, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
-        return self[0].eval(context).startswith(self[1].value)
+        return self[0].evaluate(context).startswith(self[1].value)
     except TypeError:
         self.wrong_type("the arguments must be a string")
 
 
 @method(function('translate(', nargs=3, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
         maketrans = str.maketrans
     except AttributeError:
@@ -466,79 +529,85 @@ def eval(self, context=None):
 
 
 @method(function('substring(', nargs=(2, 3), bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     start, stop = 0, None
     try:
-        start = self[1].eval(context) - 1
+        start = self[1].evaluate(context) - 1
     except TypeError:
         self.wrong_type("the second argument must be xs:numeric")
     if len(self) > 2:
         try:
-            stop = start + self[2].eval(context)
+            stop = start + self[2].evaluate(context)
         except TypeError:
             self.wrong_type("the third argument must be xs:numeric")
 
     try:
-        return self[0].eval(context)[slice(start, stop)]
+        return self[0].evaluate(context)[slice(start, stop)]
     except TypeError:
         self.wrong_type("the first argument must be a string")
 
 
 @method(function('substring-before(', nargs=2, bp=90))
 @method(function('substring-after(', nargs=2, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     index = 0
     try:
-        index = self[0].eval(context).find(self[1].eval(context))
+        index = self[0].evaluate(context).find(self[1].evaluate(context))
     except AttributeError:
         self.wrong_type("the first argument must be a string")
     except TypeError:
         self.wrong_type("the second argument must be a string")
 
     if self.symbol == 'substring-before(':
-        return self[0].eval(context)[:index]
+        return self[0].evaluate(context)[:index]
     else:
-        return self[0].eval(context)[index + len(self[1].value):]
+        return self[0].evaluate(context)[index + len(self[1].value):]
 
 
 ###
 # Boolean functions
 @method(function('boolean(', nargs=1, bp=90))
-def eval(self, context=None):
-    return self.boolean(self[0].eval(context))
+def evaluate(self, context=None):
+    return self.boolean(self[0].evaluate(context))
 
 
 @method(function('not(', nargs=1, bp=90))
-def eval(self, context=None):
-    return not self.boolean(self[0].eval(context))
+def evaluate(self, context=None):
+    return not self.boolean(self[0].evaluate(context))
 
 
 @method(function('true(', nargs=0, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     return True
 
 
 @method(function('false(', nargs=0, bp=90))
-def eval(self, context=None):
+def evaluate(self, context=None):
     return False
 
 
 @method(infix('*', bp=45))
-def eval(self, context=None):
-    return self[0].eval(context) * self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) * self[1].evaluate(context)
 
 
 @method('*', bp=45)
 def select(self, context):
     if not self:
         # Wildcard literal
-        if context.is_attribute_node():
-            yield context.node[1]
-        elif context.node is not None:
-            yield context.node
+        if context.active_iterator is None:
+            for child in context.iter_children():
+                if is_element_node(child):
+                    yield child
+        elif context.principal_node_kind:
+            if is_attribute_node(context.item):
+                yield context.item[1]
+            else:
+                yield context.item
     else:
         # Product operator
-        yield self[0].eval(context)
+        context.item = self[0].evaluate(context)
+        yield context.item
 
 
 @method('@', bp=80)
@@ -553,92 +622,95 @@ def nud(self):
 @method('@')
 @method(axis('attribute::'))
 def select(self, context):
-    if context.is_element_node():
-        elem = context.node
-        for context.node in elem.attrib.items():
-            for result in self[0].select(context):
-                yield result
-        context.node = elem
+    for _ in context.iter_attributes():
+        for result in self[0].select(context):
+            yield result
 
 
 ###
 # Logical Operators
 @method(infix('or', bp=20))
-def eval(self, context=None):
-    return bool(self[0].eval(context) or self[1].eval(context))
+def evaluate(self, context=None):
+    return bool(self[0].evaluate(context) or self[1].evaluate(context))
 
 
 @method(infix('and', bp=25))
-def eval(self, context=None):
-    return bool(self[0].eval(context) and self[1].eval(context))
+def evaluate(self, context=None):
+    return bool(self[0].evaluate(context) and self[1].evaluate(context))
 
 
 @method(infix('=', bp=30))
-def eval(self, context=None):
-    return self[0].eval(context) == self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) == self[1].evaluate(context)
 
 
 @method(infix('!=', bp=30))
-def eval(self, context=None):
-    return self[0].eval(context) != self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) != self[1].evaluate(context)
 
 
 @method(infix('<', bp=30))
-def eval(self, context=None):
-    return self[0].eval(context) < self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) < self[1].evaluate(context)
 
 
 @method(infix('>', bp=30))
-def eval(self, context=None):
-    return self[0].eval(context) > self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) > self[1].evaluate(context)
 
 
 @method(infix('<=', bp=30))
-def eval(self, context=None):
-    return self[0].eval(context) <= self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) <= self[1].evaluate(context)
 
 
 @method(infix('>=', bp=30))
-def eval(self, context=None):
-    return self[0].eval(context) >= self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) >= self[1].evaluate(context)
 
 
+###
+# Numerical operators
 prefix('+')
+prefix('-', bp=90)
+
+
 @method(infix('+', bp=40))
-def eval(self, context=None):
+def evaluate(self, context=None):
     if len(self) > 1:
         try:
-            return self[0].eval(context) + self[1].eval(context)
+            return self[0].evaluate(context) + self[1].evaluate(context)
         except TypeError:
             raise ElementPathTypeError("a numeric value is required: %r." % self[0])
     else:
         try:
-            return +self[0].eval(context)
+            return +self[0].evaluate(context)
         except TypeError:
             raise ElementPathTypeError("numeric values are required: %r." % self[:])
 
 
-prefix('-')
 @method(infix('-', bp=40))
-def eval(self, context=None):
+def evaluate(self, context=None):
     try:
         try:
-            return self[0].eval(context) - self[1].eval(context)
+            return self[0].evaluate(context) - self[1].evaluate(context)
         except TypeError:
-            self.wrong_type("values must be numeric: %r" % [tk.eval(context) for tk in self])
+            self.wrong_type("values must be numeric: %r" % [tk.evaluate(context) for tk in self])
     except IndexError:
         try:
-            return -self[0].eval(context)
+            return -self[0].evaluate(context)
         except TypeError:
-            self.wrong_type("value must be numeric: %r" % self[0].eval(context))
+            self.wrong_type("value must be numeric: %r" % self[0].evaluate(context))
 
 
 @method(infix('div', bp=45))
-def eval(self, context=None):
-    return self[0].eval(context) / self[1].eval(context)
+def evaluate(self, context=None):
+    return self[0].evaluate(context) / self[1].evaluate(context)
 
 
-infix('mod', bp=45)
+@method(infix('mod', bp=45))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) % self[1].evaluate(context)
 
 
 @method(infix('|', bp=50))
@@ -646,6 +718,7 @@ def select(self, context):
     results = {self.filter_node(elem) for k in range(2) for elem in self[k].select(context)}
     for elem in self.root.iter():
         if elem in results:
+            context.item = elem
             yield elem
 
 
@@ -667,7 +740,7 @@ def nud(self):
 def led(self, left):
     if self.parser.next_token.symbol not in self.parser.RELATIVE_PATH_SYMBOLS:
         self.parser.next_token.wrong_symbol()
-    self[0:1] = left, self.parser.expression(100)
+    self[0:1] = left, self.parser.expression(80)
     return self
 
 
@@ -679,49 +752,34 @@ def select(self, context):
     if not self:
         yield context.root
     elif len(self) == 1:
-        if self[0].symbol in ('*', '(name)'):
-            for child_context in context.copy().iter_children():
-                for result in self[0].select(child_context):
-                    yield result
-        else:
-            for result in self[0].select(context):
-                yield result
+        for result in self[0].select(context):
+            yield result
     else:
-        nodes = set()
-        for elem in self[0].select(context.copy()):
+        items = set()
+        for elem in self[0].select(context):
             if not is_etree_element(elem):
-                self.wrong_type("left operand must returns nodes: %r" % elem)
-            if self[1].symbol in ('*', '(name)'):
-                for child_context in context.copy(node=elem).iter_children():
-                    for result in self[1].select(child_context):
-                        if is_etree_element(result) or isinstance(result, tuple):
-                            if result not in nodes:
-                                yield result
-                                nodes.add(result)
-                        else:
-                            yield result
-            else:
-                for result in self[1].select(context.copy(node=elem)):
-                    if is_etree_element(result) or isinstance(result, tuple):
-                        if result not in nodes:
-                            yield result
-                            nodes.add(result)
-                    else:
+                self.wrong_type("left operand must returns Element items: %r" % elem)
+            for result in self[1].select(context.copy(item=elem)):
+                if is_etree_element(result) or isinstance(result, tuple):
+                    if result not in items:
                         yield result
+                        items.add(result)
+                else:
+                    yield result
 
 
 @method('//')
 def select(self, context):
     if len(self) == 1:
-        for descendant_context in context.copy().iter_descendants():
-            for result in self[0].select(descendant_context):
+        for _ in context.iter_descendants():
+            for result in self[0].select(context):
                 yield result
     else:
         for elem in self[0].select(context):
             if not is_etree_element(elem):
-                self.wrong_type("left operand must returns nodes: %r" % elem)
-            for descendant_context in context.copy(node=elem).iter_descendants():
-                for result in self[1].select(descendant_context):
+                self.wrong_type("left operand must returns Element items: %r" % elem)
+            for _ in context.iter_descendants(item=elem):
+                for result in self[1].select(context):
                     yield result
 
 
@@ -737,7 +795,7 @@ register(')')
 
 
 ###
-# Predicate selection
+# Predicate filter
 @method('[', bp=90)
 def led(self, left):
     self.parser.next_token.unexpected(']')
@@ -747,30 +805,17 @@ def led(self, left):
 
 
 @method('[')
-def select(self, context, results):
-    """Predicate selector."""
-    results = self[0].select(context, results)
-    if isinstance(self[1].value, int):
-        # subscript predicate
-        value = self[1].value
-        if value > 0:
-            index = value - 1
-        elif value == 0 or self[1].symbol not in ('last(', 'position('):
-            index = None
-        else:
-            index = value
-
-        if index is not None:
-            try:
-                yield [elem for elem in results][index]
-            except IndexError:
-                return
-    else:
-        for elem in results:
-            if elem is not None:
-                predicate_results = list(self[1].select(context, [elem]))
-                if predicate_results and any(predicate_results):
-                    yield elem
+def select(self, context):
+    for result in self[0].select(context):
+        predicate = list(self[1].select(context.copy()))
+        if len(predicate) == 1 and not isinstance(predicate[0], bool) and \
+                isinstance(predicate[0], (int, float)):
+            if context.position == predicate[0] - 1:
+                context.item = result
+                yield result
+        elif self.boolean(predicate):
+            context.item = result
+            yield result
 
 
 register(']')

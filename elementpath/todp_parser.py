@@ -29,10 +29,10 @@ def create_tokenizer(symbols):
     :return: A regex compiled pattern.
     """
     tokenizer_pattern_template = r"""
-        ('[^']*' | "[^"]*" | \d+(?:\.\d?)? | \.\d+) |   # Literals (strings or numbers)
-        (%s|[%s]) |                                     # Symbols
-        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |               # Names
-        \s+                                             # Skip extra spaces
+        ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
+        (%s|[%s]) |                                                       # Symbols
+        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |                                 # Names
+        \s+                                                               # Skip extra spaces
     """
 
     def symbol_escape(s):
@@ -133,7 +133,7 @@ class Token(MutableSequence):
         """Left denotation method"""
         self.wrong_symbol()
 
-    def eval(self, *args, **kwargs):
+    def evaluate(self, *args, **kwargs):
         """Evaluation method"""
         return self.value
 
@@ -155,7 +155,7 @@ class Token(MutableSequence):
             self.wrong_symbol()
 
     def wrong_symbol(self):
-        if self.symbol in {'(end)', '(name)', '(string)', '(decimal)', '(integer)'}:
+        if self.symbol in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}:
             value = self.value
         else:
             value = self.symbol
@@ -240,6 +240,8 @@ class Parser(object):
                 elif literal is not None:
                     if literal[0] in '\'"':
                         self.next_token = self.symbol_table['(string)'](self, literal.strip("'\""))
+                    elif 'e' in literal or 'E' in literal:
+                        self.next_token = self.symbol_table['(float)'](self, float(literal))
                     elif '.' in literal:
                         self.next_token = self.symbol_table['(decimal)'](self, Decimal(literal))
                     else:
@@ -319,7 +321,7 @@ class Parser(object):
         cls.register('(end)')
         cls.tokenizer = create_tokenizer(
             s for s in cls.symbol_table
-            if s.strip() not in {'(end)', '(name)', '(string)', '(decimal)', '(integer)'}
+            if s.strip() not in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}
         )
 
     @classmethod
@@ -407,6 +409,15 @@ class Parser(object):
             self[0:1] = left, self.parser.expression(rbp=bp-1)
             return self
         return cls.register(symbol, lbp=bp, rbp=bp-1, led=led)
+
+    @classmethod
+    def postfix(cls, symbol, bp=0):
+        def led(self, left):
+            import pdb
+            pdb.set_trace()
+            self[0:] = left,
+            return self
+        return cls.register(symbol, lbp=bp, rbp=bp, led=led)
 
     @classmethod
     def method(cls, symbol, bp=0):

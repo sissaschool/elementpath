@@ -13,15 +13,15 @@ class ElementPathError(Exception):
     pass
 
 
-class ElementPathSyntaxError(ElementPathError, SyntaxError):
-    pass
-
-
 class ElementPathNameError(ElementPathError, NameError):
     pass
 
 
-class ElementPathValueError(ElementPathError, ValueError):
+class ElementPathKeyError(ElementPathError, KeyError):
+    pass
+
+
+class ElementPathSyntaxError(ElementPathError, SyntaxError):
     pass
 
 
@@ -29,5 +29,5 @@ class ElementPathTypeError(ElementPathError, TypeError):
     pass
 
 
-class ElementPathKeyError(ElementPathError, KeyError):
+class ElementPathValueError(ElementPathError, ValueError):
     pass

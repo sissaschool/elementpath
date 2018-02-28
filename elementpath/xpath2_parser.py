@@ -20,7 +20,10 @@ class XPath2Parser(XPath1Parser):
         'union', 'intersect', 'instance of', 'castable as', 'if', 'then', 'else', 'for',
         'some', 'every', 'in', 'satisfies', 'validate', 'type', 'item', 'satisfies', 'context',
         'cast as', 'treat as', 'as', 'of', 'return', 'except', 'is', 'isnot', '<<', '>>', '?',
-        'untyped'
+        'untyped',
+
+        # Mathematical operators
+        'idiv',
     )
     RELATIVE_PATH_SYMBOLS = XPath1Parser.RELATIVE_PATH_SYMBOLS | {s for s in SYMBOLS if s.endswith("::")}
 
@@ -51,6 +54,7 @@ text
 
 typeswitch
 """
+
     @property
     def version(self):
         return '2.0'
@@ -101,6 +105,10 @@ register('return')
 
 ###
 # 'if' expression
+register('then')
+register('else')
+
+
 @method('if', bp=15)
 def nud(self):
     self.parser.advance('(')
@@ -114,11 +122,11 @@ def nud(self):
 
 
 @method('if')
-def eval(self, context=None):
-    if self.boolean(self[0].eval(context)):
-        return self[1].eval(context)
+def evaluate(self, context=None):
+    if self.boolean(self[0].evaluate(context)):
+        return self[1].evaluate(context)
     else:
-        return self[2].eval(context)
+        return self[2].evaluate(context)
 
 
 @method('if')
@@ -129,11 +137,6 @@ def select(self, context):
     else:
         for result in self[2].select(context):
             yield result
-
-
-register('then')
-register('else')
-
 
 
 register('some')
@@ -157,12 +160,21 @@ register('?')
 register('untyped')
 
 
-@method('count(')
-def eval(self, context=None):
-    return len(list(self[0].select(context)))
-
-
+###
+# Comma operator - concatenate items or sequences
 @method(infix(',', bp=5))
+def evaluate(self, context=None):
+    results = []
+    for op in self:
+        result = op.evaluate(context)
+        if isinstance(result, list):
+            results.extend(result)
+        else:
+            results.append(result)
+    return results
+
+
+@method(',')
 def select(self, context):
     for op in self:
         for result in op.select(context):
@@ -174,6 +186,13 @@ def nud(self):
     self[0:] = self.parser.expression(),
     self.parser.advance(')')
     return self[0]
+
+
+###
+# Numerical operators
+@method(infix('idiv', bp=45))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) // self[1].evaluate(context)
 
 
 XPath2Parser.end()

@@ -6,6 +6,7 @@
 .idea/
 .project
 .ipynb_checkpoints/
+.tox/
 doc/_*
 __pycache__/
 dist/
