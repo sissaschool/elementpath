@@ -11,6 +11,8 @@
 #
 import unittest
 import decimal
+import io
+from collections import namedtuple
 from xml.etree import ElementTree
 import lxml.etree
 
@@ -24,6 +26,21 @@ class XPath1ParserTest(unittest.TestCase):
         cls.parser = XPath1Parser()
         cls.etree = ElementTree
 
+    def check_tokenizer(self, path, expected):
+        self.assertEqual([
+            lit or op or ref for lit, op, ref in self.parser.__class__.tokenizer.findall(path)
+        ], expected)
+
+    def check_token(self, symbol, expected_label=None, expected_str=None, expected_repr=None, value=None):
+        token = self.parser.symbol_table[symbol](self.parser, value)
+        self.assertEqual(token.symbol, symbol)
+        if expected_label is not None:
+            self.assertEqual(token.label, expected_label)
+        if expected_str is not None:
+            self.assertEqual(str(token), expected_str)
+        if expected_repr is not None:
+            self.assertEqual(repr(token), expected_repr)
+
     def check_tree(self, path, expected):
         self.assertEqual(self.parser.parse(path).tree, expected)
 
@@ -32,6 +49,14 @@ class XPath1ParserTest(unittest.TestCase):
             self.assertRaises(expected, self.parser.parse(path).evaluate, context)
         else:
             self.assertEqual(self.parser.parse(path).evaluate(context), expected)
+
+    def check_sequence(self, path, expected, context=None):
+        if context is None:
+            context = XPathContext(root=self.etree.Element(u'dummy_root'))
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, self.parser.parse(path).select, context)
+        else:
+            self.assertEqual(list(self.parser.parse(path).select(context)), expected)
 
     def check_select(self, path, root, expected, namespaces=None, schema=None):
         selector = select(root, path, namespaces, schema, self.parser.__class__)
@@ -50,52 +75,60 @@ class XPath1ParserTest(unittest.TestCase):
         self.assertRaises(ElementPathTypeError, self.parser.parse, path)
 
     def test_xpath_tokenizer(self):
-        def check_tokens(path, expected):
-            self.assertEqual([
-                lit or op or ref for lit, op, ref in self.parser.__class__.tokenizer.findall(path)
-            ], expected)
-
         # tests from the XPath specification
-        check_tokens("*", ['*'])
-        check_tokens("text()", ['text(', ')'])
-        check_tokens("@name", ['@', 'name'])
-        check_tokens("@*", ['@', '*'])
-        check_tokens("para[1]", ['para', '[', '1', ']'])
-        check_tokens("para[last()]", ['para', '[', 'last(', ')', ']'])
-        check_tokens("*/para", ['*', '/', 'para'])
-        check_tokens("/doc/chapter[5]/section[2]",
-                     ['/', 'doc', '/', 'chapter', '[', '5', ']', '/', 'section', '[', '2', ']'])
-        check_tokens("chapter//para", ['chapter', '//', 'para'])
-        check_tokens("//para", ['//', 'para'])
-        check_tokens("//olist/item", ['//', 'olist', '/', 'item'])
-        check_tokens(".", ['.'])
-        check_tokens(".//para", ['.', '//', 'para'])
-        check_tokens("..", ['..'])
-        check_tokens("../@lang", ['..', '/', '@', 'lang'])
-        check_tokens("chapter[title]", ['chapter', '[', 'title', ']'])
-        check_tokens("employee[@secretary and @assistant]",
-                     ['employee', '[', '@', 'secretary', '', 'and', '', '@', 'assistant', ']'])
+        self.check_tokenizer("*", ['*'])
+        self.check_tokenizer("text()", ['text', '(', ')'])
+        self.check_tokenizer("@name", ['@', 'name'])
+        self.check_tokenizer("@*", ['@', '*'])
+        self.check_tokenizer("para[1]", ['para', '[', '1', ']'])
+        self.check_tokenizer("para[last()]", ['para', '[', 'last', '(', ')', ']'])
+        self.check_tokenizer("*/para", ['*', '/', 'para'])
+        self.check_tokenizer("/doc/chapter[5]/section[2]",
+                             ['/', 'doc', '/', 'chapter', '[', '5', ']', '/', 'section', '[', '2', ']'])
+        self.check_tokenizer("chapter//para", ['chapter', '//', 'para'])
+        self.check_tokenizer("//para", ['//', 'para'])
+        self.check_tokenizer("//olist/item", ['//', 'olist', '/', 'item'])
+        self.check_tokenizer(".", ['.'])
+        self.check_tokenizer(".//para", ['.', '//', 'para'])
+        self.check_tokenizer("..", ['..'])
+        self.check_tokenizer("../@lang", ['..', '/', '@', 'lang'])
+        self.check_tokenizer("chapter[title]", ['chapter', '[', 'title', ']'])
+        self.check_tokenizer("employee[@secretary and @assistant]",
+                             ['employee', '[', '@', 'secretary', '', 'and', '', '@', 'assistant', ']'])
 
         # additional tests from Python XML etree test cases
-        check_tokens("{http://spam}egg", ['{http://spam}egg'])
-        check_tokens("./spam.egg", ['.', '/', 'spam.egg'])
-        check_tokens(".//{http://spam}egg", ['.', '//', '{http://spam}egg'])
+        self.check_tokenizer("{http://spam}egg", ['{http://spam}egg'])
+        self.check_tokenizer("./spam.egg", ['.', '/', 'spam.egg'])
+        self.check_tokenizer(".//{http://spam}egg", ['.', '//', '{http://spam}egg'])
 
         # additional tests
-        check_tokens("(: this is a comment :)", ['(:', '', 'this', '', 'is', '', 'a', '', 'comment', '', ':)'])
-        check_tokens("substring-after()", ['substring-after(', ')'])
-        check_tokens("contains('XML','XM')", ['contains(', "'XML'", ',', "'XM'", ')'])
-        check_tokens("concat('XML', true(), 10)", ['concat(', "'XML'", ',', '', 'true(', ')', ',', '', '10', ')'])
-        check_tokens("concat('a', 'b', 'c')", ['concat(', "'a'", ',', '', "'b'", ',', '', "'c'", ')'])
+        self.check_tokenizer("(: this is a comment :)",
+                             ['(:', '', 'this', '', 'is', '', 'a', '', 'comment', '', ':)'])
+        self.check_tokenizer("substring-after()", ['substring-after', '(', ')'])
+        self.check_tokenizer("contains('XML','XM')", ['contains', '(', "'XML'", ',', "'XM'", ')'])
+        self.check_tokenizer("concat('XML', true(), 10)",
+                             ['concat', '(', "'XML'", ',', '', 'true', '(', ')', ',', '', '10', ')'])
+        self.check_tokenizer("concat('a', 'b', 'c')", ['concat', '(', "'a'", ',', '', "'b'", ',', '', "'c'", ')'])
+        self.check_tokenizer("_last()", ['_last', '(', ')'])
+        self.check_tokenizer("last ()", ['last', '', '(', ')'])
+        self.check_tokenizer("last (:", ['last', '', '(:'])
+
+    def test_tokens(self):
+        self.check_token('(string)', 'literal', "'hello' string",
+                         "token(symbol='(string)', value='hello')", 'hello')
+        self.check_token('preceding', 'axis', "preceding axis", "token(symbol='preceding')")
+        self.check_token('descendant-or-self', 'axis', "descendant-or-self axis")
+        self.check_token('position', 'function', "position() function", "token(symbol='position')")
+        self.check_token('and', 'operator', "'and' operator", "token(symbol='and')")
 
     def test_implementation(self):
         self.assertEqual(self.parser.unregistered(), [])
 
     def test_token_tree(self):
-        self.check_tree('child::B1', '(child:: (B1))')
+        self.check_tree('child::B1', '(child (B1))')
         self.check_tree('A/B//C/D', '(/ (// (/ (A) (B)) (C)) (D))')
-        self.check_tree('child::*/child::B1', '(/ (child:: (*)) (child:: (B1)))')
-        self.check_tree('attribute::name="Galileo"', '(attribute:: (= (name) (Galileo)))')
+        self.check_tree('child::*/child::B1', '(/ (child (*)) (child (B1)))')
+        self.check_tree('attribute::name="Galileo"', '(attribute (= (name) (Galileo)))')
         self.check_tree('1 + 2 * 3', '(+ (1) (* (2) (3)))')
         self.check_tree('(1 + 2) * 3', '(* (+ (1) (2)) (3))')
         self.check_tree("false() and true()", '(and (False) (True))')
@@ -112,6 +145,31 @@ class XPath1ParserTest(unittest.TestCase):
     def test_xpath_comment(self):
         self.check_value("(: this is a comment :)", 'this is a comment')
         self.check_value("(: this is a (: nested :) comment :)", 'this is a (: nested :) comment')
+
+    def test_node_types(self):
+        document = self.etree.parse(io.StringIO(u'<A/>'))
+        element = self.etree.Element('schema')
+        attribute = 'id', '0212349350'
+        namespace = namedtuple('Namespace', 'prefix uri')('xs', 'http://www.w3.org/2001/XMLSchema')
+        comment = self.etree.Comment('nothing important')
+        pi = self.etree.ProcessingInstruction('nothing', 'nothing to do')
+        text = u'aldebaran'
+        context = XPathContext(element)
+        self.check_sequence("node()", [document.getroot()], context=XPathContext(document))
+        self.check_sequence("node()", [element], context)
+        context.item = attribute
+        self.check_sequence("node()", [attribute], context)
+        context.item = namespace
+        self.check_sequence("node()", [namespace], context)
+        context.item = comment
+        self.check_sequence("node()", [comment], context)
+        self.check_sequence("comment()", [comment], context)
+        context.item = pi
+        self.check_sequence("node()", [pi], context)
+        self.check_sequence("processing-instruction()", [pi], context)
+        context.item = text
+        self.check_sequence("node()", [text], context)
+        self.check_sequence("text()", [text], context)
 
     def test_node_set_functions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')

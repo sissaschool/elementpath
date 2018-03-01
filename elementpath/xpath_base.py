@@ -13,6 +13,10 @@ from .exceptions import ElementPathTypeError, ElementPathValueError
 from .todp_parser import Token
 
 
+XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
+XML_ID_ATTRIBUTE = '{%s}id' % XML_NAMESPACE
+
+
 ###
 # XPath node types test functions
 #
@@ -36,11 +40,11 @@ def is_element_node(obj, tag=None):
 
 
 def is_comment_node(obj):
-    return is_etree_element(obj) and callable(obj.tag) and not hasattr(obj, 'target')
+    return is_etree_element(obj) and callable(obj.tag) and obj.tag.__name__ == 'Comment'
 
 
 def is_processing_instruction_node(obj):
-    return is_etree_element(obj) and callable(obj.tag) and hasattr(obj, 'target')
+    return is_etree_element(obj) and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
 
 
 def is_document_node(obj):
@@ -74,33 +78,27 @@ def is_xpath_node(obj):
 # XPathToken
 class XPathToken(Token):
 
-    def evaluate(self, context=None):
-        """
-        Evaluate from the context.
-
-        :param context: The XPath evaluation context.
-        """
-        return self.value
-
     def select(self, context):
         """
         Select operator that generates results
 
         :param context: The XPath evaluation context.
         """
-        context.item = self.evaluate(context)
-        yield context.item
+        item = self.evaluate(context)
+        if item is not None:
+            context.item = item
+            yield item
 
     def __str__(self):
-        symbol = self.symbol
+        symbol, label = self.symbol, self.label
         if symbol == '$':
             return '$%s variable reference' % str(self[0].evaluate() if self else '')
         elif symbol == ',':
             return 'comma operator'
-        elif symbol.endswith('(') and symbol[:-1].isalpha():
-            return '%s(%s) function' % (symbol[:-1], ', '.join(repr(t.value) for t in self))
-        elif symbol.endswith('::') and symbol[:-2].isalpha():
-            return '%s axis' % self.symbol[:-2]
+        elif label == 'function':
+            return '%s(%s) function' % (symbol, ', '.join(repr(t.value) for t in self))
+        elif label == 'axis':
+            return '%s axis' % symbol
         return super(XPathToken, self).__str__()
 
     # Helper methods
@@ -199,7 +197,7 @@ class XPathContext(object):
     # Context item iterators
     def iter_self(self):
         status = self.item, self.size, self.position, self._iterator
-        self._iterator, self.node_test = self.iter_self, is_element_node
+        self._iterator, self._node_kind_test = self.iter_self, is_element_node
 
         yield self.item
         self.item, self.size, self.position, self._iterator = status

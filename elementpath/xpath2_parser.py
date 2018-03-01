@@ -27,7 +27,7 @@ class XPath2Parser(XPath1Parser):
         'idiv',
 
         # XPath 2.0 added functions
-        'document-node(',                                   # Node test functions
+        'document-node',                                   # Node test functions
     )
     RELATIVE_PATH_SYMBOLS = XPath1Parser.RELATIVE_PATH_SYMBOLS | {s for s in SYMBOLS if s.endswith("::")}
 
@@ -178,7 +178,7 @@ def evaluate(self, context=None):
 
 ###
 # Node types
-@method(function('document-node(', nargs=(0, 1), bp=90))
+@method(function('document-node', nargs=(0, 1), bp=90))
 def select(self, context):
     if context.item is None and is_document_node(context.root):
         if not self:

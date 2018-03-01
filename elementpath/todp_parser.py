@@ -20,42 +20,36 @@ from .exceptions import (
 )
 
 
-def create_tokenizer(symbols):
+def build_tokenizer(patterns):
     """
-    Create a simple tokenizer for a sequence of symbols. Extra spaces are skipped.
+    Builds a simple tokenizer for a sequence of symbol related patterns. A tokenizer built
+    with this function is suited for programming languages where extra spaces between
+    symbols are skipped.
 
-    :param symbols: A sequence of strings representing the symbols. Blank and empty \
-    symbols are discarded.
+    :param patterns: A sequence of strings representing the patterns of symbols. Leading and
+    trailing whitespaces are removed from symbols. Empty symbols are discarded.
     :return: A regex compiled pattern.
     """
     tokenizer_pattern_template = r"""
         ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
-        (%s|[%s]) |                                                       # Symbols
+        (%s|[%s]) |                                                       # Symbol's patterns
         ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |                                 # Names
         \s+                                                               # Skip extra spaces
     """
-
-    def symbol_escape(s):
-        s = re.escape(s)
-        if s[-2:] == r'\(':
-            s = '%s\s*%s' % (s[:-2], s[-2:])
-        elif s[-4:] == r'\:\:':
-            s = '%s\s*%s' % (s[:-4], s[-4:])
+    string_patterns = []
+    character_patterns = []
+    for p in (s.strip() for s in patterns):
+        length = len(p)
+        if length == 1 or length == 2 and p[0] == '\\':
+            character_patterns.append(p)
         else:
-            s.replace(r'\ ', '\s+')
-            if s.isalpha():
-                s = r'\b%s\b' % s
-        return s
+            string_patterns.append(p)
 
-    symbols = sorted([s2 for s2 in (s1.strip() for s1 in symbols) if s2], key=lambda x: -len(x))
-    fence = len([i for i in symbols if len(i) > 1])
-    return re.compile(
-        tokenizer_pattern_template % (
-            '|'.join(map(symbol_escape, symbols[:fence])),
-            ''.join(map(re.escape, symbols[fence:]))
-        ),
-        re.VERBOSE
+    pattern = tokenizer_pattern_template % (
+        '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
+        ''.join(character_patterns)
     )
+    return re.compile(pattern, re.VERBOSE)
 
 
 #
@@ -74,9 +68,11 @@ class Token(MutableSequence):
     :cvar symbol: The symbol of the token class.
     :param value: The token value. If not provided defaults to token symbol.
     """
-    symbol = None  # the token identifier, key in the token table.
-    lbp = 0        # left binding power
-    rbp = 0        # right binding power
+    symbol = None     # the token identifier, key in the token table.
+    pattern = None    # the token regex pattern, for building the tokenizer.
+    label = 'symbol'
+    lbp = 0           # left binding power
+    rbp = 0           # right binding power
 
     def __init__(self, parser, value=None):
         self.parser = parser
@@ -106,10 +102,11 @@ class Token(MutableSequence):
             return '%r operator' % symbol
 
     def __repr__(self):
-        if self.value != self.symbol:
-            return u'%s(value=%r)' % (self.__class__.__name__, self.value)
+        symbol, value = self.symbol, self.value
+        if value != symbol:
+            return u'%s(symbol=%r, value=%r)' % (self.__class__.__name__, symbol, value)
         else:
-            return u'%s()' % self.__class__.__name__
+            return u'%s(symbol=%r)' % (self.__class__.__name__, symbol)
 
     def __cmp__(self, other):
         return self.symbol == other.symbol and self.value == other.value
@@ -135,7 +132,6 @@ class Token(MutableSequence):
 
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
-        return self.value
 
     def iter(self):
         for t in self[:1]:
@@ -319,9 +315,9 @@ class Parser(object):
         End the symbol registration. Registers the special (end) symbol and sets the tokenizer.
         """
         cls.register('(end)')
-        cls.tokenizer = create_tokenizer(
-            s for s in cls.symbol_table
-            if s.strip() not in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}
+        cls.tokenizer = build_tokenizer(
+            s.pattern for s in cls.symbol_table.values()
+            if s.pattern.strip() not in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}
         )
 
     @classmethod
@@ -333,6 +329,18 @@ class Parser(object):
         :param kwargs: Optional attributes/methods for the token class.
         :return: A token class.
         """
+        def symbol_escape(s):
+            s = re.escape(s)
+            s.replace(r'\ ', '\s+')
+
+            if s.isalpha():
+                s = r'\b%s\b' % s
+            elif s[-2:] == r'\(':
+                s = '%s\s*%s' % (s[:-2], s[-2:])
+            elif s[-4:] == r'\:\:':
+                s = '%s\s*%s' % (s[:-4], s[-4:])
+            return s
+
         try:
             try:
                 symbol = symbol.strip()
@@ -349,9 +357,11 @@ class Parser(object):
                 token_class = cls.symbol_table[symbol]
 
         except KeyError:
-            name = '%s_%s' % (symbol, cls.token_base_class.__name__)
             kwargs['symbol'] = symbol
-            token_class = ABCMeta(name, (cls.token_base_class,), kwargs)
+            if 'pattern' not in kwargs:
+                pattern = symbol_escape(symbol) if len(symbol) > 1 else re.escape(symbol)
+                kwargs['pattern'] = pattern
+            token_class = ABCMeta('token', (cls.token_base_class,), kwargs)
             cls.symbol_table[symbol] = token_class
             cls.tokenizer = None
 
@@ -387,28 +397,32 @@ class Parser(object):
     def literal(cls, symbol, bp=0):
         def nud(self):
             return self
-        return cls.register(symbol, lbp=bp, nud=nud)
+
+        def evaluate(self, *args, **kwargs):
+            return self.value
+
+        return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
 
     @classmethod
     def prefix(cls, symbol, bp=0):
         def nud(self):
             self[0:] = self.parser.expression(rbp=bp),
             return self
-        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud)
+        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
     def infix(cls, symbol, bp=0):
         def led(self, left):
             self[0:1] = left, self.parser.expression(rbp=bp)
             return self
-        return cls.register(symbol, lbp=bp, rbp=bp, led=led)
+        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
     def infixr(cls, symbol, bp=0):
         def led(self, left):
             self[0:1] = left, self.parser.expression(rbp=bp-1)
             return self
-        return cls.register(symbol, lbp=bp, rbp=bp-1, led=led)
+        return cls.register(symbol, label='operator', lbp=bp, rbp=bp-1, led=led)
 
     @classmethod
     def postfix(cls, symbol, bp=0):
@@ -417,7 +431,7 @@ class Parser(object):
             pdb.set_trace()
             self[0:] = left,
             return self
-        return cls.register(symbol, lbp=bp, rbp=bp, led=led)
+        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
     def method(cls, symbol, bp=0):

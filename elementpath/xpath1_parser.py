@@ -13,9 +13,10 @@ from __future__ import division
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
 from .xpath_base import (
-    XPathToken, is_etree_element, is_xpath_node, is_element_node, is_comment_node,
-    is_processing_instruction_node, is_attribute_node, is_text_node
+    XML_ID_ATTRIBUTE, XPathToken, is_etree_element, is_xpath_node, is_element_node,
+    is_comment_node, is_processing_instruction_node, is_attribute_node, is_text_node
 )
+
 
 class XPath1Parser(Parser):
     """
@@ -27,24 +28,26 @@ class XPath1Parser(Parser):
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
     SYMBOLS = (
         # Axes
-        'descendant-or-self::', 'following-sibling::', 'preceding-sibling::',
-        'ancestor-or-self::', 'descendant::', 'attribute::', 'following::',
-        'namespace::', 'preceding::', 'ancestor::', 'parent::', 'child::', 'self::',
+        'descendant-or-self', 'following-sibling', 'preceding-sibling',
+        'ancestor-or-self', 'descendant', 'attribute', 'following',
+        'namespace', 'preceding', 'ancestor', 'parent', 'child', 'self',
 
         # Operators
         'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[', ']',
-        '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '(:', ':)', '$',
+        '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '(:', ':)', '$', '::',
 
         # XPath Core function library
-        'node(', 'text(', 'comment(', 'processing-instruction(', # Node test functions
-        'last(', 'position(', 'count(', 'id(', 'local-name(',    # Node set functions
-        'namespace-uri(', 'name(',
-        'string(', 'concat(', 'starts-with(', 'contains(',       # String functions
-        'substring-before(', 'substring-after(', 'substring(',
-        'string-length(', 'normalize-space(', 'translate(',
-        'boolean(', 'not(', 'true(', 'false('                    # Boolean functions
+        'node', 'text', 'comment', 'processing-instruction',  # Node test functions
+        'last', 'position', 'count', 'id', 'local-name',      # Node set functions
+        'namespace-uri', 'name',
+        'string', 'concat', 'starts-with', 'contains',        # String functions
+        'substring-before', 'substring-after', 'substring',
+        'string-length', 'normalize-space', 'translate',
+        'boolean', 'not', 'true', 'false'                     # Boolean functions
     )
-    RELATIVE_PATH_SYMBOLS = {s for s in SYMBOLS if s.endswith("::")} | {
+    RELATIVE_PATH_SYMBOLS = {'descendant-or-self', 'following-sibling', 'preceding-sibling',
+        'ancestor-or-self', 'descendant', 'attribute', 'following',
+        'namespace', 'preceding', 'ancestor', 'parent', 'child', 'self'} | {
         '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
     }
 
@@ -60,17 +63,26 @@ class XPath1Parser(Parser):
     @classmethod
     def axis(cls, symbol, bp=0):
         def nud_(self):
+            self.parser.advance('::')
             self.parser.next_token.expected(
-                '(name)', '*', 'text(', 'node(', 'document-node(', 'comment(', 'processing-instruction(',
-                'attribute(', 'schema-attribute(', 'element(', 'schema-element('
+                '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
+                'attribute', 'schema-attribute', 'element', 'schema-element'
             )
             self[0:] = self.parser.expression(rbp=bp),
             return self
-        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud_)
+
+        axis_pattern_template = '\\b%s(?=\s*\\:\\:)'
+        try:
+            pattern = axis_pattern_template % symbol.strip()
+        except AttributeError:
+            pattern = axis_pattern_template % symbol.symbol
+
+        return cls.register(symbol, pattern=pattern, label='axis', lbp=bp, rbp=bp, nud=nud_)
 
     @classmethod
     def function(cls, symbol, nargs=None, bp=0):
         def nud_(self):
+            self.parser.advance('(')
             if nargs is None:
                 del self[:]
                 while True:
@@ -106,10 +118,16 @@ class XPath1Parser(Parser):
                     break
                 k += 1
             self.parser.advance(')')
-            self.value = self.evaluate()
+            self.value = self.evaluate()  # Static context evaluation
             return self
 
-        return cls.register(symbol, lbp=bp, rbp=bp, nud=nud_)
+        pattern_template = '\\b%s(?=\s*\\()'
+        try:
+            pattern = pattern_template % symbol.strip()
+        except AttributeError:
+            pattern = pattern_template % symbol.symbol
+
+        return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
 
     def map_reference(self, ref):
         """
@@ -157,31 +175,13 @@ function = XPath1Parser.function
 axis = XPath1Parser.axis
 
 
+###
+# Simple symbols
 register(',')
-
-
-# Comments
-@method('(:')
-def nud(self):
-    comment_level = 1
-    value = []
-    while comment_level:
-        self.parser.advance()
-        token = self.parser.token
-        if token.symbol == ':)':
-            comment_level -= 1
-            if comment_level:
-                value.append(token.value)
-        elif token.symbol == '(:':
-            comment_level += 1
-            value.append(token.value)
-        else:
-            value.append(token.value)
-    self.value = ' '.join(value)
-    return self
-
-
 register(':)')
+register(')')
+register(']')
+register('::')
 
 
 ###
@@ -219,6 +219,25 @@ def select(self, context):
             yield context.item
 
 
+@method(literal('*'))
+def select(self, context):
+    if not self:
+        # Wildcard literal
+        if context.active_iterator is None:
+            for child in context.iter_children():
+                if is_element_node(child):
+                    yield child
+        elif context.principal_node_kind:
+            if is_attribute_node(context.item):
+                yield context.item[1]
+            else:
+                yield context.item
+    else:
+        # Product operator
+        context.item = self[0].evaluate(context)
+        yield context.item
+
+
 @method(literal('.'))
 def select(self, context):
     yield context.item if context.item is not None else context.root
@@ -236,7 +255,26 @@ def select(self, context):
             yield parent
 
 
-literal('*')
+###
+# Comments
+@method(literal('(:'))
+def nud(self):
+    comment_level = 1
+    value = []
+    while comment_level:
+        self.parser.advance()
+        token = self.parser.token
+        if token.symbol == ':)':
+            comment_level -= 1
+            if comment_level:
+                value.append(token.value)
+        elif token.symbol == '(:':
+            comment_level += 1
+            value.append(token.value)
+        else:
+            value.append(token.value)
+    self.value = ' '.join(value)
+    return self
 
 
 ###
@@ -260,21 +298,21 @@ def evaluate(self, context=None):
 
 ###
 # Forward Axes
-@method(axis('self::', bp=80))
+@method(axis('self', bp=80))
 def select(self, context):
     for _ in context.iter_self():
         for result in self[0].select(context):
             yield result
 
 
-@method(axis('child::', bp=80))
+@method(axis('child', bp=80))
 def select(self, context):
     for _ in context.iter_children():
         for result in self[0].select(context):
             yield result
 
 
-@method(axis('descendant::', bp=80))
+@method(axis('descendant', bp=80))
 def select(self, context):
     item = context.item
     for _ in context.iter_descendants():
@@ -283,14 +321,14 @@ def select(self, context):
                 yield result
 
 
-@method(axis('descendant-or-self::', bp=80))
+@method(axis('descendant-or-self', bp=80))
 def select(self, context):
     for _ in context.iter_descendants():
         for result in self[0].select(context):
             yield result
 
 
-@method(axis('following-sibling::', bp=80))
+@method(axis('following-sibling', bp=80))
 def select(self, context):
     if is_element_node(context.item):
         elem = context.item
@@ -308,7 +346,7 @@ def select(self, context):
                     follows = True
 
 
-@method(axis('following::', bp=80))
+@method(axis('following', bp=80))
 def select(self, context):
     descendants = set(context.iter_descendants())
     item = context.item
@@ -322,7 +360,24 @@ def select(self, context):
             follows = True
 
 
-@method(axis('namespace::', bp=80))
+@method('@', bp=80)
+@method('attribute', bp=80)
+def nud(self):
+    self[0:] = self.parser.expression(rbp=80),
+    if self[0].symbol not in ('*', '(name)'):
+        raise ElementPathSyntaxError("invalid attribute specification for XPath.")
+    return self
+
+
+@method('@')
+@method(axis('attribute'))
+def select(self, context):
+    for _ in context.iter_attributes():
+        for result in self[0].select(context):
+            yield result
+
+
+@method(axis('namespace', bp=80))
 def select(self, context):
     if is_element_node(context.item):
         element_class = context.item.__class__
@@ -333,7 +388,7 @@ def select(self, context):
 
 ###
 # Reverse Axes
-@method(axis('parent::', bp=80))
+@method(axis('parent', bp=80))
 def select(self, context):
     try:
         parent = context.parent_map[context.item]
@@ -344,7 +399,7 @@ def select(self, context):
             yield result
 
 
-@method(axis('ancestor::', bp=80))
+@method(axis('ancestor', bp=80))
 def select(self, context):
     results = [item for _ in context.iter_ancestors() for item in self[0].select(context)]
     for result in reversed(results):
@@ -352,7 +407,7 @@ def select(self, context):
         yield result
 
 
-@method(axis('ancestor-or-self::', bp=80))
+@method(axis('ancestor-or-self', bp=80))
 def select(self, context):
     item = context.item
     for elem in reversed(list(context.iter_ancestors())):
@@ -361,7 +416,7 @@ def select(self, context):
     yield item
 
 
-@method(axis('preceding-sibling::', bp=80))
+@method(axis('preceding-sibling', bp=80))
 def select(self, context):
     if is_element_node(context.item):
         elem = context.item
@@ -377,7 +432,7 @@ def select(self, context):
                 yield child
 
 
-@method(axis('preceding::', bp=80))
+@method(axis('preceding', bp=80))
 def select(self, context):
     if is_element_node(context.item):
         elem = context.item
@@ -392,7 +447,7 @@ def select(self, context):
 
 ###
 # Node types
-@method(function('node(', nargs=0, bp=90))
+@method(function('node', nargs=0, bp=90))
 def select(self, context):
     item = context.item
     if item is None:
@@ -401,37 +456,37 @@ def select(self, context):
         yield item
 
 
-@method(function('processing-instruction(', nargs=(0, 1), bp=90))
-def select(self, context):
-    if is_processing_instruction_node(context.item):
-        yield context.item
+@method(function('processing-instruction', nargs=(0, 1), bp=90))
+def evaluate(self, context=None):
+    if context and is_processing_instruction_node(context.item):
+        return context.item
 
 
-@method(function('comment(', nargs=0, bp=90))
-def select(self, context):
-    if is_comment_node(context.item):
-        yield context.item
+@method(function('comment', nargs=0, bp=90))
+def evaluate(self, context=None):
+    if context and is_comment_node(context.item):
+        return context.item
 
 
-@method(function('text(', nargs=0, bp=90))
-def select(self, context):
-    if is_text_node(context.item):
-        yield context.item
+@method(function('text', nargs=0, bp=90))
+def evaluate(self, context=None):
+    if context and is_text_node(context.item):
+        return context.item
 
 
 ###
 # Node set functions
-@method(function('last(', nargs=0, bp=90))
+@method(function('last', nargs=0, bp=90))
 def evaluate(self, context=None):
     return context.size if context is not None else 0
 
 
-@method(function('position(', nargs=0, bp=90))
+@method(function('position', nargs=0, bp=90))
 def evaluate(self, context=None):
     return context.position + 1 if context is not None else 0
 
 
-@method(function('count(', nargs=1, bp=90))
+@method(function('count', nargs=1, bp=90))
 def evaluate(self, context=None):
     results = self[0].evaluate(context)
     if isinstance(results, list):
@@ -442,15 +497,37 @@ def evaluate(self, context=None):
         return 0
 
 
-@method('count(')
+@method('count')
 def select(self, context):
     yield len(list(self[0].select(context)))
 
 
-function('id(', nargs=1, bp=90)
+@method(function('id', nargs=1, bp=90))
+def select(self, context):
+    value = self[0].evaluate(context)
+    item = context.item
+    if is_element_node(item):
+        for elem in item.iter():
+            if elem.get(XML_ID_ATTRIBUTE) == value:
+                yield elem
+    elif is_comment_node(item) or is_processing_instruction_node(item):
+        for s in item.text.split():
+            if s == value:
+                yield item
+                break
+    elif isinstance(item, tuple):
+        for s in item[1].split():
+            if s == value:
+                yield item
+                break
+    else:
+        for s in str(item).split():
+            if s == value:
+                yield item
+                break
 
 
-@method(function('name(', nargs=(0, 1), bp=90))
+@method(function('name', nargs=(0, 1), bp=90))
 def evaluate(self, context=None):
     try:
         return self.name(self[0].evaluate(context))
@@ -460,7 +537,7 @@ def evaluate(self, context=None):
         return self.name(context.item)
 
 
-@method(function('local-name(', nargs=(0, 1), bp=90))
+@method(function('local-name', nargs=(0, 1), bp=90))
 def evaluate(self, context=None):
     try:
         name = self.name(self[0])
@@ -474,17 +551,17 @@ def evaluate(self, context=None):
         return name.split('}')[1]
 
 
-function('namespace-uri(', nargs=1, bp=90)
+function('namespace-uri', nargs=1, bp=90)
 
 
 ###
 # String functions
-@method(function('string(', nargs=1, bp=90))
+@method(function('string', nargs=1, bp=90))
 def evaluate(self, context=None):
     return str(self[0].evaluate(context))
 
 
-@method(function('contains(', nargs=2, bp=90))
+@method(function('contains', nargs=2, bp=90))
 def evaluate(self, context=None):
     try:
         return self[1].evaluate(context) in self[0].evaluate(context)
@@ -492,7 +569,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be strings")
 
 
-@method(function('concat(', bp=90))
+@method(function('concat', bp=90))
 def evaluate(self, context=None):
     try:
         return ''.join(tk.value for tk in self)
@@ -500,7 +577,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be strings")
 
 
-@method(function('string-length(', nargs=1, bp=90))
+@method(function('string-length', nargs=1, bp=90))
 def evaluate(self, context=None):
     try:
         return len(self[0].evaluate(context))
@@ -508,7 +585,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string")
 
 
-@method(function('normalize-space(', nargs=1, bp=90))
+@method(function('normalize-space', nargs=1, bp=90))
 def evaluate(self, context=None):
     try:
         return ' '.join(self[0].evaluate(context).strip().split())
@@ -516,7 +593,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string")
 
 
-@method(function('starts-with(', nargs=2, bp=90))
+@method(function('starts-with', nargs=2, bp=90))
 def evaluate(self, context=None):
     try:
         return self[0].evaluate(context).startswith(self[1].value)
@@ -524,7 +601,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be a string")
 
 
-@method(function('translate(', nargs=3, bp=90))
+@method(function('translate', nargs=3, bp=90))
 def evaluate(self, context=None):
     try:
         maketrans = str.maketrans
@@ -542,7 +619,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be strings")
 
 
-@method(function('substring(', nargs=(2, 3), bp=90))
+@method(function('substring', nargs=(2, 3), bp=90))
 def evaluate(self, context=None):
     start, stop = 0, None
     try:
@@ -561,8 +638,8 @@ def evaluate(self, context=None):
         self.wrong_type("the first argument must be a string")
 
 
-@method(function('substring-before(', nargs=2, bp=90))
-@method(function('substring-after(', nargs=2, bp=90))
+@method(function('substring-before', nargs=2, bp=90))
+@method(function('substring-after', nargs=2, bp=90))
 def evaluate(self, context=None):
     index = 0
     try:
@@ -572,7 +649,7 @@ def evaluate(self, context=None):
     except TypeError:
         self.wrong_type("the second argument must be a string")
 
-    if self.symbol == 'substring-before(':
+    if self.symbol == 'substring-before':
         return self[0].evaluate(context)[:index]
     else:
         return self[0].evaluate(context)[index + len(self[1].value):]
@@ -580,65 +657,24 @@ def evaluate(self, context=None):
 
 ###
 # Boolean functions
-@method(function('boolean(', nargs=1, bp=90))
+@method(function('boolean', nargs=1, bp=90))
 def evaluate(self, context=None):
     return self.boolean(self[0].evaluate(context))
 
 
-@method(function('not(', nargs=1, bp=90))
+@method(function('not', nargs=1, bp=90))
 def evaluate(self, context=None):
     return not self.boolean(self[0].evaluate(context))
 
 
-@method(function('true(', nargs=0, bp=90))
+@method(function('true', nargs=0, bp=90))
 def evaluate(self, context=None):
     return True
 
 
-@method(function('false(', nargs=0, bp=90))
+@method(function('false', nargs=0, bp=90))
 def evaluate(self, context=None):
     return False
-
-
-@method(infix('*', bp=45))
-def evaluate(self, context=None):
-    return self[0].evaluate(context) * self[1].evaluate(context)
-
-
-@method('*', bp=45)
-def select(self, context):
-    if not self:
-        # Wildcard literal
-        if context.active_iterator is None:
-            for child in context.iter_children():
-                if is_element_node(child):
-                    yield child
-        elif context.principal_node_kind:
-            if is_attribute_node(context.item):
-                yield context.item[1]
-            else:
-                yield context.item
-    else:
-        # Product operator
-        context.item = self[0].evaluate(context)
-        yield context.item
-
-
-@method('@', bp=80)
-@method('attribute::', bp=80)
-def nud(self):
-    self[0:] = self.parser.expression(rbp=80),
-    if self[0].symbol not in ('*', '(name)'):
-        raise ElementPathSyntaxError("invalid attribute specification for XPath.")
-    return self
-
-
-@method('@')
-@method(axis('attribute::'))
-def select(self, context):
-    for _ in context.iter_attributes():
-        for result in self[0].select(context):
-            yield result
 
 
 ###
@@ -717,6 +753,12 @@ def evaluate(self, context=None):
             self.wrong_type("value must be numeric: %r" % self[0].evaluate(context))
 
 
+@method(infix('*', bp=45))
+def evaluate(self, context=None):
+    if self:
+        return self[0].evaluate(context) * self[1].evaluate(context)
+
+
 @method(infix('div', bp=45))
 def evaluate(self, context=None):
     return self[0].evaluate(context) / self[1].evaluate(context)
@@ -727,6 +769,8 @@ def evaluate(self, context=None):
     return self[0].evaluate(context) % self[1].evaluate(context)
 
 
+###
+# Union expressions
 @method(infix('|', bp=50))
 def select(self, context):
     results = {self.filter_node(elem) for k in range(2) for elem in self[k].select(context)}
@@ -736,6 +780,8 @@ def select(self, context):
             yield elem
 
 
+###
+# Path expressions
 @method('//', bp=80)
 @method('/', bp=80)
 def nud(self):
@@ -798,6 +844,8 @@ def select(self, context):
                     yield result
 
 
+###
+# Parenthesized expressions
 @method('(', bp=90)
 def nud(self):
     self.parser.next_token.unexpected(')')
@@ -806,11 +854,8 @@ def nud(self):
     return self[0]
 
 
-register(')')
-
-
 ###
-# Predicate filter
+# Predicate filters
 @method('[', bp=90)
 def led(self, left):
     self.parser.next_token.unexpected(']')
@@ -831,9 +876,6 @@ def select(self, context):
         elif self.boolean(predicate):
             context.item = result
             yield result
-
-
-register(']')
 
 
 XPath1Parser.end()
