@@ -29,7 +29,6 @@ class XPath2Parser(XPath1Parser):
         # XPath 2.0 added functions
         'document-node',                                   # Node test functions
     )
-    RELATIVE_PATH_SYMBOLS = XPath1Parser.RELATIVE_PATH_SYMBOLS | {s for s in SYMBOLS if s.endswith("::")}
 
     RESERVED_FUNCTIONS = {
         'attribute(', 'comment(', 'document-node(', 'element(', 'empty-sequence(', 'if', 'item', 'node(',

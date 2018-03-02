@@ -21,7 +21,7 @@ from .exceptions import (
     ElementPathError, ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 )
 from .todp_parser import Token, Parser
-from .xpath_base import is_etree_element, XPathToken, XPathContext
+from .xpath_base import is_etree_element, is_xpath_node, XPathToken, XPathContext
 from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
 
@@ -51,12 +51,31 @@ class Selector(object):
     def namespaces(self):
         return self.parser.namespaces
 
-    def findall(self, elem):
+    def select(self, elem):
         context = XPathContext(elem)
-        return list(self.root_token.select(context))
+        results = list(self.root_token.select(context))
+        if len(results) == 1 and self.root_token.label in ('function', 'literal'):
+            return results[0]
+        else:
+            return results
+
+    def iter_select(self, elem):
+        context = XPathContext(elem)
+        return self.root_token.select(context)
 
 
 def select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
+    parser = parser(namespaces, schema)
+    root_token = parser.parse(path)
+    context = XPathContext(elem)
+    results = list(root_token.select(context))
+    if len(results) == 1 and root_token.label in ('function', 'literal'):
+        return results[0]
+    else:
+        return results
+
+
+def iter_select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
     parser = parser(namespaces, schema)
     root_token = parser.parse(path)
     context = XPathContext(elem)

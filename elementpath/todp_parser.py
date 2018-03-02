@@ -404,6 +404,12 @@ class Parser(object):
         return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
 
     @classmethod
+    def nullary(cls, symbol, bp=0):
+        def nud(self):
+            return self
+        return cls.register(symbol, label='operator', lbp=bp, nud=nud)
+
+    @classmethod
     def prefix(cls, symbol, bp=0):
         def nud(self):
             self[0:] = self.parser.expression(rbp=bp),
@@ -427,8 +433,6 @@ class Parser(object):
     @classmethod
     def postfix(cls, symbol, bp=0):
         def led(self, left):
-            import pdb
-            pdb.set_trace()
             self[0:] = left,
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)

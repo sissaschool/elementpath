@@ -11,10 +11,40 @@
 import sys
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .todp_parser import Token
+import re
+
+
+_RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
 
 
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
 XML_ID_ATTRIBUTE = '{%s}id' % XML_NAMESPACE
+
+
+def get_namespace(name):
+    try:
+        return _RE_MATCH_NAMESPACE.match(name).group(1)
+    except (AttributeError, TypeError):
+        return ''
+
+
+def qname_to_prefixed(qname, namespaces):
+    """
+    Transforms a fully qualified name into a prefixed reference using a namespace map.
+
+    :param qname: a fully qualified name or a local name.
+    :param namespaces: Dictionary with the map from prefixes to namespace URIs.
+    :return: String with a prefixed or local reference.
+    """
+    qname_uri = get_namespace(qname)
+    for prefix, uri in sorted(namespaces.items(), reverse=True):
+        if uri != qname_uri:
+            continue
+        if prefix:
+            return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
+        else:
+            return qname.replace(u'{%s}' % uri, '')
+    return qname
 
 
 ###
@@ -130,6 +160,11 @@ class XPathToken(Token):
         else:
             self.wrong_type("an XPath node required: %r" % value)
 
+    def is_path_step_token(self):
+        return self.label == 'axis' or self.symbol in {
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
+        }
+
     # Errors
     def missing_context(self):
         raise ElementPathValueError("%s: dynamic context required for evaluate." % self)
@@ -213,6 +248,19 @@ class XPathContext(object):
 
             self.item, self.size, self.position, self._iterator = status
             self._node_kind_test = is_element_node
+
+    def iter_parent(self):
+        status = self.item, self.size, self.position, self._iterator
+        self._iterator, self._node_kind_test = self.iter_parent, is_element_node
+
+        try:
+            self.item = self.parent_map[self.item]
+        except KeyError:
+            pass
+        else:
+            yield self.item
+
+        self.item, self.size, self.position, self._iterator = status
 
     def iter_descendants(self, item=None):
         def _iter_descendants():

@@ -59,11 +59,14 @@ class XPath1ParserTest(unittest.TestCase):
             self.assertEqual(list(self.parser.parse(path).select(context)), expected)
 
     def check_select(self, path, root, expected, namespaces=None, schema=None):
-        selector = select(root, path, namespaces, schema, self.parser.__class__)
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, list, selector)
+            self.assertRaises(expected, select, root, path, namespaces, schema, self.parser.__class__)
         else:
-            self.assertEqual(list(selector), expected)
+            results = select(root, path, namespaces, schema, self.parser.__class__)
+            if isinstance(expected, set):
+                self.assertEqual(set(results), expected)
+            else:
+                self.assertEqual(results, expected)
 
     def wrong_syntax(self, path):
         self.assertRaises(ElementPathSyntaxError, self.parser.parse, path)
@@ -114,11 +117,37 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tokenizer("last (:", ['last', '', '(:'])
 
     def test_tokens(self):
+        # Literals
         self.check_token('(string)', 'literal', "'hello' string",
                          "token(symbol='(string)', value='hello')", 'hello')
+        self.check_token('(integer)', 'literal', "1999 integer",
+                         "token(symbol='(integer)', value=1999)", 1999)
+        self.check_token('(float)', 'literal', "3.1415 float",
+                         "token(symbol='(float)', value=3.1415)", 3.1415)
+        self.check_token('(decimal)', 'literal', "217.35 decimal",
+                         "token(symbol='(decimal)', value=217.35)", 217.35)
+        self.check_token('(name)', 'literal', "'schema' name",
+                         "token(symbol='(name)', value='schema')", 'schema')
+
+        # Axes
+        self.check_token('self', 'axis', "self axis", "token(symbol='self')")
+        self.check_token('child', 'axis', "child axis", "token(symbol='child')")
+        self.check_token('parent', 'axis', "parent axis", "token(symbol='parent')")
+        self.check_token('ancestor', 'axis', "ancestor axis", "token(symbol='ancestor')")
         self.check_token('preceding', 'axis', "preceding axis", "token(symbol='preceding')")
         self.check_token('descendant-or-self', 'axis', "descendant-or-self axis")
+        self.check_token('following-sibling', 'axis', "following-sibling axis")
+        self.check_token('preceding-sibling', 'axis', "preceding-sibling axis")
+        self.check_token('ancestor-or-self', 'axis', "ancestor-or-self axis")
+        self.check_token('descendant', 'axis', "descendant axis")
+        self.check_token('attribute', 'axis', "attribute axis")
+        self.check_token('following', 'axis', "following axis")
+        self.check_token('namespace', 'axis', "namespace axis")
+
+        # Functions
         self.check_token('position', 'function', "position() function", "token(symbol='position')")
+
+        # Operators
         self.check_token('and', 'operator', "'and' operator", "token(symbol='and')")
 
     def test_implementation(self):
@@ -128,7 +157,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree('child::B1', '(child (B1))')
         self.check_tree('A/B//C/D', '(/ (// (/ (A) (B)) (C)) (D))')
         self.check_tree('child::*/child::B1', '(/ (child (*)) (child (B1)))')
-        self.check_tree('attribute::name="Galileo"', '(attribute (= (name) (Galileo)))')
+        self.check_tree('attribute::name="Galileo"', '(= (attribute (name)) (Galileo))')
         self.check_tree('1 + 2 * 3', '(+ (1) (* (2) (3)))')
         self.check_tree('(1 + 2) * 3', '(* (+ (1) (2)) (3))')
         self.check_tree("false() and true()", '(and (False) (True))')
@@ -183,9 +212,23 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("last()", 0)
         self.check_value("last()", 3, context=context)
         self.check_value("last()-1", 2, context=context)
+
         self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
-        self.check_select("count(5)", root, [1])
-        # self.check_select("name(A)", root, [1])
+
+        self.check_select("name(.)", root, 'A')
+        self.check_select("name(A)", root, '')
+        self.check_select("local-name(A)", root, '')
+        self.check_select("namespace-uri(A)", root, '')
+        self.check_select("name(B2)", root, 'B2')
+        self.check_select("local-name(B2)", root, 'B2')
+        self.check_select("namespace-uri(B2)", root, '')
+        if self.parser.version <= '1.0':
+            self.check_select("name(*)", root, 'B1')
+        root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns"/>')
+        self.check_select("name(.)", root, 'tst:A', namespaces={'tst': "http://xpath.test/ns"})
+        self.check_select("local-name(.)", root, 'A')
+        self.check_select("namespace-uri(.)", root, 'http://xpath.test/ns')
+        # self.check_select("name(tst:A)", root, ['{http://xpath.test/ns}A'])
 
     def test_string_functions(self):
         self.check_value("string(10.0)", '10.0')
@@ -267,7 +310,7 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_child_operator(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_select('/', root, [root])  # root element is the child of the document
+        self.check_select('/', root, [])  # a root element is not a document!
         self.check_select('/B1', root, [])
         self.check_select('/A1', root, [])
         self.check_select('/A', root, [root])
@@ -284,7 +327,7 @@ class XPath1ParserTest(unittest.TestCase):
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_select('.', root, [root])
-        self.check_select('/././.', root, [root])
+        self.check_select('/././.', root, [])
         self.check_select('/A/.', root, [root])
         self.check_select('/A/B1/.', root, [root[0]])
         self.check_select('/A/B1/././.', root, [root[0]])
@@ -333,7 +376,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select('/A/B1/attribute::*', root, ['beta1'])
         self.check_select('/A/B1/@*', root, ['beta1'])
         self.check_select('/A/B3/attribute::*', root, ['beta2', 'beta3'])
-        self.check_select('/A/attribute::*', root, ['alpha', '1'])  # sorted by attribute name
+        self.check_select('/A/attribute::*', root, {'1', 'alpha'})
 
     def test_following_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C1><D1/></C1></B4></A>')
@@ -363,7 +406,7 @@ class XPath1ParserTest(unittest.TestCase):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
         self.check_select('/A/B1/C2/preceding-sibling::*', root, [root[0][0]])
         self.check_select('/A/B2/C4/preceding-sibling::*', root, [root[1][0], root[1][1], root[1][2]])
-        self.check_select('/A/B1/C2/preceding-sibling::C3', root, [root[0][0]])
+        self.check_select('/A/B1/C2/preceding-sibling::C3', root, [])
 
     def test_preceding_axis(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
@@ -398,12 +441,16 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
-        #self.check_select("boolean((A, 35))", root, True)  # Too much arguments
+        # self.check_select("boolean((A, 35))", root, True)  # Too much arguments
 
     def test_numerical_expressions2(self):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
+
+    def test_node_set_functions2(self):
+        root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
+        self.check_select("count(5)", root, 1)
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):
@@ -414,12 +461,17 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         cls.etree = lxml.etree
 
     def check_select(self, path, root, expected, namespaces=None, schema=None):
-        selector = select(root, path, namespaces, schema, self.parser.__class__)
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, list, selector)
+            self.assertRaises(expected, select, root, path, namespaces, schema, self.parser.__class__)
         else:
-            self.assertEqual(list(selector), expected)
-            # self.assertEqual(root.xpath(path), expected)  TODO: check some XPath 1.0 peculiarities before ...
+            results = select(root, path, namespaces, schema, self.parser.__class__)
+            if isinstance(expected, set):
+                self.assertEqual(set(results), expected)
+                self.assertEqual(set(root.xpath(path)), expected)
+            else:
+                self.assertEqual(results, expected)
+                self.assertEqual(root.xpath(path), expected)
+
 
 class LxmlXPath2ParserTest(XPath2ParserTest):
 
