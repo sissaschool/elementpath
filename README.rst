@@ -1,27 +1,82 @@
-***********
+===========
 elementpath
-***********
+===========
 
-The library provides XPath selectors for Python's ElementTree XML libraries. Includes
-a parser for XPath 1.0 and for XPath 2.0 and a mixin class for adding XPath selection
-to other tree of elements.
+This is a small package that provides XPath 1.0 and 2.0 selectors for Python's ElementTree XML
+data structures, both for the standard ElementTree library and for the
+`lxml.etree <http://lxml.de>`_ library.
 
-Originally included into the `xmlschema <https://github.com/brunato/xmlschema>`_ library
-this has been forked to a different package in order to provide an indipendent usage.
+For `lxml.etree <http://lxml.de>`_ this package could be useful for providing XPath 2.0 selectors,
+because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XPath 1.0.
+
+The XPath 2.0 functions implementation is partial, due to wide number of functions that this language
+provides. If you want you can contribute to add an unimplemented function see the section below.
+
 
 Installation and usage
-======================
+----------------------
 
-You can install the library with *pip* in a Python 2.7 or Python 3.3+ environment::
+You can install the package with *pip* in a Python 2.7 or Python 3.3+ environment::
 
     pip install elementpath
 
-Then import the selector from the library and apply XPath selection to ElementTree structures:
+For using import the package and apply the selectors on ElementTree nodes:
 
 .. code-block:: pycon
 
-    >>> from elementpath import XPathSelector
-    >>> ....
+    >>> import elementpath
+    >>> from xml.etree import ElementTree
+    >>> xt = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> elementpath.select(xt, '/A/B2/*')
+    ...
+
+
+Public API
+----------
+
+.. py:class:: XPath1Parser(namespaces=None)
+
+    The XPath 1.0 parser, that also provides the static context for the expressions. Provide a
+    *namespaces* dictionary argument for mapping namespace prefixes to URI inside expressions.
+
+.. py:class:: XPath2Parser(namespaces=None, schema=None, compatibility_mode=False)
+
+    The XPath 1.0 parser, that is the default parser. Two additional arguments can be provided.
+    *schema* is a reference to an instance that provides access to XML Schema definitions.
+    The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
+    with XPath 1.0.
+
+.. py:function:: select(target, path, namespaces=None, schema=None, parser=XPath2Parser)
+
+    Apply *path* expression on *target*. Target can be an ElementTree instance or an Element instance.
+    Returns a list with XPath nodes or a basic type for expressions based on a function or literal.
+
+.. py:function:: iter_select(target, path, namespaces=None, schema=None, parser=XPath2Parser)
+
+    Iterator version of *select*, if you want to process each result one by one.
+
+.. py:class:: Selector(path, namespaces=None, schema=None, parser=XPath2Parser)
+
+    Create an instance of this class if you want to apply an XPath selector to several target data.
+    An instance provides *select* and *iter_select* methods with a *target* argument that has the
+    same meaning that as for the *select* API.
+
+
+Contributing
+------------
+
+You can contribute to this package reporting bugs using the issue tracker or by a pull request.
+In both cases please try to provide a test or test data for reproducing the issue.
+The provided testing code shall be added to the tests of the package.
+
+The XPath parsers are based on an implementation of the Pratt's Top Down Operator Precedence parser.
+The implemented parser includes some lookup-ahead features, helpers for registering tokens and for
+extending language implementations. Also the token class has been generalized using a `MutableSequence`
+as base class. See *todp_parser.py* for the basic internal classes and *xpath1_parser.py* for extensions
+and for a basic usage of the parser.
+
+If you like you can use the basic parser and tokens provided by the *todp_parser.py* module to
+implement other types of parsers (I think it could be also a funny exercise!).
 
 
 License
