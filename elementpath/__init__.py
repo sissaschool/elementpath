@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-
 __version__ = '1.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
@@ -26,9 +25,24 @@ from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
 
 
-###
-# XPath selectors
-#
+def select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
+    parser = parser(namespaces, schema)
+    root_token = parser.parse(path)
+    context = XPathContext(elem)
+    results = list(root_token.select(context))
+    if len(results) == 1 and root_token.label in ('function', 'literal'):
+        return results[0]
+    else:
+        return results
+
+
+def iter_select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
+    parser = parser(namespaces, schema)
+    root_token = parser.parse(path)
+    context = XPathContext(elem)
+    return root_token.select(context)
+
+
 class Selector(object):
     """
     XPath selector. For default uses XPath 2.0.
@@ -62,82 +76,3 @@ class Selector(object):
     def iter_select(self, elem):
         context = XPathContext(elem)
         return self.root_token.select(context)
-
-
-def select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
-    parser = parser(namespaces, schema)
-    root_token = parser.parse(path)
-    context = XPathContext(elem)
-    results = list(root_token.select(context))
-    if len(results) == 1 and root_token.label in ('function', 'literal'):
-        return results[0]
-    else:
-        return results
-
-
-def iter_select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
-    parser = parser(namespaces, schema)
-    root_token = parser.parse(path)
-    context = XPathContext(elem)
-    return root_token.select(context)
-
-
-class ElementPathMixin(object):
-    """
-    Mixin class that defines the ElementPath API.
-    """
-    @property
-    def tag(self):
-        return getattr(self, 'name')
-
-    @property
-    def attrib(self):
-        return getattr(self, 'attributes')
-
-    def iterfind(self, path, namespaces=None):
-        """
-        Generates all matching XSD/XML element declarations by path.
-
-        :param path: is an XPath expression that considers the schema as the root element \
-        with global elements as its children.
-        :param namespaces: is an optional mapping from namespace prefix to full name.
-        :return: an iterable yielding all matching declarations in the XSD/XML order.
-        """
-        return select(self, path, namespaces or self.xpath_namespaces)
-
-    def find(self, path, namespaces=None):
-        """
-        Finds the first XSD/XML element or attribute matching the path.
-
-        :param path: is an XPath expression that considers the schema as the root element \
-        with global elements as its children.
-        :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
-        """
-        return next(select(self, path, namespaces or self.xpath_namespaces), None)
-
-    def findall(self, path, namespaces=None):
-        """
-        Finds all matching XSD/XML elements or attributes.
-
-        :param path: is an XPath expression that considers the schema as the root element \
-        with global elements as its children.
-        :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: a list containing all matching XSD/XML elements or attributes. An empty list \
-        is returned if there is no match.
-        """
-        return list(select(self, path, namespaces or self.xpath_namespaces))
-
-    @property
-    def xpath_namespaces(self):
-        if hasattr(self, 'namespaces'):
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
-            if hasattr(self, 'xpath_default_namespace'):
-                namespaces[''] = self.xpath_default_namespace
-            return namespaces
-
-    def iter(self, name=None):
-        raise NotImplementedError
-
-    def iterchildren(self, name=None):
-        raise NotImplementedError

@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .xpath_base import is_document_node, is_attribute_node
+from .xpath_base import is_document_node, is_attribute_node, is_xpath_node
 from .xpath1_parser import XPath1Parser
 
 
@@ -17,23 +17,34 @@ class XPath2Parser(XPath1Parser):
     XPath 2.0 expression parser class.
     """
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
-    SYMBOLS = XPath1Parser.SYMBOLS + (
+    SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance of', 'castable as', 'if', 'then', 'else', 'for',
         'some', 'every', 'in', 'satisfies', 'validate', 'type', 'item', 'satisfies', 'context',
-        'cast as', 'treat as', 'as', 'of', 'return', 'except', 'is', 'isnot', '<<', '>>', '?',
-        'untyped',
+        'cast as', 'treat as', 'return', 'except', '?', 'untyped',
+
+        # Value comparison operators
+        'eq', 'ne', 'lt', 'le', 'gt', 'ge',
+        
+        # Node comparison operators
+        'is', '<<', '>>',
 
         # Mathematical operators
         'idiv',
 
-        # XPath 2.0 added functions
-        'document-node',                                   # Node test functions
-    )
-
-    RESERVED_FUNCTIONS = {
-        'attribute(', 'comment(', 'document-node(', 'element(', 'empty-sequence(', 'if', 'item', 'node(',
-        'processing-instruction(', 'schema-attribute(', 'schema-element(', 'text(', 'typeswitch'
+        # # Node test functions
+        'document-node',
     }
+
+    QUALIFIED_FUNCTIONS = {
+        'attribute', 'comment', 'document-node', 'element', 'empty-sequence', 'if', 'item', 'node',
+        'processing-instruction', 'schema-attribute', 'schema-element', 'text', 'typeswitch'
+    }
+
+    def __init__(self, namespaces=None, schema=None, compatibility_mode=False):
+        super(XPath2Parser, self).__init__()
+        self.namespaces = namespaces if namespaces is not None else {}
+        self.schema = schema
+        self.compatibility_mode = compatibility_mode
 
     @property
     def version(self):
@@ -55,16 +66,30 @@ function = XPath2Parser.function
 axis = XPath2Parser.axis
 
 
+###
+# Node sequence composition
 alias('union', '|')
 
-register('intersect')
-register('instance of')
-register('castable as')
+
+@method(infix('intersect', bp=55))
+def select(self, context):
+    results = set(self[0].select(context)) & set(self[1].select(context))
+    for item in context.iter():
+        if item in results:
+            yield item
+
+
+@method(infix('except', bp=55))
+def select(self, context):
+    results = set(self[0].select(context)) & set(self[1].select(context))
+    for item in context.iter():
+        if item in results:
+            yield item
 
 
 ###
 # 'for' expression
-@method('for', bp=15)
+@method('for', bp=20)
 def nud(self):
     del self[:]
     while True:
@@ -89,7 +114,7 @@ register('then')
 register('else')
 
 
-@method('if', bp=15)
+@method('if', bp=20)
 def nud(self):
     self.parser.advance('(')
     self[0:] = self.parser.expression(),
@@ -118,24 +143,46 @@ def select(self, context):
         for result in self[2].select(context):
             yield result
 
+###
+# Quantified expressions
+@method('some', bp=20)
+@method('every', bp=20)
+def nud(self):
+    del self[:]
+    while True:
+        self.parser.next_token.expected('$')
+        self.append(self.parser.expression())
+        self.parser.advance('in')
+        self.append(self.parser.expression())
+        if self.parser.next_token.symbol != ',':
+            break
+    self.parser.advance('satisfies')
+    self.append(self.parser.expression())
+    return self
 
-register('some')
-register('every')
+
 register('satisfies')
+
+
+@method(function('item', nargs=0, bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif context.item is None:
+        return context.root
+    else:
+        return context.item
+
+
+register('instance of')
+register('castable as')
 register('validate')
 register('type')
-register('item')
-register('satisfies')
 register('context')
 register('cast as')
 register('treat as')
 register('as')
 register('of')
-register('except')
-register('is')
-register('isnot')
-register('<<')
-register('>>')
 register('?')
 register('untyped')
 
@@ -166,6 +213,70 @@ def nud(self):
     self[0:] = self.parser.expression(),
     self.parser.advance(')')
     return self[0]
+
+
+###
+# Value comparison operators
+@method(infix('eq', bp=30))
+def evaluate(self, context=None):
+    return self[0   ].evaluate(context) == self[1].evaluate(context)
+
+
+@method(infix('ne', bp=30))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) != self[1].evaluate(context)
+
+
+@method(infix('lt', bp=30))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) < self[1].evaluate(context)
+
+
+@method(infix('gt', bp=30))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) > self[1].evaluate(context)
+
+
+@method(infix('le', bp=30))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) <= self[1].evaluate(context)
+
+
+@method(infix('ge', bp=30))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) >= self[1].evaluate(context)
+
+
+###
+# Node comparison
+@method(infix('is', bp=30))
+@method(infix('<<', bp=30))
+@method(infix('>>', bp=30))
+def evaluate(self, context=None):
+    symbol = self.symbol
+    left = list(self[0].list(context))
+    if len(left) > 1 or left and not is_xpath_node(left):
+        self[0].wrong_type("left operand of %r must be a single node" % symbol)
+    right = list(self[1].select(context))
+    if len(right) > 1 or right and not is_xpath_node(right):
+        self[0].wrong_type("right operand of %r must be a single node" % symbol)
+
+    if len(left) != len(right):
+        self[0].wrong_type("operands of %r must be both single nodes or empty sequences")
+    elif len(left) == 0:
+        return
+    elif symbol == 'is':
+        return left is right
+    else:
+        if left is right:
+            return False
+        for item in context.iter():
+            if left is item:
+                return True if symbol == '<<' else False
+            elif right is item:
+                return False if symbol == '<<' else True
+        else:
+            self.wrong_value("operands are not nodes of the XML tree!")
 
 
 ###

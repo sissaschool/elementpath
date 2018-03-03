@@ -27,7 +27,7 @@ class XPath1Parser(Parser):
     """
     token_base_class = XPathToken
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
-    SYMBOLS = (
+    SYMBOLS = {
         # Axes
         'descendant-or-self', 'following-sibling', 'preceding-sibling',
         'ancestor-or-self', 'descendant', 'attribute', 'following',
@@ -45,12 +45,11 @@ class XPath1Parser(Parser):
         'substring-before', 'substring-after', 'substring',
         'string-length', 'normalize-space', 'translate',
         'boolean', 'not', 'true', 'false'                     # Boolean functions
-    )
+    }
 
-    def __init__(self, namespaces=None, schema=None):
+    def __init__(self, namespaces=None, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = namespaces if namespaces is not None else {}
-        self.schema = schema
 
     @property
     def version(self):
@@ -392,11 +391,10 @@ def evaluate(self, context=None):
 # Union expressions
 @method(infix('|', bp=50))
 def select(self, context):
-    results = {self.filter_node(elem) for k in range(2) for elem in self[k].select(context)}
-    for elem in self.root.iter():
-        if elem in results:
-            context.item = elem
-            yield elem
+    results = {item for k in range(2) for item in self[k].select(context)}
+    for item in context.iter():
+        if item in results:
+            yield item
 
 
 ###
