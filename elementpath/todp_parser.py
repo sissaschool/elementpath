@@ -257,7 +257,7 @@ class Parser(object):
     def wrong_syntax(self, symbol):
         pos = self.position
         token = self.token
-        if self is not token and token is not None:
+        if token is not None and symbol != token.symbol:
             raise ElementPathSyntaxError(
                 "unexpected symbol %r after %s at line %d, column %d." % (symbol, token, pos[0], pos[1])
             )
@@ -384,9 +384,17 @@ class Parser(object):
     def alias(cls, symbol, other):
         symbol = symbol.strip()
         try:
-            cls.symbol_table[symbol] = cls.symbol_table[other]
+            other_class = cls.symbol_table[other]
         except KeyError:
             raise ElementPathKeyError("%r is not a registered symbol for %r." % (other, cls))
+
+        token_class = cls.register(symbol)
+        token_class.lbp = other_class.lbp
+        token_class.rbp = other_class.rbp
+        token_class.nud = other_class.nud
+        token_class.led = other_class.led
+        token_class.evaluate = other_class.evaluate
+        return token_class
 
     @classmethod
     def unregistered(cls):

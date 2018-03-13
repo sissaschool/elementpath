@@ -67,6 +67,12 @@ class XPath1Parser(Parser):
         cls.build_tokenizer(name_pattern=XML_NCNAME_PATTERN)
 
     @classmethod
+    def alias(cls, symbol, other):
+        token_class = super(XPath1Parser, cls).alias(symbol, other)
+        token_class.select = cls.symbol_table[other].select
+        return token_class
+
+    @classmethod
     def axis(cls, symbol, bp=0):
         def nud_(self):
             self.parser.advance('::')

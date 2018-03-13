@@ -296,6 +296,39 @@ class XPathContext(object):
             self.item, self.size, self.position, self._iterator = status
             self._node_kind_test = is_element_node
 
+    def iter(self):
+        def _iter():
+            elem = self.item
+            yield self.item
+            if elem.text is not None:
+                self.item = elem.text
+                yield self.item
+
+            for _item in sorted(self.item.attrib.items()):
+                self.item = _item
+                yield _item
+
+            if len(elem):
+                self.size = len(elem)
+                for self.position, self.item in enumerate(elem):
+                    for _item in _iter():
+                        yield _item
+
+        status = self.item, self.size, self.position, self._iterator
+        self._iterator = self.iter
+
+        if self.item is None:
+            self.size, self.position = 1, 0
+            yield self.root
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
+        elif not is_etree_element(self.item):
+            return
+
+        for item in _iter():
+            yield item
+
+        self.item, self.size, self.position, self._iterator = status
+
     def iter_parent(self):
         status = self.item, self.size, self.position, self._iterator
         self._iterator, self._node_kind_test = self.iter_parent, is_element_node

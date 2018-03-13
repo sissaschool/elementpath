@@ -454,8 +454,9 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select('/A/B2/*[position()>=2]', root, root[1][1:])
 
     def test_union(self):
-        # TODO |
-        pass
+        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
+        self.check_select('/A/B2 | /A/B1', root, root[:2])
+        self.check_select('/A/B2 | /A/*', root, root[:])
 
 
 class XPath2ParserTest(XPath1ParserTest):
@@ -472,6 +473,7 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_token_tree2(self):
         self.check_tree('(1 + 6, 2, 10 - 4)', '(, (, (+ (1) (6)) (2)) (- (10) (4)))')
+        self.check_tree('/A/B2 union /A/B1', '(union (/ (/ (A)) (B2)) (/ (/ (A)) (B1)))')
 
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
@@ -499,6 +501,11 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_select("count(5)", root, 1)
+
+    def test_union2(self):
+        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
+        self.check_select('/A/B2 union /A/B1', root, root[:2])
+        # self.check_select('/A/B2 union /A/*', root, root[:])
 
     @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
     def test_schema(self):
