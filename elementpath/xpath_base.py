@@ -154,7 +154,12 @@ class XPathToken(Token):
         :param context: The XPath evaluation context.
         """
         item = self.evaluate(context)
-        if item is not None:
+        if item is None:
+            return
+        elif isinstance(item, list):
+            for _item in item:
+                yield _item
+        else:
             context.item = item
             yield item
 

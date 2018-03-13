@@ -502,10 +502,36 @@ class XPath2ParserTest(XPath1ParserTest):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_select("count(5)", root, 1)
 
-    def test_union2(self):
+    def test_union_intersect_except(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
         self.check_select('/A/B2 union /A/B1', root, root[:2])
-        # self.check_select('/A/B2 union /A/*', root, root[:])
+        self.check_select('/A/B2 union /A/*', root, root[:])
+
+        self.check_select('/A/B2 intersect /A/B1', root, [])
+        self.check_select('/A/B2 intersect /A/*', root, [root[1]])
+        self.check_select('/A/B1/* intersect /A/B2/*', root, [])
+        self.check_select('/A/B1/* intersect /A/*/*', root, root[0][:])
+
+        self.check_select('/A/B2 except /A/B1', root, root[1:2])
+        self.check_select('/A/* except /A/B2', root, [root[0], root[2]])
+        self.check_select('/A/*/* except /A/B2/*', root, root[0][:])
+        self.check_select('/A/B2/* except /A/B1/*', root, root[1][:])
+        self.check_select('/A/B2/* except /A/*/*', root, [])
+
+        root = self.etree.XML('<root><A/><B/><C/></root>')
+
+        # From variables like XPath 2.0 examples
+        context = XPathContext(root, variables = {
+            'seq1': root[:2],  # (A, B)
+            'seq2': root[:2],  # (A, B)
+            'seq3': root[1:],  # (B, C)
+        })
+        self.check_sequence('$seq1 union $seq2', root[:2], context=context)
+        self.check_sequence('$seq2 union $seq3', root[:], context=context)
+        self.check_sequence('$seq1 intersect $seq2', root[:2], context=context)
+        self.check_sequence('$seq2 intersect $seq3', root[1:2], context=context)
+        self.check_sequence('$seq1 except $seq2', [], context=context)
+        self.check_sequence('$seq2 except $seq3', root[:1], context=context)
 
     @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
     def test_schema(self):

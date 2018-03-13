@@ -144,7 +144,7 @@ def select(self, context):
 
 @method(infix('except', bp=55))
 def select(self, context):
-    results = set(self[0].select(context)) & set(self[1].select(context))
+    results = set(self[0].select(context)) - set(self[1].select(context))
     for item in context.iter():
         if item in results:
             yield item
