@@ -8,7 +8,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .xpath_base import is_document_node, is_attribute_node, is_xpath_node
+from .xpath_base import (
+    is_document_node, XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, is_attribute_node, is_xpath_node
+)
 from .xpath1_parser import XPath1Parser
 
 
@@ -18,9 +20,12 @@ class XPath2Parser(XPath1Parser):
     """
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
     SYMBOLS = XPath1Parser.SYMBOLS | {
-        'union', 'intersect', 'instance of', 'castable as', 'if', 'then', 'else', 'for',
-        'some', 'every', 'in', 'satisfies', 'validate', 'type', 'item', 'satisfies', 'context',
-        'cast as', 'treat as', 'return', 'except', '?', 'untyped',
+        'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for',
+        'some', 'every', 'in', 'satisfies', 'type', 'item', 'satisfies', 'context',
+        'cast', 'treat', 'return', 'except', '?', 'untyped', 'as', 'of',
+
+        # Comments
+        '(:', ':)',
 
         # Value comparison operators
         'eq', 'ne', 'lt', 'le', 'gt', 'ge',
@@ -31,8 +36,8 @@ class XPath2Parser(XPath1Parser):
         # Mathematical operators
         'idiv',
 
-        # # Node test functions
-        'document-node',
+        # Node test functions
+        'document-node', 'schema-attribute', 'element', 'schema-element',  # 'attribute',
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -40,9 +45,14 @@ class XPath2Parser(XPath1Parser):
         'processing-instruction', 'schema-attribute', 'schema-element', 'text', 'typeswitch'
     }
 
-    def __init__(self, namespaces=None, schema=None, compatibility_mode=False):
-        super(XPath2Parser, self).__init__()
-        self.namespaces = namespaces if namespaces is not None else {}
+    def __init__(self, namespaces=None, default_namespace='', function_namespace=None,
+                 schema=None, compatibility_mode=False):
+        super(XPath2Parser, self).__init__(namespaces)
+        self.default_namespace = default_namespace
+        if function_namespace is None:
+            self.function_namespace = XPATH_FUNCTIONS_NAMESPACE
+        else:
+            self.function_namespace = function_namespace
         self.schema = schema
         self.compatibility_mode = compatibility_mode
 
@@ -50,9 +60,48 @@ class XPath2Parser(XPath1Parser):
     def version(self):
         return '2.0'
 
+    def advance(self, *symbols):
+        super(XPath2Parser, self).advance(*symbols)
+        if self.next_token.symbol == '(:':
+            token = self.token
+            if token is None:
+                self.next_token.comment = self.comment()
+            elif token.comment is None:
+                token.comment = self.comment()
+            else:
+                token.comment = '%s %s' % (token.comment, self.comment())
+
+        return self.next_token
+
+    def comment(self):
+        """
+        Parses and consumes a XPath 2.0 comment. Comments are delimited by symbols
+        '(:' and ':)' and can be nested. A comment is attached to the previous token
+        or the next token when the previous is None.
+        """
+        if self.next_token.symbol != '(:':
+            return
+
+        super(XPath2Parser, self).advance()
+        comment_level = 1
+        comment = []
+        while comment_level:
+            super(XPath2Parser, self).advance()
+            token = self.token
+            if token.symbol == ':)':
+                comment_level -= 1
+                if comment_level:
+                    comment.append(str(token.value))
+            elif token.symbol == '(:':
+                comment_level += 1
+                comment.append(str(token.value))
+            else:
+                comment.append(str(token.value))
+        return ' '.join(comment)
+
 
 ##
-# XPath1 definitions
+# XPath 2.0 definitions
 XPath2Parser.begin()
 
 register = XPath2Parser.register
@@ -64,6 +113,20 @@ infixr = XPath2Parser.infixr
 method = XPath2Parser.method
 function = XPath2Parser.function
 axis = XPath2Parser.axis
+
+
+###
+# Symbols
+register('then')
+register('else')
+register('in')
+register('return')
+register('satisfies')
+register('as')
+register('of')
+register('?')
+register('(:')
+register(':)')
 
 
 ###
@@ -104,16 +167,8 @@ def nud(self):
     return self
 
 
-register('in')
-register('return')
-
-
 ###
 # 'if' expression
-register('then')
-register('else')
-
-
 @method('if', bp=20)
 def nud(self):
     self.parser.advance('(')
@@ -161,9 +216,6 @@ def nud(self):
     return self
 
 
-register('satisfies')
-
-
 @method(function('item', nargs=0, bp=90))
 def evaluate(self, context=None):
     if context is None:
@@ -174,16 +226,61 @@ def evaluate(self, context=None):
         return context.item
 
 
-register('instance of')
-register('castable as')
-register('validate')
+###
+# Sequence type based
+@method('instance', bp=60)
+@method('treat', bp=61)
+def led(self, left):
+    self.parser.advance('of' if self.symbol is 'instance' else 'as')
+    self[0:1] = left, self.parser.expression(rbp=self.rbp)
+    next_symbol = self.parser.next_token.symbol
+    if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
+        self[3:] = next_symbol,
+        self.advance()
+    return self
+
+
+@method('instance')
+def evaluate(self, context=None):
+    if self.parser.schema is None:
+        self.missing_schema()
+    treat_expr = self[0].evaluate(context)
+    if self[1].symbol == 'empty-sequence':
+        return treat_expr == []
+    type_qname = self[1].evaluate(context)
+    occurs = self[2] if len(self) > 2 else None
+    return self.parser.schema.is_instance(treat_expr, type_qname, occurs)
+
+
+###
+# Simple type based
+@method('castable', bp=62)
+@method('cast', bp=63)
+def led(self, left):
+    self.parser.advance('of')
+    self[0:1] = left, self.parser.expression(rbp=self.rbp)
+    if self.parser.next_token.symbol == '?':
+        self[3:] = '?',
+        self.advance()
+    return self
+
+
+@method('castable', bp=62)
+@method('cast', bp=63)
+def evaluate(self, context=None):
+    if self.parser.schema is None:
+        self.missing_schema()
+    unary_expr = self.atomize(self[0].evaluate(context))
+    if unary_expr in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
+        self.wrong_type("target type cannot be xs:NOTATION or xs:anyAtomicType [err:XPST0080]")
+    type_qname = self[1].evaluate(context)
+    required = len(self) <= 2
+    return self.parser.schema.cast_as(unary_expr, type_qname, required)
+
+
 register('type')
 register('context')
-register('cast as')
-register('treat as')
-register('as')
-register('of')
-register('?')
+
 register('untyped')
 
 
@@ -278,6 +375,27 @@ def evaluate(self, context=None):
         else:
             self.wrong_value("operands are not nodes of the XML tree!")
 
+###
+# Range expression
+@method(infix('to', bp=35))
+def evaluate(self, context=None):
+    try:
+        start = self[0].evaluate(context) + 1
+        stop = self[1].evaluate(context) + 1
+    except TypeError as err:
+        if context is not None:
+            self.wrong_type(str(err))
+        return
+    else:
+        return range(start, stop)
+
+
+@method('to')
+def select(self, context):
+    for k in self.evaluate(context):
+        yield k
+
+
 
 ###
 # Numerical operators
@@ -297,6 +415,27 @@ def select(self, context):
             for elem in self[0].select(context):
                 context.item = elem
                 yield elem
+
+
+#@method(function('attribute', nargs=(0, 2), bp=90))
+#def select(self, context):
+#    pass
+
+
+@method(function('schema-attribute', nargs=1, bp=90))
+def select(self, context):
+    pass
+
+
+
+@method(function('element', nargs=(0, 2), bp=90))
+def select(self, context):
+    pass
+
+
+@method(function('schema-element', nargs=1, bp=90))
+def select(self, context):
+    pass
 
 
 XPath2Parser.end()

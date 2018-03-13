@@ -13,10 +13,14 @@ from __future__ import division
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
 from .xpath_base import (
-    XML_ID_ATTRIBUTE, XPathToken, qname_to_prefixed, is_etree_element, is_xpath_node,
-    is_element_node, is_document_node, is_comment_node, is_processing_instruction_node,
-    is_attribute_node, is_text_node
+    XML_ID_ATTRIBUTE, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, XPathToken,
+    qname_to_prefixed, is_etree_element, is_xpath_node, is_element_node, is_document_node,
+    is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node
 )
+
+XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
+                      u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
+XML_NCNAME_PATTERN = u"[{0}][\-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format(XML_NAME_CHARACTER)
 
 
 class XPath1Parser(Parser):
@@ -35,7 +39,7 @@ class XPath1Parser(Parser):
 
         # Operators
         'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[', ']',
-        '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '(:', ':)', '$', '::',
+        ':', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '$', '::',
 
         # XPath Core function library
         'node', 'text', 'comment', 'processing-instruction',  # Node test functions
@@ -49,11 +53,18 @@ class XPath1Parser(Parser):
 
     def __init__(self, namespaces=None, *args, **kwargs):
         super(XPath1Parser, self).__init__()
-        self.namespaces = namespaces if namespaces is not None else {}
+        self.namespaces = DEFAULT_NAMESPACES.copy()
+        if namespaces is not None:
+            self.namespaces.update(namespaces)
 
     @property
     def version(self):
         return '1.0'
+
+    @classmethod
+    def end(cls):
+        cls.register('(end)')
+        cls.build_tokenizer(name_pattern=XML_NCNAME_PATTERN)
 
     @classmethod
     def axis(cls, symbol, bp=0):
@@ -66,7 +77,7 @@ class XPath1Parser(Parser):
             self[0:] = self.parser.expression(rbp=bp),
             return self
 
-        axis_pattern_template = '\\b%s(?=\s*\\:\\:)'
+        axis_pattern_template = '\\b%s(?=\s*\\:\\:|\s*\\(\\:.*\\:\\)\s*\\:\\:)'
         try:
             pattern = axis_pattern_template % symbol.strip()
         except AttributeError:
@@ -115,7 +126,7 @@ class XPath1Parser(Parser):
             self.value = self.evaluate()  # Static context evaluation
             return self
 
-        function_pattern_template = '\\b%s(?=\s*\\()'
+        function_pattern_template = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()'
         try:
             pattern = function_pattern_template % symbol.strip()
         except AttributeError:
@@ -172,7 +183,6 @@ axis = XPath1Parser.axis
 ###
 # Simple symbols
 register(',')
-register(':)')
 register(')')
 register(']')
 register('::')
@@ -184,13 +194,7 @@ literal('(string)')
 literal('(float)')
 literal('(decimal)')
 literal('(integer)')
-
-
-@method(literal('(name)', bp=10))
-def nud(self):
-    if self.value[0] != '{' and ':' in self.value:
-        self.value = self.parser.map_reference(self.value)
-    return self
+literal('(name)', bp=10)
 
 
 @method('(name)')
@@ -214,25 +218,67 @@ def select(self, context):
 
 
 ###
-# Comments
-@method(literal('(:'))
-def nud(self):
-    comment_level = 1
-    value = []
-    while comment_level:
-        self.parser.advance()
-        token = self.parser.token
-        if token.symbol == ':)':
-            comment_level -= 1
-            if comment_level:
-                value.append(token.value)
-        elif token.symbol == '(:':
-            comment_level += 1
-            value.append(token.value)
-        else:
-            value.append(token.value)
-    self.value = ' '.join(value)
+# Namespace reference
+@method(':', bp=95)
+def led(self, left):
+    if self.parser.version == '1.0':
+        left.expected('(name)')
+    else:
+        left.expected('(name)', '*')
+
+    next_token = self.parser.next_token
+    if left.symbol == '(name)':
+        if next_token.symbol not in ('(name)', '*') and next_token.label != 'function':
+            next_token.wrong_syntax()
+        try:
+            namespace = self.parser.namespaces[left.value]
+        except KeyError:
+            raise ElementPathValueError("prefix %r not found in namespace map" % left.value)
+        if next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
+            next_token.wrong_syntax()
+    elif left.symbol == '*' and next_token.symbol != '(name)':
+        next_token.wrong_syntax()
+
+    self[0:1] = left, self.parser.expression(90)
     return self
+
+
+@method(':')
+def evaluate(self, context=None):
+    if self[0].value == '*':
+        return
+    try:
+        namespace = self.parser.namespaces[self[0].value]
+    except KeyError:
+        raise ElementPathValueError("prefix %r not found in namespace map" % self[0].value)
+
+    if namespace == XPATH_FUNCTIONS_NAMESPACE and self[1].label != 'function':
+        self[1].wrong_value("must be a function")
+    return self[1].evaluate(context)
+
+
+@method(':')
+def select(self, context):
+    if self[1].label == 'function':
+        yield self[1].evaluate(context)
+        return
+    elif self[0].value == '*':
+        value = '*:%s' % self[1].value
+    else:
+        try:
+            namespace = self.parser.namespaces[self[0].value]
+        except KeyError:
+            raise ElementPathValueError("prefix %r not found in namespace map" % self[0].value)
+        else:
+            value = '{%s}%s' % (namespace, self[1].value)
+
+    if context.active_iterator is None:
+        for item in context.iter_children():
+            if is_element_node(item, value) or is_attribute_node(item, value):
+                yield item
+    else:
+        if is_element_node(context.item, value) or is_attribute_node(context.item, value):
+            yield context.item
 
 
 ###
@@ -403,12 +449,10 @@ def select(self, context):
 @method('/', bp=80)
 def nud(self):
     next_token = self.parser.next_token
-    if not self.parser.source_first:
-        self.wrong_symbol()
-    elif next_token.symbol == '(end)' and self.symbol == '/':
+    if next_token.symbol == '(end)' and self.symbol == '/':
         return self
     elif not self.parser.next_token.is_path_step_token():
-        next_token.wrong_symbol()
+        next_token.wrong_syntax()
     self[0:] = self.parser.expression(80),
     return self
 
@@ -417,7 +461,7 @@ def nud(self):
 @method('/', bp=80)
 def led(self, left):
     if not self.parser.next_token.is_path_step_token():
-        self.parser.next_token.wrong_symbol()
+        self.parser.next_token.wrong_syntax()
     self[0:1] = left, self.parser.expression(80)
     return self
 

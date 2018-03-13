@@ -16,9 +16,22 @@ import re
 
 _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
 
-
+# Namespaces
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
+XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
+XPATH_FUNCTIONS_NAMESPACE = 'http://www.w3.org/2005/xpath-functions'
+XQT_ERRORS_NAMESPACE = 'http://www.w3.org/2005/xqt-errors'
+
+DEFAULT_NAMESPACES = {
+    'xs': XSD_NAMESPACE,
+    'fn': XPATH_FUNCTIONS_NAMESPACE,
+    'err': XQT_ERRORS_NAMESPACE
+}
+
+# Tags and attributes QNames
 XML_ID_ATTRIBUTE = '{%s}id' % XML_NAMESPACE
+XSD_NOTATION = '{%s}NOTATION' % XSD_NAMESPACE
+XSD_ANY_ATOMIC_TYPE = '{%s}anyAtomicType' % XSD_NAMESPACE
 
 
 def get_namespace(name):
@@ -65,8 +78,39 @@ def is_etree_element(obj):
 def is_element_node(obj, tag=None):
     if tag is None:
         return is_etree_element(obj) and not callable(obj.tag)
+    elif not is_etree_element(obj):
+        return False
+    elif tag[0] == '*':
+        if obj.tag[0] == '{':
+            return obj.tag.split('}')[1] == tag.split(':')[1]
+        else:
+            return obj.tag == tag.split(':')[1]
+    elif tag[-1] == '*':
+        if obj.tag[0] == '{':
+            return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:]
+        else:
+            return True
     else:
-        return is_etree_element(obj) and obj.tag == tag
+        return obj.tag == tag
+
+
+def is_attribute_node(obj, name=None):
+    if name is None:
+        return isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace'
+    elif not isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace':
+        return False
+    elif name[0] == '*':
+        if obj[0][0] == '{':
+            return obj[0].split('}')[1] == name.split(':')[1]
+        else:
+            return obj[0] == name.split(':')[1]
+    elif name[-1] == '*':
+        if obj[0][0] == '{':
+            return obj[0].split('}')[0][1:] == name.split('}')[0][1:]
+        else:
+            return True
+    else:
+        return obj[0] == name
 
 
 def is_comment_node(obj):
@@ -79,13 +123,6 @@ def is_processing_instruction_node(obj):
 
 def is_document_node(obj):
     return all(hasattr(obj, name) for name in ('getroot', 'iter', 'iterfind', 'parse'))
-
-
-def is_attribute_node(obj, name=None):
-    if name is None:
-        return isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace'
-    elif isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace':
-        return name == obj[0]
 
 
 def is_namespace_node(obj):
@@ -107,6 +144,8 @@ def is_xpath_node(obj):
 ###
 # XPathToken
 class XPathToken(Token):
+
+    comment = None  # for XPath 2.0 comments
 
     def select(self, context):
         """
@@ -130,6 +169,11 @@ class XPathToken(Token):
         elif label == 'axis':
             return '%s axis' % symbol
         return super(XPathToken, self).__str__()
+
+    def is_path_step_token(self):
+        return self.label == 'axis' or self.symbol in {
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
+        }
 
     # Helper methods
     def boolean(self, value):
@@ -160,14 +204,17 @@ class XPathToken(Token):
         else:
             self.wrong_type("an XPath node required: %r" % value)
 
-    def is_path_step_token(self):
-        return self.label == 'axis' or self.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
-        }
+    def expected(self, *symbols):
+        if symbols and self.symbol != '(:' and self.symbol not in symbols:
+            self.wrong_syntax()
 
-    # Errors
+    # XPath errors
     def missing_context(self):
         raise ElementPathValueError("%s: dynamic context required for evaluate." % self)
+
+    # XPath 2.0 errors
+    def missing_schema(self):
+        raise ElementPathValueError("%s: parser not bound to a schema [err:XPST0001]" % self)
 
 
 class XPathContext(object):
@@ -194,7 +241,7 @@ class XPathContext(object):
 
         self.position = position
         self.size = size
-        self.variables = {} if variables is None else variables
+        self.variables = {} if variables is None else dict(variables)
         self._parent_map = None
         self._iterator = None
         self._node_kind_test = is_element_node

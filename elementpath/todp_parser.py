@@ -20,38 +20,6 @@ from .exceptions import (
 )
 
 
-def build_tokenizer(patterns):
-    """
-    Builds a simple tokenizer for a sequence of symbol related patterns. A tokenizer built
-    with this function is suited for programming languages where extra spaces between
-    symbols are skipped.
-
-    :param patterns: A sequence of strings representing the patterns of symbols. Leading and
-    trailing whitespaces are removed from symbols. Empty symbols are discarded.
-    :return: A regex compiled pattern.
-    """
-    tokenizer_pattern_template = r"""
-        ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
-        (%s|[%s]) |                                                       # Symbol's patterns
-        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |                                 # Names
-        \s+                                                               # Skip extra spaces
-    """
-    string_patterns = []
-    character_patterns = []
-    for p in (s.strip() for s in patterns):
-        length = len(p)
-        if length == 1 or length == 2 and p[0] == '\\':
-            character_patterns.append(p)
-        else:
-            string_patterns.append(p)
-
-    pattern = tokenizer_pattern_template % (
-        '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
-        ''.join(character_patterns)
-    )
-    return re.compile(pattern, re.VERBOSE)
-
-
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
@@ -99,7 +67,7 @@ class Token(MutableSequence):
         if symbol[1:-1].isalpha() and symbol.startswith('(') and symbol.endswith(')'):
             return '%r %s' % (self.value, symbol[1:-1])
         else:
-            return '%r operator' % symbol
+            return '%r %s' % (symbol, self.label)
 
     def __repr__(self):
         symbol, value = self.symbol, self.value
@@ -124,11 +92,11 @@ class Token(MutableSequence):
 
     def nud(self):
         """Null denotation method"""
-        self.wrong_symbol()
+        self.wrong_syntax()
 
     def led(self, left):
         """Left denotation method"""
-        self.wrong_symbol()
+        self.wrong_syntax()
 
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
@@ -144,30 +112,17 @@ class Token(MutableSequence):
 
     def expected(self, *symbols):
         if symbols and self.symbol not in symbols:
-            self.wrong_symbol()
+            self.wrong_syntax()
 
     def unexpected(self, *symbols):
         if not symbols or self.symbol in symbols:
-            self.wrong_symbol()
+            self.wrong_syntax()
 
-    def wrong_symbol(self):
+    def wrong_syntax(self):
         if self.symbol in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}:
-            value = self.value
+            self.parser.wrong_syntax(self.value)
         else:
-            value = self.symbol
-        pos = self.parser.position
-        token = self.parser.token
-        if self is not token and token is not None:
-            raise ElementPathSyntaxError(
-                "unexpected token %r after %s at line %d, column %d." % (value, token, pos[0], pos[1])
-            )
-        else:
-            raise ElementPathSyntaxError(
-                "unexpected token %r at line %d, column %d." % (value, pos[0], pos[1])
-            )
-
-    def wrong_syntax(self, message):
-        raise ElementPathSyntaxError("%s: %s." % (self, message or 'unknown error'))
+            self.parser.wrong_syntax(self.symbol)
 
     def wrong_name(self, message):
         raise ElementPathNameError("%s: %s." % (self, message or 'unknown error'))
@@ -206,14 +161,17 @@ class Parser(object):
             return root_token
         finally:
             self.tokens = iter(())
+            self.token = None
+            self.match = None
             self.next_token = None
+            self.next_match = None
 
     def advance(self, *symbols):
         if getattr(self.next_token, 'symbol', None) == '(end)':
-            pos = self.position
-            raise ElementPathSyntaxError(
-                "Unexpected end of source after %s: line %d, column %d." % (self.token, pos[0], pos[1]-1)
-            )
+            if self.token is None:
+                raise ElementPathSyntaxError("source is empty.")
+            else:
+                raise ElementPathSyntaxError("unexpected end of source after %s." % self.token)
         elif self.next_token is not None:
             self.next_token.expected(*symbols)
 
@@ -226,7 +184,7 @@ class Parser(object):
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, operator, name = self.next_match.groups()
+                literal, operator, name, unexpected = self.next_match.groups()
                 if operator is not None:
                     try:
                         self.next_token = self.symbol_table[operator.replace(' ', '')](self)
@@ -246,8 +204,10 @@ class Parser(object):
                 elif name is not None:
                     self.next_token = self.symbol_table['(name)'](self, name)
                     break
+                elif unexpected is not None:
+                    self.wrong_syntax(unexpected)
                 elif str(self.next_match.group()).strip():
-                    raise ElementPathSyntaxError("unexpected token: %r" % self.next_match)
+                    raise RuntimeError("Unexpected tokenizer matching: %r" % self.next_match.group())
 
         return self.next_token
 
@@ -294,6 +254,53 @@ class Parser(object):
         line_start = self.source[0:token_index].rindex('\n') + 1
         return not bool(self.source[line_start:token_index].strip())
 
+    def wrong_syntax(self, symbol):
+        pos = self.position
+        token = self.token
+        if self is not token and token is not None:
+            raise ElementPathSyntaxError(
+                "unexpected symbol %r after %s at line %d, column %d." % (symbol, token, pos[0], pos[1])
+            )
+        else:
+            raise ElementPathSyntaxError(
+                "unexpected symbol %r at line %d, column %d." % (symbol, pos[0], pos[1])
+            )
+
+    @classmethod
+    def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
+        """
+        Builds the parser tokenizer using the symbol related patterns. A tokenizer built with this
+        method is suited for programming languages where extra spaces between symbols are skipped.
+
+        :param name_pattern: Pattern to use to match names.
+        """
+        tokenizer_pattern_template = r"""
+            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
+            (%s|[%s]) |                                                       # Symbol's patterns
+            (%s) |                                                            # Names
+            (\S) |                                                            # Unexpected characters
+            \s+                                                               # Skip extra spaces
+        """
+        patterns = [
+            s.pattern for s in cls.symbol_table.values()
+            if s.pattern.strip() not in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}
+        ]
+        string_patterns = []
+        character_patterns = []
+        for p in (s.strip() for s in patterns):
+            length = len(p)
+            if length == 1 or length == 2 and p[0] == '\\':
+                character_patterns.append(p)
+            else:
+                string_patterns.append(p)
+
+        pattern = tokenizer_pattern_template % (
+            '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
+            ''.join(character_patterns),
+            name_pattern
+        )
+        cls.tokenizer = re.compile(pattern, re.VERBOSE)
+
     @classmethod
     def begin(cls):
         """
@@ -315,10 +322,7 @@ class Parser(object):
         End the symbol registration. Registers the special (end) symbol and sets the tokenizer.
         """
         cls.register('(end)')
-        cls.tokenizer = build_tokenizer(
-            s.pattern for s in cls.symbol_table.values()
-            if s.pattern.strip() not in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}
-        )
+        cls.build_tokenizer()
 
     @classmethod
     def register(cls, symbol, **kwargs):
@@ -439,7 +443,7 @@ class Parser(object):
 
     @classmethod
     def method(cls, symbol, bp=0):
-        token_class = cls.register(symbol, lbp=bp, rbp=bp)
+        token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
         def bind(func):
             assert callable(getattr(token_class, func.__name__, None)), \

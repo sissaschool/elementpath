@@ -18,6 +18,12 @@ import lxml.etree
 
 from elementpath import *
 
+try:
+    # noinspection PyPackageRequirements
+    import xmlschema
+except ImportError:
+    xmlschema = None
+
 
 class XPath1ParserTest(unittest.TestCase):
 
@@ -28,7 +34,8 @@ class XPath1ParserTest(unittest.TestCase):
 
     def check_tokenizer(self, path, expected):
         self.assertEqual([
-            lit or op or ref for lit, op, ref in self.parser.__class__.tokenizer.findall(path)
+            lit or op or ref or unexpected
+            for lit, op, ref, unexpected in self.parser.__class__.tokenizer.findall(path)
         ], expected)
 
     def check_token(self, symbol, expected_label=None, expected_str=None, expected_repr=None, value=None):
@@ -58,11 +65,11 @@ class XPath1ParserTest(unittest.TestCase):
         else:
             self.assertEqual(list(self.parser.parse(path).select(context)), expected)
 
-    def check_select(self, path, root, expected, namespaces=None, schema=None):
+    def check_select(self, path, root, expected, namespaces=None, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, select, root, path, namespaces, schema, self.parser.__class__)
+            self.assertRaises(expected, select, root, path, namespaces, self.parser.__class__, **kwargs)
         else:
-            results = select(root, path, namespaces, schema, self.parser.__class__)
+            results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             if isinstance(expected, set):
                 self.assertEqual(set(results), expected)
             else:
@@ -100,13 +107,11 @@ class XPath1ParserTest(unittest.TestCase):
                              ['employee', '[', '@', 'secretary', '', 'and', '', '@', 'assistant', ']'])
 
         # additional tests from Python XML etree test cases
-        self.check_tokenizer("{http://spam}egg", ['{http://spam}egg'])
+        self.check_tokenizer("{http://spam}egg", ['{', 'http', ':', '//', 'spam', '}', 'egg'])
         self.check_tokenizer("./spam.egg", ['.', '/', 'spam.egg'])
-        self.check_tokenizer(".//{http://spam}egg", ['.', '//', '{http://spam}egg'])
+        self.check_tokenizer(".//spam:egg", ['.', '//', 'spam', ':', 'egg'])
 
         # additional tests
-        self.check_tokenizer("(: this is a comment :)",
-                             ['(:', '', 'this', '', 'is', '', 'a', '', 'comment', '', ':)'])
         self.check_tokenizer("substring-after()", ['substring-after', '(', ')'])
         self.check_tokenizer("contains('XML','XM')", ['contains', '(', "'XML'", ',', "'XM'", ')'])
         self.check_tokenizer("concat('XML', true(), 10)",
@@ -114,7 +119,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tokenizer("concat('a', 'b', 'c')", ['concat', '(', "'a'", ',', '', "'b'", ',', '', "'c'", ')'])
         self.check_tokenizer("_last()", ['_last', '(', ')'])
         self.check_tokenizer("last ()", ['last', '', '(', ')'])
-        self.check_tokenizer("last (:", ['last', '', '(:'])
+        self.check_tokenizer('child::text()', ['child', '::', 'text', '(', ')'])
 
     def test_tokens(self):
         # Literals
@@ -165,15 +170,32 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
 
     def test_wrong_syntax(self):
-        # self.check_value("*", '')
+        self.wrong_syntax('')
         self.wrong_syntax("     \n     \n   )")
         self.wrong_syntax('child::1')
         self.wrong_syntax("count(0, 1, 2)")
+        self.wrong_syntax("{http://spam}egg")
+        self.wrong_syntax("./*:*")
 
     # Features tests
-    def test_xpath_comment(self):
-        self.check_value("(: this is a comment :)", 'this is a comment')
-        self.check_value("(: this is a (: nested :) comment :)", 'this is a (: nested :) comment')
+    def test_references(self):
+        namespaces = {'tst': "http://xpath.test/ns"}
+        root = self.etree.XML("""
+        <A xmlns:tst="http://xpath.test/ns">
+            <tst:B1 b1="beta1"/>
+            <tst:B2/>
+            <tst:B3 b2="tst:beta2" b3="beta3"/>
+        </A>""")
+        self.check_value("fn:true()", True)
+        self.check_select("./tst:B1", root, [root[0]], namespaces=namespaces)
+        self.check_select("./tst:*", root, root[:], namespaces=namespaces)
+        self.check_select("./tst:*", root, root[:], namespaces=namespaces)
+
+        # Namespace wildcard works only for XPath > 1.0
+        if self.parser.version == '1.0':
+            self.check_select("./*:B2", root, Exception, namespaces=namespaces)
+        else:
+            self.check_select("./*:B2", root, [root[1]], namespaces=namespaces)
 
     def test_node_types(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
@@ -200,6 +222,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_sequence("node()", [text], context)
         self.check_sequence("text()", [text], context)
 
+    def test_node_set_id_function(self):
+        # TODO
+        pass
+
     def test_node_set_functions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         context = XPathContext(root, item=root[1], size=3, position=3)
@@ -224,11 +250,12 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select("namespace-uri(B2)", root, '')
         if self.parser.version <= '1.0':
             self.check_select("name(*)", root, 'B1')
-        root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns"/>')
+
+        root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns"><tst:B1/></tst:A>')
         self.check_select("name(.)", root, 'tst:A', namespaces={'tst': "http://xpath.test/ns"})
         self.check_select("local-name(.)", root, 'A')
         self.check_select("namespace-uri(.)", root, 'http://xpath.test/ns')
-        # self.check_select("name(tst:A)", root, ['{http://xpath.test/ns}A'])
+        self.check_select("name(tst:B1)", root, 'tst:B1', namespaces={'tst': "http://xpath.test/ns"})
 
     def test_string_functions(self):
         self.check_value("string(10.0)", '10.0')
@@ -268,7 +295,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("boolean('hello!')", True)
         self.check_value("boolean('   ')", True)
         self.check_value("boolean('')", False)
-        self.wrong_syntax("boolean()")      # Needs an argument
+        self.wrong_syntax("boolean()")      # Argument required
         self.wrong_syntax("boolean(1, 5)")  # Too much arguments
 
     def test_logical_expressions(self):
@@ -281,6 +308,8 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("1 and 'jupiter'", True)
         self.check_value("0 and 'mars'", False)
         self.check_value("1 and mars", False)
+
+    # TEST: comparison operators
 
     def test_numerical_expressions(self):
         self.check_value("9", 9)
@@ -362,22 +391,6 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select('descendant-or-self::node()', root, [e for e in root.iter()])
         self.check_select('descendant-or-self::node()/.', root, [e for e in root.iter()])
 
-    def test_parent_axis_and_abbreviation(self):
-        root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
-        self.check_select('/A/*/C2/..', root, [root[2]])
-        self.check_select('/A/*/*/..', root, [root[0], root[2], root[3]])
-        self.check_select('//C2/..', root, [root[2]])
-        self.check_select('/A/*/C2/parent::node()', root, [root[2]])
-        self.check_select('/A/*/*/parent::node()', root, [root[0], root[2], root[3]])
-        self.check_select('//C2/parent::node()', root, [root[2]])
-
-    def test_attribute_axis_and_abbreviation(self):
-        root = self.etree.XML('<A id="1" a="alpha"><B1 b1="beta1"/><B2/><B3 b2="beta2" b3="beta3"/></A>')
-        self.check_select('/A/B1/attribute::*', root, ['beta1'])
-        self.check_select('/A/B1/@*', root, ['beta1'])
-        self.check_select('/A/B3/attribute::*', root, ['beta2', 'beta3'])
-        self.check_select('/A/attribute::*', root, {'1', 'alpha'})
-
     def test_following_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C1><D1/></C1></B4></A>')
         self.check_select('/A/B1/C1/following::*', root, [
@@ -391,6 +404,24 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select('/A/B2/C1/following-sibling::*', root, [root[1][1], root[1][2], root[1][3]])
         self.check_select('/A/B1/C1/following-sibling::C3', root, [root[0][2]])
 
+    def test_attribute_abbreviation_and_axis(self):
+        root = self.etree.XML('<A id="1" a="alpha"><B1 b1="beta1"/><B2/><B3 b2="beta2" b3="beta3"/></A>')
+        self.check_select('/A/B1/attribute::*', root, ['beta1'])
+        self.check_select('/A/B1/@*', root, ['beta1'])
+        self.check_select('/A/B3/attribute::*', root, ['beta2', 'beta3'])
+        self.check_select('/A/attribute::*', root, {'1', 'alpha'})
+
+    # TODO: Namespace axis
+
+    def test_parent_abbreviation_and_axis(self):
+        root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
+        self.check_select('/A/*/C2/..', root, [root[2]])
+        self.check_select('/A/*/*/..', root, [root[0], root[2], root[3]])
+        self.check_select('//C2/..', root, [root[2]])
+        self.check_select('/A/*/C2/parent::node()', root, [root[2]])
+        self.check_select('/A/*/*/parent::node()', root, [root[0], root[2], root[3]])
+        self.check_select('//C2/parent::node()', root, [root[2]])
+
     def test_ancestor_axes(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2><C1/><D2><E1/><E2/></D2><C2/></B2><B3><C1><D1/></C1></B3></A>')
         self.check_select('/A/B3/C1/ancestor::*', root, [root, root[2]])
@@ -402,18 +433,15 @@ class XPath1ParserTest(unittest.TestCase):
             root, root[0], root[0][0], root[1], root[1][0], root[2], root[2][0]
         ])
 
-    def test_preceding_sibling_axis(self):
-        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
-        self.check_select('/A/B1/C2/preceding-sibling::*', root, [root[0][0]])
-        self.check_select('/A/B2/C4/preceding-sibling::*', root, [root[1][0], root[1][1], root[1][2]])
-        self.check_select('/A/B1/C2/preceding-sibling::C3', root, [])
-
-    def test_preceding_axis(self):
+    def test_preceding_axes(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
         self.check_select('/A/B1/C2/preceding::*', root, [root[0][0]])
         self.check_select('/A/B2/C4/preceding::*', root, [
             root[0], root[0][0], root[0][1], root[0][2], root[1][0], root[1][1], root[1][2]
         ])
+        self.check_select('/A/B1/C2/preceding-sibling::*', root, [root[0][0]])
+        self.check_select('/A/B2/C4/preceding-sibling::*', root, [root[1][0], root[1][1], root[1][2]])
+        self.check_select('/A/B1/C2/preceding-sibling::C3', root, [])
 
     def test_predicate(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
@@ -425,6 +453,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select('/A/*[last()-1]', root, [root[0]])
         self.check_select('/A/B2/*[position()>=2]', root, root[1][1:])
 
+    def test_union(self):
+        # TODO |
+        pass
+
 
 class XPath2ParserTest(XPath1ParserTest):
 
@@ -433,10 +465,26 @@ class XPath2ParserTest(XPath1ParserTest):
         cls.parser = XPath2Parser()
         cls.etree = ElementTree
 
+    def test_xpath_tokenizer2(self):
+        self.check_tokenizer("(: this is a comment :)",
+                             ['(:', '', 'this', '', 'is', '', 'a', '', 'comment', '', ':)'])
+        self.check_tokenizer("last (:", ['last', '', '(:'])
+
     def test_token_tree2(self):
         self.check_tree('(1 + 6, 2, 10 - 4)', '(, (, (+ (1) (6)) (2)) (- (10) (4)))')
 
-    def test_if_expression(self):
+    def test_xpath_comments(self):
+        self.wrong_syntax("(: this is a comment :)")
+        self.wrong_syntax("(: this is a (: nested :) comment :)")
+        self.check_tree('child (: nasty (:nested :) axis comment :) ::B1', '(child (B1))')
+        self.check_tree('child (: nasty "(: but not nested :)" axis comment :) ::B1', '(child (B1))')
+        self.check_value("5 (: before operator comment :) < 4", False)  # Before infix operator
+        self.check_value("5 < (: after operator comment :) 4", False)  # After infix operator
+        self.check_value("true (: nasty function comment :) ()", True)
+        self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \nC1 (: last comment :)\t',
+                        '(/ (/ (/ (A)) (B1)) (C1))')
+
+    def test_if_expressions(self):
         self.check_value("if (1) then 2 else 3", 2)
 
     def test_boolean_functions2(self):
@@ -452,6 +500,10 @@ class XPath2ParserTest(XPath1ParserTest):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_select("count(5)", root, 1)
 
+    @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
+    def test_schema(self):
+        pass
+
 
 class LxmlXPath1ParserTest(XPath1ParserTest):
 
@@ -460,17 +512,17 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         cls.parser = XPath1Parser()
         cls.etree = lxml.etree
 
-    def check_select(self, path, root, expected, namespaces=None, schema=None):
+    def check_select(self, path, root, expected, namespaces=None, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, select, root, path, namespaces, schema, self.parser.__class__)
+            self.assertRaises(expected, select, root, path, namespaces, self.parser.__class__, **kwargs)
         else:
-            results = select(root, path, namespaces, schema, self.parser.__class__)
+            results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             if isinstance(expected, set):
+                self.assertEqual(set(root.xpath(path, namespaces=namespaces)), expected)
                 self.assertEqual(set(results), expected)
-                self.assertEqual(set(root.xpath(path)), expected)
             else:
+                self.assertEqual(root.xpath(path, namespaces=namespaces), expected)
                 self.assertEqual(results, expected)
-                self.assertEqual(root.xpath(path), expected)
 
 
 class LxmlXPath2ParserTest(XPath2ParserTest):

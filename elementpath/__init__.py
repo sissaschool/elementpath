@@ -25,8 +25,8 @@ from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
 
 
-def select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
-    parser = parser(namespaces, schema)
+def select(elem, path, namespaces=None, parser=XPath2Parser, **kwargs):
+    parser = parser(namespaces, **kwargs)
     root_token = parser.parse(path)
     context = XPathContext(elem)
     results = list(root_token.select(context))
@@ -36,10 +36,10 @@ def select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
         return results
 
 
-def iter_select(elem, path, namespaces=None, schema=None, parser=XPath2Parser):
-    parser = parser(namespaces, schema)
+def iter_select(elem, path, namespaces=None, parser=XPath2Parser, **kwargs):
+    parser = parser(namespaces, **kwargs)
     root_token = parser.parse(path)
-    context = XPathContext(elem)
+    context = XPathContext(elem, variables=kwargs.get('variables'))
     return root_token.select(context)
 
 
@@ -50,10 +50,9 @@ class Selector(object):
     :ivar path: The path expression string.
     :ivar namespaces:
     """
-    def __init__(self, path, namespaces=None, schema=None, parser=XPath2Parser):
+    def __init__(self, path, namespaces=None, parser=XPath2Parser, **kwargs):
         self.path = path
-        self.parser = parser(namespaces)
-        self.schema = schema
+        self.parser = parser(namespaces, **kwargs)
         self.root_token = self.parser.parse(path)
 
     def __repr__(self):

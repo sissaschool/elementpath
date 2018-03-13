@@ -65,9 +65,9 @@ Public API
 Contributing
 ------------
 
-You can contribute to this package reporting bugs using the issue tracker or by a pull request.
-In both cases please try to provide a test or test data for reproducing the issue.
-The provided testing code shall be added to the tests of the package.
+You can contribute to this package reporting bugs, using the issue tracker or by a pull request.
+In case you open an issue please try to provide a test or test data for reproducing the wrong
+behaviour. The provided testing code shall be added to the tests of the package.
 
 The XPath parsers are based on an implementation of the Pratt's Top Down Operator Precedence parser.
 The implemented parser includes some lookup-ahead features, helpers for registering tokens and for
