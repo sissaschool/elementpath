@@ -12,10 +12,11 @@ from __future__ import division
 
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
-from .xpath_base import (
-    XML_ID_ATTRIBUTE, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, XPathToken,
-    qname_to_prefixed, is_etree_element, is_xpath_node, is_element_node, is_document_node,
-    is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node
+from .namespaces import XML_ID_ATTRIBUTE, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
+from .xpath_token import XPathToken
+from .xpath_nodes import (
+    is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node,
+    is_text_node, is_comment_node, is_processing_instruction_node, node_name
 )
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -774,22 +775,25 @@ def evaluate(self, context=None):
     if context is None:
         return
     elif not self:
-        name = self.name(context.item)
+        name = node_name(context.item)
     else:
         try:
             selector = iter(self[0].select(context))
             item = next(selector)
         except StopIteration:
-            name = ''
+            name = None
         else:
-            name = self.name(item)
-            if self.parser.version > '1.0':
+            name = node_name(item)
+            if name is not None and self.parser.version > '1.0':
                 try:
                     next(selector)
                 except StopIteration:
                     pass
                 else:
                     self.wrong_value("a sequence of more than one item is not allowed as argument")
+
+    if name is None:
+        return ''
 
     symbol = self.symbol
     if symbol == 'name':

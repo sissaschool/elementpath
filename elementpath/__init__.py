@@ -20,7 +20,8 @@ from .exceptions import (
     ElementPathError, ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 )
 from .todp_parser import Token, Parser
-from .xpath_base import is_etree_element, is_xpath_node, XPathToken, XPathContext
+from .xpath_token import is_etree_element, is_xpath_node, XPathToken
+from .xpath_context import XPathContext
 from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
 

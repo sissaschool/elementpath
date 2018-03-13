@@ -8,8 +8,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .xpath_base import (
-    is_document_node, XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, is_attribute_node, is_xpath_node
+from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
+from .xpath_nodes import (
+    is_document_node, is_xpath_node, node_name, node_value, node_nilled, node_base_uri, node_document_uri
 )
 from .xpath1_parser import XPath1Parser
 
@@ -38,6 +39,9 @@ class XPath2Parser(XPath1Parser):
 
         # Node test functions
         'document-node', 'schema-attribute', 'element', 'schema-element',  # 'attribute',
+
+        # Accessor functions
+        'node-name', 'nilled', 'data', 'base-uri', 'document-uri',
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -198,6 +202,7 @@ def select(self, context):
         for result in self[2].select(context):
             yield result
 
+
 ###
 # Quantified expressions
 @method('some', bp=20)
@@ -316,7 +321,7 @@ def nud(self):
 # Value comparison operators
 @method(infix('eq', bp=30))
 def evaluate(self, context=None):
-    return self[0   ].evaluate(context) == self[1].evaluate(context)
+    return self[0].evaluate(context) == self[1].evaluate(context)
 
 
 @method(infix('ne', bp=30))
@@ -374,6 +379,7 @@ def evaluate(self, context=None):
                 return False if symbol == '<<' else True
         else:
             self.wrong_value("operands are not nodes of the XML tree!")
+
 
 ###
 # Range expression
@@ -434,6 +440,45 @@ def select(self, context):
 
 
 @method(function('schema-element', nargs=1, bp=90))
+def select(self, context):
+    pass
+
+
+###
+# Accessor functions
+@method(function('node-name', nargs=1, bp=90))
+def evaluate(self, context=None):
+    if context is not None:
+        for item in self[0].select(context):
+            return node_name(item)
+
+
+@method(function('nilled', nargs=1, bp=90))
+def evaluate(self, context=None):
+    if context is not None:
+        for item in self[0].select(context):
+            return node_nilled(item)
+
+
+@method(function('data', nargs=1, bp=90))
+def select(self, context):
+    for item in self[0].select(context):
+        if not is_xpath_node(item):
+            yield item
+        else:
+            value = node_value(item)
+            if value is None:
+                self.wrong_type("argument node does not have a typed value [err:FOTY0012]")
+            else:
+                yield value
+
+
+@method(function('base-uri', nargs=(0, 1), bp=90))
+def select(self, context):
+    pass
+
+
+@method(function('document-uri', nargs=(0, 1), bp=90))
 def select(self, context):
     pass
 

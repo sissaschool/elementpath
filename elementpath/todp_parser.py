@@ -124,13 +124,13 @@ class Token(MutableSequence):
         else:
             self.parser.wrong_syntax(self.symbol)
 
-    def wrong_name(self, message):
+    def wrong_name(self, message=None):
         raise ElementPathNameError("%s: %s." % (self, message or 'unknown error'))
 
-    def wrong_value(self, message):
+    def wrong_value(self, message=None):
         raise ElementPathValueError("%s: %s." % (self, message or 'unknown error'))
 
-    def wrong_type(self, message):
+    def wrong_type(self, message=None):
         raise ElementPathTypeError("%s: %s." % (self, message or 'unknown error'))
 
 
