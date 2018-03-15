@@ -48,7 +48,7 @@ class XPathToken(Token):
     def __str__(self):
         symbol, label = self.symbol, self.label
         if symbol == '$':
-            return '$%s variable reference' % str(self[0].evaluate() if self else '')
+            return '$%s variable reference' % (self[0].value if self else '')
         elif symbol == ',':
             return 'comma operator'
         elif label == 'function':
@@ -108,7 +108,9 @@ class XPathToken(Token):
 
     # Helper methods
     def boolean(self, obj):
-        """The effective boolean value, computed by fn:boolean()."""
+        """
+        The effective boolean value, as computed by fn:boolean().
+        """
         if isinstance(obj, list):
             if not obj:
                 return False
@@ -122,3 +124,28 @@ class XPathToken(Token):
             self.wrong_type("not a test expression")
         else:
             return bool(obj)
+
+    def get_argument(self, context=None):
+        if not self:
+            if context is not None:
+                return context.item
+        elif context is None:
+            return self[0].evaluate()
+        else:
+            item = None
+            for k, result in enumerate(self[0].select(context)):
+                if k == 0:
+                    item = result
+                elif self.parser.version > '1.0':
+                    self.wrong_context_type("a sequence of more than one item is not allowed as argument")
+                else:
+                    break
+            return item
+
+    def data(self, object):
+        """
+        The atomic value of an object, as computed by fn:data() on each item.
+        """
+        pass
+
+

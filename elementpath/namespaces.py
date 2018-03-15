@@ -28,13 +28,21 @@ DEFAULT_NAMESPACES = {
 }
 
 # XML namespace attributes
-XML_BASE_ATTRIBUTE = '{%s}base' % XML_NAMESPACE
-XML_LANG_ATTRIBUTE = '{%s}lang' % XML_NAMESPACE
-XML_SPACE_ATTRIBUTE = '{%s}space' % XML_NAMESPACE
-XML_ID_ATTRIBUTE = '{%s}id' % XML_NAMESPACE
+XML_BASE_QNAME = '{%s}base' % XML_NAMESPACE
+XML_LANG_QNAME = '{%s}lang' % XML_NAMESPACE
+XML_SPACE_QNAME = '{%s}space' % XML_NAMESPACE
+XML_ID_QNAME = '{%s}id' % XML_NAMESPACE
 
-XSI_TYPE_ATTRIBUTE = '{%s}type' % XSI_NAMESPACE
+# XML Schema Instance namespace attributes
+XSI_TYPE_QNAME = '{%s}type' % XSI_NAMESPACE
+XSI_NIL_QNAME = '{%s}nil' % XSI_NAMESPACE
+XSI_SCHEMA_LOCATION_QNAME = '{%s}schemaLocation' % XSI_NAMESPACE
+XSI_NONS_SCHEMA_LOCATION_QNAME = '{%s}schemaLocation' % XSI_NAMESPACE
 
+
+""" <xs:attribute name="schemaLocation"/>
+ <xs:attribute name="noNamespaceSchemaLocation"/>
+"""
 # XSD tags and attributes
 XSD_NOTATION = '{%s}NOTATION' % XSD_NAMESPACE
 XSD_ANY_ATOMIC_TYPE = '{%s}anyAtomicType' % XSD_NAMESPACE

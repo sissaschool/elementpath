@@ -12,11 +12,13 @@
 import unittest
 import decimal
 import io
+import math
 from collections import namedtuple
 from xml.etree import ElementTree
 import lxml.etree
 
 from elementpath import *
+from elementpath import namespaces
 
 try:
     # noinspection PyPackageRequirements
@@ -26,10 +28,17 @@ except ImportError:
 
 
 class XPath1ParserTest(unittest.TestCase):
+    namespaces = {
+        'xml': namespaces.XML_NAMESPACE,
+        'xs': namespaces.XSD_NAMESPACE,
+        'xsi': namespaces.XSI_NAMESPACE,
+        'fn': namespaces.XPATH_FUNCTIONS_NAMESPACE,
+    }
+    variables = {'values': [10, 20, 5]}
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath1Parser()
+        cls.parser = XPath1Parser(variables=cls.variables)
         cls.etree = ElementTree
 
     def check_tokenizer(self, path, expected):
@@ -58,6 +67,8 @@ class XPath1ParserTest(unittest.TestCase):
         """Check using the *evaluate* method of the root token."""
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, self.parser.parse(path).evaluate, context)
+        elif callable(expected):
+            self.assertTrue(expected(self.parser.parse(path).evaluate(context)))
         else:
             self.assertEqual(self.parser.parse(path).evaluate(context), expected)
 
@@ -245,8 +256,6 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("last()", 3, context=context)
         self.check_value("last()-1", 2, context=context)
 
-        self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
-
         self.check_selector("name(.)", root, 'A')
         self.check_selector("name(A)", root, '')
         self.check_selector("local-name(A)", root, '')
@@ -340,6 +349,14 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("9 - 1 + 6", 14)
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
+
+    def test_number_functions(self):
+        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+        self.check_value("number(5.0)", 5.0)
+        self.check_value("number('text')", math.isnan)
+        self.check_value("number('-11')", -11)
+        self.check_selector("number(9)", root, 9.0)
+        self.check_value("sum($values)", 35)
 
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -476,7 +493,7 @@ class XPath2ParserTest(XPath1ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser()
+        cls.parser = XPath2Parser(variables=cls.variables)
         cls.etree = ElementTree
 
     def test_xpath_tokenizer2(self):
@@ -514,9 +531,26 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
 
+    def test_number_functions2(self):
+        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+        self.check_value("abs(-9)", 9)
+
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_selector("count(5)", root, 1)
+        self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
+
+    def test_node_accessor_functions(self):
+        source = '<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>' \
+                 '<B2 /><B3>simple text</B3></A>' % namespaces.XSI_NAMESPACE
+        root = self.etree.XML(source)
+        # TODO : check on-line
+        self.check_selector("node-name(.)", root, 'A')
+        self.check_selector("node-name(/A/B1)", root, 'B1')
+        self.check_selector("node-name(/A/*)", root, 'B1')  # Not allowed more than one item!
+        self.check_selector("nilled(./B1/C1)", root, False)
+        self.check_selector("nilled(./B1/C2)", root, True)
+        self.check_selector("data(.)", root, source)
 
     def test_union_intersect_except(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
@@ -558,7 +592,7 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath1Parser()
+        cls.parser = XPath1Parser(variables=cls.variables)
         cls.etree = lxml.etree
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
@@ -578,7 +612,7 @@ class LxmlXPath2ParserTest(XPath2ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser()
+        cls.parser = XPath2Parser(variables=cls.variables)
         cls.etree = lxml.etree
 
 

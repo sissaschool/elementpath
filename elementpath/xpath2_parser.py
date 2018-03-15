@@ -42,6 +42,9 @@ class XPath2Parser(XPath1Parser):
 
         # Accessor functions
         'node-name', 'nilled', 'data', 'base-uri', 'document-uri',
+
+        # Number functions
+        'abs', 'round-half-to-even',
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -49,9 +52,9 @@ class XPath2Parser(XPath1Parser):
         'processing-instruction', 'schema-attribute', 'schema-element', 'text', 'typeswitch'
     }
 
-    def __init__(self, namespaces=None, default_namespace='', function_namespace=None,
+    def __init__(self, namespaces=None, variables=None, default_namespace='', function_namespace=None,
                  schema=None, compatibility_mode=False):
-        super(XPath2Parser, self).__init__(namespaces)
+        super(XPath2Parser, self).__init__(namespaces, variables)
         self.default_namespace = default_namespace
         if function_namespace is None:
             self.function_namespace = XPATH_FUNCTIONS_NAMESPACE
@@ -109,6 +112,7 @@ class XPath2Parser(XPath1Parser):
 XPath2Parser.begin()
 
 register = XPath2Parser.register
+unregister = XPath2Parser.unregister
 alias = XPath2Parser.alias
 literal = XPath2Parser.literal
 prefix = XPath2Parser.prefix
@@ -118,6 +122,9 @@ method = XPath2Parser.method
 function = XPath2Parser.function
 axis = XPath2Parser.axis
 
+##
+# Remove symbols that have to be redefined for XPath 2.0.
+unregister(',')
 
 ###
 # Symbols
@@ -474,13 +481,42 @@ def select(self, context):
 
 
 @method(function('base-uri', nargs=(0, 1), bp=90))
-def select(self, context):
-    pass
+def evaluate(self, context=None):
+    if self:
+        if context is None:
+            return node_base_uri(self[0].evaluate())
+        for item in self[0].select(context):
+            return node_base_uri(item)
+    elif context is None:
+        self.missing_context()
+    else:
+        for item in self[0].select(context):
+            value = node_base_uri(item)
+            if value is None:
+                self.wrong_context_type('context item is not a node')
+            return value
 
 
-@method(function('document-uri', nargs=(0, 1), bp=90))
-def select(self, context):
-    pass
+@method(function('document-uri', nargs=1, bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    for item in self[0].select(context):
+        return node_document_uri(item)
+
+
+###
+# Number functions
+register('round-half-to-even')
+
+
+@method(function('abs', nargs=1, bp=90))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        return abs(node_value(item) if is_xpath_node(item) else item)
+    except TypeError:
+        return float('nan')
 
 
 XPath2Parser.end()

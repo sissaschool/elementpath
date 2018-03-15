@@ -17,8 +17,9 @@ Element-like objects are used for representing elements and comments, ElementTre
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
 import sys
+from xml.etree import ElementTree
 from .namespaces import (
-    XML_BASE_ATTRIBUTE, XML_ID_ATTRIBUTE, XSI_TYPE_ATTRIBUTE, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
+    XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
 
 
@@ -104,9 +105,9 @@ def node_attributes(obj):
 def node_base_uri(obj):
     try:
         if is_element_node(obj):
-            return obj.attrib[XML_BASE_ATTRIBUTE]
+            return obj.attrib[XML_BASE_QNAME]
         elif is_document_node(obj):
-            return obj.getroot().attrib[XML_BASE_ATTRIBUTE]
+            return obj.getroot().attrib[XML_BASE_QNAME]
     except KeyError:
         pass
 
@@ -127,26 +128,26 @@ def node_children(obj):
 
 def node_is_id(obj):
     if is_element_node(obj):
-        return XML_ID_ATTRIBUTE in obj.attrib
+        return XML_ID_QNAME in obj.attrib
     elif is_attribute_node(obj):
-        return obj[0] == XML_ID_ATTRIBUTE
+        return obj[0] == XML_ID_QNAME
 
 
 def node_is_idrefs(obj, namespaces):
     if is_element_node(obj):
         try:
-            node_type = obj.attrib[XSI_TYPE_ATTRIBUTE]
+            node_type = obj.attrib[XSI_TYPE_QNAME]
         except KeyError:
             pass
         else:
             return prefixed_to_qname(node_type, namespaces) in ("IDREF", "IDREFS")
-    elif is_attribute_node(obj) and obj[0] == XSI_TYPE_ATTRIBUTE:
+    elif is_attribute_node(obj) and obj[0] == XSI_TYPE_QNAME:
         return prefixed_to_qname(obj[1], namespaces) in ("IDREF", "IDREFS")
 
 
 def node_nilled(obj):
     if is_element_node(obj):
-        return not len(obj) and obj.text is None
+        return obj.get(XSI_NIL_QNAME) == 'true'
 
 
 def node_kind(obj):
@@ -178,13 +179,13 @@ def node_name(obj):
 def node_value(obj):
     """string-value and typed-value accessors"""
     if is_element_node(obj):
-        return obj.tostring()
+        return ElementTree.tostring(obj, encoding='unicode')
     elif is_attribute_node(obj):
         return obj[1]
     elif is_text_node(obj):
         return obj
     elif is_document_node(obj):
-        return obj.getroot().tostring()
+        return ElementTree.tostring(obj.getroot(), encoding='unicode')
     elif is_namespace_node(obj):
         return obj[1]
     elif is_comment_node(obj):

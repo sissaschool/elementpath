@@ -381,6 +381,10 @@ class Parser(object):
         return token_class
 
     @classmethod
+    def unregister(cls, symbol):
+        del cls.symbol_table[symbol.strip()]
+
+    @classmethod
     def alias(cls, symbol, other):
         symbol = symbol.strip()
         try:

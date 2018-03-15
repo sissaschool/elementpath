@@ -12,11 +12,11 @@ from __future__ import division
 
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
-from .namespaces import XML_ID_ATTRIBUTE, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
+from .namespaces import XML_ID_QNAME, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
 from .xpath_nodes import (
     is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node,
-    is_text_node, is_comment_node, is_processing_instruction_node, node_name
+    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_value
 )
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -32,6 +32,7 @@ class XPath1Parser(Parser):
     """
     token_base_class = XPathToken
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
+
     SYMBOLS = {
         # Axes
         'descendant-or-self', 'following-sibling', 'preceding-sibling',
@@ -42,21 +43,30 @@ class XPath1Parser(Parser):
         'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[', ']',
         ':', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '$', '::',
 
-        # XPath Core function library
-        'node', 'text', 'comment', 'processing-instruction',  # Node test functions
-        'last', 'position', 'count', 'id', 'local-name',      # Node set functions
-        'namespace-uri', 'name',
-        'string', 'concat', 'starts-with', 'contains',        # String functions
+        # Node test functions
+        'node', 'text', 'comment', 'processing-instruction',
+
+        # Node set functions
+        'last', 'position', 'count', 'id', 'name', 'local-name', 'namespace-uri',
+
+        # String functions
+        'string', 'concat', 'starts-with', 'contains',
         'substring-before', 'substring-after', 'substring',
         'string-length', 'normalize-space', 'translate',
-        'boolean', 'not', 'true', 'false'                     # Boolean functions
+
+        # Boolean functions
+        'boolean', 'not', 'true', 'false', 'lang',
+
+        # Number functions
+        'number', 'sum', 'floor', 'ceiling', 'round',
     }
 
-    def __init__(self, namespaces=None, *args, **kwargs):
+    def __init__(self, namespaces=None, variables=None, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
+        self.variables = dict(variables if variables is not None else [])
 
     @property
     def version(self):
@@ -98,7 +108,7 @@ class XPath1Parser(Parser):
             if nargs is None:
                 del self[:]
                 while True:
-                    self.append(self.parser.expression(90))
+                    self.append(self.parser.expression(5))
                     if self.parser.next_token.symbol != ',':
                         break
                     self.parser.advance(',')
@@ -116,16 +126,16 @@ class XPath1Parser(Parser):
 
             k = 0
             while k < min_args:
-                self[k:] = self.parser.expression(rbp=bp),
+                self[k:] = self.parser.expression(5),
                 k += 1
                 if k < min_args:
                     self.parser.advance(',')
             while k < max_args:
                 if self.parser.next_token.symbol == ',':
                     self.parser.advance(',')
-                    self[k:] = self.parser.expression(90),
+                    self[k:] = self.parser.expression(5),
                 elif k == 0 and self.parser.next_token.symbol != ')':
-                    self[k:] = self.parser.expression(90),
+                    self[k:] = self.parser.expression(5),
                 else:
                     break
                 k += 1
@@ -139,37 +149,6 @@ class XPath1Parser(Parser):
         except AttributeError:
             pattern = function_pattern_template % getattr(symbol, 'symbol')
         return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
-
-    def map_reference(self, ref):
-        """
-        Map a reference into a fully qualified name using the instance namespace map.
-
-        :param ref: a local name, a prefixed name or a fully qualified name.
-        :return: String with a FQN or a local name.
-        """
-        if ref and ref[0] == '{':
-            return ref
-
-        try:
-            ns_prefix, local_name = ref.split(':')
-        except ValueError:
-            if ':' in ref:
-                raise ElementPathValueError("wrong format for reference name %r" % ref)
-            try:
-                uri = self.namespaces['']
-            except KeyError:
-                return ref
-            else:
-                return u'{%s}%s' % (uri, ref) if uri else ref
-        else:
-            if not ns_prefix or not local_name:
-                raise ElementPathValueError("wrong format for reference name %r" % ref)
-            try:
-                uri = self.namespaces[ns_prefix]
-            except KeyError:
-                raise ElementPathValueError("prefix %r not found in namespace map" % ns_prefix)
-            else:
-                return u'{%s}%s' % (uri, local_name) if uri else local_name
 
 
 ##
@@ -300,11 +279,12 @@ def nud(self):
 @method('$')
 def evaluate(self, context=None):
     varname = self[0].value
-    try:
+    if context is not None and varname in context.variables:
         return context.variables[varname]
-    except (KeyError, AttributeError):
-        pass
-    self.wrong_name('unknown variable')
+    elif varname in self.parser.variables:
+        return self.parser.variables[varname]
+    else:
+        self.wrong_name('unknown variable')
 
 
 ###
@@ -749,7 +729,7 @@ def select(self, context):
     item = context.item
     if is_element_node(item):
         for elem in item.iter():
-            if elem.get(XML_ID_ATTRIBUTE) == value:
+            if elem.get(XML_ID_QNAME) == value:
                 yield elem
     elif is_comment_node(item) or is_processing_instruction_node(item):
         for s in item.text.split():
@@ -772,26 +752,7 @@ def select(self, context):
 @method(function('local-name', nargs=(0, 1), bp=90))
 @method(function('namespace-uri', nargs=(0, 1), bp=90))
 def evaluate(self, context=None):
-    if context is None:
-        return
-    elif not self:
-        name = node_name(context.item)
-    else:
-        try:
-            selector = iter(self[0].select(context))
-            item = next(selector)
-        except StopIteration:
-            name = None
-        else:
-            name = node_name(item)
-            if name is not None and self.parser.version > '1.0':
-                try:
-                    next(selector)
-                except StopIteration:
-                    pass
-                else:
-                    self.wrong_value("a sequence of more than one item is not allowed as argument")
-
+    name = node_name(self.get_argument(context))
     if name is None:
         return ''
 
@@ -927,6 +888,39 @@ def evaluate(self, context=None):
 @method(function('false', nargs=0, bp=90))
 def evaluate(self, context=None):
     return False
+
+
+###
+# Number functions
+@method(function('number', nargs=(0, 1), bp=90))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        return float(node_value(item) if is_xpath_node(item) else item)
+    except (TypeError, ValueError):
+        return float('nan')
+
+
+@method(function('sum', nargs=(1, 2), bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        result = self[0].evaluate()
+    else:
+        result = list(self[0].select(context))
+
+    if isinstance(result, list):
+        try:
+            return sum(result)
+        except TypeError:
+            return self[1].evaluate(context) if len(self) > 1 else 0
+    elif context is not None:
+        self.wrong_type("not a sequence: %r" % result)
+
+
+register('floor')
+register('ceiling')
+register('lang')
+register('round')
 
 
 XPath1Parser.end()
