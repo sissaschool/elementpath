@@ -9,22 +9,19 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from .exceptions import ElementPathTypeError, ElementPathValueError
-from .xpath_nodes import (
-    is_etree_element, is_element_node, is_document_node, is_attribute_node, is_comment_node,
-    is_processing_instruction_node, is_text_node, is_namespace_node
-)
+from .xpath_nodes import is_etree_element, is_element_node, is_document_node, is_attribute_node
 
 
 class XPathContext(object):
     """
-    XPath expressions dynamic context. The static context is provided by the parser.
+    The XPath dynamic context. The static context is provided by the parser.
 
-    :ivar root: The root of the XML document, must be a ElementTree's Element.
-    :ivar item: The context item. A `None` value means that the context is positioned on \
+    :param root: The root of the XML document, must be a ElementTree's Element.
+    :param item: The context item. A `None` value means that the context is positioned on \
     the document node.
-    :ivar position: The current position of the node within the input sequence.
-    :ivar size: The number of items in the input sequence.
-    :ivar variables: Dictionary of context variables that maps a QName to a value.
+    :param position: The current position of the node within the input sequence.
+    :param size: The number of items in the input sequence.
+    :param variables: Dictionary of context variables that maps a QName to a value.
     """
     def __init__(self, root, item=None, position=0, size=1, variables=None):
         if not is_element_node(root) and not is_document_node(root):

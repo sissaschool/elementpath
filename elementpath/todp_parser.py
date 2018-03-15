@@ -375,6 +375,8 @@ class Parser(object):
             for key, value in kwargs.items():
                 if key == 'lbp' and value > token_class.lbp:
                     token_class.lbp = value
+                elif key == 'rbp' and value > token_class.rbp:
+                    token_class.rbp = value
                 elif callable(value):
                     setattr(token_class, key, value)
 

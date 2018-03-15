@@ -18,7 +18,7 @@ from xml.etree import ElementTree
 import lxml.etree
 
 from elementpath import *
-from elementpath import namespaces
+from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 
 try:
     # noinspection PyPackageRequirements
@@ -29,10 +29,10 @@ except ImportError:
 
 class XPath1ParserTest(unittest.TestCase):
     namespaces = {
-        'xml': namespaces.XML_NAMESPACE,
-        'xs': namespaces.XSD_NAMESPACE,
-        'xsi': namespaces.XSI_NAMESPACE,
-        'fn': namespaces.XPATH_FUNCTIONS_NAMESPACE,
+        'xml': XML_NAMESPACE,
+        'xs': XSD_NAMESPACE,
+        'xsi': XSI_NAMESPACE,
+        'fn': XPATH_FUNCTIONS_NAMESPACE,
     }
     variables = {'values': [10, 20, 5]}
 
@@ -240,8 +240,9 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select("text()", [text], context)
 
     def test_node_set_id_function(self):
-        # TODO
-        pass
+        # XPath 1.0 id() function: https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id
+        root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
+        self.check_selector('id("foo")', root, [root[0]])
 
     def test_node_set_functions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -313,6 +314,13 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax("boolean()")      # Argument required
         self.wrong_syntax("boolean(1, 5)")  # Too much arguments
 
+        # From https://www.w3.org/TR/1999/REC-xpath-19991116/#section-Boolean-Functions
+        self.check_selector('lang("en")', self.etree.XML('<para xml:lang="en"/>'), True)
+        self.check_selector('lang("en")', self.etree.XML('<div xml:lang="en"><para/></div>'), True)
+        self.check_selector('lang("en")', self.etree.XML('<para xml:lang="EN"/>'), True)
+        self.check_selector('lang("en")', self.etree.XML('<para xml:lang="en-us"/>'), True)
+        self.check_selector('lang("en")', self.etree.XML('<para xml:lang="it"/>'), False)
+
     def test_logical_expressions(self):
         self.check_value("false() and true()", False)
         self.check_value("false() or true()", True)
@@ -331,7 +339,7 @@ class XPath1ParserTest(unittest.TestCase):
                               '    <unit id="3"><cost>20</cost></unit>'
                               '    <unit id="2"><cost>40</cost></unit>'
                               '</table>')
-        #self.check_selector("/table/cost[1] <= /table/cost[2]", root, False)
+        # self.check_selector("/table/cost[1] <= /table/cost[2]", root, False)
 
     def test_numerical_expressions(self):
         self.check_value("9", 9)
@@ -561,7 +569,7 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_node_accessor_functions(self):
         source = '<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>' \
-                 '<B2 /><B3>simple text</B3></A>' % namespaces.XSI_NAMESPACE
+                 '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE
         root = self.etree.XML(source)
         self.check_selector("node-name(.)", root, 'A')
         self.check_selector("node-name(/A/B1)", root, 'B1')
@@ -591,7 +599,7 @@ class XPath2ParserTest(XPath1ParserTest):
         root = self.etree.XML('<root><A/><B/><C/></root>')
 
         # From variables like XPath 2.0 examples
-        context = XPathContext(root, variables = {
+        context = XPathContext(root, variables={
             'seq1': root[:2],  # (A, B)
             'seq2': root[:2],  # (A, B)
             'seq3': root[1:],  # (B, C)

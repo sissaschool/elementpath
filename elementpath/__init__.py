@@ -16,9 +16,7 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 
-from .exceptions import (
-    ElementPathError, ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
-)
+from .exceptions import *
 from .todp_parser import Token, Parser
 from .xpath_token import is_etree_element, is_xpath_node, XPathToken
 from .xpath_context import XPathContext
@@ -26,30 +24,47 @@ from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
 
 
-def select(elem, path, namespaces=None, parser=XPath2Parser, **kwargs):
+def select(root, path, namespaces=None, parser=XPath2Parser, **kwargs):
+    """
+    XPath selector function.
+
+    :param root: An Element or ElementTree instance.
+    :param path: The XPath expression.
+    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
+    :param parser: The parser class to use, that is the XPath 2.0 class for default.
+    :param kwargs: Other optional parameters for XPath parser class.
+    """
     parser = parser(namespaces, **kwargs)
     root_token = parser.parse(path)
-    context = XPathContext(elem)
-    results = list(root_token.select(context))
-    if len(results) == 1 and root_token.label in ('function', 'literal'):
-        return results[0]
-    else:
-        return results
+    context = XPathContext(root)
+    return root_token.get_results(context)
 
 
-def iter_select(elem, path, namespaces=None, parser=XPath2Parser, **kwargs):
+def iter_select(root, path, namespaces=None, parser=XPath2Parser, **kwargs):
+    """
+    XPath selector generator function.
+
+    :param root: An Element or ElementTree instance.
+    :param path: The XPath expression.
+    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
+    :param parser: The parser class to use, that is the XPath 2.0 class for default.
+    :param kwargs: Other optional parameters for XPath parser class.
+    """
+
     parser = parser(namespaces, **kwargs)
     root_token = parser.parse(path)
-    context = XPathContext(elem, variables=kwargs.get('variables'))
+    context = XPathContext(root)
     return root_token.select(context)
 
 
 class Selector(object):
     """
-    XPath selector. For default uses XPath 2.0.
+    XPath selector class.
 
-    :ivar path: The path expression string.
-    :ivar namespaces:
+    :param path: The XPath expression.
+    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
+    :param parser: The parser class to use, that is the XPath 2.0 class for default.
+    :param kwargs: Other optional parameters for XPath parser class.
     """
     def __init__(self, path, namespaces=None, parser=XPath2Parser, **kwargs):
         self.path = path
@@ -65,14 +80,10 @@ class Selector(object):
     def namespaces(self):
         return self.parser.namespaces
 
-    def select(self, elem):
-        context = XPathContext(elem)
-        results = list(self.root_token.select(context))
-        if len(results) == 1 and self.root_token.label in ('function', 'literal'):
-            return results[0]
-        else:
-            return results
+    def select(self, root):
+        context = XPathContext(root)
+        return self.root_token.getresults(context)
 
-    def iter_select(self, elem):
-        context = XPathContext(elem)
+    def iter_select(self, root):
+        context = XPathContext(root)
         return self.root_token.select(context)

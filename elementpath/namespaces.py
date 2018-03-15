@@ -39,10 +39,6 @@ XSI_NIL_QNAME = '{%s}nil' % XSI_NAMESPACE
 XSI_SCHEMA_LOCATION_QNAME = '{%s}schemaLocation' % XSI_NAMESPACE
 XSI_NONS_SCHEMA_LOCATION_QNAME = '{%s}schemaLocation' % XSI_NAMESPACE
 
-
-""" <xs:attribute name="schemaLocation"/>
- <xs:attribute name="noNamespaceSchemaLocation"/>
-"""
 # XSD tags and attributes
 XSD_NOTATION = '{%s}NOTATION' % XSD_NAMESPACE
 XSD_ANY_ATOMIC_TYPE = '{%s}anyAtomicType' % XSD_NAMESPACE

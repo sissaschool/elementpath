@@ -14,7 +14,9 @@ import decimal
 
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
-from .namespaces import XML_ID_QNAME, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
+from .namespaces import (
+    XML_ID_QNAME, XML_LANG_QNAME, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
+)
 from .xpath_token import XPathToken
 from .xpath_nodes import (
     is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node,
@@ -28,9 +30,10 @@ XML_NCNAME_PATTERN = u"[{0}][\-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format
 
 class XPath1Parser(Parser):
     """
-    XPath 1.0 expression parser class.
+    XPath 1.0 expression parser class. The parser instance represents also the XPath static context.
 
-    :param namespaces: optional prefix to namespace map.
+    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
+    :param variables: A dictionary with the static context's in-scope variables.
     """
     token_base_class = XPathToken
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
@@ -733,21 +736,6 @@ def select(self, context):
         for elem in item.iter():
             if elem.get(XML_ID_QNAME) == value:
                 yield elem
-    elif is_comment_node(item) or is_processing_instruction_node(item):
-        for s in item.text.split():
-            if s == value:
-                yield item
-                break
-    elif isinstance(item, tuple):
-        for s in item[1].split():
-            if s == value:
-                yield item
-                break
-    else:
-        for s in str(item).split():
-            if s == value:
-                yield item
-                break
 
 
 @method(function('name', nargs=(0, 1), bp=90))
@@ -892,7 +880,26 @@ def evaluate(self, context=None):
     return False
 
 
-register('lang')
+@method(function('lang', nargs=1, bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif not is_element_node(context.item):
+        return False
+    else:
+        try:
+            lang = context.item.attrib[XML_LANG_QNAME].strip()
+        except KeyError:
+            for elem in context.iter_ancestor():
+                if XML_LANG_QNAME in elem.attrib:
+                    lang = elem.attrib[XML_LANG_QNAME]
+                    break
+            else:
+                return False
+
+        if '-' in lang:
+            lang, _ = lang.split('-')
+        return lang.lower() == self[0].evaluate().lower()
 
 
 ###

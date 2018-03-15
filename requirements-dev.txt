@@ -1,6 +1,6 @@
 # Requirements for setup a development environment
 setuptools
+tox
 lxml
-Sphinx
-sphinx_rtd_theme
+xmlschema
 -e .

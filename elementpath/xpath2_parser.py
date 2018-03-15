@@ -18,7 +18,17 @@ from .xpath1_parser import XPath1Parser
 
 class XPath2Parser(XPath1Parser):
     """
-    XPath 2.0 expression parser class.
+    XPath 2.0 expression parser class. The parser instance represents also the XPath static context.
+
+    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
+    :param variables: A dictionary with the static context's in-scope variables.
+    :param default_namespace: The default namespace to apply to unprefixed names. \
+    For default no namespace is applied (empty namespace '').
+    :param function_namespace: The default namespace to apply to unprefixed function names. \
+    For default no namespace is applied (empty namespace '').
+    :param schema: The schema proxy instance to use for types, attributes and elements lookups. \
+    If it's not provided the XPath 2.0 schema's related expressions cannot be used.
+    :param compatibility_mode: If set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
     SYMBOLS = XPath1Parser.SYMBOLS | {
@@ -410,7 +420,6 @@ def select(self, context):
         yield k
 
 
-
 ###
 # Numerical operators
 @method(infix('idiv', bp=45))
@@ -430,7 +439,6 @@ def select(self, context):
                 context.item = elem
                 yield elem
 
-
 #@method(function('attribute', nargs=(0, 2), bp=90))
 #def select(self, context):
 #    pass
@@ -439,7 +447,6 @@ def select(self, context):
 @method(function('schema-attribute', nargs=1, bp=90))
 def select(self, context):
     pass
-
 
 
 @method(function('element', nargs=(0, 2), bp=90))

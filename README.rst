@@ -46,19 +46,20 @@ Public API
     The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
     with XPath 1.0.
 
-.. py:function:: select(target, path, namespaces=None, schema=None, parser=XPath2Parser)
+.. py:function:: select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
 
-    Apply *path* expression on *target*. Target can be an ElementTree instance or an Element instance.
+    Apply *path* expression on *root* Element. The *root* argument can be an ElementTree instance
+    or an Element instance.
     Returns a list with XPath nodes or a basic type for expressions based on a function or literal.
 
-.. py:function:: iter_select(target, path, namespaces=None, schema=None, parser=XPath2Parser)
+.. py:function:: iter_select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
 
     Iterator version of *select*, if you want to process each result one by one.
 
 .. py:class:: Selector(path, namespaces=None, schema=None, parser=XPath2Parser)
 
     Create an instance of this class if you want to apply an XPath selector to several target data.
-    An instance provides *select* and *iter_select* methods with a *target* argument that has the
+    An instance provides *select* and *iter_select* methods with a *root* argument that has the
     same meaning that as for the *select* API.
 
 
