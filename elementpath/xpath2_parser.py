@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import decimal
 from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import (
     is_document_node, is_xpath_node, node_name, node_value, node_nilled, node_base_uri, node_document_uri
@@ -455,16 +456,12 @@ def select(self, context):
 # Accessor functions
 @method(function('node-name', nargs=1, bp=90))
 def evaluate(self, context=None):
-    if context is not None:
-        for item in self[0].select(context):
-            return node_name(item)
+    return node_name(self.get_argument(context))
 
 
 @method(function('nilled', nargs=1, bp=90))
 def evaluate(self, context=None):
-    if context is not None:
-        for item in self[0].select(context):
-            return node_nilled(item)
+    return node_nilled(self.get_argument(context))
 
 
 @method(function('data', nargs=1, bp=90))
@@ -482,32 +479,35 @@ def select(self, context):
 
 @method(function('base-uri', nargs=(0, 1), bp=90))
 def evaluate(self, context=None):
-    if self:
-        if context is None:
-            return node_base_uri(self[0].evaluate())
-        for item in self[0].select(context):
-            return node_base_uri(item)
-    elif context is None:
-        self.missing_context()
+    item = self.get_argument(context)
+    if item is None:
+        self.missing_context("context item is undefined")
+    elif not is_xpath_node(item):
+        self.wrong_context_type("context item is not a node")
     else:
-        for item in self[0].select(context):
-            value = node_base_uri(item)
-            if value is None:
-                self.wrong_context_type('context item is not a node')
-            return value
+        return node_base_uri
 
 
 @method(function('document-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    if context is None:
-        return
-    for item in self[0].select(context):
-        return node_document_uri(item)
+    return node_document_uri(self.get_argument(context))
 
 
 ###
 # Number functions
-register('round-half-to-even')
+@method(function('round-half-to-even', nargs=(1, 2), bp=90))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        value = round(decimal.Decimal(item), 0 if len(self) < 2 else self[1].evaluate(context))
+    except TypeError as err:
+        if item is not None and not isinstance(item, list):
+            self.wrong_type(str(err))
+    except decimal.DecimalException as err:
+        if item is not None and not isinstance(item, list):
+            self.wrong_value(str(err))
+    else:
+        return float(value)
 
 
 @method(function('abs', nargs=1, bp=90))

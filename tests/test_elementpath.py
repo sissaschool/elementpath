@@ -352,11 +352,21 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_number_functions(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+
         self.check_value("number(5.0)", 5.0)
         self.check_value("number('text')", math.isnan)
         self.check_value("number('-11')", -11)
         self.check_selector("number(9)", root, 9.0)
         self.check_value("sum($values)", 35)
+
+        # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
+        self.check_value("ceiling(10.5)", 11)
+        self.check_value("ceiling(-10.5)", -10)
+        self.check_value("floor(10.5)", 10)
+        self.check_value("floor(-10.5)", -11)
+        self.check_value("round(2.5)", 3)
+        self.check_value("round(2.4999)", 2)
+        self.check_value("round(-2.5)", -2)
 
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -533,7 +543,16 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_number_functions2(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_value("abs(-9)", 9)
+
+        # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
+        self.check_value("abs(10.5)", 10.5)
+        self.check_value("abs(-10.5)", 10.5)
+        self.check_value("round-half-to-even(0.5)", 0)
+        self.check_value("round-half-to-even(1.5)", 2)
+        self.check_value("round-half-to-even(2.5)", 2)
+        self.check_value("round-half-to-even(3.567812E+3, 2)", 3567.81E0)
+        self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
+        self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -544,12 +563,13 @@ class XPath2ParserTest(XPath1ParserTest):
         source = '<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>' \
                  '<B2 /><B3>simple text</B3></A>' % namespaces.XSI_NAMESPACE
         root = self.etree.XML(source)
-        # TODO : check on-line
         self.check_selector("node-name(.)", root, 'A')
         self.check_selector("node-name(/A/B1)", root, 'B1')
-        self.check_selector("node-name(/A/*)", root, 'B1')  # Not allowed more than one item!
+        self.check_selector("node-name(/A/*)", root, ElementPathTypeError)  # Not allowed more than one item!
         self.check_selector("nilled(./B1/C1)", root, False)
         self.check_selector("nilled(./B1/C2)", root, True)
+
+        # TODO : check on-line
         self.check_selector("data(.)", root, source)
 
     def test_union_intersect_except(self):

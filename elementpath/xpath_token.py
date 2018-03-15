@@ -63,7 +63,7 @@ class XPathToken(Token):
         }
 
     ###
-    # XPath errors
+    # XPath errors (https://www.w3.org/TR/xpath20/#id-errors)
     def missing_schema(self, message='parser not bound to a schema'):
         raise ElementPathValueError("%s: %s [err:XPST0001]." % (self, message))
 

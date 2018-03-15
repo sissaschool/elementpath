@@ -9,6 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import division
+import math
+import decimal
 
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
@@ -890,6 +892,9 @@ def evaluate(self, context=None):
     return False
 
 
+register('lang')
+
+
 ###
 # Number functions
 @method(function('number', nargs=(0, 1), bp=90))
@@ -917,10 +922,41 @@ def evaluate(self, context=None):
         self.wrong_type("not a sequence: %r" % result)
 
 
-register('floor')
-register('ceiling')
-register('lang')
-register('round')
+@method(function('ceiling', nargs=1, bp=90))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        return math.ceil(item)
+    except TypeError as err:
+        if item is not None and not isinstance(item, list):
+            self.wrong_type(str(err))
+
+
+@method(function('floor', nargs=1, bp=90))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        return math.floor(item)
+    except TypeError as err:
+        if item is not None and not isinstance(item, list):
+            self.wrong_type(str(err))
+
+
+@method(function('round', nargs=1, bp=90))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        number = decimal.Decimal(item)
+        if number > 0:
+            return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
+        else:
+            return float(round(number))
+    except TypeError as err:
+        if item is not None and not isinstance(item, list):
+            self.wrong_type(str(err))
+    except decimal.DecimalException as err:
+        if item is not None and not isinstance(item, list):
+            self.wrong_value(str(err))
 
 
 XPath1Parser.end()
