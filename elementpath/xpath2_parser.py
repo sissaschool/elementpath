@@ -11,7 +11,8 @@
 import decimal
 from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import (
-    is_document_node, is_xpath_node, node_name, node_value, node_nilled, node_base_uri, node_document_uri
+    is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
+    node_string_value, node_nilled, node_base_uri, node_document_uri
 )
 from .xpath1_parser import XPath1Parser
 
@@ -430,26 +431,42 @@ def evaluate(self, context=None):
 ###
 # Node types
 @method(function('document-node', nargs=(0, 1), bp=90))
-def select(self, context):
-    if context.item is None and is_document_node(context.root):
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif context.item is None and is_document_node(context.root):
         if not self:
-            yield context.root
-        else:
-            for elem in self[0].select(context):
-                context.item = elem
-                yield elem
-
-#@method(function('attribute', nargs=(0, 2), bp=90))
-#def select(self, context):
-#    pass
-
-
-@method(function('schema-attribute', nargs=1, bp=90))
-def select(self, context):
-    pass
+            return context.root
+        elif is_element_node(context.root.getroot(), self[0].evaluate(context)):
+            return context.root
 
 
 @method(function('element', nargs=(0, 2), bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif not self:
+        if is_element_node(context.item):
+            return context.item
+    else:
+        if is_element_node(context.item, self[1].evaluate(context)):
+            return context.item
+
+
+# unregister('attribute')
+@method(function('attribute_', nargs=(0, 2), bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif not self:
+        if is_attribute_node(context.item):
+            return context.item
+    else:
+        if is_attribute_node(context.item, self[1].evaluate(context)):
+            return context.item
+
+
+@method(function('schema-attribute', nargs=1, bp=90))
 def select(self, context):
     pass
 
@@ -474,14 +491,11 @@ def evaluate(self, context=None):
 @method(function('data', nargs=1, bp=90))
 def select(self, context):
     for item in self[0].select(context):
-        if not is_xpath_node(item):
-            yield item
+        value = self.data(item)
+        if value is None:
+            self.wrong_type("argument node does not have a typed value [err:FOTY0012]")
         else:
-            value = node_value(item)
-            if value is None:
-                self.wrong_type("argument node does not have a typed value [err:FOTY0012]")
-            else:
-                yield value
+            yield value
 
 
 @method(function('base-uri', nargs=(0, 1), bp=90))
@@ -521,7 +535,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
-        return abs(node_value(item) if is_xpath_node(item) else item)
+        return abs(node_string_value(item) if is_xpath_node(item) else item)
     except TypeError:
         return float('nan')
 

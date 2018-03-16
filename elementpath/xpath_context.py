@@ -32,7 +32,7 @@ class XPathContext(object):
         elif is_element_node(root):
             self.item = root
         else:
-            self.item = root.getroot()
+            self.item = None
 
         self.position = position
         self.size = size

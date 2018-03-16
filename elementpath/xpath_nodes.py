@@ -17,14 +17,23 @@ Element-like objects are used for representing elements and comments, ElementTre
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
 import sys
-from xml.etree import ElementTree
 from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
 
 
+###
+# Utility functions for ElementTree's Element instances
 def is_etree_element(obj):
     return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
+
+
+def elem_iter_strings(elem):
+    for e in elem.iter():
+        if e.text is not None:
+            yield e.text
+        if e.tail is not None:
+            yield e.tail
 
 
 ###
@@ -176,16 +185,15 @@ def node_name(obj):
         return obj[0]
 
 
-def node_value(obj):
-    """string-value and typed-value accessors"""
+def node_string_value(obj):
     if is_element_node(obj):
-        return ElementTree.tostring(obj, encoding='unicode')
+        return u''.join(elem_iter_strings(obj))
     elif is_attribute_node(obj):
         return obj[1]
     elif is_text_node(obj):
         return obj
     elif is_document_node(obj):
-        return ElementTree.tostring(obj.getroot(), encoding='unicode')
+        return u''.join(e.text for e in obj.getroot().iter() if e.text is not None)
     elif is_namespace_node(obj):
         return obj[1]
     elif is_comment_node(obj):

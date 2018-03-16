@@ -11,4 +11,4 @@ doc/_*
 __pycache__/
 dist/
 build/
-tmp/
+development/

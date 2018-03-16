@@ -20,7 +20,7 @@ from .namespaces import (
 from .xpath_token import XPathToken
 from .xpath_nodes import (
     is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node,
-    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_value
+    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_string_value
 )
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -761,7 +761,7 @@ def evaluate(self, context=None):
 # String functions
 @method(function('string', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return str(self[0].evaluate(context))
+    return self.string(self.get_argument(context))
 
 
 @method(function('contains', nargs=2, bp=90))
@@ -908,7 +908,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
-        return float(node_value(item) if is_xpath_node(item) else item)
+        return float(node_string_value(item) if is_xpath_node(item) else item)
     except (TypeError, ValueError):
         return float('nan')
 

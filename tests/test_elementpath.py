@@ -67,10 +67,12 @@ class XPath1ParserTest(unittest.TestCase):
         """Check using the *evaluate* method of the root token."""
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, self.parser.parse(path).evaluate, context)
-        elif callable(expected):
-            self.assertTrue(expected(self.parser.parse(path).evaluate(context)))
-        else:
+        elif not callable(expected):
             self.assertEqual(self.parser.parse(path).evaluate(context), expected)
+        elif isinstance(expected, type):
+            self.assertTrue(isinstance(self.parser.parse(path).evaluate(context), expected))
+        else:
+            self.assertTrue(expected(self.parser.parse(path).evaluate(context)))
 
     def check_select(self, path, expected, context=None):
         """Check using the *select* method of the root token."""
@@ -78,8 +80,10 @@ class XPath1ParserTest(unittest.TestCase):
             context = XPathContext(root=self.etree.Element(u'dummy_root'))
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, self.parser.parse(path).select, context)
-        else:
+        elif not callable(expected):
             self.assertEqual(list(self.parser.parse(path).select(context)), expected)
+        else:
+            self.assertTrue(expected(list(self.parser.parse(path).select(context))))
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """Check using the selector API (the *select* function of the package)."""
@@ -89,8 +93,12 @@ class XPath1ParserTest(unittest.TestCase):
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             if isinstance(expected, set):
                 self.assertEqual(set(results), expected)
-            else:
+            elif not callable(expected):
                 self.assertEqual(results, expected)
+            elif isinstance(expected, type):
+                self.assertTrue(isinstance(results, expected))
+            else:
+                self.assertTrue(expected(results))
 
     def wrong_syntax(self, path):
         self.assertRaises(ElementPathSyntaxError, self.parser.parse, path)
@@ -223,7 +231,7 @@ class XPath1ParserTest(unittest.TestCase):
         pi = self.etree.ProcessingInstruction('action', 'nothing to do')
         text = u'aldebaran'
         context = XPathContext(element)
-        self.check_select("node()", [document.getroot()], context=XPathContext(document))
+        self.check_select("node()", [document], context=XPathContext(document))
         self.check_select("node()", [element], context)
         context.item = attribute
         self.check_select("node()", [attribute], context)
@@ -299,6 +307,14 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_type("substring-before('2017-10-27', 10)")
         self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Amadeus ')", 'Mozart')
         self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Mozart')", '')
+
+        root = self.etree.XML('<ups-units>'
+                              '  <unit><power>40kW</power></unit>'
+                              '  <unit><power>20kW</power></unit>'
+                              '  <unit><power>30kW</power><model>XYZ</model></unit>'
+                              '</ups-units>')
+        variables = {'ups1': root[0], 'ups2': root[1], 'ups3': root[2]}
+        self.check_selector('string($ups1/power)', root, '40kW', variables=variables)
 
     def test_boolean_functions(self):
         self.check_value("true()", True)
@@ -540,6 +556,22 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_selector("if (true()) then /A/B1 else /A/B2", root, root[:1])
         self.check_selector("if (false()) then /A/B1 else /A/B2", root, root[1:2])
 
+        # Cases from XPath 2.0 examples
+        root = self.etree.XML('<part discounted="false"><wholesale/><retail/></part>')
+        self.check_selector(
+            'if ($part/@discounted) then $part/wholesale else $part/retail',
+            root, [root[0]], variables={'part': root}
+        )
+        root = self.etree.XML('<widgets>'
+                              '  <widget><unit-cost>25</unit-cost></widget>'
+                              '  <widget><unit-cost>10</unit-cost></widget>'
+                              '  <widget><unit-cost>15</unit-cost></widget>'
+                              '</widgets>')
+        self.check_selector(
+            'if ($widget1/unit-cost < $widget2/unit-cost) then $widget1 else $widget2',
+            root, [root[0]], variables={'widget1': root[0], 'widget2': root[2]}
+        )
+
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
         # self.check_select("boolean((A, 35))", root, True)  # Too much arguments
@@ -562,23 +594,38 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
+    def test_node_types2(self):
+        document = self.etree.parse(io.StringIO(u'<A/>'))
+        element = self.etree.Element('schema')
+        attribute = 'id', '0212349350'
+        context = XPathContext(root=document)
+        self.check_select("document-node()", [document], context)
+        self.check_selector("document-node(A)", document, [document])
+        context = XPathContext(root=element)
+        self.check_select("element()", [element], context)
+        # FIXME
+        # context.item = attribute
+        # self.check_select("node()", [attribute], context)
+
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_selector("count(5)", root, 1)
         self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
 
     def test_node_accessor_functions(self):
-        source = '<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>' \
-                 '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE
-        root = self.etree.XML(source)
+        root = self.etree.XML('<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>'
+                              '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE)
         self.check_selector("node-name(.)", root, 'A')
         self.check_selector("node-name(/A/B1)", root, 'B1')
         self.check_selector("node-name(/A/*)", root, ElementPathTypeError)  # Not allowed more than one item!
         self.check_selector("nilled(./B1/C1)", root, False)
         self.check_selector("nilled(./B1/C2)", root, True)
 
-        # TODO : check on-line
-        self.check_selector("data(.)", root, source)
+        root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
+                              '<B2 /><B3>an ending text </B3></A>')
+        self.check_selector("string(.)", root, ' a text, an inner text, a tail, an ending text ')
+        self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
+        self.check_selector("data(.)", root, UntypedAtomic)
 
     def test_union_intersect_except(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
@@ -624,16 +671,22 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         cls.etree = lxml.etree
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
+        """Check using the selector API (the *select* function of the package)."""
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, select, root, path, namespaces, self.parser.__class__, **kwargs)
         else:
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
+            variables = kwargs.get('variables', {})
             if isinstance(expected, set):
-                self.assertEqual(set(root.xpath(path, namespaces=namespaces)), expected)
+                self.assertEqual(set(root.xpath(path, namespaces=namespaces, **variables)), expected)
                 self.assertEqual(set(results), expected)
-            else:
-                self.assertEqual(root.xpath(path, namespaces=namespaces), expected)
+            elif not callable(expected):
+                self.assertEqual(root.xpath(path, namespaces=namespaces, **variables), expected)
                 self.assertEqual(results, expected)
+            elif isinstance(expected, type):
+                self.assertTrue(isinstance(results, expected))
+            else:
+                self.assertTrue(expected(results))
 
 
 class LxmlXPath2ParserTest(XPath2ParserTest):
