@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from .exceptions import ElementPathTypeError, ElementPathValueError
-from .xpath_helpers import is_etree_element, is_element_node, is_document_node, is_attribute_node
+from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, is_document_node, is_attribute_node
 
 
 class XPathContext(object):
@@ -85,7 +85,7 @@ class XPathContext(object):
             self._iterator, self._node_kind_test = self.iter_self, is_attribute_node
 
             for item in sorted(self.item.attrib.items()):
-                self.item = item
+                self.item = AttributeNode(*item)
                 yield item
 
             self.item, self.size, self.position, self._iterator = status

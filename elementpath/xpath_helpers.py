@@ -74,8 +74,8 @@ def is_element_node(obj, tag=None):
 
 def is_attribute_node(obj, name=None):
     if name is None:
-        return isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace'
-    elif not isinstance(obj, tuple) and getattr(obj, '__name__', '') != 'Namespace':
+        return isinstance(obj, AttributeNode)
+    elif not isinstance(obj, AttributeNode):
         return False
     elif name[0] == '*':
         if obj[0][0] == '{':
@@ -104,7 +104,7 @@ def is_document_node(obj):
 
 
 def is_namespace_node(obj):
-    return isinstance(obj, tuple) and getattr(obj, '__name__', '') == 'Namespace'
+    return isinstance(obj, NamespaceNode)
 
 
 if not PY3:
