@@ -18,9 +18,10 @@ from .namespaces import (
     XML_ID_QNAME, XML_LANG_QNAME, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
 )
 from .xpath_token import XPathToken
-from .xpath_nodes import (
+from .xpath_helpers import (
     is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node,
-    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_string_value
+    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_string_value,
+    boolean_value, data_value, string_value
 )
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -37,6 +38,7 @@ class XPath1Parser(Parser):
     """
     token_base_class = XPathToken
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
+    compatibility_mode = True
 
     SYMBOLS = {
         # Axes
@@ -347,32 +349,32 @@ def evaluate(self, context=None):
 
 @method(infix('=', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) == self[1].evaluate(context)
+    return any(op1 == op2 for op1, op2 in self.get_comparison_data(context))
 
 
 @method(infix('!=', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) != self[1].evaluate(context)
+    return any(op1 != op2 for op1, op2 in self.get_comparison_data(context))
 
 
 @method(infix('<', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) < self[1].evaluate(context)
+    return any(op1 < op2 for op1, op2 in self.get_comparison_data(context))
 
 
 @method(infix('>', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) > self[1].evaluate(context)
+    return any(op1 > op2 for op1, op2 in self.get_comparison_data(context))
 
 
 @method(infix('<=', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) <= self[1].evaluate(context)
+    return any(op1 <= op2 for op1, op2 in self.get_comparison_data(context))
 
 
 @method(infix('>=', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) >= self[1].evaluate(context)
+    return any(op1 >= op2 for op1, op2 in self.get_comparison_data(context))
 
 
 ###
@@ -484,6 +486,26 @@ def select(self, context):
                     yield result
 
 
+@method('/')
+def evaluate(self, context=None):
+    """
+    General evaluation method for path operators, that may returns the a single value or None.
+    """
+    if context is not None:
+        selector = iter(self.select(context))
+        try:
+            value = next(selector)
+        except StopIteration:
+            return
+        else:
+            try:
+                next(selector)
+            except StopIteration:
+                return data_value(value)
+            else:
+                self.wrong_context_type("atomized operand is a sequence of length greater than one")
+
+
 @method('//')
 def select(self, context):
     if len(self) == 1:
@@ -528,7 +550,7 @@ def select(self, context):
             if context.position == predicate[0] - 1:
                 context.item = result
                 yield result
-        elif self.boolean(predicate):
+        elif boolean_value(predicate):
             context.item = result
             yield result
 
@@ -761,7 +783,7 @@ def evaluate(self, context=None):
 # String functions
 @method(function('string', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return self.string(self.get_argument(context))
+    return string_value(self.get_argument(context))
 
 
 @method(function('contains', nargs=2, bp=90))
@@ -862,12 +884,12 @@ def evaluate(self, context=None):
 # Boolean functions
 @method(function('boolean', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return self.boolean(self[0].evaluate(context))
+    return boolean_value(self[0].evaluate(context))
 
 
 @method(function('not', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return not self.boolean(self[0].evaluate(context))
+    return not boolean_value(self[0].evaluate(context))
 
 
 @method(function('true', nargs=0, bp=90))

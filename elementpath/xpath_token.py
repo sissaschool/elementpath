@@ -19,67 +19,9 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
-import sys
-
 from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathValueError
-from .xpath_nodes import is_xpath_node, is_etree_element, is_document_node, node_string_value
+from .xpath_helpers import is_xpath_node, is_etree_element, is_document_node, boolean_value, data_value
 from .todp_parser import Token
-
-
-PY3 = sys.version_info > (2,)
-
-
-class UntypedAtomic(object):
-    """
-    Class for xs:untypedAtomic data. Provides special methods for comparing
-    and converting to basic data types.
-
-    :param value: The untyped value, usually a string.
-    """
-    def __init__(self, value):
-        self.value = value
-
-    def __repr__(self):
-        return '%s(value=%r)' % (self.__class__.__name__, self.value)
-
-    def __eq__(self, other):
-        return type(other)(self.value) == other
-
-    def __ne__(self, other):
-        return type(other)(self.value) == other
-
-    def __le__(self, other):
-        return type(other)(self.value) <= other
-
-    def __lt__(self, other):
-        return type(other)(self.value) < other
-
-    def __gt__(self, other):
-        return type(other)(self.value) > other
-
-    def __ge__(self, other):
-        return type(other)(self.value) >= other
-
-    def __int__(self):
-        return int(self.value)
-
-    def __str__(self):
-        return str(self.value)
-
-    def __float__(self):
-        return float(self.value)
-
-    def __bytes__(self):
-        return bytes(self.value, encoding='utf-8')
-
-    def __unicode__(self):
-        return unicode(self.value)
-
-    def __bool__(self):
-        return bool(self.value)
-
-    if PY3:
-        __unicode__ = __str__
 
 
 ###
@@ -100,7 +42,8 @@ class XPathToken(Token):
                 for _item in item:
                     yield _item
             else:
-                context.item = item
+                if context is not None:
+                    context.item = item
                 yield item
 
     def __str__(self):
@@ -183,30 +126,6 @@ class XPathToken(Token):
         else:
             return bool(obj)
 
-    def string(self, obj):
-        """
-        The string value, as computed by fn:string().
-        """
-        if obj is None:
-            return
-        elif is_xpath_node(obj):
-            return node_string_value(obj)
-        else:
-            return str(obj)
-
-    def data(self, obj):
-        """
-        The typed value, as computed by fn:data() on each item.
-        """
-        if obj is None:
-            return
-        elif is_xpath_node(obj):
-            value = node_string_value(obj)
-            if value is not None:
-                return UntypedAtomic(value)
-        else:
-            return UntypedAtomic(obj)
-
     def get_argument(self, context=None):
         if not self:
             if context is not None:
@@ -224,6 +143,43 @@ class XPathToken(Token):
                     break
             return item
 
+    def get_comparison_data(self, context=None):
+        """
+        Get comparison data couples for the general comparison. Different sequences
+        maybe generated with an XPath 2.0 parser, depending on compatibility mode setting.
+
+        Ref: https://www.w3.org/TR/xpath20/#id-general-comparisons
+
+        :param context: The XPath dynamic context.
+        :returns: A list.
+        """
+        if context is None:
+            operand1, operand2 = [self[0].evaluate()], [self[1].evaluate()]
+        else:
+            operand1 = list(self[0].select(context.copy()))
+            operand2 = list(self[1].select(context.copy()))
+
+        if self.parser.compatibility_mode:
+            # Boolean comparison if one of the results is a single boolean value (1.)
+            try:
+                if isinstance(operand1[0], bool):
+                    if len(operand1) == 1:
+                        return [(operand1[0], boolean_value(operand2))]
+                if isinstance(operand2[0], bool):
+                    if len(operand2) == 1:
+                        return [(boolean_value(operand1), operand2[0])]
+            except IndexError:
+                return []
+
+            # Converts to float for lesser-greater operators (3.)
+            if self.symbol in ('<', '<=', '>', '>='):
+                return [
+                    (float(data_value(value1)), float(data_value(value2)))
+                    for value1 in operand1 for value2 in operand2
+                ]
+
+        return [(data_value(value1), data_value(value2)) for value1 in operand1 for value2 in operand2]
+
     def get_results(self, context):
         """
         Returns formatted XPath results.
@@ -237,9 +193,11 @@ class XPathToken(Token):
             res = results[0]
             if isinstance(res, tuple) or is_etree_element(res) or is_document_node(res):
                 return results
-            elif self.label not in ('function', 'literal'):
-                return results
-            else:
+            elif self.label in ('function', 'literal'):
                 return res
+            elif isinstance(res, bool):  # Tests and comparisons
+                return res
+            else:
+                return results
         else:
             return results

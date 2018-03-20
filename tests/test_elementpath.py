@@ -10,9 +10,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import decimal
 import io
 import math
+from decimal import Decimal
 from collections import namedtuple
 from xml.etree import ElementTree
 import lxml.etree
@@ -25,6 +25,67 @@ try:
     import xmlschema
 except ImportError:
     xmlschema = None
+
+
+class UntypedAtomicTest(unittest.TestCase):
+
+    def test_eq(self):
+        self.assertTrue(UntypedAtomic(-10) == UntypedAtomic(-10))
+        self.assertTrue(UntypedAtomic(5.2) == UntypedAtomic(5.2))
+        self.assertTrue(UntypedAtomic('-6.09') == UntypedAtomic('-6.09'))
+        self.assertTrue(UntypedAtomic(Decimal('8.91')) == UntypedAtomic(Decimal('8.91')))
+        self.assertTrue(UntypedAtomic(False) == UntypedAtomic(False))
+
+        self.assertTrue(UntypedAtomic(-10) == -10)
+        self.assertTrue(-10 == UntypedAtomic(-10))
+        self.assertTrue('-10' == UntypedAtomic(-10))
+        self.assertTrue(bool(False) == UntypedAtomic(False))
+        self.assertTrue(Decimal('8.91') == UntypedAtomic(Decimal('8.91')))
+        self.assertTrue(UntypedAtomic(Decimal('8.91')) == Decimal('8.91'))
+
+        self.assertFalse(bool(False) == UntypedAtomic(10))
+        self.assertFalse(-10.9 == UntypedAtomic(-10))
+        self.assertFalse(UntypedAtomic(-10) == -11)
+
+        self.assertFalse(UntypedAtomic(-10.5) == UntypedAtomic(-10))
+        self.assertFalse(-10.5 == UntypedAtomic(-10))
+        self.assertFalse(-17 == UntypedAtomic(-17.3))
+
+    def test_ne(self):
+        self.assertTrue(UntypedAtomic(True) != UntypedAtomic(False))
+        self.assertTrue(UntypedAtomic(5.12) != UntypedAtomic(5.2))
+        self.assertTrue('29' != UntypedAtomic(5.2))
+        self.assertFalse('2.0' != UntypedAtomic('2.0'))
+
+    def test_lt(self):
+        self.assertTrue(UntypedAtomic(9.0) < UntypedAtomic(15))
+        self.assertTrue(False < UntypedAtomic(True))
+        self.assertTrue(UntypedAtomic('78') < 100.0)
+        self.assertFalse(UntypedAtomic('100.1') < 100.0)
+
+    def test_le(self):
+        self.assertTrue(UntypedAtomic(9.0) <= UntypedAtomic(15))
+        self.assertTrue(False <= UntypedAtomic(False))
+        self.assertTrue(UntypedAtomic('78') <= 100.0)
+        self.assertFalse(UntypedAtomic('100.001') <= 100.0)
+
+    def test_gt(self):
+        self.assertTrue(UntypedAtomic(25) > UntypedAtomic(15))
+        self.assertTrue(25 > UntypedAtomic(15))
+        self.assertTrue(UntypedAtomic(25) > 15)
+        self.assertTrue(UntypedAtomic(25) > '15')
+
+    def test_ge(self):
+        self.assertTrue(UntypedAtomic(25) >= UntypedAtomic(25))
+        self.assertFalse(25 >= UntypedAtomic(25.1))
+
+    def test_conversion(self):
+        self.assertEqual(str(UntypedAtomic(25.1)), '25.1')
+        self.assertEqual(int(UntypedAtomic(25.1)), 25)
+        self.assertEqual(float(UntypedAtomic(25.1)), 25.1)
+        self.assertEqual(bool(UntypedAtomic(True)), True)
+        self.assertEqual(str(UntypedAtomic('Joan Miró')), u'Joan Miró')
+        self.assertEqual(bytes(UntypedAtomic('Joan Miró')), b'Joan Mir\xc3\xb3')
 
 
 class XPath1ParserTest(unittest.TestCase):
@@ -349,25 +410,37 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("1 and mars", False)
 
     def test_comparison_operators(self):
+        self.check_value("0.05 = 0.05", True)
+        self.check_value("19.03 != 19.02999", True)
+        self.check_value("-1.0 = 1.0", False)
+        self.check_value("1 <= 2", True)
+        self.check_value("5 >= 9", False)
+        self.check_value("5 > 3", True)
+        self.check_value("5 < 20.0", True)
+        self.check_value("false() = 1", False)
+        self.check_value("0 = false()", True)
+
         root = self.etree.XML('<table>'
                               '    <unit id="1"><cost>50</cost></unit>'
                               '    <unit id="2"><cost>30</cost></unit>'
                               '    <unit id="3"><cost>20</cost></unit>'
                               '    <unit id="2"><cost>40</cost></unit>'
                               '</table>')
-        # self.check_selector("/table/cost[1] <= /table/cost[2]", root, False)
+        self.check_selector("/table/unit[2]/cost <= /table/unit[1]/cost", root, True)
+        self.check_selector("/table/unit[2]/cost > /table/unit[position()!=2]/cost", root, True)
+        self.check_selector("/table/unit[3]/cost > /table/unit[position()!=3]/cost", root, False)
 
     def test_numerical_expressions(self):
         self.check_value("9", 9)
         self.check_value("-3", -3)
-        self.check_value("7.1", decimal.Decimal('7.1'))
+        self.check_value("7.1", Decimal('7.1'))
         self.check_value("0.45e3", 0.45e3)
         self.check_value(" 7+5 ", 12)
         self.check_value("8 - 5", 3)
         self.check_value("-8 - 5", -13)
         self.check_value("5 div 2", 2.5)
         self.check_value("11 mod 3", 2)
-        self.check_value("4.5 mod 1.2", decimal.Decimal('0.9'))
+        self.check_value("4.5 mod 1.2", Decimal('0.9'))
         self.check_value("1.23E2 mod 0.6E1", 3.0E0)
         self.check_value("-3 * 7", -21)
         self.check_value("9 - 1 + 6", 14)
@@ -569,7 +642,7 @@ class XPath2ParserTest(XPath1ParserTest):
                               '</widgets>')
         self.check_selector(
             'if ($widget1/unit-cost < $widget2/unit-cost) then $widget1 else $widget2',
-            root, [root[0]], variables={'widget1': root[0], 'widget2': root[2]}
+            root, [root[2]], variables={'widget1': root[0], 'widget2': root[2]}
         )
 
     def test_boolean_functions2(self):

@@ -9,17 +9,17 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Helper functions for XPath nodes. XPath has there are 7 kinds of nodes:
-
-    element, attribute, text, namespace, processing-instruction, comment, document
-
-Element-like objects are used for representing elements and comments, ElementTree-like objects
-for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
+Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
+implementation for XPath functions that are reused in many contexts.
 """
 import sys
+from .exceptions import ElementPathTypeError
 from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
+
+
+PY3 = sys.version_info > (2,)
 
 
 ###
@@ -38,6 +38,14 @@ def elem_iter_strings(elem):
 
 ###
 # XPath node test functions
+#
+# XPath has there are 7 kinds of nodes:
+#
+#    element, attribute, text, namespace, processing-instruction, comment, document
+#
+# Element-like objects are used for representing elements and comments, ElementTree-like objects
+# for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
+###
 def is_element_node(obj, tag=None):
     if tag is None:
         return is_etree_element(obj) and not callable(obj.tag)
@@ -92,7 +100,7 @@ def is_namespace_node(obj):
     return isinstance(obj, tuple) and getattr(obj, '__name__', '') == 'Namespace'
 
 
-if sys.version_info[0] < 3:
+if not PY3:
     def is_text_node(obj):
         return isinstance(obj, (str, unicode))
 else:
@@ -211,3 +219,141 @@ def node_type_name(obj, schema=None):
             return XSD_UNTYPED_ATOMIC  # TODO: from a PSVI ...
     elif is_text_node(obj):
         return XSD_UNTYPED_ATOMIC
+
+
+###
+# XPath base functions
+def boolean_value(obj):
+    """
+    The effective boolean value, as computed by fn:boolean().
+    """
+    if isinstance(obj, list):
+        if not obj:
+            return False
+        elif is_xpath_node(obj[0]):
+            return True
+        elif len(obj) == 1:
+            return bool(obj[0])
+    elif not isinstance(obj, tuple) and not is_element_node(obj):
+        return bool(obj)
+    raise ElementPathTypeError("Invalid argument type [err:FORG0006]: %r" % obj)
+
+
+def string_value(obj):
+    """
+    The string value, as computed by fn:string().
+    """
+    if obj is None:
+        return
+    elif is_xpath_node(obj):
+        return node_string_value(obj)
+    else:
+        return str(obj)
+
+
+def data_value(obj):
+    """
+    The typed value, as computed by fn:data() on each item. Returns an instance of
+    UntypedAtomic.
+    """
+    if obj is None:
+        return
+    elif is_xpath_node(obj):
+        value = node_string_value(obj)
+        if value is not None:
+            return UntypedAtomic(value)
+    else:
+        return UntypedAtomic(obj)
+
+
+def number_value(obj):
+    """
+    The numeric value, as computed by fn:number() on each item. Returns a float value.
+    """
+    try:
+        return float(node_string_value(obj) if is_xpath_node(obj) else obj)
+    except (TypeError, ValueError):
+        return float('nan')
+
+
+class UntypedAtomic(object):
+    """
+    Class for xs:untypedAtomic data. Provides special methods for comparing
+    and converting to basic data types.
+
+    :param value: The untyped value, usually a string.
+    """
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return '%s(value=%r)' % (self.__class__.__name__, self.value)
+
+    def __eq__(self, other):
+        if type(self) is type(other):
+            return self.value == other.value
+        elif isinstance(other, int):
+            return float(self.value) == other
+        else:
+            return type(other)(self.value) == other
+
+    def __ne__(self, other):
+        if type(self) is type(other):
+            return self.value != other.value
+        elif isinstance(other, int):
+            return float(self.value) != other
+        else:
+            return type(other)(self.value) != other
+
+    def __lt__(self, other):
+        if type(self) is type(other):
+            return self.value < other.value
+        elif isinstance(other, int):
+            return float(self.value) < other
+        else:
+            return type(other)(self.value) < other
+
+    def __le__(self, other):
+        if type(self) is type(other):
+            return self.value <= other.value
+        elif isinstance(other, int):
+            return float(self.value) <= other
+        else:
+            return type(other)(self.value) <= other
+
+    def __gt__(self, other):
+        if type(self) is type(other):
+            return self.value > other.value
+        elif isinstance(other, int):
+            return float(self.value) > other
+        else:
+            return type(other)(self.value) > other
+
+    def __ge__(self, other):
+        if type(self) is type(other):
+            return self.value >= other.value
+        elif isinstance(other, int):
+            return float(self.value) >= other
+        else:
+            return type(other)(self.value) >= other
+
+    def __int__(self):
+        return int(self.value)
+
+    def __str__(self):
+        return str(self.value)
+
+    def __float__(self):
+        return float(self.value)
+
+    def __bytes__(self):
+        return bytes(self.value, encoding='utf-8')
+
+    def __unicode__(self):
+        return unicode(self.value)
+
+    def __bool__(self):
+        return bool(self.value)
+
+    if PY3:
+        __unicode__ = __str__

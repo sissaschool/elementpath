@@ -10,9 +10,9 @@
 #
 import decimal
 from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
-from .xpath_nodes import (
+from .xpath_helpers import (
     is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
-    node_string_value, node_nilled, node_base_uri, node_document_uri
+    node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, data_value
 )
 from .xpath1_parser import XPath1Parser
 
@@ -73,7 +73,8 @@ class XPath2Parser(XPath1Parser):
         else:
             self.function_namespace = function_namespace
         self.schema = schema
-        self.compatibility_mode = compatibility_mode
+        if compatibility_mode is False:
+            self.compatibility_mode = False
 
     @property
     def version(self):
@@ -206,7 +207,7 @@ def nud(self):
 
 @method('if')
 def evaluate(self, context=None):
-    if self.boolean(self[0].evaluate(context)):
+    if boolean_value(self[0].evaluate(context)):
         return self[1].evaluate(context)
     else:
         return self[2].evaluate(context)
@@ -214,7 +215,7 @@ def evaluate(self, context=None):
 
 @method('if')
 def select(self, context):
-    if self.boolean(list(self[0].select(context))):
+    if boolean_value(list(self[0].select(context))):
         for result in self[1].select(context):
             yield result
     else:
@@ -491,7 +492,7 @@ def evaluate(self, context=None):
 @method(function('data', nargs=1, bp=90))
 def select(self, context):
     for item in self[0].select(context):
-        value = self.data(item)
+        value = data_value(item)
         if value is None:
             self.wrong_type("argument node does not have a typed value [err:FOTY0012]")
         else:

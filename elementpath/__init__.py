@@ -18,7 +18,8 @@ __status__ = "Production/Stable"
 
 from .exceptions import *
 from .todp_parser import Token, Parser
-from .xpath_token import is_etree_element, is_xpath_node, UntypedAtomic, XPathToken
+from .xpath_helpers import is_xpath_node, is_etree_element, UntypedAtomic
+from .xpath_token import is_etree_element, is_xpath_node, XPathToken
 from .xpath_context import XPathContext
 from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
