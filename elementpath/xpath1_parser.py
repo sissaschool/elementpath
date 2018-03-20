@@ -15,13 +15,13 @@ import decimal
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .todp_parser import Parser
 from .namespaces import (
-    XML_ID_QNAME, XML_LANG_QNAME, DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
+    XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
 )
 from .xpath_token import XPathToken
 from .xpath_helpers import (
-    is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node,
-    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_string_value,
-    boolean_value, data_value, string_value
+    AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
+    is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node,
+    node_name, node_string_value, boolean_value, data_value, string_value
 )
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -68,9 +68,11 @@ class XPath1Parser(Parser):
         'number', 'sum', 'floor', 'ceiling', 'round',
     }
 
+    DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
+
     def __init__(self, namespaces=None, variables=None, *args, **kwargs):
         super(XPath1Parser, self).__init__()
-        self.namespaces = DEFAULT_NAMESPACES.copy()
+        self.namespaces = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
         self.variables = dict(variables if variables is not None else [])
@@ -634,10 +636,19 @@ def select(self, context):
 @method(axis('namespace', bp=80))
 def select(self, context):
     if is_element_node(context.item):
-        element_class = context.item.__class__
-        for prefix_, uri in self.parser.namespaces.items():
-            context.item = element_class(tag=prefix_, text=uri)
+        elem = context.item
+        namespaces = self.parser.namespaces
+
+        for prefix_, uri in namespaces.items():
+            context.item = NamespaceNode(prefix_, uri)
             yield context.item
+
+        if hasattr(elem, 'nsmap'):
+            # Maybe an lxml's Element: don't use parser namespaces for axis.
+            for prefix_, uri in elem.nsmap.items():
+                if prefix_ not in namespaces:
+                    context.item = NamespaceNode(prefix_, uri)
+                    yield context.item
 
 
 ###

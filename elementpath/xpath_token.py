@@ -154,7 +154,7 @@ class XPathToken(Token):
         :returns: A list.
         """
         if context is None:
-            operand1, operand2 = [self[0].evaluate()], [self[1].evaluate()]
+            operand1, operand2 = list(self[0].select(None)), list(self[1].select(None))
         else:
             operand1 = list(self[0].select(context.copy()))
             operand2 = list(self[1].select(context.copy()))

@@ -21,7 +21,10 @@ XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 XPATH_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions"
 XQT_ERRORS_NAMESPACE = "http://www.w3.org/2005/xqt-errors"
 
-DEFAULT_NAMESPACES = {
+XPATH_1_DEFAULT_NAMESPACES = {'xml': XML_NAMESPACE}
+
+XPATH_2_DEFAULT_NAMESPACES = {
+    'xml': XML_NAMESPACE,
     'xs': XSD_NAMESPACE,
     'fn': XPATH_FUNCTIONS_NAMESPACE,
     'err': XQT_ERRORS_NAMESPACE

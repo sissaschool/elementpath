@@ -99,7 +99,7 @@ class XPath1ParserTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath1Parser(variables=cls.variables)
+        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables)
         cls.etree = ElementTree
 
     def check_tokenizer(self, path, expected):
@@ -548,7 +548,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B3/attribute::*', root, ['beta2', 'beta3'])
         self.check_selector('/A/attribute::*', root, {'1', 'alpha'})
 
-    # TODO: Namespace axis
+    def test_namespace_axis(self):
+        root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
+        namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) + [('tst', 'http://xpath.test/ns')]
+        self.check_selector('/A/namespace::*', root, expected=namespaces, namespaces=namespaces[-1:])
 
     def test_parent_abbreviation_and_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
@@ -600,7 +603,7 @@ class XPath2ParserTest(XPath1ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(variables=cls.variables)
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
         cls.etree = ElementTree
 
     def test_xpath_tokenizer2(self):
@@ -622,6 +625,10 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("true (: nasty function comment :) ()", True)
         self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \nC1 (: last comment :)\t',
                         '(/ (/ (/ (A)) (B1)) (C1))')
+
+    def test_comma_operator(self):
+        self.check_value("(1, 2)", [1, 2])
+        self.check_value("(-9, 28, 10)", [-9, 28, 10])
 
     def test_if_expressions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -653,6 +660,26 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
+
+    def test_comparison_operators2(self):
+        # From XPath 2.0 examples
+        root = self.etree.XML('<collection>'
+                              '   <book><author>Kafka</author></book>'
+                              '   <book><author>Huxley</author></book>'
+                              '   <book><author>Asimov</author></book>'
+                              '</collection>')
+        context = XPathContext(root=root, variables={'book1': root[0]})
+        self.check_value('$book1 / author = "Kafka"', True, context=context)
+        self.check_value("(1, 2) = (2, 3)", True)
+        self.check_value("(2, 3) = (3, 4)", True)
+        self.check_value("(1, 2) = (3, 4)", False)
+        self.check_value("(1, 2) != (2, 3)", True)  # != is not the inverse of =
+
+        context = XPathContext(root=root, variables={
+            'a': UntypedAtomic('1'), 'b': UntypedAtomic('2'), 'c': UntypedAtomic('2.0')
+        })
+        self.check_value('($a, $b) = ($c, 3.0)', False, context=context)
+        self.check_value('($a, $b) = ($c, 2.0)', True, context=context)
 
     def test_number_functions2(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -740,7 +767,7 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath1Parser(variables=cls.variables)
+        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables)
         cls.etree = lxml.etree
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
@@ -766,7 +793,7 @@ class LxmlXPath2ParserTest(XPath2ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(variables=cls.variables)
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
         cls.etree = lxml.etree
 
 

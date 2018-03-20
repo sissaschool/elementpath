@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import decimal
-from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
+from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
 from .xpath_helpers import (
     is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
     node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, data_value
@@ -63,6 +63,8 @@ class XPath2Parser(XPath1Parser):
         'attribute', 'comment', 'document-node', 'element', 'empty-sequence', 'if', 'item', 'node',
         'processing-instruction', 'schema-attribute', 'schema-element', 'text', 'typeswitch'
     }
+
+    DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
     def __init__(self, namespaces=None, variables=None, default_namespace='', function_namespace=None,
                  schema=None, compatibility_mode=False):

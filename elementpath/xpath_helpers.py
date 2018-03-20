@@ -13,6 +13,7 @@ Helper functions for XPath. Includes test functions for nodes, a class for Untyp
 implementation for XPath functions that are reused in many contexts.
 """
 import sys
+from collections import namedtuple
 from .exceptions import ElementPathTypeError
 from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
@@ -46,6 +47,12 @@ def elem_iter_strings(elem):
 # Element-like objects are used for representing elements and comments, ElementTree-like objects
 # for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 ###
+
+
+AttributeNode = namedtuple('Attribute', 'name value')
+NamespaceNode = namedtuple('Namespace', 'prefix uri')
+
+
 def is_element_node(obj, tag=None):
     if tag is None:
         return is_etree_element(obj) and not callable(obj.tag)
