@@ -633,7 +633,9 @@ def evaluate(self, context=None):
     return
 
 
+
 @method(function('remove', nargs=2, bp=90))
+@method(function('reverse', nargs=1, bp=90))
 def evaluate(self, context=None):
     return list(self.select(context))
 
@@ -646,9 +648,10 @@ def select(self, context=None):
             yield result
 
 
-@method(function('reverse', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return
+@method('reverse')
+def select(self, context=None):
+    for result in reversed(list(self[0].select(context))):
+        yield result
 
 
 @method(function('distinct-values', nargs=1, bp=90))

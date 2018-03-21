@@ -805,6 +805,10 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('fn:remove($x, 6)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove((), 3)', [])
 
+        self.check_value('reverse($x)', ['c', 'b', 'a'], context)
+        self.check_value('fn:reverse(("hello"))', ['hello'], context)
+        self.check_value('fn:reverse(())', [])
+
         # self.check_value('', None)
         # self.check_value('', None)
         # self.check_value('', None)
