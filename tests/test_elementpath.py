@@ -800,16 +800,20 @@ class XPath2ParserTest(XPath1ParserTest):
 
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         context = XPathContext(root=self.etree.XML('<dummy/>'), variables={'x': ['a', 'b', 'c']})
+
+        self.check_value('fn:index-of ((10, 20, 30, 40), 35)', [])
+        self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
+        self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
+
         self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
-        self.check_value('fn:remove($x, 6)', ['a', 'b', 'c'], context)
+        self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove((), 3)', [])
 
         self.check_value('reverse($x)', ['c', 'b', 'a'], context)
         self.check_value('fn:reverse(("hello"))', ['hello'], context)
         self.check_value('fn:reverse(())', [])
 
-        # self.check_value('', None)
         # self.check_value('', None)
         # self.check_value('', None)
         # self.check_value('', None)

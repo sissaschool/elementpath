@@ -633,11 +633,19 @@ def evaluate(self, context=None):
     return
 
 
-
+@method(function('index-of', nargs=(1, 3), bp=90))
 @method(function('remove', nargs=2, bp=90))
 @method(function('reverse', nargs=1, bp=90))
 def evaluate(self, context=None):
     return list(self.select(context))
+
+
+@method('index-of')
+def select(self, context=None):
+    value = self[1].evaluate(context)
+    for pos, result in enumerate(self[0].select(context)):
+        if result == value:
+            yield pos + 1
 
 
 @method('remove')
@@ -658,7 +666,7 @@ def select(self, context=None):
 def evaluate(self, context=None):
     return
 
-@method(function('index-of', nargs=1, bp=90))
+
 def evaluate(self, context=None):
     return
 
