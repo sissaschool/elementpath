@@ -313,8 +313,10 @@ def select(self, context):
                 yield context.item
     else:
         # Product operator
-        context.item = self[0].evaluate(context)
-        yield context.item
+        item = self.evaluate(context)
+        if context is not None:
+            context.item = item
+        yield item
 
 
 @method(nullary('.'))

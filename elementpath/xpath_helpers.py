@@ -296,8 +296,9 @@ class UntypedAtomic(object):
     def __repr__(self):
         return '%s(value=%r)' % (self.__class__.__name__, self.value)
 
+
     def __eq__(self, other):
-        if type(self) is type(other):
+        if isinstance(other, UntypedAtomic):
             return self.value == other.value
         elif isinstance(other, int):
             return float(self.value) == other
@@ -305,7 +306,7 @@ class UntypedAtomic(object):
             return type(other)(self.value) == other
 
     def __ne__(self, other):
-        if type(self) is type(other):
+        if isinstance(other, UntypedAtomic):
             return self.value != other.value
         elif isinstance(other, int):
             return float(self.value) != other
@@ -313,7 +314,7 @@ class UntypedAtomic(object):
             return type(other)(self.value) != other
 
     def __lt__(self, other):
-        if type(self) is type(other):
+        if isinstance(other, UntypedAtomic):
             return self.value < other.value
         elif isinstance(other, int):
             return float(self.value) < other
@@ -321,7 +322,7 @@ class UntypedAtomic(object):
             return type(other)(self.value) < other
 
     def __le__(self, other):
-        if type(self) is type(other):
+        if isinstance(other, UntypedAtomic):
             return self.value <= other.value
         elif isinstance(other, int):
             return float(self.value) <= other
@@ -329,7 +330,7 @@ class UntypedAtomic(object):
             return type(other)(self.value) <= other
 
     def __gt__(self, other):
-        if type(self) is type(other):
+        if isinstance(other, UntypedAtomic):
             return self.value > other.value
         elif isinstance(other, int):
             return float(self.value) > other
@@ -337,12 +338,54 @@ class UntypedAtomic(object):
             return type(other)(self.value) > other
 
     def __ge__(self, other):
-        if type(self) is type(other):
+        if isinstance(other, UntypedAtomic):
             return self.value >= other.value
         elif isinstance(other, int):
             return float(self.value) >= other
         else:
             return type(other)(self.value) >= other
+
+    def __add__(self, other):
+        if isinstance(other, UntypedAtomic):
+            return float(self.value) + float(other.value)
+        elif isinstance(other, int):
+            return float(self.value) + other
+        else:
+            return type(other)(self.value) + other
+    __radd__ = __add__
+
+    def __sub__(self, other):
+        if isinstance(other, UntypedAtomic):
+            return float(self.value) - float(other.value)
+        elif isinstance(other, int):
+            return float(self.value) - other
+        else:
+            return type(other)(self.value) - other
+
+    def __rsub__(self, other):
+        if isinstance(other, UntypedAtomic):
+            return float(other.value) - float(self.value)
+        elif isinstance(other, int):
+            return other - float(self.value)
+        else:
+            return other - type(other)(self.value)
+
+    def __mul__(self, other):
+        if isinstance(other, UntypedAtomic):
+            return float(self.value) * float(other.value)
+        elif isinstance(other, int):
+            return float(self.value) * other
+        else:
+            return type(other)(self.value) * other
+    __rmul__ = __mul__
+
+    def __rdiv__(self, other):
+        if type(self) is type(other):
+            return self.value / other.value
+        elif isinstance(other, int):
+            return float(self.value) / other
+        else:
+            return type(other)(self.value) / other
 
     def __int__(self):
         return int(self.value)

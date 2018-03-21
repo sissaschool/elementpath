@@ -9,6 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import decimal
+from itertools import product
+
 from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
 from .xpath_helpers import (
     is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
@@ -233,14 +235,34 @@ def nud(self):
     del self[:]
     while True:
         self.parser.next_token.expected('$')
-        self.append(self.parser.expression())
+        self.append(self.parser.expression(5))
         self.parser.advance('in')
-        self.append(self.parser.expression())
-        if self.parser.next_token.symbol != ',':
+        self.append(self.parser.expression(5))
+        if self.parser.next_token.symbol == ',':
+            self.parser.advance()
+        else:
             break
+
     self.parser.advance('satisfies')
-    self.append(self.parser.expression())
+    self.append(self.parser.expression(5))
     return self
+
+
+@method('some')
+@method('every')
+def evaluate(self, context=None):
+    some = self.symbol == 'some'
+    if context is not None:
+        selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
+        for results in product(*selectors):
+            for i in range(len(results)):
+                context.variables[self[i * 2][0].value] = results[i]
+            if boolean_value(list(self[-1].select(context.copy()))):
+                if some:
+                    return True
+            elif not some:
+                return False
+        return not some
 
 
 @method(function('item', nargs=0, bp=90))

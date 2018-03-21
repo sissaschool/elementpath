@@ -87,6 +87,15 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(str(UntypedAtomic('Joan Miró')), u'Joan Miró')
         self.assertEqual(bytes(UntypedAtomic('Joan Miró')), b'Joan Mir\xc3\xb3')
 
+    def test_numerical_operators(self):
+        self.assertEqual(0.25 * UntypedAtomic(1000), 250)
+        self.assertEqual(1200 - UntypedAtomic(1000.0), 200.0)
+        self.assertEqual(UntypedAtomic(1000.0) - 250, 750.0)
+        self.assertEqual(UntypedAtomic('1000.0') - 250, 750.0)
+        self.assertEqual(UntypedAtomic('1000.0') - UntypedAtomic(250), 750.0)
+        self.assertEqual(UntypedAtomic(0.75) * UntypedAtomic(100), 75)
+        self.assertEqual(UntypedAtomic('0.75') * UntypedAtomic('100'), 75)
+
 
 class XPath1ParserTest(unittest.TestCase):
     namespaces = {
@@ -126,6 +135,8 @@ class XPath1ParserTest(unittest.TestCase):
 
     def check_value(self, path, expected, context=None):
         """Check using the *evaluate* method of the root token."""
+        if context is not None:
+            context = context.copy()
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, self.parser.parse(path).evaluate, context)
         elif not callable(expected):
@@ -139,6 +150,8 @@ class XPath1ParserTest(unittest.TestCase):
         """Check using the *select* method of the root token."""
         if context is None:
             context = XPathContext(root=self.etree.Element(u'dummy_root'))
+        else:
+            context = context.copy()
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, self.parser.parse(path).select, context)
         elif not callable(expected):
@@ -419,6 +432,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("5 < 20.0", True)
         self.check_value("false() = 1", False)
         self.check_value("0 = false()", True)
+        self.check_value("2 * 2 = 4", True)
 
         root = self.etree.XML('<table>'
                               '    <unit id="1"><cost>50</cost></unit>'
@@ -652,9 +666,34 @@ class XPath2ParserTest(XPath1ParserTest):
             root, [root[2]], variables={'widget1': root[0], 'widget2': root[2]}
         )
 
+    def test_quantifier_expressions(self):
+        # Cases from XPath 2.0 examples
+        root = self.etree.XML('<parts>'
+                              '  <part discounted="true" available="true" />'
+                              '  <part discounted="false" available="true" />'
+                              '  <part discounted="true" />'
+                              '</parts>')
+        self.check_selector("every $part in /parts/part satisfies $part/@discounted", root, True)
+        self.check_selector("every $part in /parts/part satisfies $part/@available", root, False)
+
+        root = self.etree.XML('<emps>'
+                              '  <employee><salary>1000</salary><bonus>400</bonus></employee>'
+                              '  <employee><salary>1200</salary><bonus>300</bonus></employee>'
+                              '  <employee><salary>1200</salary><bonus>200</bonus></employee>'
+                              '</emps>')
+        self.check_selector("some $emp in /emps/employee satisfies "
+                             "   ($emp/bonus > 0.25 * $emp/salary)", root, True)
+
+        context = XPathContext(root=self.etree.XML('<dummy/>'))
+        self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", True, context)
+        self.check_value("every $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", False, context)
+
+        self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
+        self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
+
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
-        # self.check_select("boolean((A, 35))", root, True)  # Too much arguments
+        # self.check_select("boolean((A, 35))", root, True)  # Too much arguments FIXME
 
     def test_numerical_expressions2(self):
         self.check_value("5 idiv 2", 2)
@@ -697,15 +736,17 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_node_types2(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-        attribute = 'id', '0212349350'
+        attribute = AttributeNode('id', '0212349350')
         context = XPathContext(root=document)
         self.check_select("document-node()", [document], context)
         self.check_selector("document-node(A)", document, [document])
         context = XPathContext(root=element)
         self.check_select("element()", [element], context)
-        # FIXME
-        # context.item = attribute
-        # self.check_select("node()", [attribute], context)
+        context.item = attribute
+        self.check_select("node()", [attribute], context)
+
+        # FIXME: must merge attribute:: and attribute()
+        # self.check_select("attribute()", [attribute], context)
 
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
