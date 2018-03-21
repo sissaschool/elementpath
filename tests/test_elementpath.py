@@ -805,6 +805,12 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
 
+        self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 3, "z")', ['a', 'b', 'z', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context.copy())
+
         self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
         self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)

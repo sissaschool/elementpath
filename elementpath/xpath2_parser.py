@@ -633,11 +633,28 @@ def evaluate(self, context=None):
     return
 
 
+@method(function('insert-before', nargs=3, bp=90))
 @method(function('index-of', nargs=(1, 3), bp=90))
 @method(function('remove', nargs=2, bp=90))
 @method(function('reverse', nargs=1, bp=90))
 def evaluate(self, context=None):
     return list(self.select(context))
+
+
+@method('insert-before')
+def select(self, context=None):
+    insert_at_pos = max(0, self[1].value - 1)
+    inserted = False
+    for pos, result in enumerate(self[0].select(context.copy() if context else None)):
+        if not inserted and pos == insert_at_pos:
+            for item in self[2].select(context.copy() if context else None):
+                yield item
+            inserted = True
+        yield result
+
+    if not inserted:
+        for item in self[2].select(context.copy() if context else None):
+            yield item
 
 
 @method('index-of')
@@ -663,10 +680,6 @@ def select(self, context=None):
 
 
 @method(function('distinct-values', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return
-
-
 def evaluate(self, context=None):
     return
 
