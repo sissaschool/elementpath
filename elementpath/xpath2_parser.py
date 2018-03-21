@@ -59,6 +59,10 @@ class XPath2Parser(XPath1Parser):
 
         # Number functions
         'abs', 'round-half-to-even',
+
+        # General functions for sequences
+        'distinct-values', 'empty', 'exists', 'index-of', 'insert-before', 'remove',
+        'reverse', 'subsequence', 'unordered',
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -179,23 +183,6 @@ def select(self, context):
 
 
 ###
-# 'for' expression
-@method('for', bp=20)
-def nud(self):
-    del self[:]
-    while True:
-        self.parser.next_token.expected('$')
-        self.append(self.parser.expression())
-        self.parser.advance('in')
-        self.append(self.parser.expression())
-        if self.parser.next_token.symbol != ',':
-            break
-    self.parser.advance('return')
-    self.append(self.parser.expression())
-    return self
-
-
-###
 # 'if' expression
 @method('if', bp=20)
 def nud(self):
@@ -263,6 +250,43 @@ def evaluate(self, context=None):
             elif not some:
                 return False
         return not some
+
+
+###
+# 'for' expressions
+@method('for', bp=20)
+def nud(self):
+    del self[:]
+    while True:
+        self.parser.next_token.expected('$')
+        self.append(self.parser.expression(5))
+        self.parser.advance('in')
+        self.append(self.parser.expression(5))
+        if self.parser.next_token.symbol == ',':
+            self.parser.advance()
+        else:
+            break
+
+    self.parser.advance('return')
+    self.append(self.parser.expression(5))
+    return self
+
+
+@method('for')
+def evaluate(self, context=None):
+    if context is not None:
+        return list(self.select(context.copy()))
+
+
+@method('for')
+def select(self, context=None):
+    if context is not None:
+        selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
+        for results in product(*selectors):
+            for i in range(len(results)):
+                context.variables[self[i * 2][0].value] = results[i]
+            for result in self[-1].select(context.copy()):
+                yield result
 
 
 @method(function('item', nargs=0, bp=90))
@@ -354,11 +378,28 @@ def select(self, context):
             yield result
 
 
+###
+# Parenthesized expressions: XPath 2.0 admits empty case ()
 @method('(')
 def nud(self):
-    self[0:] = self.parser.expression(),
-    self.parser.advance(')')
-    return self[0]
+    if self.parser.next_token.symbol == ')':
+        self.parser.advance(')')
+        return self
+    else:
+        self[0:] = self.parser.expression(),
+        self.parser.advance(')')
+        return self[0]  # Skip self!! (remove a redundant level from selection/evaluation)
+
+
+@method('(')
+def evaluate(self, context=None):
+    return []
+
+
+@method('(')
+def select(self, context=None):
+    for _ in []:
+        yield
 
 
 ###
@@ -478,7 +519,7 @@ def evaluate(self, context=None):
             return context.item
 
 
-# unregister('attribute')
+# unregister('attribute')  FIXME
 @method(function('attribute_', nargs=(0, 2), bp=90))
 def evaluate(self, context=None):
     if context is None:
@@ -563,6 +604,70 @@ def evaluate(self, context=None):
         return abs(node_string_value(item) if is_xpath_node(item) else item)
     except TypeError:
         return float('nan')
+
+
+###
+# General functions for sequences
+@method(function('empty', nargs=1, bp=90))
+@method(function('exists', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return next(iter(self.select(context)))
+
+
+@method('empty')
+def select(self, context=None):
+    for _ in self[0].select(context):
+        yield False
+    yield True
+
+
+@method('exists')
+def select(self, context=None):
+    for _ in self[0].select(context):
+        yield True
+    yield False
+
+
+@method(function('insert-before', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return
+
+
+@method(function('remove', nargs=2, bp=90))
+def evaluate(self, context=None):
+    return list(self.select(context))
+
+
+@method('remove')
+def select(self, context=None):
+    skip = self[1].value - 1
+    for pos, result in enumerate(self[0].select(context)):
+        if pos != skip:
+            yield result
+
+
+@method(function('reverse', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return
+
+
+@method(function('distinct-values', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return
+
+@method(function('index-of', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return
+
+
+@method(function('subsequence', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return
+
+
+@method(function('unordered', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return
 
 
 XPath2Parser.end()

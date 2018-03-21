@@ -288,10 +288,12 @@ def nud(self):
 @method('$')
 def evaluate(self, context=None):
     varname = self[0].value
-    if context is not None and varname in context.variables:
-        return context.variables[varname]
-    elif varname in self.parser.variables:
+    if varname in self.parser.variables:
         return self.parser.variables[varname]
+    elif context is None:
+        return None
+    elif varname in context.variables:
+        return context.variables[varname]
     else:
         self.wrong_name('unknown variable')
 
@@ -528,18 +530,8 @@ def select(self, context):
 
 
 ###
-# Parenthesized expressions
-@method('(', bp=90)
-def nud(self):
-    self.parser.next_token.unexpected(')')
-    self[0:] = self.parser.expression(),
-    self.parser.advance(')')
-    return self[0]
-
-
-###
 # Predicate filters
-@method('[', bp=90)
+@method('[', bp=95)
 def led(self, left):
     self.parser.next_token.unexpected(']')
     self[0:1] = left, self.parser.expression()
@@ -559,6 +551,16 @@ def select(self, context):
         elif boolean_value(predicate):
             context.item = result
             yield result
+
+
+###
+# Parenthesized expressions
+@method('(', bp=100)
+def nud(self):
+    self.parser.next_token.unexpected(')')
+    self[0:] = self.parser.expression(),
+    self.parser.advance(')')
+    return self[0]  # Skip self!! (remove a redundant level from selection/evaluation)
 
 
 ###

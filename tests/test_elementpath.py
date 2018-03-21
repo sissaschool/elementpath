@@ -485,7 +485,7 @@ class XPath1ParserTest(unittest.TestCase):
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root, variables={'alpha': 10, 'id': '19273222'})
-        self.check_value("$alpha", ElementPathNameError)
+        self.check_value("$alpha", None)  # Do not raise if the dynamic context is None
         self.check_value("$alpha", 10, context=context)
         self.check_value("$beta", ElementPathNameError, context=context)
         self.check_value("$id", '19273222', context=context)
@@ -644,13 +644,19 @@ class XPath2ParserTest(XPath1ParserTest):
                         '(/ (/ (/ (A)) (B1)) (C1))')
 
     def test_comma_operator(self):
+        self.check_value("1, 2", [1, 2])
         self.check_value("(1, 2)", [1, 2])
         self.check_value("(-9, 28, 10)", [-9, 28, 10])
         self.check_value("(1, 2)", [1, 2])
 
         root = self.etree.XML('<A/>')
         self.check_selector("(7.0, /A, 'foo')", root, [7.0, root, 'foo'])
-        self.check_selector("(/A, 7.0, 'foo')", self.etree.XML('<dummy/>'), [7.0, 'foo'])
+        self.check_selector("7.0, /A, 'foo'", root, [7.0, root, 'foo'])
+        self.check_selector("/A, 7.0, 'foo'", self.etree.XML('<dummy/>'), [7.0, 'foo'])
+
+    def test_parenthesized_expressions(self):
+        self.check_value("(1, 2, '10')", [1, 2, '10'])
+        self.check_value("()", [])
 
     def test_if_expressions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -700,6 +706,36 @@ class XPath2ParserTest(XPath1ParserTest):
 
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
+
+    def test_for_expressions(self):
+        # Cases from XPath 2.0 examples
+        context = XPathContext(root=self.etree.XML('<dummy/>'))
+        self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
+
+        root = self.etree.XML(
+            """
+            <bib>
+                <book>
+                    <title>TCP/IP Illustrated</title>
+                    <author>Stevens</author>
+                    <publisher>Addison-Wesley</publisher>
+                </book>
+                <book>
+                    <title>Advanced Programming in the Unix Environment</title>
+                    <author>Stevens</author>"
+                    <publisher>Addison-Wesley</publisher>
+                </book>
+                <book>
+                    <title>Data on the Web</title>
+                    <author>Abiteboul</author>
+                    <author>Buneman</author>
+                    <author>Suciu</author>
+                </book>
+            </bib>
+            """)
+
+        # self.check_selector("for $a in fn:distinct-values(book/author) "
+        #                     "return (book/author[. = $a][1], book[author = $a]/title)""", root, [])
 
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
@@ -757,6 +793,24 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(3.567812E+3, 2)", 3567.81E0)
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
+
+    def test_sequence_functions(self):
+        self.check_value('fn:empty(("hello", "world"))', False)
+        self.check_value('fn:exists(("hello", "world"))', True)
+
+        # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
+        context = XPathContext(root=self.etree.XML('<dummy/>'), variables={'x': ['a', 'b', 'c']})
+        self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
+        self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
+        self.check_value('fn:remove($x, 6)', ['a', 'b', 'c'], context)
+        self.check_value('fn:remove((), 3)', [])
+
+        # self.check_value('', None)
+        # self.check_value('', None)
+        # self.check_value('', None)
+        # self.check_value('', None)
+
+        # self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
 
     def test_node_types2(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
