@@ -646,6 +646,11 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_comma_operator(self):
         self.check_value("(1, 2)", [1, 2])
         self.check_value("(-9, 28, 10)", [-9, 28, 10])
+        self.check_value("(1, 2)", [1, 2])
+
+        root = self.etree.XML('<A/>')
+        self.check_selector("(7.0, /A, 'foo')", root, [7.0, root, 'foo'])
+        self.check_selector("(/A, 7.0, 'foo')", self.etree.XML('<dummy/>'), [7.0, 'foo'])
 
     def test_if_expressions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -708,6 +713,17 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("-3.5 idiv 2", -1)
 
     def test_comparison_operators2(self):
+        self.check_value("0.05 eq 0.05", True)
+        self.check_value("19.03 ne 19.02999", True)
+        self.check_value("-1.0 eq 1.0", False)
+        self.check_value("1 le 2", True)
+        self.check_value("5 ge 9", False)
+        self.check_value("5 gt 3", True)
+        self.check_value("5 lt 20.0", True)
+        self.check_value("false() eq 1", False)
+        self.check_value("0 eq false()", True)
+        self.check_value("2 * 2 eq 4", True)
+
         # From XPath 2.0 examples
         root = self.etree.XML('<collection>'
                               '   <book><author>Kafka</author></book>'
@@ -716,6 +732,8 @@ class XPath2ParserTest(XPath1ParserTest):
                               '</collection>')
         context = XPathContext(root=root, variables={'book1': root[0]})
         self.check_value('$book1 / author = "Kafka"', True, context=context)
+        self.check_value('$book1 / author eq "Kafka"', True, context=context)
+
         self.check_value("(1, 2) = (2, 3)", True)
         self.check_value("(2, 3) = (3, 4)", True)
         self.check_value("(1, 2) = (3, 4)", False)

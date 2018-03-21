@@ -342,7 +342,7 @@ def evaluate(self, context=None):
         result = op.evaluate(context)
         if isinstance(result, list):
             results.extend(result)
-        else:
+        elif results is not None:
             results.append(result)
     return results
 
