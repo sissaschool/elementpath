@@ -13,6 +13,7 @@ Helper functions for XPath. Includes test functions for nodes, a class for Untyp
 implementation for XPath functions that are reused in many contexts.
 """
 import sys
+import operator
 from collections import namedtuple
 from .exceptions import ElementPathTypeError
 from .namespaces import (
@@ -296,96 +297,62 @@ class UntypedAtomic(object):
     def __repr__(self):
         return '%s(value=%r)' % (self.__class__.__name__, self.value)
 
+    def _get_operands(self, other, force_float=True):
+        """
+        Returns a couple of operands, applying a cast to the instance value based on
+        the type of the *other* argument.
+
+        :param other: The other operand, that determines the cast for the untyped instance.
+        :param force_float: Force a conversion to float if *other* is an UntypedAtomic instance.
+        :return: A couple of values.
+        """
+        if isinstance(other, UntypedAtomic):
+            if force_float:
+                return float(self.value), float(other.value)
+            else:
+                return self.value, other.value
+        elif isinstance(other, int):
+            return float(self.value), other
+        else:
+            return type(other)(self.value), other
 
     def __eq__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return self.value == other.value
-        elif isinstance(other, int):
-            return float(self.value) == other
-        else:
-            return type(other)(self.value) == other
+        return operator.eq(*self._get_operands(other, force_float=False))
 
     def __ne__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return self.value != other.value
-        elif isinstance(other, int):
-            return float(self.value) != other
-        else:
-            return type(other)(self.value) != other
+        return not operator.eq(*self._get_operands(other, force_float=False))
 
     def __lt__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return self.value < other.value
-        elif isinstance(other, int):
-            return float(self.value) < other
-        else:
-            return type(other)(self.value) < other
+        return operator.lt(*self._get_operands(other))
 
     def __le__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return self.value <= other.value
-        elif isinstance(other, int):
-            return float(self.value) <= other
-        else:
-            return type(other)(self.value) <= other
+        return operator.le(*self._get_operands(other))
 
     def __gt__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return self.value > other.value
-        elif isinstance(other, int):
-            return float(self.value) > other
-        else:
-            return type(other)(self.value) > other
+        return operator.gt(*self._get_operands(other))
 
     def __ge__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return self.value >= other.value
-        elif isinstance(other, int):
-            return float(self.value) >= other
-        else:
-            return type(other)(self.value) >= other
+        return operator.ge(*self._get_operands(other))
 
     def __add__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return float(self.value) + float(other.value)
-        elif isinstance(other, int):
-            return float(self.value) + other
-        else:
-            return type(other)(self.value) + other
+        return operator.add(*self._get_operands(other))
     __radd__ = __add__
 
     def __sub__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return float(self.value) - float(other.value)
-        elif isinstance(other, int):
-            return float(self.value) - other
-        else:
-            return type(other)(self.value) - other
+        return operator.sub(*self._get_operands(other))
 
     def __rsub__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return float(other.value) - float(self.value)
-        elif isinstance(other, int):
-            return other - float(self.value)
-        else:
-            return other - type(other)(self.value)
+        return operator.sub(*reversed(self._get_operands(other)))
 
     def __mul__(self, other):
-        if isinstance(other, UntypedAtomic):
-            return float(self.value) * float(other.value)
-        elif isinstance(other, int):
-            return float(self.value) * other
-        else:
-            return type(other)(self.value) * other
+        return operator.mul(*self._get_operands(other))
     __rmul__ = __mul__
 
-    def __rdiv__(self, other):
-        if type(self) is type(other):
-            return self.value / other.value
-        elif isinstance(other, int):
-            return float(self.value) / other
-        else:
-            return type(other)(self.value) / other
+    def __truediv__(self, other):
+        return operator.truediv(*self._get_operands(other))
+
+    def __rtruediv__(self, other):
+        return operator.truediv(*reversed(self._get_operands(other)))
 
     def __int__(self):
         return int(self.value)
@@ -404,6 +371,9 @@ class UntypedAtomic(object):
 
     def __bool__(self):
         return bool(self.value)
+
+    def __abs__(self):
+        return abs(self.value)
 
     if PY3:
         __unicode__ = __str__

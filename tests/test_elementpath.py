@@ -95,6 +95,9 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('1000.0') - UntypedAtomic(250), 750.0)
         self.assertEqual(UntypedAtomic(0.75) * UntypedAtomic(100), 75)
         self.assertEqual(UntypedAtomic('0.75') * UntypedAtomic('100'), 75)
+        self.assertEqual(UntypedAtomic('9.0') / UntypedAtomic('3'), 3.0)
+        self.assertEqual(9.0 / UntypedAtomic('3'), 3.0)
+        self.assertEqual(UntypedAtomic('15') * UntypedAtomic('4'), 60)
 
 
 class XPath1ParserTest(unittest.TestCase):
