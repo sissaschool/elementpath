@@ -14,7 +14,8 @@ from itertools import product
 from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
 from .xpath_helpers import (
     is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
-    node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, data_value
+    node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value,
+    data_value, string_value
 )
 from .xpath1_parser import XPath1Parser
 
@@ -637,6 +638,7 @@ def evaluate(self, context=None):
 @method(function('index-of', nargs=(1, 3), bp=90))
 @method(function('remove', nargs=2, bp=90))
 @method(function('reverse', nargs=1, bp=90))
+@method(function('unordered', nargs=1, bp=90))
 def evaluate(self, context=None):
     return list(self.select(context))
 
@@ -679,17 +681,18 @@ def select(self, context=None):
         yield result
 
 
+@method('unordered')
+def select(self, context=None):
+    for result in sorted(list(self[0].select(context)), key=lambda x:string_value(x)):
+        yield result
+
+
 @method(function('distinct-values', nargs=1, bp=90))
 def evaluate(self, context=None):
     return
 
 
 @method(function('subsequence', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return
-
-
-@method(function('unordered', nargs=1, bp=90))
 def evaluate(self, context=None):
     return
 

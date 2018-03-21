@@ -820,6 +820,9 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('fn:reverse(("hello"))', ['hello'], context)
         self.check_value('fn:reverse(())', [])
 
+        self.check_value('fn:unordered(())', [])
+        self.check_value('fn:unordered(("z", 2, "3", "Z", "b", "a"))', [2, '3', 'Z', 'a', 'b', 'z'])
+
         # self.check_value('', None)
         # self.check_value('', None)
         # self.check_value('', None)
