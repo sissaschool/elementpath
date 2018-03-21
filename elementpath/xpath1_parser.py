@@ -469,6 +469,8 @@ def select(self, context):
     """
     Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
+    if context is None:
+        return
     if not self:
         if is_document_node(context.root):
             yield context.root
@@ -897,12 +899,12 @@ def evaluate(self, context=None):
 # Boolean functions
 @method(function('boolean', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return boolean_value(self[0].evaluate(context))
+    return boolean_value(self[0].get_results(context))
 
 
 @method(function('not', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return not boolean_value(self[0].evaluate(context))
+    return not boolean_value(self[0].get_results(context))
 
 
 @method(function('true', nargs=0, bp=90))

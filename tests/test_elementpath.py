@@ -685,7 +685,9 @@ class XPath2ParserTest(XPath1ParserTest):
                               '  <employee><salary>1200</salary><bonus>200</bonus></employee>'
                               '</emps>')
         self.check_selector("some $emp in /emps/employee satisfies "
-                             "   ($emp/bonus > 0.25 * $emp/salary)", root, True)
+                            "   ($emp/bonus > 0.25 * $emp/salary)", root, True)
+        self.check_selector("every $emp in /emps/employee satisfies "
+                            "   ($emp/bonus < 0.5 * $emp/salary)", root, True)
 
         context = XPathContext(root=self.etree.XML('<dummy/>'))
         self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", True, context)
@@ -696,7 +698,9 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
-        # self.check_select("boolean((A, 35))", root, True)  # Too much arguments FIXME
+        self.check_selector("boolean(/A)", root, True)
+        self.check_selector("boolean((-10, 35))", root, ElementPathTypeError)  # Sequence with two numeric values
+        self.check_selector("boolean((/A, 35))", root, True)
 
     def test_numerical_expressions2(self):
         self.check_value("5 idiv 2", 2)

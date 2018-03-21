@@ -234,6 +234,8 @@ def node_type_name(obj, schema=None):
 def boolean_value(obj):
     """
     The effective boolean value, as computed by fn:boolean().
+
+    Ref: https://www.w3.org/TR/xpath20/#dt-ebv
     """
     if isinstance(obj, list):
         if not obj:
@@ -242,9 +244,14 @@ def boolean_value(obj):
             return True
         elif len(obj) == 1:
             return bool(obj[0])
-    elif not isinstance(obj, tuple) and not is_element_node(obj):
-        return bool(obj)
-    raise ElementPathTypeError("Invalid argument type [err:FORG0006]: %r" % obj)
+        else:
+            raise ElementPathTypeError(
+                "Effective boolean value is not defined for a sequence of two or "
+                "more items not starting with an XPath node: %r" % obj
+            )
+    elif isinstance(obj, tuple) or is_element_node(obj):
+        raise ElementPathTypeError("Effective boolean value is not defined for %r." % obj)
+    return bool(obj)
 
 
 def string_value(obj):
