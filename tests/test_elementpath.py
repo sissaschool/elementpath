@@ -581,7 +581,7 @@ class XPath1ParserTest(unittest.TestCase):
     def test_namespace_axis(self):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
         namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) + [('tst', 'http://xpath.test/ns')]
-        self.check_selector('/A/namespace::*', root, expected=namespaces, namespaces=namespaces[-1:])
+        self.check_selector('/A/namespace::*', root, expected=set(namespaces), namespaces=namespaces[-1:])
 
     def test_parent_abbreviation_and_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
@@ -941,6 +941,40 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_select('$seq2 intersect $seq3', root[1:2], context=context)
         self.check_select('$seq1 except $seq2', [], context=context)
         self.check_select('$seq2 except $seq3', root[:1], context=context)
+
+    def test_node_comparison(self):
+        # Test cases from https://www.w3.org/TR/xpath20/#id-node-comparisons
+        root = self.etree.XML('''
+        <books>
+            <book><isbn>1558604820</isbn><call>QA76.9 C3845</call></book>
+            <book><isbn>0070512655</isbn><call>QA76.9 C3846</call></book>
+            <book><isbn>0131477005</isbn><call>QA76.9 C3847</call></book>
+        </books>''')
+        self.check_selector('/books/book[isbn="1558604820"] is /books/book[call="QA76.9 C3845"]', root, True)
+        self.check_selector('/books/book[isbn="0070512655"] is /books/book[call="QA76.9 C3847"]', root, False)
+        self.check_selector('/books/book[isbn="not a code"] is /books/book[call="QA76.9 C3847"]', root, [])
+
+        root = self.etree.XML('''
+        <transactions>
+            <purchase><parcel>28-451</parcel></purchase>
+            <sale><parcel>33-870</parcel></sale>
+            <purchase><parcel>15-392</parcel></purchase>
+            <sale><parcel>35-530</parcel></sale>
+            <purchase><parcel>10-639</parcel></purchase>
+            <purchase><parcel>10-639</parcel></purchase>
+            <sale><parcel>39-729</parcel></sale>
+        </transactions>''')
+
+        self.check_selector(
+            '/transactions/purchase[parcel="28-451"] << /transactions/sale[parcel="33-870"]', root, True
+        )
+        self.check_selector(
+            '/transactions/purchase[parcel="15-392"] >> /transactions/sale[parcel="33-870"]', root, True
+        )
+        self.check_selector(
+            '/transactions/purchase[parcel="10-639"] >> /transactions/sale[parcel="33-870"]',
+            root, ElementPathTypeError
+        )
 
     @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
     def test_xmlschema_proxy(self):

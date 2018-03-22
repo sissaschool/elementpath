@@ -448,26 +448,28 @@ def evaluate(self, context=None):
 @method(infix('>>', bp=30))
 def evaluate(self, context=None):
     symbol = self.symbol
-    left = list(self[0].list(context))
-    if len(left) > 1 or left and not is_xpath_node(left):
+
+    left = list(self[0].select(context))
+    if not left:
+        return
+    elif len(left) > 1 or not is_xpath_node(left[0]):
         self[0].wrong_type("left operand of %r must be a single node" % symbol)
+
     right = list(self[1].select(context))
-    if len(right) > 1 or right and not is_xpath_node(right):
+    if not right:
+        return
+    elif len(right) > 1 or not is_xpath_node(right[0]):
         self[0].wrong_type("right operand of %r must be a single node" % symbol)
 
-    if len(left) != len(right):
-        self[0].wrong_type("operands of %r must be both single nodes or empty sequences")
-    elif len(left) == 0:
-        return
-    elif symbol == 'is':
-        return left is right
+    if symbol == 'is':
+        return left[0] is right[0]
     else:
-        if left is right:
+        if left[0] is right[0]:
             return False
         for item in context.iter():
-            if left is item:
+            if left[0] is item:
                 return True if symbol == '<<' else False
-            elif right is item:
+            elif right[0] is item:
                 return False if symbol == '<<' else True
         else:
             self.wrong_value("operands are not nodes of the XML tree!")

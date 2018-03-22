@@ -9,10 +9,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 
-from abc import ABC, abstractmethod
-from .namespaces import prefixed_to_qname
+from abc import ABCMeta, abstractmethod
 
-class AbstractSchemaProxy(ABC):
+
+class AbstractSchemaProxy(object):
+
+    __metaclass__ = ABCMeta
 
     def __init__(self, schema):
         self._schema = schema

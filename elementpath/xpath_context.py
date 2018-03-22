@@ -99,7 +99,7 @@ class XPathContext(object):
                 self.item = elem.text
                 yield self.item
 
-            for _item in sorted(self.item.attrib.items()):
+            for _item in sorted(elem.attrib.items()):
                 self.item = _item
                 yield _item
 
