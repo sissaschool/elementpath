@@ -201,7 +201,7 @@ def evaluate(self, context=None):
 
 
 @method('(name)')
-def select(self, context):
+def select(self, context=None):
     value = self.value
     if context.active_iterator is None:
         for item in context.iter_children():
@@ -253,7 +253,7 @@ def evaluate(self, context=None):
 
 
 @method(':')
-def select(self, context):
+def select(self, context=None):
     if self[1].label == 'function':
         value = self[1].evaluate(context)
         if isinstance(value, list):
@@ -306,7 +306,7 @@ def evaluate(self, context=None):
 ###
 # Nullary operators (use only the context)
 @method(nullary('*'))
-def select(self, context):
+def select(self, context=None):
     if not self:
         # Wildcard literal
         if context.active_iterator is None:
@@ -327,7 +327,7 @@ def select(self, context):
 
 
 @method(nullary('.'))
-def select(self, context):
+def select(self, context=None):
     if context.item is not None:
         yield context.item
     elif is_document_node(context.root):
@@ -335,7 +335,7 @@ def select(self, context):
 
 
 @method(nullary('..'))
-def select(self, context):
+def select(self, context=None):
     try:
         parent = context.parent_map[context.item]
     except KeyError:
@@ -441,7 +441,7 @@ def evaluate(self, context=None):
 ###
 # Union expressions
 @method(infix('|', bp=50))
-def select(self, context):
+def select(self, context=None):
     results = {item for k in range(2) for item in self[k].select(context)}
     for item in context.iter():
         if item in results:
@@ -472,7 +472,7 @@ def led(self, left):
 
 
 @method('/')
-def select(self, context):
+def select(self, context=None):
     """
     Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
@@ -520,7 +520,7 @@ def evaluate(self, context=None):
 
 
 @method('//')
-def select(self, context):
+def select(self, context=None):
     if len(self) == 1:
         for _ in context.iter_descendants():
             for result in self[0].select(context):
@@ -545,7 +545,7 @@ def led(self, left):
 
 
 @method('[')
-def select(self, context):
+def select(self, context=None):
     for result in self[0].select(context):
         predicate = list(self[1].select(context.copy()))
         if len(predicate) == 1 and not isinstance(predicate[0], bool) and \
@@ -571,21 +571,21 @@ def nud(self):
 ###
 # Forward Axes
 @method(axis('self', bp=80))
-def select(self, context):
+def select(self, context=None):
     for _ in context.iter_self():
         for result in self[0].select(context):
             yield result
 
 
 @method(axis('child', bp=80))
-def select(self, context):
+def select(self, context=None):
     for _ in context.iter_children():
         for result in self[0].select(context):
             yield result
 
 
 @method(axis('descendant', bp=80))
-def select(self, context):
+def select(self, context=None):
     item = context.item
     for _ in context.iter_descendants():
         if item is not context.item:
@@ -594,14 +594,14 @@ def select(self, context):
 
 
 @method(axis('descendant-or-self', bp=80))
-def select(self, context):
+def select(self, context=None):
     for _ in context.iter_descendants():
         for result in self[0].select(context):
             yield result
 
 
 @method(axis('following-sibling', bp=80))
-def select(self, context):
+def select(self, context=None):
     if is_element_node(context.item):
         item = context.item
         for _ in context.iter_parent():
@@ -615,7 +615,7 @@ def select(self, context):
 
 
 @method(axis('following', bp=80))
-def select(self, context):
+def select(self, context=None):
     descendants = set(context.iter_descendants())
     item = context.item
     follows = False
@@ -638,14 +638,14 @@ def nud(self):
 
 @method('@')
 @method(axis('attribute', bp=80))
-def select(self, context):
+def select(self, context=None):
     for _ in context.iter_attributes():
         for result in self[0].select(context):
             yield result
 
 
 @method(axis('namespace', bp=80))
-def select(self, context):
+def select(self, context=None):
     if is_element_node(context.item):
         elem = context.item
         namespaces = self.parser.namespaces
@@ -665,14 +665,14 @@ def select(self, context):
 ###
 # Reverse Axes
 @method(axis('parent', bp=80))
-def select(self, context):
+def select(self, context=None):
     for _ in context.iter_parent():
         for result in self[0].select(context):
             yield result
 
 
 @method(axis('ancestor', bp=80))
-def select(self, context):
+def select(self, context=None):
     results = [item for _ in context.iter_ancestors() for item in self[0].select(context)]
     for result in reversed(results):
         context.item = result
@@ -680,7 +680,7 @@ def select(self, context):
 
 
 @method(axis('ancestor-or-self', bp=80))
-def select(self, context):
+def select(self, context=None):
     item = context.item
     for elem in reversed(list(context.iter_ancestors())):
         context.item = elem
@@ -689,7 +689,7 @@ def select(self, context):
 
 
 @method(axis('preceding-sibling', bp=80))
-def select(self, context):
+def select(self, context=None):
     if is_element_node(context.item):
         item = context.item
         for parent in context.iter_parent():
@@ -703,7 +703,7 @@ def select(self, context):
 
 
 @method(axis('preceding', bp=80))
-def select(self, context):
+def select(self, context=None):
     if is_element_node(context.item):
         elem = context.item
         ancestors = set(context.iter_ancestors())
@@ -718,7 +718,7 @@ def select(self, context):
 ###
 # Node types
 @method(function('node', nargs=0, bp=90))
-def select(self, context):
+def select(self, context=None):
     item = context.item
     if item is None:
         yield context.root
@@ -768,12 +768,12 @@ def evaluate(self, context=None):
 
 
 @method('count')
-def select(self, context):
+def select(self, context=None):
     yield len(list(self[0].select(context)))
 
 
 @method(function('id', nargs=1, bp=90))
-def select(self, context):
+def select(self, context=None):
     value = self[0].evaluate(context)
     item = context.item
     if is_element_node(item):

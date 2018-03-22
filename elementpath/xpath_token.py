@@ -30,7 +30,7 @@ class XPathToken(Token):
 
     comment = None  # for XPath 2.0 comments
 
-    def select(self, context):
+    def select(self, context=None):
         """
         Select operator that generates XPath results.
 

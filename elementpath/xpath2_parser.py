@@ -172,7 +172,7 @@ alias('union', '|')
 
 
 @method(infix('intersect', bp=55))
-def select(self, context):
+def select(self, context=None):
     results = set(self[0].select(context)) & set(self[1].select(context))
     for item in context.iter():
         if item in results:
@@ -180,7 +180,7 @@ def select(self, context):
 
 
 @method(infix('except', bp=55))
-def select(self, context):
+def select(self, context=None):
     results = set(self[0].select(context)) - set(self[1].select(context))
     for item in context.iter():
         if item in results:
@@ -210,7 +210,7 @@ def evaluate(self, context=None):
 
 
 @method('if')
-def select(self, context):
+def select(self, context=None):
     if boolean_value(list(self[0].select(context))):
         for result in self[1].select(context):
             yield result
@@ -377,7 +377,7 @@ def evaluate(self, context=None):
 
 
 @method(',')
-def select(self, context):
+def select(self, context=None):
     for op in self:
         for result in op.select(context):
             yield result
@@ -487,7 +487,7 @@ def evaluate(self, context=None):
 
 
 @method('to')
-def select(self, context):
+def select(self, context=None):
     for k in self.evaluate(context):
         yield k
 
@@ -538,12 +538,12 @@ def evaluate(self, context=None):
 
 
 @method(function('schema-attribute', nargs=1, bp=90))
-def select(self, context):
+def select(self, context=None):
     pass
 
 
 @method(function('schema-element', nargs=1, bp=90))
-def select(self, context):
+def select(self, context=None):
     pass
 
 
@@ -560,7 +560,7 @@ def evaluate(self, context=None):
 
 
 @method(function('data', nargs=1, bp=90))
-def select(self, context):
+def select(self, context=None):
     for item in self[0].select(context):
         value = data_value(item)
         if value is None:
