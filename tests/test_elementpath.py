@@ -143,11 +143,14 @@ class XPath1ParserTest(unittest.TestCase):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, self.parser.parse(path).evaluate, context)
         elif not callable(expected):
-            self.assertEqual(self.parser.parse(path).evaluate(context), expected)
+            root_token = self.parser.parse(path)
+            self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
-            self.assertTrue(isinstance(self.parser.parse(path).evaluate(context), expected))
+            root_token = self.parser.parse(path)
+            self.assertTrue(isinstance(root_token.evaluate(context), expected))
         else:
-            self.assertTrue(expected(self.parser.parse(path).evaluate(context)))
+            root_token = self.parser.parse(path)
+            self.assertTrue(expected(root_token.evaluate(context)))
 
     def check_select(self, path, expected, context=None):
         """Check using the *select* method of the root token."""
@@ -795,16 +798,27 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
     def test_sequence_functions(self):
+        # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)
         self.check_value('fn:exists(("hello", "world"))', True)
+        self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
+        self.check_value('fn:empty(())', True)
+        self.check_value('fn:exists(())', False)
+        self.check_value('fn:empty(fn:remove(("hello"), 1))', True)
+        self.check_value('fn:exists(fn:remove(("hello"), 1))', False)
 
-        # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
-        context = XPathContext(root=self.etree.XML('<dummy/>'), variables={'x': ['a', 'b', 'c']})
+        self.check_value('fn:distinct-values((1, 2.0, 3, 2))', [1, 2.0, 3])
+        context = XPathContext(
+            root=self.etree.XML('<dummy/>'),
+            variables={'x': [UntypedAtomic("cherry"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
+        )
+        self.check_value('fn:distinct-values($x)', ['cherry', 'bar'], context)
 
         self.check_value('fn:index-of ((10, 20, 30, 40), 35)', [])
         self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
 
+        context = XPathContext(root=self.etree.XML('<dummy/>'), variables={'x': ['a', 'b', 'c']})
         self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
@@ -820,14 +834,17 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('fn:reverse(("hello"))', ['hello'], context)
         self.check_value('fn:reverse(())', [])
 
+        self.check_value('fn:subsequence((), 5)', [])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 1)', [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 0)', [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), -1)', [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 10)', [])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4)', [4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4, 2)', [4, 5])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 3, 10)', [3, 4, 5, 6, 7])
+
         self.check_value('fn:unordered(())', [])
         self.check_value('fn:unordered(("z", 2, "3", "Z", "b", "a"))', [2, '3', 'Z', 'a', 'b', 'z'])
-
-        # self.check_value('', None)
-        # self.check_value('', None)
-        # self.check_value('', None)
-
-        # self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
 
     def test_node_types2(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))

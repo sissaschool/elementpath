@@ -255,7 +255,12 @@ def evaluate(self, context=None):
 @method(':')
 def select(self, context):
     if self[1].label == 'function':
-        yield self[1].evaluate(context)
+        value = self[1].evaluate(context)
+        if isinstance(value, list):
+            for result in value:
+                yield result
+        else:
+            yield value
         return
     elif self[0].value == '*':
         value = '*:%s' % self[1].value

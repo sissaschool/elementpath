@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import decimal
+import math
 from itertools import product
 
 from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
@@ -617,30 +618,46 @@ def evaluate(self, context=None):
 
 @method('empty')
 def select(self, context=None):
-    for _ in self[0].select(context):
+    try:
+        next(iter(self[0].select(context)))
+    except StopIteration:
+        yield True
+    else:
         yield False
-    yield True
 
 
 @method('exists')
 def select(self, context=None):
-    for _ in self[0].select(context):
+    try:
+        next(iter(self[0].select(context)))
+    except StopIteration:
+        yield False
+    else:
         yield True
-    yield False
 
 
-@method(function('insert-before', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return
-
-
+@method(function('distinct-values', nargs=(1, 2), bp=90))
 @method(function('insert-before', nargs=3, bp=90))
 @method(function('index-of', nargs=(1, 3), bp=90))
 @method(function('remove', nargs=2, bp=90))
 @method(function('reverse', nargs=1, bp=90))
+@method(function('subsequence', nargs=(2, 3), bp=90))
 @method(function('unordered', nargs=1, bp=90))
 def evaluate(self, context=None):
     return list(self.select(context))
+
+
+@method('distinct-values')
+def select(self, context=None):
+    nan = False
+    results = []
+    for item in self[0].select(context):
+        if not nan and isinstance(item, float) and math.isnan(item):
+            yield item
+            nan = True
+        elif all(item != res for res in results):
+            yield item
+            results.append(item)
 
 
 @method('insert-before')
@@ -669,9 +686,9 @@ def select(self, context=None):
 
 @method('remove')
 def select(self, context=None):
-    skip = self[1].value - 1
+    target = self[1].evaluate(context) - 1
     for pos, result in enumerate(self[0].select(context)):
-        if pos != skip:
+        if pos != target:
             yield result
 
 
@@ -681,20 +698,23 @@ def select(self, context=None):
         yield result
 
 
+@method('subsequence')
+def select(self, context=None):
+    starting_loc = self[1].evaluate(context) - 1
+    length = self[2].evaluate(context) if len(self) >= 3 else 0
+    for pos, result in enumerate(self[0].select(context)):
+        if starting_loc <= pos and (not length or pos < starting_loc + length):
+            yield result
+
+
 @method('unordered')
 def select(self, context=None):
     for result in sorted(list(self[0].select(context)), key=lambda x:string_value(x)):
         yield result
 
 
-@method(function('distinct-values', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return
-
-
-@method(function('subsequence', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return
+###
+# Cardinality functions for sequences
 
 
 XPath2Parser.end()
