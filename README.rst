@@ -2,7 +2,7 @@
 elementpath
 ===========
 
-This is a small package that provides XPath 1.0 and 2.0 selectors for Python's ElementTree XML
+The proposal of this package is to provides XPath 1.0 and 2.0 selectors for Python's ElementTree XML
 data structures, both for the standard ElementTree library and for the
 `lxml.etree <http://lxml.de>`_ library.
 
@@ -42,7 +42,8 @@ Public API
 .. py:class:: XPath2Parser(namespaces=None, schema=None, compatibility_mode=False)
 
     The XPath 1.0 parser, that is the default parser. Two additional arguments can be provided.
-    *schema* is a reference to an instance that provides access to XML Schema definitions.
+    *schema* is an optional instance of an XML Schema interface as defined by the abstract class
+    `AbstractSchemaProxy`.
     The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
     with XPath 1.0.
 
@@ -79,6 +80,13 @@ and for a basic usage of the parser.
 If you like you can use the basic parser and tokens provided by the *todp_parser.py* module to
 implement other types of parsers (I think it could be also a funny exercise!).
 
+
+TODO
+----
+
+* Implement XPath 2.0 XML Schema interface (to be tested with the
+`xmlschema library <http://github.com/brunato/xmlschema>`_)
+* Add other XPath 2.0 functions
 
 License
 -------

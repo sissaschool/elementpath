@@ -85,10 +85,11 @@ class Token(MutableSequence):
 
     @property
     def tree(self):
+        value = self.symbol if self.value is None else self.value
         if self:
-            return u'(%s %s)' % (self.value, ' '.join(item.tree for item in self))
+            return u'(%s %s)' % (value, ' '.join(item.tree for item in self))
         else:
-            return u'(%s)' % self.value
+            return u'(%s)' % value
 
     def nud(self):
         """Null denotation method"""

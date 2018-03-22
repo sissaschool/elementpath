@@ -18,7 +18,9 @@ from xml.etree import ElementTree
 import lxml.etree
 
 from elementpath import *
-from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.namespaces import (
+    XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XML_LANG_QNAME
+)
 
 try:
     # noinspection PyPackageRequirements
@@ -189,6 +191,9 @@ class XPath1ParserTest(unittest.TestCase):
     def wrong_type(self, path):
         self.assertRaises(ElementPathTypeError, self.parser.parse, path)
 
+    def wrong_name(self, path):
+        self.assertRaises(ElementPathNameError, self.parser.parse, path)
+
     def test_xpath_tokenizer(self):
         # tests from the XPath specification
         self.check_tokenizer("*", ['*'])
@@ -250,7 +255,8 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_token('preceding-sibling', 'axis', "preceding-sibling axis")
         self.check_token('ancestor-or-self', 'axis', "ancestor-or-self axis")
         self.check_token('descendant', 'axis', "descendant axis")
-        self.check_token('attribute', 'axis', "attribute axis")
+        if self.parser.version == '1.0':
+            self.check_token('attribute', 'axis', "attribute axis")
         self.check_token('following', 'axis', "following axis")
         self.check_token('namespace', 'axis', "namespace axis")
 
@@ -273,6 +279,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree("false() and true()", '(and (False) (True))')
         self.check_tree("false() or true()", '(or (False) (True))')
         self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
+        self.check_tree("string(xml:lang)", '(string (: (xml) (lang)))')
 
     def test_wrong_syntax(self):
         self.wrong_syntax('')
@@ -291,6 +298,9 @@ class XPath1ParserTest(unittest.TestCase):
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
         </A>""")
+        self.check_tree('xs:string', '(: (xs) (string))')
+        self.check_tree('string(xs:unknown)', '(string (: (xs) (unknown)))')
+
         self.check_value("fn:true()", True)
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
@@ -657,6 +667,15 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_selector("7.0, /A, 'foo'", root, [7.0, root, 'foo'])
         self.check_selector("/A, 7.0, 'foo'", self.etree.XML('<dummy/>'), [7.0, 'foo'])
 
+    def test_range_expressions(self):
+        # Some cases from https://www.w3.org/TR/xpath20/#construct_seq
+        self.check_value("1 to 2", [1, 2])
+        self.check_value("1 to 10", list(range(1, 11)))
+        self.check_value("(10, 1 to 4)", [10, 1, 2, 3, 4])
+        self.check_value("10 to 10", [10])
+        self.check_value("15 to 10", [])
+        self.check_value("fn:reverse(10 to 15)", [15, 14, 13, 12, 11, 10])
+
     def test_parenthesized_expressions(self):
         self.check_value("(1, 2, '10')", [1, 2, '10'])
         self.check_value("()", [])
@@ -870,9 +889,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_select("element()", [element], context)
         context.item = attribute
         self.check_select("node()", [attribute], context)
-
-        # FIXME: must merge attribute:: and attribute()
-        # self.check_select("attribute()", [attribute], context)
+        self.check_select("attribute()", [attribute], context)
 
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -926,8 +943,29 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_select('$seq2 except $seq3', root[:1], context=context)
 
     @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
-    def test_schema(self):
-        pass
+    def test_xmlschema_proxy(self):
+        context = XPathContext(root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>'))
+        schema = xmlschema.XMLSchema(
+            '''
+            <!-- Dummy schema, only for tests -->
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
+                <xs:attribute name="sample" type="xs:string"/>
+            </xs:schema>
+            ''')
+        self.parser.schema = XMLSchemaProxy(schema)
+
+        self.wrong_name("schema-element(nil)")
+        self.wrong_name("schema-element(xs:string)")
+        self.check_value("schema-element(xs:complexType)", None)
+        self.check_value("schema-element(xs:schema)", context.item, context)
+        self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
+
+        context.item = AttributeNode(XML_LANG_QNAME, 'en')
+        self.wrong_name("schema-attribute(nil)")
+        self.wrong_name("schema-attribute(xs:string)")
+        self.check_value("schema-attribute(xml:lang)", None)
+        self.check_value("schema-attribute(xml:lang)", context.item, context)
+        self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):

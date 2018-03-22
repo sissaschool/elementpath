@@ -12,13 +12,17 @@ import decimal
 import math
 from itertools import product
 
-from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE
+from .exceptions import ElementPathTypeError
+from .namespaces import (
+    XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, prefixed_to_qname
+)
 from .xpath_helpers import (
     is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
     node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value,
     data_value, string_value
 )
 from .xpath1_parser import XPath1Parser
+from .schema_proxy import AbstractSchemaProxy
 
 
 class XPath2Parser(XPath1Parser):
@@ -38,8 +42,8 @@ class XPath2Parser(XPath1Parser):
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for',
-        'some', 'every', 'in', 'satisfies', 'type', 'item', 'satisfies', 'context',
-        'cast', 'treat', 'return', 'except', '?', 'untyped', 'as', 'of',
+        'some', 'every', 'in', 'satisfies', 'item', 'satisfies', 'cast', 'treat',
+        'return', 'except', '?', 'as', 'of',
 
         # Comments
         '(:', ':)',
@@ -81,10 +85,14 @@ class XPath2Parser(XPath1Parser):
                  schema=None, compatibility_mode=False):
         super(XPath2Parser, self).__init__(namespaces, variables)
         self.default_namespace = default_namespace
+
         if function_namespace is None:
             self.function_namespace = XPATH_FUNCTIONS_NAMESPACE
         else:
             self.function_namespace = function_namespace
+
+        if schema is not None and not isinstance(schema, AbstractSchemaProxy):
+            raise ElementPathTypeError("schema argument must be a subclass of AbstractSchemaProxy!")
         self.schema = schema
         if compatibility_mode is False:
             self.compatibility_mode = False
@@ -356,12 +364,6 @@ def evaluate(self, context=None):
     return self.parser.schema.cast_as(unary_expr, type_qname, required)
 
 
-register('type')
-register('context')
-
-register('untyped')
-
-
 ###
 # Comma operator - concatenate items or sequences
 @method(infix(',', bp=5))
@@ -476,14 +478,14 @@ def evaluate(self, context=None):
 @method(infix('to', bp=35))
 def evaluate(self, context=None):
     try:
-        start = self[0].evaluate(context) + 1
+        start = self[0].evaluate(context)
         stop = self[1].evaluate(context) + 1
     except TypeError as err:
         if context is not None:
             self.wrong_type(str(err))
         return
     else:
-        return range(start, stop)
+        return list(range(start, stop))
 
 
 @method('to')
@@ -524,27 +526,37 @@ def evaluate(self, context=None):
             return context.item
 
 
-# unregister('attribute')  FIXME
-@method(function('attribute_', nargs=(0, 2), bp=90))
-def evaluate(self, context=None):
-    if context is None:
-        return
-    elif not self:
-        if is_attribute_node(context.item):
-            return context.item
-    else:
-        if is_attribute_node(context.item, self[1].evaluate(context)):
-            return context.item
-
-
 @method(function('schema-attribute', nargs=1, bp=90))
-def select(self, context=None):
-    pass
+def evaluate(self, context=None):
+    if self[0].symbol == ':':
+        attribute_name = '%s:%s' % (self[0][0].value, self[0][1].value)
+    else:
+        attribute_name = self[0].value
+
+    qname = prefixed_to_qname(attribute_name, self.parser.namespaces)
+    if self.parser.schema.get_attribute(qname) is None:
+        self.missing_name("attribute %r not found in schema" % attribute_name)
+
+    if context is not None:
+        if is_attribute_node(context.item) and context.item[0] == qname:
+            return context.item
 
 
 @method(function('schema-element', nargs=1, bp=90))
-def select(self, context=None):
-    pass
+def evaluate(self, context=None):
+    if self[0].symbol == ':':
+        element_name = '%s:%s' % (self[0][0].value, self[0][1].value)
+    else:
+        element_name = self[0].value
+
+    qname = prefixed_to_qname(element_name, self.parser.namespaces)
+    if self.parser.schema.get_element(qname) is None \
+            and self.parser.schema.get_substitution_group(qname) is None:
+        self.missing_name("element %r not found in schema" % element_name)
+
+    if context is not None:
+        if is_element_node(context.item) and context.item.tag == qname:
+            return context.item
 
 
 ###
@@ -771,6 +783,75 @@ def select(self, context=None):
             yield item
         else:
             self.wrong_value("called with a sequence containing more than one item [err:FORG0005]")
+
+
+###
+# Example of token redefinition and howto create a multi-role token.
+#
+# In XPath 2.0 the 'attribute' keyword is used not only for the attribute:: axis but also for
+# attribute() node type function.
+###
+class MultiValue(object):
+
+    def __init__(self, *values):
+        self.values = values
+
+    def __eq__(self, other):
+        return any(other == v for v in self.values)
+
+    def __ne__(self, other):
+        return all(other != v for v in self.values)
+
+
+unregister('attribute')
+register('attribute', lbp=90, rbp=90, label=MultiValue('function', 'axis'),
+         pattern='\\battribute(?=\s*\\:\\:|\s*\\(\\:.*\\:\\)\s*\\:\\:|\s*\\(|\s*\\(\\:.*\\:\\)\\()')
+
+
+@method('attribute')
+def nud(self):
+    if self.parser.next_token.symbol == '::':
+        self.parser.advance('::')
+        self.parser.next_token.expected(
+            '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
+            'attribute', 'schema-attribute', 'element', 'schema-element'
+        )
+        self[0:] = self.parser.expression(rbp=90),
+        self.label = 'axis'
+    else:
+        self.parser.advance('(')
+        if self.parser.next_token.symbol != ')':
+            self[0:] = self.parser.expression(5),
+            if self.parser.next_token.symbol == ',':
+                self.parser.advance(',')
+                self[1:] = self.parser.expression(5),
+        self.parser.advance(')')
+        self.label = 'function'
+    return self
+
+
+@method('attribute')
+def select(self, context=None):
+    if context is None:
+        return
+    elif self.label == 'axis':
+        for _ in context.iter_attributes():
+            for result in self[0].select(context):
+                yield result
+    else:
+        yield self.evaluate(context)
+
+
+@method('attribute')
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif not self:
+        if is_attribute_node(context.item):
+            return context.item
+    else:
+        if is_attribute_node(context.item, self[1].evaluate(context)):
+            return context.item
 
 
 XPath2Parser.end()

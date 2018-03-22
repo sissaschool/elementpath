@@ -53,14 +53,14 @@ class XPathToken(Token):
         elif symbol == ',':
             return 'comma operator'
         elif label == 'function':
-            return '%s(%s) function' % (symbol, ', '.join(repr(t.value) for t in self))
+            return '%s() function' % symbol
         elif label == 'axis':
             return '%s axis' % symbol
         return super(XPathToken, self).__str__()
 
     def is_path_step_token(self):
         return self.label == 'axis' or self.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/'
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/',
         }
 
     ###

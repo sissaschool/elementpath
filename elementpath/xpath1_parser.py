@@ -19,7 +19,7 @@ from .namespaces import (
 )
 from .xpath_token import XPathToken
 from .xpath_helpers import (
-    AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
+    NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
     is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node,
     node_name, node_string_value, boolean_value, data_value, string_value
 )
@@ -94,7 +94,7 @@ class XPath1Parser(Parser):
 
     @classmethod
     def axis(cls, symbol, bp=0):
-        def nud_(self):
+        def nud_(self): 
             self.parser.advance('::')
             self.parser.next_token.expected(
                 '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',

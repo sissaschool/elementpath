@@ -23,6 +23,7 @@ from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
+from .schema_proxy import AbstractSchemaProxy, XMLSchemaProxy
 
 
 def select(root, path, namespaces=None, parser=XPath2Parser, **kwargs):
