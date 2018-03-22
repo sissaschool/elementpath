@@ -797,7 +797,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
-    def test_sequence_functions(self):
+    def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)
         self.check_value('fn:exists(("hello", "world"))', True)
@@ -845,6 +845,19 @@ class XPath2ParserTest(XPath1ParserTest):
 
         self.check_value('fn:unordered(())', [])
         self.check_value('fn:unordered(("z", 2, "3", "Z", "b", "a"))', [2, '3', 'Z', 'a', 'b', 'z'])
+
+    def test_sequence_cardinality_functions(self):
+        self.check_value('fn:zero-or-one(())', [])
+        self.check_value('fn:zero-or-one((10))', [10])
+        self.wrong_value('fn:zero-or-one((10, 20))')
+
+        self.wrong_value('fn:one-or-more(())')
+        self.check_value('fn:one-or-more((10))', [10])
+        self.check_value('fn:one-or-more((10, 20, 30, 40))', [10, 20, 30, 40])
+
+        self.check_value('fn:exactly-one((20))', [20])
+        self.wrong_value('fn:exactly-one(())')
+        self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
     def test_node_types2(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))

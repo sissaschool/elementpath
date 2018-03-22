@@ -65,6 +65,9 @@ class XPath2Parser(XPath1Parser):
         # General functions for sequences
         'distinct-values', 'empty', 'exists', 'index-of', 'insert-before', 'remove',
         'reverse', 'subsequence', 'unordered',
+
+        # Cardinality functions for sequences
+        'zero-or-one', 'one-or-more', 'exactly-one',
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -709,12 +712,65 @@ def select(self, context=None):
 
 @method('unordered')
 def select(self, context=None):
-    for result in sorted(list(self[0].select(context)), key=lambda x:string_value(x)):
+    for result in sorted(list(self[0].select(context)), key=lambda x: string_value(x)):
         yield result
 
 
 ###
 # Cardinality functions for sequences
+@method(function('zero-or-one', nargs=1, bp=90))
+@method(function('one-or-more', nargs=1, bp=90))
+@method(function('exactly-one', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return list(self.select(context))
+
+
+@method('zero-or-one')
+def select(self, context=None):
+    results = iter(self[0].select(context))
+    try:
+        item = next(results)
+    except StopIteration:
+        return
+
+    try:
+        next(results)
+    except StopIteration:
+        yield item
+    else:
+        self.wrong_value("called with a sequence containing more than one item [err:FORG0003]")
+
+
+@method('one-or-more')
+def select(self, context=None):
+    results = iter(self[0].select(context))
+    try:
+        item = next(results)
+    except StopIteration:
+        self.wrong_value("called with a sequence containing no items [err:FORG0004]")
+    else:
+        yield item
+        while True:
+            try:
+                yield next(results)
+            except StopIteration:
+                break
+
+
+@method('exactly-one')
+def select(self, context=None):
+    results = iter(self[0].select(context))
+    try:
+        item = next(results)
+    except StopIteration:
+        self.wrong_value("called with a sequence containing zero items [err:FORG0005]")
+    else:
+        try:
+            next(results)
+        except StopIteration:
+            yield item
+        else:
+            self.wrong_value("called with a sequence containing more than one item [err:FORG0005]")
 
 
 XPath2Parser.end()
