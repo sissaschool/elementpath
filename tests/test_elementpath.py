@@ -925,7 +925,6 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_select("item()", [10.2], context)
         self.check_select("node()", [], context)
 
-
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_selector("count(5)", root, 1)
@@ -1028,13 +1027,23 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("schema-attribute(xml:lang)", context.item, context)
         self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
 
-    @unittest.skipIf(True, "Skip if xmlschema library is not available.")
+    @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
     def test_instance_expression(self):
+        element = self.etree.Element('schema')
+        context = XPathContext(element)
+
         # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
         self.check_value("5 instance of xs:integer", True)
         self.check_value("5 instance of xs:decimal", True)
         self.check_value("(5, 6) instance of xs:integer+", True)
-        self.check_value(". instance of element()", True)
+        self.check_value(". instance of element()", True, context)
+
+        self.check_value("(5, 6) instance of xs:integer", False)
+        self.check_value("(5, 6) instance of xs:integer*", True)
+        self.check_value("(5, 6) instance of xs:integer?", False)
+
+        self.check_value("5 instance of empty-sequence()", False)
+        self.check_value("() instance of empty-sequence()", True)
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):

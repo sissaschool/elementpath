@@ -57,8 +57,8 @@ class XPath2Parser(XPath1Parser):
         # Mathematical operators
         'idiv',
 
-        # Node test functions
-        'document-node', 'schema-attribute', 'element', 'schema-element',  # 'attribute',
+        # Node type functions
+        'document-node', 'schema-attribute', 'element', 'schema-element', 'attribute', 'empty-sequence',
 
         # Accessor functions
         'node-name', 'nilled', 'data', 'base-uri', 'document-uri',
@@ -312,7 +312,7 @@ def led(self, left):
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
         self[3:] = next_symbol,
-        self.advance()
+        self.parser.advance()
     return self
 
 
@@ -320,12 +320,18 @@ def led(self, left):
 def evaluate(self, context=None):
     if self.parser.schema is None:
         self.missing_schema()
-    treat_expr = self[0].evaluate(context)
+    treat_expr = list(self[0].select(context))
     if self[1].symbol == 'empty-sequence':
         return treat_expr == []
-    type_qname = self[1].evaluate(context)
-    occurs = self[2] if len(self) > 2 else None
-    return self.parser.schema.is_instance(treat_expr, type_qname, occurs)
+    elif self[1].label == 'function':
+        return self[1].evaluate(context) is not None
+    else:
+        occurs = self[2] if len(self) > 2 else None
+        qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
+        try:
+            return self.parser.schema.is_instance(treat_expr, qname, occurs)
+        except KeyError:
+            self.missing_name("type %r not found in schema" % self[1].source)
 
 
 ###
@@ -522,11 +528,7 @@ def evaluate(self, context=None):
 
 @method(function('schema-attribute', nargs=1, bp=90))
 def evaluate(self, context=None):
-    if self[0].symbol == ':':
-        attribute_name = '%s:%s' % (self[0][0].value, self[0][1].value)
-    else:
-        attribute_name = self[0].value
-
+    attribute_name = self[0].source
     qname = prefixed_to_qname(attribute_name, self.parser.namespaces)
     if self.parser.schema.get_attribute(qname) is None:
         self.missing_name("attribute %r not found in schema" % attribute_name)
@@ -538,11 +540,7 @@ def evaluate(self, context=None):
 
 @method(function('schema-element', nargs=1, bp=90))
 def evaluate(self, context=None):
-    if self[0].symbol == ':':
-        element_name = '%s:%s' % (self[0][0].value, self[0][1].value)
-    else:
-        element_name = self[0].value
-
+    element_name = self[0].source
     qname = prefixed_to_qname(element_name, self.parser.namespaces)
     if self.parser.schema.get_element(qname) is None \
             and self.parser.schema.get_substitution_group(qname) is None:
@@ -551,6 +549,14 @@ def evaluate(self, context=None):
     if context is not None:
         if is_element_node(context.item) and context.item.tag == qname:
             return context.item
+
+
+@method(function('empty-sequence', nargs=0, bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    else:
+        return isinstance(context.item, list) and not context.item
 
 
 ###

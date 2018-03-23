@@ -24,7 +24,7 @@ class AbstractSchemaProxy(object):
         pass
 
     @abstractmethod
-    def is_instance(self, treat_expr, type_qname, occurs=None):
+    def is_instance(self, treat_expr, item_type, occurs=None):
         pass
 
     @abstractmethod
@@ -51,15 +51,9 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     Library ref:https://github.com/brunato/xmlschema
     """
-    def cast_as(self, unary_expr, type_qname, required=True):
-        pass
-
-    def is_instance(self, treat_expr, type_qname, occurs=None):
-        pass
-
     def get_type(self, qname):
         try:
-            return self._schema.maps.types[qname]
+            return
         except KeyError:
             return None
 
@@ -80,3 +74,22 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             return self._schema.maps.substitution_groups[qname]
         except KeyError:
             return None
+
+    def cast_as(self, unary_expr, type_qname, required=True):
+        pass
+
+    def is_instance(self, treat_expr, item_type, occurs=None):
+        xsd_type = self._schema.maps.types[item_type]
+        if isinstance(treat_expr, list):
+            if not all(xsd_type.is_valid(item) for item in treat_expr):
+                return False
+            elif occurs == '?':
+                return len(treat_expr) <= 1
+            elif occurs == '*':
+                return True
+            elif occurs == '+':
+                return len(treat_expr) >= 1
+            else:
+                return len(treat_expr) == 1
+        else:
+            return xsd_type.is_valid(treat_expr)
