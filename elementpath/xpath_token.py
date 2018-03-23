@@ -58,6 +58,17 @@ class XPathToken(Token):
             return '%s axis' % symbol
         return super(XPathToken, self).__str__()
 
+    @property
+    def source(self):
+        label = self.label
+        if label == 'axis':
+            return u'%s::%s' % (self.symbol, self[0].source)
+        elif label == 'function':
+            return u'%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
+        elif self.symbol == ':':
+            return u'%s:%s' % (self[0].source, self[1].source)
+        return super(XPathToken, self).source
+
     def is_path_step_token(self):
         return self.label == 'axis' or self.symbol in {
             '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/',

@@ -138,6 +138,10 @@ class XPath1ParserTest(unittest.TestCase):
         """Check the tree string representation of a parsed path."""
         self.assertEqual(self.parser.parse(path).tree, expected)
 
+    def check_source(self, path, expected):
+        """Check the source representation of a parsed path."""
+        self.assertEqual(self.parser.parse(path).source, expected)
+
     def check_value(self, path, expected, context=None):
         """Check using the *evaluate* method of the root token."""
         if context is not None:
@@ -280,6 +284,15 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree("false() or true()", '(or (False) (True))')
         self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
         self.check_tree("string(xml:lang)", '(string (: (xml) (lang)))')
+
+    def test_token_source(self):
+        self.check_source(' child ::B1', 'child::B1')
+        self.check_source('false()', 'false()')
+        self.check_source("concat('alpha', 'beta', 'gamma')", "concat('alpha', 'beta', 'gamma')")
+        self.check_source('1 +2 *  3 ', '1 + 2 * 3')
+        self.check_source('(1 + 2) * 3', '1 + 2 * 3')  # FIXME: don't skip parenthesis tokens
+        self.check_source(' xs : string ', 'xs:string')
+        self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
 
     def test_wrong_syntax(self):
         self.wrong_syntax('')
@@ -631,9 +644,21 @@ class XPath1ParserTest(unittest.TestCase):
 
 class XPath2ParserTest(XPath1ParserTest):
 
+    if xmlschema:
+        schema = XMLSchemaProxy(
+            schema=xmlschema.XMLSchema('''
+            <!-- Dummy schema, only for tests -->
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
+            <xs:element name="test_element" type="xs:string"/>
+            <xs:attribute name="test_attribute" type="xs:string"/>
+            </xs:schema>''')
+        )
+    else:
+        schema = None
+
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
         cls.etree = ElementTree
 
     def test_xpath_tokenizer2(self):
@@ -878,7 +903,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('fn:exactly-one(())')
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
-    def test_node_types2(self):
+    def test_node_and_item_accessors(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
         attribute = AttributeNode('id', '0212349350')
@@ -887,9 +912,19 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_selector("document-node(A)", document, [document])
         context = XPathContext(root=element)
         self.check_select("element()", [element], context)
+        self.check_select("item()", [element], context)
         context.item = attribute
         self.check_select("node()", [attribute], context)
+        self.check_select("item()", [attribute], context)
         self.check_select("attribute()", [attribute], context)
+
+        context.item = 7
+        self.check_select("item()", [7], context)
+        self.check_select("node()", [], context)
+        context.item = 10.2
+        self.check_select("item()", [10.2], context)
+        self.check_select("node()", [], context)
+
 
     def test_node_set_functions2(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -979,14 +1014,6 @@ class XPath2ParserTest(XPath1ParserTest):
     @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
     def test_xmlschema_proxy(self):
         context = XPathContext(root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>'))
-        schema = xmlschema.XMLSchema(
-            '''
-            <!-- Dummy schema, only for tests -->
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
-                <xs:attribute name="sample" type="xs:string"/>
-            </xs:schema>
-            ''')
-        self.parser.schema = XMLSchemaProxy(schema)
 
         self.wrong_name("schema-element(nil)")
         self.wrong_name("schema-element(xs:string)")
@@ -1000,6 +1027,14 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("schema-attribute(xml:lang)", None)
         self.check_value("schema-attribute(xml:lang)", context.item, context)
         self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
+
+    @unittest.skipIf(True, "Skip if xmlschema library is not available.")
+    def test_instance_expression(self):
+        # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
+        self.check_value("5 instance of xs:integer", True)
+        self.check_value("5 instance of xs:decimal", True)
+        self.check_value("(5, 6) instance of xs:integer+", True)
+        self.check_value(". instance of element()", True)
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):
@@ -1032,7 +1067,7 @@ class LxmlXPath2ParserTest(XPath2ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
         cls.etree = lxml.etree
 
 

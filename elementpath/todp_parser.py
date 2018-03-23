@@ -91,6 +91,25 @@ class Token(MutableSequence):
         else:
             return u'(%s)' % value
 
+    @property
+    def source(self):
+        symbol = self.symbol
+        value = self.symbol if self.value is None else self.value
+        if symbol in {'(string)', '(float)', '(decimal)', '(integer)'}:
+            return repr(self.value)
+        elif symbol == '(name)':
+            return self.value
+        else:
+            length = len(self)
+            if not length:
+                return self.symbol
+            elif length == 1:
+                return u'%s %s' % (symbol, self[0].source)
+            elif length == 2:
+                return u'%s %s %s' % (self[0].source, symbol, self[1].source)
+            else:
+                return u'%s %s' % (value, ' '.join(item.source for item in self))
+
     def nud(self):
         """Null denotation method"""
         self.wrong_syntax()

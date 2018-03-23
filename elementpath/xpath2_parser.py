@@ -302,16 +302,6 @@ def select(self, context=None):
                 yield result
 
 
-@method(function('item', nargs=0, bp=90))
-def evaluate(self, context=None):
-    if context is None:
-        return
-    elif context.item is None:
-        return context.root
-    else:
-        return context.item
-
-
 ###
 # Sequence type based
 @method('instance', bp=60)
@@ -386,7 +376,7 @@ def select(self, context=None):
 
 
 ###
-# Parenthesized expressions: XPath 2.0 admits empty case ()
+# Parenthesized expressions: XPath 2.0 admits the empty case ().
 @method('(')
 def nud(self):
     if self.parser.next_token.symbol == ')':
@@ -559,6 +549,18 @@ def evaluate(self, context=None):
     if context is not None:
         if is_element_node(context.item) and context.item.tag == qname:
             return context.item
+
+
+###
+# Context item
+@method(function('item', nargs=0, bp=90))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif context.item is None:
+        return context.root
+    else:
+        return context.item
 
 
 ###
