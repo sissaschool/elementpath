@@ -396,16 +396,18 @@ prefix('-', bp=90)
 
 @method(infix('+', bp=40))
 def evaluate(self, context=None):
-    if len(self) > 1:
-        try:
-            return self[0].evaluate(context) + self[1].evaluate(context)
-        except TypeError:
-            raise ElementPathTypeError("a numeric value is required: %r." % self[0])
-    else:
+    if not self:
+        return
+    elif len(self) == 1:
         try:
             return +self[0].evaluate(context)
         except TypeError:
             raise ElementPathTypeError("numeric values are required: %r." % self[:])
+    else:
+        try:
+            return self[0].evaluate(context) + self[1].evaluate(context)
+        except TypeError:
+            raise ElementPathTypeError("a numeric value is required: %r." % self[0])
 
 
 @method(infix('-', bp=40))

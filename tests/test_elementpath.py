@@ -670,6 +670,10 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_tree('(1 + 6, 2, 10 - 4)', '(, (, (+ (1) (6)) (2)) (- (10) (4)))')
         self.check_tree('/A/B2 union /A/B1', '(union (/ (/ (A)) (B2)) (/ (/ (A)) (B1)))')
 
+    def test_token_source2(self):
+        self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
+        self.check_source("$myaddress treat as element(*, USAddress)", "$myaddress treat as element(*, USAddress)")
+
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
         self.wrong_syntax("(: this is a (: nested :) comment :)")
@@ -1044,6 +1048,24 @@ class XPath2ParserTest(XPath1ParserTest):
 
         self.check_value("5 instance of empty-sequence()", False)
         self.check_value("() instance of empty-sequence()", True)
+
+    @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
+    def test_treat_expression(self):
+        element = self.etree.Element('schema')
+        context = XPathContext(element)
+
+        self.check_value("5 treat as xs:integer", [5])
+        # self.check_value("5 treat as xs:string", ElementPathTypeError)   # FIXME: a bug of xmlschema!
+        self.check_value("5 treat as xs:decimal", [5])
+        self.check_value("(5, 6) treat as xs:integer+", [5, 6])
+        self.check_value(". treat as element()", [element], context)
+
+        self.check_value("(5, 6) treat as xs:integer", ElementPathTypeError)
+        self.check_value("(5, 6) treat as xs:integer*", [5, 6])
+        self.check_value("(5, 6) treat as xs:integer?", ElementPathTypeError)
+
+        self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
+        self.check_value("() treat as empty-sequence()", [])
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):

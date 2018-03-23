@@ -308,10 +308,14 @@ def select(self, context=None):
 @method('treat', bp=61)
 def led(self, left):
     self.parser.advance('of' if self.symbol is 'instance' else 'as')
+    self.parser.next_token.expected(
+        '(name)', ':', 'empty-sequence', 'item', 'document-node', 'element', 'attribute',
+        'text', 'comment', 'processing-instruction', 'schema-attribute', 'schema-element'
+    )
     self[0:1] = left, self.parser.expression(rbp=self.rbp)
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
-        self[3:] = next_symbol,
+        self[3:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
         self.parser.advance()
     return self
 
@@ -326,12 +330,34 @@ def evaluate(self, context=None):
     elif self[1].label == 'function':
         return self[1].evaluate(context) is not None
     else:
-        occurs = self[2] if len(self) > 2 else None
+        occurs = self[2].symbol if len(self) > 2 else None
         qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
         try:
             return self.parser.schema.is_instance(treat_expr, qname, occurs)
         except KeyError:
             self.missing_name("type %r not found in schema" % self[1].source)
+
+
+@method('treat')
+def evaluate(self, context=None):
+    if self.parser.schema is None:
+        self.missing_schema()
+    castable_expr = list(self[0].select(context))
+    if self[1].symbol == 'empty-sequence':
+        if castable_expr:
+            self.wrong_sequence_type()
+    elif self[1].label == 'function':
+        if self[1].evaluate(context) is None:
+            self.wrong_sequence_type()
+    else:
+        occurs = self[2].symbol if len(self) > 2 else None
+        qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
+        try:
+            if self.parser.schema.is_instance(castable_expr, qname, occurs) is False:
+                self.wrong_sequence_type()
+        except KeyError:
+            self.missing_name("type %r not found in schema" % self[1].source)
+    return castable_expr
 
 
 ###
