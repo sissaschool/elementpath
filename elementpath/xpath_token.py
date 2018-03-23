@@ -60,13 +60,15 @@ class XPathToken(Token):
 
     @property
     def source(self):
-        label = self.label
+        symbol, label = self.symbol, self.label
         if label == 'axis':
             return u'%s::%s' % (self.symbol, self[0].source)
         elif label == 'function':
             return u'%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
-        elif self.symbol == ':':
+        elif symbol == ':':
             return u'%s:%s' % (self[0].source, self[1].source)
+        elif symbol == '(':
+            return '()' if not self else u'(%s)' % self[0].source
         return super(XPathToken, self).source
 
     def is_path_step_token(self):

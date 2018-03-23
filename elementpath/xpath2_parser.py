@@ -379,24 +379,26 @@ def select(self, context=None):
 # Parenthesized expressions: XPath 2.0 admits the empty case ().
 @method('(')
 def nud(self):
-    if self.parser.next_token.symbol == ')':
-        self.parser.advance(')')
-        return self
-    else:
+    if self.parser.next_token.symbol != ')':
         self[0:] = self.parser.expression(),
-        self.parser.advance(')')
-        return self[0]  # Skip self!! (remove a redundant level from selection/evaluation)
+    self.parser.advance(')')
+    return self
 
 
 @method('(')
 def evaluate(self, context=None):
-    return []
+    if not self:
+        return []
+    else:
+        return self[0].evaluate(context)
 
 
 @method('(')
 def select(self, context=None):
-    for _ in []:
-        yield
+    if not self:
+        return iter(())
+    else:
+        return self[0].select(context)
 
 
 ###

@@ -277,11 +277,11 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree('child::B1', '(child (B1))')
         self.check_tree('A/B//C/D', '(/ (// (/ (A) (B)) (C)) (D))')
         self.check_tree('child::*/child::B1', '(/ (child (*)) (child (B1)))')
-        self.check_tree('attribute::name="Galileo"', '(= (attribute (name)) (Galileo))')
+        self.check_tree('attribute::name="Galileo"', "(= (attribute (name)) ('Galileo'))")
         self.check_tree('1 + 2 * 3', '(+ (1) (* (2) (3)))')
         self.check_tree('(1 + 2) * 3', '(* (+ (1) (2)) (3))')
-        self.check_tree("false() and true()", '(and (False) (True))')
-        self.check_tree("false() or true()", '(or (False) (True))')
+        self.check_tree("false() and true()", '(and (false) (true))')
+        self.check_tree("false() or true()", '(or (false) (true))')
         self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
         self.check_tree("string(xml:lang)", '(string (: (xml) (lang)))')
 
@@ -290,7 +290,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_source('false()', 'false()')
         self.check_source("concat('alpha', 'beta', 'gamma')", "concat('alpha', 'beta', 'gamma')")
         self.check_source('1 +2 *  3 ', '1 + 2 * 3')
-        self.check_source('(1 + 2) * 3', '1 + 2 * 3')  # FIXME: don't skip parenthesis tokens
+        self.check_source('(1 + 2) * 3', '(1 + 2) * 3')
         self.check_source(' xs : string ', 'xs:string')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
 

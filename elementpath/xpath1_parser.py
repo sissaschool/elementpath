@@ -565,7 +565,17 @@ def nud(self):
     self.parser.next_token.unexpected(')')
     self[0:] = self.parser.expression(),
     self.parser.advance(')')
-    return self[0]  # Skip self!! (remove a redundant level from selection/evaluation)
+    return self  # Skip self!! (remove a redundant level from selection/evaluation)
+
+
+@method('(')
+def evaluate(self, context=None):
+    return self[0].evaluate(context)
+
+
+@method('(')
+def select(self, context=None):
+    return self[0].select(context)
 
 
 ###

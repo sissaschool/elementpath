@@ -85,16 +85,21 @@ class Token(MutableSequence):
 
     @property
     def tree(self):
-        value = self.symbol if self.value is None else self.value
-        if self:
-            return u'(%s %s)' % (value, ' '.join(item.tree for item in self))
+        symbol, length = self.symbol, len(self)
+        if symbol in {'(string)', '(float)', '(decimal)', '(integer)'}:
+            return u'(%r)' % self.value
+        elif symbol == '(name)':
+            return u'(%s)' % self.value
+        elif symbol == '(':
+            return '()' if not self else self[0].tree
+        elif not length:
+            return u'(%s)' % symbol
         else:
-            return u'(%s)' % value
+            return u'(%s %s)' % (symbol, ' '.join(item.tree for item in self))
 
     @property
     def source(self):
         symbol = self.symbol
-        value = self.symbol if self.value is None else self.value
         if symbol in {'(string)', '(float)', '(decimal)', '(integer)'}:
             return repr(self.value)
         elif symbol == '(name)':
@@ -102,13 +107,13 @@ class Token(MutableSequence):
         else:
             length = len(self)
             if not length:
-                return self.symbol
+                return symbol
             elif length == 1:
                 return u'%s %s' % (symbol, self[0].source)
             elif length == 2:
                 return u'%s %s %s' % (self[0].source, symbol, self[1].source)
             else:
-                return u'%s %s' % (value, ' '.join(item.source for item in self))
+                return u'%s %s' % (symbol, ' '.join(item.source for item in self))
 
     def nud(self):
         """Null denotation method"""
