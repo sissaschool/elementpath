@@ -21,9 +21,10 @@ class XPathContext(object):
     the document node.
     :param position: The current position of the node within the input sequence.
     :param size: The number of items in the input sequence.
+    :param axis: The active axis. Used to choose when apply the default axis ('child' axis).
     :param variables: Dictionary of context variables that maps a QName to a value.
     """
-    def __init__(self, root, item=None, position=0, size=1, variables=None):
+    def __init__(self, root, item=None, position=0, size=1, axis=None, variables=None):
         if not is_element_node(root) and not is_document_node(root):
             raise ElementPathTypeError("argument 'root' must be an Element: %r" % root)
         self.root = root
@@ -36,22 +37,22 @@ class XPathContext(object):
 
         self.position = position
         self.size = size
+        self.axis = axis
         self.variables = {} if variables is None else dict(variables)
         self._parent_map = None
-        self._iterator = None
-        self._node_kind_test = is_element_node
 
     def __repr__(self):
-        return '%s(root=%r, item=%r, position=%r, size=%r)' % (
-            self.__class__.__name__, self.root, self.item, self.position, self.size
+        return '%s(root=%r, item=%r, position=%r, size=%r, axis=%r)' % (
+            self.__class__.__name__, self.root, self.item, self.position, self.size, self.axis
         )
 
-    def copy(self, item=None):
+    def copy(self, clear_axis=True):
         obj = XPathContext(
             root=self.root,
-            item=self.item if item is None else item,
+            item=self.item,
             position=self.position,
             size=self.size,
+            axis=None if clear_axis else self.axis,
             variables=self.variables.copy()
         )
         obj._parent_map = self._parent_map
@@ -63,28 +64,40 @@ class XPathContext(object):
             self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
         return self._parent_map
 
-    @property
-    def active_iterator(self):
-        return self._iterator
-
     def is_principal_node_kind(self):
-        return self._node_kind_test(self.item)
+        if self.axis == 'attribute':
+            return is_attribute_node(self.item)
+        else:
+            return is_element_node(self.item)
 
     # Context item iterators
     def iter_self(self):
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator, self._node_kind_test = self.iter_self, is_element_node
+        status = self.item, self.size, self.position, self.axis
+        self.axis = 'self'
         yield self.item
-        self.item, self.size, self.position, self._iterator = status
+        self.item, self.size, self.position, self.axis = status
 
-    def iter_children(self, item=None, self_if_active=False):
-        if self_if_active and self._iterator is not None:
-            yield self.item
+    def iter_attributes(self):
+        if not is_element_node(self.item):
             return
 
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator = self.iter_children
+        status = self.item, self.size, self.position, self.axis
+        self.axis = 'attribute'
 
+        for item in sorted(self.item.attrib.items()):
+            self.item = AttributeNode(*item)
+            yield item
+
+        self.item, self.size, self.position, self.axis = status
+
+    def iter_children_or_self(self, item=None, child_axis=False):
+        status = self.item, self.size, self.position, self.axis
+        if not child_axis and self.axis is not None:
+            yield self.item
+            self.item, self.size, self.position, self.axis = status
+            return
+
+        self.axis = 'child'
         if item is not None:
             self.item = item
 
@@ -101,36 +114,20 @@ class XPathContext(object):
             for self.position, self.item in enumerate(elem):
                 yield self.item
 
-        self.item, self.size, self.position, self._iterator = status
+        self.item, self.size, self.position, self.axis = status
 
-    def iter_attributes(self):
-        if not is_element_node(self.item):
-            return
-
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator, self._node_kind_test = self.iter_self, is_attribute_node
-
-        for item in sorted(self.item.attrib.items()):
-            self.item = AttributeNode(*item)
-            yield item
-
-        self.item, self.size, self.position, self._iterator = status
-        self._node_kind_test = is_element_node
-
-    def iter_parent(self):
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator, self._node_kind_test = self.iter_parent, is_element_node
-
+    def iter_parent(self, axis=None):
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis
         try:
             self.item = self.parent_map[self.item]
         except KeyError:
             pass
         else:
             yield self.item
+        self.item, self.size, self.position, self.axis = status
 
-        self.item, self.size, self.position, self._iterator = status
-
-    def iter_descendants(self, item=None):
+    def iter_descendants(self, item=None, axis=None):
         def _iter_descendants():
             elem = self.item
             yield self.item
@@ -143,8 +140,8 @@ class XPathContext(object):
                     for _descendant in _iter_descendants():
                         yield _descendant
 
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator = self.iter_descendants
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis
 
         if item is not None:
             self.item = item
@@ -159,11 +156,11 @@ class XPathContext(object):
         for descendant in _iter_descendants():
             yield descendant
 
-        self.item, self.size, self.position, self._iterator = status
+        self.item, self.size, self.position, self.axis = status
 
-    def iter_ancestors(self, item=None):
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator = self.iter_ancestors
+    def iter_ancestors(self, item=None, axis=None):
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis
 
         if item is not None:
             self.item = item
@@ -183,9 +180,9 @@ class XPathContext(object):
                 self.item = parent
                 yield self.item
 
-        self.item, self.size, self.position, self._iterator = status
+        self.item, self.size, self.position, self.axis = status
 
-    def iter(self):
+    def iter(self, axis=None):
         def _iter():
             elem = self.item
             yield self.item
@@ -203,8 +200,8 @@ class XPathContext(object):
                     for _item in _iter():
                         yield _item
 
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator = self.iter
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis
 
         if self.item is None:
             self.size, self.position = 1, 0
@@ -216,4 +213,4 @@ class XPathContext(object):
         for item in _iter():
             yield item
 
-        self.item, self.size, self.position, self._iterator = status
+        self.item, self.size, self.position, self.axis = status

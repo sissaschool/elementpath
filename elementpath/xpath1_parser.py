@@ -210,7 +210,7 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if context is not None:
         value = self.value
-        for item in context.iter_children(self_if_active=True):
+        for item in context.iter_children_or_self():
             if is_element_node(item, value) or is_attribute_node(item, value):
                 yield item
 
@@ -275,7 +275,7 @@ def select(self, context=None):
         else:
             value = '{%s}%s' % (namespace, self[1].value)
 
-    for item in context.iter_children(self_if_active=True):
+    for item in context.iter_children_or_self():
         if is_element_node(item, value) or is_attribute_node(item, value):
             yield item
 
@@ -308,7 +308,7 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if not self:
         # Wildcard literal
-        for item in context.iter_children(self_if_active=True):
+        for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
                 if is_attribute_node(item):
                     yield item[1]
@@ -440,10 +440,11 @@ def evaluate(self, context=None):
 # Union expressions
 @method(infix('|', bp=50))
 def select(self, context=None):
-    results = {item for k in range(2) for item in self[k].select(context.copy())}
-    for item in context.iter():
-        if item in results:
-            yield item
+    if context is not None:
+        results = {item for k in range(2) for item in self[k].select(context.copy())}
+        for item in context.iter():
+            if item in results:
+                yield item
 
 
 ###
@@ -521,15 +522,17 @@ def evaluate(self, context=None):
 
 @method('//')
 def select(self, context=None):
-    if len(self) == 1:
-        for _ in context.iter_descendants():
+    if context is None:
+        return
+    elif len(self) == 1:
+        for _ in context.iter_descendants(axis='descendant-or-self'):
             for result in self[0].select(context):
                 yield result
     else:
         for elem in self[0].select(context):
             if not is_element_node(elem):
                 self.wrong_type("left operand must returns element nodes: %r" % elem)
-            for _ in context.iter_descendants(item=elem):
+            for _ in context.iter_descendants(item=elem, axis='descendant-or-self'):
                 for result in self[1].select(context):
                     yield result
 
@@ -546,16 +549,17 @@ def led(self, left):
 
 @method('[')
 def select(self, context=None):
-    for result in self[0].select(context):
-        predicate = list(self[1].select(context.copy()))
-        if len(predicate) == 1 and not isinstance(predicate[0], bool) and \
-                isinstance(predicate[0], (int, float)):
-            if context.position == predicate[0] - 1:
+    if context is not None:
+        for result in self[0].select(context):
+            predicate = list(self[1].select(context.copy()))
+            if len(predicate) == 1 and not isinstance(predicate[0], bool) and \
+                    isinstance(predicate[0], (int, float)):
+                if context.position == predicate[0] - 1:
+                    context.item = result
+                    yield result
+            elif boolean_value(predicate):
                 context.item = result
                 yield result
-        elif boolean_value(predicate):
-            context.item = result
-            yield result
 
 
 ###
@@ -591,53 +595,57 @@ def select(self, context=None):
 @method(axis('child', bp=80))
 def select(self, context=None):
     if context is not None:
-        for _ in context.iter_children():
+        for _ in context.iter_children_or_self(child_axis=True):
             for result in self[0].select(context):
                 yield result
 
 
 @method(axis('descendant', bp=80))
 def select(self, context=None):
-    item = context.item
-    for _ in context.iter_descendants():
-        if item is not context.item:
-            for result in self[0].select(context):
-                yield result
+    if context is not None:
+        item = context.item
+        for _ in context.iter_descendants(axis=self.symbol):
+            if item is not context.item:
+                for result in self[0].select(context):
+                    yield result
 
 
 @method(axis('descendant-or-self', bp=80))
 def select(self, context=None):
-    for _ in context.iter_descendants():
-        for result in self[0].select(context):
-            yield result
+    if context is not None:
+        for _ in context.iter_descendants(axis=self.symbol):
+            for result in self[0].select(context):
+                yield result
 
 
 @method(axis('following-sibling', bp=80))
 def select(self, context=None):
-    if is_element_node(context.item):
-        item = context.item
-        for elem in context.iter_parent():
-            follows = False
-            for child in context.iter_children(elem):
-                if follows:
-                    for result in self[0].select(context):
-                        yield result
-                elif item is child:
-                    follows = True
+    if context is not None:
+        if is_element_node(context.item):
+            item = context.item
+            for elem in context.iter_parent(axis=self.symbol):
+                follows = False
+                for child in context.iter_children_or_self(elem, child_axis=True):
+                    if follows:
+                        for result in self[0].select(context):
+                            yield result
+                    elif item is child:
+                        follows = True
 
 
 @method(axis('following', bp=80))
 def select(self, context=None):
-    descendants = set(context.iter_descendants())
-    item = context.item
-    follows = False
-    for elem in context.iter_descendants(item=context.root):
-        if follows:
-            if elem not in descendants:
-                for result in self[0].select(context):
-                    yield result
-        elif item is elem:
-            follows = True
+    if context is not None:
+        descendants = set(context.iter_descendants(axis=self.symbol))
+        item = context.item
+        follows = False
+        for elem in context.iter_descendants(item=context.root, axis=self.symbol):
+            if follows:
+                if elem not in descendants:
+                    for result in self[0].select(context):
+                        yield result
+            elif item is elem:
+                follows = True
 
 
 @method('@', bp=80)
@@ -651,14 +659,15 @@ def nud(self):
 @method('@')
 @method(axis('attribute', bp=80))
 def select(self, context=None):
-    for _ in context.iter_attributes():
-        for result in self[0].select(context):
-            yield result
+    if context is not None:
+        for _ in context.iter_attributes():
+            for result in self[0].select(context):
+                yield result
 
 
 @method(axis('namespace', bp=80))
 def select(self, context=None):
-    if is_element_node(context.item):
+    if context is not None and is_element_node(context.item):
         elem = context.item
         namespaces = self.parser.namespaces
 
@@ -678,33 +687,40 @@ def select(self, context=None):
 # Reverse Axes
 @method(axis('parent', bp=80))
 def select(self, context=None):
-    for _ in context.iter_parent():
-        for result in self[0].select(context):
-            yield result
+    if context is not None:
+        for _ in context.iter_parent(axis=self.symbol):
+            for result in self[0].select(context):
+                yield result
 
 
 @method(axis('ancestor', bp=80))
 def select(self, context=None):
-    results = [item for _ in context.iter_ancestors() for item in self[0].select(context)]
-    for result in reversed(results):
-        context.item = result
-        yield result
+    if context is not None:
+        results = [
+            item
+            for _ in context.iter_ancestors(axis=self.symbol)
+            for item in self[0].select(context)
+        ]
+        for result in reversed(results):
+            context.item = result
+            yield result
 
 
 @method(axis('ancestor-or-self', bp=80))
 def select(self, context=None):
-    item = context.item
-    for elem in reversed(list(context.iter_ancestors())):
-        context.item = elem
-        yield elem
-    yield item
+    if context is not None:
+        item = context.item
+        for elem in reversed(list(context.iter_ancestors(axis=self.symbol))):
+            context.item = elem
+            yield elem
+        yield item
 
 
 @method(axis('preceding-sibling', bp=80))
 def select(self, context=None):
-    if is_element_node(context.item):
+    if context is not None and is_element_node(context.item):
         item = context.item
-        for parent in context.iter_parent():
+        for parent in context.iter_parent(axis=self.symbol):
             for child in parent:
                 if child is item:
                     break
@@ -716,9 +732,9 @@ def select(self, context=None):
 
 @method(axis('preceding', bp=80))
 def select(self, context=None):
-    if is_element_node(context.item):
+    if context is not None and is_element_node(context.item):
         elem = context.item
-        ancestors = set(context.iter_ancestors())
+        ancestors = set(context.iter_ancestors(axis=self.symbol))
         for e in context.root.iter():
             if e is elem:
                 break
@@ -732,7 +748,7 @@ def select(self, context=None):
 @method(function('node', nargs=0, bp=90))
 def select(self, context=None):
     if context is not None:
-        for item in context.iter_children(self_if_active=True):
+        for item in context.iter_children_or_self():
             if item is None:
                 yield context.root
             elif is_xpath_node(item):
@@ -759,7 +775,7 @@ def evaluate(self, context=None):
 @method('text')
 def select(self, context=None):
     if context is not None:
-        for item in context.iter_children(self_if_active=True):
+        for item in context.iter_children_or_self():
             if item is None:
                 yield context.root
             elif is_text_node(item):

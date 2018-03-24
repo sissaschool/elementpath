@@ -264,18 +264,22 @@ def nud(self):
 @method('some')
 @method('every')
 def evaluate(self, context=None):
+    if context is None:
+        return
+
     some = self.symbol == 'some'
-    if context is not None:
-        selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
-        for results in product(*selectors):
-            for i in range(len(results)):
-                context.variables[self[i * 2][0].value] = results[i]
-            if boolean_value(list(self[-1].select(context.copy()))):
-                if some:
-                    return True
-            elif not some:
-                return False
-        return not some
+    selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
+
+    for results in product(*selectors):
+        for i in range(len(results)):
+            context.variables[self[i * 2][0].value] = results[i]
+        if boolean_value(list(self[-1].select(context.copy()))):
+            if some:
+                return True
+        elif not some:
+            return False
+
+    return not some
 
 
 ###
@@ -300,8 +304,7 @@ def nud(self):
 
 @method('for')
 def evaluate(self, context=None):
-    if context is not None:
-        return list(self.select(context.copy()))
+    return list(self.select(context))
 
 
 @method('for')
@@ -311,7 +314,7 @@ def select(self, context=None):
         for results in product(*selectors):
             for i in range(len(results)):
                 context.variables[self[i * 2][0].value] = results[i]
-            for result in self[-1].select(context):
+            for result in self[-1].select(context.copy()):
                 yield result
 
 
@@ -543,7 +546,7 @@ def evaluate(self, context=None):
 @method(function('document-node', nargs=(0, 1), bp=90))
 def select(self, context=None):
     if context is not None:
-        for item in context.iter_children(self_if_active=True):
+        for item in context.iter_children_or_self():
             if item is None and is_document_node(context.root):
                 if not self:
                     yield context.root
@@ -554,7 +557,7 @@ def select(self, context=None):
 @method(function('element', nargs=(0, 2), bp=90))
 def select(self, context=None):
     if context is not None:
-        for item in context.iter_children(self_if_active=True):
+        for item in context.iter_children_or_self():
             if not self:
                 if is_element_node(item):
                     yield item
@@ -735,15 +738,15 @@ def select(self, context=None):
 def select(self, context=None):
     insert_at_pos = max(0, self[1].value - 1)
     inserted = False
-    for pos, result in enumerate(self[0].select(context.copy() if context else None)):
+    for pos, result in enumerate(self[0].select(context)):
         if not inserted and pos == insert_at_pos:
-            for item in self[2].select(context.copy() if context else None):
+            for item in self[2].select(context):
                 yield item
             inserted = True
         yield result
 
     if not inserted:
-        for item in self[2].select(context.copy() if context else None):
+        for item in self[2].select(context):
             yield item
 
 
