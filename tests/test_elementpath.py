@@ -146,16 +146,14 @@ class XPath1ParserTest(unittest.TestCase):
         """Check using the *evaluate* method of the root token."""
         if context is not None:
             context = context.copy()
+        root_token = self.parser.parse(path)
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.parser.parse(path).evaluate, context)
+            self.assertRaises(expected, root_token.evaluate, context)
         elif not callable(expected):
-            root_token = self.parser.parse(path)
             self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
-            root_token = self.parser.parse(path)
             self.assertTrue(isinstance(root_token.evaluate(context), expected))
         else:
-            root_token = self.parser.parse(path)
             self.assertTrue(expected(root_token.evaluate(context)))
 
     def check_select(self, path, expected, context=None):
@@ -164,12 +162,13 @@ class XPath1ParserTest(unittest.TestCase):
             context = XPathContext(root=self.etree.Element(u'dummy_root'))
         else:
             context = context.copy()
+        root_token = self.parser.parse(path)
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.parser.parse(path).select, context)
+            self.assertRaises(expected, root_token.select, context)
         elif not callable(expected):
-            self.assertEqual(list(self.parser.parse(path).select(context)), expected)
+            self.assertEqual(list(root_token.select(context))   , expected)
         else:
-            self.assertTrue(expected(list(self.parser.parse(path).select(context))))
+            self.assertTrue(expected(list(root_token.parse(path).select(context))))
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """Check using the selector API (the *select* function of the package)."""
@@ -334,21 +333,24 @@ class XPath1ParserTest(unittest.TestCase):
         pi = self.etree.ProcessingInstruction('action', 'nothing to do')
         text = u'aldebaran'
         context = XPathContext(element)
-        self.check_select("node()", [document], context=XPathContext(document))
-        self.check_select("node()", [element], context)
+        self.check_select("node()", [document.getroot()], context=XPathContext(document))
+        self.check_selector("node()", element, [])
         context.item = attribute
-        self.check_select("node()", [attribute], context)
+        self.check_select("self::node()", [attribute], context)
         context.item = namespace
-        self.check_select("node()", [namespace], context)
+        self.check_select("self::node()", [namespace], context)
         context.item = comment
-        self.check_select("node()", [comment], context)
-        self.check_select("comment()", [comment], context)
+        self.check_select("self::node()", [comment], context)
+        self.check_select("self::comment()", [comment], context)
         context.item = pi
-        self.check_select("node()", [pi], context)
-        self.check_select("processing-instruction()", [pi], context)
+        self.check_select("self::node()", [pi], context)
+        self.check_select("self::processing-instruction()", [pi], context)
         context.item = text
-        self.check_select("node()", [text], context)
-        self.check_select("text()", [text], context)
+        self.check_select("self::node()", [text], context)
+        self.check_select("text()", [], context) # Selects the children
+        self.check_selector("node()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
+        self.check_selector("text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
+        self.check_selector("//self::text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
 
     def test_node_set_id_function(self):
         # XPath 1.0 id() function: https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id
@@ -473,6 +475,8 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("/table/unit[2]/cost > /table/unit[position()!=2]/cost", root, True)
         self.check_selector("/table/unit[3]/cost > /table/unit[position()!=3]/cost", root, False)
 
+        self.check_selector(". = 'Dickens'", self.etree.XML('<author>Dickens</author>'), True)
+
     def test_numerical_expressions(self):
         self.check_value("9", 9)
         self.check_value("-3", -3)
@@ -519,7 +523,7 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_child_operator(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_selector('/', root, [])  # a root element is not a document!
+        self.check_selector('/', root, [])
         self.check_selector('/B1', root, [])
         self.check_selector('/A1', root, [])
         self.check_selector('/A', root, [root])
@@ -626,6 +630,21 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B2/C4/preceding-sibling::*', root, [root[1][0], root[1][1], root[1][2]])
         self.check_selector('/A/B1/C2/preceding-sibling::C3', root, [])
 
+    def test_default_axis(self):
+        """Tests about when child:: default axis is applied."""
+        root = self.etree.XML('<root><a id="1">first<b/></a><a id="2">second</a></root>')
+        self.check_selector('/root/a/*', root, [root[0][0]])
+        self.check_selector('/root/a/node()', root, ['first', root[0][0], 'second'])
+        self.check_selector('/root/a/text()', root, ['first', 'second'])
+        self.check_selector('/root/a/attribute::*', root, ['1', '2'])
+        if self.parser.version > '1.0':
+            # Functions are not allowed after path step in XPath 1.0
+            # self.check_selector('/root/a/attribute()', root, ['1', '2'])
+            self.check_selector('/root/a/element()', root, [root[0][0]])
+            self.check_selector('/root/a/name()', root, ['a', 'a'])
+            self.check_selector('/root/a/last()', root, [2, 2])
+            self.check_selector('/root/a/position()', root, [1, 2])
+
     def test_predicate(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
         self.check_selector('/A/B1[C2]', root, [root[0]])
@@ -635,6 +654,11 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/*[position()<2]', root, [root[0]])
         self.check_selector('/A/*[last()-1]', root, [root[0]])
         self.check_selector('/A/B2/*[position()>=2]', root, root[1][1:])
+
+        root = self.etree.XML("<bib><book><author>Asimov</author></book></bib>")
+        self.check_selector("book/author[. = 'Asimov']", root, [root[0][0]])
+        self.check_selector("book/author[. = 'Dickens']", root, [])
+        self.check_selector("book/author[text()='Asimov']", root, [root[0][0]])
 
     def test_union(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
@@ -761,7 +785,7 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_for_expressions(self):
         # Cases from XPath 2.0 examples
         context = XPathContext(root=self.etree.XML('<dummy/>'))
-        self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
+        # self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
 
         root = self.etree.XML(
             """
@@ -786,7 +810,11 @@ class XPath2ParserTest(XPath1ParserTest):
             """)
 
         # self.check_selector("for $a in fn:distinct-values(book/author) "
-        #                     "return (book/author[. = $a][1], book[author = $a]/title)""", root, [])
+        #                    "return book/author""", root, [None])  # FIXME
+        #self.check_selector("author[1]", root[0], [None])
+
+        #self.check_selector("for $a in fn:distinct-values(book/author) "
+        #                    "return (book/author[. = $a][1], book[author = $a]/title)""", root, [])  # FIXME
 
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
@@ -912,15 +940,14 @@ class XPath2ParserTest(XPath1ParserTest):
         element = self.etree.Element('schema')
         attribute = AttributeNode('id', '0212349350')
         context = XPathContext(root=document)
-        self.check_select("document-node()", [document], context)
-        self.check_selector("document-node(A)", document, [document])
+        self.check_select("document-node()", [], context)
+        self.check_select("self::document-node()", [document], context)
+        self.check_selector("self::document-node(A)", document, [document])
         context = XPathContext(root=element)
-        self.check_select("element()", [element], context)
-        self.check_select("item()", [element], context)
+        self.check_select("self::element()", [element], context)
         context.item = attribute
-        self.check_select("node()", [attribute], context)
-        self.check_select("item()", [attribute], context)
-        self.check_select("attribute()", [attribute], context)
+        self.check_select("self::node()", [attribute], context)
+        self.check_select("self::attribute()", [attribute], context)
 
         context.item = 7
         self.check_select("item()", [7], context)

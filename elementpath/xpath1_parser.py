@@ -159,6 +159,12 @@ class XPath1Parser(Parser):
             pattern = function_pattern_template % getattr(symbol, 'symbol')
         return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
 
+    def next_is_path_step_token(self):
+        return self.next_token.label in 'axis' or self.next_token.symbol in {
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', 'node', 'text', '*',
+            '@', '..', '.', '(', '/',
+        }
+
 
 ##
 # XPath1 definitions
@@ -202,14 +208,11 @@ def evaluate(self, context=None):
 
 @method('(name)')
 def select(self, context=None):
-    value = self.value
-    if context.active_iterator is None:
-        for item in context.iter_children():
+    if context is not None:
+        value = self.value
+        for item in context.iter_children(self_if_active=True):
             if is_element_node(item, value) or is_attribute_node(item, value):
                 yield item
-    else:
-        if is_element_node(context.item, value) or is_attribute_node(context.item, value):
-            yield context.item
 
 
 ###
@@ -272,13 +275,9 @@ def select(self, context=None):
         else:
             value = '{%s}%s' % (namespace, self[1].value)
 
-    if context.active_iterator is None:
-        for item in context.iter_children():
-            if is_element_node(item, value) or is_attribute_node(item, value):
-                yield item
-    else:
-        if is_element_node(context.item, value) or is_attribute_node(context.item, value):
-            yield context.item
+    for item in context.iter_children(self_if_active=True):
+        if is_element_node(item, value) or is_attribute_node(item, value):
+            yield item
 
 
 ###
@@ -309,15 +308,12 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if not self:
         # Wildcard literal
-        if context.active_iterator is None:
-            for child in context.iter_children():
-                if is_element_node(child):
-                    yield child
-        elif context.principal_node_kind:
-            if is_attribute_node(context.item):
-                yield context.item[1]
-            else:
-                yield context.item
+        for item in context.iter_children(self_if_active=True):
+            if context.is_principal_node_kind():
+                if is_attribute_node(item):
+                    yield item[1]
+                else:
+                    yield item
     else:
         # Product operator
         item = self.evaluate(context)
@@ -444,7 +440,7 @@ def evaluate(self, context=None):
 # Union expressions
 @method(infix('|', bp=50))
 def select(self, context=None):
-    results = {item for k in range(2) for item in self[k].select(context)}
+    results = {item for k in range(2) for item in self[k].select(context.copy())}
     for item in context.iter():
         if item in results:
             yield item
@@ -458,7 +454,7 @@ def nud(self):
     next_token = self.parser.next_token
     if next_token.symbol == '(end)' and self.symbol == '/':
         return self
-    elif not self.parser.next_token.is_path_step_token():
+    elif not self.parser.next_is_path_step_token():
         next_token.wrong_syntax()
     self[0:] = self.parser.expression(80),
     return self
@@ -467,7 +463,7 @@ def nud(self):
 @method('//', bp=80)
 @method('/', bp=80)
 def led(self, left):
-    if not self.parser.next_token.is_path_step_token():
+    if not self.parser.next_is_path_step_token():
         self.parser.next_token.wrong_syntax()
     self[0:1] = left, self.parser.expression(80)
     return self
@@ -489,10 +485,12 @@ def select(self, context=None):
             yield result
     else:
         items = set()
-        for elem in self[0].select(context):
-            if not is_element_node(elem):
-                self.wrong_type("left operand must returns element nodes: %r" % elem)
-            for result in self[1].select(context.copy(item=elem)):
+        left_results = list(self[0].select(context))
+        context.size = len(left_results)
+        for context.position, context.item in enumerate(left_results):
+            if not is_element_node(context.item):
+                self.wrong_type("left operand must returns element nodes: %r" % context.item)
+            for result in self[1].select(context):
                 if is_etree_element(result) or isinstance(result, tuple):
                     if result not in items:
                         yield result
@@ -584,16 +582,18 @@ def select(self, context=None):
 # Forward Axes
 @method(axis('self', bp=80))
 def select(self, context=None):
-    for _ in context.iter_self():
-        for result in self[0].select(context):
-            yield result
+    if context is not None:
+        for _ in context.iter_self():
+            for result in self[0].select(context):
+                yield result
 
 
 @method(axis('child', bp=80))
 def select(self, context=None):
-    for _ in context.iter_children():
-        for result in self[0].select(context):
-            yield result
+    if context is not None:
+        for _ in context.iter_children():
+            for result in self[0].select(context):
+                yield result
 
 
 @method(axis('descendant', bp=80))
@@ -616,9 +616,9 @@ def select(self, context=None):
 def select(self, context=None):
     if is_element_node(context.item):
         item = context.item
-        for _ in context.iter_parent():
+        for elem in context.iter_parent():
             follows = False
-            for child in context.iter_children():
+            for child in context.iter_children(elem):
                 if follows:
                     for result in self[0].select(context):
                         yield result
@@ -731,11 +731,12 @@ def select(self, context=None):
 # Node types
 @method(function('node', nargs=0, bp=90))
 def select(self, context=None):
-    item = context.item
-    if item is None:
-        yield context.root
-    elif is_xpath_node(item):
-        yield item
+    if context is not None:
+        for item in context.iter_children(self_if_active=True):
+            if item is None:
+                yield context.root
+            elif is_xpath_node(item):
+                yield item
 
 
 @method(function('processing-instruction', nargs=(0, 1), bp=90))
@@ -752,8 +753,17 @@ def evaluate(self, context=None):
 
 @method(function('text', nargs=0, bp=90))
 def evaluate(self, context=None):
-    if context and is_text_node(context.item):
-        return context.item
+    return list(self.select(context))
+
+
+@method('text')
+def select(self, context=None):
+    if context is not None:
+        for item in context.iter_children(self_if_active=True):
+            if item is None:
+                yield context.root
+            elif is_text_node(item):
+                yield item
 
 
 ###

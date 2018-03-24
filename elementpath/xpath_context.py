@@ -67,62 +67,55 @@ class XPathContext(object):
     def active_iterator(self):
         return self._iterator
 
-    @property
-    def principal_node_kind(self):
+    def is_principal_node_kind(self):
         return self._node_kind_test(self.item)
 
     # Context item iterators
     def iter_self(self):
         status = self.item, self.size, self.position, self._iterator
         self._iterator, self._node_kind_test = self.iter_self, is_element_node
-
         yield self.item
         self.item, self.size, self.position, self._iterator = status
 
-    def iter_attributes(self):
-        if is_element_node(self.item):
-            status = self.item, self.size, self.position, self._iterator
-            self._iterator, self._node_kind_test = self.iter_self, is_attribute_node
-
-            for item in sorted(self.item.attrib.items()):
-                self.item = AttributeNode(*item)
-                yield item
-
-            self.item, self.size, self.position, self._iterator = status
-            self._node_kind_test = is_element_node
-
-    def iter(self):
-        def _iter():
-            elem = self.item
+    def iter_children(self, item=None, self_if_active=False):
+        if self_if_active and self._iterator is not None:
             yield self.item
-            if elem.text is not None:
-                self.item = elem.text
-                yield self.item
-
-            for _item in sorted(elem.attrib.items()):
-                self.item = _item
-                yield _item
-
-            if len(elem):
-                self.size = len(elem)
-                for self.position, self.item in enumerate(elem):
-                    for _item in _iter():
-                        yield _item
+            return
 
         status = self.item, self.size, self.position, self._iterator
-        self._iterator = self.iter
+        self._iterator = self.iter_children
+
+        if item is not None:
+            self.item = item
 
         if self.item is None:
             self.size, self.position = 1, 0
-            yield self.root
             self.item = self.root.getroot() if is_document_node(self.root) else self.root
-        elif not is_etree_element(self.item):
+            yield self.item
+        elif is_element_node(self.item):
+            elem = self.item
+            if elem.text is not None:
+                self.item = elem.text
+                yield self.item
+            self.size = len(elem)
+            for self.position, self.item in enumerate(elem):
+                yield self.item
+
+        self.item, self.size, self.position, self._iterator = status
+
+    def iter_attributes(self):
+        if not is_element_node(self.item):
             return
 
-        for item in _iter():
+        status = self.item, self.size, self.position, self._iterator
+        self._iterator, self._node_kind_test = self.iter_self, is_attribute_node
+
+        for item in sorted(self.item.attrib.items()):
+            self.item = AttributeNode(*item)
             yield item
 
         self.item, self.size, self.position, self._iterator = status
+        self._node_kind_test = is_element_node
 
     def iter_parent(self):
         status = self.item, self.size, self.position, self._iterator
@@ -168,28 +161,6 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self._iterator = status
 
-    def iter_children(self, item=None):
-        status = self.item, self.size, self.position, self._iterator
-        self._iterator = self.iter_children
-
-        if item is not None:
-            self.item = item
-
-        if self.item is None:
-            self.size, self.position = 1, 0
-            self.item = self.root.getroot() if is_document_node(self.root) else self.root
-            yield self.item
-        elif is_element_node(self.item):
-            elem = self.item
-            if elem.text is not None:
-                self.item = elem.text
-                yield self.item
-            self.size = len(elem)
-            for self.position, self.item in enumerate(elem):
-                yield self.item
-
-        self.item, self.size, self.position, self._iterator = status
-
     def iter_ancestors(self, item=None):
         status = self.item, self.size, self.position, self._iterator
         self._iterator = self.iter_ancestors
@@ -211,5 +182,38 @@ class XPathContext(object):
                     raise ElementPathValueError("not an Element tree, circularity found for %r." % elem)
                 self.item = parent
                 yield self.item
+
+        self.item, self.size, self.position, self._iterator = status
+
+    def iter(self):
+        def _iter():
+            elem = self.item
+            yield self.item
+            if elem.text is not None:
+                self.item = elem.text
+                yield self.item
+
+            for _item in sorted(elem.attrib.items()):
+                self.item = _item
+                yield _item
+
+            if len(elem):
+                self.size = len(elem)
+                for self.position, self.item in enumerate(elem):
+                    for _item in _iter():
+                        yield _item
+
+        status = self.item, self.size, self.position, self._iterator
+        self._iterator = self.iter
+
+        if self.item is None:
+            self.size, self.position = 1, 0
+            yield self.root
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
+        elif not is_etree_element(self.item):
+            return
+
+        for item in _iter():
+            yield item
 
         self.item, self.size, self.position, self._iterator = status

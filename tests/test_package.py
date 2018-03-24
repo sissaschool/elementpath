@@ -29,7 +29,7 @@ class PackageTest(unittest.TestCase):
         filename = None
         for line in fileinput.input(glob.glob(self.source_dir + '*.py')):
             if fileinput.isfirstline():
-                filename = fileinput.filename()
+                filename = os.path.basename(fileinput.filename())
             lineno = fileinput.filelineno()
 
             match = self.missing_debug.search(line)

@@ -20,7 +20,7 @@ Element-like objects are used for representing elements and comments, ElementTre
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
 from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathValueError
-from .xpath_helpers import is_xpath_node, is_etree_element, is_document_node, boolean_value, data_value
+from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
 from .todp_parser import Token
 
 
@@ -79,11 +79,6 @@ class XPathToken(Token):
             return u'%s treat as %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         return super(XPathToken, self).source
 
-    def is_path_step_token(self):
-        return self.label == 'axis' or self.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/',
-        }
-
     ###
     # XPath errors (https://www.w3.org/TR/xpath20/#id-errors)
     def missing_schema(self, message='parser not bound to a schema'):
@@ -127,25 +122,6 @@ class XPathToken(Token):
 
     def unknown_namespace(self, message='unknown namespace'):
         raise ElementPathNameError("%s: %s [err:XPST0081]." % (self, message))
-
-    # Helper methods
-    def boolean(self, obj):
-        """
-        The effective boolean value, as computed by fn:boolean().
-        """
-        if isinstance(obj, list):
-            if not obj:
-                return False
-            elif is_xpath_node(obj[0]):
-                return True
-            elif len(obj) > 1:
-                self.wrong_type("not a test expression")
-            else:
-                return bool(obj[0])
-        elif isinstance(obj, tuple) or is_etree_element(obj):
-            self.wrong_type("not a test expression")
-        else:
-            return bool(obj)
 
     def get_argument(self, context=None):
         if not self:
@@ -213,6 +189,8 @@ class XPathToken(Token):
         if len(results) == 1:
             res = results[0]
             if isinstance(res, tuple) or is_etree_element(res) or is_document_node(res):
+                return results
+            elif self.symbol in ('text', 'node'):
                 return results
             elif self.label in ('function', 'literal'):
                 return res

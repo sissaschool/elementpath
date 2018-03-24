@@ -140,6 +140,17 @@ class XPath2Parser(XPath1Parser):
                 comment.append(str(token.value))
         return ' '.join(comment)
 
+    def next_is_path_step_token(self):
+        return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/',
+        }
+
+    def next_is_sequence_type_token(self):
+        return self.next_token.symbol in {
+            '(name)', ':', 'empty-sequence', 'item', 'document-node', 'element', 'attribute',
+            'text', 'comment', 'processing-instruction', 'schema-attribute', 'schema-element'
+        }
+
 
 ##
 # XPath 2.0 definitions
@@ -181,18 +192,20 @@ alias('union', '|')
 
 @method(infix('intersect', bp=55))
 def select(self, context=None):
-    results = set(self[0].select(context)) & set(self[1].select(context))
-    for item in context.iter():
-        if item in results:
-            yield item
+    if context is not None:
+        results = set(self[0].select(context.copy())) & set(self[1].select(context.copy()))
+        for item in context.iter():
+            if item in results:
+                yield item
 
 
 @method(infix('except', bp=55))
 def select(self, context=None):
-    results = set(self[0].select(context)) - set(self[1].select(context))
-    for item in context.iter():
-        if item in results:
-            yield item
+    if context is not None:
+        results = set(self[0].select(context.copy())) - set(self[1].select(context.copy()))
+        for item in context.iter():
+            if item in results:
+                yield item
 
 
 ###
@@ -298,7 +311,7 @@ def select(self, context=None):
         for results in product(*selectors):
             for i in range(len(results)):
                 context.variables[self[i * 2][0].value] = results[i]
-            for result in self[-1].select(context.copy()):
+            for result in self[-1].select(context):
                 yield result
 
 
@@ -308,10 +321,8 @@ def select(self, context=None):
 @method('treat', bp=61)
 def led(self, left):
     self.parser.advance('of' if self.symbol is 'instance' else 'as')
-    self.parser.next_token.expected(
-        '(name)', ':', 'empty-sequence', 'item', 'document-node', 'element', 'attribute',
-        'text', 'comment', 'processing-instruction', 'schema-attribute', 'schema-element'
-    )
+    if not self.parser.next_is_sequence_type_token():
+        self.parser.next_token.wrong_syntax()
     self[0:1] = left, self.parser.expression(rbp=self.rbp)
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
@@ -530,26 +541,33 @@ def evaluate(self, context=None):
 ###
 # Node types
 @method(function('document-node', nargs=(0, 1), bp=90))
-def evaluate(self, context=None):
-    if context is None:
-        return
-    elif context.item is None and is_document_node(context.root):
-        if not self:
-            return context.root
-        elif is_element_node(context.root.getroot(), self[0].evaluate(context)):
-            return context.root
+def select(self, context=None):
+    if context is not None:
+        for item in context.iter_children(self_if_active=True):
+            if item is None and is_document_node(context.root):
+                if not self:
+                    yield context.root
+                elif is_element_node(context.root.getroot(), self[0].evaluate(context)):
+                    yield context.root
 
 
 @method(function('element', nargs=(0, 2), bp=90))
+def select(self, context=None):
+    if context is not None:
+        for item in context.iter_children(self_if_active=True):
+            if not self:
+                if is_element_node(item):
+                    yield item
+            else:
+                if is_element_node(item, self[1].evaluate(context.copy())):
+                    yield item
+
+
+@method('document-node')
+@method('element')
 def evaluate(self, context=None):
-    if context is None:
-        return
-    elif not self:
-        if is_element_node(context.item):
-            return context.item
-    else:
-        if is_element_node(context.item, self[1].evaluate(context)):
-            return context.item
+    return list(self.select(context))
+
 
 
 @method(function('schema-attribute', nargs=1, bp=90))
