@@ -542,7 +542,7 @@ def select(self, context=None):
 
 ###
 # Predicate filters
-@method('[', bp=95)
+@method('[', bp=75)
 def led(self, left):
     self.parser.next_token.unexpected(']')
     self[0:1] = left, self.parser.expression()
@@ -553,16 +553,16 @@ def led(self, left):
 @method('[')
 def select(self, context=None):
     if context is not None:
-        for result in self[0].select(context):
+        left_results = list(self[0].select(context))
+        context.size = len(left_results)
+        for context.position, context.item in enumerate(left_results):
             predicate = list(self[1].select(context.copy()))
             if len(predicate) == 1 and not isinstance(predicate[0], bool) and \
                     isinstance(predicate[0], (int, float)):
                 if context.position == predicate[0] - 1:
-                    context.item = result
-                    yield result
+                    yield context.item
             elif boolean_value(predicate):
-                context.item = result
-                yield result
+                yield context.item
 
 
 ###

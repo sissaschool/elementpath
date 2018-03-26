@@ -20,19 +20,15 @@ class AbstractSchemaProxy(object):
         self._schema = schema
 
     @abstractmethod
-    def cast_as(self, unary_expr, type_qname, required=True):
+    def get_type(self, type_qname):
         pass
 
     @abstractmethod
-    def is_instance(self, obj, type_qname):
+    def get_attribute(self, attribute_qname):
         pass
 
     @abstractmethod
-    def get_attribute(self, qname):
-        pass
-
-    @abstractmethod
-    def get_element(self, qname):
+    def get_element(self, element_qname):
         """
         Get the XSD element from the schema's scope.
 
@@ -41,7 +37,11 @@ class AbstractSchemaProxy(object):
         """
 
     @abstractmethod
-    def get_type(self, qname):
+    def is_instance(self, obj, type_qname):
+        pass
+
+    @abstractmethod
+    def cast_as(self, obj, type_qname):
         pass
 
 
@@ -51,33 +51,34 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     Library ref:https://github.com/brunato/xmlschema
     """
-    def get_type(self, qname):
+    def get_type(self, type_qname):
         try:
-            return
+            return self._schema.maps.types[type_qname]
         except KeyError:
             return None
 
-    def get_attribute(self, qname):
+    def get_attribute(self, attribute_qname):
         try:
-            return self._schema.maps.attributes[qname]
+            return self._schema.maps.attributes[attribute_qname]
         except KeyError:
             return None
 
-    def get_element(self, qname):
+    def get_element(self, element_qname):
         try:
-            return self._schema.maps.elements[qname]
+            return self._schema.maps.elements[element_qname]
         except KeyError:
             return None
 
-    def get_substitution_group(self, qname):
+    def get_substitution_group(self, element_qname):
         try:
-            return self._schema.maps.substitution_groups[qname]
+            return self._schema.maps.substitution_groups[element_qname]
         except KeyError:
             return None
-
-    def cast_as(self, unary_expr, type_qname, required=True):
-        pass
 
     def is_instance(self, obj, type_qname):
         xsd_type = self._schema.maps.types[type_qname]
         return xsd_type.is_valid(obj)
+
+    def cast_as(self, obj, type_qname):
+        xsd_type = self._schema.maps.types[type_qname]
+        return xsd_type.decode(obj)

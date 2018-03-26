@@ -406,25 +406,50 @@ def evaluate(self, context=None):
 @method('castable', bp=62)
 @method('cast', bp=63)
 def led(self, left):
-    self.parser.advance('of')
+    self.parser.advance('as')
     self[0:1] = left, self.parser.expression(rbp=self.rbp)
     if self.parser.next_token.symbol == '?':
-        self[3:] = '?',
-        self.advance()
+        self[3:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
+        self.parser.advance()
     return self
 
 
-@method('castable', bp=62)
-@method('cast', bp=63)
+@method('castable')
+@method('cast')
 def evaluate(self, context=None):
     if self.parser.schema is None:
         self.missing_schema()
-    unary_expr = self.atomize(self[0].evaluate(context))
-    if unary_expr in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
+    atomic_type = prefixed_to_qname(self[1].source, namespaces=self.parser.namespaces)
+    if atomic_type in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
         self.wrong_type("target type cannot be xs:NOTATION or xs:anyAtomicType [err:XPST0080]")
-    type_qname = self[1].evaluate(context)
-    required = len(self) <= 2
-    return self.parser.schema.cast_as(unary_expr, type_qname, required)
+
+    result = [data_value(res) for res in self[0].select(context)]
+    if len(result) > 1:
+        if self.symbol != 'cast':
+            return False
+        self.wrong_context_type("more than one value in expression")
+    elif not result:
+        if len(self) == 3:
+            return [] if self.symbol == 'cast' else True
+        elif self.symbol != 'cast':
+            return False
+        else:
+            self.wrong_value("atomic value is required")
+
+    try:
+        value = self.parser.schema.cast_as(result[0], atomic_type)
+    except KeyError:
+        self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
+    except TypeError as err:
+        if self.symbol != 'cast':
+            return False
+        self.wrong_type(str(err))
+    except ValueError as err:
+        if self.symbol != 'cast':
+            return False
+        self.wrong_value(str(err))
+    else:
+        return value if self.symbol == 'cast' else True
 
 
 ###
@@ -444,7 +469,7 @@ def evaluate(self, context=None):
 @method(',')
 def select(self, context=None):
     for op in self:
-        for result in op.select(context):
+        for result in op.select(context.copy() if context else None):
             yield result
 
 
@@ -531,7 +556,7 @@ def evaluate(self, context=None):
     else:
         if left[0] is right[0]:
             return False
-        for item in context.iter():
+        for item in context.root.iter():
             if left[0] is item:
                 return True if symbol == '<<' else False
             elif right[0] is item:
@@ -744,12 +769,15 @@ def select(self, context=None):
     nan = False
     results = []
     for item in self[0].select(context):
-        if not nan and isinstance(item, float) and math.isnan(item):
-            yield item
+        value = data_value(item)
+        if context is not None:
+            context.item = value
+        if not nan and isinstance(value, float) and math.isnan(value):
+            yield value
             nan = True
-        elif all(item != res for res in results):
-            yield item
-            results.append(item)
+        elif value not in results:
+            yield value
+            results.append(value)
 
 
 @method(function('insert-before', nargs=3, bp=90))

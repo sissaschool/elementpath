@@ -166,7 +166,7 @@ class XPath1ParserTest(unittest.TestCase):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.select, context)
         elif not callable(expected):
-            self.assertEqual(list(root_token.select(context))   , expected)
+            self.assertEqual(list(root_token.select(context)), expected)
         else:
             self.assertTrue(expected(list(root_token.parse(path).select(context))))
 
@@ -281,7 +281,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree('(1 + 2) * 3', '(* (+ (1) (2)) (3))')
         self.check_tree("false() and true()", '(and (false) (true))')
         self.check_tree("false() or true()", '(or (false) (true))')
-        self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
+        self.check_tree("./A/B[C][D]/E", '(/ ([ ([ (/ (/ (.) (A)) (B)) (C)) (D)) (E))')
         self.check_tree("string(xml:lang)", '(string (: (xml) (lang)))')
 
     def test_token_source(self):
@@ -347,7 +347,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select("self::processing-instruction()", [pi], context)
         context.item = text
         self.check_select("self::node()", [text], context)
-        self.check_select("text()", [], context) # Selects the children
+        self.check_select("text()", [], context)  # Selects the children
         self.check_selector("node()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
         self.check_selector("text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
         self.check_selector("//self::text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
@@ -785,7 +785,7 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_for_expressions(self):
         # Cases from XPath 2.0 examples
         context = XPathContext(root=self.etree.XML('<dummy/>'))
-        # self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
+        self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
 
         root = self.etree.XML(
             """
@@ -797,7 +797,7 @@ class XPath2ParserTest(XPath1ParserTest):
                 </book>
                 <book>
                     <title>Advanced Programming in the Unix Environment</title>
-                    <author>Stevens</author>"
+                    <author>Stevens</author>
                     <publisher>Addison-Wesley</publisher>
                 </book>
                 <book>
@@ -809,12 +809,27 @@ class XPath2ParserTest(XPath1ParserTest):
             </bib>
             """)
 
-        # self.check_selector("for $a in fn:distinct-values(book/author) "
-        #                    "return book/author""", root, [None])  # FIXME
-        #self.check_selector("author[1]", root[0], [None])
+        # Test step-by-step, testing also other basic features.
+        self.check_selector("author[1]", root[0], [root[0][1]])
+        self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
+        self.check_tree("book/author[. = $a][1]", '([ ([ (/ (book) (author)) (= (.) ($ (a)))) (1))')
+        self.check_selector("book/author[. = $a][1]", root, [root[0][1]], variables={'a': 'Stevens'})
+        self.check_selector("book/author[. = 'Stevens'][2]", root, [root[1][1]])
 
-        #self.check_selector("for $a in fn:distinct-values(book/author) "
-        #                    "return (book/author[. = $a][1], book[author = $a]/title)""", root, [])  # FIXME
+        self.check_selector("for $a in fn:distinct-values(book/author) return $a",
+                            root, ['Stevens', 'Abiteboul', 'Buneman', 'Suciu'])
+
+        self.check_selector("for $a in fn:distinct-values(book/author) "
+                            "return book/author[. = $a]", root, [root[0][1], root[1][1]] + root[2][1:4])
+
+        self.check_selector("for $a in fn:distinct-values(book/author) "
+                            "return book/author[. = $a][1]", root, [root[0][1]] + root[2][1:4])
+        self.check_selector(
+            "for $a in fn:distinct-values(book/author) "
+            "return (book/author[. = $a][1], book[author = $a]/title)", root,
+            [root[0][1], root[0][0], root[1][0], root[2][1], root[2][0], root[2][2], root[2][0],
+             root[2][3], root[2][0]]
+        )
 
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
@@ -1075,7 +1090,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("5 instance of empty-sequence()", False)
         self.check_value("() instance of empty-sequence()", True)
 
-    @unittest.skipIf(False, "The xmlschema library is not installed.")
+    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
     def test_treat_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
@@ -1092,6 +1107,24 @@ class XPath2ParserTest(XPath1ParserTest):
 
         self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
         self.check_value("() treat as empty-sequence()", [])
+
+    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
+    def test_castable_expression(self):
+        self.check_value("5 castable as xs:integer", True)
+        self.check_value("'5' castable as xs:integer", True)
+        self.check_value("'hello' castable as xs:integer", False)
+        self.check_value("('5', '6') castable as xs:integer", False)
+        self.check_value("() castable as xs:integer", False)
+        self.check_value("() castable as xs:integer?", True)
+
+    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
+    def test_cast_expression(self):
+        self.check_value("5 cast as xs:integer", 5)
+        self.check_value("'5' cast as xs:integer", 5)
+        self.check_value("'hello' cast as xs:integer", ElementPathValueError)
+        self.check_value("('5', '6') cast as xs:integer", ElementPathTypeError)
+        self.check_value("() cast as xs:integer", ElementPathValueError)
+        self.check_value("() cast as xs:integer?", [])
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):

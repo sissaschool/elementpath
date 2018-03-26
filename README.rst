@@ -81,13 +81,6 @@ If you like you can use the basic parser and tokens provided by the *todp_parser
 implement other types of parsers (I think it could be also a funny exercise!).
 
 
-TODO
-----
-
-* Implement XPath 2.0 XML Schema interface (to be tested with the
-`xmlschema library <http://github.com/brunato/xmlschema>`_)
-* Add other XPath 2.0 functions
-
 License
 -------
 This software is distributed under the terms of the MIT License.

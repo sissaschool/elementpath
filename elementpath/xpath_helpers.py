@@ -34,7 +34,7 @@ def elem_iter_strings(elem):
     for e in elem.iter():
         if e.text is not None:
             yield e.text
-        if e.tail is not None:
+        if e.tail is not None and e is not elem:
             yield e.tail
 
 
@@ -48,8 +48,6 @@ def elem_iter_strings(elem):
 # Element-like objects are used for representing elements and comments, ElementTree-like objects
 # for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 ###
-
-
 AttributeNode = namedtuple('Attribute', 'name value')
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
 
