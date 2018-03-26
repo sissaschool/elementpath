@@ -14,10 +14,11 @@ from itertools import product
 
 from .exceptions import ElementPathTypeError
 from .namespaces import (
-    XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, prefixed_to_qname
+    XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
+    qname_to_prefixed, prefixed_to_qname
 )
 from .xpath_helpers import (
-    is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
+    PY3, is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
     node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value,
     data_value, string_value
 )
@@ -34,9 +35,11 @@ class XPath2Parser(XPath1Parser):
     :param default_namespace: The default namespace to apply to unprefixed names. \
     For default no namespace is applied (empty namespace '').
     :param function_namespace: The default namespace to apply to unprefixed function names. \
-    For default no namespace is applied (empty namespace '').
+    For default the namespace "http://www.w3.org/2005/xpath-functions" is used.
     :param schema: The schema proxy instance to use for types, attributes and elements lookups. \
     If it's not provided the XPath 2.0 schema's related expressions cannot be used.
+    :param build_constructors: If set to `True` the parser instance adds constructor functions
+    for the in-schema XSD atomic types.
     :param compatibility_mode: If set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
@@ -82,18 +85,28 @@ class XPath2Parser(XPath1Parser):
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
     def __init__(self, namespaces=None, variables=None, default_namespace='', function_namespace=None,
-                 schema=None, compatibility_mode=False):
+                 schema=None, build_constructors=False, compatibility_mode=False):
         super(XPath2Parser, self).__init__(namespaces, variables)
-        self.default_namespace = default_namespace
+        if '' not in self.namespaces and default_namespace:
+            self.namespaces[''] = default_namespace
 
         if function_namespace is None:
             self.function_namespace = XPATH_FUNCTIONS_NAMESPACE
         else:
             self.function_namespace = function_namespace
 
-        if schema is not None and not isinstance(schema, AbstractSchemaProxy):
-            raise ElementPathTypeError("schema argument must be a subclass of AbstractSchemaProxy!")
         self.schema = schema
+        if schema is not None:
+            if not isinstance(schema, AbstractSchemaProxy):
+                raise ElementPathTypeError("schema argument must be a subclass of AbstractSchemaProxy!")
+            elif build_constructors:
+                for xsd_type in schema.iter_atomic_types():
+                    if xsd_type.name not in (XSD_ANY_ATOMIC_TYPE, XSD_NOTATION):
+                        symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
+                        if symbol not in self.symbol_table:
+                            self.atomic_type(symbol, xsd_type.name)
+                        self.end()
+
         if compatibility_mode is False:
             self.compatibility_mode = False
 
@@ -139,6 +152,16 @@ class XPath2Parser(XPath1Parser):
             else:
                 comment.append(str(token.value))
         return ' '.join(comment)
+
+    def atomic_type(self, symbol, type_qname):
+        """
+        Create a XSD type constructor function for parser instance.
+        """
+        def evaluate_(self, context=None):
+            return self.parser.schema.cast_as(self[0].evaluate(context), type_qname)
+
+        token_class = self.function(symbol, nargs=1, bp=90)
+        token_class.evaluate = evaluate_
 
     def next_is_path_step_token(self):
         return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
@@ -187,7 +210,13 @@ register(':)')
 
 ###
 # Node sequence composition
-alias('union', '|')
+@method(infix('union', bp=50))
+def select(self, context=None):
+    if context is not None:
+        results = {item for k in range(2) for item in self[k].select(context.copy())}
+        for item in context.iter():
+            if item in results:
+                yield item
 
 
 @method(infix('intersect', bp=55))
@@ -716,7 +745,13 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
-        value = round(decimal.Decimal(item), 0 if len(self) < 2 else self[1].evaluate(context))
+        precision = 0 if len(self) < 2 else self[1].evaluate(context)
+        if PY3 or precision < 0:
+            value = round(decimal.Decimal(item), precision)
+        else:
+            number = decimal.Decimal(item)
+            exp = decimal.Decimal('1' if not precision else '.%s1' % ('0' * (precision -1)))
+            value = float(number.quantize(exp, rounding='ROUND_HALF_EVEN'))
     except TypeError as err:
         if item is not None and not isinstance(item, list):
             self.wrong_type(str(err))

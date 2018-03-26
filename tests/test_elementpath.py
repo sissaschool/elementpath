@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import sys
 import io
 import math
 from decimal import Decimal
@@ -86,8 +87,11 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(int(UntypedAtomic(25.1)), 25)
         self.assertEqual(float(UntypedAtomic(25.1)), 25.1)
         self.assertEqual(bool(UntypedAtomic(True)), True)
-        self.assertEqual(str(UntypedAtomic('Joan Miró')), u'Joan Miró')
-        self.assertEqual(bytes(UntypedAtomic('Joan Miró')), b'Joan Mir\xc3\xb3')
+        if sys.version_info >= (3,):
+            self.assertEqual(str(UntypedAtomic(u'Joan Miró')), u'Joan Miró')
+        else:
+            self.assertEqual(unicode(UntypedAtomic(u'Joan Miró')), u'Joan Miró')
+        self.assertEqual(bytes(UntypedAtomic(u'Joan Miró')), b'Joan Mir\xc3\xb3')
 
     def test_numerical_operators(self):
         self.assertEqual(0.25 * UntypedAtomic(1000), 250)
@@ -385,6 +389,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("local-name(.)", root, 'A')
         self.check_selector("namespace-uri(.)", root, 'http://xpath.test/ns')
         self.check_selector("name(tst:B1)", root, 'tst:B1', namespaces={'tst': "http://xpath.test/ns"})
+        self.check_selector("name(tst:B1)", root, 'tst:B1', namespaces={'tst': "http://xpath.test/ns", '': ''})
 
     def test_string_functions(self):
         self.check_value("string(10.0)", '10.0')
@@ -666,23 +671,44 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B2 | /A/*', root, root[:])
 
 
-class XPath2ParserTest(XPath1ParserTest):
-
-    if xmlschema:
-        schema = XMLSchemaProxy(
-            schema=xmlschema.XMLSchema('''
-            <!-- Dummy schema, only for tests -->
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
-            <xs:element name="test_element" type="xs:string"/>
-            <xs:attribute name="test_attribute" type="xs:string"/>
-            </xs:schema>''')
-        )
-    else:
-        schema = None
+class LxmlXPath1ParserTest(XPath1ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
+        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables)
+        cls.etree = lxml.etree
+
+    def check_selector(self, path, root, expected, namespaces=None, **kwargs):
+        """Check using the selector API (the *select* function of the package)."""
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, select, root, path, namespaces, self.parser.__class__, **kwargs)
+        else:
+            results = select(root, path, namespaces, self.parser.__class__, **kwargs)
+            variables = kwargs.get('variables', {})
+            if namespaces is None:
+                lxml_namespaces = None
+            elif isinstance(namespaces, list):
+                lxml_namespaces = {k: v for k, v in namespaces if k}
+            else:
+                lxml_namespaces = {k: v for k, v in namespaces.items() if k}
+
+            if isinstance(expected, set):
+                self.assertEqual(set(root.xpath(path, namespaces=lxml_namespaces, **variables)), expected)
+                self.assertEqual(set(results), expected)
+            elif not callable(expected):
+                self.assertEqual(root.xpath(path, namespaces=lxml_namespaces, **variables), expected)
+                self.assertEqual(results, expected)
+            elif isinstance(expected, type):
+                self.assertTrue(isinstance(results, expected))
+            else:
+                self.assertTrue(expected(results))
+
+
+class XPath2ParserTest(XPath1ParserTest):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
         cls.etree = ElementTree
 
     def test_xpath_tokenizer2(self):
@@ -1055,7 +1081,37 @@ class XPath2ParserTest(XPath1ParserTest):
             root, ElementPathTypeError
         )
 
-    @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
+
+class LxmlXPath2ParserTest(XPath2ParserTest):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
+        cls.etree = lxml.etree
+
+
+@unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
+class XPath2ParserXMLSchemaTest(XPath2ParserTest):
+
+    if xmlschema:
+        schema = XMLSchemaProxy(
+            schema=xmlschema.XMLSchema('''
+            <!-- Dummy schema, only for tests -->
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
+            <xs:element name="test_element" type="xs:string"/>
+            <xs:attribute name="test_attribute" type="xs:string"/>
+            </xs:schema>''')
+        )
+    else:
+        schema = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath2Parser(
+            namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables, build_constructors=True
+        )
+        cls.etree = ElementTree
+
     def test_xmlschema_proxy(self):
         context = XPathContext(root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>'))
 
@@ -1108,7 +1164,6 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
         self.check_value("() treat as empty-sequence()", [])
 
-    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
     def test_castable_expression(self):
         self.check_value("5 castable as xs:integer", True)
         self.check_value("'5' castable as xs:integer", True)
@@ -1117,7 +1172,6 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("() castable as xs:integer", False)
         self.check_value("() castable as xs:integer?", True)
 
-    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
     def test_cast_expression(self):
         self.check_value("5 cast as xs:integer", 5)
         self.check_value("'5' cast as xs:integer", 5)
@@ -1126,38 +1180,18 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("() cast as xs:integer", ElementPathValueError)
         self.check_value("() cast as xs:integer?", [])
 
-
-class LxmlXPath1ParserTest(XPath1ParserTest):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables)
-        cls.etree = lxml.etree
-
-    def check_selector(self, path, root, expected, namespaces=None, **kwargs):
-        """Check using the selector API (the *select* function of the package)."""
-        if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, select, root, path, namespaces, self.parser.__class__, **kwargs)
-        else:
-            results = select(root, path, namespaces, self.parser.__class__, **kwargs)
-            variables = kwargs.get('variables', {})
-            if isinstance(expected, set):
-                self.assertEqual(set(root.xpath(path, namespaces=namespaces, **variables)), expected)
-                self.assertEqual(set(results), expected)
-            elif not callable(expected):
-                self.assertEqual(root.xpath(path, namespaces=namespaces, **variables), expected)
-                self.assertEqual(results, expected)
-            elif isinstance(expected, type):
-                self.assertTrue(isinstance(results, expected))
-            else:
-                self.assertTrue(expected(results))
+    def test_atomic_constructors(self):
+        self.check_value("xs:integer('5')", 5)
+        self.check_value("xs:string(5.0)", '5.0')
 
 
-class LxmlXPath2ParserTest(XPath2ParserTest):
+class LxmlXPath2ParserXMLSchemaTest(XPath2ParserXMLSchemaTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
+        cls.parser = XPath2Parser(
+            namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables, build_constructors=True
+        )
         cls.etree = lxml.etree
 
 

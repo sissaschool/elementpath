@@ -36,14 +36,19 @@ Public API
 
 .. py:class:: XPath1Parser(namespaces=None)
 
-    The XPath 1.0 parser, that also provides the static context for the expressions. Provide a
-    *namespaces* dictionary argument for mapping namespace prefixes to URI inside expressions.
+    The XPath 1.0 parser. Provide a *namespaces* dictionary argument for mapping namespace prefixes
+    to URI inside expressions.
 
 .. py:class:: XPath2Parser(namespaces=None, schema=None, compatibility_mode=False)
 
-    The XPath 1.0 parser, that is the default parser. Two additional arguments can be provided.
+    The XPath 2.0 parser, that is the default parser. The dictionary argument *namespace* is used
+    for mapping namespace prefixes to URI inside expressions. *default_namespace* is the namespace
+    to apply to unprefixed names. For default no namespace is applied (empty namespace '').
+    *function_namespace* is the default namespace to apply to unprefixed function names (the
+    "http://www.w3.org/2005/xpath-functions" namespace for default).
     *schema* is an optional instance of an XML Schema interface as defined by the abstract class
     `AbstractSchemaProxy`.
+    *build_constructors* indicates when to define constructor functions for the in-scope XSD atomic types.
     The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
     with XPath 1.0.
 

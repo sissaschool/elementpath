@@ -18,6 +18,7 @@ _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
 XPATH_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions"
 XQT_ERRORS_NAMESPACE = "http://www.w3.org/2005/xqt-errors"
 
@@ -26,6 +27,7 @@ XPATH_1_DEFAULT_NAMESPACES = {'xml': XML_NAMESPACE}
 XPATH_2_DEFAULT_NAMESPACES = {
     'xml': XML_NAMESPACE,
     'xs': XSD_NAMESPACE,
+    'xlink': XLINK_NAMESPACE,
     'fn': XPATH_FUNCTIONS_NAMESPACE,
     'err': XQT_ERRORS_NAMESPACE
 }

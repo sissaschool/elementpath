@@ -19,7 +19,7 @@ from .namespaces import (
 )
 from .xpath_token import XPathToken
 from .xpath_helpers import (
-    NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
+    PY3, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
     is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node,
     node_name, node_string_value, boolean_value, data_value, string_value
 )
@@ -1032,8 +1032,10 @@ def evaluate(self, context=None):
         number = decimal.Decimal(item)
         if number > 0:
             return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
-        else:
+        elif PY3:
             return float(round(number))
+        else:
+            return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
         if item is not None and not isinstance(item, list):
             self.wrong_type(str(err))

@@ -21,7 +21,7 @@ from .namespaces import (
 )
 
 
-PY3 = sys.version_info > (2,)
+PY3 = sys.version_info >= (3,)
 
 
 ###
@@ -362,17 +362,8 @@ class UntypedAtomic(object):
     def __int__(self):
         return int(self.value)
 
-    def __str__(self):
-        return str(self.value)
-
     def __float__(self):
         return float(self.value)
-
-    def __bytes__(self):
-        return bytes(self.value, encoding='utf-8')
-
-    def __unicode__(self):
-        return unicode(self.value)
 
     def __bool__(self):
         return bool(self.value)
@@ -381,4 +372,30 @@ class UntypedAtomic(object):
         return abs(self.value)
 
     if PY3:
-        __unicode__ = __str__
+        def __str__(self):
+            return str(self.value)
+
+        def __bytes__(self):
+            return bytes(self.value, encoding='utf-8')
+
+    else:
+        def __unicode__(self):
+            return unicode(self.value)
+
+        def __str__(self):
+            try:
+                return str(self.value)
+            except UnicodeEncodeError:
+                return self.value.encode('utf-8')
+
+        def __bytes__(self):
+            return self.value.encode('utf-8')
+
+        def __div__(self, other):
+            return operator.truediv(*self._get_operands(other))
+
+        def __rdiv__(self, other):
+            return operator.truediv(*reversed(self._get_operands(other)))
+
+        def __long__(self):
+            return int(self.value)

@@ -21,28 +21,52 @@ class AbstractSchemaProxy(object):
 
     @abstractmethod
     def get_type(self, type_qname):
-        pass
+        """
+        Get the XSD global type from the schema's scope.
+
+        :param type_qname: The QName of the type to retrieve.
+        :returns: The XSD Element or `None` if it isn't found.
+        """
 
     @abstractmethod
     def get_attribute(self, attribute_qname):
-        pass
+        """
+        Get the XSD global attribute from the schema's scope.
+
+        :param attribute_qname: The QName of the attribute to retrieve.
+        :returns: The XSD Element or `None` if it isn't found.
+        """
 
     @abstractmethod
     def get_element(self, element_qname):
         """
-        Get the XSD element from the schema's scope.
+        Get the XSD global element from the schema's scope.
 
-        :param qname: The QName of the element to retrieve.
+        :param element_qname: The QName of the element to retrieve.
         :returns: The XSD Element or `None` if it isn't found.
         """
 
     @abstractmethod
     def is_instance(self, obj, type_qname):
-        pass
+        """
+        Returns `True` if *obj* is an instance of the XSD global type, `False` if not.
+
+        :param obj: The instance to be tested.
+        :param type_qname: The QName of the type to test the instance.
+        """
 
     @abstractmethod
     def cast_as(self, obj, type_qname):
-        pass
+        """
+        Cast *obj* to the base type defined by XSD global type. Raise a ValueError or TypeError if the .
+
+        :param obj: The instance to be casted.
+        :param type_qname: The QName of the type to cast the instance.
+        """
+
+    @abstractmethod
+    def iter_atomic_types(self):
+        """Iterate over the XSD atomic types defined in the schema's scope."""
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
@@ -82,3 +106,9 @@ class XMLSchemaProxy(AbstractSchemaProxy):
     def cast_as(self, obj, type_qname):
         xsd_type = self._schema.maps.types[type_qname]
         return xsd_type.decode(obj)
+
+    def iter_atomic_types(self):
+        for xsd_type in self._schema.maps.types.values():
+            if xsd_type.is_simple() and not hasattr(xsd_type, 'item_type') and \
+                    not hasattr(xsd_type, 'member_type'):
+                yield xsd_type
