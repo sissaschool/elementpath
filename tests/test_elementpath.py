@@ -639,7 +639,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/root/a/attribute::*', root, ['1', '2'])
         if self.parser.version > '1.0':
             # Functions are not allowed after path step in XPath 1.0
-            # self.check_selector('/root/a/attribute()', root, ['1', '2'])
+            self.check_selector('/root/a/attribute()', root, ['1', '2'])
             self.check_selector('/root/a/element()', root, [root[0][0]])
             self.check_selector('/root/a/name()', root, ['a', 'a'])
             self.check_selector('/root/a/last()', root, [2, 2])
@@ -938,16 +938,15 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_node_and_item_accessors(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
+        element.attrib.update([('id', '0212349350')])
         context = XPathContext(root=document)
         self.check_select("document-node()", [], context)
         self.check_select("self::document-node()", [document], context)
         self.check_selector("self::document-node(A)", document, [document])
         context = XPathContext(root=element)
         self.check_select("self::element()", [element], context)
-        context.item = attribute
-        self.check_select("self::node()", [attribute], context)
-        self.check_select("self::attribute()", [attribute], context)
+        self.check_select("self::node()", [element], context)
+        self.check_select("self::attribute()", ['0212349350'], context)
 
         context.item = 7
         self.check_select("item()", [7], context)
@@ -1058,7 +1057,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("schema-attribute(xml:lang)", context.item, context)
         self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
 
-    @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
+    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
     def test_instance_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
@@ -1076,7 +1075,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("5 instance of empty-sequence()", False)
         self.check_value("() instance of empty-sequence()", True)
 
-    @unittest.skipIf(xmlschema is None, "Skip if xmlschema library is not available.")
+    @unittest.skipIf(False, "The xmlschema library is not installed.")
     def test_treat_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)

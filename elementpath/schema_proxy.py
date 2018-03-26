@@ -24,7 +24,7 @@ class AbstractSchemaProxy(object):
         pass
 
     @abstractmethod
-    def is_instance(self, treat_expr, item_type, occurs=None):
+    def is_instance(self, obj, type_qname):
         pass
 
     @abstractmethod
@@ -78,18 +78,6 @@ class XMLSchemaProxy(AbstractSchemaProxy):
     def cast_as(self, unary_expr, type_qname, required=True):
         pass
 
-    def is_instance(self, treat_expr, item_type, occurs=None):
-        xsd_type = self._schema.maps.types[item_type]
-        if isinstance(treat_expr, list):
-            if not all(xsd_type.is_valid(item) for item in treat_expr):
-                return False
-            elif occurs == '?':
-                return len(treat_expr) <= 1
-            elif occurs == '*':
-                return True
-            elif occurs == '+':
-                return len(treat_expr) >= 1
-            else:
-                return len(treat_expr) == 1
-        else:
-            return xsd_type.is_valid(treat_expr)
+    def is_instance(self, obj, type_qname):
+        xsd_type = self._schema.maps.types[type_qname]
+        return xsd_type.is_valid(obj)

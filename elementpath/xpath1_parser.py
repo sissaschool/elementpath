@@ -306,7 +306,13 @@ def evaluate(self, context=None):
 # Nullary operators (use only the context)
 @method(nullary('*'))
 def select(self, context=None):
-    if not self:
+    if self:
+        # Product operator
+        item = self.evaluate(context)
+        if context is not None:
+            context.item = item
+        yield item
+    elif context is not None:
         # Wildcard literal
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
@@ -314,17 +320,13 @@ def select(self, context=None):
                     yield item[1]
                 else:
                     yield item
-    else:
-        # Product operator
-        item = self.evaluate(context)
-        if context is not None:
-            context.item = item
-        yield item
 
 
 @method(nullary('.'))
 def select(self, context=None):
-    if context.item is not None:
+    if context is None:
+        return
+    elif context.item is not None:
         yield context.item
     elif is_document_node(context.root):
         yield context.root
@@ -332,14 +334,15 @@ def select(self, context=None):
 
 @method(nullary('..'))
 def select(self, context=None):
-    try:
-        parent = context.parent_map[context.item]
-    except KeyError:
-        pass
-    else:
-        if is_element_node(parent):
-            context.item = parent
-            yield parent
+    if context is not None:
+        try:
+            parent = context.parent_map[context.item]
+        except KeyError:
+            pass
+        else:
+            if is_element_node(parent):
+                context.item = parent
+                yield parent
 
 
 ###
@@ -477,7 +480,7 @@ def select(self, context=None):
     """
     if context is None:
         return
-    if not self:
+    elif not self:
         if is_document_node(context.root):
             yield context.root
     elif len(self) == 1:
@@ -768,11 +771,6 @@ def evaluate(self, context=None):
 
 
 @method(function('text', nargs=0, bp=90))
-def evaluate(self, context=None):
-    return list(self.select(context))
-
-
-@method('text')
 def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():
@@ -805,19 +803,15 @@ def evaluate(self, context=None):
         return 0
 
 
-@method('count')
-def select(self, context=None):
-    yield len(list(self[0].select(context)))
-
-
 @method(function('id', nargs=1, bp=90))
 def select(self, context=None):
-    value = self[0].evaluate(context)
-    item = context.item
-    if is_element_node(item):
-        for elem in item.iter():
-            if elem.get(XML_ID_QNAME) == value:
-                yield elem
+    if context is not None:
+        value = self[0].evaluate(context)
+        item = context.item
+        if is_element_node(item):
+            for elem in item.iter():
+                if elem.get(XML_ID_QNAME) == value:
+                    yield elem
 
 
 @method(function('name', nargs=(0, 1), bp=90))

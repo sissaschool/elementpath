@@ -303,11 +303,6 @@ def nud(self):
 
 
 @method('for')
-def evaluate(self, context=None):
-    return list(self.select(context))
-
-
-@method('for')
 def select(self, context=None):
     if context is not None:
         selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
@@ -338,39 +333,71 @@ def led(self, left):
 def evaluate(self, context=None):
     if self.parser.schema is None:
         self.missing_schema()
-    treat_expr = list(self[0].select(context))
+    occurs = self[2].symbol if len(self) > 2 else None
+    position = None
     if self[1].symbol == 'empty-sequence':
-        return treat_expr == []
+        for _ in self[0].select(context):
+            return False
+        return True
     elif self[1].label == 'function':
-        return self[1].evaluate(context) is not None
+        for position, item in enumerate(self[0].select(context)):
+            if self[1].evaluate(context) is None:
+                return False
+            elif position and (occurs is None or occurs == '?'):
+                return False
+        else:
+            return position is not None or occurs in ('*', '?')
     else:
-        occurs = self[2].symbol if len(self) > 2 else None
         qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
-        try:
-            return self.parser.schema.is_instance(treat_expr, qname, occurs)
-        except KeyError:
-            self.missing_name("type %r not found in schema" % self[1].source)
+        for position, item in enumerate(self[0].select(context)):
+            try:
+                if not self.parser.schema.is_instance(item, qname):
+                    return False
+            except KeyError:
+                self.missing_name("type %r not found in schema" % self[1].source)
+            else:
+                if position and (occurs is None or occurs == '?'):
+                    return False
+        else:
+            return position is not None or occurs in ('*', '?')
 
 
 @method('treat')
 def evaluate(self, context=None):
     if self.parser.schema is None:
         self.missing_schema()
-    castable_expr = list(self[0].select(context))
+    occurs = self[2].symbol if len(self) > 2 else None
+    position = None
+    castable_expr = []
     if self[1].symbol == 'empty-sequence':
-        if castable_expr:
+        for _ in self[0].select(context):
             self.wrong_sequence_type()
     elif self[1].label == 'function':
-        if self[1].evaluate(context) is None:
-            self.wrong_sequence_type()
-    else:
-        occurs = self[2].symbol if len(self) > 2 else None
-        qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
-        try:
-            if self.parser.schema.is_instance(castable_expr, qname, occurs) is False:
+        for position, item in enumerate(self[0].select(context)):
+            if self[1].evaluate(context) is None:
                 self.wrong_sequence_type()
-        except KeyError:
-            self.missing_name("type %r not found in schema" % self[1].source)
+            elif position and (occurs is None or occurs == '?'):
+                self.wrong_sequence_type("more than one item in sequence")
+            castable_expr.append(item)
+        else:
+            if position is None and occurs not in ('*', '?'):
+                self.wrong_sequence_type("the sequence cannot be empty")
+    else:
+        qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
+        for position, item in enumerate(self[0].select(context)):
+            try:
+                if not self.parser.schema.is_instance(item, qname):
+                    self.wrong_sequence_type("item %r is not of type %r" % (item, self[1].source))
+            except KeyError:
+                self.missing_name("type %r not found in schema" % self[1].source)
+            else:
+                if position and (occurs is None or occurs == '?'):
+                    self.wrong_sequence_type("more than one item in sequence")
+                castable_expr.append(item)
+        else:
+            if position is None and occurs not in ('*', '?'):
+                self.wrong_sequence_type("the sequence cannot be empty")
+
     return castable_expr
 
 
@@ -441,10 +468,10 @@ def evaluate(self, context=None):
 
 @method('(')
 def select(self, context=None):
-    if not self:
-        return iter(())
-    else:
+    if self:
         return self[0].select(context)
+    else:
+        return iter(())
 
 
 ###
@@ -544,33 +571,23 @@ def evaluate(self, context=None):
 ###
 # Node types
 @method(function('document-node', nargs=(0, 1), bp=90))
-def select(self, context=None):
+def evaluate(self, context=None):
     if context is not None:
-        for item in context.iter_children_or_self():
-            if item is None and is_document_node(context.root):
-                if not self:
-                    yield context.root
-                elif is_element_node(context.root.getroot(), self[0].evaluate(context)):
-                    yield context.root
+        if context.item is None and is_document_node(context.root):
+            if not self:
+                return context.root
+            elif is_element_node(context.root.getroot(), self[0].evaluate(context)):
+                return context.root
 
 
 @method(function('element', nargs=(0, 2), bp=90))
-def select(self, context=None):
-    if context is not None:
-        for item in context.iter_children_or_self():
-            if not self:
-                if is_element_node(item):
-                    yield item
-            else:
-                if is_element_node(item, self[1].evaluate(context.copy())):
-                    yield item
-
-
-@method('document-node')
-@method('element')
 def evaluate(self, context=None):
-    return list(self.select(context))
-
+    if context is not None:
+        if not self:
+            if is_element_node(context.item):
+                return context.item
+        elif is_element_node(context.item, self[1].evaluate(context)):
+            return context.item
 
 
 @method(function('schema-attribute', nargs=1, bp=90))
@@ -581,7 +598,7 @@ def evaluate(self, context=None):
         self.missing_name("attribute %r not found in schema" % attribute_name)
 
     if context is not None:
-        if is_attribute_node(context.item) and context.item[0] == qname:
+        if is_attribute_node(context.item, qname):
             return context.item
 
 
@@ -600,10 +617,22 @@ def evaluate(self, context=None):
 
 @method(function('empty-sequence', nargs=0, bp=90))
 def evaluate(self, context=None):
-    if context is None:
-        return
-    else:
+    if context is not None:
         return isinstance(context.item, list) and not context.item
+
+
+
+@method('document-node')
+@method('element')
+@method('schema-attribute')
+@method('schema-element')
+@method('empty-sequence')
+def select(self, context=None):
+    if context is not None:
+        for _ in context.iter_children_or_self():
+            item = self.evaluate(context)
+            if item is not None:
+                yield item
 
 
 ###
@@ -711,17 +740,6 @@ def select(self, context=None):
 
 
 @method(function('distinct-values', nargs=(1, 2), bp=90))
-@method(function('insert-before', nargs=3, bp=90))
-@method(function('index-of', nargs=(1, 3), bp=90))
-@method(function('remove', nargs=2, bp=90))
-@method(function('reverse', nargs=1, bp=90))
-@method(function('subsequence', nargs=(2, 3), bp=90))
-@method(function('unordered', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return list(self.select(context))
-
-
-@method('distinct-values')
 def select(self, context=None):
     nan = False
     results = []
@@ -734,7 +752,7 @@ def select(self, context=None):
             results.append(item)
 
 
-@method('insert-before')
+@method(function('insert-before', nargs=3, bp=90))
 def select(self, context=None):
     insert_at_pos = max(0, self[1].value - 1)
     inserted = False
@@ -750,7 +768,7 @@ def select(self, context=None):
             yield item
 
 
-@method('index-of')
+@method(function('index-of', nargs=(1, 3), bp=90))
 def select(self, context=None):
     value = self[1].evaluate(context)
     for pos, result in enumerate(self[0].select(context)):
@@ -758,7 +776,7 @@ def select(self, context=None):
             yield pos + 1
 
 
-@method('remove')
+@method(function('remove', nargs=2, bp=90))
 def select(self, context=None):
     target = self[1].evaluate(context) - 1
     for pos, result in enumerate(self[0].select(context)):
@@ -766,13 +784,13 @@ def select(self, context=None):
             yield result
 
 
-@method('reverse')
+@method(function('reverse', nargs=1, bp=90))
 def select(self, context=None):
     for result in reversed(list(self[0].select(context))):
         yield result
 
 
-@method('subsequence')
+@method(function('subsequence', nargs=(2, 3), bp=90))
 def select(self, context=None):
     starting_loc = self[1].evaluate(context) - 1
     length = self[2].evaluate(context) if len(self) >= 3 else 0
@@ -781,7 +799,7 @@ def select(self, context=None):
             yield result
 
 
-@method('unordered')
+@method(function('unordered', nargs=1, bp=90))
 def select(self, context=None):
     for result in sorted(list(self[0].select(context)), key=lambda x: string_value(x)):
         yield result
@@ -790,13 +808,6 @@ def select(self, context=None):
 ###
 # Cardinality functions for sequences
 @method(function('zero-or-one', nargs=1, bp=90))
-@method(function('one-or-more', nargs=1, bp=90))
-@method(function('exactly-one', nargs=1, bp=90))
-def evaluate(self, context=None):
-    return list(self.select(context))
-
-
-@method('zero-or-one')
 def select(self, context=None):
     results = iter(self[0].select(context))
     try:
@@ -812,7 +823,7 @@ def select(self, context=None):
         self.wrong_value("called with a sequence containing more than one item [err:FORG0003]")
 
 
-@method('one-or-more')
+@method(function('one-or-more', nargs=1, bp=90))
 def select(self, context=None):
     results = iter(self[0].select(context))
     try:
@@ -828,7 +839,7 @@ def select(self, context=None):
                 break
 
 
-@method('exactly-one')
+@method(function('exactly-one', nargs=1, bp=90))
 def select(self, context=None):
     results = iter(self[0].select(context))
     try:
@@ -898,19 +909,17 @@ def select(self, context=None):
             for result in self[0].select(context):
                 yield result
     else:
-        yield self.evaluate(context)
+        attribute_name = self[0].evaluate(context) if self else None
+        for item in context.iter_attributes():
+            if is_attribute_node(item, attribute_name):
+                yield context.item[1]
 
 
 @method('attribute')
 def evaluate(self, context=None):
-    if context is None:
-        return
-    elif not self:
-        if is_attribute_node(context.item):
-            return context.item
-    else:
-        if is_attribute_node(context.item, self[1].evaluate(context)):
-            return context.item
+    if context is not None:
+        if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
+            return context.item[1]
 
 
 XPath2Parser.end()

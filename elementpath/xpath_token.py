@@ -30,6 +30,14 @@ class XPathToken(Token):
 
     comment = None  # for XPath 2.0 comments
 
+    def evaluate(self, context=None):
+        """
+        Evaluate default method for XPath tokens.
+
+        :param context: The XPath dynamic context.
+        """
+        return list(self.select(context))
+
     def select(self, context=None):
         """
         Select operator that generates XPath results.
