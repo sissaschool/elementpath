@@ -157,8 +157,8 @@ class XPath2Parser(XPath1Parser):
         """
         Create a XSD type constructor function for parser instance.
         """
-        def evaluate_(self, context=None):
-            return self.parser.schema.cast_as(self[0].evaluate(context), type_qname)
+        def evaluate_(self_, context=None):
+            return self_.parser.schema.cast_as(self_[0].evaluate(context), type_qname)
 
         token_class = self.function(symbol, nargs=1, bp=90)
         token_class.evaluate = evaluate_
@@ -181,7 +181,6 @@ XPath2Parser.begin()
 
 register = XPath2Parser.register
 unregister = XPath2Parser.unregister
-alias = XPath2Parser.alias
 literal = XPath2Parser.literal
 prefix = XPath2Parser.prefix
 infix = XPath2Parser.infix
@@ -675,7 +674,6 @@ def evaluate(self, context=None):
         return isinstance(context.item, list) and not context.item
 
 
-
 @method('document-node')
 @method('element')
 @method('schema-attribute')
@@ -750,7 +748,7 @@ def evaluate(self, context=None):
             value = round(decimal.Decimal(item), precision)
         else:
             number = decimal.Decimal(item)
-            exp = decimal.Decimal('1' if not precision else '.%s1' % ('0' * (precision -1)))
+            exp = decimal.Decimal('1' if not precision else '.%s1' % ('0' * (precision - 1)))
             value = float(number.quantize(exp, rounding='ROUND_HALF_EVEN'))
     except TypeError as err:
         if item is not None and not isinstance(item, list):
