@@ -1,6 +1,6 @@
-===========
+###########
 elementpath
-===========
+###########
 
 The proposal of this package is to provides XPath 1.0 and 2.0 selectors for Python's ElementTree XML
 data structures, both for the standard ElementTree library and for the
@@ -14,7 +14,7 @@ provides. If you want you can contribute to add an unimplemented function see th
 
 
 Installation and usage
-----------------------
+======================
 
 You can install the package with *pip* in a Python 2.7 or Python 3.3+ environment::
 
@@ -32,16 +32,24 @@ For using import the package and apply the selectors on ElementTree nodes:
 
 
 Public API
-----------
+==========
 
+The package includes some classes and functions for XPath parsers and selectors.
+
+XPath1Parser
+------------
 
 .. code-block:: python
+
     class XPath1Parser(namespaces=None)
 
-The XPath 1.0 parser. Provide a *namespaces* dictionary argument for mapping namespace prefixes
-to URI inside expressions.
+The XPath 1.0 parser. Provide a *namespaces* dictionary argument for mapping namespace prefixes to URI inside expressions.
+
+XPath2Parser
+------------
 
 .. code-block:: python
+
     XPath2Parser(namespaces=None, default_namespace='', function_namespace=None, schema=None, 
     build_constructors=False, compatibility_mode=False)
 
@@ -56,7 +64,11 @@ to apply to unprefixed names. For default no namespace is applied (empty namespa
 The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
 with XPath 1.0.
 
+XPath selectors
+---------------
+
 .. code-block:: python
+
    select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
 
 Apply *path* expression on *root* Element. The *root* argument can be an ElementTree instance
@@ -64,11 +76,13 @@ or an Element instance.
 Returns a list with XPath nodes or a basic type for expressions based on a function or literal.
 
 .. code-block:: python 
-   iter_select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
+
+    iter_select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
 
 Iterator version of *select*, if you want to process each result one by one.
 
-.. code-block:: python 
+.. code-block:: python
+
     Selector(path, namespaces=None, schema=None, parser=XPath2Parser)
 
 Create an instance of this class if you want to apply an XPath selector to several target data.
@@ -77,7 +91,7 @@ same meaning that as for the *select* API.
 
 
 Contributing
-------------
+============
 
 You can contribute to this package reporting bugs, using the issue tracker or by a pull request.
 In case you open an issue please try to provide a test or test data for reproducing the wrong
@@ -94,7 +108,7 @@ implement other types of parsers (I think it could be also a funny exercise!).
 
 
 License
--------
+=======
 This software is distributed under the terms of the MIT License.
 See the file 'LICENSE' in the root directory of the present
 distribution, or http://opensource.org/licenses/MIT.
