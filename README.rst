@@ -34,39 +34,46 @@ For using import the package and apply the selectors on ElementTree nodes:
 Public API
 ----------
 
-.. py:class:: XPath1Parser(namespaces=None)
 
-    The XPath 1.0 parser. Provide a *namespaces* dictionary argument for mapping namespace prefixes
-    to URI inside expressions.
+.. code-block:: python
+    class XPath1Parser(namespaces=None)
 
-.. py:class:: XPath2Parser(namespaces=None, schema=None, compatibility_mode=False)
+The XPath 1.0 parser. Provide a *namespaces* dictionary argument for mapping namespace prefixes
+to URI inside expressions.
 
-    The XPath 2.0 parser, that is the default parser. The dictionary argument *namespace* is used
-    for mapping namespace prefixes to URI inside expressions. *default_namespace* is the namespace
-    to apply to unprefixed names. For default no namespace is applied (empty namespace '').
-    *function_namespace* is the default namespace to apply to unprefixed function names (the
-    "http://www.w3.org/2005/xpath-functions" namespace for default).
-    *schema* is an optional instance of an XML Schema interface as defined by the abstract class
-    `AbstractSchemaProxy`.
-    *build_constructors* indicates when to define constructor functions for the in-scope XSD atomic types.
-    The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
-    with XPath 1.0.
+.. code-block:: python
+    XPath2Parser(namespaces=None, default_namespace='', function_namespace=None, schema=None, 
+    build_constructors=False, compatibility_mode=False)
 
-.. py:function:: select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
+The XPath 2.0 parser, that is the default parser. The dictionary argument *namespace* is used
+for mapping namespace prefixes to URI inside expressions. *default_namespace* is the namespace
+to apply to unprefixed names. For default no namespace is applied (empty namespace '').
+*function_namespace* is the default namespace to apply to unprefixed function names (the
+"http://www.w3.org/2005/xpath-functions" namespace for default).
+*schema* is an optional instance of an XML Schema interface as defined by the abstract class
+`AbstractSchemaProxy`.
+*build_constructors* indicates when to define constructor functions for the in-scope XSD atomic types.
+The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
+with XPath 1.0.
 
-    Apply *path* expression on *root* Element. The *root* argument can be an ElementTree instance
-    or an Element instance.
-    Returns a list with XPath nodes or a basic type for expressions based on a function or literal.
+.. code-block:: python
+   select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
 
-.. py:function:: iter_select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
+Apply *path* expression on *root* Element. The *root* argument can be an ElementTree instance
+or an Element instance.
+Returns a list with XPath nodes or a basic type for expressions based on a function or literal.
 
-    Iterator version of *select*, if you want to process each result one by one.
+.. code-block:: python 
+   iter_select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
 
-.. py:class:: Selector(path, namespaces=None, schema=None, parser=XPath2Parser)
+Iterator version of *select*, if you want to process each result one by one.
 
-    Create an instance of this class if you want to apply an XPath selector to several target data.
-    An instance provides *select* and *iter_select* methods with a *root* argument that has the
-    same meaning that as for the *select* API.
+.. code-block:: python 
+    Selector(path, namespaces=None, schema=None, parser=XPath2Parser)
+
+Create an instance of this class if you want to apply an XPath selector to several target data.
+An instance provides *select* and *iter_select* methods with a *root* argument that has the
+same meaning that as for the *select* API.
 
 
 Contributing
