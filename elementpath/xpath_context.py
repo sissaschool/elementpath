@@ -84,7 +84,7 @@ class XPathContext(object):
         status = self.item, self.size, self.position, self.axis
         self.axis = 'attribute'
 
-        for item in sorted(self.item.attrib.items()):
+        for item in self.item.attrib.items():
             self.item = AttributeNode(*item)
             yield self.item
 
