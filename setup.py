@@ -15,8 +15,8 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='1.0.2',
-    install_requires=['elementpath'],
+    version='1.0.4',
+    packages=['elementpath'],
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/elementpath',
