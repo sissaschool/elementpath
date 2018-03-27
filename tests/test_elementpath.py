@@ -597,7 +597,7 @@ class XPath1ParserTest(unittest.TestCase):
         root = self.etree.XML('<A id="1" a="alpha"><B1 b1="beta1"/><B2/><B3 b2="beta2" b3="beta3"/></A>')
         self.check_selector('/A/B1/attribute::*', root, ['beta1'])
         self.check_selector('/A/B1/@*', root, ['beta1'])
-        self.check_selector('/A/B3/attribute::*', root, ['beta2', 'beta3'])
+        self.check_selector('/A/B3/attribute::*', root, {'beta2', 'beta3'})
         self.check_selector('/A/attribute::*', root, {'1', 'alpha'})
 
     def test_namespace_axis(self):
