@@ -84,7 +84,7 @@ class Selector(object):
 
     def select(self, root):
         context = XPathContext(root)
-        return self.root_token.getresults(context)
+        return self.root_token.get_results(context)
 
     def iter_select(self, root):
         context = XPathContext(root)
