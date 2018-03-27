@@ -681,6 +681,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("book/author[. = 'Dickens']", root, [])
         self.check_selector("book/author[text()='Asimov']", root, [root[0][0]])
 
+        root = self.etree.XML('<A><B1>hello</B1><B2/><B3>  </B3></A>')
+        self.check_selector("/A/*[' ']", root, root[:])
+        self.check_selector("/A/*['']", root, [])
+
     def test_union(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
         self.check_selector('/A/B2 | /A/B1', root, root[:2])
