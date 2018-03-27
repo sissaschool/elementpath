@@ -656,7 +656,7 @@ def select(self, context=None):
 @method('@', bp=80)
 def nud(self):
     self[0:] = self.parser.expression(rbp=80),
-    if self[0].symbol not in ('*', '(name)'):
+    if self[0].symbol not in ('*', '(name)', ':'):
         raise ElementPathSyntaxError("invalid attribute specification for XPath.")
     return self
 
