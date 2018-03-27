@@ -52,12 +52,12 @@ XPath2Parser
 
 .. code-block:: python
 
-    XPath2Parser(namespaces=None, variables=None, strict=True, default_namespace='', function_namespace=None,
-    schema=None,
-    build_constructors=False, compatibility_mode=False)
+    XPath2Parser(namespaces=None, variables=None, strict=True, default_namespace='', function_namespace=None, 
+    schema=None, build_constructors=False, compatibility_mode=False)
+    
 
-The XPath 2.0 parser, that is the default parser. It has additional arguments compared to the parent class.
- *default_namespace* is the namespace to apply to unprefixed names. For default no namespace is applied
+The XPath 2.0 parser, that is the default parser. It has additional arguments compared to the parent class. 
+*default_namespace* is the namespace to apply to unprefixed names. For default no namespace is applied
 (the empty namespace '').
 *function_namespace* is the default namespace to apply to unprefixed function names (the
 "http://www.w3.org/2005/xpath-functions" namespace for default).
