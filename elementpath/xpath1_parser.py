@@ -211,7 +211,9 @@ def select(self, context=None):
     if context is not None:
         value = self.value
         for item in context.iter_children_or_self():
-            if is_element_node(item, value) or is_attribute_node(item, value):
+            if is_attribute_node(item, value):
+                yield item[1]
+            elif is_element_node(item, value):
                 yield item
 
 
