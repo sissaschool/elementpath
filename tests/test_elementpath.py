@@ -302,7 +302,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax("     \n     \n   )")
         self.wrong_syntax('child::1')
         self.wrong_syntax("count(0, 1, 2)")
-        self.wrong_syntax("{http://spam}egg")
+        self.wrong_syntax("{}egg")
         self.wrong_syntax("./*:*")
 
     # Features tests
@@ -314,12 +314,13 @@ class XPath1ParserTest(unittest.TestCase):
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
         </A>""")
+
+        # Prefix references
         self.check_tree('xs:string', '(: (xs) (string))')
         self.check_tree('string(xs:unknown)', '(string (: (xs) (unknown)))')
 
         self.check_value("fn:true()", True)
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
-        self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
 
         # Namespace wildcard works only for XPath > 1.0
@@ -327,6 +328,21 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_selector("./*:B2", root, Exception, namespaces=namespaces)
         else:
             self.check_selector("./*:B2", root, [root[1]], namespaces=namespaces)
+
+        # QName URI references
+        self.parser.strict = False
+        self.check_tree('{%s}string' % XSD_NAMESPACE, "({ ('http://www.w3.org/2001/XMLSchema') (string))")
+        self.check_tree('string({%s}unknown)' % XSD_NAMESPACE,
+                        "(string ({ ('http://www.w3.org/2001/XMLSchema') (unknown)))")
+        self.wrong_syntax("{%s" % XSD_NAMESPACE)
+
+        self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
+        self.parser.strict = True
+        self.wrong_syntax('{%s}string' % XSD_NAMESPACE)
+
+        if not hasattr(self.etree, 'LxmlError'):
+            self.check_selector("./{http://xpath.test/ns}B1", root, [root[0]], strict=False)
+            self.check_selector("./{http://xpath.test/ns}*", root, root[:], strict=False)
 
     def test_node_types(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))

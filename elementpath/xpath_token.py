@@ -81,6 +81,8 @@ class XPathToken(Token):
             return u'%s, %s' % (self[0].source, self[1].source)
         elif symbol == '$':
             return u'$%s' % self[0].source
+        elif symbol == '{':
+            return u'{%s}%s' % (self.value, self[0].source)
         elif symbol == 'instance':
             return u'%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         elif symbol == 'treat':
