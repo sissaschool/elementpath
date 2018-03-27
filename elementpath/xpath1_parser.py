@@ -35,6 +35,8 @@ class XPath1Parser(Parser):
 
     :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
     :param variables: A dictionary with the static context's in-scope variables.
+    :param strict: If strict mode is `False` the parser enables parsing of QNames, \
+    like the ElementPath library. Default is `True`.
     """
     token_base_class = XPathToken
     symbol_table = {k: v for k, v in Parser.symbol_table.items()}
@@ -66,16 +68,20 @@ class XPath1Parser(Parser):
 
         # Number functions
         'number', 'sum', 'floor', 'ceiling', 'round',
+
+        # ElementPath extensions
+        '{', '}',
     }
 
     DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
 
-    def __init__(self, namespaces=None, variables=None, *args, **kwargs):
+    def __init__(self, namespaces=None, variables=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
         self.variables = dict(variables if variables is not None else [])
+        self.strict = strict
 
     @property
     def version(self):
@@ -162,7 +168,7 @@ class XPath1Parser(Parser):
     def next_is_path_step_token(self):
         return self.next_token.label in 'axis' or self.next_token.symbol in {
             '(integer)', '(string)', '(float)',  '(decimal)', '(name)', 'node', 'text', '*',
-            '@', '..', '.', '(', '/',
+            '@', '..', '.', '(', '/', '{'
         }
 
 
@@ -187,6 +193,7 @@ register(',')
 register(')')
 register(']')
 register('::')
+register('}')
 
 
 ###
@@ -218,7 +225,7 @@ def select(self, context=None):
 
 
 ###
-# Namespace reference
+# Namespace prefix reference
 @method(':', bp=95)
 def led(self, left):
     if self.parser.version == '1.0':
@@ -278,8 +285,62 @@ def select(self, context=None):
             value = '{%s}%s' % (namespace, self[1].value)
 
     for item in context.iter_children_or_self():
-        if is_element_node(item, value) or is_attribute_node(item, value):
+        if is_attribute_node(item, value):
+            yield item[1]
+        elif is_element_node(item, value):
             yield item
+
+
+###
+# Namespace URI as in ElementPath
+@method('{', bp=95)
+def nud(self):
+    if self.parser.strict:
+        self.unexpected()
+    next_token = self.parser.next_token
+    if next_token.symbol not in ('(name)', '*') and next_token.label != 'function':
+        next_token.wrong_syntax()
+
+    namespace = []
+    while True:
+        self.parser.advance()
+        token = self.parser.token
+        if token.symbol == '}':
+            break
+        else:
+            namespace.append(str(token.value))
+    namespace = ''.join(namespace)
+
+    if self.parser.next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
+        self.parser.next_token.wrong_syntax()
+    self[0:1] = self.parser.symbol_table['(string)'](self.parser, namespace), self.parser.expression(90)
+    return self
+
+
+@method('{')
+def evaluate(self, context=None):
+    if self[1].label == 'function':
+        return self[1].evaluate(context)
+    else:
+        return '{%s}%s' % (self[0].value, self[1].value)
+
+
+@method('{')
+def select(self, context=None):
+    if self[1].label == 'function':
+        value = self[1].evaluate(context)
+        if isinstance(value, list):
+            for result in value:
+                yield result
+        else:
+            yield value
+    else:
+        value = '{%s}%s' % (self[0].value, self[1].value)
+        for item in context.iter_children_or_self():
+            if is_attribute_node(item, value):
+                yield item[1]
+            elif is_element_node(item, value):
+                yield item
 
 
 ###
@@ -288,6 +349,8 @@ def select(self, context=None):
 def nud(self):
     self.parser.next_token.expected('(name)')
     self[0:] = self.parser.expression(rbp=90),
+    if self[0].value.startswith('{'):
+        self[0].wrong_value("Variable reference requires a simple reference name")
     return self
 
 

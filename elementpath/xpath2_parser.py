@@ -84,9 +84,9 @@ class XPath2Parser(XPath1Parser):
 
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
-    def __init__(self, namespaces=None, variables=None, default_namespace='', function_namespace=None,
-                 schema=None, build_constructors=False, compatibility_mode=False):
-        super(XPath2Parser, self).__init__(namespaces, variables)
+    def __init__(self, namespaces=None, variables=None, strict=True, default_namespace='',
+                 function_namespace=None, schema=None, build_constructors=False, compatibility_mode=False):
+        super(XPath2Parser, self).__init__(namespaces, variables, strict)
         if '' not in self.namespaces and default_namespace:
             self.namespaces[''] = default_namespace
 
@@ -165,7 +165,7 @@ class XPath2Parser(XPath1Parser):
 
     def next_is_path_step_token(self):
         return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/',
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/', '{'
         }
 
     def next_is_sequence_type_token(self):

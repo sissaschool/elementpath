@@ -2,6 +2,14 @@
 CHANGELOG
 *********
 
+v1.0.2
+======
+* Add QName parsing like in the ElementPath library (usage regulated by a *strict* flag).
+
+v1.0.1
+======
+* Some bug fixes for attributes selection.
+
 v1.0
 ====
-* First stable version
+* First stable version.
