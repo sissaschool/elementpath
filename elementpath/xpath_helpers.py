@@ -238,7 +238,7 @@ def boolean_value(obj):
     if isinstance(obj, list):
         if not obj:
             return False
-        elif is_xpath_node(obj[0]):
+        elif isinstance(obj[0], tuple) or is_element_node(obj[0]):
             return True
         elif len(obj) == 1:
             return bool(obj[0])
