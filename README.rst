@@ -1,8 +1,8 @@
-###########
+***********
 elementpath
-###########
+***********
 
-The proposal of this package is to provides XPath 1.0 and 2.0 selectors for Python's ElementTree XML
+The proposal of this package is to provide XPath 1.0 and 2.0 selectors for Python's ElementTree XML
 data structures, both for the standard ElementTree library and for the
 `lxml.etree <http://lxml.de>`_ library.
 
@@ -103,10 +103,10 @@ behaviour. The provided testing code shall be added to the tests of the package.
 The XPath parsers are based on an implementation of the Pratt's Top Down Operator Precedence parser.
 The implemented parser includes some lookup-ahead features, helpers for registering tokens and for
 extending language implementations. Also the token class has been generalized using a `MutableSequence`
-as base class. See *todp_parser.py* for the basic internal classes and *xpath1_parser.py* for extensions
+as base class. See *tdop_parser.py* for the basic internal classes and *xpath1_parser.py* for extensions
 and for a basic usage of the parser.
 
-If you like you can use the basic parser and tokens provided by the *todp_parser.py* module to
+If you like you can use the basic parser and tokens provided by the *tdop_parser.py* module to
 implement other types of parsers (I think it could be also a funny exercise!).
 
 

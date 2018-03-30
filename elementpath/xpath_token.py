@@ -21,7 +21,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathValueError
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
-from .todp_parser import Token
+from .tdop_parser import Token
 
 
 ###

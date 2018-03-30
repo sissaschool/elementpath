@@ -934,6 +934,10 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
+    def test_string_functions2(self):
+        self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
+        self.check_value(u'string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
+
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)

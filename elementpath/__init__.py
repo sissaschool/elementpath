@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '1.0.4'
+__version__ = '1.0.5'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018, SISSA"
@@ -17,7 +17,7 @@ __status__ = "Production/Stable"
 
 
 from .exceptions import *
-from .todp_parser import Token, Parser
+from .tdop_parser import Token, Parser
 from .xpath_helpers import AttributeNode, NamespaceNode, UntypedAtomic
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
