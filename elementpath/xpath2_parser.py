@@ -25,6 +25,9 @@ from .xpath_helpers import (
 from .xpath1_parser import XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
 
+if PY3:
+    unichr = chr
+
 
 class XPath2Parser(XPath1Parser):
     """
@@ -914,6 +917,18 @@ def select(self, context=None):
             yield item
         else:
             self.wrong_value("called with a sequence containing more than one item [err:FORG0005]")
+
+###
+# String functions
+@method(function('codepoints-to-string', nargs=1, bp=90))
+def evaluate(self, context=None):
+    return ''.join(unichr(cp) for cp in self[0].select(context))
+
+
+@method(function('string-to-codepoints', nargs=1, bp=90))
+def select(self, context=None):
+    for char in self[0].evaluate(context):
+        yield ord(char)
 
 
 ###

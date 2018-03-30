@@ -13,7 +13,7 @@ import math
 import decimal
 
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
-from .todp_parser import Parser
+from .tdop_parser import Parser
 from .namespaces import (
     XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
 )
