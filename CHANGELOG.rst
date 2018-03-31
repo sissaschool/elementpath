@@ -4,8 +4,10 @@ CHANGELOG
 
 v1.0.5
 ======
-* Added XPath 2.0 functions (
+* Added n.10 XPath 2.0 functions for strings
 * Fix README.rst for right rendering in PyPI
+* Added ElementPathMissingContextError exception for a correct
+handling of static context evaluation
 
 v1.0.4
 ======
