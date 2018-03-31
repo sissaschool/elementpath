@@ -21,8 +21,6 @@ from .namespaces import (
 )
 
 
-
-
 ###
 # Utility functions for ElementTree's Element instances
 def is_etree_element(obj):

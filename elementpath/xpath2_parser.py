@@ -13,14 +13,14 @@ import math
 import locale
 from itertools import product
 
-from .compat import unicode_chr, urllib_quote
+from .compat import PY3, unicode_chr, urllib_quote
 from .exceptions import ElementPathTypeError
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname
 )
 from .xpath_helpers import (
-    PY3, is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
+    is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
     node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value,
     data_value, string_value
 )
@@ -980,12 +980,20 @@ def evaluate(self, context=None):
 
 @method(function('iri-to-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    arg = self.get_argument(context)
+    try:
+        return '' if arg is None else urllib_quote(arg, safe='-_.!~*\'()#;/?:@&=+$,[]%')
+    except TypeError:
+        self.wrong_type("the argument must be a string: %r" % arg)
 
 
 @method(function('escape-html-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    arg = self.get_argument(context)
+    try:
+        return '' if arg is None else urllib_quote(arg, safe=''.join(chr(cp) for cp in range(32, 127)))
+    except TypeError:
+        self.wrong_type("the argument must be a string: %r" % arg)
 
 
 @method(function('starts-with', nargs=(2, 3), bp=90))

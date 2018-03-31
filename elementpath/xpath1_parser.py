@@ -12,6 +12,7 @@ from __future__ import division
 import math
 import decimal
 
+from .compat import PY3
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
 from .tdop_parser import Parser
 from .namespaces import (
@@ -19,7 +20,7 @@ from .namespaces import (
 )
 from .xpath_token import XPathToken
 from .xpath_helpers import (
-    PY3, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
+    NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
     is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node,
     node_name, node_string_value, boolean_value, data_value, string_value
 )
