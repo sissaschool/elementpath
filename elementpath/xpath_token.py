@@ -134,12 +134,14 @@ class XPathToken(Token):
         raise ElementPathNameError("%s: %s [err:XPST0081]." % (self, message))
 
     def get_argument(self, context=None):
-        if not self:
-            if context is not None:
-                return context.item
-        elif context is None:
-            return self[0].evaluate()
-        else:
+        """
+        Get the first argument of a function token. A zero length sequence is converted to
+        a `None` value. If the function has no argument returns the context's item if the
+        dynamic context is not `None`.
+
+        :param context: The dynamic context.
+        """
+        if self:
             item = None
             for k, result in enumerate(self[0].select(context)):
                 if k == 0:
@@ -149,6 +151,8 @@ class XPathToken(Token):
                 else:
                     break
             return item
+        elif context is not None:
+            return context.item
 
     def get_comparison_data(self, context=None):
         """

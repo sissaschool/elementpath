@@ -13,6 +13,7 @@ import math
 import locale
 from itertools import product
 
+from .compat import unicode_chr, urllib_quote
 from .exceptions import ElementPathTypeError
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
@@ -25,9 +26,6 @@ from .xpath_helpers import (
 )
 from .xpath1_parser import XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
-
-if PY3:
-    unichr = chr
 
 
 class XPath2Parser(XPath1Parser):
@@ -919,11 +917,12 @@ def select(self, context=None):
         else:
             self.wrong_value("called with a sequence containing more than one item [err:FORG0005]")
 
+
 ###
 # String functions
 @method(function('codepoints-to-string', nargs=1, bp=90))
 def evaluate(self, context=None):
-    return ''.join(unichr(cp) for cp in self[0].select(context))
+    return ''.join(unicode_chr(cp) for cp in self[0].select(context))
 
 
 @method(function('string-to-codepoints', nargs=1, bp=90))
@@ -956,27 +955,27 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     try:
-        return arg.upper()
+        return '' if arg is None else arg.upper()
     except AttributeError:
-        if arg == []:
-            return ''
-        self.wrong_type("the argument must be a string")
+        self.wrong_type("the argument must be a string: %r" % arg)
 
 
 @method(function('lower-case', nargs=1, bp=90))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     try:
-        return arg.lower()
+        return '' if arg is None else arg.lower()
     except AttributeError:
-        if arg == []:
-            return ''
-        self.wrong_type("the argument must be a string")
+        self.wrong_type("the argument must be a string: %r" % arg)
 
 
 @method(function('encode-for-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    arg = self.get_argument(context)
+    try:
+        return '' if arg is None else urllib_quote(arg, safe='~')
+    except TypeError:
+        self.wrong_type("the argument must be a string: %r" % arg)
 
 
 @method(function('iri-to-uri', nargs=1, bp=90))

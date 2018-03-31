@@ -284,11 +284,12 @@ def select(self, context=None):
         else:
             value = '{%s}%s' % (namespace, self[1].value)
 
-    for item in context.iter_children_or_self():
-        if is_attribute_node(item, value):
-            yield item[1]
-        elif is_element_node(item, value):
-            yield item
+    if context is not None:
+        for item in context.iter_children_or_self():
+            if is_attribute_node(item, value):
+                yield item[1]
+            elif is_element_node(item, value):
+                yield item
 
 
 ###
@@ -334,7 +335,7 @@ def select(self, context=None):
                 yield result
         else:
             yield value
-    else:
+    elif context is not None:
         value = '{%s}%s' % (self[0].value, self[1].value)
         for item in context.iter_children_or_self():
             if is_attribute_node(item, value):
