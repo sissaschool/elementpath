@@ -10,6 +10,7 @@
 #
 import decimal
 import math
+import locale
 from itertools import product
 
 from .exceptions import ElementPathTypeError
@@ -931,8 +932,82 @@ def select(self, context=None):
         yield ord(char)
 
 
+@method(function('compare', nargs=(2, 3), bp=90))
+def evaluate(self, context=None):
+    return locale.strcoll(self[0].evaluate(context), self[1].evaluate(context))
+
+
+@method(function('codepoint-equal', nargs=2, bp=90))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('string-join', nargs=2, bp=90))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('normalize-unicode', nargs=(1, 2), bp=90))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('upper-case', nargs=1, bp=90))
+def evaluate(self, context=None):
+    arg = self.get_argument(context)
+    try:
+        return arg.upper()
+    except AttributeError:
+        if arg == []:
+            return ''
+        self.wrong_type("the argument must be a string")
+
+
+@method(function('lower-case', nargs=1, bp=90))
+def evaluate(self, context=None):
+    arg = self.get_argument(context)
+    try:
+        return arg.lower()
+    except AttributeError:
+        if arg == []:
+            return ''
+        self.wrong_type("the argument must be a string")
+
+
+@method(function('encode-for-uri', nargs=1, bp=90))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('iri-to-uri', nargs=1, bp=90))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('escape-html-uri', nargs=1, bp=90))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('starts-with', nargs=(2, 3), bp=90))
+def evaluate(self, context=None):
+    arg = self[1].evaluate(context)
+    try:
+        return self[0].evaluate(context).startswith(arg)
+    except TypeError:
+        self.wrong_type("the arguments must be a string")
+
+
+@method(function('ends-with', nargs=(2, 3), bp=90))
+def evaluate(self, context=None):
+    try:
+        return self[0].evaluate(context).endswith(self[1].evaluate(context))
+    except TypeError:
+        self.wrong_type("the arguments must be a string")
+
+
 ###
-# Example of token redefinition and howto create a multi-role token.
+# Example of token redefinition and how-to create a multi-role token.
 #
 # In XPath 2.0 the 'attribute' keyword is used not only for the attribute:: axis but also for
 # attribute() node type function.
