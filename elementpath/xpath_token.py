@@ -19,7 +19,9 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
-from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathValueError
+from .exceptions import (
+    ElementPathNameError, ElementPathTypeError, ElementPathValueError, ElementPathMissingContextError
+)
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
 from .tdop_parser import Token
 
@@ -95,7 +97,7 @@ class XPathToken(Token):
         raise ElementPathValueError("%s: %s [err:XPST0001]." % (self, message))
 
     def missing_context(self, message='dynamic context required for evaluate'):
-        raise ElementPathValueError("%s: %s [err:XPDY0002]." % (self, message))
+        raise ElementPathMissingContextError("%s: %s [err:XPDY0002]." % (self, message))
 
     def wrong_context_type(self, message='type is not appropriate for the context'):
         raise ElementPathTypeError("%s: %s [err:XPTY0004]." % (self, message))
@@ -133,17 +135,28 @@ class XPathToken(Token):
     def unknown_namespace(self, message='unknown namespace'):
         raise ElementPathNameError("%s: %s [err:XPST0081]." % (self, message))
 
-    def get_argument(self, context=None):
+    def get_argument(self, context=None, index=0, default_to_context=False):
         """
         Get the first argument of a function token. A zero length sequence is converted to
         a `None` value. If the function has no argument returns the context's item if the
         dynamic context is not `None`.
 
         :param context: The dynamic context.
+        :param index: An index for select the argument to be got, the first for default.
+        :param default_to_context: If set to `True` and the argument is missing the item \
+        of the dynamic context is returned.
         """
-        if self:
+        try:
+            selector = self[index].select
+        except IndexError:
+            if default_to_context:
+                if context is not None:
+                    return context.item
+                else:
+                    self.missing_context()
+        else:
             item = None
-            for k, result in enumerate(self[0].select(context)):
+            for k, result in enumerate(selector(context)):
                 if k == 0:
                     item = result
                 elif self.parser.version > '1.0':
@@ -151,8 +164,6 @@ class XPathToken(Token):
                 else:
                     break
             return item
-        elif context is not None:
-            return context.item
 
     def get_comparison_data(self, context=None):
         """

@@ -31,3 +31,7 @@ class ElementPathTypeError(ElementPathError, TypeError):
 
 class ElementPathValueError(ElementPathError, ValueError):
     pass
+
+
+class ElementPathMissingContextError(ElementPathError):
+    pass

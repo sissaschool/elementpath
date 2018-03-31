@@ -417,6 +417,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_type("concat('alpha', 10, 'gamma')")
         self.wrong_syntax("concat()")
         self.check_value("string-length('hello world')", 11)
+        self.check_value("string-length('')", 0)
         self.check_value("normalize-space('  hello  \t  world ')", 'hello world')
         self.check_value("starts-with('Hello World', 'Hello')", True)
         self.check_value("starts-with('Hello World', 'hello')", False)
@@ -970,6 +971,14 @@ class XPath2ParserTest(XPath1ParserTest):
                          "window.open('http://www.example.com/~b%C3%A9b%C3%A9');")
         self.check_value('escape-html-uri("")', '')
         self.check_value('escape-html-uri(())', '')
+
+        self.check_value("string-length(())", 0)
+
+        self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')",
+                         "Now is the time ...")
+        self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
+                         'Blow, blow, thou winter wind!')
+        self.check_value("string-join((), 'separator')", '')
 
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
