@@ -10,7 +10,6 @@
 #
 import decimal
 import math
-import locale
 from itertools import product
 
 from .compat import PY3, unicode_chr, urllib_quote
@@ -70,6 +69,11 @@ class XPath2Parser(XPath1Parser):
 
         # Number functions
         'abs', 'round-half-to-even',
+
+        # String functions
+        'codepoints-to-string', 'string-to-codepoints', 'compare', 'codepoint-equal',
+        'string-join', 'normalize-unicode', 'upper-case', 'lower-case', 'encode-for-uri',
+        'iri-to-uri', 'escape-html-uri', 'starts-with', 'ends-with',
 
         # General functions for sequences
         'distinct-values', 'empty', 'exists', 'index-of', 'insert-before', 'remove',
@@ -933,7 +937,7 @@ def select(self, context=None):
 
 @method(function('compare', nargs=(2, 3), bp=90))
 def evaluate(self, context=None):
-    return locale.strcoll(self[0].evaluate(context), self[1].evaluate(context))
+    raise NotImplementedError()
 
 
 @method(function('codepoint-equal', nargs=2, bp=90))
@@ -943,7 +947,12 @@ def evaluate(self, context=None):
 
 @method(function('string-join', nargs=2, bp=90))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    try:
+        return self[1].evaluate(context).join(s for s in self[0].select(context))
+    except AttributeError as err:
+        self.wrong_type("the separator must be a string: %s" % err)
+    except TypeError as err:
+        self.wrong_type("the values must be strings: %s" % err)
 
 
 @method(function('normalize-unicode', nargs=(1, 2), bp=90))
@@ -971,44 +980,47 @@ def evaluate(self, context=None):
 
 @method(function('encode-for-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
+    uri_part = self.get_argument(context)
     try:
-        return '' if arg is None else urllib_quote(arg, safe='~')
+        return '' if uri_part is None else urllib_quote(uri_part, safe='~')
     except TypeError:
-        self.wrong_type("the argument must be a string: %r" % arg)
+        self.wrong_type("the argument must be a string: %r" % uri_part)
 
 
 @method(function('iri-to-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
+    iri = self.get_argument(context)
     try:
-        return '' if arg is None else urllib_quote(arg, safe='-_.!~*\'()#;/?:@&=+$,[]%')
+        return '' if iri is None else urllib_quote(iri, safe='-_.!~*\'()#;/?:@&=+$,[]%')
     except TypeError:
-        self.wrong_type("the argument must be a string: %r" % arg)
+        self.wrong_type("the argument must be a string: %r" % iri)
 
 
 @method(function('escape-html-uri', nargs=1, bp=90))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
+    uri = self.get_argument(context)
     try:
-        return '' if arg is None else urllib_quote(arg, safe=''.join(chr(cp) for cp in range(32, 127)))
+        return '' if uri is None else urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
     except TypeError:
-        self.wrong_type("the argument must be a string: %r" % arg)
+        self.wrong_type("the argument must be a string: %r" % uri)
 
 
 @method(function('starts-with', nargs=(2, 3), bp=90))
 def evaluate(self, context=None):
-    arg = self[1].evaluate(context)
+    arg1 = self.get_argument(context)
+    arg2 = self.get_argument(context, index=1)
     try:
-        return self[0].evaluate(context).startswith(arg)
+        return arg1.startswith(arg2)
     except TypeError:
         self.wrong_type("the arguments must be a string")
 
 
 @method(function('ends-with', nargs=(2, 3), bp=90))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context)
+    arg2 = self.get_argument(context, index=1)
     try:
-        return self[0].evaluate(context).endswith(self[1].evaluate(context))
+        return arg1.endswith(arg2)
     except TypeError:
         self.wrong_type("the arguments must be a string")
 

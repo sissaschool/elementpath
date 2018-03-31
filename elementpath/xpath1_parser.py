@@ -13,7 +13,9 @@ import math
 import decimal
 
 from .compat import PY3
-from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError
+from .exceptions import (
+    ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError, ElementPathMissingContextError
+)
 from .tdop_parser import Parser
 from .namespaces import (
     XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
@@ -156,7 +158,12 @@ class XPath1Parser(Parser):
                     break
                 k += 1
             self.parser.advance(')')
-            self.value = self.evaluate()  # Static context evaluation
+
+            try:
+                self.value = self.evaluate()  # Static context evaluation
+            except ElementPathMissingContextError:
+                self.value = None
+
             return self
 
         function_pattern_template = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()'
@@ -885,7 +892,7 @@ def select(self, context=None):
 @method(function('local-name', nargs=(0, 1), bp=90))
 @method(function('namespace-uri', nargs=(0, 1), bp=90))
 def evaluate(self, context=None):
-    name = node_name(self.get_argument(context))
+    name = node_name(self.get_argument(context, default_to_context=True))
     if name is None:
         return ''
 
@@ -925,25 +932,33 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=1, bp=90))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context, default_to_context=True)
+    if arg1 is None:
+        return 0
     try:
-        return len(self[0].evaluate(context))
+        return len(arg1)
     except TypeError:
         self.wrong_type("the argument must be a string")
 
 
 @method(function('normalize-space', nargs=1, bp=90))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context, default_to_context=True)
+    if arg1 is None:
+        return ''
     try:
-        return ' '.join(self[0].evaluate(context).strip().split())
+        return ' '.join(arg1.strip().split())
     except TypeError:
         self.wrong_type("the argument must be a string")
 
 
 @method(function('starts-with', nargs=2, bp=90))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context)
+    arg2 = self.get_argument(context, index=1)
     try:
-        return self[0].evaluate(context).startswith(self[1].value)
-    except TypeError:
+        return arg1.startswith(arg2)
+    except (AttributeError, TypeError):
         self.wrong_type("the arguments must be a string")
 
 
@@ -978,8 +993,9 @@ def evaluate(self, context=None):
         except TypeError:
             self.wrong_type("the third argument must be xs:numeric")
 
+    item = self.get_argument(context)
     try:
-        return self[0].evaluate(context)[slice(start, stop)]
+        return '' if item is None else item[slice(start, stop)]
     except TypeError:
         self.wrong_type("the first argument must be a string")
 
@@ -987,18 +1003,23 @@ def evaluate(self, context=None):
 @method(function('substring-before', nargs=2, bp=90))
 @method(function('substring-after', nargs=2, bp=90))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context)
+    arg2 = self.get_argument(context, index=1)
+    if arg1 is None:
+        return ''
+
     index = 0
     try:
-        index = self[0].evaluate(context).find(self[1].evaluate(context))
+        index = arg1.find(arg2)
     except AttributeError:
         self.wrong_type("the first argument must be a string")
     except TypeError:
         self.wrong_type("the second argument must be a string")
 
     if self.symbol == 'substring-before':
-        return self[0].evaluate(context)[:index]
+        return arg1[:index]
     else:
-        return self[0].evaluate(context)[index + len(self[1].value):]
+        return arg1[index + len(arg2):]
 
 
 ###
