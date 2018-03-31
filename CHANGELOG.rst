@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v1.0.5
+======
+* Added XPath 2.0 functions (
+* Fix README.rst for right rendering in PyPI
+
 v1.0.4
 ======
 * Fixed packaging ('packages' argument in setup.py).

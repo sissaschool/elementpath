@@ -937,6 +937,15 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_string_functions2(self):
         self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
         self.check_value(u'string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
+        self.check_value('lower-case("aBcDe01")', 'abcde01')
+        self.check_value('lower-case(("aBcDe01"))', 'abcde01')
+        self.check_value('lower-case(())', '')
+        self.wrong_type('lower-case((10))')
+        self.check_value('upper-case("aBcDe01")', 'ABCDE01')
+        self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
+        self.check_value('upper-case(())', '')
+        self.wrong_type('upper-case((10))')
+
 
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
