@@ -12,16 +12,15 @@
 Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
 implementation for XPath functions that are reused in many contexts.
 """
-import sys
 import operator
 from collections import namedtuple
+from .compat import PY3
 from .exceptions import ElementPathTypeError
 from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
 
 
-PY3 = sys.version_info >= (3,)
 
 
 ###
