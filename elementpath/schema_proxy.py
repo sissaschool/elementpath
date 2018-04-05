@@ -10,11 +10,11 @@
 #
 
 from abc import ABCMeta, abstractmethod
+from .compat import add_metaclass
 
 
+@add_metaclass(ABCMeta)
 class AbstractSchemaProxy(object):
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, schema):
         self._schema = schema
