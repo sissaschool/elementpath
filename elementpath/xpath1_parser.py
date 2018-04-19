@@ -109,7 +109,7 @@ class XPath1Parser(Parser):
                 '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
                 'attribute', 'schema-attribute', 'element', 'schema-element'
             )
-            self[0:] = self.parser.expression(rbp=bp),
+            self[:] = self.parser.expression(rbp=bp),
             return self
 
         axis_pattern_template = '\\b%s(?=\s*\\:\\:|\s*\\(\\:.*\\:\\)\s*\\:\\:)'
@@ -254,7 +254,7 @@ def led(self, left):
     elif left.symbol == '*' and next_token.symbol != '(name)':
         next_token.wrong_syntax()
 
-    self[0:1] = left, self.parser.expression(90)
+    self[:] = left, self.parser.expression(90)
     return self
 
 
@@ -322,7 +322,7 @@ def nud(self):
 
     if self.parser.next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
         self.parser.next_token.wrong_syntax()
-    self[0:1] = self.parser.symbol_table['(string)'](self.parser, namespace), self.parser.expression(90)
+    self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), self.parser.expression(90)
     return self
 
 
@@ -357,7 +357,7 @@ def select(self, context=None):
 @method('$', bp=90)
 def nud(self):
     self.parser.next_token.expected('(name)')
-    self[0:] = self.parser.expression(rbp=90),
+    self[:] = self.parser.expression(rbp=90),
     if self[0].value.startswith('{'):
         self[0].wrong_value("Variable reference requires a simple reference name")
     return self
@@ -534,7 +534,7 @@ def nud(self):
         return self
     elif not self.parser.next_is_path_step_token():
         next_token.wrong_syntax()
-    self[0:] = self.parser.expression(80),
+    self[:] = self.parser.expression(80),
     return self
 
 
@@ -543,7 +543,7 @@ def nud(self):
 def led(self, left):
     if not self.parser.next_is_path_step_token():
         self.parser.next_token.wrong_syntax()
-    self[0:1] = left, self.parser.expression(80)
+    self[:] = left, self.parser.expression(80)
     return self
 
 
@@ -619,7 +619,7 @@ def select(self, context=None):
 @method('[', bp=75)
 def led(self, left):
     self.parser.next_token.unexpected(']')
-    self[0:1] = left, self.parser.expression()
+    self[:] = left, self.parser.expression()
     self.parser.advance(']')
     return self
 
@@ -644,7 +644,7 @@ def select(self, context=None):
 @method('(', bp=100)
 def nud(self):
     self.parser.next_token.unexpected(')')
-    self[0:] = self.parser.expression(),
+    self[:] = self.parser.expression(),
     self.parser.advance(')')
     return self  # Skip self!! (remove a redundant level from selection/evaluation)
 
@@ -727,7 +727,7 @@ def select(self, context=None):
 
 @method('@', bp=80)
 def nud(self):
-    self[0:] = self.parser.expression(rbp=80),
+    self[:] = self.parser.expression(rbp=80),
     if self[0].symbol not in ('*', '(name)', ':'):
         raise ElementPathSyntaxError("invalid attribute specification for XPath.")
     return self

@@ -455,28 +455,28 @@ class Parser(object):
     @classmethod
     def prefix(cls, symbol, bp=0):
         def nud(self):
-            self[0:] = self.parser.expression(rbp=bp),
+            self[:] = self.parser.expression(rbp=bp),
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
     def infix(cls, symbol, bp=0):
         def led(self, left):
-            self[0:1] = left, self.parser.expression(rbp=bp)
+            self[:] = left, self.parser.expression(rbp=bp)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
     def infixr(cls, symbol, bp=0):
         def led(self, left):
-            self[0:1] = left, self.parser.expression(rbp=bp-1)
+            self[:] = left, self.parser.expression(rbp=bp-1)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp-1, led=led)
 
     @classmethod
     def postfix(cls, symbol, bp=0):
         def led(self, left):
-            self[0:] = left,
+            self[:] = left,
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
