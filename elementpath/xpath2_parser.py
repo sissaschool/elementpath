@@ -247,7 +247,7 @@ def select(self, context=None):
 @method('if', bp=20)
 def nud(self):
     self.parser.advance('(')
-    self[0:] = self.parser.expression(),
+    self[:] = self.parser.expression(),
     self.parser.advance(')')
     self.parser.advance('then')
     self[1:] = self.parser.expression(),
@@ -355,10 +355,10 @@ def led(self, left):
     self.parser.advance('of' if self.symbol is 'instance' else 'as')
     if not self.parser.next_is_sequence_type_token():
         self.parser.next_token.wrong_syntax()
-    self[0:1] = left, self.parser.expression(rbp=self.rbp)
+    self[:] = left, self.parser.expression(rbp=self.rbp)
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
-        self[3:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
+        self[2:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
         self.parser.advance()
     return self
 
@@ -441,9 +441,9 @@ def evaluate(self, context=None):
 @method('cast', bp=63)
 def led(self, left):
     self.parser.advance('as')
-    self[0:1] = left, self.parser.expression(rbp=self.rbp)
+    self[:] = left, self.parser.expression(rbp=self.rbp)
     if self.parser.next_token.symbol == '?':
-        self[3:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
+        self[2:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
         self.parser.advance()
     return self
 
@@ -512,7 +512,7 @@ def select(self, context=None):
 @method('(')
 def nud(self):
     if self.parser.next_token.symbol != ')':
-        self[0:] = self.parser.expression(),
+        self[:] = self.parser.expression(),
     self.parser.advance(')')
     return self
 
@@ -1056,12 +1056,12 @@ def nud(self):
             '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
             'attribute', 'schema-attribute', 'element', 'schema-element'
         )
-        self[0:] = self.parser.expression(rbp=90),
+        self[:] = self.parser.expression(rbp=90),
         self.label = 'axis'
     else:
         self.parser.advance('(')
         if self.parser.next_token.symbol != ')':
-            self[0:] = self.parser.expression(5),
+            self[:] = self.parser.expression(5),
             if self.parser.next_token.symbol == ',':
                 self.parser.advance(',')
                 self[1:] = self.parser.expression(5),
