@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains an classes and helper functions for defining Pratt parsers.
+This module contains classes and helper functions for defining Pratt parsers.
 """
 import re
 from decimal import Decimal
@@ -29,18 +29,32 @@ from .exceptions import (
 #   http://crockford.com/javascript/tdop/tdop.html  (Douglas Crockford - 2007)
 #   http://effbot.org/zone/simple-top-down-parsing.htm (Fredrik Lundh - 2008)
 #
+# This implementation is based on a base class for defining symbol's related Token
+# classes and a base class for parsers. A real parser is built from a derivation of
+# the base parser class and the registration of token classes for symbols in parser's
+# class symbol table.
+#
+# A parser can be extended by derivation, copying the reusable token classes and
+# defining the additional ones. See the files xpath1_parser.py and xpath2_parser.py
+# for a fully implementation example of a real parser.
+#
+
 class Token(MutableSequence):
     """
     Token base class for defining a parser based on Pratt's method.
 
     :cvar symbol: The symbol of the token class.
     :param value: The token value. If not provided defaults to token symbol.
+    :cvar lbp: Pratt's left binding power, defaults to 0.
+    :cvar rbp: Pratt's right binding power, defaults to 0.
+    :cvar label: A label that can be changed to put a custom category to a token \
+    class (eg: function), depending on your parsing needs. Its default is 'symbol'.
     """
     symbol = None     # the token identifier, key in the token table.
     pattern = None    # the token regex pattern, for building the tokenizer.
-    label = 'symbol'
     lbp = 0           # left binding power
     rbp = 0           # right binding power
+    label = 'symbol'  # optional label
 
     def __init__(self, parser, value=None):
         self.parser = parser
@@ -192,6 +206,14 @@ class Parser(object):
             self.next_match = None
 
     def advance(self, *symbols):
+        """
+        The advance function.
+
+        :param symbols: Optional arguments tuple. If not empty one of the provided \
+        symbols is expected. If the next token's symbol differs the parser raise a \
+        parse error.
+        :return: The next token.
+        """
         if getattr(self.next_token, 'symbol', None) == '(end)':
             if self.token is None:
                 raise ElementPathSyntaxError("source is empty.")
@@ -238,9 +260,9 @@ class Parser(object):
 
     def expression(self, rbp=0):
         """
-        Recursive expression parser for expressions. Calls token.nud() and then
-        advance until the right binding power is less the left binding power of
-        the next token, invoking the led() method on the following token.
+        Parse function for expressions. It calls token.nud() and then advance
+        until the right binding power is less the left binding power of the next
+        token, invoking the led() method on the following token.
 
         :param rbp: right binding power for the expression.
         :return: left token.
