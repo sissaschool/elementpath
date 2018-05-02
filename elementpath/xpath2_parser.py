@@ -125,12 +125,12 @@ class XPath2Parser(XPath1Parser):
         if self.next_token.symbol == '(:':
             token = self.token
             if token is None:
-                self.next_token.comment = self.comment()
+                self.next_token.comment = self.comment().strip()
             elif token.comment is None:
-                token.comment = self.comment()
+                token.comment = self.comment().strip()
             else:
-                token.comment = '%s %s' % (token.comment, self.comment())
-
+                token.comment = '%s %s' % (token.comment, self.comment().strip())
+            super(XPath2Parser, self).advance()
         return self.next_token
 
     def comment(self):
@@ -142,22 +142,19 @@ class XPath2Parser(XPath1Parser):
         if self.next_token.symbol != '(:':
             return
 
-        super(XPath2Parser, self).advance()
         comment_level = 1
         comment = []
         while comment_level:
-            super(XPath2Parser, self).advance()
-            token = self.token
-            if token.symbol == ':)':
+            comment.append(self.raw_advance('(:', ':)'))
+            next_token = self.next_token
+            if next_token.symbol == ':)':
                 comment_level -= 1
                 if comment_level:
-                    comment.append(str(token.value))
-            elif token.symbol == '(:':
+                    comment.append(str(next_token.value))
+            elif next_token.symbol == '(:':
                 comment_level += 1
-                comment.append(str(token.value))
-            else:
-                comment.append(str(token.value))
-        return ' '.join(comment)
+                comment.append(str(next_token.value))
+        return ''.join(comment)
 
     def atomic_type(self, symbol, type_qname):
         """

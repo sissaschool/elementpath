@@ -72,8 +72,8 @@ class XPath1Parser(Parser):
         # Number functions
         'number', 'sum', 'floor', 'ceiling', 'round',
 
-        # ElementPath extensions
-        '{', '}',
+        # Symbols for ElementPath extensions
+        '{', '}'
     }
 
     DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
@@ -93,7 +93,7 @@ class XPath1Parser(Parser):
     @classmethod
     def end(cls):
         cls.register('(end)')
-        cls.build_tokenizer(name_pattern=XML_NCNAME_PATTERN)
+        cls.build_tokenizer(name_pattern=r'(?:\{[^}]+\})?' + XML_NCNAME_PATTERN)
 
     @classmethod
     def alias(cls, symbol, other):
@@ -206,6 +206,7 @@ register('}')
 
 ###
 # Literals
+literal('(unexpected)')
 literal('(string)')
 literal('(float)')
 literal('(decimal)')
@@ -306,21 +307,13 @@ def select(self, context=None):
 def nud(self):
     if self.parser.strict:
         self.unexpected()
+    namespace = self.parser.next_token.value + self.parser.raw_advance('}')
+    self.parser.advance()
+
     next_token = self.parser.next_token
     if next_token.symbol not in ('(name)', '*') and next_token.label != 'function':
         next_token.wrong_syntax()
-
-    namespace = []
-    while True:
-        self.parser.advance()
-        token = self.parser.token
-        if token.symbol == '}':
-            break
-        else:
-            namespace.append(str(token.value))
-    namespace = ''.join(namespace)
-
-    if self.parser.next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
+    elif self.parser.next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
         self.parser.next_token.wrong_syntax()
     self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), self.parser.expression(90)
     return self
