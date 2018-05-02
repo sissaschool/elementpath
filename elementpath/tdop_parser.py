@@ -20,6 +20,10 @@ from .exceptions import (
 )
 
 
+SPECIAL_SYMBOL_REGEX = re.compile(r'\s*\(\w+\)\s*')
+"""Compiled regular expression for matching special symbols, that are names between round brackets."""
+
+
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
@@ -78,7 +82,7 @@ class Token(MutableSequence):
 
     def __str__(self):
         symbol = self.symbol
-        if symbol[1:-1].isalpha() and symbol.startswith('(') and symbol.endswith(')'):
+        if SPECIAL_SYMBOL_REGEX.search(symbol) is not None:
             return '%r %s' % (self.value, symbol[1:-1])
         else:
             return '%r %s' % (symbol, self.label)
@@ -100,10 +104,10 @@ class Token(MutableSequence):
     @property
     def tree(self):
         symbol, length = self.symbol, len(self)
-        if symbol in {'(string)', '(float)', '(decimal)', '(integer)'}:
-            return u'(%r)' % self.value
-        elif symbol == '(name)':
+        if symbol == '(name)':
             return u'(%s)' % self.value
+        elif SPECIAL_SYMBOL_REGEX.search(symbol) is not None:
+            return u'(%r)' % self.value
         elif symbol == '(':
             return '()' if not self else self[0].tree
         elif not length:
@@ -114,10 +118,10 @@ class Token(MutableSequence):
     @property
     def source(self):
         symbol = self.symbol
-        if symbol in {'(string)', '(float)', '(decimal)', '(integer)'}:
-            return repr(self.value)
-        elif symbol == '(name)':
+        if symbol == '(name)':
             return self.value
+        elif SPECIAL_SYMBOL_REGEX.search(symbol) is not None:
+            return repr(self.value)
         else:
             length = len(self)
             if not length:
@@ -158,7 +162,7 @@ class Token(MutableSequence):
             self.wrong_syntax()
 
     def wrong_syntax(self):
-        if self.symbol in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}:
+        if SPECIAL_SYMBOL_REGEX.search(self.symbol) is not None:
             self.parser.wrong_syntax(self.value)
         else:
             self.parser.wrong_syntax(self.symbol)
@@ -178,6 +182,42 @@ class Parser(object):
     token_base_class = Token
     tokenizer = None
     SYMBOLS = ()
+
+    @classmethod
+    def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
+        """
+        Builds the parser tokenizer using the symbol related patterns. A tokenizer built with this
+        method is suited for programming languages where extra spaces between symbols are skipped.
+
+        :param name_pattern: Pattern to use to match names.
+        """
+        tokenizer_pattern_template = r"""
+            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
+            (%s|[%s]) |                                                       # Symbol's patterns
+            (%s) |                                                            # Names
+            (\S) |                                                            # Unexpected characters
+            \s+                                                               # Skip extra spaces
+        """
+
+        patterns = [
+            s.pattern for s in cls.symbol_table.values()
+            if SPECIAL_SYMBOL_REGEX.search(s.pattern) is None
+        ]
+        string_patterns = []
+        character_patterns = []
+        for p in (s.strip() for s in patterns):
+            length = len(p)
+            if length == 1 or length == 2 and p[0] == '\\':
+                character_patterns.append(p)
+            else:
+                string_patterns.append(p)
+
+        pattern = tokenizer_pattern_template % (
+            '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
+            ''.join(character_patterns),
+            name_pattern
+        )
+        cls.tokenizer = re.compile(pattern, re.VERBOSE)
 
     def __init__(self):
         if '(end)' not in self.symbol_table or self.tokenizer is None:
@@ -207,7 +247,7 @@ class Parser(object):
 
     def advance(self, *symbols):
         """
-        The advance function.
+        The function for advance to next token.
 
         :param symbols: Optional arguments tuple. If not empty one of the provided \
         symbols is expected. If the next token's symbol differs the parser raise a \
@@ -231,12 +271,13 @@ class Parser(object):
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, operator, name, unexpected = self.next_match.groups()
-                if operator is not None:
+                literal, symbol, name, unexpected = self.next_match.groups()
+                if symbol is not None:
+                    symbol = symbol.strip()
                     try:
-                        self.next_token = self.symbol_table[operator.replace(' ', '')](self)
+                        self.next_token = self.symbol_table[symbol](self)
                     except KeyError:
-                        raise ElementPathSyntaxError("unknown operator %r." % operator)
+                        raise ElementPathSyntaxError("unknown symbol %r." % symbol)
                     break
                 elif literal is not None:
                     if literal[0] in '\'"':
@@ -254,9 +295,52 @@ class Parser(object):
                 elif unexpected is not None:
                     self.wrong_syntax(unexpected)
                 elif str(self.next_match.group()).strip():
-                    raise RuntimeError("Unexpected tokenizer matching: %r" % self.next_match.group())
-
+                    raise RuntimeError(
+                        "Unexpected matching %r: not compatible tokenizer." % self.next_match.group()
+                    )
         return self.next_token
+
+    def raw_advance(self, *stop_symbols):
+        """
+        Advances until one of the symbols is found or the end of source is reached, returning
+        the raw source string placed before. Useful for raw parsing of comments and references
+        enclosed between specific symbols.
+
+        :param stop_symbols: The symbols that have to be found for stopping advance.
+        :return: The source string chunk enclosed between the initial position and the first stop symbol.
+        """
+        if not stop_symbols:
+            raise ElementPathValueError("at least a stop symbol required!")
+        elif getattr(self.next_token, 'symbol', None) == '(end)':
+            if self.token is None:
+                raise ElementPathSyntaxError("source is empty.")
+            else:
+                raise ElementPathSyntaxError("unexpected end of source after %s." % self.token)
+
+        self.token = self.next_token
+        self.match = self.next_match
+        source_chunk = []
+        while True:
+            try:
+                self.next_match = next(self.tokens)
+            except StopIteration:
+                self.next_token = self.symbol_table['(end)'](self)
+                break
+            else:
+                symbol = self.next_match.group(2)
+                if symbol is not None:
+                    symbol = symbol.strip()
+                    if symbol not in stop_symbols:
+                        source_chunk.append(symbol)
+                    else:
+                        try:
+                            self.next_token = self.symbol_table[symbol](self)
+                        except KeyError:
+                            raise ElementPathSyntaxError("unknown symbol %r." % symbol)
+                        break
+                else:
+                    source_chunk.append(self.next_match.group())
+        return ''.join(source_chunk)
 
     def expression(self, rbp=0):
         """
@@ -312,41 +396,6 @@ class Parser(object):
             raise ElementPathSyntaxError(
                 "unexpected symbol %r at line %d, column %d." % (symbol, pos[0], pos[1])
             )
-
-    @classmethod
-    def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
-        """
-        Builds the parser tokenizer using the symbol related patterns. A tokenizer built with this
-        method is suited for programming languages where extra spaces between symbols are skipped.
-
-        :param name_pattern: Pattern to use to match names.
-        """
-        tokenizer_pattern_template = r"""
-            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
-            (%s|[%s]) |                                                       # Symbol's patterns
-            (%s) |                                                            # Names
-            (\S) |                                                            # Unexpected characters
-            \s+                                                               # Skip extra spaces
-        """
-        patterns = [
-            s.pattern for s in cls.symbol_table.values()
-            if s.pattern.strip() not in {'(end)', '(name)', '(string)', '(float)', '(decimal)', '(integer)'}
-        ]
-        string_patterns = []
-        character_patterns = []
-        for p in (s.strip() for s in patterns):
-            length = len(p)
-            if length == 1 or length == 2 and p[0] == '\\':
-                character_patterns.append(p)
-            else:
-                string_patterns.append(p)
-
-        pattern = tokenizer_pattern_template % (
-            '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
-            ''.join(character_patterns),
-            name_pattern
-        )
-        cls.tokenizer = re.compile(pattern, re.VERBOSE)
 
     @classmethod
     def begin(cls):

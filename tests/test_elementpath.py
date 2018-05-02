@@ -117,7 +117,7 @@ class XPath1ParserTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables)
+        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables, strict=True)
         cls.etree = ElementTree
 
     def check_tokenizer(self, path, expected):
@@ -340,7 +340,9 @@ class XPath1ParserTest(unittest.TestCase):
         self.parser.strict = True
         self.wrong_syntax('{%s}string' % XSD_NAMESPACE)
 
-        if not hasattr(self.etree, 'LxmlError'):
+        if not hasattr(self.etree, 'LxmlError') or self.parser.version > '1.0':
+            # Do not test with XPath 1.0 on lxml.
+            self.check_selector("./{http://www.w3.org/2001/04/xmlenc#}EncryptedData", root, [], strict=False)
             self.check_selector("./{http://xpath.test/ns}B1", root, [root[0]], strict=False)
             self.check_selector("./{http://xpath.test/ns}*", root, root[:], strict=False)
 
@@ -752,7 +754,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_tree('child (: nasty "(: but not nested :)" axis comment :) ::B1', '(child (B1))')
         self.check_value("5 (: before operator comment :) < 4", False)  # Before infix operator
         self.check_value("5 < (: after operator comment :) 4", False)  # After infix operator
-        self.check_value("true (: nasty function comment :) ()", True)
+        self.check_value("true (:# nasty function comment :) ()", True)
         self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \nC1 (: last comment :)\t',
                         '(/ (/ (/ (A)) (B1)) (C1))')
 
