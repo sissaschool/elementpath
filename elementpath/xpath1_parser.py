@@ -93,7 +93,7 @@ class XPath1Parser(Parser):
     @classmethod
     def end(cls):
         cls.register('(end)')
-        cls.build_tokenizer(name_pattern=r'(?:\{[^}]+\})?' + XML_NCNAME_PATTERN)
+        cls.build_tokenizer(name_pattern=XML_NCNAME_PATTERN)
 
     @classmethod
     def alias(cls, symbol, other):
