@@ -81,6 +81,10 @@ class XPath1Parser(Parser):
     }
 
     DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
+    """
+    The default namespaces to use on the XPath instance. Those namespaces are updated in the 
+    instance with the ones passed with the *namespaces* argument.
+    """
 
     def __init__(self, namespaces=None, variables=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
@@ -100,13 +104,8 @@ class XPath1Parser(Parser):
         cls.build_tokenizer(name_pattern=XML_NCNAME_PATTERN)
 
     @classmethod
-    def alias(cls, symbol, other):
-        token_class = super(XPath1Parser, cls).alias(symbol, other)
-        token_class.select = cls.symbol_table[other].select
-        return token_class
-
-    @classmethod
     def axis(cls, symbol, bp=0):
+        """Register a token for a symbol that represents an XPath *axis*."""
         def nud_(self): 
             self.parser.advance('::')
             self.parser.next_token.expected(
@@ -125,6 +124,7 @@ class XPath1Parser(Parser):
 
     @classmethod
     def function(cls, symbol, nargs=None, bp=0):
+        """Register a token for a symbol that represents an XPath *function*."""
         def nud_(self):
             self.parser.advance('(')
             if nargs is None:

@@ -46,7 +46,7 @@ class XPath2Parser(XPath1Parser):
     For default the namespace "http://www.w3.org/2005/xpath-functions" is used.
     :param schema: The schema proxy instance to use for types, attributes and elements lookups. \
     If it's not provided the XPath 2.0 schema's related expressions cannot be used.
-    :param build_constructors: If set to `True` the parser instance adds constructor functions
+    :param build_constructors: If set to `True` the parser instance adds constructor functions \
     for the in-schema XSD atomic types.
     :param compatibility_mode: If set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
