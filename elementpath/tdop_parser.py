@@ -45,10 +45,14 @@ SPECIAL_SYMBOL_REGEX = re.compile(r'\s*\(\w+\)\s*')
 
 class Token(MutableSequence):
     """
-    Token base class for defining a parser based on Pratt's method.
+    Token base class for defining a parser based on Pratt's method. Each token instance
+    is a list-like object. Empty tokens represent simple symbols, names and literals.
+    Not empty tokens represent operators where list's items are the operands.
+
+    :param parser: The parser instance that creates the token instance.
+    :param value: The token value. If not provided defaults to token symbol.
 
     :cvar symbol: The symbol of the token class.
-    :param value: The token value. If not provided defaults to token symbol.
     :cvar lbp: Pratt's left binding power, defaults to 0.
     :cvar rbp: Pratt's right binding power, defaults to 0.
     :cvar label: A label that can be changed to put a custom category to a token \
@@ -103,6 +107,7 @@ class Token(MutableSequence):
 
     @property
     def tree(self):
+        """Returns a tree representation string."""
         symbol, length = self.symbol, len(self)
         if symbol == '(name)':
             return u'(%s)' % self.value
@@ -117,6 +122,7 @@ class Token(MutableSequence):
 
     @property
     def source(self):
+        """Returns the source representation string."""
         symbol = self.symbol
         if symbol == '(name)':
             return self.value
@@ -134,17 +140,18 @@ class Token(MutableSequence):
                 return u'%s %s' % (symbol, ' '.join(item.source for item in self))
 
     def nud(self):
-        """Null denotation method"""
+        """Pratt's null denotation method"""
         self.wrong_syntax()
 
     def led(self, left):
-        """Left denotation method"""
+        """Pratt's left denotation method"""
         self.wrong_syntax()
 
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
 
     def iter(self):
+        """Returns a generator for iterating the token's tree."""
         for t in self[:1]:
             for token in t.iter():
                 yield token
@@ -179,15 +186,15 @@ class Token(MutableSequence):
 
 class Parser(object):
     """
-    Parser class for implementing a version of a Top Down Operator Precedence parser.
+    Parser class for implementing a Top Down Operator Precedence parser.
 
     :cvar symbol_table: A dictionary that stores the token classes defined for the language.
     :type symbol_table: dict
     :cvar token_base_class: The base class for creating language's token classes.
     :type token_base_class: Token
     :cvar tokenizer: The language tokenizer compiled regexp.
-    :cvar SYMBOLS: A unified list of the definable tokens. It's an optional list useful \
-    if you want to make sure all language's symbols are included and defined.
+    :cvar SYMBOLS: A list of the definable tokens for the parser. It's an optional list useful \
+    if you want to make sure that all formal language's symbols are included and defined.
     """
     symbol_table = {}
     token_base_class = Token
@@ -242,7 +249,8 @@ class Parser(object):
 
     def parse(self, source):
         """
-        The method for parsing a source code of the formal language.
+        Parses a source code of the formal language. This is the main method that has to be
+        called for a parser's instance.
 
         :param source: The source string.
         :return: The root of the token's tree that parse the source.
@@ -264,12 +272,12 @@ class Parser(object):
 
     def advance(self, *symbols):
         """
-        The function for advance to next token.
+        The Pratt's function for advancing to next token.
 
         :param symbols: Optional arguments tuple. If not empty one of the provided \
         symbols is expected. If the next token's symbol differs the parser raise a \
         parse error.
-        :return: The next token.
+        :return: The next token instance.
         """
         if getattr(self.next_token, 'symbol', None) == '(end)':
             if self.token is None:
@@ -321,7 +329,7 @@ class Parser(object):
         """
         Advances until one of the symbols is found or the end of source is reached, returning
         the raw source string placed before. Useful for raw parsing of comments and references
-        enclosed between specific symbols.
+        enclosed between specific symbols. This is an extension provided by this implementation.
 
         :param stop_symbols: The symbols that have to be found for stopping advance.
         :return: The source string chunk enclosed between the initial position and the first stop symbol.
@@ -361,7 +369,7 @@ class Parser(object):
 
     def expression(self, rbp=0):
         """
-        Parse function for expressions. It calls token.nud() and then advance
+        Pratt's function for parsing an expression. It calls token.nud() and then advances
         until the right binding power is less the left binding power of the next
         token, invoking the led() method on the following token.
 
@@ -416,24 +424,12 @@ class Parser(object):
 
     @classmethod
     def begin(cls):
-        """
-        Begin the symbol registration. Helper functions are bound to global names.
-        """
+        """Begin the symbols registration nullifying the parser tokenizer."""
         cls.tokenizer = None
-        globals().update({
-            'register': cls.register,
-            'literal': cls.literal,
-            'prefix': cls.prefix,
-            'infix': cls.infix,
-            'infixr': cls.infixr,
-            'method': cls.method,
-        })
 
     @classmethod
     def end(cls):
-        """
-        End the symbol registration. Registers the special (end) symbol and sets the tokenizer.
-        """
+        """End the symbols registration and build the tokenizer."""
         cls.register('(end)')
         cls.build_tokenizer()
 
@@ -497,35 +493,18 @@ class Parser(object):
 
     @classmethod
     def unregister(cls, symbol):
+        """Unregister a token class from the symbol table."""
         del cls.symbol_table[symbol.strip()]
 
     @classmethod
-    def alias(cls, symbol, other):
-        symbol = symbol.strip()
-        try:
-            other_class = cls.symbol_table[other]
-        except KeyError:
-            raise ElementPathKeyError("%r is not a registered symbol for %r." % (other, cls))
-
-        token_class = cls.register(symbol)
-        token_class.lbp = other_class.lbp
-        token_class.rbp = other_class.rbp
-        token_class.nud = other_class.nud
-        token_class.led = other_class.led
-        token_class.evaluate = other_class.evaluate
-        return token_class
-
-    @classmethod
     def unregistered(cls):
+        """Helper function that returns SYMBOLS not yet registered in the symbol table."""
         if cls.SYMBOLS:
             return [s for s in cls.SYMBOLS if s not in cls.symbol_table]
 
     @classmethod
-    def symbol(cls, s):
-        return cls.register(s)
-
-    @classmethod
     def literal(cls, symbol, bp=0):
+        """Register a token for a symbol that represents a *literal*."""
         def nud(self):
             return self
 
@@ -536,19 +515,30 @@ class Parser(object):
 
     @classmethod
     def nullary(cls, symbol, bp=0):
+        """Register a token for a symbol that represents a *nullary* operator."""
         def nud(self):
             return self
         return cls.register(symbol, label='operator', lbp=bp, nud=nud)
 
     @classmethod
     def prefix(cls, symbol, bp=0):
+        """Register a token for a symbol that represents a *prefix* unary operator."""
         def nud(self):
             self[:] = self.parser.expression(rbp=bp),
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
+    def postfix(cls, symbol, bp=0):
+        """Register a token for a symbol that represents a *postfix* unary operator."""
+        def led(self, left):
+            self[:] = left,
+            return self
+        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
+
+    @classmethod
     def infix(cls, symbol, bp=0):
+        """Register a token for a symbol that represents an *infix* binary operator."""
         def led(self, left):
             self[:] = left, self.parser.expression(rbp=bp)
             return self
@@ -556,20 +546,18 @@ class Parser(object):
 
     @classmethod
     def infixr(cls, symbol, bp=0):
+        """Register a token for a symbol that represents an *infixr* binary operator."""
         def led(self, left):
             self[:] = left, self.parser.expression(rbp=bp-1)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp-1, led=led)
 
     @classmethod
-    def postfix(cls, symbol, bp=0):
-        def led(self, left):
-            self[:] = left,
-            return self
-        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
-
-    @classmethod
     def method(cls, symbol, bp=0):
+        """
+        Register a token for a symbol that represents a custom operator or redefine
+        a method for an existing token.
+        """
         token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
         def bind(func):

@@ -31,7 +31,7 @@ author = 'Davide Brunato'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '1.0.6'
+release = '1.0.7'
 
 
 # -- General configuration ---------------------------------------------------
@@ -135,7 +135,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'elementpath.tex', 'elementpath Documentation',
+    (master_doc, 'elementpath.tex', 'elementpath Manual',
      'Davide Brunato', 'manual'),
 ]
 
@@ -145,7 +145,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'elementpath', 'elementpath Documentation',
+    (master_doc, 'elementpath', 'elementpath Manual',
      [author], 1)
 ]
 
@@ -156,7 +156,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'elementpath', 'elementpath Documentation',
+    (master_doc, 'elementpath', 'elementpath Manual',
      author, 'elementpath', 'One line description of project.',
      'Miscellaneous'),
 ]

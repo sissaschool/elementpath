@@ -3,10 +3,21 @@ Public XPath API
 
 The package includes some classes and functions that implement XPath parsers and selectors.
 
+XPath tokens
+------------
+
+.. autoclass:: elementpath.XPathToken
+
+    .. automethod:: evaluate
+    .. automethod:: select
+
+
 XPath parsers
 -------------
 
 .. autoclass:: elementpath.XPath1Parser
+
+    .. autoattribute:: DEFAULT_NAMESPACES
 
 .. autoclass:: elementpath.XPath2Parser
 
