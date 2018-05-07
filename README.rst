@@ -8,11 +8,14 @@ The proposal of this package is to provide XPath 1.0 and 2.0 selectors for Pytho
 data structures, both for the standard ElementTree library and for the
 `lxml.etree <http://lxml.de>`_ library.
 
-For `lxml.etree <http://lxml.de>`_ this package could be useful for providing XPath 2.0 selectors,
+For `lxml.etree <http://lxml.de>`_ this package can be useful for providing XPath 2.0 selectors,
 because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XPath 1.0.
 
-The XPath 2.0 functions implementation is partial, due to wide number of functions that this language
-provides. If you want you can contribute to add an unimplemented function see the section below.
+The XPath 2.0 functions implementation not completed yet, due to wide number of functions that this
+language provides. If you want you can contribute to add an unimplemented function see the section below.
+
+Public API classes and functions are described into the
+`elementpath manual on the *ReadTheDocs* site <http://elementpath.readthedocs.io/en/latest/>`_.
 
 
 Installation and usage
@@ -22,7 +25,7 @@ You can install the package with *pip* in a Python 2.7 or Python 3.3+ environmen
 
     pip install elementpath
 
-For using import the package and apply the selectors on ElementTree nodes:
+For using it import the package and apply the selectors on ElementTree nodes:
 
 .. doctest::
 
@@ -32,8 +35,8 @@ For using import the package and apply the selectors on ElementTree nodes:
     >>> elementpath.select(root, '/A/B2/*')
     [<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
 
-The *select* API provides the standard XPath result format that can be a list or a built-in
-basic data value. If you want only to iterate over results you can use the generator function
+The *select* API provides the standard XPath result format that is a list or an elementary
+datatype's value. If you want only to iterate over results you can use the generator function
 *iter_select* that accepts the same arguments of *select*.
 
 The selectors API works also using XML data trees based on the `lxml.etree <http://lxml.de>`_
@@ -64,6 +67,8 @@ data:
     >>> selector.select(root)
     [<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
+Public API and some package's internal classes are described into the
+`elementpath manual on the *ReadTheDocs* site <http://elementpath.readthedocs.io/en/latest/>`_.
 
 Contributing
 ------------
