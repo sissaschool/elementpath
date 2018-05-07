@@ -29,10 +29,17 @@ from .schema_proxy import AbstractSchemaProxy
 
 class XPath2Parser(XPath1Parser):
     """
-    XPath 2.0 expression parser class. The parser instance represents also the XPath static context.
+    XPath 2.0 expression parser class. This is the default parser used by XPath selectors.
+    A parser instance represents also the XPath static context. With *variables* you can pass
+    a dictionary with the static context's in-scope variables.
+    Provide a *namespaces* dictionary argument for mapping namespace prefixes to URI inside
+    expressions. If *strict* is set to `False` the parser enables also the parsing of QNames,
+    like the ElementPath library. There are some additional XPath 2.0 related arguments.
 
     :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
     :param variables: A dictionary with the static context's in-scope variables.
+    :param strict: If strict mode is `False` the parser enables parsing of QNames, \
+    like the ElementPath library. Default is `True`.
     :param default_namespace: The default namespace to apply to unprefixed names. \
     For default no namespace is applied (empty namespace '').
     :param function_namespace: The default namespace to apply to unprefixed function names. \
