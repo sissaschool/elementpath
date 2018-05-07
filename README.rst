@@ -14,9 +14,6 @@ because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XP
 The XPath 2.0 functions implementation not completed yet, due to wide number of functions that this
 language provides. If you want you can contribute to add an unimplemented function see the section below.
 
-Public API classes and functions are described into the
-`elementpath manual on the *ReadTheDocs* site <http://elementpath.readthedocs.io/en/latest/>`_.
-
 
 Installation and usage
 ----------------------
@@ -67,7 +64,7 @@ data:
     >>> selector.select(root)
     [<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
-Public API and some package's internal classes are described into the
+Public API classes and functions are described into the
 `elementpath manual on the "Read the Docs" site <http://elementpath.readthedocs.io/en/latest/>`_.
 
 Contributing
