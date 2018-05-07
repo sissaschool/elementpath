@@ -68,7 +68,7 @@ data:
     [<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 Public API and some package's internal classes are described into the
-`elementpath manual on the *ReadTheDocs* site <http://elementpath.readthedocs.io/en/latest/>`_.
+`elementpath manual on the "Read the Docs" site <http://elementpath.readthedocs.io/en/latest/>`_.
 
 Contributing
 ------------
