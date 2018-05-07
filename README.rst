@@ -1,6 +1,8 @@
-***********
+===========
 elementpath
-***********
+===========
+
+.. elementpath-introduction
 
 The proposal of this package is to provide XPath 1.0 and 2.0 selectors for Python's ElementTree XML
 data structures, both for the standard ElementTree library and for the
@@ -14,7 +16,7 @@ provides. If you want you can contribute to add an unimplemented function see th
 
 
 Installation and usage
-======================
+----------------------
 
 You can install the package with *pip* in a Python 2.7 or Python 3.3+ environment::
 
@@ -22,79 +24,49 @@ You can install the package with *pip* in a Python 2.7 or Python 3.3+ environmen
 
 For using import the package and apply the selectors on ElementTree nodes:
 
-.. code-block:: pycon
+.. doctest::
 
     >>> import elementpath
     >>> from xml.etree import ElementTree
-    >>> xt = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
-    >>> elementpath.select(xt, '/A/B2/*')
-    ...
+    >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> elementpath.select(root, '/A/B2/*')
+    [<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
+
+The *select* API provides the standard XPath result format that can be a list or a built-in
+basic data value. If you want only to iterate over results you can use the generator function
+*iter_select* that accepts the same arguments of *select*.
+
+The selectors API works also using XML data trees based on the `lxml.etree <http://lxml.de>`_
+library:
+
+.. doctest::
+
+    >>> import elementpath
+    >>> import lxml.etree as etree
+    >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> elementpath.select(root, '/A/B2/*')
+    [<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 
-Public API
-==========
+When you need to apply the same XPath expression to several XML data you can also use the
+*Selector* class, creating an instance and then using it to apply the path on distinct XML
+data:
 
-The package includes some classes and functions for XPath parsers and selectors.
+.. doctest::
 
-XPath1Parser
-------------
-
-.. code-block:: python
-
-    class XPath1Parser(namespaces=None, variables=None, strict=True)
-
-The XPath 1.0 parser. Provide a *namespaces* dictionary argument for mapping namespace prefixes to URI
-inside expressions. With *variables* you can pass a dictionary with the static context's in-scope variables.
-If *strict* is set to `False` the parser enables parsing of QNames, like the ElementPath library.
-
-XPath2Parser
-------------
-
-.. code-block:: python
-
-    XPath2Parser(namespaces=None, variables=None, strict=True, default_namespace='', function_namespace=None, 
-    schema=None, build_constructors=False, compatibility_mode=False)
-    
-
-The XPath 2.0 parser, that is the default parser. It has additional arguments compared to the parent class. 
-*default_namespace* is the namespace to apply to unprefixed names. For default no namespace is applied
-(the empty namespace '').
-*function_namespace* is the default namespace to apply to unprefixed function names (the
-"http://www.w3.org/2005/xpath-functions" namespace for default).
-*schema* is an optional instance of an XML Schema interface as defined by the abstract class
-`AbstractSchemaProxy`.
-*build_constructors* indicates when to define constructor functions for the in-scope XSD atomic types.
-The *compatibility_mode* flag indicates if the XPath 2.0 parser has to work in compatibility
-with XPath 1.0.
-
-XPath selectors
----------------
-
-.. code-block:: python
-
-   select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
-
-Apply *path* expression on *root* Element. The *root* argument can be an ElementTree instance
-or an Element instance.
-Returns a list with XPath nodes or a basic type for expressions based on a function or literal.
-
-.. code-block:: python 
-
-    iter_select(root, path, namespaces=None, schema=None, parser=XPath2Parser)
-
-Iterator version of *select*, if you want to process each result one by one.
-
-.. code-block:: python
-
-    Selector(path, namespaces=None, schema=None, parser=XPath2Parser)
-
-Create an instance of this class if you want to apply an XPath selector to several target data.
-An instance provides *select* and *iter_select* methods with a *root* argument that has the
-same meaning that as for the *select* API.
+    >>> import elementpath
+    >>> import lxml.etree as etree
+    >>> selector = elementpath.Selector('/A/*/*')
+    >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> selector.select(root)
+    [<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
+    >>> root = etree.XML('<A><B1><C0/></B1><B2><C1/><C2/><C3/></B2></A>')
+    >>> selector.select(root)
+    [<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 
 Contributing
-============
+------------
 
 You can contribute to this package reporting bugs, using the issue tracker or by a pull request.
 In case you open an issue please try to provide a test or test data for reproducing the wrong
@@ -111,7 +83,8 @@ implement other types of parsers (I think it could be also a funny exercise!).
 
 
 License
-=======
+-------
+
 This software is distributed under the terms of the MIT License.
 See the file 'LICENSE' in the root directory of the present
 distribution, or http://opensource.org/licenses/MIT.

@@ -34,7 +34,11 @@ XML_NCNAME_PATTERN = u"[{0}][\-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format
 
 class XPath1Parser(Parser):
     """
-    XPath 1.0 expression parser class. The parser instance represents also the XPath static context.
+    XPath 1.0 expression parser class. A parser instance represents also the XPath static context.
+    With *variables* you can pass a dictionary with the static context's in-scope variables.
+    Provide a *namespaces* dictionary argument for mapping namespace prefixes to URI inside
+    expressions. If *strict* is set to `False` the parser enables also the parsing of QNames,
+    like the ElementPath library.
 
     :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
     :param variables: A dictionary with the static context's in-scope variables.

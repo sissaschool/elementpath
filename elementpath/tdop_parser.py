@@ -178,6 +178,17 @@ class Token(MutableSequence):
 
 
 class Parser(object):
+    """
+    Parser class for implementing a version of a Top Down Operator Precedence parser.
+
+    :cvar symbol_table: A dictionary that stores the token classes defined for the language.
+    :type symbol_table: dict
+    :cvar token_base_class: The base class for creating language's token classes.
+    :type token_base_class: Token
+    :cvar tokenizer: The language tokenizer compiled regexp.
+    :cvar SYMBOLS: A unified list of the definable tokens. It's an optional list useful \
+    if you want to make sure all language's symbols are included and defined.
+    """
     symbol_table = {}
     token_base_class = Token
     tokenizer = None
@@ -230,6 +241,12 @@ class Parser(object):
         self.source = ''
 
     def parse(self, source):
+        """
+        The method for parsing a source code of the formal language.
+
+        :param source: The source string.
+        :return: The root of the token's tree that parse the source.
+        """
         try:
             self.source = source
             self.tokens = iter(self.tokenizer.finditer(source))
