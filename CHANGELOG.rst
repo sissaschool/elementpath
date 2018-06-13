@@ -2,21 +2,21 @@
 CHANGELOG
 *********
 
-`1.0.8_` (2018-06-13)
-=====================
+`v1.0.8_` (2018-06-13)
+======================
 * Fixed token classes creation for parsers serialization
 
-`1.0.7_` (2018-05-07)
+`v1.0.7_` (2018-05-07)
 =====================
 * Added autodoc based manual with Sphinx
 
-`1.0.6_` (2018-05-02)
-=====================
+`v1.0.6_` (2018-05-02)
+======================
 * Added tox testing
 * Improved the parser class with raw_advance method
 
-`1.0.5`_ (2018-03-31)
-=====================
+`v1.0.5`_ (2018-03-31)
+======================
 * Added n.10 XPath 2.0 functions for strings
 * Fix README.rst for right rendering in PyPI
 * Added ElementPathMissingContextError exception for a correct
@@ -43,13 +43,13 @@ handling of static context evaluation
 * First stable version.
 
 
-.. _1.0.0: https://github.com/brunato/elementpath/commit/b28da83
-.. _1.0.1: https://github.com/brunato/elementpath/compare/1.0.0...1.0.1
-.. _1.0.2: https://github.com/brunato/elementpath/compare/1.0.1...1.0.2
-.. _1.0.3: https://github.com/brunato/elementpath/compare/1.0.2...1.0.3
-.. _1.0.4: https://github.com/brunato/elementpath/compare/1.0.3...1.0.4
-.. _1.0.5: https://github.com/brunato/elementpath/compare/1.0.4...1.0.5
-.. _1.0.6: https://github.com/brunato/elementpath/compare/1.0.5...1.0.6
-.. _1.0.7: https://github.com/brunato/elementpath/compare/1.0.6...1.0.7
-.. _1.0.8: https://github.com/brunato/elementpath/compare/1.0.7...1.0.8
+.. _v1.0.0: https://github.com/brunato/elementpath/commit/b28da83
+.. _v1.0.1: https://github.com/brunato/elementpath/compare/v1.0.0...v1.0.1
+.. _v1.0.2: https://github.com/brunato/elementpath/compare/v1.0.1...v1.0.2
+.. _v1.0.3: https://github.com/brunato/elementpath/compare/v1.0.2...v1.0.3
+.. _v1.0.4: https://github.com/brunato/elementpath/compare/v1.0.3...v1.0.4
+.. _v1.0.5: https://github.com/brunato/elementpath/compare/v1.0.4...v1.0.5
+.. _v1.0.6: https://github.com/brunato/elementpath/compare/v1.0.5...v1.0.6
+.. _v1.0.7: https://github.com/brunato/elementpath/compare/v1.0.6...v1.0.7
+.. _v1.0.8: https://github.com/brunato/elementpath/compare/v1.0.7...v1.0.8
 
