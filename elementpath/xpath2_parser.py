@@ -1046,6 +1046,15 @@ class MultiValue(object):
     def __ne__(self, other):
         return all(other != v for v in self.values)
 
+    def __str__(self):
+        return '_'.join(self.values)
+
+    def __unicode__(self):
+        return u'_'.join(self.values)
+
+    if PY3:
+        __str__ = __unicode__
+
 
 unregister('attribute')
 register('attribute', lbp=90, rbp=90, label=MultiValue('function', 'axis'),

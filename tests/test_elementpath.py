@@ -241,22 +241,22 @@ class XPath1ParserTest(unittest.TestCase):
     def test_tokens(self):
         # Literals
         self.check_token('(string)', 'literal', "'hello' string",
-                         "token(symbol='(string)', value='hello')", 'hello')
+                         "_(string)_literal_token(value='hello')", 'hello')
         self.check_token('(integer)', 'literal', "1999 integer",
-                         "token(symbol='(integer)', value=1999)", 1999)
+                         "_(integer)_literal_token(value=1999)", 1999)
         self.check_token('(float)', 'literal', "3.1415 float",
-                         "token(symbol='(float)', value=3.1415)", 3.1415)
+                         "_(float)_literal_token(value=3.1415)", 3.1415)
         self.check_token('(decimal)', 'literal', "217.35 decimal",
-                         "token(symbol='(decimal)', value=217.35)", 217.35)
+                         "_(decimal)_literal_token(value=217.35)", 217.35)
         self.check_token('(name)', 'literal', "'schema' name",
-                         "token(symbol='(name)', value='schema')", 'schema')
+                         "_(name)_literal_token(value='schema')", 'schema')
 
         # Axes
-        self.check_token('self', 'axis', "self axis", "token(symbol='self')")
-        self.check_token('child', 'axis', "child axis", "token(symbol='child')")
-        self.check_token('parent', 'axis', "parent axis", "token(symbol='parent')")
-        self.check_token('ancestor', 'axis', "ancestor axis", "token(symbol='ancestor')")
-        self.check_token('preceding', 'axis', "preceding axis", "token(symbol='preceding')")
+        self.check_token('self', 'axis', "self axis", "_self_axis_token()")
+        self.check_token('child', 'axis', "child axis", "_child_axis_token()")
+        self.check_token('parent', 'axis', "parent axis", "_parent_axis_token()")
+        self.check_token('ancestor', 'axis', "ancestor axis", "_ancestor_axis_token()")
+        self.check_token('preceding', 'axis', "preceding axis", "_preceding_axis_token()")
         self.check_token('descendant-or-self', 'axis', "descendant-or-self axis")
         self.check_token('following-sibling', 'axis', "following-sibling axis")
         self.check_token('preceding-sibling', 'axis', "preceding-sibling axis")
@@ -268,10 +268,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_token('namespace', 'axis', "namespace axis")
 
         # Functions
-        self.check_token('position', 'function', "position() function", "token(symbol='position')")
+        self.check_token('position', 'function', "position() function", "_position_function_token()")
 
         # Operators
-        self.check_token('and', 'operator', "'and' operator", "token(symbol='and')")
+        self.check_token('and', 'operator', "'and' operator", "_and_operator_token()")
 
     def test_implementation(self):
         self.assertEqual(self.parser.unregistered(), [])
