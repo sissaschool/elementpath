@@ -16,7 +16,7 @@ from decimal import Decimal
 from abc import ABCMeta
 from collections import MutableSequence
 from .exceptions import (
-    ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError, ElementPathKeyError
+    ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 )
 
 
@@ -94,9 +94,9 @@ class Token(MutableSequence):
     def __repr__(self):
         symbol, value = self.symbol, self.value
         if value != symbol:
-            return u'%s(symbol=%r, value=%r)' % (self.__class__.__name__, symbol, value)
+            return u'%s(value=%r)' % (self.__class__.__name__, value)
         else:
-            return u'%s(symbol=%r)' % (self.__class__.__name__, symbol)
+            return u'%s()' % self.__class__.__name__
 
     def __cmp__(self, other):
         return self.symbol == other.symbol and self.value == other.value
@@ -458,6 +458,7 @@ class Parser(object):
             try:
                 symbol = symbol.strip()
             except AttributeError:
+                # noinspection PyTypeChecker
                 assert issubclass(symbol, cls.token_base_class), \
                     "A %r subclass requested, not %r." % (cls.token_base_class, symbol)
                 symbol, token_class = symbol.symbol, symbol
@@ -474,12 +475,16 @@ class Parser(object):
             if 'pattern' not in kwargs:
                 pattern = symbol_escape(symbol) if len(symbol) > 1 else re.escape(symbol)
                 kwargs['pattern'] = pattern
-            token_class = ABCMeta('token', (cls.token_base_class,), kwargs)
+            token_class_name = str("_%s_%s_token" % (symbol, kwargs.get('label', 'symbol')))
+            kwargs.update({
+                '__module__': cls.__module__,
+                '__qualname__': token_class_name,
+                '__return__': None
+            })
+            token_class = ABCMeta(token_class_name, (cls.token_base_class,), kwargs)
             cls.symbol_table[symbol] = token_class
             cls.tokenizer = None
-
-            # noinspection PyCallByClass
-            ABCMeta.register(MutableSequence, token_class)
+            MutableSequence.register(token_class)
         else:
             for key, value in kwargs.items():
                 if key == 'lbp' and value > token_class.lbp:
