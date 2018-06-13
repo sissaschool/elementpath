@@ -2,15 +2,16 @@
 CHANGELOG
 *********
 
-`v1.0.8_` (2018-06-13)
+
+`v1.0.8`_ (2018-06-13)
 ======================
 * Fixed token classes creation for parsers serialization
 
-`v1.0.7_` (2018-05-07)
+`v1.0.7`_ (2018-05-07)
 =====================
 * Added autodoc based manual with Sphinx
 
-`v1.0.6_` (2018-05-02)
+`v1.0.6`_ (2018-05-02)
 ======================
 * Added tox testing
 * Improved the parser class with raw_advance method
