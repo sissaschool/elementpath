@@ -247,6 +247,16 @@ class Parser(object):
         self.tokens = iter(())
         self.source = ''
 
+    def __eq__(self, other):
+        if self.token_base_class != other.token_base_class:
+            return False
+        elif self.SYMBOLS != other.SYMBOLS:
+            return False
+        elif self.symbol_table != other.symbol_table:
+            return False
+        else:
+            return True
+
     def parse(self, source):
         """
         Parses a source code of the formal language. This is the main method that has to be
