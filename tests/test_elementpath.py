@@ -211,7 +211,10 @@ class XPath1ParserTest(unittest.TestCase):
         if getattr(self.parser, 'schema', None) is None:
             obj = pickle.dumps(self.parser)
             parser = pickle.loads(obj)
+            obj = pickle.dumps(self.parser.symbol_table)
+            symbol_table = pickle.loads(obj)
             self.assertEqual(self.parser, parser)
+            self.assertEqual(self.parser.symbol_table, symbol_table)
 
     def test_xpath_tokenizer(self):
         # tests from the XPath specification
@@ -253,15 +256,15 @@ class XPath1ParserTest(unittest.TestCase):
     def test_tokens(self):
         # Literals
         self.check_token('(string)', 'literal', "'hello' string",
-                         "_(string)_literal_token(value='hello')", 'hello')
+                         "_string_literal_token(value='hello')", 'hello')
         self.check_token('(integer)', 'literal', "1999 integer",
-                         "_(integer)_literal_token(value=1999)", 1999)
+                         "_integer_literal_token(value=1999)", 1999)
         self.check_token('(float)', 'literal', "3.1415 float",
-                         "_(float)_literal_token(value=3.1415)", 3.1415)
+                         "_float_literal_token(value=3.1415)", 3.1415)
         self.check_token('(decimal)', 'literal', "217.35 decimal",
-                         "_(decimal)_literal_token(value=217.35)", 217.35)
+                         "_decimal_literal_token(value=217.35)", 217.35)
         self.check_token('(name)', 'literal', "'schema' name",
-                         "_(name)_literal_token(value='schema')", 'schema')
+                         "_name_literal_token(value='schema')", 'schema')
 
         # Axes
         self.check_token('self', 'axis', "self axis", "_self_axis_token()")

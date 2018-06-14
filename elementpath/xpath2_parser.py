@@ -187,8 +187,6 @@ class XPath2Parser(XPath1Parser):
 
 ##
 # XPath 2.0 definitions
-XPath2Parser.begin()
-
 register = XPath2Parser.register
 unregister = XPath2Parser.unregister
 literal = XPath2Parser.literal
