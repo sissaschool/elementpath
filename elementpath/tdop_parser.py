@@ -11,17 +11,41 @@
 """
 This module contains classes and helper functions for defining Pratt parsers.
 """
+import sys
 import re
+from unicodedata import name as unicode_name
 from decimal import Decimal
 from abc import ABCMeta
 from collections import MutableSequence
+from .compat import PY3
 from .exceptions import (
     ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 )
 
-
 SPECIAL_SYMBOL_REGEX = re.compile(r'\s*\(\w+\)\s*')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
+
+
+def symbol_to_identifier(symbol):
+    """
+    Converts a symbol string to an identifier (only alphanumeric and '_').
+    """
+    def get_id_name(c):
+        if c in ('_', '-', ' '):
+            return '_'
+        elif c.isalnum():
+            return c
+        elif PY3:
+            return '%s_' % unicode_name(c).title().replace(' ', '')
+        else:
+            return '%s_' % unicode_name(unicode(c)).title().replace(' ', '')
+
+    if symbol.isalnum():
+        return symbol
+    elif SPECIAL_SYMBOL_REGEX.search(symbol):
+        return symbol[1:-1]
+    else:
+        return ''.join(get_id_name(c) for c in symbol)
 
 
 #
@@ -433,11 +457,6 @@ class Parser(object):
             )
 
     @classmethod
-    def begin(cls):
-        """Begin the symbols registration nullifying the parser tokenizer."""
-        cls.tokenizer = None
-
-    @classmethod
     def end(cls):
         """End the symbols registration and build the tokenizer."""
         cls.register('(end)')
@@ -472,20 +491,22 @@ class Parser(object):
                 assert issubclass(symbol, cls.token_base_class), \
                     "A %r subclass requested, not %r." % (cls.token_base_class, symbol)
                 symbol, token_class = symbol.symbol, symbol
-                if symbol not in cls.symbol_table:
-                    cls.symbol_table[symbol] = token_class
-                else:
-                    assert cls.symbol_table[symbol] is token_class, \
-                        "The registered instance for %r is not %r." % (symbol, token_class)
+                assert symbol in cls.symbol_table and cls.symbol_table[symbol] is token_class, \
+                    "token class %r is not registered." % token_class
             else:
                 token_class = cls.symbol_table[symbol]
 
         except KeyError:
+            # Register a new symbol and create a new custom class. The new class
+            # name is registered at parser class's module level.
+
             kwargs['symbol'] = symbol
             if 'pattern' not in kwargs:
                 pattern = symbol_escape(symbol) if len(symbol) > 1 else re.escape(symbol)
                 kwargs['pattern'] = pattern
-            token_class_name = str("_%s_%s_token" % (symbol, kwargs.get('label', 'symbol')))
+            token_class_name = str(
+                "_%s_%s_token" % (symbol_to_identifier(symbol), kwargs.get('label', 'symbol'))
+            )
             kwargs.update({
                 '__module__': cls.__module__,
                 '__qualname__': token_class_name,
@@ -495,6 +516,8 @@ class Parser(object):
             cls.symbol_table[symbol] = token_class
             cls.tokenizer = None
             MutableSequence.register(token_class)
+            setattr(sys.modules[cls.__module__], token_class_name, token_class)
+
         else:
             for key, value in kwargs.items():
                 if key == 'lbp' and value > token_class.lbp:
