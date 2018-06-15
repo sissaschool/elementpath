@@ -27,7 +27,7 @@ from elementpath.namespaces import (
 try:
     # noinspection PyPackageRequirements
     import xmlschema
-except ImportError:
+except (ImportError, AttributeError):
     xmlschema = None
 
 
@@ -1173,7 +1173,7 @@ class LxmlXPath2ParserTest(XPath2ParserTest):
         cls.etree = lxml.etree
 
 
-@unittest.skipIf(xmlschema is None, "The xmlschema library is not installed.")
+@unittest.skipIf(xmlschema is None, "xmlschema library >= v0.9.31 required.")
 class XPath2ParserXMLSchemaTest(XPath2ParserTest):
 
     if xmlschema:
