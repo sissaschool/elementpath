@@ -3,6 +3,10 @@ CHANGELOG
 *********
 
 
+`v1.0.10`_ (2018-06-15)
+=======================
+* Updated TDOP parser and implemented token classes serialization
+
 `v1.0.8`_ (2018-06-13)
 ======================
 * Fixed token classes creation for parsers serialization
