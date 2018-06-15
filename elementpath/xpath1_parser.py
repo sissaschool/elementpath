@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import division
-import sys
 import math
 import decimal
 
@@ -94,16 +93,13 @@ class XPath1Parser(Parser):
         self.variables = dict(variables if variables is not None else [])
         self.strict = strict
 
+    @classmethod
+    def build_tokenizer(cls, name_pattern=XML_NCNAME_PATTERN):
+        super(XPath1Parser, cls).build_tokenizer(name_pattern)
+
     @property
     def version(self):
         return '1.0'
-
-    @classmethod
-    def end(cls):
-        cls.register('(end)')
-        cls.build_tokenizer(name_pattern=XML_NCNAME_PATTERN)
-        for token_class in cls.symbol_table.values():
-            setattr(sys.modules[cls.__module__], token_class.__name__, token_class)
 
     @classmethod
     def axis(cls, symbol, bp=0):
@@ -1129,4 +1125,5 @@ def evaluate(self, context=None):
             self.wrong_value(str(err))
 
 
-XPath1Parser.end()
+register('(end)')
+XPath1Parser.build_tokenizer()

@@ -1,6 +1,6 @@
-===========
+***********
 elementpath
-===========
+***********
 
 .. elementpath-introduction
 
@@ -16,7 +16,7 @@ language provides. If you want you can contribute to add an unimplemented functi
 
 
 Installation and usage
-----------------------
+======================
 
 You can install the package with *pip* in a Python 2.7 or Python 3.3+ environment::
 
@@ -68,7 +68,7 @@ Public API classes and functions are described into the
 `elementpath manual on the "Read the Docs" site <http://elementpath.readthedocs.io/en/latest/>`_.
 
 Contributing
-------------
+============
 
 You can contribute to this package reporting bugs, using the issue tracker or by a pull request.
 In case you open an issue please try to provide a test or test data for reproducing the wrong
@@ -85,7 +85,7 @@ implement other types of parsers (I think it could be also a funny exercise!).
 
 
 License
--------
+=======
 
 This software is distributed under the terms of the MIT License.
 See the file 'LICENSE' in the root directory of the present

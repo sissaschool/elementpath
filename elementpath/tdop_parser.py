@@ -22,6 +22,9 @@ from .exceptions import (
     ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 )
 
+DEFAULT_SPECIAL_SYMBOLS = {'(string)', '(float)', '(decimal)', '(integer)', '(name)', '(end)'}
+"""Special symbols for literals, names and end tokens."""
+
 SPECIAL_SYMBOL_REGEX = re.compile(r'\s*\(\w+\)\s*')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
 
@@ -274,6 +277,8 @@ class Parser(object):
             (\S) |                                                            # Unexpected characters
             \s+                                                               # Skip extra spaces
         """
+        if not all(k in cls.symbol_table for k in DEFAULT_SPECIAL_SYMBOLS):
+            raise ValueError("The symbol table of %r doesn't contain all special symbols." % cls)
 
         patterns = [
             s.pattern for s in cls.symbol_table.values()
@@ -296,7 +301,7 @@ class Parser(object):
         cls.tokenizer = re.compile(pattern, re.VERBOSE)
 
     def __init__(self):
-        if '(end)' not in self.symbol_table or self.tokenizer is None:
+        if self.tokenizer is None:
             raise ValueError("Incomplete parser class %s registration." % self.__class__.__name__)
         self.token = None
         self.match = None
@@ -492,7 +497,7 @@ class Parser(object):
 
     @classmethod
     def end(cls):
-        """End the symbols registration and build the tokenizer."""
+        """Registers the end symbol and builds the tokenizer."""
         cls.register('(end)')
         cls.build_tokenizer()
 

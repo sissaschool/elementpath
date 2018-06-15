@@ -117,7 +117,7 @@ class XPath2Parser(XPath1Parser):
                         symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
                         if symbol not in self.symbol_table:
                             self.atomic_type(symbol, xsd_type.name)
-                        self.end()
+                        self.build_tokenizer()
 
         if compatibility_mode is False:
             self.compatibility_mode = False
@@ -1102,4 +1102,4 @@ def evaluate(self, context=None):
             return context.item[1]
 
 
-XPath2Parser.end()
+XPath2Parser.build_tokenizer()
