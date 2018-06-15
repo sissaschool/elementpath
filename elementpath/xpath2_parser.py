@@ -50,7 +50,6 @@ class XPath2Parser(XPath1Parser):
     for the in-schema XSD atomic types.
     :param compatibility_mode: If set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
-    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items()}
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for',
         'some', 'every', 'in', 'satisfies', 'item', 'satisfies', 'cast', 'treat',

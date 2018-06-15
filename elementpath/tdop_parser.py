@@ -17,7 +17,7 @@ from unicodedata import name as unicode_name
 from decimal import Decimal
 from abc import ABCMeta
 from collections import MutableSequence
-from .compat import PY3
+from .compat import PY3, add_metaclass
 from .exceptions import (
     ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 )
@@ -208,6 +208,40 @@ class Token(MutableSequence):
         raise ElementPathTypeError("%s: %s." % (self, message or 'unknown error'))
 
 
+class ParserMeta(type):
+
+    def __new__(mcs, name, bases, namespace):
+        cls = super(ParserMeta, mcs).__new__(mcs, name, bases, namespace)
+
+        # Avoids more parsers definitions for a single module
+        for k, v in sys.modules[cls.__module__].__dict__.items():
+            if isinstance(v, ParserMeta) and v.__module__ == cls.__module__:
+                raise RuntimeError("Multiple parser class definitions per module are not permitted: %r" % cls)
+
+        # Checks and initializes class attributes
+        if not hasattr(cls, 'token_base_class'):
+            cls.token_base_class = Token
+        if 'tokenizer' not in namespace:
+            cls.tokenizer = None
+        if 'symbol_table' not in namespace:
+            cls.symbol_table = {}
+            for base_class in bases:
+                if hasattr(base_class, 'symbol_table'):
+                    cls.symbol_table.update(base_class.symbol_table)
+                    break
+        if 'SYMBOLS' not in namespace:
+            cls.SYMBOLS = set()
+            for base_class in bases:
+                if hasattr(base_class, 'SYMBOLS'):
+                    cls.symbol_table.update(base_class.SYMBOLS)
+                    break
+        return cls
+
+    def __init__(cls, name, bases, namespace):
+        super(ParserMeta, cls).__init__(name, bases, namespace)
+
+
+@add_metaclass(ParserMeta)
 class Parser(object):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
@@ -220,9 +254,9 @@ class Parser(object):
     :cvar SYMBOLS: A list of the definable tokens for the parser. It's an optional list useful \
     if you want to make sure that all formal language's symbols are included and defined.
     """
-    symbol_table = {}
     token_base_class = Token
     tokenizer = None
+    symbol_table = {}
     SYMBOLS = ()
 
     @classmethod
