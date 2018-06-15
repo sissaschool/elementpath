@@ -24,8 +24,6 @@ You can install the package with *pip* in a Python 2.7 or Python 3.3+ environmen
 
 For using it import the package and apply the selectors on ElementTree nodes:
 
-.. doctest::
-
     >>> import elementpath
     >>> from xml.etree import ElementTree
     >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
@@ -39,8 +37,6 @@ datatype's value. If you want only to iterate over results you can use the gener
 The selectors API works also using XML data trees based on the `lxml.etree <http://lxml.de>`_
 library:
 
-.. doctest::
-
     >>> import elementpath
     >>> import lxml.etree as etree
     >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
@@ -51,8 +47,6 @@ library:
 When you need to apply the same XPath expression to several XML data you can also use the
 *Selector* class, creating an instance and then using it to apply the path on distinct XML
 data:
-
-.. doctest::
 
     >>> import elementpath
     >>> import lxml.etree as etree
