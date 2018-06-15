@@ -47,7 +47,6 @@ class XPath1Parser(Parser):
     like the ElementPath library. Default is `True`.
     """
     token_base_class = XPathToken
-    symbol_table = {k: v for k, v in Parser.symbol_table.items()}
     compatibility_mode = True
 
     SYMBOLS = {
