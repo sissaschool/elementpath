@@ -57,4 +57,5 @@ handling of static context evaluation
 .. _v1.0.6: https://github.com/brunato/elementpath/compare/v1.0.5...v1.0.6
 .. _v1.0.7: https://github.com/brunato/elementpath/compare/v1.0.6...v1.0.7
 .. _v1.0.8: https://github.com/brunato/elementpath/compare/v1.0.7...v1.0.8
+.. _v1.0.10: https://github.com/brunato/elementpath/compare/v1.0.8...v1.0.10
 
