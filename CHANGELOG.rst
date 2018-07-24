@@ -2,6 +2,9 @@
 CHANGELOG
 *********
 
+`v1.0.11`_ (TBD)
+================
+* Minor fixes for context and helpers
 
 `v1.0.10`_ (2018-06-15)
 =======================
@@ -12,7 +15,7 @@ CHANGELOG
 * Fixed token classes creation for parsers serialization
 
 `v1.0.7`_ (2018-05-07)
-=====================
+======================
 * Added autodoc based manual with Sphinx
 
 `v1.0.6`_ (2018-05-02)
@@ -44,7 +47,7 @@ handling of static context evaluation
 * Some bug fixes for attributes selection.
 
 `v1.0.0`_ (2018-03-26)
-====================
+======================
 * First stable version.
 
 
@@ -58,4 +61,5 @@ handling of static context evaluation
 .. _v1.0.7: https://github.com/brunato/elementpath/compare/v1.0.6...v1.0.7
 .. _v1.0.8: https://github.com/brunato/elementpath/compare/v1.0.7...v1.0.8
 .. _v1.0.10: https://github.com/brunato/elementpath/compare/v1.0.8...v1.0.10
+.. _v1.0.11: https://github.com/brunato/elementpath/compare/v1.0.10...v1.0.11
 

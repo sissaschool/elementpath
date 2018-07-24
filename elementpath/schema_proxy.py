@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-
 from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass
 

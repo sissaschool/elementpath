@@ -18,7 +18,7 @@ language provides. If you want you can contribute to add an unimplemented functi
 Installation and usage
 ======================
 
-You can install the package with *pip* in a Python 2.7 or Python 3.3+ environment::
+You can install the package with *pip* in a Python 2.7 or Python 3.4+ environment::
 
     pip install elementpath
 
