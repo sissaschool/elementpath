@@ -55,12 +55,16 @@ def is_element_node(obj, tag=None):
     elif not is_etree_element(obj):
         return False
     elif tag[0] == '*':
-        if obj.tag[0] == '{':
+        if not obj.tag:
+            return False
+        elif obj.tag[0] == '{':
             return obj.tag.split('}')[1] == tag.split(':')[1]
         else:
             return obj.tag == tag.split(':')[1]
     elif tag[-1] == '*':
-        if obj.tag[0] == '{':
+        if not obj.tag:
+            return False
+        elif obj.tag[0] == '{':
             return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:]
         else:
             return True

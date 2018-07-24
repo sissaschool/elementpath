@@ -153,6 +153,7 @@ class XPathContext(object):
         elif not is_etree_element(self.item):
             return
 
+        elements = []
         for descendant in _iter_descendants():
             yield descendant
 
@@ -190,7 +191,7 @@ class XPathContext(object):
                 self.item = elem.text
                 yield self.item
 
-            for _item in sorted(elem.attrib.items()):
+            for _item in elem.attrib.items():
                 self.item = _item
                 yield _item
 
