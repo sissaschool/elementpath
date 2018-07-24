@@ -128,18 +128,6 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_descendants(self, item=None, axis=None):
-        def _iter_descendants():
-            elem = self.item
-            yield self.item
-            if elem.text is not None:
-                self.item = elem.text
-                yield self.item
-            if len(elem):
-                self.size = len(elem)
-                for self.position, self.item in enumerate(elem):
-                    for _descendant in _iter_descendants():
-                        yield _descendant
-
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
 
@@ -153,11 +141,22 @@ class XPathContext(object):
         elif not is_etree_element(self.item):
             return
 
-        elements = []
-        for descendant in _iter_descendants():
+        for descendant in self._iter_descendants():
             yield descendant
 
         self.item, self.size, self.position, self.axis = status
+
+    def _iter_descendants(self):
+        elem = self.item
+        yield elem
+        if elem.text is not None:
+            self.item = elem.text
+            yield self.item
+        if len(elem):
+            self.size = len(elem)
+            for self.position, self.item in enumerate(elem):
+                for item in self._iter_descendants():
+                    yield item
 
     def iter_ancestors(self, item=None, axis=None):
         status = self.item, self.size, self.position, self.axis
@@ -184,23 +183,6 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter(self, axis=None):
-        def _iter():
-            elem = self.item
-            yield self.item
-            if elem.text is not None:
-                self.item = elem.text
-                yield self.item
-
-            for _item in elem.attrib.items():
-                self.item = _item
-                yield _item
-
-            if len(elem):
-                self.size = len(elem)
-                for self.position, self.item in enumerate(elem):
-                    for _item in _iter():
-                        yield _item
-
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
 
@@ -211,7 +193,24 @@ class XPathContext(object):
         elif not is_etree_element(self.item):
             return
 
-        for item in _iter():
+        for item in self._iter_context():
             yield item
 
         self.item, self.size, self.position, self.axis = status
+
+    def _iter_context(self):
+        elem = self.item
+        yield elem
+        if elem.text is not None:
+            self.item = elem.text
+            yield self.item
+
+        for item in elem.attrib.items():
+            self.item = item
+            yield item
+
+        if len(elem):
+            self.size = len(elem)
+            for self.position, self.item in enumerate(elem):
+                for item in self._iter_context():
+                    yield item
