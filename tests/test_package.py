@@ -20,7 +20,7 @@ class PackageTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
+        cls.test_dir = os.path.dirname(os.path.abspath(__file__))
         cls.package_dir = os.path.dirname(cls.test_dir)
         cls.source_dir = os.path.join(cls.package_dir, 'elementpath/')
         cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
