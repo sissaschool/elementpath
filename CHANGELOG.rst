@@ -2,8 +2,9 @@
 CHANGELOG
 *********
 
-`v1.0.11`_ (TBD)
-================
+`v1.0.11`_ (2018-07-25)
+=======================
+* Added two recursive protected methods to context class
 * Minor fixes for context and helpers
 
 `v1.0.10`_ (2018-06-15)
