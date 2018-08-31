@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.0.12`_ (TDB)
+================
+* Fixed the default namespace use for names without prefix.
+
 `v1.0.11`_ (2018-07-25)
 =======================
 * Added two recursive protected methods to context class
@@ -63,4 +67,4 @@ handling of static context evaluation
 .. _v1.0.8: https://github.com/brunato/elementpath/compare/v1.0.7...v1.0.8
 .. _v1.0.10: https://github.com/brunato/elementpath/compare/v1.0.8...v1.0.10
 .. _v1.0.11: https://github.com/brunato/elementpath/compare/v1.0.10...v1.0.11
-
+.. _v1.0.12: https://github.com/brunato/elementpath/compare/v1.0.11...v1.0.12

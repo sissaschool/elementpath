@@ -19,6 +19,8 @@ XPath parsers
 .. autoclass:: elementpath.XPath1Parser
 
     .. autoattribute:: DEFAULT_NAMESPACES
+    .. autoattribute:: version
+    .. autoattribute:: default_namespace
 
 .. autoclass:: elementpath.XPath2Parser
 
