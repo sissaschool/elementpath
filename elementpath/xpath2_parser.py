@@ -126,6 +126,10 @@ class XPath2Parser(XPath1Parser):
     def version(self):
         return '2.0'
 
+    @property
+    def default_namespace(self):
+        return self.namespaces.get('')
+
     def advance(self, *symbols):
         super(XPath2Parser, self).advance(*symbols)
         if self.next_token.symbol == '(:':

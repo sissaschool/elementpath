@@ -708,6 +708,22 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B2 | /A/B1', root, root[:2])
         self.check_selector('/A/B2 | /A/*', root, root[:])
 
+    def test_default_namespace(self):
+        root = self.etree.XML('<foo>bar</foo>')
+        self.check_selector('/foo', root, [root])
+        if type(self.parser) is XPath1Parser:
+            # XPath 1.0 ignores the default namespace
+            self.check_selector('/foo', root, [root], namespaces={'': 'ns'})  # foo --> foo
+        else:
+            self.check_selector('/foo', root, [], namespaces={'': 'ns'})  # foo --> {ns}foo
+
+        root = self.etree.XML('<foo xmlns="ns">bar</foo>')
+        self.check_selector('/foo', root, [])
+        if type(self.parser) is XPath1Parser:
+            self.check_selector('/foo', root, [], namespaces={'': 'ns'})
+        else:
+            self.check_selector('/foo', root, [root], namespaces={'': 'ns'})
+
 
 class LxmlXPath1ParserTest(XPath1ParserTest):
 
@@ -723,18 +739,13 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         else:
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             variables = kwargs.get('variables', {})
-            if namespaces is None:
-                lxml_namespaces = None
-            elif isinstance(namespaces, list):
-                lxml_namespaces = {k: v for k, v in namespaces if k}
-            else:
-                lxml_namespaces = {k: v for k, v in namespaces.items() if k}
-
             if isinstance(expected, set):
-                self.assertEqual(set(root.xpath(path, namespaces=lxml_namespaces, **variables)), expected)
+                if namespaces and '' not in namespaces:
+                    self.assertEqual(set(root.xpath(path, namespaces=namespaces, **variables)), expected)
                 self.assertEqual(set(results), expected)
             elif not callable(expected):
-                self.assertEqual(root.xpath(path, namespaces=lxml_namespaces, **variables), expected)
+                if namespaces and '' not in namespaces:
+                    self.assertEqual(root.xpath(path, namespaces=namespaces, **variables), expected)
                 self.assertEqual(results, expected)
             elif isinstance(expected, type):
                 self.assertTrue(isinstance(results, expected))

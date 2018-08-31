@@ -81,8 +81,8 @@ class XPath1Parser(Parser):
 
     DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
     """
-    The default namespaces to use on the XPath instance. Those namespaces are updated in the 
-    instance with the ones passed with the *namespaces* argument.
+    The default prefix-to-namespace associations of the XPath class. Those namespaces are updated 
+    in the instance with the ones passed with the *namespaces* argument.
     """
 
     def __init__(self, namespaces=None, variables=None, strict=True, *args, **kwargs):
@@ -99,7 +99,16 @@ class XPath1Parser(Parser):
 
     @property
     def version(self):
+        """The XPath version string."""
         return '1.0'
+
+    @property
+    def default_namespace(self):
+        """
+        The default namespace. For XPath 1.0 this value is always `None` because the default
+        namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
+        """
+        return
 
     @classmethod
     def axis(cls, symbol, bp=0):
@@ -216,16 +225,24 @@ literal('(name)', bp=10)
 
 @method('(name)')
 def evaluate(self, context=None):
-    if context is None:
-        return None
-    elif is_element_node(context.item, self.value) or is_attribute_node(context.item, self.value):
-        return context.item
+    if context is not None:
+        value = self.value
+        if value[0] != '{' and self.parser.default_namespace:
+            value = u'{%s}%s' % (self.parser.default_namespace, value)
+
+        if is_element_node(context.item, value):
+            return context.item
+        elif is_attribute_node(context.item, value):
+            return context.item
 
 
 @method('(name)')
 def select(self, context=None):
     if context is not None:
         value = self.value
+        if value[0] != '{' and self.parser.default_namespace:
+            value = u'{%s}%s' % (self.parser.default_namespace, value)
+
         for item in context.iter_children_or_self():
             if is_attribute_node(item, value):
                 yield item[1]

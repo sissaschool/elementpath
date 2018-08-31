@@ -15,12 +15,12 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='1.0.11',
+    version='1.0.12',
     packages=['elementpath'],
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/elementpath',
-    license='MIT',
+        license='MIT',
     description='XPath 1.0/2.0 parsers and selectors for ElementTree.',
     long_description=long_description,
     classifiers=[
