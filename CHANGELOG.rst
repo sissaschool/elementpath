@@ -2,8 +2,8 @@
 CHANGELOG
 *********
 
-`v1.0.12`_ (TDB)
-================
+`v1.0.12`_ (2018-09-01)
+=======================
 * Fixed the default namespace use for names without prefix.
 
 `v1.0.11`_ (2018-07-25)
