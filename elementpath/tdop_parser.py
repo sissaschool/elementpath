@@ -39,9 +39,9 @@ def symbol_to_identifier(symbol):
         elif c.isalnum():
             return c
         elif PY3:
-            return '%s_' % unicode_name(c).title().replace(' ', '')
+            return unicode_name(c).title().replace(' ', '')
         else:
-            return '%s_' % unicode_name(unicode(c)).title().replace(' ', '')
+            return unicode_name(unicode(c)).title().replace(' ', '')
 
     if symbol.isalnum():
         return symbol
