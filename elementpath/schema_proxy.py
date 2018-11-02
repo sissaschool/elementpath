@@ -108,6 +108,5 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def iter_atomic_types(self):
         for xsd_type in self._schema.maps.types.values():
-            if xsd_type.is_simple() and not hasattr(xsd_type, 'item_type') and \
-                    not hasattr(xsd_type, 'member_type'):
+            if hasattr(xsd_type, 'primitive_type'):
                 yield xsd_type
