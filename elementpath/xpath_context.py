@@ -16,13 +16,18 @@ class XPathContext(object):
     """
     The XPath dynamic context. The static context is provided by the parser.
 
-    :param root: The root of the XML document, must be a ElementTree's Element.
-    :param item: The context item. A `None` value means that the context is positioned on \
+    Usually the dynamic context instances are created providing only the root element.
+    Variables argument is needed if the XPath expression refers to predefined variables.
+    The other optional arguments are needed only if a specific position on the context is
+    required, but have to be used with the knowledge of what is their meaning.
+
+    :param root: the root of the XML document, can be a ElementTree instance or an Element.
+    :param item: the context item. A `None` value means that the context is positioned on \
     the document node.
-    :param position: The current position of the node within the input sequence.
-    :param size: The number of items in the input sequence.
-    :param axis: The active axis. Used to choose when apply the default axis ('child' axis).
-    :param variables: Dictionary of context variables that maps a QName to a value.
+    :param position: the current position of the node within the input sequence.
+    :param size: the number of items in the input sequence.
+    :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
+    :param variables: dictionary of context variables that maps a QName to a value.
     """
     def __init__(self, root, item=None, position=0, size=1, axis=None, variables=None):
         if not is_element_node(root) and not is_document_node(root):

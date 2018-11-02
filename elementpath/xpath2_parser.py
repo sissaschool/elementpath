@@ -87,6 +87,26 @@ class XPath2Parser(XPath1Parser):
 
         # Cardinality functions for sequences
         'zero-or-one', 'one-or-more', 'exactly-one',
+
+        # TODO: Pattern matching functions
+        'matches', 'replace', 'tokenize',
+
+        # TODO: Functions on Durations, Dates and Times
+        'years-from-duration', 'months-from-duration', 'days-from-duration', 'hours-from-duration',
+        'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
+        'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
+        'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
+        'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
+
+        # TODO: Timezone adjustment functions
+        'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
+
+        # TODO: Functions Related to QNames
+        'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
+        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
+
+        # TODO: Node set functions
+        'root'
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -113,11 +133,12 @@ class XPath2Parser(XPath1Parser):
                 raise ElementPathTypeError("schema argument must be a subclass of AbstractSchemaProxy!")
             elif build_constructors:
                 for xsd_type in schema.iter_atomic_types():
-                    if xsd_type.name not in (XSD_ANY_ATOMIC_TYPE, XSD_NOTATION):
+                    if xsd_type.name not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
                         symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
                         if symbol not in self.symbol_table:
                             self.atomic_type(symbol, xsd_type.name)
-                        self.build_tokenizer()
+                if self.tokenizer is None:
+                    self.build_tokenizer()
 
         if compatibility_mode is False:
             self.compatibility_mode = False
