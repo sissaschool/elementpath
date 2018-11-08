@@ -17,15 +17,13 @@ from .exceptions import (
     ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError, ElementPathMissingContextError
 )
 from .tdop_parser import Parser
-from .namespaces import (
-    XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, XPATH_FUNCTIONS_NAMESPACE, qname_to_prefixed
-)
+from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
+    XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
-from .xpath_helpers import (
-    NamespaceNode, is_etree_element, is_xpath_node, is_element_node, is_document_node,
-    is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node,
-    node_name, node_string_value, boolean_value, data_value, string_value
-)
+from .xpath_types import NamespaceNode
+from .xpath_helpers import is_etree_element, is_xpath_node, is_element_node, is_document_node, \
+    is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, node_name, \
+    node_string_value, boolean_value, data_value, string_value
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
@@ -131,7 +129,7 @@ class XPath1Parser(Parser):
 
     @classmethod
     def function(cls, symbol, nargs=None, bp=0):
-        """Register a token for a symbol that represents an XPath *function*."""
+        """Registers a token class for a symbol that represents an XPath *function*."""
         def nud_(self):
             self.parser.advance('(')
             if nargs is None:
@@ -261,12 +259,14 @@ def led(self, left):
 
     next_token = self.parser.next_token
     if left.symbol == '(name)':
-        if next_token.symbol not in ('(name)', '*') and next_token.label != 'function':
+        if next_token.symbol not in ('(name)', '*') and next_token.label not in ('function', 'constructor'):
             next_token.wrong_syntax()
+
         try:
             namespace = self.parser.namespaces[left.value]
         except KeyError:
             raise ElementPathValueError("prefix %r not found in namespace map" % left.value)
+
         if next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
             next_token.wrong_syntax()
     elif left.symbol == '*' and next_token.symbol != '(name)':
@@ -287,6 +287,8 @@ def evaluate(self, context=None):
 
     if namespace == XPATH_FUNCTIONS_NAMESPACE and self[1].label != 'function':
         self[1].wrong_value("must be a function")
+    elif namespace == XSD_NAMESPACE and self[1].label != 'constructor':
+        self[1].wrong_value("must be a constructor function")
     return self[1].evaluate(context)
 
 

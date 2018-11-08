@@ -195,11 +195,11 @@ class Token(MutableSequence):
         if not symbols or self.symbol in symbols:
             self.wrong_syntax()
 
-    def wrong_syntax(self):
+    def wrong_syntax(self, message=None):
         if SPECIAL_SYMBOL_REGEX.search(self.symbol) is not None:
-            self.parser.wrong_syntax(self.value)
+            self.parser.wrong_syntax(self.value, message)
         else:
-            self.parser.wrong_syntax(self.symbol)
+            self.parser.wrong_syntax(self.symbol, message)
 
     def wrong_name(self, message=None):
         raise ElementPathNameError("%s: %s." % (self, message or 'unknown error'))
