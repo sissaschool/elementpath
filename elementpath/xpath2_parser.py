@@ -9,22 +9,24 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import decimal
+import datetime
 import math
 from itertools import product
 
 from .compat import PY3, unicode_chr, urllib_quote
-from .exceptions import ElementPathTypeError
+from .exceptions import ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname
 )
-from .xpath_helpers import (
-    is_document_node, is_xpath_node, is_element_node, is_attribute_node, node_name,
-    node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value,
+from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
+    node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
-)
 from .xpath1_parser import XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
+
+
+XMLSchema = None
 
 
 class XPath2Parser(XPath1Parser):
@@ -36,19 +38,19 @@ class XPath2Parser(XPath1Parser):
     expressions. If *strict* is set to `False` the parser enables also the parsing of QNames,
     like the ElementPath library. There are some additional XPath 2.0 related arguments.
 
-    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
-    :param variables: A dictionary with the static context's in-scope variables.
-    :param strict: If strict mode is `False` the parser enables parsing of QNames, \
+    :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
+    :param variables: a dictionary with the static context's in-scope variables.
+    :param strict: if strict mode is `False` the parser enables parsing of QNames, \
     like the ElementPath library. Default is `True`.
-    :param default_namespace: The default namespace to apply to unprefixed names. \
+    :param default_namespace: the default namespace to apply to unprefixed names. \
     For default no namespace is applied (empty namespace '').
-    :param function_namespace: The default namespace to apply to unprefixed function names. \
+    :param function_namespace: the default namespace to apply to unprefixed function names. \
     For default the namespace "http://www.w3.org/2005/xpath-functions" is used.
-    :param schema: The schema proxy instance to use for types, attributes and elements lookups. \
-    If it's not provided the XPath 2.0 schema's related expressions cannot be used.
-    :param build_constructors: If set to `True` the parser instance adds constructor functions \
-    for the in-schema XSD atomic types.
-    :param compatibility_mode: If set to `True` the parser instance works with XPath 1.0 compatibility rules.
+    :param schema: the schema proxy class or instance to use for types, attributes and elements lookups. \
+    If an `AbstractSchemaProxy` subclass is provided then a schema proxy instance is built without the \
+    optional argument, that involves a mapping of only XSD builtin types. If it's not provided the \
+    XPath 2.0 \schema's related expressions cannot be used.
+    :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for',
@@ -89,24 +91,24 @@ class XPath2Parser(XPath1Parser):
         'zero-or-one', 'one-or-more', 'exactly-one',
 
         # TODO: Pattern matching functions
-        'matches', 'replace', 'tokenize',
+        # 'matches', 'replace', 'tokenize',
 
         # TODO: Functions on Durations, Dates and Times
-        'years-from-duration', 'months-from-duration', 'days-from-duration', 'hours-from-duration',
-        'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
-        'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
-        'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
-        'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
+        # 'years-from-duration', 'months-from-duration', 'days-from-duration', 'hours-from-duration',
+        # 'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
+        # 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
+        # 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
+        # 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
 
         # TODO: Timezone adjustment functions
-        'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
+        # 'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
 
         # TODO: Functions Related to QNames
-        'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
-        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
+        # 'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
+        # 'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
 
         # TODO: Node set functions
-        'root'
+        # 'root'
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -117,7 +119,7 @@ class XPath2Parser(XPath1Parser):
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
     def __init__(self, namespaces=None, variables=None, strict=True, default_namespace='',
-                 function_namespace=None, schema=None, build_constructors=False, compatibility_mode=False):
+                 function_namespace=None, schema=None, compatibility_mode=False):
         super(XPath2Parser, self).__init__(namespaces, variables, strict)
         if '' not in self.namespaces and default_namespace:
             self.namespaces[''] = default_namespace
@@ -127,21 +129,36 @@ class XPath2Parser(XPath1Parser):
         else:
             self.function_namespace = function_namespace
 
-        self.schema = schema
-        if schema is not None:
-            if not isinstance(schema, AbstractSchemaProxy):
-                raise ElementPathTypeError("schema argument must be a subclass of AbstractSchemaProxy!")
-            elif build_constructors:
-                for xsd_type in schema.iter_atomic_types():
-                    if xsd_type.name not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
-                        symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
-                        if symbol not in self.symbol_table:
-                            self.atomic_type(symbol, xsd_type.name)
-                if self.tokenizer is None:
-                    self.build_tokenizer()
+        if schema is None:
+            self.schema = None
+        else:
+            if isinstance(schema, type) and issubclass(schema, AbstractSchemaProxy):
+                self.schema = schema()
+            elif isinstance(schema, AbstractSchemaProxy):
+                self.schema = schema
+            else:
+                raise ElementPathTypeError("schema argument must be a subclass or instance of AbstractSchemaProxy!")
+
+            import time
+            start = time.clock()
+
+            print(len(self.symbol_table))
+            # self.symbol_table = self.symbol_table.copy()
+            for xsd_type in self.schema.iter_atomic_types():
+                if xsd_type.name not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
+                    symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
+                    if symbol not in self.symbol_table:
+                        self.atomic_type(symbol, xsd_type.name)
+            print('For class building: ', time.clock() - start)
+
+            if self.tokenizer is None:
+                print("Rebuild...")
+                self.build_tokenizer()
+
+            print('For complete building: ', time.clock() - start)
 
         if compatibility_mode is False:
-            self.compatibility_mode = False
+            self.compatibility_mode = False  # It's already a XPath1Parser class property
 
     @property
     def version(self):
@@ -187,6 +204,28 @@ class XPath2Parser(XPath1Parser):
                 comment.append(str(next_token.value))
         return ''.join(comment)
 
+    @classmethod
+    def constructor(cls, symbol, nargs=None, bp=0):
+        """Registers a token class for a symbol that represents an XSD type constructor function."""
+        def nud_(self):
+            self.parser.advance('(')
+            if self.parser.next_token.symbol != ')':
+                self[0:] = self.parser.expression(5),
+            self.parser.advance(')')
+
+            try:
+                self.value = self.evaluate()  # Static context evaluation
+            except ElementPathMissingContextError:
+                self.value = None
+            return self
+
+        constructor_pattern_template = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()'
+        try:
+            pattern = constructor_pattern_template % symbol.strip()
+        except AttributeError:
+            pattern = constructor_pattern_template % getattr(symbol, 'symbol')
+        return cls.register(symbol, pattern=pattern, label='constructor', lbp=bp, rbp=bp, nud=nud_)
+
     def atomic_type(self, symbol, type_qname):
         """
         Create a XSD type constructor function for parser instance.
@@ -218,6 +257,7 @@ prefix = XPath2Parser.prefix
 infix = XPath2Parser.infix
 infixr = XPath2Parser.infixr
 method = XPath2Parser.method
+constructor = XPath2Parser.constructor
 function = XPath2Parser.function
 axis = XPath2Parser.axis
 
@@ -720,6 +760,19 @@ def select(self, context=None):
 
 
 ###
+# XSD constructor functions
+@method(constructor('string1'))
+def evaluate(self, context=None):
+    return None if context is None else str(self.get_argument(context))
+
+
+@method(constructor('normalizedString'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else str(item).replace('\t', ' ').replace('\n', ' ')
+
+
+###
 # Context item
 @method(function('item', nargs=0, bp=90))
 def evaluate(self, context=None):
@@ -1052,11 +1105,26 @@ def evaluate(self, context=None):
 
 
 ###
-# Example of token redefinition and how-to create a multi-role token.
-#
-# In XPath 2.0 the 'attribute' keyword is used not only for the attribute:: axis but also for
-# attribute() node type function.
+# Functions on durations, dates and times
+#'months-from-duration', 'days-from-duration', 'hours-from-duration',
+#'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
+#'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
+#'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
+#'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
+
+@method(function('years-from-duration', nargs=1, bp=90))
+def evaluate(self, context=None):
+    arg = self.get_argument(context)
+    if arg is None:
+        return []
+    elif not isinstance(arg, datetime.timedelta):
+        self.wrong_type("the argument must be a datetime.timedelta instance")
+    else:
+        return (arg.weeks * 7 + arg.days) // 365
+
+
 ###
+# Multi role-tokens
 class MultiValue(object):
 
     def __init__(self, *values):
@@ -1078,6 +1146,12 @@ class MultiValue(object):
         __str__ = __unicode__
 
 
+###
+# Example of token redefinition and how-to create a multi-role token.
+#
+# In XPath 2.0 the 'attribute' keyword is used not only for the attribute:: axis but also for
+# attribute() node type function.
+###
 unregister('attribute')
 register('attribute', lbp=90, rbp=90, label=MultiValue('function', 'axis'),
          pattern='\\battribute(?=\s*\\:\\:|\s*\\(\\:.*\\:\\)\s*\\:\\:|\s*\\(|\s*\\(\\:.*\\:\\)\\()')

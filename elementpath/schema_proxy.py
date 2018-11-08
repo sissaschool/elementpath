@@ -74,6 +74,12 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     Library ref:https://github.com/brunato/xmlschema
     """
+    def __init__(self, schema=None):
+        if schema is None:
+            from xmlschema import XMLSchema
+            schema = XMLSchema.meta_schema
+        super(XMLSchemaProxy, self).__init__(schema)
+
     def get_type(self, type_qname):
         try:
             return self._schema.maps.types[type_qname]

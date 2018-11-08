@@ -1022,6 +1022,7 @@ class XPath2ParserTest(XPath1ParserTest):
         # Some test cases from https://www.w3.org/TR/xquery-operators/#string-value-functions
         self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
         self.check_value(u'string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
+        self.check_value(u'string-to-codepoints(())', [])
 
         self.check_value('lower-case("aBcDe01")', 'abcde01')
         self.check_value('lower-case(("aBcDe01"))', 'abcde01')
@@ -1124,6 +1125,15 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('fn:exactly-one((20))', [20])
         self.wrong_value('fn:exactly-one(())')
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
+
+    def test_string_constructors(self):
+        self.check_value('xs:normalizedString("hello")', "hello")
+        import pdb
+        pdb.set_trace()
+        self.check_value('xs:normalizedString(())', [])
+
+    def test_from_duration_functions(self):
+        pass  # self.check_value('fn:years-from-duration()', [])
 
     def test_node_and_item_accessors(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
@@ -1256,9 +1266,7 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(
-            namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables, build_constructors=True
-        )
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
         cls.etree = ElementTree
 
     def test_xmlschema_proxy(self):
@@ -1338,9 +1346,7 @@ class LxmlXPath2ParserXMLSchemaTest(XPath2ParserXMLSchemaTest):
 
     @classmethod
     def setUpClass(cls):
-        cls.parser = XPath2Parser(
-            namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables, build_constructors=True
-        )
+        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
         cls.etree = lxml.etree
 
 
