@@ -259,16 +259,20 @@ def led(self, left):
 
     next_token = self.parser.next_token
     if left.symbol == '(name)':
-        if next_token.symbol not in ('(name)', '*') and next_token.label not in ('function', 'constructor'):
-            next_token.wrong_syntax()
-
         try:
             namespace = self.parser.namespaces[left.value]
         except KeyError:
             raise ElementPathValueError("prefix %r not found in namespace map" % left.value)
 
-        if next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
+        if next_token.symbol not in ('(name)', '*') and next_token.label not in ('function', 'constructor'):
             next_token.wrong_syntax()
+        elif namespace == XPATH_FUNCTIONS_NAMESPACE:
+            if next_token.label != 'function':
+                next_token.wrong_syntax("An XPath function is expected.")
+        elif namespace == XSD_NAMESPACE:
+            if next_token.label == 'function':
+                next_token.wrong_syntax("An XSD element or constructor function is expected.")
+
     elif left.symbol == '*' and next_token.symbol != '(name)':
         next_token.wrong_syntax()
 
