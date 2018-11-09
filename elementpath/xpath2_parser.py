@@ -139,23 +139,15 @@ class XPath2Parser(XPath1Parser):
             else:
                 raise ElementPathTypeError("schema argument must be a subclass or instance of AbstractSchemaProxy!")
 
-            import time
-            start = time.clock()
-
-            print(len(self.symbol_table))
             # self.symbol_table = self.symbol_table.copy()
             for xsd_type in self.schema.iter_atomic_types():
                 if xsd_type.name not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
                     symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
                     if symbol not in self.symbol_table:
                         self.atomic_type(symbol, xsd_type.name)
-            print('For class building: ', time.clock() - start)
 
             if self.tokenizer is None:
-                print("Rebuild...")
                 self.build_tokenizer()
-
-            print('For complete building: ', time.clock() - start)
 
         if compatibility_mode is False:
             self.compatibility_mode = False  # It's already a XPath1Parser class property

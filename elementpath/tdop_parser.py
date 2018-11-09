@@ -196,10 +196,15 @@ class Token(MutableSequence):
             self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
-        if SPECIAL_SYMBOL_REGEX.search(self.symbol) is not None:
-            self.parser.wrong_syntax(self.value, message)
+        symbol = self.value if SPECIAL_SYMBOL_REGEX.search(self.symbol) is not None else self.symbol
+        pos = self.parser.position
+        token = self.parser.token
+
+        if token is not None and symbol != token.symbol:
+            msg = "unexpected symbol %r after %s at line %d, column %d." % (symbol, token, pos[0], pos[1])
         else:
-            self.parser.wrong_syntax(self.symbol, message)
+            msg = "unexpected symbol %r at line %d, column %d." % (symbol, pos[0], pos[1])
+        raise ElementPathSyntaxError(msg + ' ' + message if message else msg)
 
     def wrong_name(self, message=None):
         raise ElementPathNameError("%s: %s." % (self, message or 'unknown error'))
@@ -482,18 +487,6 @@ class Parser(object):
         token_index = self.match.span()[0]
         line_start = self.source[0:token_index].rindex('\n') + 1
         return not bool(self.source[line_start:token_index].strip())
-
-    def wrong_syntax(self, symbol):
-        pos = self.position
-        token = self.token
-        if token is not None and symbol != token.symbol:
-            raise ElementPathSyntaxError(
-                "unexpected symbol %r after %s at line %d, column %d." % (symbol, token, pos[0], pos[1])
-            )
-        else:
-            raise ElementPathSyntaxError(
-                "unexpected symbol %r at line %d, column %d." % (symbol, pos[0], pos[1])
-            )
 
     @classmethod
     def end(cls):
