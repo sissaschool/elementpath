@@ -267,13 +267,14 @@ class Parser(object):
     symbol_table = {}
     SYMBOLS = ()
 
-    @classmethod
-    def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
+    @staticmethod
+    def get_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
         """
-        Builds the parser tokenizer using the symbol related patterns. A tokenizer built with this
-        method is suited for programming languages where extra spaces between symbols are skipped.
+        Returns a regex based tokenizer built from a symbol table of token classes.
+        The returned tokenizer skips extra spaces between symbols.
 
-        :param name_pattern: Pattern to use to match names.
+        :param symbol_table: a dictionary containing the token classes of the formal language.
+        :param name_pattern: pattern to use to match names.
         """
         tokenizer_pattern_template = r"""
             ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
@@ -282,11 +283,11 @@ class Parser(object):
             (\S) |                                                            # Unexpected characters
             \s+                                                               # Skip extra spaces
         """
-        if not all(k in cls.symbol_table for k in DEFAULT_SPECIAL_SYMBOLS):
-            raise ValueError("The symbol table of %r doesn't contain all special symbols." % cls)
+        if not all(k in symbol_table for k in DEFAULT_SPECIAL_SYMBOLS):
+            raise ValueError("The symbol table of doesn't contain all special symbols.")
 
         patterns = [
-            s.pattern for s in cls.symbol_table.values()
+            s.pattern for s in symbol_table.values()
             if SPECIAL_SYMBOL_REGEX.search(s.pattern) is None
         ]
         string_patterns = []
@@ -303,7 +304,18 @@ class Parser(object):
             ''.join(character_patterns),
             name_pattern
         )
-        cls.tokenizer = re.compile(pattern, re.VERBOSE)
+        return re.compile(pattern, re.VERBOSE)
+
+    @classmethod
+    def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
+        """
+        Builds the parser class tokenizer using the symbol related patterns.
+
+        :param name_pattern: Pattern to use to match names.
+        """
+        if not all(k in cls.symbol_table for k in DEFAULT_SPECIAL_SYMBOLS):
+            raise ValueError("The symbol table of %r doesn't contain all special symbols." % cls)
+        cls.tokenizer = cls.get_tokenizer(cls.symbol_table, name_pattern)
 
     def __init__(self):
         if self.tokenizer is None:
