@@ -41,6 +41,7 @@ Parser base class
 
     Parsing methods:
 
+    .. automethod:: get_tokenizer
     .. automethod:: build_tokenizer
     .. automethod:: parse
     .. automethod:: advance

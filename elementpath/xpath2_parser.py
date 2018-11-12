@@ -197,7 +197,7 @@ class XPath2Parser(XPath1Parser):
         return ''.join(comment)
 
     @classmethod
-    def constructor(cls, symbol, nargs=None, bp=0):
+    def constructor(cls, symbol, bp=0):
         """Registers a token class for a symbol that represents an XSD type constructor function."""
         def nud_(self):
             self.parser.advance('(')
@@ -225,7 +225,7 @@ class XPath2Parser(XPath1Parser):
         def evaluate_(self_, context=None):
             return self_.parser.schema.cast_as(self_[0].evaluate(context), type_qname)
 
-        token_class = self.function(symbol, nargs=1, bp=90)
+        token_class = self.constructor(symbol, bp=90)
         token_class.evaluate = evaluate_
 
     def next_is_path_step_token(self):
