@@ -8,10 +8,13 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 import decimal
 import datetime
 import math
 from itertools import product
+from abc import ABCMeta
+from collections import MutableSequence
 
 from .compat import PY3, unicode_chr, urllib_quote
 from .exceptions import ElementPathTypeError, ElementPathMissingContextError
@@ -22,7 +25,8 @@ from .namespaces import (
 from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
-from .xpath1_parser import XPath1Parser
+from .tdop_parser import create_tokenizer
+from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
 
 
@@ -131,23 +135,14 @@ class XPath2Parser(XPath1Parser):
 
         if schema is None:
             self.schema = None
+        elif not isinstance(schema, AbstractSchemaProxy):
+            raise ElementPathTypeError("schema argument must be a subclass or instance of AbstractSchemaProxy!")
         else:
-            if isinstance(schema, type) and issubclass(schema, AbstractSchemaProxy):
-                self.schema = schema()
-            elif isinstance(schema, AbstractSchemaProxy):
-                self.schema = schema
-            else:
-                raise ElementPathTypeError("schema argument must be a subclass or instance of AbstractSchemaProxy!")
-
-            # self.symbol_table = self.symbol_table.copy()
+            self.schema = schema
+            self.symbol_table = self.symbol_table.copy()
             for xsd_type in self.schema.iter_atomic_types():
-                if xsd_type.name not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
-                    symbol = qname_to_prefixed(xsd_type.name, self.namespaces)
-                    if symbol not in self.symbol_table:
-                        self.atomic_type(symbol, xsd_type.name)
-
-            if self.tokenizer is None:
-                self.build_tokenizer()
+                self.schema_constructor(xsd_type.name)
+            self.tokenizer = create_tokenizer(self.symbol_table, XML_NCNAME_PATTERN)
 
         if compatibility_mode is False:
             self.compatibility_mode = False  # It's already a XPath1Parser class property
@@ -197,8 +192,8 @@ class XPath2Parser(XPath1Parser):
         return ''.join(comment)
 
     @classmethod
-    def constructor(cls, symbol, bp=0):
-        """Registers a token class for a symbol that represents an XSD type constructor function."""
+    def create_constructor(cls, symbol, bp=0):
+        """Creates a constructor token class."""
         def nud_(self):
             self.parser.advance('(')
             if self.parser.next_token.symbol != ')':
@@ -211,22 +206,45 @@ class XPath2Parser(XPath1Parser):
                 self.value = None
             return self
 
-        constructor_pattern_template = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()'
-        try:
-            pattern = constructor_pattern_template % symbol.strip()
-        except AttributeError:
-            pattern = constructor_pattern_template % getattr(symbol, 'symbol')
-        return cls.register(symbol, pattern=pattern, label='constructor', lbp=bp, rbp=bp, nud=nud_)
+        token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
+        kwargs = {
+            'symbol': symbol,
+            'label': 'constructor',
+            'pattern': '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()' % symbol,
+            'lbp': bp,
+            'rbp': bp,
+            'nud': nud_,
+            '__module__': cls.__module__,
+            '__qualname__': token_class_name,
+            '__return__': None
+        }
+        token_class = ABCMeta(token_class_name, (cls.token_base_class,), kwargs)
+        MutableSequence.register(token_class)
+        return token_class
 
-    def atomic_type(self, symbol, type_qname):
-        """
-        Create a XSD type constructor function for parser instance.
-        """
+    @classmethod
+    def constructor(cls, symbol, bp=0):
+        """Registers a token class for an XSD builtin atomic type constructor function."""
+        token_class = cls.create_constructor(symbol, bp=bp)
+        cls.symbol_table[symbol] = token_class
+        cls.tokenizer = None
+        setattr(sys.modules[cls.__module__], token_class.__name__, token_class)
+        return token_class
+
+    def schema_constructor(self, type_qname):
+        """Registers a token class for a schema atomic type constructor function."""
         def evaluate_(self_, context=None):
-            return self_.parser.schema.cast_as(self_[0].evaluate(context), type_qname)
+            item = self_.get_argument(context)
+            return [] if item is None else self_.parser.schema.cast_as(self_[0].evaluate(context), type_qname)
 
-        token_class = self.constructor(symbol, bp=90)
-        token_class.evaluate = evaluate_
+        if type_qname not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
+            symbol = qname_to_prefixed(type_qname, self.namespaces)
+            token_class = self.create_constructor(symbol, bp=90)
+            token_class.evaluate = evaluate_
+            self.symbol_table[symbol] = token_class
+            return token_class
+        elif type_qname == XSD_NOTATION:
+            return
 
     def next_is_path_step_token(self):
         return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {

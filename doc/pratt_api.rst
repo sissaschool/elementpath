@@ -41,7 +41,6 @@ Parser base class
 
     Parsing methods:
 
-    .. automethod:: get_tokenizer
     .. automethod:: build_tokenizer
     .. automethod:: parse
     .. automethod:: advance
@@ -60,4 +59,3 @@ Parser base class
     .. automethod:: infix
     .. automethod:: infixr
     .. automethod:: method
-    .. automethod:: end
