@@ -1126,10 +1126,8 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('fn:exactly-one(())')
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
-    def xxtest_string_constructors(self):
+    def test_string_constructors(self):
         self.check_value('xs:normalizedString("hello")', "hello")
-        import pdb
-        pdb.set_trace()
         self.check_value('xs:normalizedString(())', [])
 
     def test_from_duration_functions(self):

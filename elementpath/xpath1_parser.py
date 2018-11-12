@@ -175,11 +175,7 @@ class XPath1Parser(Parser):
 
             return self
 
-        function_pattern_template = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()'
-        try:
-            pattern = function_pattern_template % symbol.strip()
-        except AttributeError:
-            pattern = function_pattern_template % getattr(symbol, 'symbol')
+        pattern = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()' % symbol.strip()
         return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
 
     def next_is_path_step_token(self):
