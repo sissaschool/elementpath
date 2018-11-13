@@ -226,7 +226,7 @@ class XPath2Parser(XPath1Parser):
         return token_class
 
     @classmethod
-    def constructor(cls, symbol, bp=0):
+    def constructor(cls, symbol, bp=90):
         """Registers a token class for an XSD builtin atomic type constructor function."""
         token_class = cls.create_constructor(symbol, bp=bp)
         cls.symbol_table[symbol] = token_class
@@ -708,7 +708,7 @@ def evaluate(self, context=None):
 
 ###
 # Node types
-@method(function('document-node', nargs=(0, 1), bp=90))
+@method(function('document-node', nargs=(0, 1)))
 def evaluate(self, context=None):
     if context is not None:
         if context.item is None and is_document_node(context.root):
@@ -718,7 +718,7 @@ def evaluate(self, context=None):
                 return context.root
 
 
-@method(function('element', nargs=(0, 2), bp=90))
+@method(function('element', nargs=(0, 2)))
 def evaluate(self, context=None):
     if context is not None:
         if not self:
@@ -728,7 +728,7 @@ def evaluate(self, context=None):
             return context.item
 
 
-@method(function('schema-attribute', nargs=1, bp=90))
+@method(function('schema-attribute', nargs=1))
 def evaluate(self, context=None):
     attribute_name = self[0].source
     qname = prefixed_to_qname(attribute_name, self.parser.namespaces)
@@ -740,7 +740,7 @@ def evaluate(self, context=None):
             return context.item
 
 
-@method(function('schema-element', nargs=1, bp=90))
+@method(function('schema-element', nargs=1))
 def evaluate(self, context=None):
     element_name = self[0].source
     qname = prefixed_to_qname(element_name, self.parser.namespaces)
@@ -753,7 +753,7 @@ def evaluate(self, context=None):
             return context.item
 
 
-@method(function('empty-sequence', nargs=0, bp=90))
+@method(function('empty-sequence', nargs=0))
 def evaluate(self, context=None):
     if context is not None:
         return isinstance(context.item, list) and not context.item
@@ -894,7 +894,7 @@ def evaluate(self, context=None):
 
 ###
 # Context item
-@method(function('item', nargs=0, bp=90))
+@method(function('item', nargs=0))
 def evaluate(self, context=None):
     if context is None:
         return
@@ -906,17 +906,17 @@ def evaluate(self, context=None):
 
 ###
 # Accessor functions
-@method(function('node-name', nargs=1, bp=90))
+@method(function('node-name', nargs=1))
 def evaluate(self, context=None):
     return node_name(self.get_argument(context))
 
 
-@method(function('nilled', nargs=1, bp=90))
+@method(function('nilled', nargs=1))
 def evaluate(self, context=None):
     return node_nilled(self.get_argument(context))
 
 
-@method(function('data', nargs=1, bp=90))
+@method(function('data', nargs=1))
 def select(self, context=None):
     for item in self[0].select(context):
         value = data_value(item)
@@ -926,7 +926,7 @@ def select(self, context=None):
             yield value
 
 
-@method(function('base-uri', nargs=(0, 1), bp=90))
+@method(function('base-uri', nargs=(0, 1)))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
@@ -937,14 +937,14 @@ def evaluate(self, context=None):
         return node_base_uri
 
 
-@method(function('document-uri', nargs=1, bp=90))
+@method(function('document-uri', nargs=1))
 def evaluate(self, context=None):
     return node_document_uri(self.get_argument(context))
 
 
 ###
 # Number functions
-@method(function('round-half-to-even', nargs=(1, 2), bp=90))
+@method(function('round-half-to-even', nargs=(1, 2)))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
@@ -965,7 +965,7 @@ def evaluate(self, context=None):
         return float(value)
 
 
-@method(function('abs', nargs=1, bp=90))
+@method(function('abs', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
@@ -976,8 +976,8 @@ def evaluate(self, context=None):
 
 ###
 # General functions for sequences
-@method(function('empty', nargs=1, bp=90))
-@method(function('exists', nargs=1, bp=90))
+@method(function('empty', nargs=1))
+@method(function('exists', nargs=1))
 def evaluate(self, context=None):
     return next(iter(self.select(context)))
 
@@ -1002,7 +1002,7 @@ def select(self, context=None):
         yield True
 
 
-@method(function('distinct-values', nargs=(1, 2), bp=90))
+@method(function('distinct-values', nargs=(1, 2)))
 def select(self, context=None):
     nan = False
     results = []
@@ -1018,7 +1018,7 @@ def select(self, context=None):
             results.append(value)
 
 
-@method(function('insert-before', nargs=3, bp=90))
+@method(function('insert-before', nargs=3))
 def select(self, context=None):
     insert_at_pos = max(0, self[1].value - 1)
     inserted = False
@@ -1034,7 +1034,7 @@ def select(self, context=None):
             yield item
 
 
-@method(function('index-of', nargs=(1, 3), bp=90))
+@method(function('index-of', nargs=(1, 3)))
 def select(self, context=None):
     value = self[1].evaluate(context)
     for pos, result in enumerate(self[0].select(context)):
@@ -1042,7 +1042,7 @@ def select(self, context=None):
             yield pos + 1
 
 
-@method(function('remove', nargs=2, bp=90))
+@method(function('remove', nargs=2))
 def select(self, context=None):
     target = self[1].evaluate(context) - 1
     for pos, result in enumerate(self[0].select(context)):
@@ -1050,13 +1050,13 @@ def select(self, context=None):
             yield result
 
 
-@method(function('reverse', nargs=1, bp=90))
+@method(function('reverse', nargs=1))
 def select(self, context=None):
     for result in reversed(list(self[0].select(context))):
         yield result
 
 
-@method(function('subsequence', nargs=(2, 3), bp=90))
+@method(function('subsequence', nargs=(2, 3)))
 def select(self, context=None):
     starting_loc = self[1].evaluate(context) - 1
     length = self[2].evaluate(context) if len(self) >= 3 else 0
@@ -1065,7 +1065,7 @@ def select(self, context=None):
             yield result
 
 
-@method(function('unordered', nargs=1, bp=90))
+@method(function('unordered', nargs=1))
 def select(self, context=None):
     for result in sorted(list(self[0].select(context)), key=lambda x: string_value(x)):
         yield result
@@ -1073,7 +1073,7 @@ def select(self, context=None):
 
 ###
 # Cardinality functions for sequences
-@method(function('zero-or-one', nargs=1, bp=90))
+@method(function('zero-or-one', nargs=1))
 def select(self, context=None):
     results = iter(self[0].select(context))
     try:
@@ -1089,7 +1089,7 @@ def select(self, context=None):
         self.wrong_value("called with a sequence containing more than one item [err:FORG0003]")
 
 
-@method(function('one-or-more', nargs=1, bp=90))
+@method(function('one-or-more', nargs=1))
 def select(self, context=None):
     results = iter(self[0].select(context))
     try:
@@ -1105,7 +1105,7 @@ def select(self, context=None):
                 break
 
 
-@method(function('exactly-one', nargs=1, bp=90))
+@method(function('exactly-one', nargs=1))
 def select(self, context=None):
     results = iter(self[0].select(context))
     try:
@@ -1123,28 +1123,28 @@ def select(self, context=None):
 
 ###
 # String functions
-@method(function('codepoints-to-string', nargs=1, bp=90))
+@method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
     return ''.join(unicode_chr(cp) for cp in self[0].select(context))
 
 
-@method(function('string-to-codepoints', nargs=1, bp=90))
+@method(function('string-to-codepoints', nargs=1))
 def select(self, context=None):
     for char in self[0].evaluate(context):
         yield ord(char)
 
 
-@method(function('compare', nargs=(2, 3), bp=90))
+@method(function('compare', nargs=(2, 3)))
 def evaluate(self, context=None):
     raise NotImplementedError()
 
 
-@method(function('codepoint-equal', nargs=2, bp=90))
+@method(function('codepoint-equal', nargs=2))
 def evaluate(self, context=None):
     raise NotImplementedError()
 
 
-@method(function('string-join', nargs=2, bp=90))
+@method(function('string-join', nargs=2))
 def evaluate(self, context=None):
     try:
         return self[1].evaluate(context).join(s for s in self[0].select(context))
@@ -1154,12 +1154,12 @@ def evaluate(self, context=None):
         self.wrong_type("the values must be strings: %s" % err)
 
 
-@method(function('normalize-unicode', nargs=(1, 2), bp=90))
+@method(function('normalize-unicode', nargs=(1, 2)))
 def evaluate(self, context=None):
     raise NotImplementedError()
 
 
-@method(function('upper-case', nargs=1, bp=90))
+@method(function('upper-case', nargs=1))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     try:
@@ -1168,7 +1168,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string: %r" % arg)
 
 
-@method(function('lower-case', nargs=1, bp=90))
+@method(function('lower-case', nargs=1))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     try:
@@ -1177,7 +1177,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string: %r" % arg)
 
 
-@method(function('encode-for-uri', nargs=1, bp=90))
+@method(function('encode-for-uri', nargs=1))
 def evaluate(self, context=None):
     uri_part = self.get_argument(context)
     try:
@@ -1186,7 +1186,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string: %r" % uri_part)
 
 
-@method(function('iri-to-uri', nargs=1, bp=90))
+@method(function('iri-to-uri', nargs=1))
 def evaluate(self, context=None):
     iri = self.get_argument(context)
     try:
@@ -1195,7 +1195,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string: %r" % iri)
 
 
-@method(function('escape-html-uri', nargs=1, bp=90))
+@method(function('escape-html-uri', nargs=1))
 def evaluate(self, context=None):
     uri = self.get_argument(context)
     try:
@@ -1204,7 +1204,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string: %r" % uri)
 
 
-@method(function('starts-with', nargs=(2, 3), bp=90))
+@method(function('starts-with', nargs=(2, 3)))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context)
     arg2 = self.get_argument(context, index=1)
@@ -1214,7 +1214,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be a string")
 
 
-@method(function('ends-with', nargs=(2, 3), bp=90))
+@method(function('ends-with', nargs=(2, 3)))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context)
     arg2 = self.get_argument(context, index=1)
@@ -1232,7 +1232,7 @@ def evaluate(self, context=None):
 # 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
 # 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
 
-@method(function('years-from-duration', nargs=1, bp=90))
+@method(function('years-from-duration', nargs=1))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
@@ -1321,7 +1321,9 @@ def evaluate(self, context=None):
             return context.item[1]
 
 
-@function('error')
+##
+# The error function (Ref: https://www.w3.org/TR/xpath20/#func-error)
+@method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
     if context is not None:
         pass
