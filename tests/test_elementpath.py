@@ -173,7 +173,7 @@ class XPath1ParserTest(unittest.TestCase):
         """
         self.assertEqual(self.parser.parse(path).source, expected)
 
-    def check_value(self, path, expected, context=None):
+    def check_value(self, path, expected=None, context=None):
         """
         Checks the result of the *evaluate* method with an XPath expression. The evaluation
         is applied on the root token of the parsed XPath expression.
@@ -192,7 +192,8 @@ class XPath1ParserTest(unittest.TestCase):
         elif not callable(expected):
             self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
-            self.assertTrue(isinstance(root_token.evaluate(context), expected))
+            value = root_token.evaluate(context)
+            self.assertTrue(isinstance(value, expected), "%r is not a %r instance." % (value, expected))
         else:
             self.assertTrue(expected(root_token.evaluate(context)))
 
@@ -1129,6 +1130,53 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_string_constructors(self):
         self.check_value('xs:normalizedString("hello")', "hello")
         self.check_value('xs:normalizedString(())', [])
+
+    def test_integer_constructors(self):
+        self.wrong_value('xs:integer("hello")')
+        self.check_value('xs:integer("19")', 19)
+
+        self.wrong_value('xs:nonNegativeInteger("-1")')
+        self.wrong_value('xs:nonNegativeInteger(-1)')
+        self.check_value('xs:nonNegativeInteger(0)', 0)
+        self.check_value('xs:nonNegativeInteger(1000)', 1000)
+        self.wrong_value('xs:positiveInteger(0)')
+        self.check_value('xs:positiveInteger("1")', 1)
+        self.wrong_value('xs:negativeInteger(0)')
+        self.check_value('xs:negativeInteger(-1)', -1)
+        self.wrong_value('xs:nonPositiveInteger(1)')
+        self.check_value('xs:nonPositiveInteger(0)', 0)
+        self.check_value('xs:nonPositiveInteger("-1")', -1)
+
+    def test_limited_integer_constructors(self):
+        self.wrong_value('xs:long("true")')
+        self.wrong_value('xs:long("340282366920938463463374607431768211456")')
+        self.check_value('xs:long("-20")', -20)
+        self.wrong_value('xs:int("-20 91")')
+        self.wrong_value('xs:int("9223372036854775808")')
+        self.check_value('xs:int("-9223372036854775808")', -2**63)
+        self.check_value('xs:int("4611686018427387904")', 2**62)
+        self.wrong_value('xs:short("40000")')
+        self.check_value('xs:short("9999")', 9999)
+        self.check_value('xs:short(-9999)', -9999)
+        self.wrong_value('xs:byte(-129)')
+        self.wrong_value('xs:byte(128)')
+        self.check_value('xs:byte("-128")', -128)
+        self.check_value('xs:byte(127)', 127)
+        self.check_value('xs:byte(-90)', -90)
+
+        self.wrong_value('xs:unsignedLong("-10")')
+        self.check_value('xs:unsignedLong("3")', 3)
+        self.wrong_value('xs:unsignedInt("-9223372036854775808")')
+        self.check_value('xs:unsignedInt("9223372036854775808")', 2**63)
+        self.wrong_value('xs:unsignedShort("-1")')
+        self.check_value('xs:unsignedShort("0")', 0)
+        self.wrong_value('xs:unsignedByte(-128)')
+        self.check_value('xs:unsignedByte("128")', 128)
+
+    def test_other_numerical_constructor(self):
+        self.wrong_value('xs:decimal("hello")')
+        self.check_value('xs:decimal("19")', 19)
+        self.check_value('xs:decimal("19")', Decimal)
 
     def test_from_duration_functions(self):
         pass  # self.check_value('fn:years-from-duration()', [])

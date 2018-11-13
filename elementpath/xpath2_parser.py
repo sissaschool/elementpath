@@ -795,6 +795,103 @@ def collapse_white_spaces(s):
     return _REGEX_SPACES.sub(' ', s).strip()
 
 
+@method(constructor('decimal'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        return [] if item is None else decimal.Decimal(item)
+    except (ValueError, decimal.DecimalException) as err:
+        self.error("FORG0001", str(err))
+
+
+@method(constructor('integer'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item)
+
+
+@method(constructor('nonNegativeInteger'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, 0)
+
+
+@method(constructor('positiveInteger'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, 1)
+
+
+@method(constructor('nonPositiveInteger'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, higher_bound=1)
+
+
+@method(constructor('negativeInteger'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, higher_bound=0)
+
+
+@method(constructor('long'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, -2**127, 2**127)
+
+
+@method(constructor('int'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, -2**63, 2**63)
+
+
+@method(constructor('short'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, -2**15, 2**15)
+
+
+@method(constructor('byte'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, -2**7, 2**7)
+
+
+@method(constructor('unsignedLong'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, 0, 2**128)
+
+
+@method(constructor('unsignedInt'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, 0, 2**64)
+
+
+@method(constructor('unsignedShort'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, 0, 2**16)
+
+
+@method(constructor('unsignedByte'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.integer(item, 0, 2**8)
+
+
+@method(constructor('double'))
+@method(constructor('float'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    try:
+        return [] if item is None else float(item)
+    except ValueError as err:
+        self.error("FORG0001", str(err))
+
+
 ###
 # Context item
 @method(function('item', nargs=0, bp=90))
@@ -1129,11 +1226,11 @@ def evaluate(self, context=None):
 
 ###
 # Functions on durations, dates and times
-#'months-from-duration', 'days-from-duration', 'hours-from-duration',
-#'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
-#'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
-#'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
-#'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
+# 'months-from-duration', 'days-from-duration', 'hours-from-duration',
+# 'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
+# 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
+# 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
+# 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
 
 @method(function('years-from-duration', nargs=1, bp=90))
 def evaluate(self, context=None):
@@ -1224,12 +1321,10 @@ def evaluate(self, context=None):
             return context.item[1]
 
 
-
 @function('error')
 def evaluate(self, context=None):
     if context is not None:
         pass
-
 
 
 XPath2Parser.build_tokenizer()
