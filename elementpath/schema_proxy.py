@@ -10,6 +10,7 @@
 #
 from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass
+from .namespaces import XSD_NAMESPACE
 
 
 @add_metaclass(ABCMeta)
@@ -65,7 +66,7 @@ class AbstractSchemaProxy(object):
 
     @abstractmethod
     def iter_atomic_types(self):
-        """Iterate over the XSD atomic types defined in the schema's scope."""
+        """Iterate over not builtin atomic types defined in the schema's scope."""
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
@@ -114,5 +115,5 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def iter_atomic_types(self):
         for xsd_type in self._schema.maps.types.values():
-            if hasattr(xsd_type, 'primitive_type'):
+            if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
                 yield xsd_type

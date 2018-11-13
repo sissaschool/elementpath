@@ -183,6 +183,17 @@ class XPathToken(Token):
         else:
             return results
 
+    def integer(self, value, lower_bound=None, higher_bound=None):
+        try:
+            result = int(value)
+        except ValueError as err:
+            self.error("FORG0001", str(err))
+        if lower_bound is not None and result < lower_bound:
+            self.error("FORG0001", "value %d is too low" % result)
+        elif higher_bound is not None and result >= higher_bound:
+            self.error("FORG0001", "value %d is too high" % result)
+        return result
+
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
     def error(self, code, message=None):
@@ -228,6 +239,9 @@ class XPathToken(Token):
             raise ElementPathNameError(message or 'target type cannot be xs:NOTATION or xs:anyAtomicType', self, pcode)
         elif code == 'XPST0081':
             raise ElementPathNameError(message or 'unknown namespace', self, pcode)
+
+        elif code == 'FORG0001':
+            raise ElementPathValueError(message or 'invalid value for cast/constructor', self, pcode)
         else:
             raise ElementPathValueError('unknown XPath error code %r.' % code)
 
