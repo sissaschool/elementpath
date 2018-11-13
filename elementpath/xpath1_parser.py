@@ -108,7 +108,7 @@ class XPath1Parser(Parser):
         return
 
     @classmethod
-    def axis(cls, symbol, bp=0):
+    def axis(cls, symbol, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
         def nud_(self): 
             self.parser.advance('::')
@@ -127,7 +127,7 @@ class XPath1Parser(Parser):
         return cls.register(symbol, pattern=pattern, label='axis', lbp=bp, rbp=bp, nud=nud_)
 
     @classmethod
-    def function(cls, symbol, nargs=None, bp=0):
+    def function(cls, symbol, nargs=None, bp=90):
         """Registers a token class for a symbol that represents an XPath *function*."""
         def nud_(self):
             self.parser.advance('(')
@@ -672,7 +672,7 @@ def select(self, context=None):
 
 ###
 # Forward Axes
-@method(axis('self', bp=80))
+@method(axis('self'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_self():
@@ -680,7 +680,7 @@ def select(self, context=None):
                 yield result
 
 
-@method(axis('child', bp=80))
+@method(axis('child'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_children_or_self(child_axis=True):
@@ -688,7 +688,7 @@ def select(self, context=None):
                 yield result
 
 
-@method(axis('descendant', bp=80))
+@method(axis('descendant'))
 def select(self, context=None):
     if context is not None:
         item = context.item
@@ -698,7 +698,7 @@ def select(self, context=None):
                     yield result
 
 
-@method(axis('descendant-or-self', bp=80))
+@method(axis('descendant-or-self'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_descendants(axis=self.symbol):
@@ -706,7 +706,7 @@ def select(self, context=None):
                 yield result
 
 
-@method(axis('following-sibling', bp=80))
+@method(axis('following-sibling'))
 def select(self, context=None):
     if context is not None:
         if is_element_node(context.item):
@@ -721,7 +721,7 @@ def select(self, context=None):
                         follows = True
 
 
-@method(axis('following', bp=80))
+@method(axis('following'))
 def select(self, context=None):
     if context is not None:
         descendants = set(context.iter_descendants(axis=self.symbol))
@@ -745,7 +745,7 @@ def nud(self):
 
 
 @method('@')
-@method(axis('attribute', bp=80))
+@method(axis('attribute'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_attributes():
@@ -753,7 +753,7 @@ def select(self, context=None):
                 yield result
 
 
-@method(axis('namespace', bp=80))
+@method(axis('namespace'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
         elem = context.item
@@ -773,7 +773,7 @@ def select(self, context=None):
 
 ###
 # Reverse Axes
-@method(axis('parent', bp=80))
+@method(axis('parent'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_parent(axis=self.symbol):
@@ -781,7 +781,7 @@ def select(self, context=None):
                 yield result
 
 
-@method(axis('ancestor', bp=80))
+@method(axis('ancestor'))
 def select(self, context=None):
     if context is not None:
         results = [
@@ -794,7 +794,7 @@ def select(self, context=None):
             yield result
 
 
-@method(axis('ancestor-or-self', bp=80))
+@method(axis('ancestor-or-self'))
 def select(self, context=None):
     if context is not None:
         item = context.item
@@ -804,7 +804,7 @@ def select(self, context=None):
         yield item
 
 
-@method(axis('preceding-sibling', bp=80))
+@method(axis('preceding-sibling'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
         item = context.item
@@ -818,7 +818,7 @@ def select(self, context=None):
                         yield result
 
 
-@method(axis('preceding', bp=80))
+@method(axis('preceding'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
         elem = context.item
@@ -833,7 +833,7 @@ def select(self, context=None):
 
 ###
 # Node types
-@method(function('node', nargs=0, bp=90))
+@method(function('node', nargs=0))
 def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():
@@ -843,19 +843,19 @@ def select(self, context=None):
                 yield item
 
 
-@method(function('processing-instruction', nargs=(0, 1), bp=90))
+@method(function('processing-instruction', nargs=(0, 1)))
 def evaluate(self, context=None):
     if context and is_processing_instruction_node(context.item):
         return context.item
 
 
-@method(function('comment', nargs=0, bp=90))
+@method(function('comment', nargs=0))
 def evaluate(self, context=None):
     if context and is_comment_node(context.item):
         return context.item
 
 
-@method(function('text', nargs=0, bp=90))
+@method(function('text', nargs=0))
 def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():
@@ -867,17 +867,17 @@ def select(self, context=None):
 
 ###
 # Node set functions
-@method(function('last', nargs=0, bp=90))
+@method(function('last', nargs=0))
 def evaluate(self, context=None):
     return context.size if context is not None else 0
 
 
-@method(function('position', nargs=0, bp=90))
+@method(function('position', nargs=0))
 def evaluate(self, context=None):
     return context.position + 1 if context is not None else 0
 
 
-@method(function('count', nargs=1, bp=90))
+@method(function('count', nargs=1))
 def evaluate(self, context=None):
     results = self[0].evaluate(context)
     if isinstance(results, list):
@@ -888,7 +888,7 @@ def evaluate(self, context=None):
         return 0
 
 
-@method(function('id', nargs=1, bp=90))
+@method(function('id', nargs=1))
 def select(self, context=None):
     if context is not None:
         value = self[0].evaluate(context)
@@ -899,9 +899,9 @@ def select(self, context=None):
                     yield elem
 
 
-@method(function('name', nargs=(0, 1), bp=90))
-@method(function('local-name', nargs=(0, 1), bp=90))
-@method(function('namespace-uri', nargs=(0, 1), bp=90))
+@method(function('name', nargs=(0, 1)))
+@method(function('local-name', nargs=(0, 1)))
+@method(function('namespace-uri', nargs=(0, 1)))
 def evaluate(self, context=None):
     name = node_name(self.get_argument(context, default_to_context=True))
     if name is None:
@@ -920,12 +920,12 @@ def evaluate(self, context=None):
 
 ###
 # String functions
-@method(function('string', nargs=1, bp=90))
+@method(function('string', nargs=1))
 def evaluate(self, context=None):
     return string_value(self.get_argument(context))
 
 
-@method(function('contains', nargs=2, bp=90))
+@method(function('contains', nargs=2))
 def evaluate(self, context=None):
     try:
         return self[1].evaluate(context) in self[0].evaluate(context)
@@ -933,7 +933,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be strings")
 
 
-@method(function('concat', bp=90))
+@method(function('concat'))
 def evaluate(self, context=None):
     try:
         return ''.join(tk.value for tk in self)
@@ -941,7 +941,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be strings")
 
 
-@method(function('string-length', nargs=1, bp=90))
+@method(function('string-length', nargs=1))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default_to_context=True)
     if arg1 is None:
@@ -952,7 +952,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string")
 
 
-@method(function('normalize-space', nargs=1, bp=90))
+@method(function('normalize-space', nargs=1))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default_to_context=True)
     if arg1 is None:
@@ -963,7 +963,7 @@ def evaluate(self, context=None):
         self.wrong_type("the argument must be a string")
 
 
-@method(function('starts-with', nargs=2, bp=90))
+@method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context)
     arg2 = self.get_argument(context, index=1)
@@ -973,7 +973,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be a string")
 
 
-@method(function('translate', nargs=3, bp=90))
+@method(function('translate', nargs=3))
 def evaluate(self, context=None):
     try:
         maketrans = str.maketrans
@@ -991,7 +991,7 @@ def evaluate(self, context=None):
         self.wrong_type("the arguments must be strings")
 
 
-@method(function('substring', nargs=(2, 3), bp=90))
+@method(function('substring', nargs=(2, 3)))
 def evaluate(self, context=None):
     start, stop = 0, None
     try:
@@ -1011,8 +1011,8 @@ def evaluate(self, context=None):
         self.wrong_type("the first argument must be a string")
 
 
-@method(function('substring-before', nargs=2, bp=90))
-@method(function('substring-after', nargs=2, bp=90))
+@method(function('substring-before', nargs=2))
+@method(function('substring-after', nargs=2))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context)
     arg2 = self.get_argument(context, index=1)
@@ -1035,27 +1035,27 @@ def evaluate(self, context=None):
 
 ###
 # Boolean functions
-@method(function('boolean', nargs=1, bp=90))
+@method(function('boolean', nargs=1))
 def evaluate(self, context=None):
     return boolean_value(self[0].get_results(context))
 
 
-@method(function('not', nargs=1, bp=90))
+@method(function('not', nargs=1))
 def evaluate(self, context=None):
     return not boolean_value(self[0].get_results(context))
 
 
-@method(function('true', nargs=0, bp=90))
+@method(function('true', nargs=0))
 def evaluate(self, context=None):
     return True
 
 
-@method(function('false', nargs=0, bp=90))
+@method(function('false', nargs=0))
 def evaluate(self, context=None):
     return False
 
 
-@method(function('lang', nargs=1, bp=90))
+@method(function('lang', nargs=1))
 def evaluate(self, context=None):
     if context is None:
         return
@@ -1079,7 +1079,7 @@ def evaluate(self, context=None):
 
 ###
 # Number functions
-@method(function('number', nargs=(0, 1), bp=90))
+@method(function('number', nargs=(0, 1)))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
@@ -1088,7 +1088,7 @@ def evaluate(self, context=None):
         return float('nan')
 
 
-@method(function('sum', nargs=(1, 2), bp=90))
+@method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
     if context is None:
         result = self[0].evaluate()
@@ -1104,7 +1104,7 @@ def evaluate(self, context=None):
         self.wrong_type("not a sequence: %r" % result)
 
 
-@method(function('ceiling', nargs=1, bp=90))
+@method(function('ceiling', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
@@ -1114,7 +1114,7 @@ def evaluate(self, context=None):
             self.wrong_type(str(err))
 
 
-@method(function('floor', nargs=1, bp=90))
+@method(function('floor', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
@@ -1124,7 +1124,7 @@ def evaluate(self, context=None):
             self.wrong_type(str(err))
 
 
-@method(function('round', nargs=1, bp=90))
+@method(function('round', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     try:
