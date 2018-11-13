@@ -8,10 +8,38 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from __future__ import unicode_literals
+from .compat import PY3
 
 
 class ElementPathError(Exception):
-    pass
+    """
+    Base exception class for elementpath package.
+
+    :param message: the message related to the error.
+    :param token: an optional token instance related with the error.
+    :param code: an optional error code.
+    """
+
+    def __init__(self, message, token=None, code=None):
+        super(ElementPathError, self).__init__(message)
+        self.message = message
+        self.token = token
+        self.code = code
+
+    def __str__(self):
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        if self.code is None:
+            return self.message if self.token is None else '%s: %s.' % (self.token, self.message)
+        elif self.token is None:
+            return '%s [%s].' % (self.message, self.code)
+        else:
+            return '%s: %s [%s].' % (self.token, self.message, self.code)
+
+    if PY3:
+        __str__ = __unicode__
 
 
 class ElementPathNameError(ElementPathError, NameError):

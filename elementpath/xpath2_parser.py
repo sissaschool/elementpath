@@ -12,6 +12,7 @@ import sys
 import decimal
 import datetime
 import math
+import re
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
@@ -29,8 +30,7 @@ from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
 
-
-XMLSchema = None
+_REGEX_SPACES = re.compile(r'\s+')
 
 
 class XPath2Parser(XPath1Parser):
@@ -112,7 +112,10 @@ class XPath2Parser(XPath1Parser):
         # 'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
 
         # TODO: Node set functions
-        # 'root'
+        # 'root',
+
+        # Error function
+        'error',
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -782,6 +785,16 @@ def evaluate(self, context=None):
     return [] if item is None else str(item).replace('\t', ' ').replace('\n', ' ')
 
 
+@method(constructor('token'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else collapse_white_spaces(item)
+
+
+def collapse_white_spaces(s):
+    return _REGEX_SPACES.sub(' ', s).strip()
+
+
 ###
 # Context item
 @method(function('item', nargs=0, bp=90))
@@ -1209,6 +1222,14 @@ def evaluate(self, context=None):
     if context is not None:
         if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
             return context.item[1]
+
+
+
+@function('error')
+def evaluate(self, context=None):
+    if context is not None:
+        pass
+
 
 
 XPath2Parser.build_tokenizer()
