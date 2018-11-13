@@ -69,15 +69,13 @@ def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
         (\S) |                                                            # Unexpected characters
         \s+                                                               # Skip extra spaces
     """
-    if not all(k in symbol_table for k in DEFAULT_SPECIAL_SYMBOLS):
-        raise ValueError("The symbol table of doesn't contain all special symbols.")
-
     patterns = [
         s.pattern for s in symbol_table.values()
         if SPECIAL_SYMBOL_REGEX.search(s.pattern) is None
     ]
     string_patterns = []
     character_patterns = []
+
     for p in (s.strip() for s in patterns):
         length = len(p)
         if length == 1 or length == 2 and p[0] == '\\':
@@ -246,16 +244,13 @@ class Token(MutableSequence):
             msg = "unexpected symbol %r after %s at line %d, column %d." % (symbol, token, pos[0], pos[1])
         else:
             msg = "unexpected symbol %r at line %d, column %d." % (symbol, pos[0], pos[1])
-        raise ElementPathSyntaxError(msg + ' ' + message if message else msg)
+        raise ElementPathSyntaxError(msg + ' ' + message if message else msg, self)
 
-    def wrong_name(self, message=None):
-        raise ElementPathNameError("%s: %s." % (self, message or 'unknown error'))
+    def wrong_value(self, message='unknown error'):
+        raise ElementPathValueError(message, self)
 
-    def wrong_value(self, message=None):
-        raise ElementPathValueError("%s: %s." % (self, message or 'unknown error'))
-
-    def wrong_type(self, message=None):
-        raise ElementPathTypeError("%s: %s." % (self, message or 'unknown error'))
+    def wrong_type(self, message='unknown error'):
+        raise ElementPathTypeError(message, self)
 
 
 class ParserMeta(type):
@@ -428,12 +423,12 @@ class Parser(object):
         :return: The source string chunk enclosed between the initial position and the first stop symbol.
         """
         if not stop_symbols:
-            raise ElementPathValueError("at least a stop symbol required!")
+            raise ElementPathValueError("at least a stop symbol required!", self.next_token)
         elif getattr(self.next_token, 'symbol', None) == '(end)':
             if self.token is None:
-                raise ElementPathSyntaxError("source is empty.")
+                raise ElementPathSyntaxError("source is empty.", self.next_token)
             else:
-                raise ElementPathSyntaxError("unexpected end of source after %s." % self.token)
+                raise ElementPathSyntaxError("unexpected end of source after %s." % self.token, self.next_token)
 
         self.token = self.next_token
         self.match = self.next_match

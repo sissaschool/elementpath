@@ -13,9 +13,8 @@ import math
 import decimal
 
 from .compat import PY3
-from .exceptions import (
-    ElementPathSyntaxError, ElementPathTypeError, ElementPathValueError, ElementPathMissingContextError
-)
+from .exceptions import ElementPathSyntaxError, ElementPathKeyError, ElementPathTypeError, \
+    ElementPathNameError, ElementPathMissingContextError
 from .tdop_parser import Parser
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
@@ -257,8 +256,8 @@ def led(self, left):
     if left.symbol == '(name)':
         try:
             namespace = self.parser.namespaces[left.value]
-        except KeyError:
-            raise ElementPathValueError("prefix %r not found in namespace map" % left.value)
+        except KeyError as err:
+            raise ElementPathKeyError("prefix %r not found in namespace map" % str(err))
 
         if next_token.symbol not in ('(name)', '*') and next_token.label not in ('function', 'constructor'):
             next_token.wrong_syntax()
@@ -282,8 +281,8 @@ def evaluate(self, context=None):
         return
     try:
         namespace = self.parser.namespaces[self[0].value]
-    except KeyError:
-        raise ElementPathValueError("prefix %r not found in namespace map" % self[0].value)
+    except KeyError as err:
+        raise ElementPathKeyError("prefix %r not found in namespace map" % str(err))
 
     if namespace == XPATH_FUNCTIONS_NAMESPACE and self[1].label != 'function':
         self[1].wrong_value("must be a function")
@@ -307,8 +306,8 @@ def select(self, context=None):
     else:
         try:
             namespace = self.parser.namespaces[self[0].value]
-        except KeyError:
-            raise ElementPathValueError("prefix %r not found in namespace map" % self[0].value)
+        except KeyError as err:
+            raise ElementPathKeyError("prefix %r not found in namespace map" % str(err))
         else:
             value = '{%s}%s' % (namespace, self[1].value)
 
@@ -385,7 +384,7 @@ def evaluate(self, context=None):
     elif varname in context.variables:
         return context.variables[varname]
     else:
-        self.wrong_name('unknown variable')
+        raise ElementPathNameError('unknown variable', token=self)
 
 
 ###

@@ -22,6 +22,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 from .exceptions import (
     ElementPathNameError, ElementPathTypeError, ElementPathValueError, ElementPathMissingContextError
 )
+from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
 from .tdop_parser import Token
 
@@ -73,7 +74,7 @@ class XPathToken(Token):
         symbol, label = self.symbol, self.label
         if label == 'axis':
             return u'%s::%s' % (self.symbol, self[0].source)
-        elif label == 'function':
+        elif label in ('function', 'constructor'):
             return u'%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
         elif symbol == ':':
             return u'%s:%s' % (self[0].source, self[1].source)
@@ -90,50 +91,6 @@ class XPathToken(Token):
         elif symbol == 'treat':
             return u'%s treat as %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         return super(XPathToken, self).source
-
-    ###
-    # XPath errors (https://www.w3.org/TR/xpath20/#id-errors)
-    def missing_schema(self, message='parser not bound to a schema'):
-        raise ElementPathValueError("%s: %s [err:XPST0001]." % (self, message))
-
-    def missing_context(self, message='dynamic context required for evaluate'):
-        raise ElementPathMissingContextError("%s: %s [err:XPDY0002]." % (self, message))
-
-    def wrong_context_type(self, message='type is not appropriate for the context'):
-        raise ElementPathTypeError("%s: %s [err:XPTY0004]." % (self, message))
-
-    def missing_sequence(self, message='a not empty sequence required'):
-        raise ElementPathValueError("%s: %s [err:XPST0005]." % (self, message))
-
-    def missing_name(self, message='name not found'):
-        raise ElementPathNameError("%s: %s [err:XPST0008]." % (self, message))
-
-    def missing_axis(self, message='axis not found'):
-        raise ElementPathNameError("%s: %s [err:XPST0010]." % (self, message))
-
-    def wrong_nargs(self, message='wrong number of arguments'):
-        raise ElementPathValueError("%s: %s [err:XPST0017]." % (self, message))
-
-    def wrong_step_result(self, message='step result contains both nodes and atomic values'):
-        raise ElementPathTypeError("%s: %s [err:XPTY0018]." % (self, message))
-
-    def wrong_intermediate_step_result(self, message='intermediate step contains an atomic value'):
-        raise ElementPathTypeError("%s: %s [err:XPTY0019]." % (self, message))
-
-    def wrong_axis_argument(self, message='context item is not a node'):
-        raise ElementPathTypeError("%s: %s [err:XPTY0020]." % (self, message))
-
-    def wrong_sequence_type(self, message='type does not match sequence type'):
-        raise ElementPathTypeError("%s: %s [err:XPDY0050]." % (self, message))
-
-    def unknown_atomic_type(self, message='unknown atomic type'):
-        raise ElementPathNameError("%s: %s [err:XPST0051]." % (self, message))
-
-    def wrong_target_type(self, message='target type cannot be xs:NOTATION or xs:anyAtomicType'):
-        raise ElementPathNameError("%s: %s [err:XPST0080]." % (self, message))
-
-    def unknown_namespace(self, message='unknown namespace'):
-        raise ElementPathNameError("%s: %s [err:XPST0081]." % (self, message))
 
     def get_argument(self, context=None, index=0, default_to_context=False):
         """
@@ -225,3 +182,94 @@ class XPathToken(Token):
                 return results
         else:
             return results
+
+    ###
+    # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
+    def error(self, code, message=None):
+        """
+        Raises an error instance related with a code. An XPath/XQuery/XSLT error code is an
+        alphanumeric token starting with four uppercase letters and ending with four digits.
+
+        :param code: the error code.
+        :param message: an optional custom message.
+        """
+        for p, v in self.parser.namespaces.items():
+            if v == XQT_ERRORS_NAMESPACE:
+                pcode = '%s:%s' % (p, code) if p else code
+                break
+        else:
+            pcode = 'err:' + code
+
+        if code == 'XPST0001':
+            raise ElementPathValueError(message or 'parser not bound to a schema', self, pcode)
+        elif code == 'XPDY0002':
+            raise ElementPathMissingContextError(message or 'dynamic context required for evaluate', self, pcode)
+        elif code == 'XPTY0004':
+            raise ElementPathTypeError(message or 'type is not appropriate for the context', self, pcode)
+        elif code == 'XPST0005':
+            raise ElementPathValueError(message or 'a not empty sequence required', self, pcode)
+        elif code == 'XPST0008':
+            raise ElementPathNameError(message or 'name not found', self, pcode)
+        elif code == 'XPST0010':
+            raise ElementPathNameError(message or 'axis not found', self, pcode)
+        elif code == 'XPST0017':
+            raise ElementPathValueError(message or 'wrong number of arguments', self, pcode)
+        elif code == 'XPTY0018':
+            raise ElementPathTypeError(message or 'step result contains both nodes and atomic values', self, pcode)
+        elif code == 'XPTY0019':
+            raise ElementPathTypeError(message or 'intermediate step contains an atomic value', self, pcode)
+        elif code == 'XPTY0020':
+            raise ElementPathTypeError(message or 'context item is not a node', self, pcode)
+        elif code == 'XPDY0050':
+            raise ElementPathTypeError(message or 'type does not match sequence type', self, pcode)
+        elif code == 'XPST0051':
+            raise ElementPathNameError(message or 'unknown atomic type', self, pcode)
+        elif code == 'XPST0080':
+            raise ElementPathNameError(message or 'target type cannot be xs:NOTATION or xs:anyAtomicType', self, pcode)
+        elif code == 'XPST0081':
+            raise ElementPathNameError(message or 'unknown namespace', self, pcode)
+        else:
+            raise ElementPathValueError('unknown XPath error code %r.' % code)
+
+    # Shortcuts for XPath errors (https://www.w3.org/TR/xpath20/#id-errors)
+    def missing_schema(self, message=None):
+        self.error('XPST0001', message)
+
+    def missing_context(self, message=None):
+        self.error('XPDY0002', message)
+
+    def wrong_context_type(self, message=None):
+        self.error('XPTY0004', message)
+
+    def missing_sequence(self, message=None):
+        self.error('XPST0005', message)
+
+    def missing_name(self, message=None):
+        self.error('XPST0008', message)
+
+    def missing_axis(self, message=None):
+        self.error('XPST0010', message)
+
+    def wrong_nargs(self, message=None):
+        self.error('XPST0017', message)
+
+    def wrong_step_result(self, message=None):
+        self.error('XPTY0018', message)
+
+    def wrong_intermediate_step_result(self, message=None):
+        self.error('XPTY0019', message)
+
+    def wrong_axis_argument(self, message=None):
+        self.error('XPTY0020', message)
+
+    def wrong_sequence_type(self, message=None):
+        self.error('XPDY0050', message)
+
+    def unknown_atomic_type(self, message=None):
+        self.error('XPST0051', message)
+
+    def wrong_target_type(self, message=None):
+        self.error('XPST0080', message)
+
+    def unknown_namespace(self, message=None):
+        self.error('XPST0081', message)
