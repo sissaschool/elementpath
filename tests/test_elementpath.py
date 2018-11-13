@@ -1178,6 +1178,16 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:decimal("19")', 19)
         self.check_value('xs:decimal("19")', Decimal)
 
+        self.wrong_value('xs:double("world")')
+        self.check_value('xs:double("39.09")', 39.09)
+        self.check_value('xs:double(-5)', -5.0)
+        self.check_value('xs:double(-5)', float)
+
+        self.wrong_value('xs:float("..")')
+        self.check_value('xs:float(25.05)', 25.05)
+        self.check_value('xs:float(-0.00001)', -0.00001)
+        self.check_value('xs:float(0.00001)', float)
+
     def test_from_duration_functions(self):
         pass  # self.check_value('fn:years-from-duration()', [])
 

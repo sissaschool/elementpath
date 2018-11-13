@@ -266,7 +266,7 @@ def led(self, left):
                 next_token.wrong_syntax("An XPath function is expected.")
         elif namespace == XSD_NAMESPACE:
             if next_token.label == 'function':
-                next_token.wrong_syntax("An XSD element or constructor function is expected.")
+                next_token.wrong_syntax("An XSD element or a constructor function is expected.")
 
     elif left.symbol == '*' and next_token.symbol != '(name)':
         next_token.wrong_syntax()
