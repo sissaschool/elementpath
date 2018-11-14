@@ -19,9 +19,8 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
-from .exceptions import (
-    ElementPathNameError, ElementPathTypeError, ElementPathValueError, ElementPathMissingContextError
-)
+from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeError, \
+    ElementPathValueError, ElementPathMissingContextError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
 from .tdop_parser import Token
@@ -188,11 +187,12 @@ class XPathToken(Token):
             result = int(value)
         except ValueError as err:
             self.error("FORG0001", str(err))
-        if lower_bound is not None and result < lower_bound:
-            self.error("FORG0001", "value %d is too low" % result)
-        elif higher_bound is not None and result >= higher_bound:
-            self.error("FORG0001", "value %d is too high" % result)
-        return result
+        else:
+            if lower_bound is not None and result < lower_bound:
+                self.error("FORG0001", "value %d is too low" % result)
+            elif higher_bound is not None and result >= higher_bound:
+                self.error("FORG0001", "value %d is too high" % result)
+            return result
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
@@ -204,14 +204,24 @@ class XPathToken(Token):
         :param code: the error code.
         :param message: an optional custom message.
         """
-        for p, v in self.parser.namespaces.items():
-            if v == XQT_ERRORS_NAMESPACE:
-                pcode = '%s:%s' % (p, code) if p else code
+        for prefix, ns in self.parser.namespaces.items():
+            if ns == XQT_ERRORS_NAMESPACE:
                 break
         else:
-            pcode = 'err:' + code
+            prefix = 'err'
 
-        if code == 'XPST0001':
+        if ':' not in code:
+            pcode = '%s:%s' % (prefix, code) if prefix else code
+        elif not prefix or not code.startswith(prefix + ':'):
+            raise ElementPathValueError('%r is not an XPath error code' % code)
+        else:
+            pcode = code
+            code = code[len(prefix) + 1:]
+
+        if code == 'FOER0000':
+            raise ElementPathError(message or 'unidentified error', self, pcode)
+
+        elif code == 'XPST0001':
             raise ElementPathValueError(message or 'parser not bound to a schema', self, pcode)
         elif code == 'XPDY0002':
             raise ElementPathMissingContextError(message or 'dynamic context required for evaluate', self, pcode)
