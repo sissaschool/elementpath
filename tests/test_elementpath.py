@@ -1296,6 +1296,9 @@ class XPath2ParserTest(XPath1ParserTest):
             root, ElementPathTypeError
         )
 
+    def test_error_function(self):
+        self.assertRaises(ElementPathError, self.check_value, "fn:error()")
+
 
 class LxmlXPath2ParserTest(XPath2ParserTest):
 

@@ -1325,8 +1325,11 @@ def evaluate(self, context=None):
 # The error function (Ref: https://www.w3.org/TR/xpath20/#func-error)
 @method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
-    if context is not None:
-        pass
+    if not self:
+        self.error('FOER0000')
+    elif len(self) == 1:
+        item = self.get_argument(context)
+        self.error(item or 'FOER0000')
 
 
 XPath2Parser.build_tokenizer()
