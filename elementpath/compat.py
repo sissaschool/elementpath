@@ -16,12 +16,12 @@ PY3 = sys.version_info >= (3,)
 if PY3:
     # noinspection PyCompatibility
     from urllib.parse import quote as urllib_quote
-
+    string_base_type = str
     unicode_chr = chr
 else:
     # noinspection PyCompatibility
     from urllib2 import quote as urllib_quote
-
+    string_base_type = basestring
     unicode_chr = unichr
 
 

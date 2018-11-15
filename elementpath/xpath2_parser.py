@@ -12,25 +12,22 @@ import sys
 import decimal
 import datetime
 import math
-import re
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
 
-from .compat import PY3, unicode_chr, urllib_quote
+from .compat import PY3, unicode_chr, urllib_quote, string_base_type
 from .exceptions import ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
-    qname_to_prefixed, prefixed_to_qname
+    qname_to_prefixed, prefixed_to_qname, get_namespace
 )
-from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
-    node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
-    data_value, string_value
+from .xpath_helpers import REGEX_SPACES, REGEX_XSD_QNAME, is_document_node, is_xpath_node, \
+    is_element_node, is_attribute_node, node_name, node_string_value, node_nilled, node_base_uri, \
+    node_document_uri, boolean_value, data_value, string_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
-
-_REGEX_SPACES = re.compile(r'\s+')
 
 
 class XPath2Parser(XPath1Parser):
@@ -107,9 +104,9 @@ class XPath2Parser(XPath1Parser):
         # TODO: Timezone adjustment functions
         # 'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
 
-        # TODO: Functions Related to QNames
-        # 'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
-        # 'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
+        # Functions Related to QNames
+        'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
+        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
 
         # TODO: Node set functions
         # 'root',
@@ -773,6 +770,113 @@ def select(self, context=None):
 
 
 ###
+# Function for QNames
+@method(function('QName', nargs=2))
+def evaluate(self, context=None):
+    uri = self.get_argument(context)
+    if uri is None:
+        uri = ''
+    elif not isinstance(uri, string_base_type):
+        raise self.error('FORG0006', '1st argument has an invalid type %r' % type(uri))
+
+    qname = self[1].evaluate(context)
+    if not isinstance(qname, string_base_type):
+        raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
+    match = REGEX_XSD_QNAME.match(qname)
+    if match is None:
+        raise self.error('FOCA0002', '2nd argument must be an xs:QName')
+
+    pfx = match['prefix'] or ''
+    if not uri:
+        if pfx:
+            raise self.error('FOCA0002', 'must be a local name when the parameter URI is empty')
+    else:
+        try:
+            if uri != self.parser.namespaces[pfx]:
+                raise self.error('FOCA0002', 'prefix %r is already is used for another namespace' % pfx)
+        except KeyError:
+            self.parser.namespaces[pfx] = uri
+    return qname
+
+
+@method(function('prefix-from-QName', nargs=1))
+def evaluate(self, context=None):
+    qname = self.get_argument(context)
+    if qname is None:
+        return []
+    elif not isinstance(qname, string_base_type):
+        raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
+    match = REGEX_XSD_QNAME.match(qname)
+    if match is None:
+        raise self.error('FOCA0002', 'argument must be an xs:QName')
+    return match['prefix'] or []
+
+
+@method(function('local-name-from-QName', nargs=1))
+def evaluate(self, context=None):
+    qname = self.get_argument(context)
+    if qname is None:
+        return []
+    elif not isinstance(qname, string_base_type):
+        raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
+    match = REGEX_XSD_QNAME.match(qname)
+    if match is None:
+        raise self.error('FOCA0002', 'argument must be an xs:QName')
+    return match['local']
+
+
+@method(function('namespace-uri-from-QName', nargs=1))
+def evaluate(self, context=None):
+    qname = self.get_argument(context)
+    if qname is None:
+        return []
+    elif not isinstance(qname, string_base_type):
+        raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
+    elif not qname:
+        return ''
+
+    match = REGEX_XSD_QNAME.match(qname)
+    if match is None:
+        raise self.error('FOCA0002', 'argument must be an xs:QName')
+    try:
+        return self.parser.namespaces[match['prefix'] or '']
+    except KeyError as err:
+        raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
+
+
+@method(function('namespace-uri-for-prefix', nargs=2))
+def evaluate(self, context=None):
+    if context is not None:
+        pfx = self.get_argument(context.copy())
+        if pfx is None:
+            pfx = ''
+        if not isinstance(pfx, string_base_type):
+            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(pfx))
+
+        elem = self.get_argument(context, index=1)
+        if not is_element_node(elem):
+            raise self.error('FORG0006', 'argument %r is not a node %r' % elem)
+        ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+        for p, uri in self.parser.namespaces.items():
+            if uri in ns_uris:
+                if p == pfx:
+                    return uri
+        return []
+
+
+@method(function('in-scope-prefixes', nargs=1))
+def select(self, context=None):
+    if context is not None:
+        elem = self.get_argument(context)
+        if not is_element_node(elem):
+            raise self.error('FORG0006', 'argument %r is not a node %r' % elem)
+        ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+        for pfx, uri in self.parser.namespaces.items():
+            if uri in ns_uris:
+                yield pfx
+
+
+###
 # XSD constructor functions
 @method(constructor('string1'))
 def evaluate(self, context=None):
@@ -792,7 +896,7 @@ def evaluate(self, context=None):
 
 
 def collapse_white_spaces(s):
-    return _REGEX_SPACES.sub(' ', s).strip()
+    return REGEX_SPACES.sub(' ', s).strip()
 
 
 @method(constructor('decimal'))
@@ -801,7 +905,7 @@ def evaluate(self, context=None):
     try:
         return [] if item is None else decimal.Decimal(item)
     except (ValueError, decimal.DecimalException) as err:
-        self.error("FORG0001", str(err))
+        raise self.error("FORG0001", str(err))
 
 
 @method(constructor('integer'))
@@ -889,7 +993,7 @@ def evaluate(self, context=None):
     try:
         return [] if item is None else float(item)
     except ValueError as err:
-        self.error("FORG0001", str(err))
+        raise self.error("FORG0001", str(err))
 
 
 ###
@@ -1326,10 +1430,10 @@ def evaluate(self, context=None):
 @method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
     if not self:
-        self.error('FOER0000')
+        raise self.error('FOER0000')
     elif len(self) == 1:
         item = self.get_argument(context)
-        self.error(item or 'FOER0000')
+        raise self.error(item or 'FOER0000')
 
 
 XPath2Parser.build_tokenizer()

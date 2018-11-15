@@ -113,13 +113,13 @@ class XPath1ParserTest(unittest.TestCase):
         'xs': XSD_NAMESPACE,
         'xsi': XSI_NAMESPACE,
         'fn': XPATH_FUNCTIONS_NAMESPACE,
+        'eg': 'http://www.example.com/example',
     }
     variables = {'values': [10, 20, 5]}
+    etree = ElementTree
 
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables, strict=True)
-        cls.etree = ElementTree
+    def setUp(self):
+        self.parser = XPath1Parser(namespaces=self.namespaces, variables=self.variables, strict=True)
 
     #
     # Helper methods
@@ -322,23 +322,23 @@ class XPath1ParserTest(unittest.TestCase):
                          "_name_literal_token(value='schema')", 'schema')
 
         # Axes
-        self.check_token('self', 'axis', "self axis", "_self_axis_token()")
-        self.check_token('child', 'axis', "child axis", "_child_axis_token()")
-        self.check_token('parent', 'axis', "parent axis", "_parent_axis_token()")
-        self.check_token('ancestor', 'axis', "ancestor axis", "_ancestor_axis_token()")
-        self.check_token('preceding', 'axis', "preceding axis", "_preceding_axis_token()")
-        self.check_token('descendant-or-self', 'axis', "descendant-or-self axis")
-        self.check_token('following-sibling', 'axis', "following-sibling axis")
-        self.check_token('preceding-sibling', 'axis', "preceding-sibling axis")
-        self.check_token('ancestor-or-self', 'axis', "ancestor-or-self axis")
-        self.check_token('descendant', 'axis', "descendant axis")
+        self.check_token('self', 'axis', "'self' axis", "_self_axis_token()")
+        self.check_token('child', 'axis', "'child' axis", "_child_axis_token()")
+        self.check_token('parent', 'axis', "'parent' axis", "_parent_axis_token()")
+        self.check_token('ancestor', 'axis', "'ancestor' axis", "_ancestor_axis_token()")
+        self.check_token('preceding', 'axis', "'preceding' axis", "_preceding_axis_token()")
+        self.check_token('descendant-or-self', 'axis', "'descendant-or-self' axis")
+        self.check_token('following-sibling', 'axis', "'following-sibling' axis")
+        self.check_token('preceding-sibling', 'axis', "'preceding-sibling' axis")
+        self.check_token('ancestor-or-self', 'axis', "'ancestor-or-self' axis")
+        self.check_token('descendant', 'axis', "'descendant' axis")
         if self.parser.version == '1.0':
-            self.check_token('attribute', 'axis', "attribute axis")
-        self.check_token('following', 'axis', "following axis")
-        self.check_token('namespace', 'axis', "namespace axis")
+            self.check_token('attribute', 'axis', "'attribute' axis")
+        self.check_token('following', 'axis', "'following' axis")
+        self.check_token('namespace', 'axis', "'namespace' axis")
 
         # Functions
-        self.check_token('position', 'function', "position() function", "_position_function_token()")
+        self.check_token('position', 'function', "'position' function", "_position_function_token()")
 
         # Operators
         self.check_token('and', 'operator', "'and' operator", "_and_operator_token()")
@@ -782,11 +782,7 @@ class XPath1ParserTest(unittest.TestCase):
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath1Parser(namespaces=cls.namespaces, variables=cls.variables)
-        cls.etree = lxml.etree
+    etree = lxml.etree
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """Check using the selector API (the *select* function of the package)."""
@@ -811,10 +807,8 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
 class XPath2ParserTest(XPath1ParserTest):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
-        cls.etree = ElementTree
+    def setUp(self):
+        self.parser = XPath2Parser(namespaces=self.namespaces, variables=self.variables)
 
     def test_xpath_tokenizer2(self):
         self.check_tokenizer("(: this is a comment :)",
@@ -1127,6 +1121,33 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('fn:exactly-one(())')
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
+    def test_qname_functions(self):
+        self.check_value('fn:QName("", "person")', 'person')
+        self.check_value('fn:QName((), "person")', 'person')
+        self.check_value('fn:QName("http://www.example.com/example", "person")', 'person')
+        self.check_value('fn:QName("http://www.example.com/example", "ht:person")', 'ht:person')
+        self.wrong_type('fn:QName("", 2)')
+        self.wrong_value('fn:QName("http://www.example.com/example", "xs:person")')
+
+        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/example", "ht:person"))', 'ht')
+        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/example", "person"))', [])
+        self.check_value(
+            'fn:local-name-from-QName(fn:QName("http://www.example.com/example", "person"))', 'person'
+        )
+        self.check_value(
+            'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/example", "person"))',
+            'http://www.example.com/example'
+        )
+
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/example"/><C2/></p0:B3>'
+                              '</p1:A>')
+        context = XPathContext(root=root)
+        self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/example', context=context)
+        self.check_selector("fn:in-scope-prefixes(.)", root, ['p0', 'p2'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
+
     def test_string_constructors(self):
         self.check_value('xs:normalizedString("hello")', "hello")
         self.check_value('xs:normalizedString(())', [])
@@ -1301,11 +1322,7 @@ class XPath2ParserTest(XPath1ParserTest):
 
 
 class LxmlXPath2ParserTest(XPath2ParserTest):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, variables=cls.variables)
-        cls.etree = lxml.etree
+    etree = lxml.etree
 
 
 @unittest.skipIf(xmlschema is None, "xmlschema library >= v0.9.31 required.")
@@ -1323,10 +1340,8 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
     else:
         schema = None
 
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
-        cls.etree = ElementTree
+    def setUp(self):
+        self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema, variables=self.variables)
 
     def test_xmlschema_proxy(self):
         context = XPathContext(root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>'))
@@ -1402,11 +1417,7 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
 
 
 class LxmlXPath2ParserXMLSchemaTest(XPath2ParserXMLSchemaTest):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath2Parser(namespaces=cls.namespaces, schema=cls.schema, variables=cls.variables)
-        cls.etree = lxml.etree
+    etree = lxml.etree
 
 
 if __name__ == '__main__':

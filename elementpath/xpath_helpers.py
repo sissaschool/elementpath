@@ -12,12 +12,21 @@
 Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
 implementation for XPath functions that are reused in many contexts.
 """
+import re
 from .compat import PY3
 from .exceptions import ElementPathTypeError
 from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
 from .xpath_types import AttributeNode, NamespaceNode, UntypedAtomic
+
+
+###
+# Regex compiled patterns
+REGEX_SPACES = re.compile(r'\s+')
+REGEX_XSD_QNAME = re.compile(
+    '^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
+)
 
 
 ###

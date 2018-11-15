@@ -20,7 +20,7 @@ Element-like objects are used for representing elements and comments, ElementTre
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
 from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeError, \
-    ElementPathValueError, ElementPathMissingContextError
+    ElementPathValueError, ElementPathMissingContextError, ElementPathKeyError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
 from .tdop_parser import Token
@@ -63,9 +63,9 @@ class XPathToken(Token):
         elif symbol == ',':
             return 'comma operator'
         elif label == 'function':
-            return '%s() function' % symbol
+            return '%r function' % symbol
         elif label == 'axis':
-            return '%s axis' % symbol
+            return '%r axis' % symbol
         return super(XPathToken, self).__str__()
 
     @property
@@ -186,23 +186,23 @@ class XPathToken(Token):
         try:
             result = int(value)
         except ValueError as err:
-            self.error("FORG0001", str(err))
+            raise self.error("FORG0001", str(err))
         else:
             if lower_bound is not None and result < lower_bound:
-                self.error("FORG0001", "value %d is too low" % result)
+                raise self.error("FORG0001", "value %d is too low" % result)
             elif higher_bound is not None and result >= higher_bound:
-                self.error("FORG0001", "value %d is too high" % result)
+                raise self.error("FORG0001", "value %d is too high" % result)
             return result
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
     def error(self, code, message=None):
         """
-        Raises an error instance related with a code. An XPath/XQuery/XSLT error code is an
+        Returns an error instance related with a code. An XPath/XQuery/XSLT error code is an
         alphanumeric token starting with four uppercase letters and ending with four digits.
 
         :param code: the error code.
-        :param message: an optional custom message.
+        :param message: an optional custom additional message.
         """
         for prefix, ns in self.parser.namespaces.items():
             if ns == XQT_ERRORS_NAMESPACE:
@@ -218,82 +218,164 @@ class XPathToken(Token):
             pcode = code
             code = code[len(prefix) + 1:]
 
-        if code == 'FOER0000':
-            raise ElementPathError(message or 'unidentified error', self, pcode)
-
-        elif code == 'XPST0001':
-            raise ElementPathValueError(message or 'parser not bound to a schema', self, pcode)
+        # XPath 2.0 parser error (https://www.w3.org/TR/xpath20/#id-errors)
+        if code == 'XPST0001':
+            return ElementPathValueError(message or 'Parser not bound to a schema', self, pcode)
         elif code == 'XPDY0002':
-            raise ElementPathMissingContextError(message or 'dynamic context required for evaluate', self, pcode)
+            return ElementPathMissingContextError(message or 'Dynamic context required for evaluate', self, pcode)
         elif code == 'XPTY0004':
-            raise ElementPathTypeError(message or 'type is not appropriate for the context', self, pcode)
+            return ElementPathTypeError(message or 'Type is not appropriate for the context', self, pcode)
         elif code == 'XPST0005':
-            raise ElementPathValueError(message or 'a not empty sequence required', self, pcode)
+            return ElementPathValueError(message or 'A not empty sequence required', self, pcode)
         elif code == 'XPST0008':
-            raise ElementPathNameError(message or 'name not found', self, pcode)
+            return ElementPathNameError(message or 'Name not found', self, pcode)
         elif code == 'XPST0010':
-            raise ElementPathNameError(message or 'axis not found', self, pcode)
+            return ElementPathNameError(message or 'Axis not found', self, pcode)
         elif code == 'XPST0017':
-            raise ElementPathValueError(message or 'wrong number of arguments', self, pcode)
+            return ElementPathValueError(message or 'Wrong number of arguments', self, pcode)
         elif code == 'XPTY0018':
-            raise ElementPathTypeError(message or 'step result contains both nodes and atomic values', self, pcode)
+            return ElementPathTypeError(message or 'Step result contains both nodes and atomic values', self, pcode)
         elif code == 'XPTY0019':
-            raise ElementPathTypeError(message or 'intermediate step contains an atomic value', self, pcode)
+            return ElementPathTypeError(message or 'Intermediate step contains an atomic value', self, pcode)
         elif code == 'XPTY0020':
-            raise ElementPathTypeError(message or 'context item is not a node', self, pcode)
+            return ElementPathTypeError(message or 'Context item is not a node', self, pcode)
         elif code == 'XPDY0050':
-            raise ElementPathTypeError(message or 'type does not match sequence type', self, pcode)
+            return ElementPathTypeError(message or 'Type does not match sequence type', self, pcode)
         elif code == 'XPST0051':
-            raise ElementPathNameError(message or 'unknown atomic type', self, pcode)
+            return ElementPathNameError(message or 'Unknown atomic type', self, pcode)
         elif code == 'XPST0080':
-            raise ElementPathNameError(message or 'target type cannot be xs:NOTATION or xs:anyAtomicType', self, pcode)
+            return ElementPathNameError(message or 'Target type cannot be xs:NOTATION or xs:anyAtomicType', self, pcode)
         elif code == 'XPST0081':
-            raise ElementPathNameError(message or 'unknown namespace', self, pcode)
+            return ElementPathNameError(message or 'Unknown namespace', self, pcode)
 
+        # XPath data types and function errors
+        elif code == 'FOER0000':
+            return ElementPathError(message or 'Unidentified error', self, pcode)
+        elif code == 'FOAR0001':
+            return ElementPathValueError(message or 'Division by zero', self, pcode)
+        elif code == 'FOAR0002':
+            return ElementPathValueError(message or 'Numeric operation overflow/underflow', self, pcode)
+        elif code == 'FOCA0001':
+            return ElementPathValueError(message or 'Input value too large for decimal', self, pcode)
+        elif code == 'FOCA0002':
+            return ElementPathValueError(message or 'Invalid lexical value', self, pcode)
+        elif code == 'FOCA0003':
+            return ElementPathValueError(message or 'Input value too large for integer', self, pcode)
+        elif code == 'FOCA0005':
+            return ElementPathValueError(message or 'NaN supplied as float/double value', self, pcode)
+        elif code == 'FOCA0006':
+            return ElementPathValueError(
+                message or 'String to be cast to decimal has too many digits of precision', self, pcode
+            )
+        elif code == 'FOCH0001':
+            return ElementPathValueError(message or 'Code point not valid', self, pcode)
+        elif code == 'FOCH0002':
+            return ElementPathValueError(message or 'Unsupported collation', self, pcode)
+        elif code == 'FOCH0003':
+            return ElementPathValueError(message or 'Unsupported normalization form', self, pcode)
+        elif code == 'FOCH0004':
+            return ElementPathValueError(message or 'Collation does not support collation units', self, pcode)
+        elif code == 'FODC0001':
+            return ElementPathValueError(message or 'No context document', self, pcode)
+        elif code == 'FODC0002':
+            return ElementPathValueError(message or 'Error retrieving resource', self, pcode)
+        elif code == 'FODC0003':
+            return ElementPathValueError(message or 'Function stability not defined', self, pcode)
+        elif code == 'FODC0004':
+            return ElementPathValueError(message or 'Invalid argument to fn:collection', self, pcode)
+        elif code == 'FODC0005':
+            return ElementPathValueError(message or 'Invalid argument to fn:doc or fn:doc-available', self, pcode)
+        elif code == 'FODT0001':
+            return ElementPathValueError(message or 'Overflow/underflow in date/time operation', self, pcode)
+        elif code == 'FODT0002':
+            return ElementPathValueError(message or 'Overflow/underflow in duration operation', self, pcode)
+        elif code == 'FODT0003':
+            return ElementPathValueError(message or 'Invalid timezone value', self, pcode)
+        elif code == 'FONS0004':
+            return ElementPathKeyError(message or 'No namespace found for prefix', self, pcode)
+        elif code == 'FONS0005':
+            return ElementPathValueError(message or 'Base-uri not defined in the static context', self, pcode)
         elif code == 'FORG0001':
-            raise ElementPathValueError(message or 'invalid value for cast/constructor', self, pcode)
-        else:
-            raise ElementPathValueError('unknown XPath error code %r.' % code)
+            return ElementPathValueError(message or 'Invalid value for cast/constructor', self, pcode)
+        elif code == 'FORG0002':
+            return ElementPathValueError(message or 'Invalid argument to fn:resolve-uri()', self, pcode)
+        elif code == 'FORG0003':
+            return ElementPathValueError(
+                message or 'fn:zero-or-one called with a sequence containing more than one item', self, pcode
+            )
+        elif code == 'FORG0004':
+            return ElementPathValueError(
+                message or 'fn:one-or-more called with a sequence containing no items', self, pcode
+            )
+        elif code == 'FORG0005':
+            return ElementPathValueError(
+                message or 'fn:exactly-one called with a sequence containing zero or more than one item', self, pcode
+            )
+        elif code == 'FORG0006':
+            return ElementPathTypeError(message or 'Invalid argument type', self, pcode)
+        elif code == 'FORG0008':
+            return ElementPathValueError(
+                message or 'The two arguments to fn:dateTime have inconsistent timezones', self, pcode
+            )
+        elif code == 'FORG0009':
+            return ElementPathValueError(
+                message or 'Error in resolving a relative URI against a base URI in fn:resolve-uri', self, pcode
+            )
+        elif code == 'FORX0001':
+            return ElementPathValueError(message or 'Invalid regular expression flags', self, pcode)
+        elif code == 'FORX0002':
+            return ElementPathValueError(message or 'Invalid regular expression', self, pcode)
+        elif code == 'FORX0003':
+            return ElementPathValueError(message or 'Regular expression matches zero-length string', self, pcode)
+        elif code == 'FORX0004':
+            return ElementPathValueError(message or 'Invalid replacement string', self, pcode)
+        elif code == 'FOTY0012':
+            return ElementPathValueError(message or 'Argument node does not have a typed value', self, pcode)
+        elif code == '':
+            return ElementPathValueError(message or '', self, pcode)
 
-    # Shortcuts for XPath errors (https://www.w3.org/TR/xpath20/#id-errors)
+        else:
+            raise ElementPathValueError('Unknown XPath error code %r.' % code)
+
+    # Shortcuts for XPath errors
     def missing_schema(self, message=None):
-        self.error('XPST0001', message)
+        raise self.error('XPST0001', message)
 
     def missing_context(self, message=None):
-        self.error('XPDY0002', message)
+        raise self.error('XPDY0002', message)
 
     def wrong_context_type(self, message=None):
-        self.error('XPTY0004', message)
+        raise self.error('XPTY0004', message)
 
     def missing_sequence(self, message=None):
-        self.error('XPST0005', message)
+        raise self.error('XPST0005', message)
 
     def missing_name(self, message=None):
-        self.error('XPST0008', message)
+        raise self.error('XPST0008', message)
 
     def missing_axis(self, message=None):
-        self.error('XPST0010', message)
+        raise self.error('XPST0010', message)
 
     def wrong_nargs(self, message=None):
-        self.error('XPST0017', message)
+        raise self.error('XPST0017', message)
 
     def wrong_step_result(self, message=None):
-        self.error('XPTY0018', message)
+        raise self.error('XPTY0018', message)
 
     def wrong_intermediate_step_result(self, message=None):
-        self.error('XPTY0019', message)
+        raise self.error('XPTY0019', message)
 
     def wrong_axis_argument(self, message=None):
-        self.error('XPTY0020', message)
+        raise self.error('XPTY0020', message)
 
     def wrong_sequence_type(self, message=None):
-        self.error('XPDY0050', message)
+        raise self.error('XPDY0050', message)
 
     def unknown_atomic_type(self, message=None):
-        self.error('XPST0051', message)
+        raise self.error('XPST0051', message)
 
     def wrong_target_type(self, message=None):
-        self.error('XPST0080', message)
+        raise self.error('XPST0080', message)
 
     def unknown_namespace(self, message=None):
-        self.error('XPST0081', message)
+        raise self.error('XPST0081', message)
