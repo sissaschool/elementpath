@@ -104,9 +104,9 @@ class XPath2Parser(XPath1Parser):
         # TODO: Timezone adjustment functions
         # 'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
 
-        # Functions Related to QNames
+        # Functions Related to QNames (QName function is also a constructor)
         'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
-        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
+        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes', 'resolve-QName',
 
         # TODO: Node set functions
         # 'root',
@@ -855,7 +855,7 @@ def evaluate(self, context=None):
 
         elem = self.get_argument(context, index=1)
         if not is_element_node(elem):
-            raise self.error('FORG0006', 'argument %r is not a node %r' % elem)
+            raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
         ns_uris = {get_namespace(e.tag) for e in elem.iter()}
         for p, uri in self.parser.namespaces.items():
             if uri in ns_uris:
@@ -869,11 +869,35 @@ def select(self, context=None):
     if context is not None:
         elem = self.get_argument(context)
         if not is_element_node(elem):
-            raise self.error('FORG0006', 'argument %r is not a node %r' % elem)
+            raise self.error('FORG0006', 'argument %r is not a node' % elem)
         ns_uris = {get_namespace(e.tag) for e in elem.iter()}
         for pfx, uri in self.parser.namespaces.items():
             if uri in ns_uris:
                 yield pfx
+
+
+@method(function('resolve-QName', nargs=2))
+def evaluate(self, context=None):
+    if context is not None:
+        qname = self.get_argument(context.copy())
+        if qname is None:
+            return []
+        if not isinstance(qname, string_base_type):
+            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
+        match = REGEX_XSD_QNAME.match(qname)
+        if match is None:
+            raise self.error('FOCA0002', '1st argument must be an xs:QName')
+        pfx = match['prefix'] or ''
+
+        elem = self.get_argument(context, index=1)
+        if not is_element_node(elem):
+            raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
+        ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+        for p, uri in self.parser.namespaces.items():
+            if uri in ns_uris:
+                if p == pfx:
+                    return '{%s}%s' % (uri, match['local']) if uri else match['local']
+        raise self.error('FONS0004', 'No namespace found for prefix %r' % pfx)
 
 
 ###
