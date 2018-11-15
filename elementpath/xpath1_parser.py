@@ -257,7 +257,7 @@ def led(self, left):
         try:
             namespace = self.parser.namespaces[left.value]
         except KeyError as err:
-            raise ElementPathKeyError("prefix %r not found in namespace map" % str(err))
+            raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
 
         if next_token.symbol not in ('(name)', '*') and next_token.label not in ('function', 'constructor'):
             next_token.wrong_syntax()
@@ -282,7 +282,7 @@ def evaluate(self, context=None):
     try:
         namespace = self.parser.namespaces[self[0].value]
     except KeyError as err:
-        raise ElementPathKeyError("prefix %r not found in namespace map" % str(err))
+        raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
 
     if namespace == XPATH_FUNCTIONS_NAMESPACE and self[1].label != 'function':
         self[1].wrong_value("must be a function")
@@ -307,7 +307,7 @@ def select(self, context=None):
         try:
             namespace = self.parser.namespaces[self[0].value]
         except KeyError as err:
-            raise ElementPathKeyError("prefix %r not found in namespace map" % str(err))
+            raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
         else:
             value = '{%s}%s' % (namespace, self[1].value)
 
