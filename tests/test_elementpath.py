@@ -1144,6 +1144,8 @@ class XPath2ParserTest(XPath1ParserTest):
                               '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/example"/><C2/></p0:B3>'
                               '</p1:A>')
         context = XPathContext(root=root)
+        self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
+        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/example}C2', context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/example', context=context)
         self.check_selector("fn:in-scope-prefixes(.)", root, ['p0', 'p2'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
