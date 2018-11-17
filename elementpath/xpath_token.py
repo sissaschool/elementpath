@@ -189,42 +189,50 @@ class XPathToken(Token):
         """
         Decode a value to an integer.
 
-        :param value: a string or another basic type instance.
+        :param value: a string or another basic numeric type instance.
         :param lower_bound: if not `None` the result must be higher or equal than its value.
         :param higher_bound: if not `None` the result must be lesser than its value.
         :return: an `int` instance.
         :raise: an `ElementPathValueError` if the value is not decodable to an integer or if \
         the value is out of bounds.
         """
-        try:
-            result = int(value)
-        except ValueError as err:
-            raise self.error("FORG0001", str(err))
+        if isinstance(value, string_base_type):
+            try:
+                result = int(float(value))
+            except ValueError:
+                raise self.error('FORG0001', 'could not convert string to integer: %r' % value)
         else:
-            if lower_bound is not None and result < lower_bound:
-                raise self.error("FORG0001", "value %d is too low" % result)
-            elif higher_bound is not None and result >= higher_bound:
-                raise self.error("FORG0001", "value %d is too high" % result)
-            return result
+            try:
+                result = int(value)
+            except ValueError as err:
+                raise self.error('FORG0001', str(err))
+            except TypeError as err:
+                raise self.error('FORG0006', str(err))
 
-    def datetime(self, value, *date_formats):
+        if lower_bound is not None and result < lower_bound:
+            raise self.error('FORG0001', "value %d is too low" % result)
+        elif higher_bound is not None and result >= higher_bound:
+            raise self.error('FORG0001', "value %d is too high" % result)
+        return result
+
+    def datetime(self, value, *datetime_formats):
         """
         Decode a value to a *datetime* instance.
 
         :param value: a string containing the formatted date and time specification.
-        :param date_formats: the datetime formats to try for decoding. These formats \
+        :param datetime_formats: the datetime formats to try for decoding. These formats \
         must not include timezone specifications, that are tested for default.
         :return: a `datetime.datetime` instance.
         """
-        if not date_formats:
-            date_formats = ('%Y-%m-%d',)
+        if not datetime_formats:
+            datetime_formats = ('%Y-%m-%d',)
 
         if ISO_TIMEZONE_RE_PATTERN.search(value) is None:
             tail = ''
         else:
             tail = 'Z' if 'Z' == value[-1] else '%z'
 
-        for fmt in map(lambda x: x + tail if tail else x, date_formats or ('%Y-%m-%d',)):
+        for fmt in map(lambda x: x + tail if tail else x, datetime_formats or ('%Y-%m-%d',)):
             try:
                 if '%f' in fmt:
                     datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(value)
@@ -236,7 +244,7 @@ class XPathToken(Token):
             else:
                 return result
         else:
-            self.error('FOCA0002')
+            raise self.error('FOCA0002', 'Invalid datetime %r for formats %r' % (value, datetime_formats))
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
