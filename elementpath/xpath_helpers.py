@@ -23,10 +23,12 @@ from .xpath_types import AttributeNode, NamespaceNode, UntypedAtomic
 
 ###
 # Regex compiled patterns
-REGEX_SPACES = re.compile(r'\s+')
-REGEX_XSD_QNAME = re.compile(
-    '^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
+WHITESPACES_RE_PATTERN = re.compile(r'\s+')
+XSD_QNAME_RE_PATTERN = re.compile(
+'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
 )
+FRACTION_DIGITS_RE_PATTERN = re.compile(r'\.(\d+)$')
+ISO_TIMEZONE_RE_PATTERN = re.compile(r'(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$')
 
 
 ###

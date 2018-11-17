@@ -22,7 +22,7 @@ from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname, get_namespace
 )
-from .xpath_helpers import REGEX_SPACES, REGEX_XSD_QNAME, is_document_node, is_xpath_node, \
+from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, is_document_node, is_xpath_node, \
     is_element_node, is_attribute_node, node_name, node_string_value, node_nilled, node_base_uri, \
     node_document_uri, boolean_value, data_value, string_value
 from .tdop_parser import create_tokenizer
@@ -782,7 +782,7 @@ def evaluate(self, context=None):
     qname = self[1].evaluate(context)
     if not isinstance(qname, string_base_type):
         raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
-    match = REGEX_XSD_QNAME.match(qname)
+    match = XSD_QNAME_RE_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', '2nd argument must be an xs:QName')
 
@@ -806,7 +806,7 @@ def evaluate(self, context=None):
         return []
     elif not isinstance(qname, string_base_type):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = REGEX_XSD_QNAME.match(qname)
+    match = XSD_QNAME_RE_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     return match['prefix'] or []
@@ -819,7 +819,7 @@ def evaluate(self, context=None):
         return []
     elif not isinstance(qname, string_base_type):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = REGEX_XSD_QNAME.match(qname)
+    match = XSD_QNAME_RE_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     return match['local']
@@ -835,7 +835,7 @@ def evaluate(self, context=None):
     elif not qname:
         return ''
 
-    match = REGEX_XSD_QNAME.match(qname)
+    match = XSD_QNAME_RE_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     try:
@@ -884,7 +884,7 @@ def evaluate(self, context=None):
             return []
         if not isinstance(qname, string_base_type):
             raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
-        match = REGEX_XSD_QNAME.match(qname)
+        match = XSD_QNAME_RE_PATTERN.match(qname)
         if match is None:
             raise self.error('FOCA0002', '1st argument must be an xs:QName')
         pfx = match['prefix'] or ''
@@ -920,7 +920,7 @@ def evaluate(self, context=None):
 
 
 def collapse_white_spaces(s):
-    return REGEX_SPACES.sub(' ', s).strip()
+    return WHITESPACES_RE_PATTERN.sub(' ', s).strip()
 
 
 @method(constructor('decimal'))
@@ -1018,6 +1018,17 @@ def evaluate(self, context=None):
         return [] if item is None else float(item)
     except ValueError as err:
         raise self.error("FORG0001", str(err))
+
+
+@method(constructor('time'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    else:
+        import pdb
+        pdb.set_trace()
+        self.integer(item, 0, 2**8)
 
 
 ###

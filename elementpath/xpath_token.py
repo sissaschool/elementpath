@@ -19,10 +19,13 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
+import datetime
+from .compat import string_base_type
 from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeError, \
     ElementPathValueError, ElementPathMissingContextError, ElementPathKeyError
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
+from .xpath_helpers import FRACTION_DIGITS_RE_PATTERN, ISO_TIMEZONE_RE_PATTERN, is_etree_element, \
+    is_document_node, boolean_value, data_value
 from .tdop_parser import Token
 
 
@@ -183,6 +186,16 @@ class XPathToken(Token):
             return results
 
     def integer(self, value, lower_bound=None, higher_bound=None):
+        """
+        Decode a value to an integer.
+
+        :param value: a string or another basic type instance.
+        :param lower_bound: if not `None` the result must be higher or equal than its value.
+        :param higher_bound: if not `None` the result must be lesser than its value.
+        :return: an `int` instance.
+        :raise: an `ElementPathValueError` if the value is not decodable to an integer or if \
+        the value is out of bounds.
+        """
         try:
             result = int(value)
         except ValueError as err:
@@ -193,6 +206,37 @@ class XPathToken(Token):
             elif higher_bound is not None and result >= higher_bound:
                 raise self.error("FORG0001", "value %d is too high" % result)
             return result
+
+    def datetime(self, value, *date_formats):
+        """
+        Decode a value to a *datetime* instance.
+
+        :param value: a string containing the formatted date and time specification.
+        :param date_formats: the datetime formats to try for decoding. These formats \
+        must not include timezone specifications, that are tested for default.
+        :return: a `datetime.datetime` instance.
+        """
+        if not date_formats:
+            date_formats = ('%Y-%m-%d',)
+
+        if ISO_TIMEZONE_RE_PATTERN.search(value) is None:
+            tail = ''
+        else:
+            tail = 'Z' if 'Z' == value[-1] else '%z'
+
+        for fmt in map(lambda x: x + tail if tail else x, date_formats or ('%Y-%m-%d',)):
+            try:
+                if '%f' in fmt:
+                    datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(value)
+                    result = datetime.datetime.strptime('%s.%s' % (datetime_part, fraction_digits[:6]), fmt)
+                else:
+                    result = datetime.datetime.strptime(value, fmt)
+            except ValueError:
+                pass
+            else:
+                return result
+        else:
+            self.error('FOCA0002')
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
