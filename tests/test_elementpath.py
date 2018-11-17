@@ -1211,6 +1211,9 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:float(-0.00001)', -0.00001)
         self.check_value('xs:float(0.00001)', float)
 
+    def test_datetime_constructors(self):
+        pass  # self.check_value('xs:time("21:30:00+05:30")', None)
+
     def test_from_duration_functions(self):
         pass  # self.check_value('fn:years-from-duration()', [])
 
