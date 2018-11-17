@@ -11,6 +11,7 @@
 #
 import unittest
 import sys
+import datetime
 import io
 import math
 import pickle
@@ -107,6 +108,28 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('15') * UntypedAtomic('4'), 60)
 
 
+class XPathTokenTest(unittest.TestCase):
+
+    token = XPath1Parser.symbol_table['(name)'](XPath1Parser(), 'dummy_token')
+
+    def test_integer_decoder(self):
+        self.assertRaises(ElementPathValueError, self.token.integer, "alpha")
+        self.assertRaises(ElementPathTypeError, self.token.integer, [])
+        self.assertEqual(self.token.integer("89"), 89)
+        self.assertEqual(self.token.integer("89.1"), 89)
+        self.assertEqual(self.token.integer(-71), -71)
+        self.assertEqual(self.token.integer(19.5), 19)
+
+    def test_datetime_decoder(self):
+        self.assertRaises(
+            ElementPathValueError, self.token.datetime, '2001-01-01', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'
+        )
+        self.assertEqual(
+            self.token.datetime('2001-01-01T23:29:45', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'),
+            datetime.datetime(2001, 1, 1, 23, 29, 45)
+        )
+
+
 class XPath1ParserTest(unittest.TestCase):
     namespaces = {
         'xml': XML_NAMESPACE,
@@ -120,6 +143,8 @@ class XPath1ParserTest(unittest.TestCase):
 
     def setUp(self):
         self.parser = XPath1Parser(namespaces=self.namespaces, variables=self.variables, strict=True)
+        self.token = XPath1Parser.symbol_table['(name)'](self.parser, 'test')
+
 
     #
     # Helper methods
