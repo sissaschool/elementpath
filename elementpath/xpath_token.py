@@ -224,6 +224,9 @@ class XPathToken(Token):
         must not include timezone specifications, that are tested for default.
         :return: a `datetime.datetime` instance.
         """
+        if not isinstance(value, string_base_type):
+            raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
+
         if not datetime_formats:
             datetime_formats = ('%Y-%m-%d',)
 
@@ -244,7 +247,11 @@ class XPathToken(Token):
             else:
                 return result
         else:
-            raise self.error('FOCA0002', 'Invalid datetime %r for formats %r' % (value, datetime_formats))
+            if len(datetime_formats) == 1:
+                msg = 'Invalid value %r for datetime format %r' % (value, datetime_formats[0])
+            else:
+                msg = 'Invalid value %r for datetime formats %r' % (value, datetime_formats)
+            raise self.error('FOCA0002', msg)
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)

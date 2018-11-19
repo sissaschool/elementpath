@@ -1020,15 +1020,96 @@ def evaluate(self, context=None):
         raise self.error("FORG0001", str(err))
 
 
+@method(constructor('dateTime'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else self.datetime(item, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f')
+
+
+@method(constructor('date'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+
+    result = self.datetime(item, '%Y-%m-%d', '-%Y-%m-%d')
+    if item[0] == '-':
+        raise self.error('FOCA0002', "%r: BC dates are not supported" % item)
+    elif len(item) < 10:
+        raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
+    return result
+
+
+@method(constructor('gDay'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+
+    result = self.datetime(item, '---%d')
+    if len(item) < 5:
+        raise self.error('FOCA0002', "%r: the day must be two digits." % item)
+    return result
+
+
+@method(constructor('gMonth'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+
+    result = self.datetime(item, '--%m')
+    if len(item) < 4:
+        raise self.error('FOCA0002', "%r: the month must be two digits." % item)
+    return result
+
+
+@method(constructor('gMonthDay'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+
+    result = self.datetime(item, '--%m-%d')
+    if len(item) < 7:
+        raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
+    return result
+
+
+@method(constructor('gYear'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+
+    result = self.datetime(item, '%Y', '-%Y')
+    if item[0] == '-':
+        raise self.error('FOCA0002', "%r: BC dates are not supported" % item)
+    return result
+
+
+@method(constructor('gYearMonth'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+
+    result = self.datetime(item, '%Y-%m')
+    if len(item) < 7:
+        raise self.error('FOCA0002', "%r: the month must be two digits" % item)
+    return result
+
+
 @method(constructor('time'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    else:
-        import pdb
-        pdb.set_trace()
-        self.integer(item, 0, 2**8)
+
+    result = self.datetime(item, '%H:%M:%S', '%H:%M:%S.%f', '24:00:00')
+    if len(item.split('.')[0] if '.' in item else item) < 8:
+        raise self.error('FOCA0002', "%r: hours, minutes and seconds must be two digits each" % item)
+    return result
 
 
 ###
