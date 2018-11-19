@@ -34,9 +34,9 @@ class ElementPathError(Exception):
         if self.code is None:
             return self.message if self.token is None else '%s: %s.' % (self.token, self.message)
         elif self.token is None:
-            return '%s [%s].' % (self.message, self.code)
+            return '[%s] %s.' % (self.code, self.message)
         else:
-            return '%s: %s [%s].' % (self.token, self.message, self.code)
+            return '%s: [%s] %s.' % (self.token, self.code, self.message)
 
     if PY3:
         __str__ = __unicode__
