@@ -1023,7 +1023,16 @@ def evaluate(self, context=None):
 @method(constructor('dateTime'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f')
+    if item is None:
+        return []
+    result = self.datetime(item, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f')
+    if 't' in item:
+        raise self.error('FOCA0002', "%r: 't' separator must be in uppercase" % item)
+    elif item.index('T') < 10:
+        raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
+    elif len(item) < 19 or item[13] != ':' or item[16] != ':' or not item[17:19].isdigit():
+        raise self.error('FOCA0002', "%r: hours, minutes and seconds be two digits each" % item)
+    return result
 
 
 @method(constructor('date'))
