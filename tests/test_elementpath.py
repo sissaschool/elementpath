@@ -145,7 +145,6 @@ class XPath1ParserTest(unittest.TestCase):
         self.parser = XPath1Parser(namespaces=self.namespaces, variables=self.variables, strict=True)
         self.token = XPath1Parser.symbol_table['(name)'](self.parser, 'test')
 
-
     #
     # Helper methods
     def check_tokenizer(self, path, expected):
@@ -1237,21 +1236,52 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:float(0.00001)', float)
 
     def test_datetime_constructors(self):
-        tzinfo = datetime.timezone(datetime.timedelta(hours=5, minutes=24))
+        tzinfo1 = datetime.timezone(datetime.timedelta(hours=5, minutes=24))
+        tzinfo2 = datetime.timezone(datetime.timedelta(hours=-14, minutes=0))
+        self.check_value('xs:dateTime("1969-07-20T20:18:00")', datetime.datetime(1969, 7, 20, 20, 18))
+        self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
+                         datetime.datetime(2000, 5, 10, 21, 30, tzinfo=tzinfo1))
+        self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
+        self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
+        self.wrong_value('xs:dateTime("2000-05-10T21:3:00+05:24")')
+        self.wrong_value('xs:dateTime("2000-05-10T21:13:0+05:24")')
+        self.wrong_value('xs:dateTime("2000-05-10T21:13:0")')
+
         self.check_value('xs:time("21:30:00")', datetime.datetime(1900, 1, 1, 21, 30))
-        # self.check_value('xs:time("11:15:48+05:30")', None)  # datetime.datetime(1900, 1, 1, 11, 15, tzinfo=tzinfo))
+        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(1900, 1, 1, 11, 15, 48, tzinfo=tzinfo1))
+
         self.check_value('xs:date("2017-01-19")', datetime.datetime(2017, 1, 19))
+        self.check_value('xs:date("2011-11-11-14:00")', datetime.datetime(2011, 11, 11, tzinfo=tzinfo2))
+        self.wrong_value('xs:date("2011-11-11-14:01")')
+        self.wrong_value('xs:date("11-11-11")')
 
         self.check_value('xs:gDay("---30")', datetime.datetime(1900, 1, 30))
-        self.check_value('xs:gDay("---21+05:30")', datetime.datetime(1900, 1, 21, tzinfo=tzinfo))
+        self.check_value('xs:gDay("---21+05:24")', datetime.datetime(1900, 1, 21, tzinfo=tzinfo1))
         self.wrong_value('xs:gDay("---32")')
         self.wrong_value('xs:gDay("--19")')
 
         self.check_value('xs:gMonth("--09")', datetime.datetime(1900, 9, 1))
-        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(1900, 7, 2))
-        self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1,))
-        self.check_value('xs:gYearMonth("2004-02")', datetime.datetime(2004, 2, 1))
+        self.check_value('xs:gMonth("--12")', datetime.datetime(1900, 12, 1))
+        self.wrong_value('xs:gMonth("--9")')
+        self.wrong_value('xs:gMonth("-09")')
+        self.wrong_value('xs:gMonth("--13")')
 
+        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(1900, 7, 2))
+        self.check_value('xs:gMonthDay("--07-02-14:00")', datetime.datetime(1900, 7, 2, tzinfo=tzinfo2))
+        self.wrong_value('xs:gMonthDay("--7-02")')
+        self.wrong_value('xs:gMonthDay("-07-02")')
+        self.wrong_value('xs:gMonthDay("--07-32")')
+
+        self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1,))
+        self.wrong_value('xs:gYear("-2004")')  # TODO: BCDateTime
+        self.wrong_value('xs:gYear("12540")')  # TODO: >9999
+        self.wrong_value('xs:gYear("84")')
+        self.wrong_value('xs:gYear("821")')
+        self.wrong_value('xs:gYear("84")')
+
+        self.check_value('xs:gYearMonth("2004-02")', datetime.datetime(2004, 2, 1))
+        self.wrong_value('xs:gYearMonth("2004-2")')
+        self.wrong_value('xs:gYearMonth("204-02")')
 
     def test_from_duration_functions(self):
         pass  # self.check_value('fn:years-from-duration()', [])
