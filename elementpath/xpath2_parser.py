@@ -12,19 +12,23 @@ import sys
 import decimal
 import datetime
 import math
+import codecs
+import base64
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
 
-from .compat import PY3, unicode_chr, urllib_quote, string_base_type
+from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
 from .exceptions import ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname, get_namespace
 )
-from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, is_document_node, is_xpath_node, \
-    is_element_node, is_attribute_node, node_name, node_string_value, node_nilled, node_base_uri, \
-    node_document_uri, boolean_value, data_value, string_value
+from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, HEX_BINARY_PATTERN, \
+    NOT_BASE64_BINARY_PATTERN, is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
+    node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
+    data_value, string_value
+from .xpath_types import UntypedAtomic
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
@@ -1121,6 +1125,52 @@ def evaluate(self, context=None):
     return result
 
 
+@method(constructor('base64Binary'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, UntypedAtomic):
+        return codecs.encode(str(item), 'base64')
+    elif not isinstance(item, string_base_type):
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
+
+    if HEX_BINARY_PATTERN.search(item) is not None:
+        value = codecs.decode(item, 'hex')
+        return codecs.encode(value, 'base64')
+    elif NOT_BASE64_BINARY_PATTERN.search(item):
+        return codecs.encode(item, 'base64')
+    else:
+        try:
+            base64.standard_b64decode(item)
+        except ValueError:
+            return codecs.encode(item, 'base64')
+        else:
+            return item
+
+
+@method(constructor('hexBinary'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, UntypedAtomic):
+        return codecs.encode(unicode_type(item), 'hex')
+    elif not isinstance(item, (bytes, unicode_type)):
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
+    elif not isinstance(item, bytes):
+        return codecs.encode(item.encode('ascii'), 'hex')
+    elif HEX_BINARY_PATTERN.search(item.decode('utf-8')):
+        return item
+    else:
+        try:
+            value = codecs.decode(item, 'base64')
+        except ValueError:
+            return codecs.encode(item, 'hex')
+        else:
+            return codecs.encode(value, 'hex')
+
+
 ###
 # Context item
 @method(function('item', nargs=0))
@@ -1494,6 +1544,26 @@ class MultiValue(object):
     if PY3:
         __str__ = __unicode__
 
+
+#unregister('boolean')
+
+@method(constructor('boolean1'))
+def evaluate(self, context=None):
+    if self.label == 'function':
+        return boolean_value(self[0].get_results(context))
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif not isinstance(item, string_base_type):
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
+    elif item in ('true', '1'):
+        return True
+    elif item in ('false', '0'):
+        return False
+    else:
+        raise self.error('FOCA0002', "%r: not a boolean value" % item)
+
+register('boolean1', label=MultiValue('function', 'constructor'))
 
 ###
 # Example of token redefinition and how-to create a multi-role token.
