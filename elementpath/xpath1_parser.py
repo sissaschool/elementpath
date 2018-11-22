@@ -293,7 +293,7 @@ def evaluate(self, context=None):
 
 @method(':')
 def select(self, context=None):
-    if self[1].label == 'function':
+    if self[1].label in ('function', 'constructor'):
         value = self[1].evaluate(context)
         if isinstance(value, list):
             for result in value:

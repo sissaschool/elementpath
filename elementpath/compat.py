@@ -17,11 +17,13 @@ if PY3:
     # noinspection PyCompatibility
     from urllib.parse import quote as urllib_quote
     string_base_type = str
+    unicode_type = str
     unicode_chr = chr
 else:
     # noinspection PyCompatibility
     from urllib2 import quote as urllib_quote
     string_base_type = basestring
+    unicode_type = unicode
     unicode_chr = unichr
 
 
