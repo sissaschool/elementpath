@@ -13,7 +13,6 @@ import decimal
 import datetime
 import math
 import codecs
-import base64
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
@@ -1131,22 +1130,18 @@ def evaluate(self, context=None):
     if item is None:
         return []
     elif isinstance(item, UntypedAtomic):
-        return codecs.encode(str(item), 'base64')
-    elif not isinstance(item, string_base_type):
+        return codecs.encode(unicode_type(item), 'base64')
+    elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
-
-    if HEX_BINARY_PATTERN.search(item) is not None:
+    elif not isinstance(item, bytes):
+        return codecs.encode(item.encode('ascii'), 'base64')
+    elif HEX_BINARY_PATTERN.search(item.decode('utf-8')):
         value = codecs.decode(item, 'hex')
         return codecs.encode(value, 'base64')
-    elif NOT_BASE64_BINARY_PATTERN.search(item):
+    elif NOT_BASE64_BINARY_PATTERN.search(item.decode('utf-8')):
         return codecs.encode(item, 'base64')
     else:
-        try:
-            base64.standard_b64decode(item)
-        except ValueError:
-            return codecs.encode(item, 'base64')
-        else:
-            return item
+        return item
 
 
 @method(constructor('hexBinary'))
@@ -1161,7 +1156,7 @@ def evaluate(self, context=None):
     elif not isinstance(item, bytes):
         return codecs.encode(item.encode('ascii'), 'hex')
     elif HEX_BINARY_PATTERN.search(item.decode('utf-8')):
-        return item
+        return item  # is already an hexBinary
     else:
         try:
             value = codecs.decode(item, 'base64')
@@ -1545,7 +1540,7 @@ class MultiValue(object):
         __str__ = __unicode__
 
 
-#unregister('boolean')
+# unregister('boolean')
 
 @method(constructor('boolean1'))
 def evaluate(self, context=None):
@@ -1562,6 +1557,7 @@ def evaluate(self, context=None):
         return False
     else:
         raise self.error('FOCA0002', "%r: not a boolean value" % item)
+
 
 register('boolean1', label=MultiValue('function', 'constructor'))
 
