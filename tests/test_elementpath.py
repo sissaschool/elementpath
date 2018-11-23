@@ -1286,6 +1286,14 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_hex_binary_constructor(self):
         self.check_value('xs:hexBinary("84")', b'3834')
         self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'3834')
+        self.wrong_type('xs:hexBinary(12)')
+
+    def test_base64_binary_constructor(self):
+        self.check_value('xs:base64Binary("84")', b'ODQ=\n')
+        self.check_value('xs:base64Binary(xs:base64Binary("84"))', b'ODQ=\n')
+        self.check_value('xs:base64Binary("abcefghi")', b'YWJjZWZnaGk=\n')
+        self.wrong_type('xs:base64Binary(1e2)')
+        self.wrong_type('xs:base64Binary(1.1)')
 
     def test_from_duration_functions(self):
         pass  # self.check_value('fn:years-from-duration()', [])
