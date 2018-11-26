@@ -108,6 +108,48 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('15') * UntypedAtomic('4'), 60)
 
 
+class DurationTypeTest(unittest.TestCase):
+
+    def test_init_format(self):
+        self.assertIsInstance(Duration('P1Y'), Duration)
+        self.assertIsInstance(Duration('P1M'), Duration)
+        self.assertIsInstance(Duration('P1D'), Duration)
+        self.assertIsInstance(Duration('PT0H'), Duration)
+        self.assertIsInstance(Duration('PT1M'), Duration)
+        self.assertIsInstance(Duration('PT0.0S'), Duration)
+
+        self.assertRaises(ValueError, Duration, 'P')
+        self.assertRaises(ValueError, Duration, 'PT')
+        self.assertRaises(ValueError, Duration, '1Y')
+        self.assertRaises(ValueError, Duration, 'P1W1DT5H3M23.9S')
+        self.assertRaises(ValueError, Duration, 'P1.5Y')
+        self.assertRaises(ValueError, Duration, 'PT1.1H')
+        self.assertRaises(ValueError, Duration, 'P1.0DT5H3M23.9S')
+
+    def test_eq(self):
+        self.assertEqual(Duration('PT147.5S'), (0, 147.5))
+        self.assertEqual(Duration('PT147.3S'), (0, Decimal("147.3")))
+
+        self.assertEqual(Duration('PT2M10.4S'), (0, Decimal("130.4")))
+        self.assertEqual(Duration('PT5H3M23.9S'), (0, Decimal("18203.9")))
+        self.assertEqual(Duration('P1DT5H3M23.9S'), (0, Decimal("104603.9")))
+        self.assertEqual(Duration('P31DT5H3M23.9S'), (1, Decimal("104603.9")))
+        self.assertEqual(Duration('P1Y1DT5H3M23.9S'), (12, Decimal("104603.9")))
+
+        self.assertEqual(Duration('-P809YT3H5M5S'), (-9708, -11105))
+        self.assertEqual(Duration('P15M'), (15, 0))
+        self.assertEqual(Duration('P1Y'), (12, 0))
+        self.assertEqual(Duration('P3Y1D'), (36, 3600 * 24))
+        self.assertEqual(Duration('PT2400H'), (2400 // (24 * 30), (2400 % (24 * 30)) * 3600))
+        self.assertEqual(Duration('PT4500M'), (0, 4500 * 60))
+        self.assertEqual(Duration('PT4500M70S'), (0, 4500 * 60 + 70))
+        self.assertEqual(Duration('PT5529615.3S'), (2, Decimal('345615.3')))
+
+    def test_ne(self):
+        self.assertNotEqual(Duration('PT147.3S'), None)
+        self.assertNotEqual(Duration('PT147.3S'), (0, 147.3))
+
+
 class XPathTokenTest(unittest.TestCase):
 
     token = XPath1Parser.symbol_table['(name)'](XPath1Parser(), 'dummy_token')
