@@ -24,6 +24,7 @@ from elementpath import *
 from elementpath.namespaces import (
     XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XML_LANG_QNAME
 )
+from elementpath.xpath_types import months2days
 
 try:
     # noinspection PyPackageRequirements
@@ -110,6 +111,65 @@ class UntypedAtomicTest(unittest.TestCase):
 
 class DurationTypeTest(unittest.TestCase):
 
+    def test_month2day_function(self):
+        # xs:duration ordering related tests
+        self.assertEqual(months2days(year=1696, month=9, month_delta=0), 0)
+        self.assertEqual(months2days(1696, 9, 1), 30)
+        self.assertEqual(months2days(1696, 9, 2), 61)
+        self.assertEqual(months2days(1696, 9, 3), 91)
+        self.assertEqual(months2days(1696, 9, 4), 122)
+        self.assertEqual(months2days(1696, 9, 5), 153)
+        self.assertEqual(months2days(1696, 9, 12), 365)
+        self.assertEqual(months2days(1696, 9, -1), -31)
+        self.assertEqual(months2days(1696, 9, -2), -62)
+        self.assertEqual(months2days(1696, 9, -12), -366)
+
+        self.assertEqual(months2days(1697, 2, 0), 0)
+        self.assertEqual(months2days(1697, 2, 1), 28)
+        self.assertEqual(months2days(1697, 2, 12), 365)
+        self.assertEqual(months2days(1697, 2, -1), -31)
+        self.assertEqual(months2days(1697, 2, -2), -62)
+        self.assertEqual(months2days(1697, 2, -3), -92)
+        self.assertEqual(months2days(1697, 2, -12), -366)
+        self.assertEqual(months2days(1697, 2, -14), -428)
+        self.assertEqual(months2days(1697, 2, -15), -458)
+
+        self.assertEqual(months2days(1903, 3, 0), 0)
+        self.assertEqual(months2days(1903, 3, 1), 31)
+        self.assertEqual(months2days(1903, 3, 2), 61)
+        self.assertEqual(months2days(1903, 3, 3), 92)
+        self.assertEqual(months2days(1903, 3, 4), 122)
+        self.assertEqual(months2days(1903, 3, 11), 366 - 29)
+        self.assertEqual(months2days(1903, 3, 12), 366)
+        self.assertEqual(months2days(1903, 3, -1), -28)
+        self.assertEqual(months2days(1903, 3, -2), -59)
+        self.assertEqual(months2days(1903, 3, -3), -90)
+        self.assertEqual(months2days(1903, 3, -12), -365)
+
+        self.assertEqual(months2days(1903, 7, 0), 0)
+        self.assertEqual(months2days(1903, 7, 1), 31)
+        self.assertEqual(months2days(1903, 7, 2), 62)
+        self.assertEqual(months2days(1903, 7, 3), 92)
+        self.assertEqual(months2days(1903, 7, 6), 184)
+        self.assertEqual(months2days(1903, 7, 12), 366)
+        self.assertEqual(months2days(1903, 7, -1), -30)
+        self.assertEqual(months2days(1903, 7, -2), -61)
+        self.assertEqual(months2days(1903, 7, -6), -181)
+        self.assertEqual(months2days(1903, 7, -12), -365)
+
+        # Extra tests
+        self.assertEqual(months2days(1900, 3, 0), 0)
+        self.assertEqual(months2days(1900, 3, 1), 31)
+        self.assertEqual(months2days(1900, 3, 24), 730)
+        self.assertEqual(months2days(1900, 3, -1), -28)
+        self.assertEqual(months2days(1900, 3, -24), -730)
+
+        self.assertEqual(months2days(1000, 4, 0), 0)
+        self.assertEqual(months2days(1000, 4, 1), 30)
+        self.assertEqual(months2days(1000, 4, 24), 730)
+        self.assertEqual(months2days(1000, 4, -1), -31)
+        self.assertEqual(months2days(1000, 4, -24), -730)
+
     def test_init_format(self):
         self.assertIsInstance(Duration('P1Y'), Duration)
         self.assertIsInstance(Duration('P1M'), Duration)
@@ -126,6 +186,13 @@ class DurationTypeTest(unittest.TestCase):
         self.assertRaises(ValueError, Duration, 'PT1.1H')
         self.assertRaises(ValueError, Duration, 'P1.0DT5H3M23.9S')
 
+    def test_as_string(self):
+        self.assertEqual(str(Duration('P3Y1D')), 'P3Y1D')
+        self.assertEqual(str(Duration('PT2M10.4S')), 'PT2M10.4S')
+        self.assertEqual(str(Duration('PT2400H')), 'P100D')
+        self.assertEqual(str(Duration('-P15M')), '-P1Y3M')
+        self.assertEqual(str(Duration('-P809YT3H5M5S')), '-P809YT3H5M5S')
+
     def test_eq(self):
         self.assertEqual(Duration('PT147.5S'), (0, 147.5))
         self.assertEqual(Duration('PT147.3S'), (0, Decimal("147.3")))
@@ -133,21 +200,57 @@ class DurationTypeTest(unittest.TestCase):
         self.assertEqual(Duration('PT2M10.4S'), (0, Decimal("130.4")))
         self.assertEqual(Duration('PT5H3M23.9S'), (0, Decimal("18203.9")))
         self.assertEqual(Duration('P1DT5H3M23.9S'), (0, Decimal("104603.9")))
-        self.assertEqual(Duration('P31DT5H3M23.9S'), (1, Decimal("104603.9")))
+        self.assertEqual(Duration('P31DT5H3M23.9S'), (0, Decimal("2696603.9")))
         self.assertEqual(Duration('P1Y1DT5H3M23.9S'), (12, Decimal("104603.9")))
 
         self.assertEqual(Duration('-P809YT3H5M5S'), (-9708, -11105))
         self.assertEqual(Duration('P15M'), (15, 0))
         self.assertEqual(Duration('P1Y'), (12, 0))
         self.assertEqual(Duration('P3Y1D'), (36, 3600 * 24))
-        self.assertEqual(Duration('PT2400H'), (2400 // (24 * 30), (2400 % (24 * 30)) * 3600))
+        self.assertEqual(Duration('PT2400H'), (0, 8640000))
         self.assertEqual(Duration('PT4500M'), (0, 4500 * 60))
         self.assertEqual(Duration('PT4500M70S'), (0, 4500 * 60 + 70))
-        self.assertEqual(Duration('PT5529615.3S'), (2, Decimal('345615.3')))
+        self.assertEqual(Duration('PT5529615.3S'), (0, Decimal('5529615.3')))
 
     def test_ne(self):
         self.assertNotEqual(Duration('PT147.3S'), None)
         self.assertNotEqual(Duration('PT147.3S'), (0, 147.3))
+        self.assertNotEqual(Duration('P3Y1D'), (36, 3600 * 2))
+        self.assertNotEqual(Duration('P3Y1D'), (36, 3600 * 24, 0))
+        self.assertNotEqual(Duration('P3Y1D'), None)
+
+    def test_lt(self):
+        self.assertTrue(Duration('P15M') < Duration('P16M'))
+        self.assertFalse(Duration('P16M') < Duration('P16M'))
+        self.assertTrue(Duration('P16M') < Duration('P16M1D'))
+        self.assertTrue(Duration('P16M') < Duration('P16MT1H'))
+        self.assertTrue(Duration('P16M') < Duration('P16MT1M'))
+        self.assertTrue(Duration('P16M') < Duration('P16MT1S'))
+        self.assertFalse(Duration('P16M') < Duration('P16MT0S'))
+
+    def test_le(self):
+        self.assertTrue(Duration('P15M') <= Duration('P16M'))
+        self.assertTrue(Duration('P16M') <= Duration('P16M'))
+        self.assertTrue(Duration('P16M') <= Duration('P16M1D'))
+        self.assertTrue(Duration('P16M') <= Duration('P16MT1H'))
+        self.assertTrue(Duration('P16M') <= Duration('P16MT1M'))
+        self.assertTrue(Duration('P16M') <= Duration('P16MT1S'))
+        self.assertTrue(Duration('P16M') <= Duration('P16MT0S'))
+
+    def test_gt(self):
+        self.assertTrue(Duration('P16M') > Duration('P15M'))
+        self.assertFalse(Duration('P16M') > Duration('P16M'))
+
+    def test_ge(self):
+        self.assertTrue(Duration('P16M') >= Duration('P15M'))
+        self.assertTrue(Duration('P16M') >= Duration('P16M'))
+        self.assertTrue(Duration('P1Y1DT1S') >= Duration('P1Y1D'))
+
+    def test_incomparable_values(self):
+        self.assertFalse(Duration('P1M') < Duration('P30D'))
+        self.assertFalse(Duration('P1M') <= Duration('P30D'))
+        self.assertFalse(Duration('P1M') > Duration('P30D'))
+        self.assertFalse(Duration('P1M') >= Duration('P30D'))
 
 
 class XPathTokenTest(unittest.TestCase):
