@@ -14,12 +14,13 @@ implementation for XPath functions that are reused in many contexts.
 """
 import operator
 import re
-from collections import namedtuple
-import datetime
 import decimal
+from datetime import timedelta
+from calendar import leapdays, monthrange
+from collections import namedtuple
 
 from .compat import PY3
-from .exceptions import ElementPathValueError
+from .exceptions import ElementPathTypeError, ElementPathValueError
 
 AttributeNode = namedtuple('Attribute', 'name value')
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
@@ -28,6 +29,28 @@ NamespaceNode = namedtuple('Namespace', 'prefix uri')
 XSD_DURATION_PATTERN = re.compile(
     r'^(-)?P(?=(?:\d|T))(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$'
 )
+
+
+def months2days(year, month, month_delta):
+    """
+    Converts a delta of months to a delta of days, counting from the 1st day of the month,
+    relative to the year and the month passed as arguments.
+    """
+    total_months = month - 1 + month_delta
+    target_year = year + total_months // 12
+    target_month = total_months % 12 + 1
+
+    if month <= 2:
+        y_days = 365 * (target_year - year) + leapdays(year, target_year)
+    else:
+        y_days = 365 * (target_year - year) + leapdays(year + 1, target_year + 1)
+
+    if target_month >= month:
+        m_days = sum(monthrange(target_year, m)[1] for m in range(month, target_month))
+        return y_days + m_days if y_days >= 0 else y_days + m_days
+    else:
+        m_days = sum(monthrange(target_year, m)[1] for m in range(target_month, month))
+        return y_days - m_days if y_days >= 0 else y_days - m_days
 
 
 class Duration(object):
@@ -51,8 +74,7 @@ class Duration(object):
         minutes = minutes % 60
         days = int(days or 0) + hours // 24
         hours = hours % 24
-        months = int(months or 0) + 12 * int(years or 0) + days // 30
-        days = days % 30
+        months = int(months or 0) + 12 * int(years or 0)
 
         if sign is None:
             self.months = months
@@ -63,6 +85,58 @@ class Duration(object):
 
     def __repr__(self):
         return '%s(months=%r, seconds=%s)' % (self.__class__.__name__, self.months, self.seconds)
+
+    def __str__(self):
+        m = abs(self.months)
+        years, months = m // 12, m % 12
+        s = abs(self.seconds)
+        days, hours, minutes, seconds = int(s // 86400), int(s // 3600 % 24), int(s // 60 % 60), s % 60
+
+        value = '-P' if self.sign else 'P'
+        if years or months or days:
+            if years:
+                value += '%dY' % years
+            if months:
+                value += '%dM' % months
+            if days:
+                value += '%dD' % days
+
+        if hours or minutes or seconds:
+            value += 'T'
+            if hours:
+                value += '%dH' % hours
+            if minutes:
+                value += '%dM' % minutes
+            if seconds:
+                value += '%sS' % seconds
+        elif value[-1] == 'P':
+            value += 'T0S'
+        return value
+
+    def __unicode__(self):
+        return str(self)
+
+    @property
+    def sign(self):
+        return '-' if self.months < 0 or self.seconds < 0 else ''
+
+    def _compare_durations(self, other, op):
+        """
+        Ordering is defined through comparison of four datetime values.
+
+        Ref: https://www.w3.org/TR/2012/REC-xmlschema11-2-20120405/#duration
+        """
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        m1, s1 = self.months, int(self.seconds)
+        m2, s2 = other.months, int(other.seconds)
+        ms1, ms2 = int((self.seconds - s1) * 1000000), int((other.seconds - s2) * 1000000)
+        return all([
+            op(timedelta(months2days(1696, 9, m1), s1, ms1), timedelta(months2days(1696, 9, m2), s2, ms2)),
+            op(timedelta(months2days(1697, 2, m1), s1, ms1), timedelta(months2days(1697, 2, m2), s2, ms2)),
+            op(timedelta(months2days(1903, 3, m1), s1, ms1), timedelta(months2days(1903, 3, m2), s2, ms2)),
+            op(timedelta(months2days(1903, 7, m1), s1, ms1), timedelta(months2days(1903, 7, m2), s2, ms2)),
+        ])
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -75,6 +149,18 @@ class Duration(object):
             return self.months != other.months or self.seconds != other.seconds
         else:
             return other != (self.months, self.seconds)
+
+    def __lt__(self, other):
+        return self._compare_durations(other, operator.lt)
+
+    def __le__(self, other):
+        return self == other or self._compare_durations(other, operator.le)
+
+    def __gt__(self, other):
+        return self._compare_durations(other, operator.gt)
+
+    def __ge__(self, other):
+        return self == other or self._compare_durations(other, operator.ge)
 
 
 class UntypedAtomic(object):
