@@ -26,6 +26,7 @@ from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeE
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import FRACTION_DIGITS_RE_PATTERN, ISO_TIMEZONE_RE_PATTERN, is_etree_element, \
     is_document_node, boolean_value, data_value
+from .xsd_types import Timezone
 from .tdop_parser import Token
 
 
@@ -230,22 +231,23 @@ class XPathToken(Token):
         if not datetime_formats:
             datetime_formats = ('%Y-%m-%d',)
 
-        if ISO_TIMEZONE_RE_PATTERN.search(value) is None:
-            tail = ''
-        else:
-            tail = 'Z' if 'Z' == value[-1] else '%z'
+        tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
+        dt_info =  value if tz_match is None else value[:tz_match.span()[0]]
 
-        for fmt in map(lambda x: x + tail if tail else x, datetime_formats or ('%Y-%m-%d',)):
+        for fmt in datetime_formats or ('%Y-%m-%d',):
             try:
                 if '%f' in fmt:
-                    datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(value)
+                    datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(dt_info)
                     result = datetime.datetime.strptime('%s.%s' % (datetime_part, fraction_digits[:6]), fmt)
                 else:
-                    result = datetime.datetime.strptime(value, fmt)
+                    result = datetime.datetime.strptime(dt_info, fmt)
             except ValueError:
                 pass
             else:
-                return result
+                if tz_match is None:
+                    return result
+                else:
+                    return result.replace(tzinfo=Timezone(tz_match.group()))
         else:
             if len(datetime_formats) == 1:
                 msg = 'Invalid value %r for datetime format %r' % (value, datetime_formats[0])

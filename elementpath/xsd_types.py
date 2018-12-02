@@ -12,18 +12,16 @@
 Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
 implementation for XPath functions that are reused in many contexts.
 """
+from __future__ import division, unicode_literals
+
 import operator
 import re
 import decimal
-from datetime import timedelta
+from datetime import datetime, timedelta, tzinfo
 from calendar import leapdays, monthrange
-from collections import namedtuple
 
-from .compat import PY3
+from .compat import PY3, string_base_type
 from .exceptions import ElementPathTypeError, ElementPathValueError
-
-AttributeNode = namedtuple('Attribute', 'name value')
-NamespaceNode = namedtuple('Namespace', 'prefix uri')
 
 
 XSD_DURATION_PATTERN = re.compile(
@@ -163,12 +161,88 @@ class Duration(object):
         return self == other or self._compare_durations(other, operator.ge)
 
 
+class Timezone(tzinfo):
+    """
+    A tzinfo implementation for XSD timezone offsets. Offsets must be specified
+    between -14:00 and +14:00.
+
+    :param offset: a timedelta instance or an XSD timezone formatted string.
+    """
+    _maxoffset = timedelta(hours=14, minutes=0)
+    _minoffset = -_maxoffset
+
+    def __init__(self, offset):
+        super(Timezone, self).__init__()
+        if offset == 'Z':
+            offset = timedelta(0)
+        elif isinstance(offset, string_base_type):
+            try:
+                hours, minutes = offset.split(':')
+                hours = int(hours)
+                minutes = int(minutes) if hours >= 0 else -int(minutes)
+                offset = timedelta(hours=hours, minutes=minutes)
+            except ValueError:
+                raise ElementPathValueError("offset is not an XSD timezone formatted string")
+        elif not isinstance(offset, timedelta):
+            raise ElementPathTypeError("offset must be a timedelta or an XSD timezone formatted string")
+
+        if offset < self._minoffset or offset > self._maxoffset:
+            raise ElementPathValueError("offset must be between -14:00 and +14:00")
+        self.offset = offset
+
+    def __getinitargs__(self):
+        return self.offset,
+
+    def __eq__(self, other):
+        if type(other) != Timezone:
+            return False
+        return self.offset == other.offset
+
+    def __hash__(self):
+        return hash(self.offset)
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.offset)
+
+    def __str__(self):
+        return self.tzname(None)
+
+    def utcoffset(self, dt):
+        if not isinstance(dt, datetime) and dt is not None:
+            raise ElementPathTypeError("utcoffset() argument must be a datetime instance or None")
+        return self.offset
+
+    def tzname(self, dt):
+        if not isinstance(dt, datetime) and dt is not None:
+            raise ElementPathTypeError("tzname() argument must be a datetime instance or None")
+
+        if not self.offset:
+            return 'UTC'
+        elif self.offset < timedelta(0):
+            sign, offset = '-', -self.offset
+        else:
+            sign, offset = '+', self.offset
+
+        hours, minutes = offset.seconds // 3600, offset.seconds // 60 % 60
+        return 'UTC{}{:02d}:{:02d}'.format(sign, hours, minutes)
+
+    def dst(self, dt):
+        if not isinstance(dt, datetime) and dt is not None:
+            raise ElementPathTypeError("dst() argument must be a datetime instance or None")
+
+    def fromutc(self, dt):
+        if isinstance(dt, datetime):
+            return dt + self.offset
+        elif dt is not None:
+            raise TypeError("fromutc() argument must be a datetime instance or None")
+
+
 class UntypedAtomic(object):
     """
     Class for xs:untypedAtomic data. Provides special methods for comparing
     and converting to basic data types.
 
-    :param value: The untyped value, usually a string.
+    :param value: the untyped value, usually a string.
     """
     def __init__(self, value):
         self.value = value
