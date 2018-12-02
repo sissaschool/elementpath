@@ -9,8 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from .exceptions import ElementPathTypeError, ElementPathValueError
-from .xpath_types import AttributeNode
-from .xpath_helpers import is_etree_element, is_element_node, is_document_node, is_attribute_node
+from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, is_document_node, is_attribute_node
 
 
 class XPathContext(object):

@@ -27,7 +27,7 @@ from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, HEX_BIN
     NOT_BASE64_BINARY_PATTERN, is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
-from .xpath_types import UntypedAtomic
+from .xsd_types import UntypedAtomic
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
@@ -789,7 +789,7 @@ def evaluate(self, context=None):
     if match is None:
         raise self.error('FOCA0002', '2nd argument must be an xs:QName')
 
-    pfx = match['prefix'] or ''
+    pfx = match.groupdict()['prefix'] or ''
     if not uri:
         if pfx:
             raise self.error('FOCA0002', 'must be a local name when the parameter URI is empty')
@@ -812,7 +812,7 @@ def evaluate(self, context=None):
     match = XSD_QNAME_RE_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
-    return match['prefix'] or []
+    return match.groupdict()['prefix'] or []
 
 
 @method(function('local-name-from-QName', nargs=1))
@@ -825,7 +825,7 @@ def evaluate(self, context=None):
     match = XSD_QNAME_RE_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
-    return match['local']
+    return match.groupdict()['local']
 
 
 @method(function('namespace-uri-from-QName', nargs=1))
@@ -842,7 +842,7 @@ def evaluate(self, context=None):
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     try:
-        return self.parser.namespaces[match['prefix'] or '']
+        return self.parser.namespaces[match.groupdict()['prefix'] or '']
     except KeyError as err:
         raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
 
@@ -873,10 +873,11 @@ def select(self, context=None):
         elem = self.get_argument(context)
         if not is_element_node(elem):
             raise self.error('FORG0006', 'argument %r is not a node' % elem)
-        ns_uris = {get_namespace(e.tag) for e in elem.iter()}
-        for pfx, uri in self.parser.namespaces.items():
-            if uri in ns_uris:
-                yield pfx
+        for e in elem.iter():
+            tag_ns = get_namespace(e.tag)
+            for pfx, uri in self.parser.namespaces.items():
+                if uri == tag_ns:
+                    yield pfx
 
 
 @method(function('resolve-QName', nargs=2))
@@ -890,7 +891,7 @@ def evaluate(self, context=None):
         match = XSD_QNAME_RE_PATTERN.match(qname)
         if match is None:
             raise self.error('FOCA0002', '1st argument must be an xs:QName')
-        pfx = match['prefix'] or ''
+        pfx = match.groupdict()['prefix'] or ''
 
         elem = self.get_argument(context, index=1)
         if not is_element_node(elem):
@@ -899,7 +900,7 @@ def evaluate(self, context=None):
         for p, uri in self.parser.namespaces.items():
             if uri in ns_uris:
                 if p == pfx:
-                    return '{%s}%s' % (uri, match['local']) if uri else match['local']
+                    return '{%s}%s' % (uri, match.groupdict()['local']) if uri else match.groupdict()['local']
         raise self.error('FONS0004', 'No namespace found for prefix %r' % pfx)
 
 
@@ -1133,10 +1134,10 @@ def evaluate(self, context=None):
         return codecs.encode(unicode_type(item), 'base64')
     elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
-    elif not isinstance(item, bytes):
+    elif not isinstance(item, bytes) or self[0].label == 'literal':
         return codecs.encode(item.encode('ascii'), 'base64')
     elif HEX_BINARY_PATTERN.search(item.decode('utf-8')):
-        value = codecs.decode(item, 'hex')
+        value = codecs.decode(item, 'hex') if str is not bytes else item
         return codecs.encode(value, 'base64')
     elif NOT_BASE64_BINARY_PATTERN.search(item.decode('utf-8')):
         return codecs.encode(item, 'base64')
@@ -1153,10 +1154,10 @@ def evaluate(self, context=None):
         return codecs.encode(unicode_type(item), 'hex')
     elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
-    elif not isinstance(item, bytes):
+    elif not isinstance(item, bytes) or self[0].label == 'literal':
         return codecs.encode(item.encode('ascii'), 'hex')
     elif HEX_BINARY_PATTERN.search(item.decode('utf-8')):
-        return item  # is already an hexBinary
+        return item if isinstance(item, bytes) or str is bytes else codecs.encode(item.encode('ascii'), 'hex')
     else:
         try:
             value = codecs.decode(item, 'base64')

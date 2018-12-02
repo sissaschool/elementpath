@@ -13,16 +13,15 @@ import math
 import decimal
 
 from .compat import PY3
-from .exceptions import ElementPathSyntaxError, ElementPathKeyError, ElementPathTypeError, \
-    ElementPathNameError, ElementPathMissingContextError
+from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
+    ElementPathMissingContextError
 from .tdop_parser import Parser
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
-from .xpath_types import NamespaceNode
-from .xpath_helpers import is_etree_element, is_xpath_node, is_element_node, is_document_node, \
-    is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, node_name, \
-    node_string_value, boolean_value, data_value, string_value
+from .xpath_helpers import NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
+    is_document_node, is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, \
+    node_name, node_string_value, boolean_value, data_value, string_value
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")

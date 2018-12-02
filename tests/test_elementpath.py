@@ -24,7 +24,7 @@ from elementpath import *
 from elementpath.namespaces import (
     XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XML_LANG_QNAME
 )
-from elementpath.xpath_types import months2days
+from elementpath.xsd_types import months2days
 
 try:
     # noinspection PyPackageRequirements
@@ -251,6 +251,44 @@ class DurationTypeTest(unittest.TestCase):
         self.assertFalse(Duration('P1M') <= Duration('P30D'))
         self.assertFalse(Duration('P1M') > Duration('P30D'))
         self.assertFalse(Duration('P1M') >= Duration('P30D'))
+
+
+class TimezoneTypeTest(unittest.TestCase):
+
+    def test_init_format(self):
+        self.assertEqual(Timezone('Z').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone('00:00').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone('+00:00').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone('-00:00').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone('-0:0').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone('+05:15').offset, datetime.timedelta(hours=5, minutes=15))
+        self.assertEqual(Timezone('-11:00').offset, datetime.timedelta(hours=-11))
+        self.assertEqual(Timezone('+13:59').offset, datetime.timedelta(hours=13, minutes=59))
+        self.assertEqual(Timezone('-13:59').offset, datetime.timedelta(hours=-13, minutes=-59))
+        self.assertEqual(Timezone('+14:00').offset, datetime.timedelta(hours=14))
+        self.assertEqual(Timezone('-14:00').offset, datetime.timedelta(hours=-14))
+
+        self.assertRaises(ValueError, Timezone, '-15:00')
+        self.assertRaises(ValueError, Timezone, '-14:01')
+        self.assertRaises(ValueError, Timezone, '+14:01')
+        self.assertRaises(ValueError, Timezone, '+10')
+        self.assertRaises(ValueError, Timezone, '+10:00:00')
+
+    def test_init_timedelta(self):
+        td0 = datetime.timedelta(0)
+        td1 = datetime.timedelta(hours=5, minutes=15)
+        td2 = datetime.timedelta(hours=-14, minutes=0)
+        td3 = datetime.timedelta(hours=-14, minutes=-1)
+
+        self.assertEqual(Timezone(td0).offset, td0)
+        self.assertEqual(Timezone(td1).offset, td1)
+        self.assertEqual(Timezone(td2).offset, td2)
+        self.assertRaises(ValueError, Timezone, td3)
+        self.assertRaises(TypeError, Timezone, 0)
+
+    def test_as_string(self):
+        self.assertEqual(str(Timezone('+05:00')), 'UTC+05:00')
+        self.assertEqual(str(Timezone('-13:15')), 'UTC-13:15')
 
 
 class XPathTokenTest(unittest.TestCase):
@@ -1317,7 +1355,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/example}C2', context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/example', context=context)
-        self.check_selector("fn:in-scope-prefixes(.)", root, ['p0', 'p2'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
+        self.check_selector("fn:in-scope-prefixes(.)", root, ['p2', 'p0'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
 
     def test_string_constructors(self):
         self.check_value('xs:normalizedString("hello")', "hello")
@@ -1381,11 +1419,11 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:float(0.00001)', float)
 
     def test_datetime_constructors(self):
-        tzinfo1 = datetime.timezone(datetime.timedelta(hours=5, minutes=24))
-        tzinfo2 = datetime.timezone(datetime.timedelta(hours=-14, minutes=0))
+        tzinfo1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+        tzinfo2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value('xs:dateTime("1969-07-20T20:18:00")', datetime.datetime(1969, 7, 20, 20, 18))
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
-                         datetime.datetime(2000, 5, 10, 21, 30, tzinfo=tzinfo1))
+                         datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tzinfo1))
         self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-05-10T21:3:00+05:24")')

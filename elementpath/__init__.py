@@ -18,10 +18,11 @@ __status__ = "Production/Stable"
 
 from .exceptions import *
 from .tdop_parser import Token, Parser
-from .xpath_types import UntypedAtomic, Duration, AttributeNode, NamespaceNode
-from .xpath_token import XPathToken
 from .xpath_context import XPathContext
+from .xpath_helpers import AttributeNode, NamespaceNode
+from .xpath_token import XPathToken
 from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser as XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
+from .xsd_types import Duration, Timezone, UntypedAtomic
 from .schema_proxy import AbstractSchemaProxy, XMLSchemaProxy
