@@ -27,7 +27,7 @@ from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, HEX_BIN
     NOT_BASE64_BINARY_PATTERN, is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
-from .xsd_types import UntypedAtomic
+from .xsd_types import UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
@@ -1125,6 +1125,24 @@ def evaluate(self, context=None):
     return result
 
 
+@method(constructor('duration'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else Duration(item)
+
+
+@method(constructor('yearMonthDuration'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else YearMonthDuration(item)
+
+
+@method(constructor('dayTimeDuration'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    return [] if item is None else DayTimeDuration(item)
+
+
 @method(constructor('base64Binary'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
@@ -1509,13 +1527,24 @@ def evaluate(self, context=None):
 
 @method(function('years-from-duration', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
-    if arg is None:
+    duration = self.get_argument(context)
+    if duration is None:
         return []
-    elif not isinstance(arg, datetime.timedelta):
-        self.wrong_type("the argument must be a datetime.timedelta instance")
+    elif not isinstance(duration, Duration):
+        self.wrong_type("the argument must be a Duration instance")
     else:
-        return (arg.weeks * 7 + arg.days) // 365
+        return duration.months // 12
+
+
+@method(function('months-from-duration', nargs=1))
+def evaluate(self, context=None):
+    duration = self.get_argument(context)
+    if duration is None:
+        return []
+    elif not isinstance(duration, Duration):
+        self.wrong_type("the argument must be a Duration instance")
+    else:
+        return duration.months % 12
 
 
 ###

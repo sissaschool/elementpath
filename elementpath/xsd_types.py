@@ -82,7 +82,7 @@ class Duration(object):
             self.seconds = -seconds - (days * 24 + hours) * 3600 - minutes * 60
 
     def __repr__(self):
-        return '%s(months=%r, seconds=%s)' % (self.__class__.__name__, self.months, self.seconds)
+        return '%s(%r)' % (self.__class__.__name__, str(self))
 
     def __str__(self):
         m = abs(self.months)
@@ -159,6 +159,22 @@ class Duration(object):
 
     def __ge__(self, other):
         return self == other or self._compare_durations(other, operator.ge)
+
+
+class YearMonthDuration(Duration):
+
+    def __init__(self, value):
+        super(YearMonthDuration, self).__init__(value)
+        if self.seconds:
+            raise ElementPathValueError('seconds must be 0 for %r.' % self.__class__.__name__)
+
+
+class DayTimeDuration(Duration):
+
+    def __init__(self, value):
+        super(DayTimeDuration, self).__init__(value)
+        if self.months:
+            raise ElementPathValueError('months must be 0 for %r.' % self.__class__.__name__)
 
 
 class Timezone(tzinfo):

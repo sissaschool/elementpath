@@ -1466,6 +1466,28 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:gYearMonth("2004-2")')
         self.wrong_value('xs:gYearMonth("204-02")')
 
+    def test_duration_constructors(self):
+        self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
+        self.check_value('xs:duration("P3Y5M1DT1H")', (41, 90000))
+        self.check_value('xs:duration("P3Y5M1DT1H3M2.01S")', (41, Decimal('90182.01')))
+        self.wrong_value('xs:duration("P3Y5M1X")')
+        self.assertRaises(TypeError, self.parser.parse, 'xs:duration(1)')
+
+        self.check_value('xs:yearMonthDuration("P3Y5M")', (41, 0))
+        self.check_value('xs:yearMonthDuration("-P15M")', (-15, 0))
+        self.check_value('xs:yearMonthDuration("-P20Y18M")', YearMonthDuration("-P21Y6M"))
+        self.wrong_value('xs:yearMonthDuration("-P15M1D")')
+        self.wrong_value('xs:yearMonthDuration("P15MT1H")')
+
+        self.check_value('xs:dayTimeDuration("-P2DT15H")', DayTimeDuration('-PT226800S'))
+        self.check_value('xs:dayTimeDuration("PT240H")', DayTimeDuration("P10D"))
+        self.check_value('xs:dayTimeDuration("P365D")', DayTimeDuration("P365D"))
+        self.check_value('xs:dayTimeDuration("-P2DT15H0M0S")', DayTimeDuration('-P2DT15H'))
+        self.check_value('xs:dayTimeDuration("P3DT10H")', DayTimeDuration("P3DT10H"))
+        self.check_value('xs:dayTimeDuration("PT1S")', (0, 1))
+        self.check_value('xs:dayTimeDuration("PT0S")', (0, 0))
+        self.wrong_value('xs:yearMonthDuration("P1MT10H")')
+
     def test_hex_binary_constructor(self):
         self.check_value('xs:hexBinary("84")', b'3834')
         self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'3834')
