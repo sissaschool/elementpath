@@ -109,6 +109,23 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('15') * UntypedAtomic('4'), 60)
 
 
+class DateTimeTypeTest(unittest.TestCase):
+
+    def test_init_fromstring(self):
+        self.assertIsInstance(DateTime.fromstring('2000-10-07'), DateTime)
+        self.assertIsInstance(DateTime.fromstring('-2000-10-07'), DateTime)
+        self.assertRaises(ValueError, Duration.fromstring, '00-10-07')
+
+    def test_repr(self):
+        dt = DateTime.fromstring('2000-10-07')
+        self.assertEqual(repr(dt), "DateTime(dt=datetime(2000, 10, 7, 0, 0), fmt='%Y-%m-%d', bc=False)")
+        self.assertEqual(str(dt), '2000-10-07')
+
+        dt = DateTime.fromstring('-0100-04-13')
+        self.assertEqual(repr(dt), "DateTime(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bc=True)")
+        self.assertEqual(str(dt), '-0100-04-13')
+
+
 class DurationTypeTest(unittest.TestCase):
 
     def test_month2day_function(self):
@@ -309,7 +326,7 @@ class XPathTokenTest(unittest.TestCase):
         )
         self.assertEqual(
             self.token.datetime('2001-01-01T23:29:45', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'),
-            datetime.datetime(2001, 1, 1, 23, 29, 45)
+            DateTime(datetime.datetime(2001, 1, 1, 23, 29, 45), '%Y-%m-%dT%H:%M:%S')
         )
 
 
@@ -1421,9 +1438,14 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_datetime_constructors(self):
         tzinfo1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         tzinfo2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
-        self.check_value('xs:dateTime("1969-07-20T20:18:00")', datetime.datetime(1969, 7, 20, 20, 18))
+        self.check_value(
+            'xs:dateTime("1969-07-20T20:18:00")',
+            DateTime(dt=datetime.datetime(1969, 7, 20, 20, 18), fmt='%Y-%m-%dT%H:%M:%S', bc=False)
+        )
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
                          datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tzinfo1))
+        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(2000, 1, 1, 0, 0))
+
         self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-05-10T21:3:00+05:24")')
@@ -1456,8 +1478,8 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:gMonthDay("--07-32")')
 
         self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1,))
-        self.wrong_value('xs:gYear("-2004")')  # TODO: BCDateTime
-        self.wrong_value('xs:gYear("12540")')  # TODO: >9999
+        self.check_value('xs:gYear("-2004")', DateTime(datetime.datetime(2005, 1, 1,), fmt='-%Y', bc=True))
+        self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("84")')
         self.wrong_value('xs:gYear("821")')
         self.wrong_value('xs:gYear("84")')
@@ -1465,6 +1487,32 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:gYearMonth("2004-02")', datetime.datetime(2004, 2, 1))
         self.wrong_value('xs:gYearMonth("2004-2")')
         self.wrong_value('xs:gYearMonth("204-02")')
+
+    def test_from_datetime_functions(self):
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T21:30:00-05:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T19:20:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 2000)
+        self.check_value('fn:month-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 5)
+        self.check_value('fn:month-from-dateTime(xs:dateTime("1999-12-31T19:20:00-05:00"))', 12)
+        # self.check_value('fn:month-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+        #                 '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+        self.check_value('fn:day-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 31)
+        self.check_value('fn:day-from-dateTime(xs:dateTime("1999-12-31T20:00:00-05:00"))', 31)
+        # self.check_value('fn:day-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+        #                  '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-05-31T08:20:00-05:00")) ', 8)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T21:20:00-05:00"))', 21)
+        # self.check_value('fn:hours-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+        #                  '"1999-12-31T21:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 2)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T12:00:00")) ', 12)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 0)
+        self.check_value('fn:minutes-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 20)
+        self.check_value('fn:minutes-from-dateTime(xs:dateTime("1999-05-31T13:30:00+05:30"))', 30)
+        self.check_value('fn:seconds-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 0)
+        self.check_value(
+            'fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', DayTimeDuration(seconds=-18000)
+        )
 
     def test_duration_constructors(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))

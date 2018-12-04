@@ -27,7 +27,7 @@ from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, HEX_BIN
     NOT_BASE64_BINARY_PATTERN, is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
-from .xsd_types import UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
+from .xsd_types import DateTime, Duration, YearMonthDuration, DayTimeDuration, UntypedAtomic
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
@@ -97,15 +97,19 @@ class XPath2Parser(XPath1Parser):
         # TODO: Pattern matching functions
         # 'matches', 'replace', 'tokenize',
 
-        # Functions for extracting fragments from duration
+        # Functions for extracting fragments from xs:duration
         'years-from-duration', 'months-from-duration', 'days-from-duration',
         'hours-from-duration', 'minutes-from-duration', 'seconds-from-duration',
 
-        # Functions for extracting fragments from dateTime
-        # 'year-from-dateTime', 'month-from-dateTime',
-        # 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
-        # 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
-        # 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
+        # Functions for extracting fragments from xs:dateTime
+        'year-from-dateTime', 'month-from-dateTime', 'day-from-dateTime', 'hours-from-dateTime',
+        'minutes-from-dateTime', 'seconds-from-dateTime', 'timezone-from-dateTime',
+
+        # Functions for extracting fragments from xs:date
+        'year-from-date', 'month-from-date', 'day-from-date', 'timezone-from-date',
+
+        # Functions for extracting fragments from xs:time
+        'hours-from-time', 'minutes-from-time', 'seconds-from-time', 'timezone-from-time',
 
         # TODO: Timezone adjustment functions
         # 'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
@@ -1032,7 +1036,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    result = self.datetime(item, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f')
+    result = self.datetime(item, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT24:00:00')
     if 't' in item:
         raise self.error('FOCA0002', "%r: 't' separator must be in uppercase" % item)
     elif item.index('T') < 10:
@@ -1047,11 +1051,8 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-
     result = self.datetime(item, '%Y-%m-%d', '-%Y-%m-%d')
-    if item[0] == '-':
-        raise self.error('FOCA0002', "%r: BC dates are not supported" % item)
-    elif len(item) < 10:
+    if len(item) < 10:
         raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
     return result
 
@@ -1085,7 +1086,6 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-
     result = self.datetime(item, '--%m-%d')
     if len(item) < 7:
         raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
@@ -1095,13 +1095,7 @@ def evaluate(self, context=None):
 @method(constructor('gYear'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-
-    result = self.datetime(item, '%Y', '-%Y')
-    if item[0] == '-':
-        raise self.error('FOCA0002', "%r: BC dates are not supported" % item)
-    return result
+    return [] if item is None else self.datetime(item, '%Y', '-%Y')
 
 
 @method(constructor('gYearMonth'))
@@ -1550,10 +1544,83 @@ def evaluate(self, context=None):
         return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
 
 
-# 'year-from-dateTime', 'month-from-dateTime',
-# 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
-# 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
-# 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
+@method(function('year-from-dateTime', nargs=1))
+@method(function('month-from-dateTime', nargs=1))
+@method(function('day-from-dateTime', nargs=1))
+@method(function('hours-from-dateTime', nargs=1))
+@method(function('minutes-from-dateTime', nargs=1))
+@method(function('seconds-from-dateTime', nargs=1))
+@method(function('timezone-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif not isinstance(item, DateTime):
+        self.wrong_type("the argument must be a Duration instance")
+
+    fragment = self.symbol[:self.symbol.index('-')]
+    if fragment == 'year':
+        return -(item.dt.year + 1) if item.bc else item.dt.year
+    elif fragment == 'month':
+        return item.dt.month
+    elif fragment == 'day':
+        return item.dt.day
+    elif fragment == 'hours':
+        return item.dt.hour
+    elif fragment == 'minutes':
+        return item.dt.minute
+    elif fragment == 'seconds':
+        return item.dt.second
+    else:
+        offset = item.dt.tzinfo.offset
+        return DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
+
+
+
+@method(function('year-from-date', nargs=1))
+@method(function('month-from-date', nargs=1))
+@method(function('day-from-date', nargs=1))
+@method(function('timezone-from-date', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif not isinstance(item, Duration):
+        self.wrong_type("the argument must be a Duration instance")
+
+    fragment = self.symbol[:self.symbol.index('-')]
+    if fragment == 'years':
+        return item.months // 12 if item.months >= 0 else -(abs(item.months) // 12)
+    elif fragment == 'months':
+        return item.months % 12 if item.months >= 0 else -(abs(item.months) % 12)
+    elif fragment == 'days':
+        return item.seconds // 86400 if item.seconds >= 0 else -(abs(item.seconds) // 86400)
+    elif fragment == 'timezone':
+        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+
+
+
+@method(function('hours-from-time', nargs=1))
+@method(function('minutes-from-time', nargs=1))
+@method(function('seconds-from-time', nargs=1))
+@method(function('timezone-from-time', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif not isinstance(item, Duration):
+        self.wrong_type("the argument must be a Duration instance")
+
+    fragment = self.symbol[:self.symbol.index('-')]
+    if fragment == 'hours':
+        return item.seconds // 3600 % 24 if item.seconds >= 0 else -(abs(item.seconds) // 3600 % 24)
+    elif fragment == 'minutes':
+        return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
+    elif fragment == 'seconds':
+        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+    elif fragment == 'timezone':
+        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+
 
 
 ###

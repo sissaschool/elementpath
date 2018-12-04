@@ -24,6 +24,8 @@ from .compat import PY3, string_base_type
 from .exceptions import ElementPathTypeError, ElementPathValueError
 
 
+FRACTION_DIGITS_RE_PATTERN = re.compile(r'\.(\d+)$')
+ISO_TIMEZONE_RE_PATTERN = re.compile(r'(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$')
 XSD_DURATION_PATTERN = re.compile(
     r'^(-)?P(?=(?:\d|T))(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$'
 )
@@ -51,6 +53,90 @@ def months2days(year, month, month_delta):
         return y_days - m_days if y_days >= 0 else y_days - m_days
 
 
+class DateTime(object):
+
+    def __init__(self, dt, fmt, bc=False):
+        if not isinstance(dt, datetime):
+            raise ElementPathTypeError("1st argument must be a datetime instance.")
+        self.dt = dt
+        self.fmt = fmt or '%Y-%m-%d'
+        self.bc = bc
+
+    def __repr__(self):
+        return '%s(dt=%s, fmt=%r, bc=%r)' % (
+            self.__class__.__name__, repr(self.dt)[9:], self.fmt, self.bc
+        )
+
+    def __str__(self):
+        if self.bc:
+            return self.dt.strftime(self.fmt.replace('%Y', '{:04}'.format(self.dt.year - 1)))
+        else:
+            return self.dt.strftime(self.fmt)
+
+    def __unicode__(self):
+        return str(self)
+
+    @classmethod
+    def fromstring(cls, value, *formats):
+        """
+        Creates a `DateTime` instance from a string value, trying a list of datetime formats.
+
+        :param value: a string containing the formatted date and time specification.
+        :param formats: the datetime formats to try for decoding. These formats must not \
+        include timezone specifications, that are tested for default.
+        :return: a `DateTime` instance.
+        """
+        if not isinstance(value, string_base_type):
+            raise ElementPathTypeError('the argument has an invalid type %r' % type(value))
+        elif not formats:
+            formats = ('%Y-%m-%d', '-%Y-%m-%d')
+
+        tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
+        dt_part = value if tz_match is None else value[:tz_match.span()[0]]
+        year_zero = '0000' in dt_part
+
+        for fmt in formats:
+            try:
+                if '%f' in fmt:
+                    datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(dt_part)
+                    dt = datetime.strptime(
+                        '%s.%s' % (datetime_part, fraction_digits[:6]),
+                        fmt if not year_zero else fmt.replace('%Y', '0000')
+                    )
+                else:
+                    dt = datetime.strptime(dt_part, fmt if not year_zero else fmt.replace('%Y', '0000'))
+            except ValueError:
+                pass
+            else:
+                if 'T' in fmt and 't' in value:
+                    raise ElementPathValueError("%r: 't' separator must be in uppercase" % value)
+
+                if '24:00:00' in fmt:
+                    dt = dt + timedelta(days=1)
+                    fmt = fmt.replace('24:00:00', '%H:%M:%S')
+
+                if tz_match is not None:
+                    dt = dt.replace(tzinfo=Timezone(tz_match.group()))
+
+                if year_zero:
+                    return cls(dt=dt.replace(year=1), fmt=fmt, bc=True)
+                elif fmt.startswith('-%Y'):
+                    return cls(dt=dt.replace(year=dt.year + 1), fmt=fmt, bc=True)
+                else:
+                    return cls(dt, fmt)
+        else:
+            if len(formats) == 1:
+                raise ElementPathValueError('Invalid value %r for datetime format %r' % (value, formats[0]))
+            else:
+                raise ElementPathValueError('Invalid value %r for datetime formats %r' % (value, formats))
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.dt == other.dt and self.bc == other.bc
+        else:
+            return self.dt == other and not self.bc
+
+
 class Duration(object):
     """
     Base class for the XSD duration types.
@@ -65,7 +151,7 @@ class Duration(object):
         self.seconds = decimal.Decimal(seconds)
 
     def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, str(self))
+        return '%s(months=%r, seconds=%s)' % (self.__class__.__name__, self.months, str(self.seconds))
 
     def __str__(self):
         m = abs(self.months)
@@ -182,6 +268,9 @@ class YearMonthDuration(Duration):
         if self.seconds:
             raise ElementPathValueError('seconds must be 0 for %r.' % self.__class__.__name__)
 
+    def __repr__(self):
+        return '%s(months=%r)' % (self.__class__.__name__, self.months)
+
     def __add__(self, other):
         if not isinstance(other, self.__class__):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
@@ -212,6 +301,9 @@ class DayTimeDuration(Duration):
         super(DayTimeDuration, self).__init__(months, seconds)
         if self.months:
             raise ElementPathValueError('months must be 0 for %r.' % self.__class__.__name__)
+
+    def __repr__(self):
+        return '%s(seconds=%s)' % (self.__class__.__name__, str(self.seconds))
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):

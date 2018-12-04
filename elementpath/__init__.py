@@ -24,5 +24,5 @@ from .xpath_token import XPathToken
 from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser as XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
-from .xsd_types import Duration, YearMonthDuration, DayTimeDuration, Timezone, UntypedAtomic
+from .xsd_types import DateTime, Duration, YearMonthDuration, DayTimeDuration, Timezone, UntypedAtomic
 from .schema_proxy import AbstractSchemaProxy, XMLSchemaProxy
