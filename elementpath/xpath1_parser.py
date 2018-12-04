@@ -489,8 +489,8 @@ def evaluate(self, context=None):
     else:
         try:
             return self[0].evaluate(context) + self[1].evaluate(context)
-        except TypeError:
-            raise ElementPathTypeError("a numeric value is required: %r." % self[0])
+        except TypeError as err:
+            raise ElementPathTypeError(str(err))
 
 
 @method(infix('-', bp=40))

@@ -97,9 +97,12 @@ class XPath2Parser(XPath1Parser):
         # TODO: Pattern matching functions
         # 'matches', 'replace', 'tokenize',
 
-        # TODO: Functions on Durations, Dates and Times
-        # 'years-from-duration', 'months-from-duration', 'days-from-duration', 'hours-from-duration',
-        # 'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
+        # Functions for extracting fragments from duration
+        'years-from-duration', 'months-from-duration', 'days-from-duration',
+        'hours-from-duration', 'minutes-from-duration', 'seconds-from-duration',
+
+        # Functions for extracting fragments from dateTime
+        # 'year-from-dateTime', 'month-from-dateTime',
         # 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
         # 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
         # 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
@@ -1128,19 +1131,19 @@ def evaluate(self, context=None):
 @method(constructor('duration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else Duration(item)
+    return [] if item is None else Duration.fromstring(item)
 
 
 @method(constructor('yearMonthDuration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else YearMonthDuration(item)
+    return [] if item is None else YearMonthDuration.fromstring(item)
 
 
 @method(constructor('dayTimeDuration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else DayTimeDuration(item)
+    return [] if item is None else DayTimeDuration.fromstring(item)
 
 
 @method(constructor('base64Binary'))
@@ -1519,11 +1522,6 @@ def evaluate(self, context=None):
 
 ###
 # Functions on durations, dates and times
-# 'year-from-dateTime', 'month-from-dateTime',
-# 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
-# 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
-# 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
-
 @method(function('years-from-duration', nargs=1))
 @method(function('months-from-duration', nargs=1))
 @method(function('days-from-duration', nargs=1))
@@ -1550,6 +1548,12 @@ def evaluate(self, context=None):
         return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
     elif fragment == 'seconds':
         return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+
+
+# 'year-from-dateTime', 'month-from-dateTime',
+# 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
+# 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
+# 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
 
 
 ###
