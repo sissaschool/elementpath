@@ -170,87 +170,87 @@ class DurationTypeTest(unittest.TestCase):
         self.assertEqual(months2days(1000, 4, -1), -31)
         self.assertEqual(months2days(1000, 4, -24), -730)
 
-    def test_init_format(self):
-        self.assertIsInstance(Duration('P1Y'), Duration)
-        self.assertIsInstance(Duration('P1M'), Duration)
-        self.assertIsInstance(Duration('P1D'), Duration)
-        self.assertIsInstance(Duration('PT0H'), Duration)
-        self.assertIsInstance(Duration('PT1M'), Duration)
-        self.assertIsInstance(Duration('PT0.0S'), Duration)
+    def test_init_fromstring(self):
+        self.assertIsInstance(Duration.fromstring('P1Y'), Duration)
+        self.assertIsInstance(Duration.fromstring('P1M'), Duration)
+        self.assertIsInstance(Duration.fromstring('P1D'), Duration)
+        self.assertIsInstance(Duration.fromstring('PT0H'), Duration)
+        self.assertIsInstance(Duration.fromstring('PT1M'), Duration)
+        self.assertIsInstance(Duration.fromstring('PT0.0S'), Duration)
 
-        self.assertRaises(ValueError, Duration, 'P')
-        self.assertRaises(ValueError, Duration, 'PT')
-        self.assertRaises(ValueError, Duration, '1Y')
-        self.assertRaises(ValueError, Duration, 'P1W1DT5H3M23.9S')
-        self.assertRaises(ValueError, Duration, 'P1.5Y')
-        self.assertRaises(ValueError, Duration, 'PT1.1H')
-        self.assertRaises(ValueError, Duration, 'P1.0DT5H3M23.9S')
+        self.assertRaises(ValueError, Duration.fromstring, 'P')
+        self.assertRaises(ValueError, Duration.fromstring, 'PT')
+        self.assertRaises(ValueError, Duration.fromstring, '1Y')
+        self.assertRaises(ValueError, Duration.fromstring, 'P1W1DT5H3M23.9S')
+        self.assertRaises(ValueError, Duration.fromstring, 'P1.5Y')
+        self.assertRaises(ValueError, Duration.fromstring, 'PT1.1H')
+        self.assertRaises(ValueError, Duration.fromstring, 'P1.0DT5H3M23.9S')
 
     def test_as_string(self):
-        self.assertEqual(str(Duration('P3Y1D')), 'P3Y1D')
-        self.assertEqual(str(Duration('PT2M10.4S')), 'PT2M10.4S')
-        self.assertEqual(str(Duration('PT2400H')), 'P100D')
-        self.assertEqual(str(Duration('-P15M')), '-P1Y3M')
-        self.assertEqual(str(Duration('-P809YT3H5M5S')), '-P809YT3H5M5S')
+        self.assertEqual(str(Duration.fromstring('P3Y1D')), 'P3Y1D')
+        self.assertEqual(str(Duration.fromstring('PT2M10.4S')), 'PT2M10.4S')
+        self.assertEqual(str(Duration.fromstring('PT2400H')), 'P100D')
+        self.assertEqual(str(Duration.fromstring('-P15M')), '-P1Y3M')
+        self.assertEqual(str(Duration.fromstring('-P809YT3H5M5S')), '-P809YT3H5M5S')
 
     def test_eq(self):
-        self.assertEqual(Duration('PT147.5S'), (0, 147.5))
-        self.assertEqual(Duration('PT147.3S'), (0, Decimal("147.3")))
+        self.assertEqual(Duration.fromstring('PT147.5S'), (0, 147.5))
+        self.assertEqual(Duration.fromstring('PT147.3S'), (0, Decimal("147.3")))
 
-        self.assertEqual(Duration('PT2M10.4S'), (0, Decimal("130.4")))
-        self.assertEqual(Duration('PT5H3M23.9S'), (0, Decimal("18203.9")))
-        self.assertEqual(Duration('P1DT5H3M23.9S'), (0, Decimal("104603.9")))
-        self.assertEqual(Duration('P31DT5H3M23.9S'), (0, Decimal("2696603.9")))
-        self.assertEqual(Duration('P1Y1DT5H3M23.9S'), (12, Decimal("104603.9")))
+        self.assertEqual(Duration.fromstring('PT2M10.4S'), (0, Decimal("130.4")))
+        self.assertEqual(Duration.fromstring('PT5H3M23.9S'), (0, Decimal("18203.9")))
+        self.assertEqual(Duration.fromstring('P1DT5H3M23.9S'), (0, Decimal("104603.9")))
+        self.assertEqual(Duration.fromstring('P31DT5H3M23.9S'), (0, Decimal("2696603.9")))
+        self.assertEqual(Duration.fromstring('P1Y1DT5H3M23.9S'), (12, Decimal("104603.9")))
 
-        self.assertEqual(Duration('-P809YT3H5M5S'), (-9708, -11105))
-        self.assertEqual(Duration('P15M'), (15, 0))
-        self.assertEqual(Duration('P1Y'), (12, 0))
-        self.assertEqual(Duration('P3Y1D'), (36, 3600 * 24))
-        self.assertEqual(Duration('PT2400H'), (0, 8640000))
-        self.assertEqual(Duration('PT4500M'), (0, 4500 * 60))
-        self.assertEqual(Duration('PT4500M70S'), (0, 4500 * 60 + 70))
-        self.assertEqual(Duration('PT5529615.3S'), (0, Decimal('5529615.3')))
+        self.assertEqual(Duration.fromstring('-P809YT3H5M5S'), (-9708, -11105))
+        self.assertEqual(Duration.fromstring('P15M'), (15, 0))
+        self.assertEqual(Duration.fromstring('P1Y'), (12, 0))
+        self.assertEqual(Duration.fromstring('P3Y1D'), (36, 3600 * 24))
+        self.assertEqual(Duration.fromstring('PT2400H'), (0, 8640000))
+        self.assertEqual(Duration.fromstring('PT4500M'), (0, 4500 * 60))
+        self.assertEqual(Duration.fromstring('PT4500M70S'), (0, 4500 * 60 + 70))
+        self.assertEqual(Duration.fromstring('PT5529615.3S'), (0, Decimal('5529615.3')))
 
     def test_ne(self):
-        self.assertNotEqual(Duration('PT147.3S'), None)
-        self.assertNotEqual(Duration('PT147.3S'), (0, 147.3))
-        self.assertNotEqual(Duration('P3Y1D'), (36, 3600 * 2))
-        self.assertNotEqual(Duration('P3Y1D'), (36, 3600 * 24, 0))
-        self.assertNotEqual(Duration('P3Y1D'), None)
+        self.assertNotEqual(Duration.fromstring('PT147.3S'), None)
+        self.assertNotEqual(Duration.fromstring('PT147.3S'), (0, 147.3))
+        self.assertNotEqual(Duration.fromstring('P3Y1D'), (36, 3600 * 2))
+        self.assertNotEqual(Duration.fromstring('P3Y1D'), (36, 3600 * 24, 0))
+        self.assertNotEqual(Duration.fromstring('P3Y1D'), None)
 
     def test_lt(self):
-        self.assertTrue(Duration('P15M') < Duration('P16M'))
-        self.assertFalse(Duration('P16M') < Duration('P16M'))
-        self.assertTrue(Duration('P16M') < Duration('P16M1D'))
-        self.assertTrue(Duration('P16M') < Duration('P16MT1H'))
-        self.assertTrue(Duration('P16M') < Duration('P16MT1M'))
-        self.assertTrue(Duration('P16M') < Duration('P16MT1S'))
-        self.assertFalse(Duration('P16M') < Duration('P16MT0S'))
+        self.assertTrue(Duration(months=15) < Duration(months=16))
+        self.assertFalse(Duration(months=16) < Duration(months=16))
+        self.assertTrue(Duration(months=16) < Duration.fromstring('P16M1D'))
+        self.assertTrue(Duration(months=16) < Duration.fromstring('P16MT1H'))
+        self.assertTrue(Duration(months=16) < Duration.fromstring('P16MT1M'))
+        self.assertTrue(Duration(months=16) < Duration.fromstring('P16MT1S'))
+        self.assertFalse(Duration(months=16) < Duration.fromstring('P16MT0S'))
 
     def test_le(self):
-        self.assertTrue(Duration('P15M') <= Duration('P16M'))
-        self.assertTrue(Duration('P16M') <= Duration('P16M'))
-        self.assertTrue(Duration('P16M') <= Duration('P16M1D'))
-        self.assertTrue(Duration('P16M') <= Duration('P16MT1H'))
-        self.assertTrue(Duration('P16M') <= Duration('P16MT1M'))
-        self.assertTrue(Duration('P16M') <= Duration('P16MT1S'))
-        self.assertTrue(Duration('P16M') <= Duration('P16MT0S'))
+        self.assertTrue(Duration(months=15) <= Duration(months=16))
+        self.assertTrue(Duration(months=16) <= Duration(16))
+        self.assertTrue(Duration(months=16) <= Duration.fromstring('P16M1D'))
+        self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT1H'))
+        self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT1M'))
+        self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT1S'))
+        self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT0S'))
 
     def test_gt(self):
-        self.assertTrue(Duration('P16M') > Duration('P15M'))
-        self.assertFalse(Duration('P16M') > Duration('P16M'))
+        self.assertTrue(Duration(months=16) > Duration(15))
+        self.assertFalse(Duration(months=16) > Duration(16))
 
     def test_ge(self):
-        self.assertTrue(Duration('P16M') >= Duration('P15M'))
-        self.assertTrue(Duration('P16M') >= Duration('P16M'))
-        self.assertTrue(Duration('P1Y1DT1S') >= Duration('P1Y1D'))
+        self.assertTrue(Duration(16) >= Duration(15))
+        self.assertTrue(Duration(16) >= Duration(16))
+        self.assertTrue(Duration.fromstring('P1Y1DT1S') >= Duration.fromstring('P1Y1D'))
 
     def test_incomparable_values(self):
-        self.assertFalse(Duration('P1M') < Duration('P30D'))
-        self.assertFalse(Duration('P1M') <= Duration('P30D'))
-        self.assertFalse(Duration('P1M') > Duration('P30D'))
-        self.assertFalse(Duration('P1M') >= Duration('P30D'))
+        self.assertFalse(Duration(1) < Duration.fromstring('P30D'))
+        self.assertFalse(Duration(1) <= Duration.fromstring('P30D'))
+        self.assertFalse(Duration(1) > Duration.fromstring('P30D'))
+        self.assertFalse(Duration(1) >= Duration.fromstring('P30D'))
 
 
 class TimezoneTypeTest(unittest.TestCase):
@@ -1475,30 +1475,18 @@ class XPath2ParserTest(XPath1ParserTest):
 
         self.check_value('xs:yearMonthDuration("P3Y5M")', (41, 0))
         self.check_value('xs:yearMonthDuration("-P15M")', (-15, 0))
-        self.check_value('xs:yearMonthDuration("-P20Y18M")', YearMonthDuration("-P21Y6M"))
+        self.check_value('xs:yearMonthDuration("-P20Y18M")', YearMonthDuration.fromstring("-P21Y6M"))
         self.wrong_value('xs:yearMonthDuration("-P15M1D")')
         self.wrong_value('xs:yearMonthDuration("P15MT1H")')
 
-        self.check_value('xs:dayTimeDuration("-P2DT15H")', DayTimeDuration('-PT226800S'))
-        self.check_value('xs:dayTimeDuration("PT240H")', DayTimeDuration("P10D"))
-        self.check_value('xs:dayTimeDuration("P365D")', DayTimeDuration("P365D"))
-        self.check_value('xs:dayTimeDuration("-P2DT15H0M0S")', DayTimeDuration('-P2DT15H'))
-        self.check_value('xs:dayTimeDuration("P3DT10H")', DayTimeDuration("P3DT10H"))
+        self.check_value('xs:dayTimeDuration("-P2DT15H")', DayTimeDuration(seconds=-226800))
+        self.check_value('xs:dayTimeDuration("PT240H")', DayTimeDuration.fromstring("P10D"))
+        self.check_value('xs:dayTimeDuration("P365D")', DayTimeDuration.fromstring("P365D"))
+        self.check_value('xs:dayTimeDuration("-P2DT15H0M0S")', DayTimeDuration.fromstring('-P2DT15H'))
+        self.check_value('xs:dayTimeDuration("P3DT10H")', DayTimeDuration.fromstring("P3DT10H"))
         self.check_value('xs:dayTimeDuration("PT1S")', (0, 1))
         self.check_value('xs:dayTimeDuration("PT0S")', (0, 0))
         self.wrong_value('xs:yearMonthDuration("P1MT10H")')
-
-    def test_hex_binary_constructor(self):
-        self.check_value('xs:hexBinary("84")', b'3834')
-        self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'3834')
-        self.wrong_type('xs:hexBinary(12)')
-
-    def test_base64_binary_constructor(self):
-        self.check_value('xs:base64Binary("84")', b'ODQ=\n')
-        self.check_value('xs:base64Binary(xs:base64Binary("84"))', b'ODQ=\n')
-        self.check_value('xs:base64Binary("abcefghi")', b'YWJjZWZnaGk=\n')
-        self.wrong_type('xs:base64Binary(1e2)')
-        self.wrong_type('xs:base64Binary(1.1)')
 
     def test_fragment_from_duration_function(self):
         self.check_value('fn:years-from-duration(())', [])
@@ -1524,6 +1512,42 @@ class XPath2ParserTest(XPath1ParserTest):
 
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("P3DT10H12.5S"))', 12.5)
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
+
+    def test_duration_operators(self):
+        self.check_value(
+            'xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=74)
+        )
+        self.check_value(
+            'xs:yearMonthDuration("P2Y11M") - xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=-4)
+        )
+        self.check_value('xs:yearMonthDuration("P2Y11M") * 2.3', YearMonthDuration.fromstring('P6Y9M'))
+        self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5', YearMonthDuration.fromstring('P1Y11M'))
+        self.check_value('xs:yearMonthDuration("P3Y4M") div xs:yearMonthDuration("-P1Y4M")', -2.5)
+
+        self.check_value(
+            'xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")', DayTimeDuration.fromstring('P8DT5M')
+        )
+        self.check_value(
+            'xs:dayTimeDuration("P2DT12H") - xs:dayTimeDuration("P1DT10H30M")', DayTimeDuration.fromstring('P1DT1H30M')
+        )
+        self.check_value('xs:dayTimeDuration("PT2H10M") * 2.1', DayTimeDuration.fromstring('PT4H33M'))
+        self.check_value('xs:dayTimeDuration("P1DT2H30M10.5S") div 1.5', DayTimeDuration.fromstring('PT17H40M7S'))
+        self.check_value(
+            'xs:dayTimeDuration("P2DT53M11S") div xs:dayTimeDuration("P1DT10H")',
+            Decimal('1.437834967320261437908496732')
+        )
+
+    def test_hex_binary_constructor(self):
+        self.check_value('xs:hexBinary("84")', b'3834')
+        self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'3834')
+        self.wrong_type('xs:hexBinary(12)')
+
+    def test_base64_binary_constructor(self):
+        self.check_value('xs:base64Binary("84")', b'ODQ=\n')
+        self.check_value('xs:base64Binary(xs:base64Binary("84"))', b'ODQ=\n')
+        self.check_value('xs:base64Binary("abcefghi")', b'YWJjZWZnaGk=\n')
+        self.wrong_type('xs:base64Binary(1e2)')
+        self.wrong_type('xs:base64Binary(1.1)')
 
     def test_node_and_item_accessors(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))

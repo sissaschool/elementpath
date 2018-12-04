@@ -53,33 +53,16 @@ def months2days(year, month, month_delta):
 
 class Duration(object):
     """
-    Class for the xs:duration type. Instances are created from ISO 8601 durations, with the restriction
-    of no weeks fragment and an optional decimal part admitted only for seconds fragment.
+    Base class for the XSD duration types.
 
-    :param value: the formatted ISO 8601 duration, with no week fragment and an optional decimal part \
-    only for seconds fragment.
+    :param months: an integer value that represents years and months.
+    :param seconds: a Decimal instance that represents days, hours, minutes, seconds and fractions of seconds.
     """
-    def __init__(self, value):
-        match = XSD_DURATION_PATTERN.search(value)
-        if match is None:
-            raise ElementPathValueError('%r is not an xs:duration value.' % value)
-
-        sign, years, months, days, hours, minutes, seconds = match.groups()
-        seconds = decimal.Decimal(seconds or 0)
-        minutes = int(minutes or 0) + int(seconds // 60)
-        seconds = seconds % 60
-        hours = int(hours or 0) + minutes // 60
-        minutes = minutes % 60
-        days = int(days or 0) + hours // 24
-        hours = hours % 24
-        months = int(months or 0) + 12 * int(years or 0)
-
-        if sign is None:
-            self.months = months
-            self.seconds = seconds + (days * 24 + hours) * 3600 + minutes * 60
-        else:
-            self.months = -months
-            self.seconds = -seconds - (days * 24 + hours) * 3600 - minutes * 60
+    def __init__(self, months=0, seconds=0):
+        if seconds < 0 < months or months < 0 < seconds:
+            raise ElementPathValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
+        self.months = months
+        self.seconds = decimal.Decimal(seconds)
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, str(self))
@@ -113,6 +96,37 @@ class Duration(object):
 
     def __unicode__(self):
         return str(self)
+
+    @classmethod
+    def fromstring(cls, value):
+        """
+        Creates a Duration instance from a formatted XSD duration string.
+
+        :param value: the formatted ISO 8601 duration, with no week fragment and an optional decimal \
+        part only for seconds fragment. If value is `None` creates a zero duration instance.
+        :return: a new Duration instance.
+        """
+        match = XSD_DURATION_PATTERN.search(value)
+        if match is None:
+            raise ElementPathValueError('%r is not an xs:duration value.' % value)
+
+        sign, years, months, days, hours, minutes, seconds = match.groups()
+        seconds = decimal.Decimal(seconds or 0)
+        minutes = int(minutes or 0) + int(seconds // 60)
+        seconds = seconds % 60
+        hours = int(hours or 0) + minutes // 60
+        minutes = minutes % 60
+        days = int(days or 0) + hours // 24
+        hours = hours % 24
+        months = int(months or 0) + 12 * int(years or 0)
+
+        if sign is None:
+            seconds = seconds + (days * 24 + hours) * 3600 + minutes * 60
+        else:
+            months = -months
+            seconds = -seconds - (days * 24 + hours) * 3600 - minutes * 60
+
+        return cls(months=months, seconds=seconds)
 
     @property
     def sign(self):
@@ -163,18 +177,64 @@ class Duration(object):
 
 class YearMonthDuration(Duration):
 
-    def __init__(self, value):
-        super(YearMonthDuration, self).__init__(value)
+    def __init__(self, months=0, seconds=0):
+        super(YearMonthDuration, self).__init__(months, seconds)
         if self.seconds:
             raise ElementPathValueError('seconds must be 0 for %r.' % self.__class__.__name__)
+
+    def __add__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return YearMonthDuration(months=self.months + other.months)
+
+    def __sub__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return YearMonthDuration(months=self.months - other.months)
+
+    def __mul__(self, other):
+        if not isinstance(other, (float, int, decimal.Decimal)):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return YearMonthDuration(months=int(float(self.months * other) + 0.5))
+
+    def __truediv__(self, other):
+        if isinstance(other, self.__class__):
+            return self.months / other.months
+        elif isinstance(other, (float, int, decimal.Decimal)):
+            return YearMonthDuration(months=int(float(self.months / other) + 0.5))
+        else:
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
 
 class DayTimeDuration(Duration):
 
-    def __init__(self, value):
-        super(DayTimeDuration, self).__init__(value)
+    def __init__(self, months=0, seconds=0):
+        super(DayTimeDuration, self).__init__(months, seconds)
         if self.months:
             raise ElementPathValueError('months must be 0 for %r.' % self.__class__.__name__)
+
+    def __add__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return DayTimeDuration(seconds=self.seconds + other.seconds)
+
+    def __sub__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return DayTimeDuration(seconds=self.seconds - other.seconds)
+
+    def __mul__(self, other):
+        if not isinstance(other, (float, int, decimal.Decimal)):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return DayTimeDuration(seconds=int(float(self.seconds * other) + 0.5))
+
+    def __truediv__(self, other):
+        if isinstance(other, self.__class__):
+            return self.seconds / other.seconds
+        elif isinstance(other, (float, int, decimal.Decimal)):
+            return DayTimeDuration(seconds=int(float(self.seconds / other) + 0.5))
+        else:
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
 
 class Timezone(tzinfo):
