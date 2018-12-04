@@ -26,7 +26,7 @@ from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeE
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import FRACTION_DIGITS_RE_PATTERN, ISO_TIMEZONE_RE_PATTERN, is_etree_element, \
     is_document_node, boolean_value, data_value
-from .xsd_types import Timezone
+from .xsd_types import DateTime, Timezone
 from .tdop_parser import Token
 
 
@@ -216,44 +216,21 @@ class XPathToken(Token):
             raise self.error('FORG0001', "value %d is too high" % result)
         return result
 
-    def datetime(self, value, *datetime_formats):
+    def datetime(self, value, *formats):
         """
-        Decode a value to a *datetime* instance.
+        Decode a value to a *DateTime* instance.
 
         :param value: a string containing the formatted date and time specification.
-        :param datetime_formats: the datetime formats to try for decoding. These formats \
-        must not include timezone specifications, that are tested for default.
-        :return: a `datetime.datetime` instance.
+        :param formats: the datetime formats to try for decoding. These formats must \
+        not include timezone specifications, that are tested for default.
+        :return: a `DateTime` instance.
         """
-        if not isinstance(value, string_base_type):
-            raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
-
-        if not datetime_formats:
-            datetime_formats = ('%Y-%m-%d',)
-
-        tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
-        dt_info =  value if tz_match is None else value[:tz_match.span()[0]]
-
-        for fmt in datetime_formats or ('%Y-%m-%d',):
-            try:
-                if '%f' in fmt:
-                    datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(dt_info)
-                    result = datetime.datetime.strptime('%s.%s' % (datetime_part, fraction_digits[:6]), fmt)
-                else:
-                    result = datetime.datetime.strptime(dt_info, fmt)
-            except ValueError:
-                pass
-            else:
-                if tz_match is None:
-                    return result
-                else:
-                    return result.replace(tzinfo=Timezone(tz_match.group()))
-        else:
-            if len(datetime_formats) == 1:
-                msg = 'Invalid value %r for datetime format %r' % (value, datetime_formats[0])
-            else:
-                msg = 'Invalid value %r for datetime formats %r' % (value, datetime_formats)
-            raise self.error('FOCA0002', msg)
+        try:
+            return DateTime.fromstring(value, *formats)
+        except TypeError as err:
+            raise self.error('FORG0006', str(err))
+        except ValueError as err:
+            raise self.error('FOCA0002', str(err))
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
