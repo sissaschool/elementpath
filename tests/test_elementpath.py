@@ -1500,8 +1500,30 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_type('xs:base64Binary(1e2)')
         self.wrong_type('xs:base64Binary(1.1)')
 
-    def test_from_duration_functions(self):
-        pass  # self.check_value('fn:years-from-duration()', [])
+    def test_fragment_from_duration_function(self):
+        self.check_value('fn:years-from-duration(())', [])
+        self.check_value('fn:years-from-duration(xs:yearMonthDuration("P20Y15M"))', 21)
+        self.check_value('fn:years-from-duration(xs:yearMonthDuration("-P15M"))', -1)
+        self.check_value('fn:years-from-duration(xs:dayTimeDuration("-P2DT15H"))', 0)
+
+        self.check_value('fn:months-from-duration(xs:yearMonthDuration("P20Y15M"))', 3)
+        self.check_value('fn:months-from-duration(xs:yearMonthDuration("-P20Y18M"))', -6)
+        self.check_value('fn:months-from-duration(xs:dayTimeDuration("-P2DT15H0M0S"))', 0)
+
+        self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT10H"))', 3)
+        self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT55H"))', 5)
+        self.check_value('fn:days-from-duration(xs:yearMonthDuration("P3Y5M"))', 0)
+
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT10H"))', 10)
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT12H32M12S"))', 12)
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("PT123H"))', 3)
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("-P3DT10H"))', -10)
+
+        self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("P3DT10H"))', 0)
+        self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("-P5DT12H30M"))', -30)
+
+        self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("P3DT10H12.5S"))', 12.5)
+        self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
 
     def test_node_and_item_accessors(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))

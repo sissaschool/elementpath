@@ -1519,32 +1519,37 @@ def evaluate(self, context=None):
 
 ###
 # Functions on durations, dates and times
-# 'months-from-duration', 'days-from-duration', 'hours-from-duration',
-# 'minutes-from-duration', 'seconds-from-duration', 'year-from-dateTime', 'month-from-dateTime',
+# 'year-from-dateTime', 'month-from-dateTime',
 # 'day-from-dateTime', 'hours-from-dateTime', 'minutes-from-dateTime', 'seconds-from-dateTime',
 # 'year-from-date', 'month-from-date', 'day-from-date', 'hours-from-time', 'minutes-from-time',
 # 'seconds-from-time', 'timezone-from-dateTime', 'timezone-from-date', 'timezone-from-time',
 
 @method(function('years-from-duration', nargs=1))
-def evaluate(self, context=None):
-    duration = self.get_argument(context)
-    if duration is None:
-        return []
-    elif not isinstance(duration, Duration):
-        self.wrong_type("the argument must be a Duration instance")
-    else:
-        return duration.months // 12
-
-
 @method(function('months-from-duration', nargs=1))
+@method(function('days-from-duration', nargs=1))
+@method(function('hours-from-duration', nargs=1))
+@method(function('minutes-from-duration', nargs=1))
+@method(function('seconds-from-duration', nargs=1))
 def evaluate(self, context=None):
-    duration = self.get_argument(context)
-    if duration is None:
+    item = self.get_argument(context)
+    if item is None:
         return []
-    elif not isinstance(duration, Duration):
+    elif not isinstance(item, Duration):
         self.wrong_type("the argument must be a Duration instance")
-    else:
-        return duration.months % 12
+
+    fragment = self.symbol[:self.symbol.index('-')]
+    if fragment == 'years':
+        return item.months // 12 if item.months >= 0 else -(abs(item.months) // 12)
+    elif fragment == 'months':
+        return item.months % 12 if item.months >= 0 else -(abs(item.months) % 12)
+    elif fragment == 'days':
+        return item.seconds // 86400 if item.seconds >= 0 else -(abs(item.seconds) // 86400)
+    elif fragment == 'hours':
+        return item.seconds // 3600 % 24 if item.seconds >= 0 else -(abs(item.seconds) // 3600 % 24)
+    elif fragment == 'minutes':
+        return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
+    elif fragment == 'seconds':
+        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
 
 
 ###
