@@ -19,14 +19,12 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
-import datetime
 from .compat import string_base_type
 from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeError, \
     ElementPathValueError, ElementPathMissingContextError, ElementPathKeyError
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import FRACTION_DIGITS_RE_PATTERN, ISO_TIMEZONE_RE_PATTERN, is_etree_element, \
-    is_document_node, boolean_value, data_value
-from .xsd_types import DateTime, Timezone
+from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
+from .datatypes import DateTime
 from .tdop_parser import Token
 
 
@@ -215,22 +213,6 @@ class XPathToken(Token):
         elif higher_bound is not None and result >= higher_bound:
             raise self.error('FORG0001', "value %d is too high" % result)
         return result
-
-    def datetime(self, value, *formats):
-        """
-        Decode a value to a *DateTime* instance.
-
-        :param value: a string containing the formatted date and time specification.
-        :param formats: the datetime formats to try for decoding. These formats must \
-        not include timezone specifications, that are tested for default.
-        :return: a `DateTime` instance.
-        """
-        try:
-            return DateTime.fromstring(value, *formats)
-        except TypeError as err:
-            raise self.error('FORG0006', str(err))
-        except ValueError as err:
-            raise self.error('FOCA0002', str(err))
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)

@@ -14,13 +14,14 @@ implementation for XPath functions that are reused in many contexts.
 """
 from __future__ import division, unicode_literals
 
+from abc import ABCMeta
 import operator
 import re
 import decimal
 from datetime import datetime, timedelta, tzinfo
 from calendar import leapdays, monthrange
 
-from .compat import PY3, string_base_type
+from .compat import PY3, string_base_type, add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
 
 
@@ -53,49 +54,102 @@ def months2days(year, month, month_delta):
         return y_days - m_days if y_days >= 0 else y_days - m_days
 
 
-class DateTime(object):
+def check_iso8601_format(value, fmt):
+    """
+    Performs additional checks on the ISO 8601 format representation.
 
-    def __init__(self, dt, fmt, bc=False):
+    :param value: ISO 8601 string value.
+    :param fmt: the value string format.
+    :raise: a ValueError if the argument is not conforming to ISO 8601.
+    """
+    if 'T' not in fmt:
+        if len(value) < len(fmt) + fmt.count('%Y') * 2 + fmt.count('%f') * 4:
+            if '%m' in value or '%d' in value:
+                raise ElementPathValueError("%r: months and days must be two digits each" % value)
+            else:
+                raise ElementPathValueError("%r: hours, minutes and seconds be two digits each" % value)
+    elif 't' in value:
+        raise ElementPathValueError("%r: 't' separator must be in uppercase" % value)
+    else:
+        ti = value.index('T')
+        if ti < 10:
+            raise ElementPathValueError("%r: months and days must be two digits each" % value)
+        elif len(value) < ti+9 or value[ti+3] != ':' or value[ti+6] != ':' or not value[ti+7: ti+9].isdigit():
+            raise ElementPathValueError("%r: hours, minutes and seconds must be two digits each" % value)
+
+
+@add_metaclass(ABCMeta)
+class AbstractDateTime(object):
+    """
+    A class for representing XSD date/time objects. The reference xs:dateTime used is
+    the datetime.datetime default 1900-01-01T00:00:00.
+
+    :param dt: the datetime.datetime instance that stores the XSD Date/Time value.
+    :param bce: if `True` the date value refers to a BCE (Before Common Era) date.
+    """
+    formats = ()
+
+    def __init__(self, dt, fmt, bce=False):
         if not isinstance(dt, datetime):
-            raise ElementPathTypeError("1st argument must be a datetime instance.")
-        self.dt = dt
-        self.fmt = fmt or '%Y-%m-%d'
-        self.bc = bc
+            raise ElementPathTypeError("1st argument must be a datetime.datetime instance.")
+        elif fmt not in self.formats:
+            raise ElementPathValueError("%r is not a date/time format of %r." % (fmt, type(self)))
+        elif '%H' not in fmt and (dt.hour or dt.minute or dt.second):
+            raise ElementPathValueError("hour, minute, second must be zero for %r instance." % type(self))
+        elif '%Y' not in fmt and (dt.year != 1900 or bce):
+            raise ElementPathValueError("year must be absent for %r instance." % type(self))
+        elif '%m' not in fmt and dt.month != 1:
+            raise ElementPathValueError("month must be absent for %r instance." % type(self))
+        elif '%d' not in fmt and dt.day != 1:
+            raise ElementPathValueError("day must be absent for %r instance." % type(self))
+
+        self._dt = dt
+        self._fmt = str(fmt)
+        self._bce = bce
+
+    @property
+    def dt(self):
+        return self._dt
+
+    @property
+    def fmt(self):
+        return self._fmt
+
+    @property
+    def bce(self):
+        return self._bce
 
     def __repr__(self):
-        return '%s(dt=%s, fmt=%r, bc=%r)' % (
-            self.__class__.__name__, repr(self.dt)[9:], self.fmt, self.bc
-        )
+        return '%s(dt=%s, fmt=%r, bce=%r)' % (self.__class__.__name__, repr(self._dt)[9:], self._fmt, self._bce)
 
     def __str__(self):
-        if self.bc:
-            return self.dt.strftime(self.fmt.replace('%Y', '{:04}'.format(self.dt.year - 1)))
+        if not self._bce:
+            return self._dt.strftime(self._fmt) if PY3 else str(self._dt)
+        elif PY3:
+            return self._dt.strftime(self._fmt.replace('%Y', '{:04}'.format(self._dt.year - 1)))
         else:
-            return self.dt.strftime(self.fmt)
+            return '-%s' % str(self._dt).replace('{:04}'.format(self._dt.year), '{:04}'.format(self._dt.year - 1))
 
     def __unicode__(self):
         return str(self)
 
     @classmethod
-    def fromstring(cls, value, *formats):
+    def fromstring(cls, value):
         """
-        Creates a `DateTime` instance from a string value, trying a list of datetime formats.
+        Creates an XSD date/time instance from a string formatted value, trying the
+        class formats list.
 
-        :param value: a string containing the formatted date and time specification.
-        :param formats: the datetime formats to try for decoding. These formats must not \
-        include timezone specifications, that are tested for default.
-        :return: a `DateTime` instance.
+        :param value: a string containing a formatted date/time specification.
+        :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(value, string_base_type):
             raise ElementPathTypeError('the argument has an invalid type %r' % type(value))
-        elif not formats:
-            formats = ('%Y-%m-%d', '-%Y-%m-%d')
 
         tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
         dt_part = value if tz_match is None else value[:tz_match.span()[0]]
         year_zero = '0000' in dt_part
 
-        for fmt in formats:
+        for fmt in cls.formats:
             try:
                 if '%f' in fmt:
                     datetime_part, fraction_digits, _ = FRACTION_DIGITS_RE_PATTERN.split(dt_part)
@@ -108,8 +162,7 @@ class DateTime(object):
             except ValueError:
                 pass
             else:
-                if 'T' in fmt and 't' in value:
-                    raise ElementPathValueError("%r: 't' separator must be in uppercase" % value)
+                check_iso8601_format(value, fmt)
 
                 if '24:00:00' in fmt:
                     dt = dt + timedelta(days=1)
@@ -119,56 +172,56 @@ class DateTime(object):
                     dt = dt.replace(tzinfo=Timezone(tz_match.group()))
 
                 if year_zero:
-                    return cls(dt=dt.replace(year=1), fmt=fmt, bc=True)
+                    return cls(dt=dt.replace(year=1), fmt=fmt, bce=True)
                 elif fmt.startswith('-%Y'):
-                    return cls(dt=dt.replace(year=dt.year + 1), fmt=fmt, bc=True)
+                    return cls(dt=dt.replace(year=dt.year + 1), fmt=fmt, bce=True)
                 else:
                     return cls(dt, fmt)
         else:
-            if len(formats) == 1:
-                raise ElementPathValueError('Invalid value %r for datetime format %r' % (value, formats[0]))
+            if len(cls.formats) == 1:
+                raise ElementPathValueError('Invalid value %r for datetime format %r' % (value, cls.formats[0]))
             else:
-                raise ElementPathValueError('Invalid value %r for datetime formats %r' % (value, formats))
+                raise ElementPathValueError('Invalid value %r for datetime formats %r' % (value, cls.formats))
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.dt == other.dt and self.bc == other.bc
+            return self._dt == other._dt and self._bce == other._bce
         else:
-            return self.dt == other and not self.bc
+            return self._dt == other and not self._bce
 
 
-class Date(DateTime):
+class DateTime(AbstractDateTime):
 
-    def __init__(self, dt, fmt, bc=False):
-        if dt.hour or dt.minute or dt.second:
-            raise ElementPathValueError("hour, minute, second must be zero for %r instance." % type(self))
-        elif fmt not in ('%Y-%m-%d', '-%Y-%m-%d'):
-            raise ElementPathValueError("wrong format %r for %r instance." % (fmt, type(self)))
-        super(Date, self).__init__(dt, fmt, bc)
-
-    @classmethod
-    def fromstring(cls, value, *formats):
-        obj = super(Date, cls).fromstring(value, *(formats or ('%Y-%m-%d', '-%Y-%m-%d')))
-        if len(value) < len(obj.fmt) + 2:
-            raise ElementPathValueError("%r: months and days must be two digits each" % value)
-        return obj
+    formats = ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT24:00:00',
+               '-%Y-%m-%dT%H:%M:%S', '-%Y-%m-%dT%H:%M:%S.%f', '-%Y-%m-%dT24:00:00')
 
 
-class Time(DateTime):
+class Date(AbstractDateTime):
+    formats = ('%Y-%m-%d', '-%Y-%m-%d')
 
-    def __init__(self, dt, fmt, bc=False):
-        if dt.year != 1900 or dt.month != 1 or dt.day != 1:
-            raise ElementPathValueError("date part must be 1900-01-01 for %r." % type(self))
-        elif fmt not in ('%H:%M:%S', '%H:%M:%S.%f'):
-            raise ElementPathValueError("wrong format %r for %r instance." % (fmt, type(self)))
-        super(Time, self).__init__(dt, fmt, bc)
 
-    @classmethod
-    def fromstring(cls, value, *formats):
-        obj = super(Time, cls).fromstring(value, *(formats or ('%H:%M:%S', '%H:%M:%S.%f', '24:00:00')))
-        if len(value.split('.')[0] if '.' in value else value) < 8:
-            raise ElementPathValueError("%r: hours, minutes and seconds must be two digits each" % value)
-        return obj
+class GregorianDay(AbstractDateTime):
+    formats = ('---%d',)
+
+
+class GregorianMonth(AbstractDateTime):
+    formats = ('--%m',)
+
+
+class GregorianMonthDay(AbstractDateTime):
+    formats = ('--%m-%d',)
+
+
+class GregorianYear(AbstractDateTime):
+    formats = ('%Y', '-%Y')
+
+
+class GregorianYearMonth(AbstractDateTime):
+    formats = ('%Y-%m', '-%Y-%m')
+
+
+class Time(AbstractDateTime):
+    formats = ('%H:%M:%S', '%H:%M:%S.%f', '24:00:00')
 
 
 class Duration(object):
