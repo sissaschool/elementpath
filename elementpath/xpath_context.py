@@ -28,8 +28,12 @@ class XPathContext(object):
     :param size: the number of items in the input sequence.
     :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
     :param variables: dictionary of context variables that maps a QName to a value.
+    :param current_dt: current dateTime of the implementation, including explicit timezone.
+    :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
+    not have a timezone.
     """
-    def __init__(self, root, item=None, position=0, size=1, axis=None, variables=None):
+    def __init__(self, root, item=None, position=0, size=1, axis=None, variables=None,
+                 current_dt=None, timezone=None):
         if not is_element_node(root) and not is_document_node(root):
             raise ElementPathTypeError("argument 'root' must be an Element: %r" % root)
         self.root = root
@@ -44,6 +48,8 @@ class XPathContext(object):
         self.size = size
         self.axis = axis
         self.variables = {} if variables is None else dict(variables)
+        self.current_dt = current_dt
+        self.timezone = timezone
         self._parent_map = None
 
     def __repr__(self):
