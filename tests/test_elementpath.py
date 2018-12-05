@@ -129,6 +129,19 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bce=True)")
         self.assertEqual(str(dt), '-0100-04-13' if PY3 else '-0100-04-13 00:00:00')
 
+    def test_eq(self):
+        self.assertEqual(
+            DateTime.fromstring("2002-04-02T12:00:00-01:00"), DateTime.fromstring("2002-04-02T17:00:00+04:00")
+        )
+        self.assertEqual(DateTime.fromstring("2002-04-02T12:00:00"), DateTime.fromstring("2002-04-02T23:00:00+06:00"))
+        self.assertNotEqual(DateTime.fromstring("2002-04-02T12:00:00"), DateTime.fromstring("2002-04-02T17:00:00"))
+        self.assertEqual(DateTime.fromstring("2002-04-02T12:00:00"), DateTime.fromstring("2002-04-02T12:00:00"))
+        self.assertEqual(
+            DateTime.fromstring("2002-04-02T23:00:00-04:00"), DateTime.fromstring("2002-04-03T02:00:00-01:00")
+        )
+        self.assertEqual(DateTime.fromstring("1999-12-31T24:00:00"), DateTime.fromstring("2000-01-01T00:00:00"))
+        self.assertNotEqual(DateTime.fromstring("2005-04-04T24:00:00"), DateTime.fromstring("2005-04-04T00:00:00"))
+
 
 class DurationTypesTest(unittest.TestCase):
 

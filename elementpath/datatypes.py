@@ -134,12 +134,13 @@ class AbstractDateTime(object):
         return str(self)
 
     @classmethod
-    def fromstring(cls, value):
+    def fromstring(cls, value, context=None):
         """
         Creates an XSD date/time instance from a string formatted value, trying the
         class formats list.
 
         :param value: a string containing a formatted date/time specification.
+        :param context: the optional dynamic context instance.
         :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(value, string_base_type):
@@ -184,6 +185,9 @@ class AbstractDateTime(object):
                 raise ElementPathValueError('Invalid value %r for datetime formats %r' % (value, cls.formats))
 
     def __eq__(self, other):
+        import pdb
+        if self._dt.year == 2002:
+            pdb.set_trace()
         if isinstance(other, self.__class__):
             return self._dt == other._dt and self._bce == other._bce
         else:
