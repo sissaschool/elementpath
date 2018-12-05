@@ -20,7 +20,7 @@ from .exceptions import ElementPathTypeError
 from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
-from .xsd_types import UntypedAtomic
+from .datatypes import UntypedAtomic
 
 ###
 # Regex compiled patterns

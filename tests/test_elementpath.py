@@ -24,7 +24,8 @@ from elementpath import *
 from elementpath.namespaces import (
     XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XML_LANG_QNAME
 )
-from elementpath.xsd_types import months2days
+from elementpath.datatypes import months2days, DateTime, Date, GregorianYear, Time, Timezone, \
+    Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic
 
 try:
     # noinspection PyPackageRequirements
@@ -109,24 +110,27 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('15') * UntypedAtomic('4'), 60)
 
 
-class DateTimeTypeTest(unittest.TestCase):
+class DateTimeTypesTest(unittest.TestCase):
 
     def test_init_fromstring(self):
-        self.assertIsInstance(DateTime.fromstring('2000-10-07'), DateTime)
-        self.assertIsInstance(DateTime.fromstring('-2000-10-07'), DateTime)
-        self.assertRaises(ValueError, Duration.fromstring, '00-10-07')
+        self.assertIsInstance(DateTime.fromstring('2000-10-07T00:00:00'), DateTime)
+        self.assertIsInstance(DateTime.fromstring('-2000-10-07T00:00:00'), DateTime)
+        self.assertRaises(ValueError, DateTime.fromstring, '00-10-07')
+
+        self.assertIsInstance(Date.fromstring('2000-10-07'), Date)
+        self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
 
     def test_repr(self):
-        dt = DateTime.fromstring('2000-10-07')
-        self.assertEqual(repr(dt), "DateTime(dt=datetime(2000, 10, 7, 0, 0), fmt='%Y-%m-%d', bc=False)")
-        self.assertEqual(str(dt), '2000-10-07')
+        dt = Date.fromstring('2000-10-07')
+        self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), fmt='%Y-%m-%d', bce=False)")
+        self.assertEqual(str(dt), '2000-10-07' if PY3 else '2000-10-07 00:00:00')
 
-        dt = DateTime.fromstring('-0100-04-13')
-        self.assertEqual(repr(dt), "DateTime(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bc=True)")
-        self.assertEqual(str(dt), '-0100-04-13')
+        dt = Date.fromstring('-0100-04-13')
+        self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bce=True)")
+        self.assertEqual(str(dt), '-0100-04-13' if PY3 else '-0100-04-13 00:00:00')
 
 
-class DurationTypeTest(unittest.TestCase):
+class DurationTypesTest(unittest.TestCase):
 
     def test_month2day_function(self):
         # xs:duration ordering related tests
@@ -319,15 +323,6 @@ class XPathTokenTest(unittest.TestCase):
         self.assertEqual(self.token.integer("89.1"), 89)
         self.assertEqual(self.token.integer(-71), -71)
         self.assertEqual(self.token.integer(19.5), 19)
-
-    def test_datetime_decoder(self):
-        self.assertRaises(
-            ElementPathValueError, self.token.datetime, '2001-01-01', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'
-        )
-        self.assertEqual(
-            self.token.datetime('2001-01-01T23:29:45', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'),
-            DateTime(datetime.datetime(2001, 1, 1, 23, 29, 45), '%Y-%m-%dT%H:%M:%S')
-        )
 
 
 class XPath1ParserTest(unittest.TestCase):
@@ -1440,7 +1435,7 @@ class XPath2ParserTest(XPath1ParserTest):
         tzinfo2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value(
             'xs:dateTime("1969-07-20T20:18:00")',
-            DateTime(dt=datetime.datetime(1969, 7, 20, 20, 18), fmt='%Y-%m-%dT%H:%M:%S', bc=False)
+            DateTime(datetime.datetime(1969, 7, 20, 20, 18), '%Y-%m-%dT%H:%M:%S')
         )
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
                          datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tzinfo1))
@@ -1478,7 +1473,8 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:gMonthDay("--07-32")')
 
         self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1,))
-        self.check_value('xs:gYear("-2004")', DateTime(datetime.datetime(2005, 1, 1,), fmt='-%Y', bc=True))
+        self.check_value('xs:gYear("-2004")', GregorianYear(datetime.datetime(2005, 1, 1,), fmt='-%Y', bce=True))
+        self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("84")')
         self.wrong_value('xs:gYear("821")')

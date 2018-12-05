@@ -10,7 +10,6 @@
 #
 import sys
 import decimal
-import datetime
 import math
 import codecs
 from itertools import product
@@ -19,6 +18,7 @@ from collections import MutableSequence
 
 from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
 from .exceptions import ElementPathTypeError, ElementPathMissingContextError
+from . import datatypes
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname, get_namespace
@@ -27,7 +27,6 @@ from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, HEX_BIN
     NOT_BASE64_BINARY_PATTERN, is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
-from .xsd_types import DateTime, Duration, YearMonthDuration, DayTimeDuration, UntypedAtomic
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
@@ -1036,108 +1035,72 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    result = self.datetime(item, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT24:00:00')
-    if 't' in item:
-        raise self.error('FOCA0002', "%r: 't' separator must be in uppercase" % item)
-    elif item.index('T') < 10:
-        raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
-    elif len(item) < 19 or item[13] != ':' or item[16] != ':' or not item[17:19].isdigit():
-        raise self.error('FOCA0002', "%r: hours, minutes and seconds be two digits each" % item)
-    return result
+    try:
+        return datatypes.DateTime.fromstring(item)
+    except TypeError as err:
+        raise self.error('FORG0006', str(err))
+    except ValueError as err:
+        raise self.error('FOCA0002', str(err))
 
 
 @method(constructor('date'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-    result = self.datetime(item, '%Y-%m-%d', '-%Y-%m-%d')
-    if len(item) < 10:
-        raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
-    return result
+    return [] if item is None else datatypes.Date.fromstring(item)
 
 
 @method(constructor('gDay'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-
-    result = self.datetime(item, '---%d')
-    if len(item) < 5:
-        raise self.error('FOCA0002', "%r: the day must be two digits." % item)
-    return result
+    return [] if item is None else datatypes.GregorianDay.fromstring(item)
 
 
 @method(constructor('gMonth'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-
-    result = self.datetime(item, '--%m')
-    if len(item) < 4:
-        raise self.error('FOCA0002', "%r: the month must be two digits." % item)
-    return result
+    return [] if item is None else datatypes.GregorianMonth.fromstring(item)
 
 
 @method(constructor('gMonthDay'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-    result = self.datetime(item, '--%m-%d')
-    if len(item) < 7:
-        raise self.error('FOCA0002', "%r: months and days must be two digits each" % item)
-    return result
+    return [] if item is None else datatypes.GregorianMonthDay.fromstring(item)
 
 
 @method(constructor('gYear'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, '%Y', '-%Y')
+    return [] if item is None else datatypes.GregorianYear.fromstring(item)
 
 
 @method(constructor('gYearMonth'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-
-    result = self.datetime(item, '%Y-%m')
-    if len(item) < 7:
-        raise self.error('FOCA0002', "%r: the month must be two digits" % item)
-    return result
+    return [] if item is None else datatypes.GregorianYearMonth.fromstring(item)
 
 
 @method(constructor('time'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-
-    result = self.datetime(item, '%H:%M:%S', '%H:%M:%S.%f', '24:00:00')
-    if len(item.split('.')[0] if '.' in item else item) < 8:
-        raise self.error('FOCA0002', "%r: hours, minutes and seconds must be two digits each" % item)
-    return result
+    return [] if item is None else datatypes.Time.fromstring(item)
 
 
 @method(constructor('duration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else Duration.fromstring(item)
+    return [] if item is None else datatypes.Duration.fromstring(item)
 
 
 @method(constructor('yearMonthDuration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else YearMonthDuration.fromstring(item)
+    return [] if item is None else datatypes.YearMonthDuration.fromstring(item)
 
 
 @method(constructor('dayTimeDuration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else DayTimeDuration.fromstring(item)
+    return [] if item is None else datatypes.DayTimeDuration.fromstring(item)
 
 
 @method(constructor('base64Binary'))
@@ -1145,7 +1108,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif isinstance(item, UntypedAtomic):
+    elif isinstance(item, datatypes.UntypedAtomic):
         return codecs.encode(unicode_type(item), 'base64')
     elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
@@ -1165,7 +1128,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif isinstance(item, UntypedAtomic):
+    elif isinstance(item, datatypes.UntypedAtomic):
         return codecs.encode(unicode_type(item), 'hex')
     elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
@@ -1526,7 +1489,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif not isinstance(item, Duration):
+    elif not isinstance(item, datatypes.Duration):
         self.wrong_type("the argument must be a Duration instance")
 
     fragment = self.symbol[:self.symbol.index('-')]
@@ -1555,12 +1518,12 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif not isinstance(item, DateTime):
+    elif not isinstance(item, datatypes.DateTime):
         self.wrong_type("the argument must be a Duration instance")
 
     fragment = self.symbol[:self.symbol.index('-')]
     if fragment == 'year':
-        return -(item.dt.year + 1) if item.bc else item.dt.year
+        return -(item.dt.year + 1) if item.bce else item.dt.year
     elif fragment == 'month':
         return item.dt.month
     elif fragment == 'day':
@@ -1573,7 +1536,7 @@ def evaluate(self, context=None):
         return item.dt.second
     else:
         offset = item.dt.tzinfo.offset
-        return DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
+        return datatypes.DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
 
 
 
@@ -1585,7 +1548,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif not isinstance(item, Duration):
+    elif not isinstance(item, datatypes.Duration):
         self.wrong_type("the argument must be a Duration instance")
 
     fragment = self.symbol[:self.symbol.index('-')]
@@ -1608,7 +1571,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif not isinstance(item, Duration):
+    elif not isinstance(item, datatypes.Duration):
         self.wrong_type("the argument must be a Duration instance")
 
     fragment = self.symbol[:self.symbol.index('-')]
