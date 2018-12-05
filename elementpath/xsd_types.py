@@ -137,6 +137,40 @@ class DateTime(object):
             return self.dt == other and not self.bc
 
 
+class Date(DateTime):
+
+    def __init__(self, dt, fmt, bc=False):
+        if dt.hour or dt.minute or dt.second:
+            raise ElementPathValueError("hour, minute, second must be zero for %r instance." % type(self))
+        elif fmt not in ('%Y-%m-%d', '-%Y-%m-%d'):
+            raise ElementPathValueError("wrong format %r for %r instance." % (fmt, type(self)))
+        super(Date, self).__init__(dt, fmt, bc)
+
+    @classmethod
+    def fromstring(cls, value, *formats):
+        obj = super(Date, cls).fromstring(value, *(formats or ('%Y-%m-%d', '-%Y-%m-%d')))
+        if len(value) < len(obj.fmt) + 2:
+            raise ElementPathValueError("%r: months and days must be two digits each" % value)
+        return obj
+
+
+class Time(DateTime):
+
+    def __init__(self, dt, fmt, bc=False):
+        if dt.year != 1900 or dt.month != 1 or dt.day != 1:
+            raise ElementPathValueError("date part must be 1900-01-01 for %r." % type(self))
+        elif fmt not in ('%H:%M:%S', '%H:%M:%S.%f'):
+            raise ElementPathValueError("wrong format %r for %r instance." % (fmt, type(self)))
+        super(Time, self).__init__(dt, fmt, bc)
+
+    @classmethod
+    def fromstring(cls, value, *formats):
+        obj = super(Time, cls).fromstring(value, *(formats or ('%H:%M:%S', '%H:%M:%S.%f', '24:00:00')))
+        if len(value.split('.')[0] if '.' in value else value) < 8:
+            raise ElementPathValueError("%r: hours, minutes and seconds must be two digits each" % value)
+        return obj
+
+
 class Duration(object):
     """
     Base class for the XSD duration types.
