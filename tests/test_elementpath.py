@@ -122,25 +122,43 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_repr(self):
         dt = Date.fromstring('2000-10-07')
-        self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), fmt='%Y-%m-%d', bce=False)")
-        self.assertEqual(str(dt), '2000-10-07' if PY3 else '2000-10-07 00:00:00')
+        if PY3:
+            self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), fmt='%Y-%m-%d', bce=False)")
+            self.assertEqual(str(dt), '2000-10-07')
 
-        dt = Date.fromstring('-0100-04-13')
-        self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bce=True)")
-        self.assertEqual(str(dt), '-0100-04-13' if PY3 else '-0100-04-13 00:00:00')
+            dt = Date.fromstring('-0100-04-13')
+            self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bce=True)")
+            self.assertEqual(str(dt), '-0100-04-13')
+        else:
+            self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0, tzinfo=Timezone(datetime.timedelta(0))), "
+                                       "fmt='%Y-%m-%d', bce=False)")
+            self.assertEqual(str(dt), '2000-10-07 00:00:00+00:00')
+
+            dt = Date.fromstring('-0100-04-13')
+            self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0, tzinfo=Timezone(datetime.timedelta(0))), "
+                                       "fmt='-%Y-%m-%d', bce=True)")
+            self.assertEqual(str(dt), '-0100-04-13 00:00:00+00:00')
+
 
     def test_eq(self):
-        self.assertEqual(
-            DateTime.fromstring("2002-04-02T12:00:00-01:00"), DateTime.fromstring("2002-04-02T17:00:00+04:00")
-        )
-        self.assertEqual(DateTime.fromstring("2002-04-02T12:00:00"), DateTime.fromstring("2002-04-02T23:00:00+06:00"))
-        self.assertNotEqual(DateTime.fromstring("2002-04-02T12:00:00"), DateTime.fromstring("2002-04-02T17:00:00"))
-        self.assertEqual(DateTime.fromstring("2002-04-02T12:00:00"), DateTime.fromstring("2002-04-02T12:00:00"))
-        self.assertEqual(
-            DateTime.fromstring("2002-04-02T23:00:00-04:00"), DateTime.fromstring("2002-04-03T02:00:00-01:00")
-        )
-        self.assertEqual(DateTime.fromstring("1999-12-31T24:00:00"), DateTime.fromstring("2000-01-01T00:00:00"))
-        self.assertNotEqual(DateTime.fromstring("2005-04-04T24:00:00"), DateTime.fromstring("2005-04-04T00:00:00"))
+        tz = Timezone('-05:00')
+        dt = DateTime.fromstring
+
+        self.assertTrue(dt("2002-04-02T12:00:00-01:00") == dt("2002-04-02T17:00:00+04:00"))
+        self.assertFalse(dt("2002-04-02T12:00:00") == dt("2002-04-02T23:00:00+06:00"))
+        self.assertFalse(dt("2002-04-02T12:00:00") == dt("2002-04-02T17:00:00"))
+        self.assertTrue(dt("2002-04-02T12:00:00") == dt("2002-04-02T12:00:00"))
+        self.assertTrue(dt("2002-04-02T23:00:00-04:00") == dt("2002-04-03T02:00:00-01:00"))
+        self.assertTrue(dt("1999-12-31T24:00:00") == dt("2000-01-01T00:00:00"))
+        self.assertFalse(dt("2005-04-04T24:00:00") == dt("2005-04-04T00:00:00"))
+
+        self.assertTrue(dt("2002-04-02T12:00:00-01:00", tz) == dt("2002-04-02T17:00:00+04:00", tz))
+        self.assertTrue(dt("2002-04-02T12:00:00", tz) == dt("2002-04-02T23:00:00+06:00", tz))
+        self.assertFalse(dt("2002-04-02T12:00:00", tz) == dt("2002-04-02T17:00:00", tz))
+        self.assertTrue(dt("2002-04-02T12:00:00", tz) == dt("2002-04-02T12:00:00", tz))
+        self.assertTrue(dt("2002-04-02T23:00:00-04:00", tz) == dt("2002-04-03T02:00:00-01:00", tz))
+        self.assertTrue(dt("1999-12-31T24:00:00", tz) == dt("2000-01-01T00:00:00", tz))
+        self.assertFalse(dt("2005-04-04T24:00:00", tz) == dt("2005-04-04T00:00:00", tz))
 
 
 class DurationTypesTest(unittest.TestCase):
@@ -323,19 +341,6 @@ class TimezoneTypeTest(unittest.TestCase):
     def test_as_string(self):
         self.assertEqual(str(Timezone('+05:00')), 'UTC+05:00')
         self.assertEqual(str(Timezone('-13:15')), 'UTC-13:15')
-
-
-class XPathTokenTest(unittest.TestCase):
-
-    token = XPath1Parser.symbol_table['(name)'](XPath1Parser(), 'dummy_token')
-
-    def test_integer_decoder(self):
-        self.assertRaises(ElementPathValueError, self.token.integer, "alpha")
-        self.assertRaises(ElementPathTypeError, self.token.integer, [])
-        self.assertEqual(self.token.integer("89"), 89)
-        self.assertEqual(self.token.integer("89.1"), 89)
-        self.assertEqual(self.token.integer(-71), -71)
-        self.assertEqual(self.token.integer(19.5), 19)
 
 
 class XPath1ParserTest(unittest.TestCase):
@@ -1444,15 +1449,16 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:float(0.00001)', float)
 
     def test_datetime_constructors(self):
-        tzinfo1 = Timezone(datetime.timedelta(hours=5, minutes=24))
-        tzinfo2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
+        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+        tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value(
             'xs:dateTime("1969-07-20T20:18:00")',
-            DateTime(datetime.datetime(1969, 7, 20, 20, 18), '%Y-%m-%dT%H:%M:%S')
+            DateTime(datetime.datetime(1969, 7, 20, 20, 18, tzinfo=tz0), '%Y-%m-%dT%H:%M:%S')
         )
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
-                         datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tzinfo1))
-        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(2000, 1, 1, 0, 0))
+                         datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tz1))
+        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(2000, 1, 1, 0, 0, tzinfo=tz0))
 
         self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
@@ -1460,40 +1466,41 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0+05:24")')
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0")')
 
-        self.check_value('xs:time("21:30:00")', datetime.datetime(1900, 1, 1, 21, 30))
-        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(1900, 1, 1, 11, 15, 48, tzinfo=tzinfo1))
+        self.check_value('xs:time("21:30:00")', datetime.datetime(1900, 1, 1, 21, 30, tzinfo=tz0))
+        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(1900, 1, 1, 11, 15, 48, tzinfo=tz1))
 
-        self.check_value('xs:date("2017-01-19")', datetime.datetime(2017, 1, 19))
-        self.check_value('xs:date("2011-11-11-14:00")', datetime.datetime(2011, 11, 11, tzinfo=tzinfo2))
+        self.check_value('xs:date("2017-01-19")', datetime.datetime(2017, 1, 19, tzinfo=tz0))
+        self.check_value('xs:date("2011-11-11-14:00")', datetime.datetime(2011, 11, 11, tzinfo=tz2))
         self.wrong_value('xs:date("2011-11-11-14:01")')
         self.wrong_value('xs:date("11-11-11")')
 
-        self.check_value('xs:gDay("---30")', datetime.datetime(1900, 1, 30))
-        self.check_value('xs:gDay("---21+05:24")', datetime.datetime(1900, 1, 21, tzinfo=tzinfo1))
+        self.check_value('xs:gDay("---30")', datetime.datetime(1900, 1, 30, tzinfo=tz0))
+        self.check_value('xs:gDay("---21+05:24")', datetime.datetime(1900, 1, 21, tzinfo=tz1))
         self.wrong_value('xs:gDay("---32")')
         self.wrong_value('xs:gDay("--19")')
 
-        self.check_value('xs:gMonth("--09")', datetime.datetime(1900, 9, 1))
-        self.check_value('xs:gMonth("--12")', datetime.datetime(1900, 12, 1))
+        self.check_value('xs:gMonth("--09")', datetime.datetime(1900, 9, 1, tzinfo=tz0))
+        self.check_value('xs:gMonth("--12")', datetime.datetime(1900, 12, 1, tzinfo=tz0))
         self.wrong_value('xs:gMonth("--9")')
         self.wrong_value('xs:gMonth("-09")')
         self.wrong_value('xs:gMonth("--13")')
 
-        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(1900, 7, 2))
-        self.check_value('xs:gMonthDay("--07-02-14:00")', datetime.datetime(1900, 7, 2, tzinfo=tzinfo2))
+        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(1900, 7, 2, tzinfo=tz0))
+        self.check_value('xs:gMonthDay("--07-02-14:00")', datetime.datetime(1900, 7, 2, tzinfo=tz2))
         self.wrong_value('xs:gMonthDay("--7-02")')
         self.wrong_value('xs:gMonthDay("-07-02")')
         self.wrong_value('xs:gMonthDay("--07-32")')
 
-        self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1,))
-        self.check_value('xs:gYear("-2004")', GregorianYear(datetime.datetime(2005, 1, 1,), fmt='-%Y', bce=True))
+        self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1, tzinfo=tz0))
+        self.check_value('xs:gYear("-2004")',
+                         GregorianYear(datetime.datetime(2005, 1, 1, tzinfo=tz0), fmt='-%Y', bce=True))
         self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("84")')
         self.wrong_value('xs:gYear("821")')
         self.wrong_value('xs:gYear("84")')
 
-        self.check_value('xs:gYearMonth("2004-02")', datetime.datetime(2004, 2, 1))
+        self.check_value('xs:gYearMonth("2004-02")', datetime.datetime(2004, 2, 1, tzinfo=tz0))
         self.wrong_value('xs:gYearMonth("2004-2")')
         self.wrong_value('xs:gYearMonth("204-02")')
 

@@ -134,17 +134,19 @@ class AbstractDateTime(object):
         return str(self)
 
     @classmethod
-    def fromstring(cls, value, context=None):
+    def fromstring(cls, value, tz=None):
         """
         Creates an XSD date/time instance from a string formatted value, trying the
         class formats list.
 
         :param value: a string containing a formatted date/time specification.
-        :param context: the optional dynamic context instance.
+        :param tz: optional timezone information, must be a `Timezone` instance.
         :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(value, string_base_type):
-            raise ElementPathTypeError('the argument has an invalid type %r' % type(value))
+            raise ElementPathTypeError('1st argument has an invalid type %r' % type(value))
+        elif tz and not isinstance(tz, Timezone):
+            raise ElementPathTypeError('2nd argument has an invalid type %r' % type(value))
 
         tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
         dt_part = value if tz_match is None else value[:tz_match.span()[0]]
@@ -171,6 +173,10 @@ class AbstractDateTime(object):
 
                 if tz_match is not None:
                     dt = dt.replace(tzinfo=Timezone(tz_match.group()))
+                elif tz is not None:
+                    dt = dt.replace(tzinfo=tz)
+                elif not PY3:
+                    dt = dt.replace(tzinfo=Timezone('+00:00'))
 
                 if year_zero:
                     return cls(dt=dt.replace(year=1), fmt=fmt, bce=True)
@@ -185,13 +191,11 @@ class AbstractDateTime(object):
                 raise ElementPathValueError('Invalid value %r for datetime formats %r' % (value, cls.formats))
 
     def __eq__(self, other):
-        import pdb
-        if self._dt.year == 2002:
-            pdb.set_trace()
         if isinstance(other, self.__class__):
             return self._dt == other._dt and self._bce == other._bce
         else:
             return self._dt == other and not self._bce
+
 
 
 class DateTime(AbstractDateTime):

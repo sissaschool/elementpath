@@ -18,7 +18,8 @@ from collections import MutableSequence
 
 from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
 from .exceptions import ElementPathTypeError, ElementPathMissingContextError
-from . import datatypes
+from .datatypes import DateTime, Date, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
+    GregorianYear, GregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname, get_namespace
@@ -1033,74 +1034,67 @@ def evaluate(self, context=None):
 @method(constructor('dateTime'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-    try:
-        return datatypes.DateTime.fromstring(item)
-    except TypeError as err:
-        raise self.error('FORG0006', str(err))
-    except ValueError as err:
-        raise self.error('FOCA0002', str(err))
+    return [] if item is None else self.datetime(item, DateTime, context)
 
 
 @method(constructor('date'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.Date.fromstring(item)
+    return [] if item is None else self.datetime(item, Date, context)
 
 
 @method(constructor('gDay'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.GregorianDay.fromstring(item)
+    return [] if item is None else self.datetime(item, GregorianDay, context)
 
 
 @method(constructor('gMonth'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.GregorianMonth.fromstring(item)
+    return [] if item is None else self.datetime(item, GregorianMonth, context)
 
 
 @method(constructor('gMonthDay'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.GregorianMonthDay.fromstring(item)
+    return [] if item is None else self.datetime(item, GregorianMonthDay, context)
 
 
 @method(constructor('gYear'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.GregorianYear.fromstring(item)
+    return [] if item is None else self.datetime(item, GregorianYear, context)
 
 
 @method(constructor('gYearMonth'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.GregorianYearMonth.fromstring(item)
+    return [] if item is None else self.datetime(item, GregorianYearMonth, context)
 
 
 @method(constructor('time'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.Time.fromstring(item)
+    return [] if item is None else self.datetime(item, Time, context)
 
 
 @method(constructor('duration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.Duration.fromstring(item)
+    return [] if item is None else Duration.fromstring(item)
 
 
 @method(constructor('yearMonthDuration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.YearMonthDuration.fromstring(item)
+    return [] if item is None else YearMonthDuration.fromstring(item)
 
 
 @method(constructor('dayTimeDuration'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    return [] if item is None else datatypes.DayTimeDuration.fromstring(item)
+    return [] if item is None else DayTimeDuration.fromstring(item)
 
 
 @method(constructor('base64Binary'))
@@ -1108,7 +1102,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif isinstance(item, datatypes.UntypedAtomic):
+    elif isinstance(item, UntypedAtomic):
         return codecs.encode(unicode_type(item), 'base64')
     elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
@@ -1128,7 +1122,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif isinstance(item, datatypes.UntypedAtomic):
+    elif isinstance(item, UntypedAtomic):
         return codecs.encode(unicode_type(item), 'hex')
     elif not isinstance(item, (bytes, unicode_type)):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
@@ -1480,63 +1474,102 @@ def evaluate(self, context=None):
 ###
 # Functions on durations, dates and times
 @method(function('years-from-duration', nargs=1))
-@method(function('months-from-duration', nargs=1))
-@method(function('days-from-duration', nargs=1))
-@method(function('hours-from-duration', nargs=1))
-@method(function('minutes-from-duration', nargs=1))
-@method(function('seconds-from-duration', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
+    item = self.get_argument(context, cls=Duration)
     if item is None:
         return []
-    elif not isinstance(item, datatypes.Duration):
-        self.wrong_type("the argument must be a Duration instance")
-
-    fragment = self.symbol[:self.symbol.index('-')]
-    if fragment == 'years':
+    else:
         return item.months // 12 if item.months >= 0 else -(abs(item.months) // 12)
-    elif fragment == 'months':
+
+
+@method(function('months-from-duration', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Duration)
+    if item is None:
+        return []
+    else:
         return item.months % 12 if item.months >= 0 else -(abs(item.months) % 12)
-    elif fragment == 'days':
+
+
+@method(function('days-from-duration', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Duration)
+    if item is None:
+        return []
+    else:
         return item.seconds // 86400 if item.seconds >= 0 else -(abs(item.seconds) // 86400)
-    elif fragment == 'hours':
+
+
+@method(function('hours-from-duration', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Duration)
+    if item is None:
+        return []
+    else:
         return item.seconds // 3600 % 24 if item.seconds >= 0 else -(abs(item.seconds) // 3600 % 24)
-    elif fragment == 'minutes':
+
+
+@method(function('minutes-from-duration', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Duration)
+    if item is None:
+        return []
+    else:
         return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
-    elif fragment == 'seconds':
+
+
+@method(function('seconds-from-duration', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Duration)
+    if item is None:
+        return []
+    else:
         return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
 
 
 @method(function('year-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=DateTime)
+    return [] if item is None else -(item.dt.year + 1) if item.bce else item.dt.year
+
+
 @method(function('month-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=DateTime)
+    return [] if item is None else item.dt.month
+
+
 @method(function('day-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=DateTime)
+    return [] if item is None else item.dt.day
+
+
 @method(function('hours-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=DateTime)
+    return [] if item is None else item.dt.hour
+
+
 @method(function('minutes-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=DateTime)
+    return [] if item is None else item.dt.minute
+
+
 @method(function('seconds-from-dateTime', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=DateTime)
+    return [] if item is None else item.dt.second
+
+
 @method(function('timezone-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
+    item = self.get_argument(context, cls=DateTime)
     if item is None:
         return []
-    elif not isinstance(item, datatypes.DateTime):
-        self.wrong_type("the argument must be a Duration instance")
-
-    fragment = self.symbol[:self.symbol.index('-')]
-    if fragment == 'year':
-        return -(item.dt.year + 1) if item.bce else item.dt.year
-    elif fragment == 'month':
-        return item.dt.month
-    elif fragment == 'day':
-        return item.dt.day
-    elif fragment == 'hours':
-        return item.dt.hour
-    elif fragment == 'minutes':
-        return item.dt.minute
-    elif fragment == 'seconds':
-        return item.dt.second
-    else:
-        offset = item.dt.tzinfo.offset
-        return datatypes.DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
+    offset = item.dt.tzinfo.offset
+    return DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
 
 
 
@@ -1548,7 +1581,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif not isinstance(item, datatypes.Duration):
+    elif not isinstance(item, Duration):
         self.wrong_type("the argument must be a Duration instance")
 
     fragment = self.symbol[:self.symbol.index('-')]
@@ -1571,7 +1604,7 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
-    elif not isinstance(item, datatypes.Duration):
+    elif not isinstance(item, Duration):
         self.wrong_type("the argument must be a Duration instance")
 
     fragment = self.symbol[:self.symbol.index('-')]

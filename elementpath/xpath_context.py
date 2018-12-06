@@ -8,6 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import datetime
+
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, is_document_node, is_attribute_node
 
@@ -48,7 +50,7 @@ class XPathContext(object):
         self.size = size
         self.axis = axis
         self.variables = {} if variables is None else dict(variables)
-        self.current_dt = current_dt
+        self.current_dt = current_dt or datetime.datetime.now()
         self.timezone = timezone
         self._parent_map = None
 
