@@ -54,30 +54,6 @@ def months2days(year, month, month_delta):
         return y_days - m_days if y_days >= 0 else y_days - m_days
 
 
-def check_iso8601_format(value, fmt):
-    """
-    Performs additional checks on the ISO 8601 format representation.
-
-    :param value: ISO 8601 string value.
-    :param fmt: the value string format.
-    :raise: a ValueError if the argument is not conforming to ISO 8601.
-    """
-    if 'T' not in fmt:
-        if len(value) < len(fmt) + fmt.count('%Y') * 2 + fmt.count('%f') * 4:
-            if '%m' in value or '%d' in value:
-                raise ElementPathValueError("%r: months and days must be two digits each" % value)
-            else:
-                raise ElementPathValueError("%r: hours, minutes and seconds be two digits each" % value)
-    elif 't' in value:
-        raise ElementPathValueError("%r: 't' separator must be in uppercase" % value)
-    else:
-        ti = value.index('T')
-        if ti < 10:
-            raise ElementPathValueError("%r: months and days must be two digits each" % value)
-        elif len(value) < ti+9 or value[ti+3] != ':' or value[ti+6] != ':' or not value[ti+7: ti+9].isdigit():
-            raise ElementPathValueError("%r: hours, minutes and seconds must be two digits each" % value)
-
-
 @add_metaclass(ABCMeta)
 class AbstractDateTime(object):
     """
@@ -97,11 +73,13 @@ class AbstractDateTime(object):
         elif '%H' not in fmt and (dt.hour or dt.minute or dt.second):
             raise ElementPathValueError("hour, minute, second must be zero for %r instance." % type(self))
         elif '%Y' not in fmt and (dt.year != 1900 or bce):
+            print(dt, fmt, bce)
             raise ElementPathValueError("year must be absent for %r instance." % type(self))
         elif '%m' not in fmt and dt.month != 1:
             raise ElementPathValueError("month must be absent for %r instance." % type(self))
         elif '%d' not in fmt and dt.day != 1:
-            raise ElementPathValueError("day must be absent for %r instance." % type(self))
+            if dt.day != 2 or '%H:%M:%S' not in fmt:
+                raise ElementPathValueError("day must be absent for %r instance." % type(self))
 
         self._dt = dt
         self._fmt = str(fmt)
@@ -118,6 +96,38 @@ class AbstractDateTime(object):
     @property
     def bce(self):
         return self._bce
+
+    @property
+    def year(self):
+        return self._dt.year
+
+    @property
+    def month(self):
+        return self._dt.month
+
+    @property
+    def day(self):
+        return self._dt.day
+
+    @property
+    def hour(self):
+        return self._dt.hour
+
+    @property
+    def minute(self):
+        return self._dt.minute
+
+    @property
+    def second(self):
+        return self._dt.second
+
+    @property
+    def microsecond(self):
+        return self._dt.microsecond
+
+    @property
+    def tzinfo(self):
+        return self._dt.tzinfo
 
     def __repr__(self):
         return '%s(dt=%s, fmt=%r, bce=%r)' % (self.__class__.__name__, repr(self._dt)[9:], self._fmt, self._bce)
@@ -150,7 +160,7 @@ class AbstractDateTime(object):
 
         tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
         dt_part = value if tz_match is None else value[:tz_match.span()[0]]
-        year_zero = '0000' in dt_part
+        year_zero = '0000' in dt_part[:5]
 
         for fmt in cls.formats:
             try:
@@ -165,8 +175,24 @@ class AbstractDateTime(object):
             except ValueError:
                 pass
             else:
-                check_iso8601_format(value, fmt)
+                # Check ISO 8601 format
+                if 't' in value:
+                    raise ElementPathValueError("%r: 't' separator must be in uppercase" % value)
 
+                regex = fmt.replace('%Y', '\d{4}').replace('%m', '(?P<month>\d{1,2})'). \
+                    replace('%d', '(?P<day>\d{1,2})').replace('%H', '(?P<hour>\d{1,2})'). \
+                    replace('%M', '(?P<minute>\d{1,2})').replace('%S', '(?P<second>\d{1,2})'). \
+                    replace('.', '\.').replace('%f', '\d{1,6}')
+
+                match = re.match(regex, value)
+                if match is None:
+                    raise ElementPathValueError("unmatched value %r for format %r" % (value, fmt))
+
+                for k, v in match.groupdict().items():
+                    if len(v) < 2:
+                        raise ElementPathValueError("%r: %s must be two digits" % (k, v))
+
+                # Adapt the value and add timezone info
                 if '24:00:00' in fmt:
                     dt = dt + timedelta(days=1)
                     fmt = fmt.replace('24:00:00', '%H:%M:%S')
@@ -176,9 +202,10 @@ class AbstractDateTime(object):
                 elif tz is not None:
                     dt = dt.replace(tzinfo=tz)
                 elif not PY3:
+                    # In Python 2 add always a tzinfo to perform comparisons with other timezones
                     dt = dt.replace(tzinfo=Timezone('+00:00'))
 
-                if year_zero:
+                if year_zero and '%Y' in fmt:
                     return cls(dt=dt.replace(year=1), fmt=fmt, bce=True)
                 elif fmt.startswith('-%Y'):
                     return cls(dt=dt.replace(year=dt.year + 1), fmt=fmt, bce=True)
@@ -195,7 +222,6 @@ class AbstractDateTime(object):
             return self._dt == other._dt and self._bce == other._bce
         else:
             return self._dt == other and not self._bce
-
 
 
 class DateTime(AbstractDateTime):

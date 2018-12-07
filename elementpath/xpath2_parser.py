@@ -1595,27 +1595,28 @@ def evaluate(self, context=None):
         return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
 
 
-
 @method(function('hours-from-time', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Time)
+    return [] if item is None else item.hour
+
 @method(function('minutes-from-time', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Time)
+    return [] if item is None else item.minute
+
+
 @method(function('seconds-from-time', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Time)
+    return [] if item is None else item.second + item.microsecond / 1000000.0
+
+
+
 @method(function('timezone-from-time', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    if item is None:
-        return []
-    elif not isinstance(item, Duration):
-        self.wrong_type("the argument must be a Duration instance")
-
-    fragment = self.symbol[:self.symbol.index('-')]
-    if fragment == 'hours':
-        return item.seconds // 3600 % 24 if item.seconds >= 0 else -(abs(item.seconds) // 3600 % 24)
-    elif fragment == 'minutes':
-        return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
-    elif fragment == 'seconds':
-        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
-    elif fragment == 'timezone':
-        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+    item = self.get_argument(context, cls=Time)
+    return [] if item is None else item.tzinfo
 
 
 
