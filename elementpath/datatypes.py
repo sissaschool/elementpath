@@ -73,7 +73,6 @@ class AbstractDateTime(object):
         elif '%H' not in fmt and (dt.hour or dt.minute or dt.second):
             raise ElementPathValueError("hour, minute, second must be zero for %r instance." % type(self))
         elif '%Y' not in fmt and (dt.year != 1900 or bce):
-            print(dt, fmt, bce)
             raise ElementPathValueError("year must be absent for %r instance." % type(self))
         elif '%m' not in fmt and dt.month != 1:
             raise ElementPathValueError("month must be absent for %r instance." % type(self))

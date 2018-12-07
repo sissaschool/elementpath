@@ -1542,6 +1542,22 @@ class XPath2ParserTest(XPath1ParserTest):
             'fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', DayTimeDuration(seconds=-18000)
         )
 
+    def test_year_from_date_function(self):
+        self.check_value('fn:year-from-date(xs:date("1999-05-31"))', 1999)
+        self.check_value('fn:year-from-date(xs:date("2000-01-01+05:00"))', 2000)
+
+    def test_month_from_date_function(self):
+        self.check_value('fn:month-from-date(xs:date("1999-05-31-05:00"))', 5)
+        self.check_value('fn:month-from-date(xs:date("2000-01-01+05:00"))', 1)
+
+    def test_day_from_date_function(self):
+        self.check_value('fn:day-from-date(xs:date("1999-05-31-05:00"))', 31)
+        self.check_value('fn:day-from-date(xs:date("2000-01-01+05:00"))', 1)
+
+    def test_timezone_from_date_function(self):
+        self.check_value('fn:timezone-from-date(xs:date("1999-05-31-05:00"))', DayTimeDuration.fromstring('-PT5H'))
+        self.check_value('fn:timezone-from-date(xs:date("2000-06-12Z"))', DayTimeDuration.fromstring('PT0H'))
+
     def test_hours_from_time_function(self):
         self.check_value('fn:hours-from-time(xs:time("11:23:00"))', 11)
         self.check_value('fn:hours-from-time(xs:time("21:23:00"))', 21)
