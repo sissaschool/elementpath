@@ -63,11 +63,13 @@ class AbstractDateTime(object):
     :param dt: the datetime.datetime instance that stores the XSD Date/Time value.
     :param bce: if `True` the date value refers to a BCE (Before Common Era) date.
     """
-    formats = ()
+    formats = ('%Y-%m-%dT%H:%M:%S.%f',)
 
-    def __init__(self, dt, fmt, bce=False):
+    def __init__(self, dt, fmt=None, bce=False):
         if not isinstance(dt, datetime):
             raise ElementPathTypeError("1st argument must be a datetime.datetime instance.")
+        elif fmt is None:
+            fmt = self.formats[0]
         elif fmt not in self.formats:
             raise ElementPathValueError("%r is not a date/time format of %r." % (fmt, type(self)))
         elif '%H' not in fmt and (dt.hour or dt.minute or dt.second):

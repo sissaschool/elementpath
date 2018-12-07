@@ -1766,6 +1766,23 @@ class XPath2ParserTest(XPath1ParserTest):
             root, ElementPathTypeError
         )
 
+    def test_context_functions(self):
+        context = XPathContext(root=self.etree.XML('<A/>'))
+        self.check_value('fn:current-dateTime()', DateTime(context.current_dt), context=context)
+        self.check_value(
+            path='fn:current-date()', context=context,
+            expected=Date(context.current_dt.replace(hour=0, minute=0, second=0, microsecond=0)),
+        )
+        self.check_value(
+            path='fn:current-time()', context=context,
+            expected=Time(context.current_dt.replace(year=1900, month=1, day=1)),
+        )
+        import time
+        self.check_value(
+            path='fn:implicit-timezone()', context=context,
+            expected=Timezone(datetime.timedelta(seconds=time.timezone)),
+        )
+
     def test_error_function(self):
         self.assertRaises(ElementPathError, self.check_value, "fn:error()")
 
