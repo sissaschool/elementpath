@@ -1504,31 +1504,63 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:gYearMonth("2004-2")')
         self.wrong_value('xs:gYearMonth("204-02")')
 
-    def test_from_datetime_functions(self):
+    def test_year_from_datetime_function(self):
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T21:30:00-05:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T19:20:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 2000)
+
+    def test_month_from_datetime_function(self):
         self.check_value('fn:month-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 5)
         self.check_value('fn:month-from-dateTime(xs:dateTime("1999-12-31T19:20:00-05:00"))', 12)
         # self.check_value('fn:month-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
         #                 '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+
+    def test_day_from_datetime_function(self):
         self.check_value('fn:day-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 31)
         self.check_value('fn:day-from-dateTime(xs:dateTime("1999-12-31T20:00:00-05:00"))', 31)
         # self.check_value('fn:day-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
         #                  '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+
+    def test_hours_from_datetime_function(self):
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-05-31T08:20:00-05:00")) ', 8)
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T21:20:00-05:00"))', 21)
         # self.check_value('fn:hours-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
         #                  '"1999-12-31T21:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 2)
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T12:00:00")) ', 12)
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 0)
+
+    def test_minutes_from_datetime_function(self):
         self.check_value('fn:minutes-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 20)
         self.check_value('fn:minutes-from-dateTime(xs:dateTime("1999-05-31T13:30:00+05:30"))', 30)
+
+    def test_seconds_from_datetime_function(self):
         self.check_value('fn:seconds-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 0)
+
+    def test_timezone_from_datetime_function(self):
         self.check_value(
             'fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', DayTimeDuration(seconds=-18000)
         )
+
+    def test_hours_from_time_function(self):
+        self.check_value('fn:hours-from-time(xs:time("11:23:00"))', 11)
+        self.check_value('fn:hours-from-time(xs:time("21:23:00"))', 21)
+        self.check_value('fn:hours-from-time(xs:time("01:23:00+05:00"))', 1)
+        # self.check_value('fn:hours-from-time(fn:adjust-time-to-timezone(xs:time("01:23:00+05:00"), '
+        #                 'xs:dayTimeDuration("PT0S")))', 20)
+        self.check_value('fn:hours-from-time(xs:time("24:00:00"))', 0)
+
+    def test_minutes_from_time_function(self):
+        self.check_value('fn:minutes-from-time(xs:time("13:00:00Z"))', 0)
+        self.check_value('fn:minutes-from-time(xs:time("09:45:10"))', 45)
+
+    def test_seconds_from_time_function(self):
+        self.check_value('fn:seconds-from-time(xs:time("13:20:10.5"))', 10.5)
+        self.check_value('fn:seconds-from-time(xs:time("20:50:10.0"))', 10.0)
+        self.check_value('fn:seconds-from-time(xs:time("03:59:59.000001"))', 59.000001)
+
+    def test_timezone_from_time_function(self):
+        'fn:timezone-from-time(xs:time("13:20:00-05:00")) returns xs:dayTimeDuration whose value is -PT5H.'
 
     def test_duration_constructors(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
