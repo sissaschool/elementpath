@@ -1612,12 +1612,10 @@ def evaluate(self, context=None):
     return [] if item is None else item.second + item.microsecond / 1000000.0
 
 
-
 @method(function('timezone-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
-    return [] if item is None else item.tzinfo
-
+    return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 ###

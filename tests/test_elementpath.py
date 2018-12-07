@@ -1560,7 +1560,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('fn:seconds-from-time(xs:time("03:59:59.000001"))', 59.000001)
 
     def test_timezone_from_time_function(self):
-        'fn:timezone-from-time(xs:time("13:20:00-05:00")) returns xs:dayTimeDuration whose value is -PT5H.'
+        self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))', DayTimeDuration.fromstring('-PT5H'))
 
     def test_duration_constructors(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
