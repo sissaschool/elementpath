@@ -9,9 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+import time
 
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, is_document_node, is_attribute_node
+from .datatypes import Timezone
 
 
 class XPathContext(object):
@@ -66,7 +68,9 @@ class XPathContext(object):
             position=self.position,
             size=self.size,
             axis=None if clear_axis else self.axis,
-            variables=self.variables.copy()
+            variables=self.variables.copy(),
+            current_dt=self.current_dt,
+            timezone=self.timezone,
         )
         obj._parent_map = self._parent_map
         return obj

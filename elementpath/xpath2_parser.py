@@ -12,13 +12,15 @@ import sys
 import decimal
 import math
 import codecs
+import datetime
+import time
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
 
 from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
 from .exceptions import ElementPathTypeError, ElementPathMissingContextError
-from .datatypes import DateTime, Date, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
+from .datatypes import DateTime, Date, Time, Timezone, GregorianDay, GregorianMonth, GregorianMonthDay, \
     GregorianYear, GregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
@@ -117,6 +119,9 @@ class XPath2Parser(XPath1Parser):
         # Functions Related to QNames (QName function is also a constructor)
         'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
         'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes', 'resolve-QName',
+
+        # Context functions
+        'current-dateTime', 'current-date', 'current-time', 'implicit-timezone',
 
         # TODO: Node set functions
         # 'root',
@@ -1566,10 +1571,7 @@ def evaluate(self, context=None):
 @method(function('timezone-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    if item is None:
-        return []
-    offset = item.dt.tzinfo.offset
-    return DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
+    return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('year-from-date', nargs=1))
@@ -1719,7 +1721,35 @@ def evaluate(self, context=None):
             return context.item[1]
 
 
-##
+###
+# Context functions
+@method(function('current-dateTime', nargs=0))
+def evaluate(self, context=None):
+    if context is not None:
+        return DateTime(context.current_dt)
+
+
+@method(function('current-date', nargs=0))
+def evaluate(self, context=None):
+    if context is not None:
+        return Date(context.current_dt.replace(hour=0, minute=0, second=0, microsecond=0))
+
+
+@method(function('current-time', nargs=0))
+def evaluate(self, context=None):
+    if context is not None:
+        return Time(context.current_dt.replace(year=1900, month=1, day=1))
+
+
+@method(function('implicit-timezone', nargs=0))
+def evaluate(self, context=None):
+    if context is not None and context.timezone is not None:
+        return context.timezone
+    else:
+        return Timezone(datetime.timedelta(seconds=time.timezone))
+
+
+###
 # The error function (Ref: https://www.w3.org/TR/xpath20/#func-error)
 @method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
