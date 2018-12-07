@@ -1572,33 +1572,35 @@ def evaluate(self, context=None):
     return DayTimeDuration(seconds=offset.seconds + offset.days * 86400)
 
 
-
 @method(function('year-from-date', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Date)
+    return [] if item is None else item.year
+
+
 @method(function('month-from-date', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Date)
+    return [] if item is None else item.month
+
+
 @method(function('day-from-date', nargs=1))
+def evaluate(self, context=None):
+    item = self.get_argument(context, cls=Date)
+    return [] if item is None else item.day
+
+
 @method(function('timezone-from-date', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    if item is None:
-        return []
-    elif not isinstance(item, Duration):
-        self.wrong_type("the argument must be a Duration instance")
-
-    fragment = self.symbol[:self.symbol.index('-')]
-    if fragment == 'years':
-        return item.months // 12 if item.months >= 0 else -(abs(item.months) // 12)
-    elif fragment == 'months':
-        return item.months % 12 if item.months >= 0 else -(abs(item.months) % 12)
-    elif fragment == 'days':
-        return item.seconds // 86400 if item.seconds >= 0 else -(abs(item.seconds) // 86400)
-    elif fragment == 'timezone':
-        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+    item = self.get_argument(context, cls=Date)
+    return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('hours-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
     return [] if item is None else item.hour
+
 
 @method(function('minutes-from-time', nargs=1))
 def evaluate(self, context=None):
