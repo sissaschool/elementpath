@@ -24,7 +24,7 @@ from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeE
     ElementPathValueError, ElementPathMissingContextError, ElementPathKeyError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
-from .datatypes import DateTime
+from .datatypes import Date, Time, Timezone, DayTimeDuration
 from .tdop_parser import Token
 
 
@@ -94,7 +94,7 @@ class XPathToken(Token):
         return super(XPathToken, self).source
 
     ###
-    # Context helpers
+    # Context manipulation helpers
     def get_argument(self, context, index=0, default_to_context=False, cls=None):
         """
         Get the first argument of a function token. A zero length sequence is converted to
@@ -103,7 +103,7 @@ class XPathToken(Token):
 
         :param context: the dynamic context.
         :param index: an index for select the argument to be got, the first for default.
-        :param default_to_context: If set to `True` and the argument is missing the item \
+        :param default_to_context: if set to `True` and the argument is missing the item \
         of the dynamic context is returned.
         :param cls: if a type is provided performs a type checking on item.
         """
@@ -112,7 +112,8 @@ class XPathToken(Token):
         except IndexError:
             if default_to_context:
                 if context is not None:
-                    if cls is not None and not isinstance(context.item, cls):
+                    item = context.item if context.item is not None else context.root
+                    if cls is not None and not isinstance(item, cls):
                         self.wrong_type("the context item is not a %r instance" % cls)
                     return context.item
                 else:
@@ -125,10 +126,9 @@ class XPathToken(Token):
                 elif self.parser.version > '1.0':
                     self.wrong_context_type("a sequence of more than one item is not allowed as argument")
                 else:
+                    if cls is not None and not isinstance(item, cls):
+                        self.wrong_type("the argument is not a %r instance" % cls)
                     break
-
-            if item is not None and cls is not None and not isinstance(item, cls):
-                self.wrong_type("the argument is not a %r instance" % cls)
             return item
 
     def get_comparison_data(self, context):
@@ -193,26 +193,29 @@ class XPathToken(Token):
             return results
 
     ###
-    # Decoding helpers
-    def integer(self, value, lower_bound=None, higher_bound=None):
+    # Data construction helpers
+    def integer(self, context, lower_bound=None, higher_bound=None):
         """
-        Decode a value to an integer.
+        XSD integer types constructor helper.
 
-        :param value: a string or another basic numeric type instance.
+        :param context: the XPath dynamic context.
         :param lower_bound: if not `None` the result must be higher or equal than its value.
         :param higher_bound: if not `None` the result must be lesser than its value.
-        :return: an `int` instance.
+        :return: an empty list if the argument is the empty sequence or an `int` instance.
         :raise: an `ElementPathValueError` if the value is not decodable to an integer or if \
         the value is out of bounds.
         """
-        if isinstance(value, string_base_type):
+        item = self.get_argument(context)
+        if item is None:
+            return []
+        elif isinstance(item, string_base_type):
             try:
-                result = int(float(value))
+                result = int(float(item))
             except ValueError:
-                raise self.error('FORG0001', 'could not convert string to integer: %r' % value)
+                raise self.error('FORG0001', 'could not convert string to integer: %r' % item)
         else:
             try:
-                result = int(value)
+                result = int(item)
             except ValueError as err:
                 raise self.error('FORG0001', str(err))
             except TypeError as err:
@@ -224,14 +227,76 @@ class XPathToken(Token):
             raise self.error('FORG0001', "value %d is too high" % result)
         return result
 
-    def datetime(self, value, cls, context=None):
-        tz = context.timezone if context is not None else None
+    def datetime(self, context, cls):
+        """
+        XSD datetime types constructor helper.
+
+        :param context: the XPath dynamic context.
+        :param cls: the class to use for building the instance.
+        :return: an empty list if the argument is the empty sequence or an XSD date/time type instance.
+        """
+        item = self.get_argument(context, cls=string_base_type)
+        if item is None:
+            return []
         try:
-            return cls.fromstring(value, tz)
+            return cls.fromstring(item, tz=context.timezone if context is not None else None)
         except TypeError as err:
             raise self.error('FORG0006', str(err))
         except ValueError as err:
             raise self.error('FOCA0002', str(err))
+
+    def duration(self, context, cls):
+        """
+        XSD duration types constructor helper.
+
+        :param context: the XPath dynamic context.
+        :param cls: the class to use for building the instance.
+        :return: an empty list if the argument is the empty sequence or an XSD duration type instance.
+        """
+        item = self.get_argument(context, cls=string_base_type)
+        if item is None:
+            return []
+        try:
+            return cls.fromstring(item)
+        except TypeError as err:
+            raise self.error('FORG0006', str(err))
+        except ValueError as err:
+            raise self.error('FOCA0002', str(err))
+
+    def adjust_datetime(self, context, cls):
+        """
+        XSD datetime adjust function helper.
+
+        :param context: the XPath dynamic context.
+        :param cls: the XSD datetime subclass to use.
+        :return: an empty list if there is only one argument that is the empty sequence \
+        or the adjusted XSD datetime instance.
+        """
+        if len(self) == 1:
+            item = self.get_argument(context, cls=cls)
+            if item is None:
+                return []
+            timezone = getattr(context, 'timezone', None)
+        else:
+            item = self.get_argument(context=None, cls=cls)  # don't use implicit timezone
+            timezone = self.get_argument(context, 1, cls=DayTimeDuration)
+            if timezone is not None:
+                timezone = Timezone.fromduration(timezone)
+
+        if item.tzinfo is not None and timezone is not None:
+            item.dt += timezone.offset - item.tzinfo.offset
+            item.tzinfo = timezone
+            if issubclass(cls, Date):
+                item.dt = item.dt.replace(hour=0, minute=0)
+            elif issubclass(cls, Time) and item.dt.day != 1:
+                item.dt = item.dt.replace(day=1)
+
+        elif item.tzinfo is None:
+            if timezone is not None:
+                item.tzinfo = timezone
+        elif timezone is None:
+            item.tzinfo = None
+        return item
 
     ###
     # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)

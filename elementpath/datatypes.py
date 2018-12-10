@@ -90,6 +90,10 @@ class AbstractDateTime(object):
     def dt(self):
         return self._dt
 
+    @dt.setter
+    def dt(self, dt):
+        self._dt = dt
+
     @property
     def fmt(self):
         return self._fmt
@@ -130,6 +134,10 @@ class AbstractDateTime(object):
     def tzinfo(self):
         return self._dt.tzinfo
 
+    @tzinfo.setter
+    def tzinfo(self, tz):
+        self._dt = self._dt.replace(tzinfo=tz)
+
     def __repr__(self):
         return '%s(dt=%s, fmt=%r, bce=%r)' % (self.__class__.__name__, repr(self._dt)[9:], self._fmt, self._bce)
 
@@ -145,22 +153,23 @@ class AbstractDateTime(object):
         return str(self)
 
     @classmethod
-    def fromstring(cls, value, tz=None):
+    def fromstring(cls, text, tz=None, version='1.1'):
         """
         Creates an XSD date/time instance from a string formatted value, trying the
         class formats list.
 
-        :param value: a string containing a formatted date/time specification.
-        :param tz: optional timezone information, must be a `Timezone` instance.
+        :param text: a string containing an XSD formatted date/time specification.
+        :param tz: optional implicit timezone information, must be a `Timezone` instance.
+        :param version: the XSD version to use for parsing the string.
         :return: an AbstractDateTime concrete subclass instance.
         """
-        if not isinstance(value, string_base_type):
-            raise ElementPathTypeError('1st argument has an invalid type %r' % type(value))
+        if not isinstance(text, string_base_type):
+            raise ElementPathTypeError('1st argument has an invalid type %r' % type(text))
         elif tz and not isinstance(tz, Timezone):
-            raise ElementPathTypeError('2nd argument has an invalid type %r' % type(value))
+            raise ElementPathTypeError('2nd argument has an invalid type %r' % type(text))
 
-        tz_match = ISO_TIMEZONE_RE_PATTERN.search(value)
-        dt_part = value if tz_match is None else value[:tz_match.span()[0]]
+        tz_match = ISO_TIMEZONE_RE_PATTERN.search(text)
+        dt_part = text if tz_match is None else text[:tz_match.span()[0]]
         year_zero = '0000' in dt_part[:5]
 
         for fmt in cls.formats:
@@ -176,18 +185,18 @@ class AbstractDateTime(object):
             except ValueError:
                 pass
             else:
-                # Check ISO 8601 format
-                if 't' in value:
-                    raise ElementPathValueError("%r: 't' separator must be in uppercase" % value)
+                # Check ISO 8601 format restrictions
+                if 't' in text:
+                    raise ElementPathValueError("%r: 't' separator must be in uppercase" % text)
 
-                regex = fmt.replace('%Y', '\d{4}').replace('%m', '(?P<month>\d{1,2})'). \
-                    replace('%d', '(?P<day>\d{1,2})').replace('%H', '(?P<hour>\d{1,2})'). \
-                    replace('%M', '(?P<minute>\d{1,2})').replace('%S', '(?P<second>\d{1,2})'). \
-                    replace('.', '\.').replace('%f', '\d{1,6}')
+                regex = fmt.replace('%Y', r'\d{4}').replace('%m', r'(?P<month>\d{1,2})'). \
+                    replace('%d', r'(?P<day>\d{1,2})').replace('%H', r'(?P<hour>\d{1,2})'). \
+                    replace('%M', r'(?P<minute>\d{1,2})').replace('%S', r'(?P<second>\d{1,2})'). \
+                    replace('.', r'\.').replace('%f', r'\d{1,6}')
 
-                match = re.match(regex, value)
+                match = re.match(regex, text)
                 if match is None:
-                    raise ElementPathValueError("unmatched value %r for format %r" % (value, fmt))
+                    raise ElementPathValueError("unmatched value %r for format %r" % (text, fmt))
 
                 for k, v in match.groupdict().items():
                     if len(v) < 2:
@@ -199,24 +208,32 @@ class AbstractDateTime(object):
                     fmt = fmt.replace('24:00:00', '%H:%M:%S')
 
                 if tz_match is not None:
-                    dt = dt.replace(tzinfo=Timezone(tz_match.group()))
+                    dt = dt.replace(tzinfo=Timezone.fromstring(tz_match.group()))
                 elif tz is not None:
                     dt = dt.replace(tzinfo=tz)
                 elif not PY3:
                     # In Python 2 add always a tzinfo to perform comparisons with other timezones
-                    dt = dt.replace(tzinfo=Timezone('+00:00'))
+                    dt = dt.replace(tzinfo=Timezone.fromstring('+00:00'))
 
                 if year_zero and '%Y' in fmt:
+                    if version == '1.0':
+                        raise ElementPathValueError('%r: the year "0000" is an illegal year value for XSD 1.0' % text)
                     return cls(dt=dt.replace(year=1), fmt=fmt, bce=True)
                 elif fmt.startswith('-%Y'):
-                    return cls(dt=dt.replace(year=dt.year + 1), fmt=fmt, bce=True)
+                    if version == '1.0':
+                        return cls(dt, fmt, bce=True)
+                    else:
+                        return cls(dt=dt.replace(year=dt.year + 1), fmt=fmt, bce=True)
                 else:
                     return cls(dt, fmt)
         else:
             if len(cls.formats) == 1:
-                raise ElementPathValueError('Invalid value %r for datetime format %r' % (value, cls.formats[0]))
+                raise ElementPathValueError('Invalid value %r for datetime format %r' % (text, cls.formats[0]))
             else:
-                raise ElementPathValueError('Invalid value %r for datetime formats %r' % (value, cls.formats))
+                raise ElementPathValueError('Invalid value %r for datetime formats %r' % (text, cls.formats))
+
+    def replace(self, **kwargs):
+        return type(self)(self._dt.replace(**kwargs), self._fmt, self._bce)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -306,17 +323,16 @@ class Duration(object):
         return str(self)
 
     @classmethod
-    def fromstring(cls, value):
+    def fromstring(cls, text):
         """
         Creates a Duration instance from a formatted XSD duration string.
 
-        :param value: the formatted ISO 8601 duration, with no week fragment and an optional decimal \
-        part only for seconds fragment. If value is `None` creates a zero duration instance.
-        :return: a new Duration instance.
+        :param text: an ISO 8601 representation without week fragment and an optional decimal part \
+        only for seconds fragment.
         """
-        match = XSD_DURATION_PATTERN.search(value)
+        match = XSD_DURATION_PATTERN.search(text)
         if match is None:
-            raise ElementPathValueError('%r is not an xs:duration value.' % value)
+            raise ElementPathValueError('%r is not an xs:duration value.' % text)
 
         sign, years, months, days, hours, minutes, seconds = match.groups()
         seconds = decimal.Decimal(seconds or 0)
@@ -463,22 +479,28 @@ class Timezone(tzinfo):
 
     def __init__(self, offset):
         super(Timezone, self).__init__()
-        if offset == 'Z':
-            offset = timedelta(0)
-        elif isinstance(offset, string_base_type):
-            try:
-                hours, minutes = offset.split(':')
-                hours = int(hours)
-                minutes = int(minutes) if hours >= 0 else -int(minutes)
-                offset = timedelta(hours=hours, minutes=minutes)
-            except ValueError:
-                raise ElementPathValueError("offset is not an XSD timezone formatted string")
-        elif not isinstance(offset, timedelta):
+        if not isinstance(offset, timedelta):
             raise ElementPathTypeError("offset must be a timedelta or an XSD timezone formatted string")
-
         if offset < self._minoffset or offset > self._maxoffset:
             raise ElementPathValueError("offset must be between -14:00 and +14:00")
         self.offset = offset
+
+    @classmethod
+    def fromstring(cls, text):
+        if text == 'Z':
+            return cls(timedelta(0))
+        elif isinstance(text, string_base_type):
+            try:
+                hours, minutes = text.split(':')
+                hours = int(hours)
+                minutes = int(minutes) if hours >= 0 else -int(minutes)
+                return cls(timedelta(hours=hours, minutes=minutes))
+            except ValueError:
+                raise ElementPathValueError("%r: not an XSD timezone formatted string" % text)
+
+    @classmethod
+    def fromduration(cls, duration):
+        return cls(timedelta(seconds=int(duration.seconds)))
 
     def __getinitargs__(self):
         return self.offset,

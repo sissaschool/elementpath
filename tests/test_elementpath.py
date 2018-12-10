@@ -9,6 +9,16 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+#
+# Note: Many tests are built using the examples of the XPath standards,
+#       published by W3C under the W3C Document License.
+#
+#       References:
+#           http://www.w3.org/TR/1999/REC-xpath-19991116/
+#           http://www.w3.org/TR/2010/REC-xpath20-20101214/
+#           http://www.w3.org/TR/2010/REC-xpath-functions-20101214/
+#           https://www.w3.org/Consortium/Legal/2015/doc-license
+#
 import unittest
 import sys
 import datetime
@@ -139,9 +149,8 @@ class DateTimeTypesTest(unittest.TestCase):
                                        "fmt='-%Y-%m-%d', bce=True)")
             self.assertEqual(str(dt), '-0100-04-13 00:00:00+00:00')
 
-
     def test_eq(self):
-        tz = Timezone('-05:00')
+        tz = Timezone.fromstring('-05:00')
         dt = DateTime.fromstring
 
         self.assertTrue(dt("2002-04-02T12:00:00-01:00") == dt("2002-04-02T17:00:00+04:00"))
@@ -308,23 +317,23 @@ class DurationTypesTest(unittest.TestCase):
 class TimezoneTypeTest(unittest.TestCase):
 
     def test_init_format(self):
-        self.assertEqual(Timezone('Z').offset, datetime.timedelta(0))
-        self.assertEqual(Timezone('00:00').offset, datetime.timedelta(0))
-        self.assertEqual(Timezone('+00:00').offset, datetime.timedelta(0))
-        self.assertEqual(Timezone('-00:00').offset, datetime.timedelta(0))
-        self.assertEqual(Timezone('-0:0').offset, datetime.timedelta(0))
-        self.assertEqual(Timezone('+05:15').offset, datetime.timedelta(hours=5, minutes=15))
-        self.assertEqual(Timezone('-11:00').offset, datetime.timedelta(hours=-11))
-        self.assertEqual(Timezone('+13:59').offset, datetime.timedelta(hours=13, minutes=59))
-        self.assertEqual(Timezone('-13:59').offset, datetime.timedelta(hours=-13, minutes=-59))
-        self.assertEqual(Timezone('+14:00').offset, datetime.timedelta(hours=14))
-        self.assertEqual(Timezone('-14:00').offset, datetime.timedelta(hours=-14))
+        self.assertEqual(Timezone.fromstring('Z').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone.fromstring('00:00').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone.fromstring('+00:00').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone.fromstring('-00:00').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone.fromstring('-0:0').offset, datetime.timedelta(0))
+        self.assertEqual(Timezone.fromstring('+05:15').offset, datetime.timedelta(hours=5, minutes=15))
+        self.assertEqual(Timezone.fromstring('-11:00').offset, datetime.timedelta(hours=-11))
+        self.assertEqual(Timezone.fromstring('+13:59').offset, datetime.timedelta(hours=13, minutes=59))
+        self.assertEqual(Timezone.fromstring('-13:59').offset, datetime.timedelta(hours=-13, minutes=-59))
+        self.assertEqual(Timezone.fromstring('+14:00').offset, datetime.timedelta(hours=14))
+        self.assertEqual(Timezone.fromstring('-14:00').offset, datetime.timedelta(hours=-14))
 
-        self.assertRaises(ValueError, Timezone, '-15:00')
-        self.assertRaises(ValueError, Timezone, '-14:01')
-        self.assertRaises(ValueError, Timezone, '+14:01')
-        self.assertRaises(ValueError, Timezone, '+10')
-        self.assertRaises(ValueError, Timezone, '+10:00:00')
+        self.assertRaises(ValueError, Timezone.fromstring, '-15:00')
+        self.assertRaises(ValueError, Timezone.fromstring, '-14:01')
+        self.assertRaises(ValueError, Timezone.fromstring, '+14:01')
+        self.assertRaises(ValueError, Timezone.fromstring, '+10')
+        self.assertRaises(ValueError, Timezone.fromstring, '+10:00:00')
 
     def test_init_timedelta(self):
         td0 = datetime.timedelta(0)
@@ -339,8 +348,8 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertRaises(TypeError, Timezone, 0)
 
     def test_as_string(self):
-        self.assertEqual(str(Timezone('+05:00')), 'UTC+05:00')
-        self.assertEqual(str(Timezone('-13:15')), 'UTC-13:15')
+        self.assertEqual(str(Timezone.fromstring('+05:00')), 'UTC+05:00')
+        self.assertEqual(str(Timezone.fromstring('-13:15')), 'UTC-13:15')
 
 
 class XPath1ParserTest(unittest.TestCase):
@@ -1766,6 +1775,65 @@ class XPath2ParserTest(XPath1ParserTest):
             root, ElementPathTypeError
         )
 
+    def test_adjust_datetime_to_timezone_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
+                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"))',
+                         DateTime.fromstring('2002-03-07T12:00:00-05:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"))',
+                         DateTime.fromstring('2002-03-07T10:00:00'))
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"))',
+                         DateTime.fromstring('2002-03-07T10:00:00-05:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"), $tz)',
+                         DateTime.fromstring('2002-03-07T10:00:00-10:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), $tz)',
+                         DateTime.fromstring('2002-03-07T07:00:00-10:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), '
+                         'xs:dayTimeDuration("PT10H"))', DateTime.fromstring('2002-03-08T03:00:00+10:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T00:00:00+01:00"), '
+                         'xs:dayTimeDuration("-PT8H"))', DateTime.fromstring('2002-03-06T15:00:00-08:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"), ())',
+                         DateTime.fromstring('2002-03-07T10:00:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), ())',
+                         DateTime.fromstring('2002-03-07T10:00:00'), context)
+
+    def test_adjust_date_to_timezone_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
+                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"))',
+                         Date.fromstring('2002-03-07-05:00'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"))',
+                         Date.fromstring('2002-03-07-05:00'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"), $tz)',
+                         Date.fromstring('2002-03-07-10:00'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"), ())',
+                         Date.fromstring('2002-03-07'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), ())',
+                         Date.fromstring('2002-03-07'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), $tz)',
+                         Date.fromstring('2002-03-06-10:00'), context)
+
+    def test_adjust_time_to_timezone_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
+                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"))',
+                         Time.fromstring('10:00:00-05:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"))',
+                         Time.fromstring('12:00:00-05:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"), $tz)',
+                         Time.fromstring('10:00:00-10:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), $tz)',
+                         Time.fromstring('07:00:00-10:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"), ())',
+                         Time.fromstring('10:00:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), ())',
+                         Time.fromstring('10:00:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), xs:dayTimeDuration("PT10H"))',
+                         Time.fromstring('03:00:00+10:00'), context)
+
     def test_context_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
         self.check_value('fn:current-dateTime()', DateTime(context.current_dt), context=context)
@@ -1782,6 +1850,9 @@ class XPath2ParserTest(XPath1ParserTest):
             path='fn:implicit-timezone()', context=context,
             expected=Timezone(datetime.timedelta(seconds=time.timezone)),
         )
+
+    def test_root_function(self):
+        pass
 
     def test_error_function(self):
         self.assertRaises(ElementPathError, self.check_value, "fn:error()")

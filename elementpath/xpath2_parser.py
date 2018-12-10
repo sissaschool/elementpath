@@ -113,8 +113,8 @@ class XPath2Parser(XPath1Parser):
         # Functions for extracting fragments from xs:time
         'hours-from-time', 'minutes-from-time', 'seconds-from-time', 'timezone-from-time',
 
-        # TODO: Timezone adjustment functions
-        # 'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
+        # Timezone adjustment functions
+        'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
 
         # Functions Related to QNames (QName function is also a constructor)
         'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
@@ -123,8 +123,8 @@ class XPath2Parser(XPath1Parser):
         # Context functions
         'current-dateTime', 'current-date', 'current-time', 'implicit-timezone',
 
-        # TODO: Node set functions
-        # 'root',
+        # Node set functions
+        'root',
 
         # Error function
         'error',
@@ -950,80 +950,67 @@ def evaluate(self, context=None):
 
 @method(constructor('integer'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item)
+    return self.integer(context)
 
 
 @method(constructor('nonNegativeInteger'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, 0)
+    return self.integer(context, 0)
 
 
 @method(constructor('positiveInteger'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, 1)
+    return self.integer(context, 1)
 
 
 @method(constructor('nonPositiveInteger'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, higher_bound=1)
+    return self.integer(context, higher_bound=1)
 
 
 @method(constructor('negativeInteger'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, higher_bound=0)
+    return self.integer(context, higher_bound=0)
 
 
 @method(constructor('long'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, -2**127, 2**127)
+    return self.integer(context, -2**127, 2**127)
 
 
 @method(constructor('int'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, -2**63, 2**63)
+    return self.integer(context, -2**63, 2**63)
 
 
 @method(constructor('short'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, -2**15, 2**15)
+    return self.integer(context, -2**15, 2**15)
 
 
 @method(constructor('byte'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, -2**7, 2**7)
+    return self.integer(context, -2**7, 2**7)
 
 
 @method(constructor('unsignedLong'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, 0, 2**128)
+    return self.integer(context, 0, 2**128)
 
 
 @method(constructor('unsignedInt'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, 0, 2**64)
+    return self.integer(context, 0, 2**64)
 
 
 @method(constructor('unsignedShort'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, 0, 2**16)
+    return self.integer(context, 0, 2**16)
 
 
 @method(constructor('unsignedByte'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.integer(item, 0, 2**8)
+    return self.integer(context, 0, 2**8)
 
 
 @method(constructor('double'))
@@ -1038,68 +1025,57 @@ def evaluate(self, context=None):
 
 @method(constructor('dateTime'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, DateTime, context)
+    return self.datetime(context, DateTime)
 
 
 @method(constructor('date'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, Date, context)
+    return self.datetime(context, Date)
 
 
 @method(constructor('gDay'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, GregorianDay, context)
+    return self.datetime(context, GregorianDay)
 
 
 @method(constructor('gMonth'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, GregorianMonth, context)
+    return self.datetime(context, GregorianMonth)
 
 
 @method(constructor('gMonthDay'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, GregorianMonthDay, context)
+    return self.datetime(context, GregorianMonthDay)
 
 
 @method(constructor('gYear'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, GregorianYear, context)
+    return self.datetime(context, GregorianYear)
 
 
 @method(constructor('gYearMonth'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, GregorianYearMonth, context)
+    return self.datetime(context, GregorianYearMonth)
 
 
 @method(constructor('time'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else self.datetime(item, Time, context)
+    return self.datetime(context, Time)
 
 
 @method(constructor('duration'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else Duration.fromstring(item)
+    return self.duration(context, Duration)
 
 
 @method(constructor('yearMonthDuration'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else YearMonthDuration.fromstring(item)
+    return self.duration(context, YearMonthDuration)
 
 
 @method(constructor('dayTimeDuration'))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    return [] if item is None else DayTimeDuration.fromstring(item)
+    return self.duration(context, DayTimeDuration)
 
 
 @method(constructor('base64Binary'))
@@ -1722,6 +1698,23 @@ def evaluate(self, context=None):
 
 
 ###
+# Timezone adjustment functions
+@method(function('adjust-dateTime-to-timezone', nargs=(1, 2)))
+def evaluate(self, context=None):
+    return self.adjust_datetime(context, DateTime)
+
+
+@method(function('adjust-date-to-timezone', nargs=(1, 2)))
+def evaluate(self, context=None):
+    return self.adjust_datetime(context, Date)
+
+
+@method(function('adjust-time-to-timezone', nargs=(1, 2)))
+def evaluate(self, context=None):
+    return self.adjust_datetime(context, Time)
+
+
+###
 # Context functions
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
@@ -1747,6 +1740,25 @@ def evaluate(self, context=None):
         return context.timezone
     else:
         return Timezone(datetime.timedelta(seconds=time.timezone))
+
+
+###
+# The root function (Ref: https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-root)
+@method(function('root', nargs=(0, 1)))
+def evaluate(self, context=None):
+    if self:
+        item = self.get_argument(context)
+    elif context is None:
+        raise self.error('XPDY0002')
+    else:
+        item = context.item
+
+    if item is None:
+        return []
+    elif is_xpath_node(item):
+        return item
+    else:
+        raise self.error('XPTY0004')
 
 
 ###
