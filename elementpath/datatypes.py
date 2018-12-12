@@ -204,7 +204,8 @@ class AbstractDateTime(object):
 
                 # Adapt the value and add timezone info
                 if '24:00:00' in fmt:
-                    dt = dt + timedelta(days=1)
+                    if '%d' in fmt:
+                        dt += timedelta(days=1)
                     fmt = fmt.replace('24:00:00', '%H:%M:%S')
 
                 if tz_match is not None:
@@ -235,6 +236,16 @@ class AbstractDateTime(object):
     def replace(self, **kwargs):
         return type(self)(self._dt.replace(**kwargs), self._fmt, self._bce)
 
+    def _get_operands(self, other):
+        if self.dt.tzinfo is other.tzinfo:
+            return self.dt, other.dt
+        elif self.tzinfo is None:
+            return self.dt.replace(tzinfo=Timezone(timedelta(0))), other.dt
+        elif other.tzinfo is None:
+            return self.dt, other.dt.replace(tzinfo=Timezone(timedelta(0)))
+        else:
+            return self.dt, other.dt
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self._dt == other._dt and self._bce == other._bce
@@ -247,9 +258,26 @@ class DateTime(AbstractDateTime):
     formats = ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT24:00:00',
                '-%Y-%m-%dT%H:%M:%S', '-%Y-%m-%dT%H:%M:%S.%f', '-%Y-%m-%dT24:00:00')
 
+    def __add__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        return DayTimeDuration(seconds=self.seconds + other.seconds)
+
+    def __sub__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        delta = operator.sub(*self._get_operands(other))
+        return DayTimeDuration(seconds=delta.days * 86400 + delta.seconds)
+
 
 class Date(AbstractDateTime):
     formats = ('%Y-%m-%d', '-%Y-%m-%d')
+
+    def __sub__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        delta = operator.sub(*self._get_operands(other))
+        return DayTimeDuration(seconds=delta.days * 86400 + delta.seconds)
 
 
 class GregorianDay(AbstractDateTime):
@@ -274,6 +302,12 @@ class GregorianYearMonth(AbstractDateTime):
 
 class Time(AbstractDateTime):
     formats = ('%H:%M:%S', '%H:%M:%S.%f', '24:00:00')
+
+    def __sub__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        delta = operator.sub(*self._get_operands(other))
+        return DayTimeDuration(seconds=delta.days * 86400 + delta.seconds)
 
 
 class Duration(object):

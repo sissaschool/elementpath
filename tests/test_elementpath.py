@@ -1587,6 +1587,34 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_timezone_from_time_function(self):
         self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))', DayTimeDuration.fromstring('-PT5H'))
 
+    def test_subtract_datetimes(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
+        self.check_value('xs:dateTime("2000-10-30T06:12:00") - xs:dateTime("1999-11-28T09:00:00Z")',
+                         DayTimeDuration.fromstring('P337DT2H12M'), context)
+        self.check_value('xs:dateTime("2000-10-30T06:12:00") - xs:dateTime("1999-11-28T09:00:00Z")',
+                         DayTimeDuration.fromstring('P336DT21H12M'))
+
+    def test_subtract_dates(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('Z'))
+        self.check_value('xs:date("2000-10-30") - xs:date("1999-11-28")',
+                         DayTimeDuration.fromstring('P337D'), context)
+        context.timezone = Timezone.fromstring('+05:00')
+        self.check_value('xs:date("2000-10-30") - xs:date("1999-11-28Z")',
+                         DayTimeDuration.fromstring('P336DT19H'), context)
+        self.check_value('xs:date("2000-10-15-05:00") - xs:date("2000-10-10+02:00")',
+                         DayTimeDuration.fromstring('P5DT7H'))
+
+    def test_subtract_times(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
+        self.check_value('xs:time("11:12:00Z") - xs:time("04:00:00")',
+                         DayTimeDuration.fromstring('PT2H12M'), context)
+        self.check_value('xs:time("11:00:00-05:00") - xs:time("21:30:00+05:30")',
+                         DayTimeDuration.fromstring('PT0S'), context)
+        self.check_value('xs:time("17:00:00-06:00") - xs:time("08:00:00+09:00")',
+                         DayTimeDuration.fromstring('PT24H'), context)
+        self.check_value('xs:time("24:00:00") - xs:time("23:59:59")',
+                         DayTimeDuration.fromstring('-PT23H59M59S'), context)
+
     def test_duration_constructors(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
         self.check_value('xs:duration("P3Y5M1DT1H")', (41, 90000))
