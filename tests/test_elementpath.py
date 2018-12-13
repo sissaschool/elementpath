@@ -172,7 +172,7 @@ class DateTimeTypesTest(unittest.TestCase):
 
 class DurationTypesTest(unittest.TestCase):
 
-    def test_month2day_function(self):
+    def test_months2days_function(self):
         # xs:duration ordering related tests
         self.assertEqual(months2days(year=1696, month=9, month_delta=0), 0)
         self.assertEqual(months2days(1696, 9, 1), 30)
@@ -230,6 +230,11 @@ class DurationTypesTest(unittest.TestCase):
         self.assertEqual(months2days(1000, 4, 24), 730)
         self.assertEqual(months2days(1000, 4, -1), -31)
         self.assertEqual(months2days(1000, 4, -24), -730)
+
+        self.assertEqual(months2days(2001, 10, -12), -365)
+        self.assertEqual(months2days(2000, 10, -12), -366)
+        self.assertEqual(months2days(2000, 2, -12), -365)
+        self.assertEqual(months2days(2000, 3, -12), -366)
 
     def test_init_fromstring(self):
         self.assertIsInstance(Duration.fromstring('P1Y'), Duration)
@@ -1614,6 +1619,46 @@ class XPath2ParserTest(XPath1ParserTest):
                          DayTimeDuration.fromstring('PT24H'), context)
         self.check_value('xs:time("24:00:00") - xs:time("23:59:59")',
                          DayTimeDuration.fromstring('-PT23H59M59S'), context)
+
+    def test_add_year_month_duration_to_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") + xs:yearMonthDuration("P1Y2M")',
+                         DateTime.fromstring("2001-12-30T11:12:00"))
+
+    def test_add_day_time_duration_to_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") + xs:dayTimeDuration("P3DT1H15M")',
+                         DateTime.fromstring("2000-11-02T12:27:00"))
+
+    def test_subtract_year_month_duration_from_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") - xs:yearMonthDuration("P0Y2M")',
+                         DateTime.fromstring("2000-08-30T11:12:00"))
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") - xs:yearMonthDuration("P1Y2M")',
+                         DateTime.fromstring("1999-08-30T11:12:00"))
+
+    def test_subtract_day_time_duration_from_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") - xs:dayTimeDuration("P3DT1H15M")',
+                         DateTime.fromstring("2000-10-27T09:57:00"))
+
+    def test_add_year_month_duration_to_date(self):
+        self.check_value('xs:date("2000-10-30") + xs:yearMonthDuration("P1Y2M")', Date.fromstring('2001-12-30'))
+
+    def test_subtract_year_month_duration_from_date(self):
+        self.check_value('xs:date("2000-10-30") - xs:yearMonthDuration("P1Y2M")', Date.fromstring('1999-08-30'))
+        self.check_value('xs:date("2000-02-29Z") - xs:yearMonthDuration("P1Y")', Date.fromstring('1999-02-28Z'))
+        self.check_value('xs:date("2000-10-31-05:00") - xs:yearMonthDuration("P1Y1M")',
+                         Date.fromstring('1999-09-30-05:00'))
+
+    def test_subtract_day_time_duration_from_date(self):
+        self.check_value('xs:date("2000-10-30") - xs:dayTimeDuration("P3DT1H15M")', Date.fromstring('2000-10-26'))
+
+    def test_add_day_time_duration_to_time(self):
+        self.check_value('xs:time("11:12:00") + xs:dayTimeDuration("P3DT1H15M")', Time.fromstring('12:27:00'))
+        self.check_value('xs:time("23:12:00+03:00") + xs:dayTimeDuration("P1DT3H15M")',
+                         Time.fromstring('02:27:00+03:00'))
+
+    def test_subtract_day_time_duration_to_time(self):
+        self.check_value('xs:time("11:12:00") - xs:dayTimeDuration("P3DT1H15M")', Time.fromstring('09:57:00'))
+        self.check_value('xs:time("08:20:00-05:00") - xs:dayTimeDuration("P23DT10H10M")',
+                         Time.fromstring('22:10:00-05:00'))
 
     def test_duration_constructors(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
