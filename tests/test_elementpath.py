@@ -1607,6 +1607,19 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:date("2000-10-15-05:00") - xs:date("2000-10-10+02:00")',
                          DayTimeDuration.fromstring('P5DT7H'))
 
+        # BCE test cases
+        days = months2days(-119, 1, 12 * 319)
+        self.check_value('xs:date("0200-01-01") - xs:date("-0120-01-01")', DayTimeDuration.fromstring('P%dD' % days))
+        days = abs(months2days(200, 1, -12 * 319)) - 1
+        self.check_value('xs:date("-0200-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P%dD' % days))
+
+        self.check_value('xs:date("0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P365D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P0D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P365D'))
+
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")', DayTimeDuration.fromstring('P1D'))
+        self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('-P3D'))
+
     def test_subtract_times(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
         self.check_value('xs:time("11:12:00Z") - xs:time("04:00:00")',
