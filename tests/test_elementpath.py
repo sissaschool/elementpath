@@ -133,20 +133,20 @@ class DateTimeTypesTest(unittest.TestCase):
     def test_repr(self):
         dt = Date.fromstring('2000-10-07')
         if PY3:
-            self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), fmt='%Y-%m-%d', bce=False)")
+            self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), bce=False)")
             self.assertEqual(str(dt), '2000-10-07')
 
             dt = Date.fromstring('-0100-04-13')
-            self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), fmt='-%Y-%m-%d', bce=True)")
+            self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), bce=True)")
             self.assertEqual(str(dt), '-0100-04-13')
         else:
             self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0, tzinfo=Timezone(datetime.timedelta(0))), "
-                                       "fmt='%Y-%m-%d', bce=False)")
+                                       "bce=False)")
             self.assertEqual(str(dt), '2000-10-07 00:00:00+00:00')
 
             dt = Date.fromstring('-0100-04-13')
             self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0, tzinfo=Timezone(datetime.timedelta(0))), "
-                                       "fmt='-%Y-%m-%d', bce=True)")
+                                       "bce=True)")
             self.assertEqual(str(dt), '-0100-04-13 00:00:00+00:00')
 
     def test_eq(self):
@@ -1467,8 +1467,7 @@ class XPath2ParserTest(XPath1ParserTest):
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value(
-            'xs:dateTime("1969-07-20T20:18:00")',
-            DateTime(datetime.datetime(1969, 7, 20, 20, 18, tzinfo=tz0), '%Y-%m-%dT%H:%M:%S')
+            'xs:dateTime("1969-07-20T20:18:00")', DateTime(datetime.datetime(1969, 7, 20, 20, 18, tzinfo=tz0))
         )
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
                          datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tz1))
@@ -1506,8 +1505,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:gMonthDay("--07-32")')
 
         self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1, tzinfo=tz0))
-        self.check_value('xs:gYear("-2004")',
-                         GregorianYear(datetime.datetime(2005, 1, 1, tzinfo=tz0), fmt='-%Y', bce=True))
+        self.check_value('xs:gYear("-2004")', GregorianYear(datetime.datetime(2005, 1, 1, tzinfo=tz0), True))
         self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("12540")')  # Not supported: year > 9999 or year < -9999
         self.wrong_value('xs:gYear("84")')
