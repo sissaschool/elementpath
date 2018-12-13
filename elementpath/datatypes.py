@@ -19,7 +19,7 @@ import operator
 import re
 import decimal
 from datetime import datetime, timedelta, tzinfo
-from calendar import leapdays, monthrange
+from calendar import isleap, leapdays, monthrange
 
 from .compat import PY3, string_base_type, add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
@@ -30,6 +30,15 @@ ISO_TIMEZONE_RE_PATTERN = re.compile(r'(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14
 XSD_DURATION_PATTERN = re.compile(
     r'^(-)?P(?=(?:\d|T))(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$'
 )
+
+
+def adjust_day(year, month, day):
+    if month in {1, 3, 5, 7, 8, 10, 12}:
+        return day
+    elif month in {4, 6, 9, 11}:
+        return min(day, 30)
+    else:
+        return min(day, 29) if isleap(year) else min(day, 28)
 
 
 def months2days(year, month, month_delta):
@@ -233,6 +242,25 @@ class AbstractDateTime(object):
             else:
                 raise ElementPathValueError('Invalid value %r for datetime formats %r' % (text, cls.formats))
 
+    def _from_operation(self, op, month_delta):
+        month = op(self.dt.month - 1, month_delta) % 12 + 1
+        year = op(self.dt.year, ((self.dt.month - 1) + month_delta) // 12)
+        if year > 0:
+            bce = self.bce
+        else:
+            bce = not self.bce
+            year = abs(year) + 1
+
+        if month in {1, 3, 5, 7, 8, 10, 12}:
+            dt = self.dt.replace(year=year, month=month)
+        elif month in {4, 6, 9, 11}:
+            dt = self.dt.replace(year=year, month=month, day=min(self.dt.day, 30))
+        else:
+            day = min(self.dt.day, 29) if isleap(year) else min(self.dt.day, 28)
+            dt = self.dt.replace(year=year, month=month, day=day)
+
+        return type(self)(dt, self.fmt, bce)
+
     def replace(self, **kwargs):
         return type(self)(self._dt.replace(**kwargs), self._fmt, self._bce)
 
@@ -258,26 +286,79 @@ class DateTime(AbstractDateTime):
     formats = ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT24:00:00',
                '-%Y-%m-%dT%H:%M:%S', '-%Y-%m-%dT%H:%M:%S.%f', '-%Y-%m-%dT24:00:00')
 
-    def __add__(self, other):
-        if not isinstance(other, self.__class__):
+    def _operator(self, op, other):
+        if isinstance(other, self.__class__):
+            delta = op(*self._get_operands(other))
+            return DayTimeDuration.fromtimedelta(delta)
+        elif isinstance(other, DayTimeDuration):
+            delta = other.get_timedelta()
+            try:
+                return DateTime(op(self.dt, delta), self.fmt, self.bce)
+            except OverflowError:
+                seconds = delta.total_seconds()
+                if self.bce ^ (seconds > 0):
+                    raise
+                dt_seconds = abs((self.dt - datetime(1, 1, 1)).total_seconds() - seconds)
+                return DateTime(datetime(1, 1, 1) + timedelta(seconds=dt_seconds), bce=not self.bce)
+        elif isinstance(other, YearMonthDuration):
+            month = op(self.dt.month - 1, other.months) % 12 + 1
+            year = op(self.dt.year, ((self.dt.month - 1) + other.months) // 12)
+            if year > 0:
+                bce = self.bce
+            else:
+                bce = not self.bce
+                year = abs(year) + 1
+            dt = self.dt.replace(year=year, month=month, day=adjust_day(year, month, self.dt.day))
+            return DateTime(dt, self.fmt, bce)
+        else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        return DayTimeDuration(seconds=self.seconds + other.seconds)
+
+    def __add__(self, other):
+        return self._operator(operator.add, other)
 
     def __sub__(self, other):
-        if not isinstance(other, self.__class__):
-            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        delta = operator.sub(*self._get_operands(other))
-        return DayTimeDuration(seconds=delta.days * 86400 + delta.seconds)
+        return self._operator(operator.sub, other)
 
 
 class Date(AbstractDateTime):
     formats = ('%Y-%m-%d', '-%Y-%m-%d')
 
-    def __sub__(self, other):
-        if not isinstance(other, self.__class__):
+    def _operator(self, op, other):
+        if isinstance(other, self.__class__):
+            delta = op(*self._get_operands(other))
+            return DayTimeDuration.fromtimedelta(delta)
+        elif isinstance(other, DayTimeDuration):
+            delta = other.get_timedelta()
+            try:
+                dt = op(self.dt, delta)
+            except OverflowError:
+                seconds = delta.total_seconds()
+                if self.bce ^ (seconds > 0):
+                    raise
+                dt_seconds = abs((self.dt - datetime(1, 1, 1)).total_seconds() - seconds)
+                dt = datetime(1, 1, 1) + timedelta(seconds=dt_seconds)
+                return Date(dt.replace(hour=0, minute=0, second=0, microsecond=0), bce=not self.bce)
+            else:
+                return Date(dt.replace(hour=0, minute=0, second=0, microsecond=0), self.fmt, self.bce)
+
+        elif isinstance(other, YearMonthDuration):
+            month = op(self.dt.month - 1, other.months) % 12 + 1
+            year = op(self.dt.year, ((self.dt.month - 1) + other.months) // 12)
+            if year > 0:
+                bce = self.bce
+            else:
+                bce = not self.bce
+                year = abs(year) + 1
+            dt = self.dt.replace(year=year, month=month, day=adjust_day(year, month, self.dt.day))
+            return Date(dt, self.fmt, bce)
+        else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        delta = operator.sub(*self._get_operands(other))
-        return DayTimeDuration(seconds=delta.days * 86400 + delta.seconds)
+
+    def __add__(self, other):
+        return self._operator(operator.add, other)
+
+    def __sub__(self, other):
+        return self._operator(operator.sub, other)
 
 
 class GregorianDay(AbstractDateTime):
@@ -303,11 +384,21 @@ class GregorianYearMonth(AbstractDateTime):
 class Time(AbstractDateTime):
     formats = ('%H:%M:%S', '%H:%M:%S.%f', '24:00:00')
 
-    def __sub__(self, other):
-        if not isinstance(other, self.__class__):
+    def _operator(self, op, other):
+        if isinstance(other, self.__class__):
+            delta = op(*self._get_operands(other))
+            return DayTimeDuration.fromtimedelta(delta)
+        elif isinstance(other, DayTimeDuration):
+            dt = op(self.dt, other.get_timedelta())
+            return Time(dt.replace(year=1900, month=1, day=1), self.fmt, self.bce)
+        else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        delta = operator.sub(*self._get_operands(other))
-        return DayTimeDuration(seconds=delta.days * 86400 + delta.seconds)
+
+    def __add__(self, other):
+        return self._operator(operator.add, other)
+
+    def __sub__(self, other):
+        return self._operator(operator.sub, other)
 
 
 class Duration(object):
@@ -473,6 +564,13 @@ class DayTimeDuration(Duration):
         super(DayTimeDuration, self).__init__(months, seconds)
         if self.months:
             raise ElementPathValueError('months must be 0 for %r.' % self.__class__.__name__)
+
+    @classmethod
+    def fromtimedelta(cls, td):
+        return cls(seconds=decimal.Decimal('{}.{:06}'.format(td.days * 86400 + td.seconds, td.microseconds)))
+
+    def get_timedelta(self):
+        return timedelta(seconds=int(self.seconds), microseconds=int(self.seconds % 1 * 1000000))
 
     def __repr__(self):
         return '%s(seconds=%s)' % (self.__class__.__name__, str(self.seconds))
