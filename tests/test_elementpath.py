@@ -25,6 +25,7 @@ import datetime
 import io
 import math
 import pickle
+import operator
 from decimal import Decimal
 from collections import namedtuple
 from xml.etree import ElementTree
@@ -151,23 +152,74 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_eq(self):
         tz = Timezone.fromstring('-05:00')
-        dt = DateTime.fromstring
+        mkdt = DateTime.fromstring
 
-        self.assertTrue(dt("2002-04-02T12:00:00-01:00") == dt("2002-04-02T17:00:00+04:00"))
-        self.assertFalse(dt("2002-04-02T12:00:00") == dt("2002-04-02T23:00:00+06:00"))
-        self.assertFalse(dt("2002-04-02T12:00:00") == dt("2002-04-02T17:00:00"))
-        self.assertTrue(dt("2002-04-02T12:00:00") == dt("2002-04-02T12:00:00"))
-        self.assertTrue(dt("2002-04-02T23:00:00-04:00") == dt("2002-04-03T02:00:00-01:00"))
-        self.assertTrue(dt("1999-12-31T24:00:00") == dt("2000-01-01T00:00:00"))
-        self.assertFalse(dt("2005-04-04T24:00:00") == dt("2005-04-04T00:00:00"))
+        self.assertTrue(mkdt("2002-04-02T12:00:00-01:00") == mkdt("2002-04-02T17:00:00+04:00"))
+        self.assertFalse(mkdt("2002-04-02T12:00:00") == mkdt("2002-04-02T23:00:00+06:00"))
+        self.assertFalse(mkdt("2002-04-02T12:00:00") == mkdt("2002-04-02T17:00:00"))
+        self.assertTrue(mkdt("2002-04-02T12:00:00") == mkdt("2002-04-02T12:00:00"))
+        self.assertTrue(mkdt("2002-04-02T23:00:00-04:00") == mkdt("2002-04-03T02:00:00-01:00"))
+        self.assertTrue(mkdt("1999-12-31T24:00:00") == mkdt("2000-01-01T00:00:00"))
+        self.assertFalse(mkdt("2005-04-04T24:00:00") == mkdt("2005-04-04T00:00:00"))
 
-        self.assertTrue(dt("2002-04-02T12:00:00-01:00", tz) == dt("2002-04-02T17:00:00+04:00", tz))
-        self.assertTrue(dt("2002-04-02T12:00:00", tz) == dt("2002-04-02T23:00:00+06:00", tz))
-        self.assertFalse(dt("2002-04-02T12:00:00", tz) == dt("2002-04-02T17:00:00", tz))
-        self.assertTrue(dt("2002-04-02T12:00:00", tz) == dt("2002-04-02T12:00:00", tz))
-        self.assertTrue(dt("2002-04-02T23:00:00-04:00", tz) == dt("2002-04-03T02:00:00-01:00", tz))
-        self.assertTrue(dt("1999-12-31T24:00:00", tz) == dt("2000-01-01T00:00:00", tz))
-        self.assertFalse(dt("2005-04-04T24:00:00", tz) == dt("2005-04-04T00:00:00", tz))
+        self.assertTrue(mkdt("2002-04-02T12:00:00-01:00", tz) == mkdt("2002-04-02T17:00:00+04:00", tz))
+        self.assertTrue(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T23:00:00+06:00", tz))
+        self.assertFalse(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T17:00:00", tz))
+        self.assertTrue(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T12:00:00", tz))
+        self.assertTrue(mkdt("2002-04-02T23:00:00-04:00", tz) == mkdt("2002-04-03T02:00:00-01:00", tz))
+        self.assertTrue(mkdt("1999-12-31T24:00:00", tz) == mkdt("2000-01-01T00:00:00", tz))
+        self.assertFalse(mkdt("2005-04-04T24:00:00", tz) == mkdt("2005-04-04T00:00:00", tz))
+
+        self.assertTrue(mkdt("2005-04-04T24:00:00", tz) != mkdt("2005-04-04T00:00:00", tz))
+
+    def test_lt(self):
+        mkdt = DateTime.fromstring
+        mkdate = Date.fromstring
+
+        self.assertTrue(mkdt("2002-04-02T12:00:00-01:00") < mkdt("2002-04-02T17:00:00-01:00"))
+        self.assertFalse(mkdt("2002-04-02T18:00:00-01:00") < mkdt("2002-04-02T17:00:00-01:00"))
+        self.assertTrue(mkdt("2002-04-02T18:00:00+02:00") < mkdt("2002-04-02T17:00:00Z"))
+        self.assertTrue(mkdt("2002-04-02T18:00:00+02:00") < mkdt("2002-04-03T00:00:00Z"))
+        self.assertTrue(mkdt("-2002-01-01T10:00:00") < mkdt("2001-01-01T17:00:00Z"))
+        self.assertFalse(mkdt("2002-01-01T10:00:00") < mkdt("-2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("-2002-01-01T10:00:00") < mkdt("-2001-01-01T17:00:00Z"))
+        self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+
+    def test_le(self):
+        mkdt = DateTime.fromstring
+        mkdate = Date.fromstring
+
+        self.assertTrue(mkdt("2002-04-02T12:00:00-01:00") <= mkdt("2002-04-02T12:00:00-01:00"))
+        self.assertFalse(mkdt("2002-04-02T18:00:00-01:00") <= mkdt("2002-04-02T17:00:00-01:00"))
+        self.assertTrue(mkdt("2002-04-02T18:00:00+01:00") <= mkdt("2002-04-02T17:00:00Z"))
+        self.assertTrue(mkdt("-2002-01-01T10:00:00") <= mkdt("2001-01-01T17:00:00Z"))
+        self.assertFalse(mkdt("2002-01-01T10:00:00") <= mkdt("-2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("-2002-01-01T10:00:00") <= mkdt("-2001-01-01T17:00:00Z"))
+        self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+
+    def test_gt(self):
+        mkdt = DateTime.fromstring
+        mkdate = Date.fromstring
+
+        self.assertFalse(mkdt("2002-04-02T12:00:00-01:00") > mkdt("2002-04-02T17:00:00-01:00"))
+        self.assertTrue(mkdt("2002-04-02T18:00:00-01:00") > mkdt("2002-04-02T17:00:00-01:00"))
+        self.assertFalse(mkdt("2002-04-02T18:00:00+02:00") > mkdt("2002-04-02T17:00:00Z"))
+        self.assertFalse(mkdt("2002-04-02T18:00:00+02:00") > mkdt("2002-04-03T00:00:00Z"))
+        self.assertTrue(mkdt("2002-01-01T10:00:00") > mkdt("-2001-01-01T17:00:00Z"))
+        self.assertFalse(mkdt("-2002-01-01T10:00:00") > mkdt("-2001-01-01T17:00:00Z"))
+        self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+
+    def test_ge(self):
+        mkdt = DateTime.fromstring
+        mkdate = Date.fromstring
+
+        self.assertTrue(mkdt("2002-04-02T12:00:00-01:00") >= mkdt("2002-04-02T12:00:00-01:00"))
+        self.assertTrue(mkdt("2002-04-02T18:00:00-01:00") >= mkdt("2002-04-02T17:00:00-01:00"))
+        self.assertTrue(mkdt("2002-04-02T18:00:00+01:00") >= mkdt("2002-04-02T17:00:00Z"))
+        self.assertFalse(mkdt("-2002-01-01T10:00:00") >= mkdt("2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("2002-01-01T10:00:00") >= mkdt("-2001-01-01T17:00:00Z"))
+        self.assertFalse(mkdt("-2002-01-01T10:00:00") >= mkdt("-2001-01-01T17:00:00Z"))
+        self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
 
 class DurationTypesTest(unittest.TestCase):

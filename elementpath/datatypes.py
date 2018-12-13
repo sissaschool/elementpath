@@ -298,20 +298,63 @@ class AbstractDateTime(object):
 
     # For Py2 compatibility
     def _get_operands(self, other):
-        if self.dt.tzinfo is other.tzinfo:
-            return self.dt, other.dt
+        if self._dt.tzinfo is other.tzinfo:
+            return self._dt, other._dt
         elif self.tzinfo is None:
-            return self.dt.replace(tzinfo=Timezone(timedelta(0))), other.dt
+            return self._dt.replace(tzinfo=Timezone(timedelta(0))), other._dt
         elif other.tzinfo is None:
-            return self.dt, other.dt.replace(tzinfo=Timezone(timedelta(0)))
+            return self._dt, other._dt.replace(tzinfo=Timezone(timedelta(0)))
         else:
-            return self.dt, other.dt
+            return self._dt, other._dt
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self._dt == other._dt and self._bce == other._bce
-        else:
+        elif isinstance(other, datetime):
             return self._dt == other and not self._bce
+        else:
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+
+
+    def __lt__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        elif self._bce ^ other._bce:
+            return self._bce
+        elif self._bce:
+            return operator.gt(*self._get_operands(other))
+        else:
+            return operator.lt(*self._get_operands(other))
+
+    def __le__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        elif self._bce ^ other._bce:
+            return self._bce
+        elif self._bce:
+            return operator.ge(*self._get_operands(other))
+        else:
+            return operator.le(*self._get_operands(other))
+
+    def __gt__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        elif self._bce ^ other._bce:
+            return not self._bce
+        elif self._bce:
+            return operator.lt(*self._get_operands(other))
+        else:
+            return operator.gt(*self._get_operands(other))
+
+    def __ge__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+        elif self._bce ^ other._bce:
+            return not self._bce
+        elif self._bce:
+            return operator.le(*self._get_operands(other))
+        else:
+            return operator.ge(*self._get_operands(other))
 
 
 class DateTime(AbstractDateTime):
