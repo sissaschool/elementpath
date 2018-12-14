@@ -37,6 +37,7 @@ from .schema_proxy import AbstractSchemaProxy
 ###
 # Regex compiled patterns for XSD constructors
 WHITESPACES_RE_PATTERN = re.compile(r'\s+')
+NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$', flags=0 if PY3 else re.U)
 NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
 QNAME_PATTERN = re.compile(
@@ -146,9 +147,8 @@ class XPath2Parser(XPath1Parser):
         'error',
 
         # XSD builtins constructors
-        'string1', 'normalizedString', 'token',
-        'language', 'Name', 'NCName', # 'ENTITY', 'ID', 'IDREF', 'NMTOKEN'
-        # 'anyURI', 'QName',
+        'string1', 'normalizedString', 'token', 'language', 'Name', 'NCName',
+        'ENTITY', 'ID', 'IDREF', 'NMTOKEN',  # 'anyURI', 'QName',
         'int', 'decimal', 'integer', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger',
         'negativeInteger', 'long', 'short', 'byte', 'unsignedLong', 'unsignedInt', 'unsignedShort',
         'unsignedByte', 'double', 'float', 'dateTime', 'date', 'time', 'gDay', 'gMonth', 'gYear',
@@ -970,7 +970,19 @@ def evaluate(self, context=None):
     else:
         match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(item))
         if match is None:
-            raise self.error('FOCA0002', "%r: not a language code" % item)
+            raise self.error('FOCA0002', "%r is not a language code" % item)
+        return match.group()
+
+
+@method(constructor('NMTOKEN'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    else:
+        match = NMTOKEN_PATTERN.match(collapse_white_spaces(item))
+        if match is None:
+            raise self.error('FOCA0002', "%r is not an xs:NMTOKEN value" % item)
         return match.group()
 
 
@@ -982,11 +994,14 @@ def evaluate(self, context=None):
     else:
         match = NAME_PATTERN.match(collapse_white_spaces(item))
         if match is None:
-            raise self.error('FOCA0002', "%r: not an xs:Name value" % item)
+            raise self.error('FOCA0002', "%r is not an xs:Name value" % item)
         return match.group()
 
 
 @method(constructor('NCName'))
+@method(constructor('ID'))
+@method(constructor('IDREF'))
+@method(constructor('ENTITY'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
@@ -994,7 +1009,7 @@ def evaluate(self, context=None):
     else:
         match = NCNAME_PATTERN.match(collapse_white_spaces(item))
         if match is None:
-            raise self.error('FOCA0002', "%r: not an xs:NCName value" % item)
+            raise self.error('FOCA0002', "%r is not an xs:%s value" % (item, self.symbol))
         return match.group()
 
 
