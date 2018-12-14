@@ -12,7 +12,6 @@
 Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
 implementation for XPath functions that are reused in many contexts.
 """
-import re
 from collections import namedtuple
 
 from .compat import PY3
@@ -21,18 +20,6 @@ from .namespaces import (
     XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 )
 from .datatypes import UntypedAtomic
-
-###
-# Regex compiled patterns
-WHITESPACES_RE_PATTERN = re.compile(r'\s+')
-XSD_QNAME_RE_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
-)
-FRACTION_DIGITS_RE_PATTERN = re.compile(r'\.(\d+)$')
-ISO_TIMEZONE_RE_PATTERN = re.compile(r'(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$')
-HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
-
 
 ###
 # Node types

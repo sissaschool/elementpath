@@ -550,7 +550,6 @@ class Parser(object):
             })
             token_class = ABCMeta(token_class_name, (cls.token_base_class,), kwargs)
             cls.symbol_table[symbol] = token_class
-            cls.tokenizer = None
             MutableSequence.register(token_class)
             setattr(sys.modules[cls.__module__], token_class_name, token_class)
 

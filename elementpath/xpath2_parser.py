@@ -14,25 +14,39 @@ import math
 import codecs
 import datetime
 import time
+import re
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
 
 from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
-from .exceptions import ElementPathTypeError, ElementPathMissingContextError
+from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathMissingContextError
 from .datatypes import DateTime, Date, Time, Timezone, GregorianDay, GregorianMonth, GregorianMonthDay, \
     GregorianYear, GregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
 from .namespaces import (
     XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
     qname_to_prefixed, prefixed_to_qname, get_namespace
 )
-from .xpath_helpers import WHITESPACES_RE_PATTERN, XSD_QNAME_RE_PATTERN, HEX_BINARY_PATTERN, \
-    NOT_BASE64_BINARY_PATTERN, is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
+from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, boolean_value, \
     data_value, string_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
+
+###
+# Regex compiled patterns for XSD constructors
+WHITESPACES_RE_PATTERN = re.compile(r'\s+')
+XSD_QNAME_RE_PATTERN = re.compile(
+    r'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
+)
+HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
+NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
+LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*$')
+
+
+def collapse_white_spaces(s):
+    return WHITESPACES_RE_PATTERN.sub(' ', s).strip()
 
 
 class XPath2Parser(XPath1Parser):
@@ -128,6 +142,16 @@ class XPath2Parser(XPath1Parser):
 
         # Error function
         'error',
+
+        # XSD builtins constructors
+        'string1', 'normalizedString', 'token',
+        'language', # 'Name', 'NCName', 'ENTITY', 'ID', 'IDREF', 'NMTOKEN'
+        # 'anyURI', 'QName',
+        'int', 'decimal', 'integer', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger',
+        'negativeInteger', 'long', 'short', 'byte', 'unsignedLong', 'unsignedInt', 'unsignedShort',
+        'unsignedByte', 'double', 'float', 'dateTime', 'date', 'time', 'gDay', 'gMonth', 'gYear',
+        'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration', 'yearMonthDuration',
+        'base64Binary', 'hexBinary', 'boolean1'
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -240,9 +264,10 @@ class XPath2Parser(XPath1Parser):
     @classmethod
     def constructor(cls, symbol, bp=90):
         """Registers a token class for an XSD builtin atomic type constructor function."""
+        if symbol not in cls.SYMBOLS:
+            raise ElementPathNameError('%r is not a symbol of the parser %r.' % (symbol, cls))
         token_class = cls.create_constructor(symbol, bp=bp)
         cls.symbol_table[symbol] = token_class
-        cls.tokenizer = None
         setattr(sys.modules[cls.__module__], token_class.__name__, token_class)
         return token_class
 
@@ -935,8 +960,16 @@ def evaluate(self, context=None):
     return [] if item is None else collapse_white_spaces(item)
 
 
-def collapse_white_spaces(s):
-    return WHITESPACES_RE_PATTERN.sub(' ', s).strip()
+@method(constructor('language'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    else:
+        match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(item))
+        if match is None:
+            raise self.error('FOCA0002', "%r: not a language code" % item)
+        return match.group()
 
 
 @method(constructor('decimal'))
