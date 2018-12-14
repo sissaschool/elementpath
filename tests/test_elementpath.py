@@ -1442,7 +1442,19 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_string_constructors(self):
         self.check_value('xs:normalizedString("hello")', "hello")
+        self.check_value('xs:normalizedString(" hello  ")', " hello  ")
+        self.check_value('xs:normalizedString("\thello \n")', " hello  ")
         self.check_value('xs:normalizedString(())', [])
+
+        self.check_value('xs:token(" hello  world ")', "hello world")
+        self.check_value('xs:token("hello\t world\n")', "hello world")
+        self.check_value('xs:token(())', [])
+
+        self.check_value('xs:language(" en ")', "en")
+        self.check_value('xs:language(" en-GB ")', "en-GB")
+        self.check_value('xs:language("it-IT")', "it-IT")
+        self.wrong_value('xs:language("hello-world")')
+        self.check_value('xs:language(())', [])
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')
