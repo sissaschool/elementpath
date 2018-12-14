@@ -59,7 +59,7 @@ class XPath2Parser(XPath1Parser):
     :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
     SYMBOLS = XPath1Parser.SYMBOLS | {
-        'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for',
+        'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
         'some', 'every', 'in', 'satisfies', 'item', 'satisfies', 'cast', 'treat',
         'return', 'except', '?', 'as', 'of',
 
@@ -225,7 +225,7 @@ class XPath2Parser(XPath1Parser):
         kwargs = {
             'symbol': symbol,
             'label': 'constructor',
-            'pattern': '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()' % symbol,
+            'pattern': r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol,
             'lbp': bp,
             'rbp': bp,
             'nud': nud_,
@@ -1650,7 +1650,7 @@ register('boolean1', label=MultiValue('function', 'constructor'))
 ###
 unregister('attribute')
 register('attribute', lbp=90, rbp=90, label=MultiValue('function', 'axis'),
-         pattern='\\battribute(?=\s*\\:\\:|\s*\\(\\:.*\\:\\)\s*\\:\\:|\s*\\(|\s*\\(\\:.*\\:\\)\\()')
+         pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
 
 
 @method('attribute')

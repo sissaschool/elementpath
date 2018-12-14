@@ -18,17 +18,12 @@ from decimal import Decimal
 from abc import ABCMeta
 from collections import MutableSequence
 from .compat import PY3, add_metaclass
-from .exceptions import (
-    ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
-)
+from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 
 #
 # Regex based tokenizer
 #
-DEFAULT_SPECIAL_SYMBOLS = {'(string)', '(float)', '(decimal)', '(integer)', '(name)', '(end)'}
-"""Special symbols for literals, names and end tokens."""
-
-SPECIAL_SYMBOL_REGEX = re.compile(r'\s*\(\w+\)\s*')
+SPECIAL_SYMBOL_REGEX = re.compile(r'\(\w+\)')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
 
 
@@ -48,7 +43,7 @@ def symbol_to_identifier(symbol):
 
     if symbol.isalnum():
         return symbol
-    elif SPECIAL_SYMBOL_REGEX.search(symbol):
+    elif SPECIAL_SYMBOL_REGEX.match(symbol):
         return symbol[1:-1]
     else:
         return ''.join(get_id_name(c) for c in symbol)
@@ -70,8 +65,8 @@ def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
         \s+                                                               # Skip extra spaces
     """
     patterns = [
-        s.pattern for s in symbol_table.values()
-        if SPECIAL_SYMBOL_REGEX.search(s.pattern) is None
+        t.pattern for s, t in symbol_table.items()
+        if SPECIAL_SYMBOL_REGEX.match(s) is None
     ]
     string_patterns = []
     character_patterns = []
@@ -153,7 +148,7 @@ class Token(MutableSequence):
 
     def __str__(self):
         symbol = self.symbol
-        if SPECIAL_SYMBOL_REGEX.search(symbol) is not None:
+        if SPECIAL_SYMBOL_REGEX.match(symbol) is not None:
             return '%r %s' % (self.value, symbol[1:-1])
         else:
             return '%r %s' % (symbol, self.label)
@@ -178,7 +173,7 @@ class Token(MutableSequence):
         symbol, length = self.symbol, len(self)
         if symbol == '(name)':
             return u'(%s)' % self.value
-        elif SPECIAL_SYMBOL_REGEX.search(symbol) is not None:
+        elif SPECIAL_SYMBOL_REGEX.match(symbol) is not None:
             return u'(%r)' % self.value
         elif symbol == '(':
             return '()' if not self else self[0].tree
@@ -193,7 +188,7 @@ class Token(MutableSequence):
         symbol = self.symbol
         if symbol == '(name)':
             return self.value
-        elif SPECIAL_SYMBOL_REGEX.search(symbol) is not None:
+        elif SPECIAL_SYMBOL_REGEX.match(symbol) is not None:
             return repr(self.value)
         else:
             length = len(self)
@@ -236,7 +231,7 @@ class Token(MutableSequence):
             self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
-        symbol = self.value if SPECIAL_SYMBOL_REGEX.search(self.symbol) is not None else self.symbol
+        symbol = self.value if SPECIAL_SYMBOL_REGEX.match(self.symbol) is not None else self.symbol
         pos = self.parser.position
         token = self.parser.token
 
@@ -278,7 +273,7 @@ class ParserMeta(type):
             cls.SYMBOLS = set()
             for base_class in bases:
                 if hasattr(base_class, 'SYMBOLS'):
-                    cls.symbol_table.update(base_class.SYMBOLS)
+                    cls.SYMBOLS.update(base_class.SYMBOLS)
                     break
         return cls
 
@@ -291,18 +286,19 @@ class Parser(object):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
 
-    :cvar symbol_table: A dictionary that stores the token classes defined for the language.
+    :cvar SYMBOLS: the symbols of the definable tokens for the parser. In the base class it's an \
+    immutable set that contains the symbols for special tokens (literals, names and end-token).\
+    Has to be extended in a concrete parser adding all the symbols of the language.
+    :cvar symbol_table: a dictionary that stores the token classes defined for the language.
     :type symbol_table: dict
-    :cvar token_base_class: The base class for creating language's token classes.
+    :cvar token_base_class: the base class for creating language's token classes.
     :type token_base_class: Token
-    :cvar tokenizer: The language tokenizer compiled regexp.
-    :cvar SYMBOLS: A list of the definable tokens for the parser. It's an optional list useful \
-    if you want to make sure that all formal language's symbols are included and defined.
+    :cvar tokenizer: the language tokenizer compiled regexp.
     """
+    SYMBOLS = frozenset(('(string)', '(float)', '(decimal)', '(integer)', '(name)', '(end)'))
     token_base_class = Token
     tokenizer = None
     symbol_table = {}
-    SYMBOLS = ()
 
     @classmethod
     def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
@@ -311,8 +307,9 @@ class Parser(object):
 
         :param name_pattern: Pattern to use to match names.
         """
-        if not all(k in cls.symbol_table for k in DEFAULT_SPECIAL_SYMBOLS):
-            raise ValueError("The symbol table of %r doesn't contain all special symbols." % cls)
+        if not all(k in cls.symbol_table for k in cls.SYMBOLS):
+            unregistered = [s for s in cls.SYMBOLS if s not in cls.symbol_table]
+            raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))
         cls.tokenizer = create_tokenizer(cls.symbol_table, name_pattern)
 
     def __init__(self):
@@ -509,20 +506,21 @@ class Parser(object):
         """
         def symbol_escape(s):
             s = re.escape(s)
-            s.replace(r'\ ', '\s+')
+            s.replace(r'\ ', r'\s+')
 
             if s.isalpha():
                 s = r'\b%s\b' % s
             elif s[-2:] == r'\(':
-                s = '%s\s*%s' % (s[:-2], s[-2:])
+                s = r'%s\s*%s' % (s[:-2], s[-2:])
             elif s[-4:] == r'\:\:':
-                s = '%s\s*%s' % (s[:-4], s[-4:])
+                s = r'%s\s*%s' % (s[:-4], s[-4:])
             return s
 
         try:
             try:
-                symbol = symbol.strip()
-            except AttributeError:
+                if ' ' in symbol:
+                    raise ElementPathValueError("%r: a symbol can't contains whitespaces." % symbol)
+            except TypeError:
                 # noinspection PyTypeChecker
                 assert issubclass(symbol, cls.token_base_class), \
                     "A %r subclass requested, not %r." % (cls.token_base_class, symbol)
@@ -535,6 +533,8 @@ class Parser(object):
         except KeyError:
             # Register a new symbol and create a new custom class. The new class
             # name is registered at parser class's module level.
+            if symbol not in cls.SYMBOLS:
+                raise ElementPathNameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
             kwargs['symbol'] = symbol
             if 'pattern' not in kwargs:
@@ -569,12 +569,6 @@ class Parser(object):
     def unregister(cls, symbol):
         """Unregister a token class from the symbol table."""
         del cls.symbol_table[symbol.strip()]
-
-    @classmethod
-    def unregistered(cls):
-        """Helper function that returns SYMBOLS not yet registered in the symbol table."""
-        if cls.SYMBOLS:
-            return [s for s in cls.SYMBOLS if s not in cls.symbol_table]
 
     @classmethod
     def literal(cls, symbol, bp=0):

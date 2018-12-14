@@ -25,7 +25,7 @@ from .xpath_helpers import NamespaceNode, is_etree_element, is_xpath_node, is_el
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
-XML_NCNAME_PATTERN = u"[{0}][\-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format(XML_NAME_CHARACTER)
+XML_NCNAME_PATTERN = u"[{0}][-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format(XML_NAME_CHARACTER)
 
 
 class XPath1Parser(Parser):
@@ -44,7 +44,7 @@ class XPath1Parser(Parser):
     token_base_class = XPathToken
     compatibility_mode = True
 
-    SYMBOLS = {
+    SYMBOLS = Parser.SYMBOLS | {
         # Axes
         'descendant-or-self', 'following-sibling', 'preceding-sibling',
         'ancestor-or-self', 'descendant', 'attribute', 'following',
@@ -118,7 +118,7 @@ class XPath1Parser(Parser):
             self[:] = self.parser.expression(rbp=bp),
             return self
 
-        axis_pattern_template = '\\b%s(?=\s*\\:\\:|\s*\\(\\:.*\\:\\)\s*\\:\\:)'
+        axis_pattern_template = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)'
         try:
             pattern = axis_pattern_template % symbol.strip()
         except AttributeError:
@@ -173,7 +173,7 @@ class XPath1Parser(Parser):
 
             return self
 
-        pattern = '\\b%s(?=\s*\\(|\s*\\(\\:.*\\:\\)\\()' % symbol.strip()
+        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol.strip()
         return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
 
     def next_is_path_step_token(self):
@@ -207,7 +207,6 @@ register('}')
 
 ###
 # Literals
-literal('(unexpected)')
 literal('(string)')
 literal('(float)')
 literal('(decimal)')
