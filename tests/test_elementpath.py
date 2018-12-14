@@ -1456,6 +1456,28 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:language("hello-world")')
         self.check_value('xs:language(())', [])
 
+        self.check_value('xs:Name(" :base ")', ":base")
+        self.check_value('xs:Name(" ::level_alpha ")', "::level_alpha")
+        self.check_value('xs:Name("level-alpha")', "level-alpha")
+        self.check_value('xs:Name("level.alpha\t\n")', "level.alpha")
+        self.check_value('xs:Name("__init__ ")', "__init__")
+        self.check_value('xs:Name("\u037F")', "\u037F")
+        self.wrong_value('xs:Name("2_values")')
+        self.wrong_value('xs:Name(" .values ")')
+        self.wrong_value('xs:Name(" -values ")')
+        self.check_value('xs:Name(())', [])
+
+        self.check_value('xs:NCName(" base ")', "base")
+        self.check_value('xs:NCName(" _level_alpha ")', "_level_alpha")
+        self.check_value('xs:NCName("level-alpha")', "level-alpha")
+        self.check_value('xs:NCName("level.alpha\t\n")', "level.alpha")
+        self.check_value('xs:NCName("__init__ ")', "__init__")
+        self.check_value('xs:NCName("\u037F")', "\u037F")
+        self.wrong_value('xs:NCName("2_values")')
+        self.wrong_value('xs:NCName(" .values ")')
+        self.wrong_value('xs:NCName(" -values ")')
+        self.check_value('xs:NCName(())', [])
+
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')
         self.check_value('xs:integer("19")', 19)
