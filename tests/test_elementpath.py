@@ -133,22 +133,12 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_repr(self):
         dt = Date.fromstring('2000-10-07')
-        if PY3:
-            self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), bce=False)")
-            self.assertEqual(str(dt), '2000-10-07')
+        self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), bce=False)")
+        self.assertEqual(str(dt), '2000-10-07' if PY3 else '2000-10-07 00:00:00')
 
-            dt = Date.fromstring('-0100-04-13')
-            self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), bce=True)")
-            self.assertEqual(str(dt), '-0100-04-13')
-        else:
-            self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0, tzinfo=Timezone(datetime.timedelta(0))), "
-                                       "bce=False)")
-            self.assertEqual(str(dt), '2000-10-07 00:00:00+00:00')
-
-            dt = Date.fromstring('-0100-04-13')
-            self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0, tzinfo=Timezone(datetime.timedelta(0))), "
-                                       "bce=True)")
-            self.assertEqual(str(dt), '-0100-04-13 00:00:00+00:00')
+        dt = Date.fromstring('-0100-04-13')
+        self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), bce=True)")
+        self.assertEqual(str(dt), '-0100-04-13' if PY3 else '-0100-04-13 00:00:00')
 
     def test_eq(self):
         tz = Timezone.fromstring('-05:00')
@@ -645,9 +635,6 @@ class XPath1ParserTest(unittest.TestCase):
 
         # Operators
         self.check_token('and', 'operator', "'and' operator", "_and_operator_token()")
-
-    def test_implementation(self):
-        self.assertEqual(self.parser.unregistered(), [])
 
     def test_token_tree(self):
         self.check_tree('child::B1', '(child (B1))')
