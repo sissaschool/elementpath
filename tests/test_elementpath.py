@@ -1456,6 +1456,11 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:language("hello-world")')
         self.check_value('xs:language(())', [])
 
+        self.check_value('xs:NMTOKEN(" :menù.09-_ ")', ":menù.09-_")
+        self.wrong_value('xs:NMTOKEN("alpha+")')
+        self.wrong_value('xs:NMTOKEN("hello world")')
+        self.check_value('xs:NMTOKEN(())', [])
+
         self.check_value('xs:Name(" :base ")', ":base")
         self.check_value('xs:Name(" ::level_alpha ")', "::level_alpha")
         self.check_value('xs:Name("level-alpha")', "level-alpha")
@@ -1477,6 +1482,10 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:NCName(" .values ")')
         self.wrong_value('xs:NCName(" -values ")')
         self.check_value('xs:NCName(())', [])
+
+        self.check_value('xs:ID("xyz")', 'xyz')
+        self.check_value('xs:IDREF("xyz")', 'xyz')
+        self.check_value('xs:ENTITY("xyz")', 'xyz')
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')
@@ -1520,7 +1529,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:unsignedByte(-128)')
         self.check_value('xs:unsignedByte("128")', 128)
 
-    def test_other_numerical_constructor(self):
+    def test_other_numerical_constructors(self):
         self.wrong_value('xs:decimal("hello")')
         self.check_value('xs:decimal("19")', 19)
         self.check_value('xs:decimal("19")', Decimal)
