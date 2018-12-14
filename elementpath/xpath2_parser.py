@@ -37,7 +37,9 @@ from .schema_proxy import AbstractSchemaProxy
 ###
 # Regex compiled patterns for XSD constructors
 WHITESPACES_RE_PATTERN = re.compile(r'\s+')
-XSD_QNAME_RE_PATTERN = re.compile(
+NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
+NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
+QNAME_PATTERN = re.compile(
     r'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
@@ -145,7 +147,7 @@ class XPath2Parser(XPath1Parser):
 
         # XSD builtins constructors
         'string1', 'normalizedString', 'token',
-        'language', # 'Name', 'NCName', 'ENTITY', 'ID', 'IDREF', 'NMTOKEN'
+        'language', 'Name', 'NCName', # 'ENTITY', 'ID', 'IDREF', 'NMTOKEN'
         # 'anyURI', 'QName',
         'int', 'decimal', 'integer', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger',
         'negativeInteger', 'long', 'short', 'byte', 'unsignedLong', 'unsignedInt', 'unsignedShort',
@@ -822,7 +824,7 @@ def evaluate(self, context=None):
     qname = self[1].evaluate(context)
     if not isinstance(qname, string_base_type):
         raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
-    match = XSD_QNAME_RE_PATTERN.match(qname)
+    match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', '2nd argument must be an xs:QName')
 
@@ -846,7 +848,7 @@ def evaluate(self, context=None):
         return []
     elif not isinstance(qname, string_base_type):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = XSD_QNAME_RE_PATTERN.match(qname)
+    match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     return match.groupdict()['prefix'] or []
@@ -859,7 +861,7 @@ def evaluate(self, context=None):
         return []
     elif not isinstance(qname, string_base_type):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = XSD_QNAME_RE_PATTERN.match(qname)
+    match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     return match.groupdict()['local']
@@ -875,7 +877,7 @@ def evaluate(self, context=None):
     elif not qname:
         return ''
 
-    match = XSD_QNAME_RE_PATTERN.match(qname)
+    match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     try:
@@ -925,7 +927,7 @@ def evaluate(self, context=None):
             return []
         if not isinstance(qname, string_base_type):
             raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
-        match = XSD_QNAME_RE_PATTERN.match(qname)
+        match = QNAME_PATTERN.match(qname)
         if match is None:
             raise self.error('FOCA0002', '1st argument must be an xs:QName')
         pfx = match.groupdict()['prefix'] or ''
@@ -969,6 +971,30 @@ def evaluate(self, context=None):
         match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(item))
         if match is None:
             raise self.error('FOCA0002', "%r: not a language code" % item)
+        return match.group()
+
+
+@method(constructor('Name'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    else:
+        match = NAME_PATTERN.match(collapse_white_spaces(item))
+        if match is None:
+            raise self.error('FOCA0002', "%r: not an xs:Name value" % item)
+        return match.group()
+
+
+@method(constructor('NCName'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    else:
+        match = NCNAME_PATTERN.match(collapse_white_spaces(item))
+        if match is None:
+            raise self.error('FOCA0002', "%r: not an xs:NCName value" % item)
         return match.group()
 
 
