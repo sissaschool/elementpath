@@ -1466,7 +1466,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:Name("level-alpha")', "level-alpha")
         self.check_value('xs:Name("level.alpha\t\n")', "level.alpha")
         self.check_value('xs:Name("__init__ ")', "__init__")
-        self.check_value('xs:Name("\u037F")', "\u037F")
+        self.check_value(u'xs:Name("\u0110")', u"\u0110")
         self.wrong_value('xs:Name("2_values")')
         self.wrong_value('xs:Name(" .values ")')
         self.wrong_value('xs:Name(" -values ")')
@@ -1477,7 +1477,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:NCName("level-alpha")', "level-alpha")
         self.check_value('xs:NCName("level.alpha\t\n")', "level.alpha")
         self.check_value('xs:NCName("__init__ ")', "__init__")
-        self.check_value('xs:NCName("\u037F")', "\u037F")
+        self.check_value(u'xs:NCName("\u0110")', u"\u0110")
         self.wrong_value('xs:NCName("2_values")')
         self.wrong_value('xs:NCName(" .values ")')
         self.wrong_value('xs:NCName(" -values ")')
@@ -1486,6 +1486,20 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:ID("xyz")', 'xyz')
         self.check_value('xs:IDREF("xyz")', 'xyz')
         self.check_value('xs:ENTITY("xyz")', 'xyz')
+
+    def test_any_uri_constructor(self):
+        self.check_value('xs:anyURI("")', '')
+        self.check_value('xs:anyURI("https://example.com")', 'https://example.com')
+        self.check_value('xs:anyURI("mailto:info@example.com")', 'mailto:info@example.com')
+        self.check_value('xs:anyURI("urn:example:com")', 'urn:example:com')
+        self.check_value(u'xs:anyURI("../principi/libertà.html")', u'../principi/libertà.html')
+        self.check_value('xs:anyURI("../principi/libert%E0.html")', '../principi/libert%E0.html')
+        self.check_value('xs:anyURI("../path/page.html#frag")', '../path/page.html#frag')
+        self.wrong_value('xs:anyURI("../path/page.html#frag1#frag2")')
+        self.wrong_value('xs:anyURI("https://example.com/index%.html")')
+        self.wrong_value('xs:anyURI("https://example.com/index.%html")')
+        self.wrong_value('xs:anyURI("https://example.com/index.html%  frag")')
+        self.check_value('xs:anyURI(())', [])
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')
