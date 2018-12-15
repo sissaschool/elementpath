@@ -19,7 +19,7 @@ from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
 
-from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
+from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type, urlparse, URLError
 from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathMissingContextError
 from .datatypes import DateTime, Date, Time, Timezone, GregorianDay, GregorianMonth, GregorianMonthDay, \
     GregorianYear, GregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
@@ -46,6 +46,7 @@ QNAME_PATTERN = re.compile(
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
 LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*$')
+WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
 
 
 def collapse_white_spaces(s):
@@ -146,14 +147,14 @@ class XPath2Parser(XPath1Parser):
         # Error function
         'error',
 
-        # XSD builtins constructors
-        'string1', 'normalizedString', 'token', 'language', 'Name', 'NCName',
-        'ENTITY', 'ID', 'IDREF', 'NMTOKEN',  # 'anyURI', 'QName',
-        'int', 'decimal', 'integer', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger',
-        'negativeInteger', 'long', 'short', 'byte', 'unsignedLong', 'unsignedInt', 'unsignedShort',
-        'unsignedByte', 'double', 'float', 'dateTime', 'date', 'time', 'gDay', 'gMonth', 'gYear',
-        'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration', 'yearMonthDuration',
-        'base64Binary', 'hexBinary', 'boolean1'
+        # XSD builtins constructors ('string', 'boolean' and 'QName' already registered as functions)
+        'string1', 'boolean1',
+        'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID', 'IDREF',
+        'NMTOKEN', 'anyURI', 'decimal', 'int', 'integer', 'long', 'short', 'byte', 'double',
+        'float', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
+        'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time',
+        'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
+        'yearMonthDuration', 'base64Binary', 'hexBinary'
     }
 
     QUALIFIED_FUNCTIONS = {
@@ -1011,6 +1012,23 @@ def evaluate(self, context=None):
         if match is None:
             raise self.error('FOCA0002', "%r is not an xs:%s value" % (item, self.symbol))
         return match.group()
+
+
+@method(constructor('anyURI'))
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    uri = collapse_white_spaces(item)
+    try:
+        urlparse(uri)
+    except URLError:
+        raise self.error('FOCA0002', "%r is not an xs:anyURI value" % item)
+    if uri.count('#') > 1:
+        raise self.error('FOCA0002', "%r is not an xs:anyURI value (too many # characters)" % item)
+    elif WRONG_ESCAPE_PATTERN.search(uri):
+        raise self.error('FOCA0002', "%r is not an xs:anyURI value (wrong escaping)" % item)
+    return uri
 
 
 @method(constructor('decimal'))
