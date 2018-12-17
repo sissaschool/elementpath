@@ -148,7 +148,7 @@ class XPath2Parser(XPath1Parser):
         'error',
 
         # XSD builtins constructors ('string', 'boolean' and 'QName' already registered as functions)
-        'string1', 'boolean1',
+        'string1', #    'boolean1',
         'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID', 'IDREF',
         'NMTOKEN', 'anyURI', 'decimal', 'int', 'integer', 'long', 'short', 'byte', 'double',
         'float', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
@@ -576,7 +576,7 @@ def evaluate(self, context=None):
     if atomic_type in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
         self.wrong_type("target type cannot be xs:NOTATION or xs:anyAtomicType [err:XPST0080]")
 
-    result = [data_value(res) for res in self[0].select(context)]
+    result = [res for res in self[0].select(context)]
     if len(result) > 1:
         if self.symbol != 'cast':
             return False
@@ -1691,85 +1691,6 @@ def evaluate(self, context=None):
 
 
 ###
-# Multi role-tokens
-
-# unregister('boolean')
-
-@method(constructor('boolean1'))
-def evaluate(self, context=None):
-    if self.label == 'function':
-        return boolean_value(self[0].get_results(context))
-    item = self.get_argument(context)
-    if item is None:
-        return []
-    elif not isinstance(item, string_base_type):
-        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
-    elif item in ('true', '1'):
-        return True
-    elif item in ('false', '0'):
-        return False
-    else:
-        raise self.error('FOCA0002', "%r: not a boolean value" % item)
-
-
-register('boolean1', label=('function', 'constructor'))
-
-###
-# Example of token redefinition and how-to create a multi-role token.
-#
-# In XPath 2.0 the 'attribute' keyword is used not only for the attribute:: axis but also for
-# attribute() node type function.
-###
-unregister('attribute')
-register('attribute', lbp=90, rbp=90, label=('function', 'axis'),
-         pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
-
-
-@method('attribute')
-def nud(self):
-    if self.parser.next_token.symbol == '::':
-        self.parser.advance('::')
-        self.parser.next_token.expected(
-            '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
-            'attribute', 'schema-attribute', 'element', 'schema-element'
-        )
-        self[:] = self.parser.expression(rbp=90),
-        self.label = 'axis'
-    else:
-        self.parser.advance('(')
-        if self.parser.next_token.symbol != ')':
-            self[:] = self.parser.expression(5),
-            if self.parser.next_token.symbol == ',':
-                self.parser.advance(',')
-                self[1:] = self.parser.expression(5),
-        self.parser.advance(')')
-        self.label = 'function'
-    return self
-
-
-@method('attribute')
-def select(self, context=None):
-    if context is None:
-        return
-    elif self.label == 'axis':
-        for _ in context.iter_attributes():
-            for result in self[0].select(context):
-                yield result
-    else:
-        attribute_name = self[0].evaluate(context) if self else None
-        for item in context.iter_attributes():
-            if is_attribute_node(item, attribute_name):
-                yield context.item[1]
-
-
-@method('attribute')
-def evaluate(self, context=None):
-    if context is not None:
-        if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
-            return context.item[1]
-
-
-###
 # Timezone adjustment functions
 @method(function('adjust-dateTime-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
@@ -1842,6 +1763,112 @@ def evaluate(self, context=None):
     elif len(self) == 1:
         item = self.get_argument(context)
         raise self.error(item or 'FOER0000')
+
+
+###
+# Multi role-tokens cases
+#
+
+# Case 1: In XPath 2.0 the 'attribute' keyword is used both for attribute:: axis and
+# attribute() node type function.
+#
+# First the XPath1 token class has to be removed from the XPath2 symbol table. Then the
+# symbol has to be registered usually with the same binding power (bp --> lbp, rbp), a
+# multi-value label (using a tuple of values) and a custom pattern. Finally a custom nud
+# or led method is required.
+unregister('attribute')
+register('attribute', lbp=90, rbp=90, label=('function', 'axis'),
+         pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
+
+
+@method('attribute')
+def nud(self):
+    if self.parser.next_token.symbol == '::':
+        self.parser.advance('::')
+        self.parser.next_token.expected(
+            '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
+            'attribute', 'schema-attribute', 'element', 'schema-element'
+        )
+        self[:] = self.parser.expression(rbp=90),
+        self.label = 'axis'
+    else:
+        self.parser.advance('(')
+        if self.parser.next_token.symbol != ')':
+            self[:] = self.parser.expression(5),
+            if self.parser.next_token.symbol == ',':
+                self.parser.advance(',')
+                self[1:] = self.parser.expression(5),
+        self.parser.advance(')')
+        self.label = 'function'
+    return self
+
+
+@method('attribute')
+def select(self, context=None):
+    if context is None:
+        return
+    elif self.label == 'axis':
+        for _ in context.iter_attributes():
+            for result in self[0].select(context):
+                yield result
+    else:
+        attribute_name = self[0].evaluate(context) if self else None
+        for item in context.iter_attributes():
+            if is_attribute_node(item, attribute_name):
+                yield context.item[1]
+
+
+@method('attribute')
+def evaluate(self, context=None):
+    if context is not None:
+        if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
+            return context.item[1]
+
+
+# Case 2: In XPath 2.0 the 'boolean' keyword is used both for boolean() function and
+# for boolean() constructor.
+unregister('boolean')
+register('boolean', lbp=90, rbp=90, label=('function', 'constructor'),
+         pattern=r'\bboolean(?=\s*\(|\s*\(\:.*\:\)\()')
+
+
+@method('boolean')
+def nud(self):
+    self.parser.advance('(')
+    self[0:] = self.parser.expression(5),
+    self.parser.advance(')')
+
+    try:
+        self.value = self.evaluate()  # Static context evaluation
+    except ElementPathMissingContextError:
+        self.value = None
+    return self
+
+
+@method('boolean')
+def evaluate(self, context=None):
+    if self.label == 'function':
+        return boolean_value(self[0].get_results(context))
+
+    # xs:boolean constructor
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, bool):
+        return item
+    elif isinstance(item, (int, float, decimal.Decimal)):
+        return bool(item)
+    elif isinstance(item, UntypedAtomic):
+        item = string_base_type(item)
+    elif not isinstance(item, string_base_type):
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
+
+    if item in ('true', '1'):
+        return True
+    elif item in ('false', '0'):
+        return False
+    else:
+        raise self.error('FOCA0002', "%r: not a boolean value" % item)
 
 
 XPath2Parser.build_tokenizer()
