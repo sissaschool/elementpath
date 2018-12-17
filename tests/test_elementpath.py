@@ -1501,6 +1501,12 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:anyURI("https://example.com/index.html%  frag")')
         self.check_value('xs:anyURI(())', [])
 
+    def test_boolean_constructor(self):
+        self.check_value('xs:boolean(())', [])
+        self.check_value('xs:boolean(1)', True)
+        self.check_value('xs:boolean(0)', False)
+
+
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')
         self.check_value('xs:integer("19")', 19)
@@ -2127,6 +2133,8 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
         self.check_value("('5', '6') cast as xs:integer", ElementPathTypeError)
         self.check_value("() cast as xs:integer", ElementPathValueError)
         self.check_value("() cast as xs:integer?", [])
+        self.check_value('"1" cast as xs:boolean', True)
+        self.check_value('"0" cast as xs:boolean', False)
 
     def test_atomic_constructors(self):
         self.check_value("xs:integer('5')", 5)

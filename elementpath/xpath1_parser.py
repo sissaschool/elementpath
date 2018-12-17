@@ -15,7 +15,7 @@ import decimal
 from .compat import PY3
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
-from .tdop_parser import Parser
+from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
@@ -173,7 +173,7 @@ class XPath1Parser(Parser):
 
             return self
 
-        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol.strip()
+        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
         return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
 
     def next_is_path_step_token(self):
@@ -262,9 +262,13 @@ def led(self, left):
         elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if next_token.label != 'function':
                 next_token.wrong_syntax("An XPath function is expected.")
+            elif isinstance(next_token.label, MultiLabel):
+                next_token.label = 'function'
         elif namespace == XSD_NAMESPACE:
-            if next_token.label == 'function':
+            if next_token.symbol not in ('(name)', '*') and next_token.label != 'constructor':
                 next_token.wrong_syntax("An XSD element or a constructor function is expected.")
+            elif isinstance(next_token.label, MultiLabel):
+                next_token.label = 'constructor'
 
     elif left.symbol == '*' and next_token.symbol != '(name)':
         next_token.wrong_syntax()
