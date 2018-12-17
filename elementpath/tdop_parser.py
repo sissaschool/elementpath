@@ -103,10 +103,9 @@ def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
 #   http://crockford.com/javascript/tdop/tdop.html  (Douglas Crockford - 2007)
 #   http://effbot.org/zone/simple-top-down-parsing.htm (Fredrik Lundh - 2008)
 #
-# This implementation is based on a base class for defining symbol's related Token
-# classes and a base class for parsers. A real parser is built from a derivation of
-# the base parser class and the registration of token classes for symbols in parser's
-# class symbol table.
+# This implementation is based on a base class for tokens and a base class for parsers.
+# A real parser is built with a derivation of the base parser class followed by the
+# registrations of token classes for the symbols of the language.
 #
 # A parser can be extended by derivation, copying the reusable token classes and
 # defining the additional ones. See the files xpath1_parser.py and xpath2_parser.py
@@ -145,23 +144,40 @@ class MultiLabel(object):
 
 class Token(MutableSequence):
     """
-    Token base class for defining a parser based on Pratt's method. Each token instance
-    is a list-like object. Empty tokens represent simple symbols, names and literals.
-    Not empty tokens represent operators where list's items are the operands.
+    Token base class for defining a parser based on Pratt's method.
+
+    Each token instance is a list-like object. The number of token's items is the arity of
+    the represented operator, where token's items are the operands. Nullary operators are
+    used for symbols, names and literals. Tokens with items represent the other operators
+    (unary, binary and so on).
+
+    Each token class has a *symbol*, a lbp (left binding power) value and a rbp (right binding
+    power) value, that are used in the sense described by the Pratt's method. This implementation
+    of Pratt tokens includes two extra attributes, *pattern* and *label*, that can be used to
+    simplify the parsing of symbols in a concrete parser.
 
     :param parser: The parser instance that creates the token instance.
     :param value: The token value. If not provided defaults to token symbol.
 
-    :cvar symbol: The symbol of the token class.
+    :cvar symbol: the symbol of the token class.
     :cvar lbp: Pratt's left binding power, defaults to 0.
     :cvar rbp: Pratt's right binding power, defaults to 0.
-    :cvar label: A label that can be changed to put a custom category to a token \
-    class (eg: function), depending on your parsing needs. Its default is 'symbol'.
+    :cvar pattern: the regex pattern used for the token class. Defaults to the escaped symbol. \
+    Can be customized to match more detailed conditions (eg. a function with its left round bracket), \
+    in order to simplify the related code.
+    :cvar label: defines the typology of the token class. Its value is used in representations of the \
+    token instance and can be used to restrict code choices without more complicated analysis. The label \
+    value can be set as needed by the parser implementation (eg. 'function', 'axis', 'constructor' are \
+    used by the XPath parsers). In the base parser class defaults to 'symbol' with 'literal' and 'operator' \
+    as possible alternatives. If set by a tuple of values the token class label is transformed to a \
+    multi-value label, that means the token class can covers multiple roles (eg. as XPath function or axis). \
+    In those cases the definitive role is defined at parse time (nud and/or led methods) after the token \
+    instance creation.
     """
     symbol = None     # the token identifier, key in the token table.
-    pattern = None    # the token regex pattern, for building the tokenizer.
     lbp = 0           # left binding power
     rbp = 0           # right binding power
+    pattern = None    # the token regex pattern, for building the tokenizer.
     label = 'symbol'  # optional label
 
     def __init__(self, parser, value=None):
@@ -301,17 +317,17 @@ class ParserMeta(type):
             cls.token_base_class = Token
         if 'tokenizer' not in namespace:
             cls.tokenizer = None
-        if 'symbol_table' not in namespace:
-            cls.symbol_table = {}
-            for base_class in bases:
-                if hasattr(base_class, 'symbol_table'):
-                    cls.symbol_table.update(base_class.symbol_table)
-                    break
         if 'SYMBOLS' not in namespace:
             cls.SYMBOLS = set()
             for base_class in bases:
                 if hasattr(base_class, 'SYMBOLS'):
                     cls.SYMBOLS.update(base_class.SYMBOLS)
+                    break
+        if 'symbol_table' not in namespace:
+            cls.symbol_table = {}
+            for base_class in bases:
+                if hasattr(base_class, 'symbol_table'):
+                    cls.symbol_table.update(base_class.symbol_table)
                     break
         return cls
 
@@ -345,7 +361,7 @@ class Parser(object):
 
         :param name_pattern: Pattern to use to match names.
         """
-        if not all(k in cls.symbol_table for k in cls.SYMBOLS):
+        if not cls.SYMBOLS.issubset(cls.symbol_table.keys()):
             unregistered = [s for s in cls.SYMBOLS if s not in cls.symbol_table]
             raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))
         cls.tokenizer = create_tokenizer(cls.symbol_table, name_pattern)
@@ -559,12 +575,11 @@ class Parser(object):
                 if ' ' in symbol:
                     raise ElementPathValueError("%r: a symbol can't contains whitespaces." % symbol)
             except TypeError:
-                # noinspection PyTypeChecker
-                assert issubclass(symbol, cls.token_base_class), \
-                    "A %r subclass requested, not %r." % (cls.token_base_class, symbol)
+                assert isinstance(symbol, type) and issubclass(symbol, Token), \
+                    "A %r subclass requested, not %r." % (Token, symbol)
                 symbol, token_class = symbol.symbol, symbol
                 assert symbol in cls.symbol_table and cls.symbol_table[symbol] is token_class, \
-                    "token class %r is not registered." % token_class
+                    "Token class %r is not registered." % token_class
             else:
                 token_class = cls.symbol_table[symbol]
 
