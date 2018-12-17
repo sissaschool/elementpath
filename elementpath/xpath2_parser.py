@@ -1692,26 +1692,6 @@ def evaluate(self, context=None):
 
 ###
 # Multi role-tokens
-class MultiValue(object):
-
-    def __init__(self, *values):
-        self.values = values
-
-    def __eq__(self, other):
-        return any(other == v for v in self.values)
-
-    def __ne__(self, other):
-        return all(other != v for v in self.values)
-
-    def __str__(self):
-        return '_'.join(self.values)
-
-    def __unicode__(self):
-        return u'_'.join(self.values)
-
-    if PY3:
-        __str__ = __unicode__
-
 
 # unregister('boolean')
 
@@ -1732,7 +1712,7 @@ def evaluate(self, context=None):
         raise self.error('FOCA0002', "%r: not a boolean value" % item)
 
 
-register('boolean1', label=MultiValue('function', 'constructor'))
+register('boolean1', label=('function', 'constructor'))
 
 ###
 # Example of token redefinition and how-to create a multi-role token.
@@ -1741,7 +1721,7 @@ register('boolean1', label=MultiValue('function', 'constructor'))
 # attribute() node type function.
 ###
 unregister('attribute')
-register('attribute', lbp=90, rbp=90, label=MultiValue('function', 'axis'),
+register('attribute', lbp=90, rbp=90, label=('function', 'axis'),
          pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
 
 

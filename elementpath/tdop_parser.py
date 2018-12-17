@@ -20,11 +20,13 @@ from collections import MutableSequence
 from .compat import PY3, add_metaclass
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 
-#
+###
 # Regex based tokenizer
-#
-SPECIAL_SYMBOL_REGEX = re.compile(r'\(\w+\)')
+
+SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
+
+SPACE_PATTERN = re.compile(r'\s')
 
 
 def symbol_to_identifier(symbol):
@@ -43,7 +45,7 @@ def symbol_to_identifier(symbol):
 
     if symbol.isalnum():
         return symbol
-    elif SPECIAL_SYMBOL_REGEX.match(symbol):
+    elif SPECIAL_SYMBOL_PATTERN.match(symbol):
         return symbol[1:-1]
     else:
         return ''.join(get_id_name(c) for c in symbol)
@@ -53,6 +55,10 @@ def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
     """
     Returns a regex based tokenizer built from a symbol table of token classes.
     The returned tokenizer skips extra spaces between symbols.
+
+    A regular expression is created from the symbol table of the parser using a template.
+    The symbols are inserted in the template putting the longer symbols first. Symbols and
+    their patterns can't contain spaces.
 
     :param symbol_table: a dictionary containing the token classes of the formal language.
     :param name_pattern: pattern to use to match names.
@@ -66,12 +72,14 @@ def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
     """
     patterns = [
         t.pattern for s, t in symbol_table.items()
-        if SPECIAL_SYMBOL_REGEX.match(s) is None
+        if SPECIAL_SYMBOL_PATTERN.match(s) is None
     ]
     string_patterns = []
     character_patterns = []
 
-    for p in (s.strip() for s in patterns):
+    for p in patterns:
+        if ' ' in p:
+            raise ElementPathValueError('pattern %r contains spaces' % p)
         length = len(p)
         if length == 1 or length == 2 and p[0] == '\\':
             character_patterns.append(p)
@@ -104,6 +112,36 @@ def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
 # defining the additional ones. See the files xpath1_parser.py and xpath2_parser.py
 # for a fully implementation example of a real parser.
 #
+
+class MultiLabel(object):
+    """
+    Helper class for defining multi-value label for tokens. Useful when a symbol has more roles.
+    A label of this type has equivalence with each of its values.
+
+    Example:
+        label = MultiLabel('function', 'operator')
+        label == 'symbol'    # False
+        label == 'function'  # True
+        label == 'operator'  # True
+    """
+    def __init__(self, *values):
+        self.values = values
+
+    def __eq__(self, other):
+        return any(other == v for v in self.values)
+
+    def __ne__(self, other):
+        return all(other != v for v in self.values)
+
+    def __str__(self):
+        return '_'.join(self.values)
+
+    def __unicode__(self):
+        return u'_'.join(self.values)
+
+    if PY3:
+        __str__ = __unicode__
+
 
 class Token(MutableSequence):
     """
@@ -148,7 +186,7 @@ class Token(MutableSequence):
 
     def __str__(self):
         symbol = self.symbol
-        if SPECIAL_SYMBOL_REGEX.match(symbol) is not None:
+        if SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
             return '%r %s' % (self.value, symbol[1:-1])
         else:
             return '%r %s' % (symbol, self.label)
@@ -173,7 +211,7 @@ class Token(MutableSequence):
         symbol, length = self.symbol, len(self)
         if symbol == '(name)':
             return u'(%s)' % self.value
-        elif SPECIAL_SYMBOL_REGEX.match(symbol) is not None:
+        elif SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
             return u'(%r)' % self.value
         elif symbol == '(':
             return '()' if not self else self[0].tree
@@ -188,7 +226,7 @@ class Token(MutableSequence):
         symbol = self.symbol
         if symbol == '(name)':
             return self.value
-        elif SPECIAL_SYMBOL_REGEX.match(symbol) is not None:
+        elif SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
             return repr(self.value)
         else:
             length = len(self)
@@ -231,7 +269,7 @@ class Token(MutableSequence):
             self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
-        symbol = self.value if SPECIAL_SYMBOL_REGEX.match(self.symbol) is not None else self.symbol
+        symbol = self.value if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None else self.symbol
         pos = self.parser.position
         token = self.parser.token
 
@@ -540,9 +578,12 @@ class Parser(object):
             if 'pattern' not in kwargs:
                 pattern = symbol_escape(symbol) if len(symbol) > 1 else re.escape(symbol)
                 kwargs['pattern'] = pattern
-            token_class_name = str(
-                "_%s_%s_token" % (symbol_to_identifier(symbol), kwargs.get('label', 'symbol'))
-            )
+
+            label = kwargs.get('label', 'symbol')
+            if isinstance(label, tuple):
+                label = kwargs['label'] = MultiLabel(*label)
+
+            token_class_name = str("_%s_%s_token" % (symbol_to_identifier(symbol), label))
             kwargs.update({
                 '__module__': cls.__module__,
                 '__qualname__': token_class_name,
