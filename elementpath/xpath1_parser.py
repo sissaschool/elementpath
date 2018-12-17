@@ -177,7 +177,7 @@ class XPath1Parser(Parser):
         return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
 
     def next_is_path_step_token(self):
-        return self.next_token.label in 'axis' or self.next_token.symbol in {
+        return self.next_token.label == 'axis' or self.next_token.symbol in {
             '(integer)', '(string)', '(float)',  '(decimal)', '(name)', 'node', 'text', '*',
             '@', '..', '.', '(', '/', '{'
         }
