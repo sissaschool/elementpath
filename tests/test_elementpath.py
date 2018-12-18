@@ -1492,6 +1492,10 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:IDREF("xyz")', 'xyz')
         self.check_value('xs:ENTITY("xyz")', 'xyz')
 
+    def test_qname_constructor(self):
+        self.check_value('xs:QName("xs:element")', 'xs:element')
+        self.assertRaises(KeyError, self.parser.parse, 'xs:QName("xsd:element")')
+
     def test_any_uri_constructor(self):
         self.check_value('xs:anyURI("")', '')
         self.check_value('xs:anyURI("https://example.com")', 'https://example.com')
@@ -1510,7 +1514,6 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:boolean(())', [])
         self.check_value('xs:boolean(1)', True)
         self.check_value('xs:boolean(0)', False)
-
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')

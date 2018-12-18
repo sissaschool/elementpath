@@ -812,34 +812,6 @@ def select(self, context=None):
 
 ###
 # Function for QNames
-@method(function('QName', nargs=2))
-def evaluate(self, context=None):
-    uri = self.get_argument(context)
-    if uri is None:
-        uri = ''
-    elif not isinstance(uri, string_base_type):
-        raise self.error('FORG0006', '1st argument has an invalid type %r' % type(uri))
-
-    qname = self[1].evaluate(context)
-    if not isinstance(qname, string_base_type):
-        raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
-    match = QNAME_PATTERN.match(qname)
-    if match is None:
-        raise self.error('FOCA0002', '2nd argument must be an xs:QName')
-
-    pfx = match.groupdict()['prefix'] or ''
-    if not uri:
-        if pfx:
-            raise self.error('FOCA0002', 'must be a local name when the parameter URI is empty')
-    else:
-        try:
-            if uri != self.parser.namespaces[pfx]:
-                raise self.error('FOCA0002', 'prefix %r is already is used for another namespace' % pfx)
-        except KeyError:
-            self.parser.namespaces[pfx] = uri
-    return qname
-
-
 @method(function('prefix-from-QName', nargs=1))
 def evaluate(self, context=None):
     qname = self.get_argument(context)
@@ -1874,6 +1846,7 @@ register('string', lbp=90, rbp=90, label=('function', 'constructor'),
 def nud(self):
     self.parser.advance('(')
     self[0:] = self.parser.expression(5),
+
     self.parser.advance(')')
 
     try:
@@ -1890,6 +1863,75 @@ def evaluate(self, context=None):
     else:
         item = self.get_argument(context)
         return [] if item is None else str(item)
+
+
+# Case 4: In XPath 2.0 the 'QName' keyword is used both for fn:QName() and xs:QName().
+# In this case the label is set by the nud method, in dependence of the number of args.
+register('QName', lbp=90, rbp=90, label=('function', 'constructor'),
+         pattern=r'\bQName(?=\s*\(|\s*\(\:.*\:\)\()')
+
+
+@method('QName')
+def nud(self):
+    self.parser.advance('(')
+    self[0:] = self.parser.expression(5),
+    if self.parser.next_token.symbol == ',':
+        self.label = 'function'
+        self.parser.advance(',')
+        self[1:] = self.parser.expression(5),
+    else:
+        self.label = 'constructor'
+    self.parser.advance(')')
+
+    try:
+        self.value = self.evaluate()  # Static context evaluation
+    except ElementPathMissingContextError:
+        self.value = None
+    return self
+
+
+@method('QName')
+def evaluate(self, context=None):
+    if self.label == 'constructor':
+        item = self.get_argument(context)
+        if item is None:
+            return []
+        elif not isinstance(item, string_base_type):
+            raise self.error('FORG0006', 'the argument has an invalid type %r' % type(item))
+        match = QNAME_PATTERN.match(item)
+        if match is None:
+            raise self.error('FOCA0002', 'the argument must be an xs:QName')
+
+        pfx = match.groupdict()['prefix'] or ''
+        if pfx and pfx not in self.parser.namespaces:
+            raise self.error('FONS0004', 'No namespace found for prefix %r' % pfx)
+        return item
+
+    else:
+        uri = self.get_argument(context)
+        if uri is None:
+            uri = ''
+        elif not isinstance(uri, string_base_type):
+            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(uri))
+
+        qname = self[1].evaluate(context)
+        if not isinstance(qname, string_base_type):
+            raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
+        match = QNAME_PATTERN.match(qname)
+        if match is None:
+            raise self.error('FOCA0002', '2nd argument must be an xs:QName')
+
+        pfx = match.groupdict()['prefix'] or ''
+        if not uri:
+            if pfx:
+                raise self.error('FOCA0002', 'must be a local name when the parameter URI is empty')
+        else:
+            try:
+                if uri != self.parser.namespaces[pfx]:
+                    raise self.error('FOCA0002', 'prefix %r is already is used for another namespace' % pfx)
+            except KeyError:
+                self.parser.namespaces[pfx] = uri
+        return qname
 
 
 XPath2Parser.build_tokenizer()
