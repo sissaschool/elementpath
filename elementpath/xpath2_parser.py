@@ -148,7 +148,6 @@ class XPath2Parser(XPath1Parser):
         'error',
 
         # XSD builtins constructors ('string', 'boolean' and 'QName' already registered as functions)
-        'string1', #    'boolean1',
         'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID', 'IDREF',
         'NMTOKEN', 'anyURI', 'decimal', 'int', 'integer', 'long', 'short', 'byte', 'double',
         'float', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
@@ -238,8 +237,7 @@ class XPath2Parser(XPath1Parser):
         """Creates a constructor token class."""
         def nud_(self):
             self.parser.advance('(')
-            if self.parser.next_token.symbol != ')':
-                self[0:] = self.parser.expression(5),
+            self[0:] = self.parser.expression(5),
             self.parser.advance(')')
 
             try:
@@ -946,11 +944,6 @@ def evaluate(self, context=None):
 
 ###
 # XSD constructor functions
-@method(constructor('string1'))
-def evaluate(self, context=None):
-    return None if context is None else str(self.get_argument(context))
-
-
 @method(constructor('normalizedString'))
 def evaluate(self, context=None):
     item = self.get_argument(context)
@@ -1869,6 +1862,34 @@ def evaluate(self, context=None):
         return False
     else:
         raise self.error('FOCA0002', "%r: not a boolean value" % item)
+
+
+# Case 3: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
+unregister('string')
+register('string', lbp=90, rbp=90, label=('function', 'constructor'),
+         pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()')
+
+
+@method('string')
+def nud(self):
+    self.parser.advance('(')
+    self[0:] = self.parser.expression(5),
+    self.parser.advance(')')
+
+    try:
+        self.value = self.evaluate()  # Static context evaluation
+    except ElementPathMissingContextError:
+        self.value = None
+    return self
+
+
+@method('string')
+def evaluate(self, context=None):
+    if self.label == 'function':
+        return string_value(self.get_argument(context))
+    else:
+        item = self.get_argument(context)
+        return [] if item is None else str(item)
 
 
 XPath2Parser.build_tokenizer()
