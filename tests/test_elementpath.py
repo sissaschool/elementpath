@@ -1441,6 +1441,11 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_selector("fn:in-scope-prefixes(.)", root, ['p2', 'p0'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
 
     def test_string_constructors(self):
+        self.check_value("xs:string(5.0)", '5.0')
+        self.check_value('xs:string(" hello  ")', ' hello  ')
+        self.check_value('xs:string("\thello \n")', '\thello \n')
+        self.check_value('xs:string(())', [])
+
         self.check_value('xs:normalizedString("hello")', "hello")
         self.check_value('xs:normalizedString(" hello  ")', " hello  ")
         self.check_value('xs:normalizedString("\thello \n")', " hello  ")
@@ -1510,6 +1515,7 @@ class XPath2ParserTest(XPath1ParserTest):
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")')
         self.check_value('xs:integer("19")', 19)
+        self.check_value("xs:integer('-5')", -5)
 
         self.wrong_value('xs:nonNegativeInteger("-1")')
         self.wrong_value('xs:nonNegativeInteger(-1)')
@@ -2135,10 +2141,6 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
         self.check_value("() cast as xs:integer?", [])
         self.check_value('"1" cast as xs:boolean', True)
         self.check_value('"0" cast as xs:boolean', False)
-
-    def test_atomic_constructors(self):
-        self.check_value("xs:integer('5')", 5)
-        # self.check_value("xs:string(5.0)", '5.0')  # TODO: multi-value token
 
 
 class LxmlXPath2ParserXMLSchemaTest(XPath2ParserXMLSchemaTest):
