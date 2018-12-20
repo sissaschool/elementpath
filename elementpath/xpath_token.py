@@ -114,7 +114,7 @@ class XPathToken(Token):
                 if context is not None:
                     item = context.item if context.item is not None else context.root
                     if cls is not None and not isinstance(item, cls):
-                        self.wrong_type("the context item is not a %r instance" % cls)
+                        self.wrong_type("the context item is not a %r instance: %r" % (cls, item))
                     return context.item
                 else:
                     self.missing_context()
@@ -123,11 +123,11 @@ class XPathToken(Token):
             for k, result in enumerate(selector(context)):
                 if k == 0:
                     item = result
+                    if cls is not None and not isinstance(item, cls):
+                        self.wrong_type("the argument #%d is not a %r instance: %r" % (index, cls, item))
                 elif self.parser.version > '1.0':
                     self.wrong_context_type("a sequence of more than one item is not allowed as argument")
                 else:
-                    if cls is not None and not isinstance(item, cls):
-                        self.wrong_type("the argument is not a %r instance" % cls)
                     break
             return item
 
