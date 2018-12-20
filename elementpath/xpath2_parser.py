@@ -15,6 +15,7 @@ import codecs
 import datetime
 import time
 import re
+import locale
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
@@ -114,8 +115,8 @@ class XPath2Parser(XPath1Parser):
         # Cardinality functions for sequences
         'zero-or-one', 'one-or-more', 'exactly-one',
 
-        # TODO: Pattern matching functions
-        # 'matches', 'replace', 'tokenize',
+        # Pattern matching functions
+        'matches', 'replace', 'tokenize',
 
         # Functions for extracting fragments from xs:duration
         'years-from-duration', 'months-from-duration', 'days-from-duration',
@@ -1407,6 +1408,23 @@ def select(self, context=None):
 
 
 ###
+#
+@method(function('matches', nargs=(2, 3)))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('replace', nargs=(3, 4)))
+def evaluate(self, context=None):
+    raise NotImplementedError()
+
+
+@method(function('tokenize', nargs=(2, 3)))
+def select(self, context=None):
+    raise NotImplementedError()
+
+
+###
 # String functions
 @method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
@@ -1421,12 +1439,37 @@ def select(self, context=None):
 
 @method(function('compare', nargs=(2, 3)))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    comp1 = self.get_argument(context, 0)
+    comp2 = self.get_argument(context, 1)
+    if comp1 is None or comp2 is None:
+        return []
+    elif not isinstance(comp1, string_base_type):
+        self.wrong_type("1st argument must be a string: %r" % comp1)
+    elif not isinstance(comp2, string_base_type):
+        self.wrong_type("2nd argument must be a string: %r" % comp2)
+
+    if len(self) == 3:
+        collation = self.get_argument(context, 2)
+        default_locale = locale.getlocale()
+        locale.setlocale(locale.LC_ALL, collation)
+        value = locale.strcoll(comp1, comp2)
+        locale.setlocale(locale.LC_ALL, '.'.join(default_locale))
+    else:
+        value = locale.strcoll(comp1, comp2)
+
+    return 1 if value > 0 else -1 if value < 0 else 0
 
 
 @method(function('codepoint-equal', nargs=2))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    comp1 = self.get_argument(context, 0, cls=string_base_type)
+    comp2 = self.get_argument(context, 1, cls=string_base_type)
+    if comp1 is None or comp2 is None:
+        return []
+    elif len(comp1) != len(comp2):
+        return False
+    else:
+        return all(ord(c1) == ord(c2) for c1, c2 in zip(comp1, comp2))
 
 
 @method(function('string-join', nargs=2))

@@ -1349,6 +1349,24 @@ class XPath2ParserTest(XPath1ParserTest):
                          'Blow, blow, thou winter wind!')
         self.check_value("string-join((), 'separator')", '')
 
+    def test_compare_function(self):
+        self.check_value("fn:compare('abc', 'abc')", 0)
+        # self.check_value(u"fn:compare('Strasse', 'Straße')", 0)
+        self.check_value("fn:compare('abc', 'abcd')", -1)
+        self.check_value("fn:compare('abcd', 'abc')", 1)
+
+        self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
+        #self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+
+    def test_codepoint_equal_function(self):
+        self.check_value("fn:codepoint-equal('abc', 'abc')", True)
+        self.check_value("fn:codepoint-equal('abc', 'abcd')", False)
+        self.check_value("fn:codepoint-equal('', '')", True)
+        self.check_value("fn:codepoint-equal((), 'abc')", [])
+        self.check_value("fn:codepoint-equal('abc', ())", [])
+        self.check_value("fn:codepoint-equal((), ())", [])
+
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)
