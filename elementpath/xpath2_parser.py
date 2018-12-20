@@ -16,6 +16,7 @@ import datetime
 import time
 import re
 import locale
+import unicodedata
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
@@ -1484,7 +1485,27 @@ def evaluate(self, context=None):
 
 @method(function('normalize-unicode', nargs=(1, 2)))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    arg = self.get_argument(context, cls=string_base_type)
+    if len(self) > 1:
+        normalization_form = self.get_argument(context, 1, cls=string_base_type)
+        if normalization_form is None:
+            self.wrong_type("2nd argument can't be an empty sequence")
+        else:
+            normalization_form = normalization_form.strip().upper()
+    else:
+        normalization_form = 'NFC'
+
+    if normalization_form == 'FULLY-NORMALIZED':
+        raise NotImplementedError("%r normalization form not supported" % normalization_form)
+    if arg is None:
+        return ''
+    elif not isinstance(arg, unicode_type):
+        arg = arg.decode('utf-8')
+
+    try:
+        return unicodedata.normalize(normalization_form, arg)
+    except ValueError:
+        raise self.error('FOCH0003', "unsupported normalization form %r" % normalization_form)
 
 
 @method(function('upper-case', nargs=1))

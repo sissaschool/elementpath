@@ -18,6 +18,7 @@
 #           http://www.w3.org/TR/2010/REC-xpath20-20101214/
 #           http://www.w3.org/TR/2010/REC-xpath-functions-20101214/
 #           https://www.w3.org/Consortium/Legal/2015/doc-license
+#           https://www.w3.org/TR/charmod-norm/
 #
 import unittest
 import sys
@@ -1303,28 +1304,85 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
-    def test_string_functions2(self):
-        # Some test cases from https://www.w3.org/TR/xquery-operators/#string-value-functions
+    ###
+    # Functions on strings
+    def test_codepoints_to_string_function(self):
         self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
+
+    def test_string_to_codepoints_function(self):
         self.check_value(u'string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
         self.check_value(u'string-to-codepoints(())', [])
 
+    def test_codepoint_equal_function(self):
+        self.check_value("fn:codepoint-equal('abc', 'abc')", True)
+        self.check_value("fn:codepoint-equal('abc', 'abcd')", False)
+        self.check_value("fn:codepoint-equal('', '')", True)
+        self.check_value("fn:codepoint-equal((), 'abc')", [])
+        self.check_value("fn:codepoint-equal('abc', ())", [])
+        self.check_value("fn:codepoint-equal((), ())", [])
+
+    def test_compare_strings_function(self):
+        self.check_value("fn:compare('abc', 'abc')", 0)
+        # self.check_value(u"fn:compare('Strasse', 'Straße')", 0)
+        self.check_value("fn:compare('abc', 'abcd')", -1)
+        self.check_value("fn:compare('abcd', 'abc')", 1)
+
+        # TODO: fix collation?
+        self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
+        self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+
+    def test_normalize_unicode_function(self):
+        self.check_value('fn:normalize-unicode("menù")', u'menù')
+        self.assertRaises(NotImplementedError, self.parser.parse, 'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
+        self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
+
+        # https://www.w3.org/TR/charmod-norm/#normalization_forms
+        self.check_value(u"fn:normalize-unicode('\u01FA')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFKD')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', ' nfkd ')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301')", u'\uFF21\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFD')", u'\uFF21\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+
+    def test_lower_case_function(self):
         self.check_value('lower-case("aBcDe01")', 'abcde01')
         self.check_value('lower-case(("aBcDe01"))', 'abcde01')
         self.check_value('lower-case(())', '')
         self.wrong_type('lower-case((10))')
 
+    def test_upper_case_function(self):
         self.check_value('upper-case("aBcDe01")', 'ABCDE01')
         self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
         self.check_value('upper-case(())', '')
         self.wrong_type('upper-case((10))')
 
+    def test_encode_for_uri_function(self):
         self.check_value('encode-for-uri("http://xpath.test")', 'http%3A%2F%2Fxpath.test')
         self.check_value('encode-for-uri("~bébé")', '~b%C3%A9b%C3%A9')
         self.check_value('encode-for-uri("100% organic")', '100%25%20organic')
         self.check_value('encode-for-uri("")', '')
         self.check_value('encode-for-uri(())', '')
 
+    def test_iri_to_uri_function(self):
         self.check_value('iri-to-uri("http://www.example.com/00/Weather/CA/Los%20Angeles#ocean")',
                          'http://www.example.com/00/Weather/CA/Los%20Angeles#ocean')
         self.check_value('iri-to-uri("http://www.example.com/~bébé")',
@@ -1332,6 +1390,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('iri-to-uri("")', '')
         self.check_value('iri-to-uri(())', '')
 
+    def test_escape_html_uri_function(self):
         self.check_value('escape-html-uri("http://www.example.com/00/Weather/CA/Los Angeles#ocean")',
                          'http://www.example.com/00/Weather/CA/Los Angeles#ocean')
         self.check_value("escape-html-uri(\"javascript:if (navigator.browserLanguage == 'fr') "
@@ -1341,31 +1400,14 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('escape-html-uri("")', '')
         self.check_value('escape-html-uri(())', '')
 
+    def test_string_length_function(self):
         self.check_value("string-length(())", 0)
 
-        self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')",
-                         "Now is the time ...")
+    def test_string_join_function(self):
+        self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')", "Now is the time ...")
         self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
                          'Blow, blow, thou winter wind!')
         self.check_value("string-join((), 'separator')", '')
-
-    def test_compare_function(self):
-        self.check_value("fn:compare('abc', 'abc')", 0)
-        # self.check_value(u"fn:compare('Strasse', 'Straße')", 0)
-        self.check_value("fn:compare('abc', 'abcd')", -1)
-        self.check_value("fn:compare('abcd', 'abc')", 1)
-
-        self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
-        self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
-        #self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
-
-    def test_codepoint_equal_function(self):
-        self.check_value("fn:codepoint-equal('abc', 'abc')", True)
-        self.check_value("fn:codepoint-equal('abc', 'abcd')", False)
-        self.check_value("fn:codepoint-equal('', '')", True)
-        self.check_value("fn:codepoint-equal((), 'abc')", [])
-        self.check_value("fn:codepoint-equal('abc', ())", [])
-        self.check_value("fn:codepoint-equal((), ())", [])
 
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
@@ -1800,12 +1842,14 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:time("08:20:00-05:00") - xs:dayTimeDuration("P23DT10H10M")',
                          Time.fromstring('22:10:00-05:00'))
 
-    def test_duration_constructors(self):
+    def test_duration_constructor(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
         self.check_value('xs:duration("P3Y5M1DT1H")', (41, 90000))
         self.check_value('xs:duration("P3Y5M1DT1H3M2.01S")', (41, Decimal('90182.01')))
         self.wrong_value('xs:duration("P3Y5M1X")')
         self.assertRaises(TypeError, self.parser.parse, 'xs:duration(1)')
+
+    def test_year_month_duration_constructor(self):
 
         self.check_value('xs:yearMonthDuration("P3Y5M")', (41, 0))
         self.check_value('xs:yearMonthDuration("-P15M")', (-15, 0))
@@ -1813,6 +1857,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:yearMonthDuration("-P15M1D")')
         self.wrong_value('xs:yearMonthDuration("P15MT1H")')
 
+    def test_day_time_duration_constructor(self):
         self.check_value('xs:dayTimeDuration("-P2DT15H")', DayTimeDuration(seconds=-226800))
         self.check_value('xs:dayTimeDuration("PT240H")', DayTimeDuration.fromstring("P10D"))
         self.check_value('xs:dayTimeDuration("P365D")', DayTimeDuration.fromstring("P365D"))
@@ -1822,32 +1867,37 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:dayTimeDuration("PT0S")', (0, 0))
         self.wrong_value('xs:yearMonthDuration("P1MT10H")')
 
-    def test_fragment_from_duration_function(self):
+    def test_years_from_duration_function(self):
         self.check_value('fn:years-from-duration(())', [])
         self.check_value('fn:years-from-duration(xs:yearMonthDuration("P20Y15M"))', 21)
         self.check_value('fn:years-from-duration(xs:yearMonthDuration("-P15M"))', -1)
         self.check_value('fn:years-from-duration(xs:dayTimeDuration("-P2DT15H"))', 0)
 
+    def test_months_from_duration_function(self):
         self.check_value('fn:months-from-duration(xs:yearMonthDuration("P20Y15M"))', 3)
         self.check_value('fn:months-from-duration(xs:yearMonthDuration("-P20Y18M"))', -6)
         self.check_value('fn:months-from-duration(xs:dayTimeDuration("-P2DT15H0M0S"))', 0)
 
+    def test_days_from_duration_function(self):
         self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT10H"))', 3)
         self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT55H"))', 5)
         self.check_value('fn:days-from-duration(xs:yearMonthDuration("P3Y5M"))', 0)
 
+    def test_hours_from_duration_function(self):
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT10H"))', 10)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT12H32M12S"))', 12)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("PT123H"))', 3)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("-P3DT10H"))', -10)
 
+    def test_minutes_from_duration_function(self):
         self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("P3DT10H"))', 0)
         self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("-P5DT12H30M"))', -30)
 
+    def test_seconds_from_duration_function(self):
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("P3DT10H12.5S"))', 12.5)
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
 
-    def test_duration_operators(self):
+    def test_year_month_duration_operators(self):
         self.check_value(
             'xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=74)
         )
@@ -1858,6 +1908,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5', YearMonthDuration.fromstring('P1Y11M'))
         self.check_value('xs:yearMonthDuration("P3Y4M") div xs:yearMonthDuration("-P1Y4M")', -2.5)
 
+    def test_day_time_duration_operators(self):
         self.check_value(
             'xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")', DayTimeDuration.fromstring('P8DT5M')
         )
@@ -1903,7 +1954,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_select("item()", [10.2], context)
         self.check_select("node()", [], context)
 
-    def test_node_set_functions2(self):
+    def test_count_function(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         self.check_selector("count(5)", root, 1)
         self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
@@ -1923,7 +1974,7 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, UntypedAtomic)
 
-    def test_union_intersect_except(self):
+    def test_union_intersect_except_operators(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
         self.check_selector('/A/B2 union /A/B1', root, root[:2])
         self.check_selector('/A/B2 union /A/*', root, root[:])
