@@ -23,9 +23,21 @@ from .compat import string_base_type
 from .exceptions import ElementPathError, ElementPathNameError, ElementPathTypeError, \
     ElementPathValueError, ElementPathMissingContextError, ElementPathKeyError
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import is_etree_element, is_document_node, boolean_value, data_value
-from .datatypes import Date, Time, Timezone, DayTimeDuration
+from .xpath_helpers import is_etree_element, is_document_node, boolean_value, string_value, data_value, number_value
+from .datatypes import UntypedAtomic, Date, Time, Timezone, DayTimeDuration
 from .tdop_parser import Token
+
+
+def ordinal(n):
+    least_significant_digit = n % 10
+    if least_significant_digit == 1:
+        return '%dst' % n
+    elif least_significant_digit == 2:
+        return '%dnd' % n
+    elif least_significant_digit == 3:
+        return '%drd' % n
+    else:
+        return '%dth' % n
 
 
 ###
@@ -95,14 +107,15 @@ class XPathToken(Token):
 
     ###
     # Context manipulation helpers
-    def get_argument(self, context, index=0, default_to_context=False, cls=None):
+    def get_argument(self, context, index=0, required=False, default_to_context=False, cls=None):
         """
-        Get the first argument of a function token. A zero length sequence is converted to
+        Get the argument value of a function token. A zero length sequence is converted to
         a `None` value. If the function has no argument returns the context's item if the
         dynamic context is not `None`.
 
         :param context: the dynamic context.
         :param index: an index for select the argument to be got, the first for default.
+        :param required: if set to `True` missing or empty sequence arguments are not allowed.
         :param default_to_context: if set to `True` and the argument is missing the item \
         of the dynamic context is returned.
         :param cls: if a type is provided performs a type checking on item.
@@ -111,25 +124,48 @@ class XPathToken(Token):
             selector = self[index].select
         except IndexError:
             if default_to_context:
-                if context is not None:
-                    item = context.item if context.item is not None else context.root
-                    if cls is not None and not isinstance(item, cls):
-                        self.wrong_type("the context item is not a %r instance: %r" % (cls, item))
-                    return context.item
-                else:
+                if context is None:
                     self.missing_context()
+                item = context.item if context.item is not None else context.root
+            elif required:
+                raise self.error('XPST0017', "Missing %s argument" % ordinal(index + 1))
+            else:
+                return
         else:
             item = None
             for k, result in enumerate(selector(context)):
                 if k == 0:
                     item = result
-                    if cls is not None and not isinstance(item, cls):
-                        self.wrong_type("the argument #%d is not a %r instance: %r" % (index, cls, item))
                 elif self.parser.version > '1.0':
                     self.wrong_context_type("a sequence of more than one item is not allowed as argument")
                 else:
                     break
-            return item
+            else:
+                if item is None:
+                    if not required:
+                        return
+                    ord_arg = ordinal(index + 1)
+                    if cls is None:
+                        self.missing_sequence("A not empty sequence required for %s argument" % ord_arg)
+                    else:
+                        self.missing_sequence("A not empty sequence of %r required for %s argument" % (cls, ord_arg))
+
+        # Type checking (see "function conversion rules" in XPath 2.0 language definition)
+        if cls is not None and not isinstance(item, cls):
+            if self.parser.compatibility_mode:
+                if issubclass(cls, string_base_type):
+                    return string_value(item)
+                elif issubclass(cls, float):
+                    return number_value(item)
+            else:
+                value = data_value(item)
+                if isinstance(value, UntypedAtomic):
+                    try:
+                        return str(value) if issubclass(cls, string_base_type) else cls(value)
+                    except (TypeError, ValueError):
+                        pass
+            self.wrong_type("the %s argument %r is not a %r instance" % (ordinal(index + 1), item, cls))
+        return item
 
     def get_comparison_data(self, context):
         """
@@ -442,6 +478,12 @@ class XPathToken(Token):
             raise ElementPathValueError('Unknown XPath error code %r.' % code)
 
     # Shortcuts for XPath errors
+    def wrong_value(self, message=None):
+        raise self.error('FOCA0002', message)
+
+    def wrong_type(self, message=None):
+        raise self.error('FORG0006', message)
+
     def missing_schema(self, message=None):
         raise self.error('XPST0001', message)
 

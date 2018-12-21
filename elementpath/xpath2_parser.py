@@ -49,6 +49,7 @@ HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
 LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*$')
 WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
+WRONG_REPLACEMENT_PATTERN = re.compile(r'(?<!\\)\$([^\d]|$)|((?<=[^\\])|^)\\([^$]|$)|\\\\\$')
 
 
 def collapse_white_spaces(s):
@@ -103,6 +104,9 @@ class XPath2Parser(XPath1Parser):
 
         # Number functions
         'abs', 'round-half-to-even',
+
+        # Aggregate functions
+        'avg', 'min', 'max',
 
         # String functions
         'codepoints-to-string', 'string-to-codepoints', 'compare', 'codepoint-equal',
@@ -188,7 +192,7 @@ class XPath2Parser(XPath1Parser):
             self.tokenizer = create_tokenizer(self.symbol_table, XML_NCNAME_PATTERN)
 
         if compatibility_mode is False:
-            self.compatibility_mode = False  # It's already a XPath1Parser class property
+            self.compatibility_mode = False  # It's already an XPath1Parser class property
 
     @property
     def version(self):
@@ -574,7 +578,7 @@ def evaluate(self, context=None):
         self.missing_schema()
     atomic_type = prefixed_to_qname(self[1].source, namespaces=self.parser.namespaces)
     if atomic_type in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
-        self.wrong_type("target type cannot be xs:NOTATION or xs:anyAtomicType [err:XPST0080]")
+        raise self.error('XPST0080')
 
     result = [res for res in self[0].select(context)]
     if len(result) > 1:
@@ -1208,7 +1212,7 @@ def select(self, context=None):
     for item in self[0].select(context):
         value = data_value(item)
         if value is None:
-            self.wrong_type("argument node does not have a typed value [err:FOTY0012]")
+            raise self.error('FOTY0012', "argument node does not have a typed value: %r" % item)
         else:
             yield value
 
@@ -1259,6 +1263,68 @@ def evaluate(self, context=None):
         return abs(node_string_value(item) if is_xpath_node(item) else item)
     except TypeError:
         return float('nan')
+
+
+###
+# Aggregate functions
+@method(function('avg', nargs=1))
+def evaluate(self, context=None):
+    result = list(self[0].select(context))
+    if not result:
+        return result
+    elif isinstance(result[0], Duration):
+        value = result[0]
+        try:
+            for item in result[1:]:
+                value = value + item
+            return value / len(result)
+        except TypeError as err:
+            self.wrong_type(str(err))
+    else:
+        try:
+            return sum(result) / len(result)
+        except TypeError as err:
+            self.wrong_type(str(err))
+
+
+@method(function('max', nargs=(1, 2)))
+def evaluate(self, context=None):
+    locale.setlocale(locale.LC_ALL, '')
+    default_locale = locale.getlocale()
+    if len(self) > 1:
+        collation = self.get_argument(context, 1)
+        try:
+            locale.setlocale(locale.LC_ALL, collation)
+        except locale.Error as err:
+            self.wrong_value(str(err) + ' ' + repr(collation))
+
+    try:
+        value = max(self[0].select(context))
+    except TypeError as err:
+        self.wrong_type(str(err))
+    else:
+        locale.setlocale(locale.LC_ALL, default_locale)
+        return value
+
+
+@method(function('min', nargs=(1, 2)))
+def evaluate(self, context=None):
+    locale.setlocale(locale.LC_ALL, '')
+    default_locale = locale.getlocale()
+    if len(self) > 1:
+        collation = self.get_argument(context, 1)
+        try:
+            locale.setlocale(locale.LC_ALL, collation)
+        except locale.Error as err:
+            self.wrong_value(str(err) + ' ' + repr(collation))
+
+    try:
+        value = min(self[0].select(context))
+    except TypeError as err:
+        self.wrong_type(str(err))
+    else:
+        locale.setlocale(locale.LC_ALL, default_locale)
+        return value
 
 
 ###
@@ -1373,7 +1439,7 @@ def select(self, context=None):
     except StopIteration:
         yield item
     else:
-        self.wrong_value("called with a sequence containing more than one item [err:FORG0003]")
+        raise self.error('FORG0003')
 
 
 @method(function('one-or-more', nargs=1))
@@ -1382,7 +1448,7 @@ def select(self, context=None):
     try:
         item = next(results)
     except StopIteration:
-        self.wrong_value("called with a sequence containing no items [err:FORG0004]")
+        raise self.error('FORG0004')
     else:
         yield item
         while True:
@@ -1398,31 +1464,105 @@ def select(self, context=None):
     try:
         item = next(results)
     except StopIteration:
-        self.wrong_value("called with a sequence containing zero items [err:FORG0005]")
+        raise self.error('FORG0005')
     else:
         try:
             next(results)
         except StopIteration:
             yield item
         else:
-            self.wrong_value("called with a sequence containing more than one item [err:FORG0005]")
+            raise self.error('FORG0005')
 
 
 ###
-#
+# Regex
 @method(function('matches', nargs=(2, 3)))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    input_string = self.get_argument(context, cls=string_base_type)
+    pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
+    flags = 0
+    if len(self) > 2:
+        for c in self.get_argument(context, 2, required=True, cls=string_base_type):
+            if c in 'smix':
+                flags |= getattr(re, c.upper())
+            else:
+                raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
+
+    if input_string is None:
+        input_string = ''
+
+    try:
+        return re.search(pattern, input_string, flags=flags) is not None
+    except re.error:
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)  # TODO: full XML regex syntax
 
 
 @method(function('replace', nargs=(3, 4)))
 def evaluate(self, context=None):
-    raise NotImplementedError()
+    input_string = self.get_argument(context, cls=string_base_type)
+    pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
+    replacement = self.get_argument(context, 2, required=True, cls=string_base_type)
+    flags = 0
+    if len(self) > 3:
+        for c in self.get_argument(context, 3, required=True, cls=string_base_type):
+            if c in 'smix':
+                flags |= getattr(re, c.upper())
+            else:
+                raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
+
+    if input_string is None:
+        input_string = ''
+
+    try:
+        pattern = re.compile(pattern, flags=flags)
+    except re.error:
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)  # TODO: full XML regex syntax
+    else:
+        if pattern.search(''):
+            raise self.error('FORX0003', "Regular expression %r matches zero-length string" % pattern.pattern)
+        elif WRONG_REPLACEMENT_PATTERN.search(replacement):
+            raise self.error('FORX0004', "Invalid replacement string %r" % replacement)
+        else:
+            if sys.version_info >= (3, 5):
+                for g in range(pattern.groups + 1):
+                    if '$%d' % g in replacement:
+                        replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
+            else:
+                match = pattern.search(input_string)
+                for g in range(pattern.groups + 1):
+                    if '$%d' % g in replacement:
+                        if match and match.group(g) is not None:
+                            replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
+                        else:
+                            replacement = re.sub(r'(?<!\\)\$%d' % g, '', replacement)
+
+        return pattern.sub(replacement, input_string)
 
 
 @method(function('tokenize', nargs=(2, 3)))
 def select(self, context=None):
-    raise NotImplementedError()
+    input_string = self.get_argument(context, cls=string_base_type)
+    pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
+    flags = 0
+    if len(self) > 2:
+        for c in self.get_argument(context, 2, required=True, cls=string_base_type):
+            if c in 'smix':
+                flags |= getattr(re, c.upper())
+            else:
+                raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
+
+    try:
+        pattern = re.compile(pattern, flags=flags)
+    except re.error:
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
+    else:
+        if pattern.search(''):
+            raise self.error('FORX0003', "Regular expression %r matches zero-length string" % pattern.pattern)
+
+    if input_string:
+        for value in pattern.split(input_string):
+            if value is not None and pattern.search(value) is None:
+                yield value
 
 
 ###
@@ -1440,23 +1580,23 @@ def select(self, context=None):
 
 @method(function('compare', nargs=(2, 3)))
 def evaluate(self, context=None):
-    comp1 = self.get_argument(context, 0)
-    comp2 = self.get_argument(context, 1)
+    comp1 = self.get_argument(context, 0, cls=string_base_type)
+    comp2 = self.get_argument(context, 1, cls=string_base_type)
     if comp1 is None or comp2 is None:
         return []
-    elif not isinstance(comp1, string_base_type):
-        self.wrong_type("1st argument must be a string: %r" % comp1)
-    elif not isinstance(comp2, string_base_type):
-        self.wrong_type("2nd argument must be a string: %r" % comp2)
 
-    if len(self) == 3:
+    locale.setlocale(locale.LC_ALL, '')
+    if len(self) < 3:
+        value = locale.strcoll(comp1, comp2)
+    else:
         collation = self.get_argument(context, 2)
         default_locale = locale.getlocale()
-        locale.setlocale(locale.LC_ALL, collation)
+        try:
+            locale.setlocale(locale.LC_ALL, collation)
+        except locale.Error as err:
+            self.wrong_value(str(err) + ' ' + repr(collation))
         value = locale.strcoll(comp1, comp2)
-        locale.setlocale(locale.LC_ALL, '.'.join(default_locale))
-    else:
-        value = locale.strcoll(comp1, comp2)
+        locale.setlocale(locale.LC_ALL, default_locale)
 
     return 1 if value > 0 else -1 if value < 0 else 0
 
@@ -1740,19 +1880,25 @@ def evaluate(self, context=None):
 # Context functions
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
-    if context is not None:
+    if context is None:
+        return DateTime(datetime.datetime.now())
+    else:
         return DateTime(context.current_dt)
 
 
 @method(function('current-date', nargs=0))
 def evaluate(self, context=None):
-    if context is not None:
+    if context is None:
+        return Date(datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
+    else:
         return Date(context.current_dt.replace(hour=0, minute=0, second=0, microsecond=0))
 
 
 @method(function('current-time', nargs=0))
 def evaluate(self, context=None):
-    if context is not None:
+    if context is None:
+        return Time(datetime.datetime.now().replace(year=1900, month=1, day=1))
+    else:
         return Time(context.current_dt.replace(year=1900, month=1, day=1))
 
 

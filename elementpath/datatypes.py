@@ -9,8 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
-implementation for XPath functions that are reused in many contexts.
+XSD atomic datatypes for XPath. Includes a class for UntypedAtomic data and some
+classes for XSD datetime and duration types.
 """
 from __future__ import division, unicode_literals
 
@@ -596,6 +596,10 @@ class YearMonthDuration(Duration):
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
+    if not PY3:
+        def __div__(self, other):
+            return self.__truediv__(other)
+
 
 class DayTimeDuration(Duration):
 
@@ -636,6 +640,10 @@ class DayTimeDuration(Duration):
             return DayTimeDuration(seconds=int(float(self.seconds / other) + 0.5))
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+
+    if not PY3:
+        def __div__(self, other):
+            return self.__truediv__(other)
 
 
 class Timezone(tzinfo):

@@ -2,8 +2,15 @@
 CHANGELOG
 *********
 
-`v1.0.12`_ (TDB)
-================
+`v1.1.0`_ (TBD)
+===============
+* Almost full implementation of XPath 2.0
+* Add XSD datatypes for data/time builtins
+* Add constructors for XSD builtins
+* TDOP parser cleaning of unused features
+
+`v1.0.12`_ (2018-09-01)
+=======================
 * Fixed the default namespace use for names without prefix.
 
 `v1.0.11`_ (2018-07-25)
@@ -68,3 +75,4 @@ handling of static context evaluation
 .. _v1.0.10: https://github.com/brunato/elementpath/compare/v1.0.8...v1.0.10
 .. _v1.0.11: https://github.com/brunato/elementpath/compare/v1.0.10...v1.0.11
 .. _v1.0.12: https://github.com/brunato/elementpath/compare/v1.0.11...v1.0.12
+.. _v1.1.0: https://github.com/brunato/elementpath/compare/v1.0.12...v1.1.0

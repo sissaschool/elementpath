@@ -1092,18 +1092,10 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    if context is None:
-        result = self[0].evaluate()
-    else:
-        result = list(self[0].select(context))
-
-    if isinstance(result, list):
-        try:
-            return sum(result)
-        except TypeError:
-            return self[1].evaluate(context) if len(self) > 1 else 0
-    elif context is not None:
-        self.wrong_type("not a sequence: %r" % result)
+    try:
+        return sum(self[0].select(context))
+    except TypeError:
+        return self[1].evaluate(context) if len(self) > 1 else 0
 
 
 @method(function('ceiling', nargs=1))
