@@ -36,6 +36,7 @@ from elementpath import *
 from elementpath.namespaces import (
     XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XML_LANG_QNAME
 )
+from elementpath.compat import PY3
 from elementpath.datatypes import months2days, DateTime, Date, GregorianYear, Time, Timezone, \
     Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic
 
@@ -44,6 +45,14 @@ try:
     import xmlschema
 except (ImportError, AttributeError):
     xmlschema = None
+
+
+XML_POEM_TEST = """<poem author="Wilhelm Busch">
+Kaum hat dies der Hahn gesehen,
+Fängt er auch schon an zu krähen:
+«Kikeriki! Kikikerikih!!»
+Tak, tak, tak! - da kommen sie.
+</poem>"""
 
 
 class UntypedAtomicTest(unittest.TestCase):
@@ -1292,8 +1301,6 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value('($a, $b) = ($c, 2.0)', True, context=context)
 
     def test_number_functions2(self):
-        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-
         # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
         self.check_value("abs(10.5)", 10.5)
         self.check_value("abs(-10.5)", 10.5)
@@ -1303,6 +1310,44 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("round-half-to-even(3.567812E+3, 2)", 3567.81E0)
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
+
+    def test_aggregate_functions(self):
+        self.check_value("sum((10, 15, 6, -2))", 29)
+
+        context = XPathContext(root=self.etree.XML('<A/>'),
+                               variables={
+                                   'd1': YearMonthDuration.fromstring("P20Y"),
+                                   'd2': YearMonthDuration.fromstring("P10M"),
+                                   'seq3': [3, 4, 5]
+                               })
+        self.check_value("fn:avg($seq3)", 4.0, context=context)
+        self.check_value("fn:avg(($d1, $d2))", YearMonthDuration.fromstring("P125M"), context=context)
+        root_token = self.parser.parse("fn:avg(($d1, $seq3))")
+        self.assertRaises(TypeError, root_token.evaluate, context=context)
+        self.check_value("fn:avg(())", [])
+        self.check_value("fn:avg($seq3)", 4.0, context=context)
+
+        root_token = self.parser.parse("fn:avg((xs:float('INF'), xs:float('-INF')))")
+        self.assertTrue(math.isnan(root_token.evaluate(context)))
+
+        root_token = self.parser.parse("fn:avg(($seq3, xs:float('NaN')))")
+        self.assertTrue(math.isnan(root_token.evaluate(context)))
+
+        self.check_value("fn:max((3,4,5))", 5)
+        self.check_value("fn:max((5, 5.0e0))", 5.0e0)
+        if PY3:
+            self.wrong_type("fn:max((3,4,'Zero'))")
+        else:
+            self.check_value("fn:max((3,4,'Zero'))", 'Zero')
+        self.check_value('fn:max((fn:current-date(), xs:date("2001-01-01")))',
+                         Date(datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)))
+        self.check_value('fn:max(("a", "b", "c"))', 'c')
+
+        self.check_value("fn:min((3,4,5))", 3)
+        self.check_value("fn:min((5, 5.0e0))", 5.0e0)
+        self.check_value("fn:min((xs:float(0.0E0), xs:float(-0.0E0)))", 0.0)
+        self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))', Date.fromstring("2001-01-01"))
+        self.check_value('fn:min(("a", "b", "c"))', 'a')
 
     ###
     # Functions on strings
@@ -1323,14 +1368,18 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_compare_strings_function(self):
         self.check_value("fn:compare('abc', 'abc')", 0)
-        # self.check_value(u"fn:compare('Strasse', 'Straße')", 0)
         self.check_value("fn:compare('abc', 'abcd')", -1)
         self.check_value("fn:compare('abcd', 'abc')", 1)
 
-        # TODO: fix collation?
         self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
-        self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
         self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'it_IT')", -1)
+        self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE')", -1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
+
+        self.wrong_value(u"fn:compare('Strasse', 'Straße', 'invalid')")
+        self.wrong_type(u"fn:compare('Strasse', 111)")
 
     def test_normalize_unicode_function(self):
         self.check_value('fn:normalize-unicode("menù")', u'menù')
@@ -1408,6 +1457,46 @@ class XPath2ParserTest(XPath1ParserTest):
         self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
                          'Blow, blow, thou winter wind!')
         self.check_value("string-join((), 'separator')", '')
+
+    def test_matches_function(self):
+        self.check_value('fn:matches("abracadabra", "bra")', True)
+        self.check_value('fn:matches("abracadabra", "^a.*a$")', True)
+        self.check_value('fn:matches("abracadabra", "^bra")', False)
+
+        root = self.etree.XML(XML_POEM_TEST)
+
+        context = XPathContext(root=root)
+        self.check_value('fn:matches(., "Kaum.*krähen")', False, context=context)
+        self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=context)
+        self.check_value('fn:matches(., "^Kaum.*gesehen,$", "m")', True, context=context)
+        self.check_value('fn:matches(., "^Kaum.*gesehen,$")', False, context=context)
+        self.check_value('fn:matches(., "kiki", "i")', True, context=context)
+
+    def test_replace_function(self):
+        self.check_value('fn:replace("abracadabra", "bra", "*")', "a*cada*")
+        self.check_value('fn:replace("abracadabra", "a.*a", "*")', "*")
+        self.check_value('fn:replace("abracadabra", "a.*?a", "*")', "*c*bra")
+        self.check_value('fn:replace("abracadabra", "a", "")', "brcdbr")
+
+        self.check_value('fn:replace("abracadabra", "a(.)", "a$1$1")', "abbraccaddabbra")
+        self.wrong_value('fn:replace("abracadabra", ".*?", "$1")')
+        self.check_value('fn:replace("AAAA", "A+", "b")', "b")
+        self.check_value('fn:replace("AAAA", "A+?", "b")', "bbbb")
+        self.check_value('fn:replace("darted", "^(.*?)d(.*)$", "$1c$2")', "carted")
+        self.check_value('fn:replace("abcd", "(ab)|(a)", "[1=$1][2=$2]")', "[1=ab][2=]cd")
+
+    def test_tokenize_function(self):
+        self.check_value('fn:tokenize("abracadabra", "(ab)|(a)")', ['', 'r', 'c', 'd', 'r', ''])
+        self.check_value('fn:tokenize("The cat sat on the mat", "\s+")', ['The', 'cat', 'sat', 'on', 'the', 'mat'])
+        self.check_value('fn:tokenize("1, 15, 24, 50", ",\s*")', ['1', '15', '24', '50'])
+        self.check_value('fn:tokenize("1,15,,24,50,", ",")', ['1', '15', '', '24', '50', ''])
+        self.check_value('fn:tokenize("Some unparsed <br> HTML <BR> text", "\s*<br>\s*", "i")',
+                         ['Some unparsed', 'HTML', 'text'])
+
+        self.wrong_value('fn:tokenize("abba", ".?")')
+        self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", "sxf")')
+        self.wrong_value('fn:tokenize("abracadabra", ())')
+        self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", ())')
 
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs

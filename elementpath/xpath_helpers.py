@@ -277,12 +277,12 @@ def data_value(obj):
     """
     if obj is None:
         return
-    elif is_xpath_node(obj):
+    elif not is_xpath_node(obj):
+        return obj
+    else:
         value = node_string_value(obj)
         if value is not None:
             return UntypedAtomic(value)
-    else:
-        return UntypedAtomic(obj)
 
 
 def number_value(obj):
