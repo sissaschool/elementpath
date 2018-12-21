@@ -2,12 +2,12 @@
 CHANGELOG
 *********
 
-`v1.1.0`_ (TBD)
-===============
+`v1.1.0`_ (2018-12-21)
+======================
 * Almost full implementation of XPath 2.0
+* Extended XPath errors management
 * Add XSD datatypes for data/time builtins
 * Add constructors for XSD builtins
-* TDOP parser cleaning of unused features
 
 `v1.0.12`_ (2018-09-01)
 =======================
