@@ -29,7 +29,6 @@ Token base class
     .. automethod:: expected
     .. automethod:: unexpected
     .. automethod:: wrong_syntax
-    .. automethod:: wrong_name
     .. automethod:: wrong_value
     .. automethod:: wrong_type
 
@@ -51,7 +50,6 @@ Parser base class
 
     .. automethod:: register
     .. automethod:: unregister
-    .. automethod:: unregistered
     .. automethod:: literal
     .. automethod:: nullary
     .. automethod:: prefix
