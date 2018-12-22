@@ -11,16 +11,13 @@
 """
 XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 """
-import sys
 from itertools import product
 from abc import ABCMeta
 from collections import MutableSequence
 
-from .exceptions import ElementPathNameError, ElementPathTypeError, ElementPathMissingContextError
-from .namespaces import (
-    XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE,
-    qname_to_prefixed, prefixed_to_qname
-)
+from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
+from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, \
+    XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
 from .xpath_helpers import is_xpath_node, boolean_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
@@ -240,14 +237,48 @@ class XPath2Parser(XPath1Parser):
         return token_class
 
     @classmethod
-    def constructor(cls, symbol, bp=90):
-        """Registers a token class for an XSD builtin atomic type constructor function."""
-        if symbol not in cls.SYMBOLS:
-            raise ElementPathNameError('%r is not a symbol of the parser %r.' % (symbol, cls))
-        token_class = cls.create_constructor(symbol, bp=bp)
-        cls.symbol_table[symbol] = token_class
-        setattr(sys.modules[cls.__module__], token_class.__name__, token_class)
-        return token_class
+    def constructor(cls, symbol, bp=0):
+        """Creates a constructor token class."""
+        def nud_(self):
+            self.parser.advance('(')
+            self[0:] = self.parser.expression(5),
+            self.parser.advance(')')
+
+            try:
+                self.value = self.evaluate()  # Static context evaluation
+            except ElementPathMissingContextError:
+                self.value = None
+            return self
+
+        def evaluate_(self, context=None):
+            item = self.get_argument(context)
+            if item is None:
+                return []
+            try:
+                return self.cast(item)
+            except ElementPathError as err:
+                if err.token is None:
+                    err.token = self
+                raise
+            except ValueError as err:
+                raise self.error('FOCA0002', str(err))
+            except TypeError as err:
+                raise self.error('FORG0006', str(err))
+            except KeyError as err:
+                raise self.error('FONS0004', str(err))
+
+        def cast(value):
+            raise NotImplemented
+
+        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
+        token_class = cls.register(symbol, pattern=pattern, label='constructor', lbp=bp, rbp=bp,
+                                   nud=nud_, evaluate=evaluate_, cast=staticmethod(cast))
+
+        def bind(func):
+            assert func.__name__ == 'cast', "The function name must be 'cast', not %r." % func.__name__
+            setattr(token_class, func.__name__, staticmethod(func))
+            return func
+        return bind
 
     def schema_constructor(self, type_qname):
         """Registers a token class for a schema atomic type constructor function."""
@@ -562,6 +593,11 @@ def evaluate(self, context=None):
             self.wrong_value("atomic value is required")
 
     try:
+        if get_namespace(atomic_type) == '':  # XSD_NAMESPACE:
+            token_class = self.parser.symbol_table[atomic_type.split('}')[1]]
+            if token_class.label == 'constructor':
+                token = token_class(result[0])
+                value = token.evaluate(result[0])
         value = self.parser.schema.cast_as(result[0], atomic_type)
     except KeyError:
         self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
