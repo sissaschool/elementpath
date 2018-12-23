@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.1.0`_ (2018-12-21)
+`v1.1.0`_ (2018-12-23)
 ======================
 * Almost full implementation of XPath 2.0
 * Extended XPath errors management
