@@ -19,6 +19,7 @@ if PY3:
     string_base_type = str
     unicode_type = str
     unicode_chr = chr
+    from collections.abc import MutableSequence
 else:
     # noinspection PyCompatibility
     from urllib2 import URLError, quote as urllib_quote
@@ -26,7 +27,7 @@ else:
     string_base_type = basestring
     unicode_type = unicode
     unicode_chr = unichr
-
+    from collections import MutableSequence
 
 
 def add_metaclass(metaclass):

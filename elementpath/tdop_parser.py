@@ -16,8 +16,8 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal
 from abc import ABCMeta
-from collections import MutableSequence
-from .compat import PY3, add_metaclass
+
+from .compat import PY3, add_metaclass, MutableSequence
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 
 ###
