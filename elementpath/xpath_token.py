@@ -263,7 +263,7 @@ class XPathToken(Token):
         return item
 
     ###
-    # XQuery, XSLT, and XPath Error Codes (https://www.w3.org/2005/xqt-errors/)
+    # Error handling helpers
     def error(self, code, message=None):
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an

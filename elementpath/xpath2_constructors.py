@@ -288,14 +288,14 @@ def cast(value):
 
 
 ###
-# Constructors for time durations XSD types
+# Constructors for binary XSD types
 @constructor('base64Binary')
-def cast(value):
+def cast(value, from_literal=False):
     if isinstance(value, UntypedAtomic):
         return codecs.encode(unicode_type(value), 'base64')
     elif not isinstance(value, (bytes, unicode_type)):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
-    elif not isinstance(value, bytes):  # or self[0].label == 'literal':
+    elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'base64')
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
         value = codecs.decode(value, 'hex') if str is not bytes else value
@@ -307,12 +307,12 @@ def cast(value):
 
 
 @constructor('hexBinary')
-def cast(value):
+def cast(value, from_literal=False):
     if isinstance(value, UntypedAtomic):
         return codecs.encode(unicode_type(value), 'hex')
     elif not isinstance(value, (bytes, unicode_type)):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
-    elif not isinstance(value, bytes):  # or self[0].label == 'literal':
+    elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'hex')
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
         return value if isinstance(value, bytes) or str is bytes else codecs.encode(value.encode('ascii'), 'hex')
@@ -323,6 +323,24 @@ def cast(value):
             return codecs.encode(value, 'hex')
         else:
             return codecs.encode(value, 'hex')
+
+
+@method('base64Binary')
+@method('hexBinary')
+def evaluate(self, context=None):
+    item = self.get_argument(context)
+    if item is None:
+        return []
+    try:
+        return self.cast(item, self[0].label == 'literal')
+    except ElementPathError as err:
+        if err.token is None:
+            err.token = self
+        raise
+    except ValueError as err:
+        raise self.error('FOCA0002', str(err))
+    except TypeError as err:
+        raise self.error('FORG0006', str(err))
 
 
 ###

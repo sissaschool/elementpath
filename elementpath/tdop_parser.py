@@ -22,7 +22,6 @@ from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPat
 
 ###
 # Regex based tokenizer
-
 SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
 
