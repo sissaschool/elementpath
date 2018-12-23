@@ -16,8 +16,8 @@ from abc import ABCMeta
 from collections import MutableSequence
 
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
-from .namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, \
-    XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
+from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
+    XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
 from .xpath_helpers import is_xpath_node, boolean_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
@@ -207,36 +207,6 @@ class XPath2Parser(XPath1Parser):
         return ''.join(comment)
 
     @classmethod
-    def create_constructor(cls, symbol, bp=0):
-        """Creates a constructor token class."""
-        def nud_(self):
-            self.parser.advance('(')
-            self[0:] = self.parser.expression(5),
-            self.parser.advance(')')
-
-            try:
-                self.value = self.evaluate()  # Static context evaluation
-            except ElementPathMissingContextError:
-                self.value = None
-            return self
-
-        token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
-        kwargs = {
-            'symbol': symbol,
-            'label': 'constructor',
-            'pattern': r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol,
-            'lbp': bp,
-            'rbp': bp,
-            'nud': nud_,
-            '__module__': cls.__module__,
-            '__qualname__': token_class_name,
-            '__return__': None
-        }
-        token_class = ABCMeta(token_class_name, (cls.token_base_class,), kwargs)
-        MutableSequence.register(token_class)
-        return token_class
-
-    @classmethod
     def constructor(cls, symbol, bp=0):
         """Creates a constructor token class."""
         def nud_(self):
@@ -264,8 +234,6 @@ class XPath2Parser(XPath1Parser):
                 raise self.error('FOCA0002', str(err))
             except TypeError as err:
                 raise self.error('FORG0006', str(err))
-            except KeyError as err:
-                raise self.error('FONS0004', str(err))
 
         def cast(value):
             raise NotImplemented
@@ -280,20 +248,47 @@ class XPath2Parser(XPath1Parser):
             return func
         return bind
 
-    def schema_constructor(self, type_qname):
+    def schema_constructor(self, atomic_type, bp=90):
         """Registers a token class for a schema atomic type constructor function."""
+        if atomic_type in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
+            raise self.error('XPST0080')
+
+        def nud_(self_):
+            self_.parser.advance('(')
+            self_[0:] = self_.parser.expression(5),
+            self_.parser.advance(')')
+
+            try:
+                self_.value = self_.evaluate()  # Static context evaluation
+            except ElementPathMissingContextError:
+                self_.value = None
+            return self_
+
         def evaluate_(self_, context=None):
             item = self_.get_argument(context)
-            return [] if item is None else self_.parser.schema.cast_as(self_[0].evaluate(context), type_qname)
+            if item is None:
+                return []
+            else:
+                return self_.parser.schema.cast_as(self_[0].evaluate(context), atomic_type)
 
-        if type_qname not in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
-            symbol = qname_to_prefixed(type_qname, self.namespaces)
-            token_class = self.create_constructor(symbol, bp=90)
-            token_class.evaluate = evaluate_
-            self.symbol_table[symbol] = token_class
-            return token_class
-        elif type_qname == XSD_NOTATION:
-            return
+        symbol = qname_to_prefixed(atomic_type, self.namespaces)
+        token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
+        kwargs = {
+            'symbol': symbol,
+            'label': 'constructor',
+            'pattern': r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol,
+            'lbp': bp,
+            'rbp': bp,
+            'nud': nud_,
+            'evaluate': evaluate_,
+            '__module__': self.__module__,
+            '__qualname__': token_class_name,
+            '__return__': None
+        }
+        token_class = ABCMeta(token_class_name, (self.token_base_class,), kwargs)
+        MutableSequence.register(token_class)
+        self.symbol_table[symbol] = token_class
+        return token_class
 
     def next_is_path_step_token(self):
         return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
@@ -573,11 +568,13 @@ def led(self, left):
 @method('castable')
 @method('cast')
 def evaluate(self, context=None):
-    if self.parser.schema is None:
-        self.missing_schema()
     atomic_type = prefixed_to_qname(self[1].source, namespaces=self.parser.namespaces)
     if atomic_type in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
         raise self.error('XPST0080')
+
+    namespace = get_namespace(atomic_type)
+    if namespace != XSD_NAMESPACE and self.parser.schema is None:
+        self.missing_schema()
 
     result = [res for res in self[0].select(context)]
     if len(result) > 1:
@@ -593,12 +590,29 @@ def evaluate(self, context=None):
             self.wrong_value("atomic value is required")
 
     try:
-        if get_namespace(atomic_type) == '':  # XSD_NAMESPACE:
-            token_class = self.parser.symbol_table[atomic_type.split('}')[1]]
-            if token_class.label == 'constructor':
-                token = token_class(result[0])
-                value = token.evaluate(result[0])
-        value = self.parser.schema.cast_as(result[0], atomic_type)
+        if namespace != XSD_NAMESPACE:
+            value = self.parser.schema.cast_as(result[0], atomic_type)
+        else:
+            local_name = atomic_type.split('}')[1]
+            token_class = self.parser.symbol_table[local_name]
+            if token_class.label != 'constructor':
+                self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
+
+            if local_name in {'base64Binary', 'hexBinary'}:
+                value = token_class.cast(result[0], self[0].label == 'literal')
+            elif local_name in {'dateTime', 'date', 'gDay', 'gMonth', 'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
+                value = token_class.cast(result[0], tz=None if context is None else context.timezone)
+            elif local_name == 'QName':
+                value = token_class.cast(result[0], self.parser.namespaces)
+            else:
+                value = token_class.cast(result[0])
+
+    except ElementPathError as err:
+        if self.symbol != 'cast':
+            return False
+        elif err.token is None:
+            err.token = self
+        raise
     except KeyError:
         self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
     except TypeError as err:

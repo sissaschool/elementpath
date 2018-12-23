@@ -35,15 +35,9 @@ XPath tokens
     .. automethod:: get_argument
     .. automethod:: get_comparison_data
     .. automethod:: get_results
-
-    Data construction helpers:
-
-    .. automethod:: integer
-    .. automethod:: datetime
-    .. automethod:: duration
     .. automethod:: adjust_datetime
 
-    Error management:
+    Error management helper:
 
     .. automethod:: error
 
