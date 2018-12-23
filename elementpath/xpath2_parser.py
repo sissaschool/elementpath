@@ -13,8 +13,8 @@ XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 """
 from itertools import product
 from abc import ABCMeta
-from collections import MutableSequence
 
+from .compat import MutableSequence
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
