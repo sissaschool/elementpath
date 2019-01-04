@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.1.1`_ (2018-12-31)
+======================
+* Fixes for XSD datatypes
+* Rewrite AbstractDateTime for supporting years > 9999
+
 `v1.1.0`_ (2018-12-23)
 ======================
 * Almost full implementation of XPath 2.0
