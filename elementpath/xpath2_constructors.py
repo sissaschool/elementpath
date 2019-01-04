@@ -19,13 +19,13 @@ from .exceptions import ElementPathError, ElementPathMissingContextError, xpath_
 from .xpath_helpers import is_attribute_node, boolean_value, string_value
 from .datatypes import DateTime, Date, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
     GregorianYear, GregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
-from .xpath2_functions import XPath2Parser, WHITESPACES_RE_PATTERN, QNAME_PATTERN, \
+from .xpath2_functions import XPath2Parser, WHITESPACES_PATTERN, QNAME_PATTERN, \
     NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, \
     NOT_BASE64_BINARY_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
 
 
 def collapse_white_spaces(s):
-    return WHITESPACES_RE_PATTERN.sub(' ', s).strip()
+    return WHITESPACES_PATTERN.sub(' ', s).strip()
 
 
 register = XPath2Parser.register
@@ -212,42 +212,42 @@ def cast(value):
 # Constructors for datetime XSD types
 @constructor('dateTime')
 def cast(value, tz=None):
-    return DateTime.fromstring(value, tz=tz)
+    return DateTime.fromstring(value, tzinfo=tz)
 
 
 @constructor('date')
 def cast(value, tz=None):
-    return Date.fromstring(value, tz=tz)
+    return Date.fromstring(value, tzinfo=tz)
 
 
 @constructor('gDay')
 def cast(value, tz=None):
-    return GregorianDay.fromstring(value, tz=tz)
+    return GregorianDay.fromstring(value, tzinfo=tz)
 
 
 @constructor('gMonth')
 def cast(value, tz=None):
-    return GregorianMonth.fromstring(value, tz=tz)
+    return GregorianMonth.fromstring(value, tzinfo=tz)
 
 
 @constructor('gMonthDay')
 def cast(value, tz=None):
-    return GregorianMonthDay.fromstring(value, tz=tz)
+    return GregorianMonthDay.fromstring(value, tzinfo=tz)
 
 
 @constructor('gYear')
 def cast(value, tz=None):
-    return GregorianYear.fromstring(value, tz=tz)
+    return GregorianYear.fromstring(value, tzinfo=tz)
 
 
 @constructor('gYearMonth')
 def cast(value, tz=None):
-    return GregorianYearMonth.fromstring(value, tz=tz)
+    return GregorianYearMonth.fromstring(value, tzinfo=tz)
 
 
 @constructor('time')
 def cast(value, tz=None):
-    return Time.fromstring(value, tz=tz)
+    return Time.fromstring(value, tzinfo=tz)
 
 
 @method('dateTime')

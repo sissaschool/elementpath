@@ -143,11 +143,11 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_repr(self):
         dt = Date.fromstring('2000-10-07')
-        self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), bce=False)")
+        self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), bce=False, y10k=0)")
         self.assertEqual(str(dt), '2000-10-07' if PY3 else '2000-10-07 00:00:00')
 
         dt = Date.fromstring('-0100-04-13')
-        self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), bce=True)")
+        self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), bce=True, y10k=0)")
         self.assertEqual(str(dt), '-0100-04-13' if PY3 else '-0100-04-13 00:00:00')
 
     def test_eq(self):
@@ -2257,6 +2257,7 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
         # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
         self.check_value("5 instance of xs:integer", True)
         self.check_value("5 instance of xs:decimal", True)
+        self.check_value("9.0 instance of xs:integer", False)
         self.check_value("(5, 6) instance of xs:integer+", True)
         self.check_value(". instance of element()", True, context)
 

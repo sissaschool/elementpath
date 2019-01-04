@@ -32,7 +32,7 @@ function = XPath2Parser.function
 
 ###
 # Regex compiled patterns for functions and XSD constructors
-WHITESPACES_RE_PATTERN = re.compile(r'\s+')
+WHITESPACES_PATTERN = re.compile(r'\s+')
 NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$', flags=0 if PY3 else re.U)
 NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
@@ -805,37 +805,37 @@ def evaluate(self, context=None):
 @method(function('year-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    return [] if item is None else -(item.dt.year + 1) if item.bce else item.dt.year
+    return [] if item is None else -(item.year + 1) if item.bce else item.year
 
 
 @method(function('month-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    return [] if item is None else item.dt.month
+    return [] if item is None else item.month
 
 
 @method(function('day-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    return [] if item is None else item.dt.day
+    return [] if item is None else item.day
 
 
 @method(function('hours-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    return [] if item is None else item.dt.hour
+    return [] if item is None else item.hour
 
 
 @method(function('minutes-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    return [] if item is None else item.dt.minute
+    return [] if item is None else item.minute
 
 
 @method(function('seconds-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime)
-    return [] if item is None else item.dt.second
+    return [] if item is None else item.second
 
 
 @method(function('timezone-from-dateTime', nargs=1))

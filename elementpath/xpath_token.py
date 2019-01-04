@@ -248,13 +248,8 @@ class XPathToken(Token):
                 timezone = Timezone.fromduration(timezone)
 
         if item.tzinfo is not None and timezone is not None:
-            item.dt += timezone.offset - item.tzinfo.offset
+            item += timezone.offset - item.tzinfo.offset
             item.tzinfo = timezone
-            if issubclass(cls, Date):
-                item.dt = item.dt.replace(hour=0, minute=0)
-            elif issubclass(cls, Time) and item.dt.day != 1:
-                item.dt = item.dt.replace(day=1)
-
         elif item.tzinfo is None:
             if timezone is not None:
                 item.tzinfo = timezone
