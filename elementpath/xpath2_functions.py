@@ -913,26 +913,20 @@ def evaluate(self, context=None):
 # Context functions
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
-    if context is None:
-        return DateTime(datetime.datetime.now())
-    else:
-        return DateTime(context.current_dt)
+    dt = datetime.datetime.now() if context is None else context.current_dt
+    return DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
 
 @method(function('current-date', nargs=0))
 def evaluate(self, context=None):
-    if context is None:
-        return Date(datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
-    else:
-        return Date(context.current_dt.replace(hour=0, minute=0, second=0, microsecond=0))
+    dt = datetime.datetime.now() if context is None else context.current_dt
+    return Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
 
 
 @method(function('current-time', nargs=0))
 def evaluate(self, context=None):
-    if context is None:
-        return Time(datetime.datetime.now().replace(year=1900, month=1, day=1))
-    else:
-        return Time(context.current_dt.replace(year=1900, month=1, day=1))
+    dt = datetime.datetime.now() if context is None else context.current_dt
+    return Time(dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
 
 @method(function('implicit-timezone', nargs=0))
