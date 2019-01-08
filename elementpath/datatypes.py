@@ -125,8 +125,10 @@ class AbstractDateTime(object):
     def iso_year(self):
         """The ISO string representation of the year field."""
         year = self.year
-        if -9999 <= year < 0:
+        if -9999 <= year < -1:
             return '{:05}'.format(year + 1 if self.version == '1.1' else year)
+        elif year == -1:
+            return '{:04}'.format(year + 1 if self.version == '1.1' else year)
         elif 0 <= year <= 9999:
             return '{:04}'.format(year)
         else:
@@ -330,10 +332,13 @@ class DateTime(AbstractDateTime):
 
     def __str__(self):
         if self.microsecond:
-            return '{:02}:{:02}:{:02}.{:06}{}'.format(
-                self.hour, self.minute, self.second, self.microsecond, str(self.tzinfo or '')
+            return '{}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}{}'.format(
+                self.iso_year, self.month, self.day, self.hour, self.minute,
+                self.second, self.microsecond, str(self.tzinfo or '')
             )
-        return '{:02}:{:02}:{:02}{}'.format(self.hour, self.minute, self.second, str(self.tzinfo or ''))
+        return '{}-{:02}-{:02}T{:02}:{:02}:{:02}{}'.format(
+            self.iso_year, self.month, self.day, self.hour, self.minute, self.second, str(self.tzinfo or '')
+        )
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
@@ -745,14 +750,14 @@ class Timezone(datetime.tzinfo):
             raise ElementPathTypeError("tzname() argument must be a datetime.datetime instance or None")
 
         if not self.offset:
-            return 'UTC'
+            return 'Z'
         elif self.offset < datetime.timedelta(0):
             sign, offset = '-', -self.offset
         else:
             sign, offset = '+', self.offset
 
         hours, minutes = offset.seconds // 3600, offset.seconds // 60 % 60
-        return 'UTC{}{:02d}:{:02d}'.format(sign, hours, minutes)
+        return '{}{:02d}:{:02d}'.format(sign, hours, minutes)
 
     def dst(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
