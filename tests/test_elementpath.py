@@ -37,8 +37,9 @@ from elementpath.namespaces import (
     XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XML_LANG_QNAME
 )
 from elementpath.compat import PY3
-from elementpath.datatypes import months2days, DateTime, Date, GregorianYear, Time, Timezone, \
-    Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear10, Date10, DateTime10
+from elementpath.datatypes import months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, \
+    Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
+    GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, GregorianDay
 
 try:
     # noinspection PyPackageRequirements
@@ -141,7 +142,21 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
 
-    def test_repr(self):
+    def test_datetime_repr(self):
+        dt = DateTime.fromstring('2000-10-07')
+        self.assertEqual(repr(dt), "DateTime(2000, 10, 7, 0, 0, 0)")
+        self.assertEqual(str(dt), '2000-10-07T00:00:00')
+
+        dt = DateTime.fromstring('-0100-04-13T23:59:59')
+        self.assertEqual(repr(dt), "DateTime(-101, 4, 13, 23, 59, 59)")
+        self.assertEqual(str(dt), '-0100-04-13T23:59:59')
+
+        dt = DateTime10.fromstring('-0100-04-13T10:30:00-04:00')
+        self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
+                                   "tzinfo=Timezone(datetime.timedelta(days=-1, seconds=72000)))")
+        self.assertEqual(str(dt), '-0100-04-13T10:30:00-04:00')
+
+    def test_date_repr(self):
         dt = Date.fromstring('2000-10-07')
         self.assertEqual(repr(dt), "Date(2000, 10, 7)")
         self.assertEqual(str(dt), '2000-10-07')
@@ -153,6 +168,62 @@ class DateTimeTypesTest(unittest.TestCase):
         dt = Date10.fromstring('-0100-04-13')
         self.assertEqual(repr(dt), "Date10(-100, 4, 13)")
         self.assertEqual(str(dt), '-0100-04-13')
+
+    def test_gregorian_year_repr(self):
+        dt = GregorianDay.fromstring('1991')
+        self.assertEqual(repr(dt), "GregorianYear(1991)")
+        self.assertEqual(str(dt), '1991')
+
+
+    def test_gregorian_year_repr(self):
+        dt = GregorianYear.fromstring('1991')
+        self.assertEqual(repr(dt), "GregorianYear(1991)")
+        self.assertEqual(str(dt), '1991')
+
+        dt = GregorianYear.fromstring('0000')
+        self.assertEqual(repr(dt), "GregorianYear(-1)")
+        self.assertEqual(str(dt), '0000')
+
+        dt = GregorianYear10.fromstring('-0050')
+        self.assertEqual(repr(dt), "GregorianYear10(-50)")
+        self.assertEqual(str(dt), '-0050')
+
+    def test_gregorian_day_repr(self):
+        dt = GregorianDay.fromstring('---31')
+        self.assertEqual(repr(dt), "GregorianDay(31)")
+        self.assertEqual(str(dt), '---31')
+
+        dt = GregorianDay.fromstring('---05Z')
+        self.assertEqual(repr(dt), "GregorianDay(5, tzinfo=Timezone(datetime.timedelta(0)))")
+        self.assertEqual(str(dt), '---05Z')
+
+    def test_gregorian_month_repr(self):
+        dt = GregorianMonth.fromstring('--09')
+        self.assertEqual(repr(dt), "GregorianMonth(9)")
+        self.assertEqual(str(dt), '--09')
+
+    def test_gregorian_month_day_repr(self):
+        dt = GregorianMonthDay.fromstring('--07-23')
+        self.assertEqual(repr(dt), "GregorianMonthDay(7, 23)")
+        self.assertEqual(str(dt), '--07-23')
+
+    def test_gregorian_year_month_repr(self):
+        dt = GregorianYearMonth.fromstring('-1890-12')
+        self.assertEqual(repr(dt), "GregorianYearMonth(-1891, 12)")
+        self.assertEqual(str(dt), '-1890-12')
+
+        dt = GregorianYearMonth10.fromstring('-0050-04')
+        self.assertEqual(repr(dt), "GregorianYearMonth10(-50, 4)")
+        self.assertEqual(str(dt), '-0050-04')
+
+    def test_time_repr(self):
+        dt = Time.fromstring('20:40:13')
+        self.assertEqual(repr(dt), "Time(20, 40, 13)")
+        self.assertEqual(str(dt), '20:40:13')
+
+        dt = Time.fromstring('24:00:00')
+        self.assertEqual(repr(dt), "Time(0, 0, 0)")
+        self.assertEqual(str(dt), '00:00:00')
 
     def test_eq(self):
         tz = Timezone.fromstring('-05:00')
@@ -409,8 +480,8 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertRaises(TypeError, Timezone, 0)
 
     def test_as_string(self):
-        self.assertEqual(str(Timezone.fromstring('+05:00')), 'UTC+05:00')
-        self.assertEqual(str(Timezone.fromstring('-13:15')), 'UTC-13:15')
+        self.assertEqual(str(Timezone.fromstring('+05:00')), '+05:00')
+        self.assertEqual(str(Timezone.fromstring('-13:15')), '-13:15')
 
 
 class XPath1ParserTest(unittest.TestCase):
