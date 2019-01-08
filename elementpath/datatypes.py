@@ -14,7 +14,7 @@ classes for XSD datetime and duration types.
 """
 from __future__ import division, unicode_literals
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 import operator
 import re
 import decimal
@@ -40,15 +40,6 @@ def adjust_day(year, month, day):
         return min(day, 30)
     else:
         return min(day, 29) if isleap(year) else min(day, 28)
-
-
-def repr_year(year):
-    if -9999 <= year < 0:
-        return '{:05}'.format(year)
-    elif 0 <= year <= 9999:
-        return '{:04}'.format(year)
-    else:
-        return str(year)
 
 
 def months2days(year, month, month_delta):
@@ -79,95 +70,99 @@ class AbstractDateTime(object):
     A class for representing XSD date/time objects. The reference xs:dateTime used is
     the datetime.datetime default 1900-01-01T00:00:00.
 
+    :ivar dt: datetime.datetime instance.
+    :ivar bce: if `True` the datetime instance represents a BCE date.
+    :ivar y10k: a positive integer value for calculating years exceeding 9999.
     """
-    formats = ('%Y-%m-%dT%H:%M:%S.%f',)
-    pattern = re.compile('')
+    version = '1.1'
+    pattern = re.compile(r'^$')
 
     def __init__(self, year=1900, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
-        if year <= 0:
-            self._bce = True
-            self._y10k, year = divmod(-year, 10000)
+        if year == 0:
+            raise ElementPathValueError('0 is an illegal value for year')
+        elif year < 0:
+            self.bce = True
+            self.y10k, year = divmod(-year, 10000)
         else:
-            self._bce = False
-            self._y10k, year = divmod(year, 10000)
+            self.bce = False
+            self.y10k, year = divmod(year, 10000)
 
         if hour == 24 and minute == second == 0:
-            self._dt = datetime.datetime(year, month, day, 0, minute, second, microsecond, tzinfo)
+            self.dt = datetime.datetime(year, month, day, 0, minute, second, microsecond, tzinfo)
         else:
-            self._dt = datetime.datetime(year, month, day, hour, minute, second, microsecond, tzinfo)
+            self.dt = datetime.datetime(year, month, day, hour, minute, second, microsecond, tzinfo)
 
     def __repr__(self):
         fields = self.pattern.groupindex.keys()
         arg_string = ', '.join(
-            getattr(self, k) for k in ['year', 'month', 'day', 'hour', 'minute'] if k in fields
+            str(getattr(self, k)) for k in ['year', 'month', 'day', 'hour', 'minute'] if k in fields
         )
         if 'second' in fields:
             if self.microsecond:
                 arg_string += ', %d.%06d' % (self.second, self.microsecond)
             else:
-                arg_string += ', %d' % (self.second)
+                arg_string += ', %d' % self.second
 
         if self.tzinfo is not None:
             arg_string += ', tzinfo=%r' % self.tzinfo
         return '%s(%s)' % (self.__class__.__name__, arg_string)
 
+    @abstractmethod
     def __str__(self):
-        y10k = str(self._y10k or '')
-        if not self._bce:
-            return '{}{}'.format(y10k, self._dt.strftime(self.formats[0]) if PY3 else str(self._dt))
-        elif PY3:
-            fmt = '-{}{}'.format(y10k, self.formats[0])
-            return self._dt.strftime(fmt.replace('%Y', '{:04}'.format(self._dt.year - 1)))
-        else:
-            return '-{}{}'.format(y10k, str(self._dt).replace(
-                '{:04}'.format(self._dt.year), '{:04}'.format(self._dt.year - 1)
-            ))
+        raise NotImplementedError
 
     def __unicode__(self):
         return str(self)
 
     @property
-    def bce(self):
-        return self._bce
+    def year(self):
+        if self.bce:
+            return -self.dt.year - self.y10k * 10000
+        else:
+            return self.dt.year + self.y10k * 10000
 
     @property
-    def year(self):
-        if self._bce:
-            return -self._dt.year + 1 - self._y10k * 10000
+    def iso_year(self):
+        """The ISO string representation of the year field."""
+        year = self.year
+        if -9999 <= year < 0:
+            return '{:05}'.format(year + 1 if self.version == '1.1' else year)
+        elif 0 <= year <= 9999:
+            return '{:04}'.format(year)
         else:
-            return self._dt.year + self._y10k * 10000
+            return str(year)
 
     @property
     def month(self):
-        return self._dt.month
+        return self.dt.month
 
     @property
     def day(self):
-        return self._dt.day
+        return self.dt.day
 
     @property
     def hour(self):
-        return self._dt.hour
+        return self.dt.hour
 
     @property
     def minute(self):
-        return self._dt.minute
+        return self.dt.minute
 
     @property
     def second(self):
-        return self._dt.second
+        return self.dt.second
 
     @property
     def microsecond(self):
-        return self._dt.microsecond
+        return self.dt.microsecond
 
     @property
     def tzinfo(self):
-        return self._dt.tzinfo
+        return self.dt.tzinfo
 
     @tzinfo.setter
     def tzinfo(self, tz):
-        self._dt = self._dt.replace(tzinfo=tz)
+        self.dt = self.dt.replace(tzinfo=tz)
 
     @classmethod
     def fromdatetime(cls, dt, bce=False, y10k=0):
@@ -188,14 +183,12 @@ class AbstractDateTime(object):
         return cls(**kwargs)
 
     @classmethod
-    def fromstring(cls, datetime_string, tzinfo=None, version='1.1'):
+    def fromstring(cls, datetime_string, tzinfo=None):
         """
-        Creates an XSD date/time instance from a string formatted value, trying the
-        class formats list.
+        Creates an XSD date/time instance from a string formatted value.
 
         :param datetime_string: a string containing an XSD formatted date/time specification.
         :param tzinfo: optional implicit timezone information, must be a `Timezone` instance.
-        :param version: the XSD version to use for parsing the string.
         :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(datetime_string, string_base_type):
@@ -217,17 +210,13 @@ class AbstractDateTime(object):
             kwargs['microsecond'] = 0 if pow10 < 0 else kwargs['microsecond'] * 10**pow10
 
         year = kwargs.get('year')
-        if year is not None:
-            if year == 0 and version == '1.0':
-                raise ElementPathValueError('%r: "0000" is an illegal year value for XSD 1.0' % datetime_string)
-            elif year <= 0 and version == '1.1':
-                kwargs['year'] -= 1
-
+        if year is not None and year <= 0 and cls.version == '1.1':
+            kwargs['year'] -= 1
         return cls(**kwargs)
 
     def _date_operator(self, op, other):
         if isinstance(other, self.__class__):
-            if self._bce ^ other.bce:
+            if self.bce ^ other.bce:
                 dt1, dt2 = self._get_operands(other)
                 delta1 = op(dt1, datetime.datetime(1, 1, 1, tzinfo=dt1.tzinfo))
                 delta2 = op(dt2, datetime.datetime(1, 1, 1, tzinfo=dt2.tzinfo))
@@ -238,7 +227,7 @@ class AbstractDateTime(object):
         elif isinstance(other, (DayTimeDuration, datetime.timedelta)):
             delta = other.get_timedelta() if isinstance(other, DayTimeDuration) else other
             try:
-                dt = op(self._dt, delta)
+                dt = op(self.dt, delta)
             except OverflowError:
                 seconds = delta.total_seconds()
                 if self.bce ^ (seconds > 0):
@@ -253,14 +242,14 @@ class AbstractDateTime(object):
                 dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
         elif isinstance(other, YearMonthDuration):
-            month = op(self._dt.month - 1, other.months) % 12 + 1
-            year = op(self._dt.year, ((self._dt.month - 1) + other.months) // 12)
+            month = op(self.dt.month - 1, other.months) % 12 + 1
+            year = op(self.dt.year, ((self.dt.month - 1) + other.months) // 12)
             if year > 0:
                 bce = self.bce
             else:
                 bce = not self.bce
                 year = abs(year) + 1
-            dt = self._dt.replace(year=year, month=month, day=adjust_day(year, month, self._dt.day))
+            dt = self.dt.replace(year=year, month=month, day=adjust_day(year, month, self.dt.day))
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
@@ -271,40 +260,40 @@ class AbstractDateTime(object):
 
     # For Py2 compatibility: Python 2 can't compares offset-naive and offset-aware datetimes
     def _get_operands(self, other):
-        dt = getattr(other, '_dt', other)
-        if self._dt.tzinfo is dt.tzinfo:
-            return self._dt, dt
+        dt = getattr(other, 'dt', other)
+        if self.dt.tzinfo is dt.tzinfo:
+            return self.dt, dt
         elif self.tzinfo is None:
-            return self._dt.replace(tzinfo=Timezone(datetime.timedelta(0))), dt
+            return self.dt.replace(tzinfo=Timezone(datetime.timedelta(0))), dt
         elif dt.tzinfo is None:
-            return self._dt, dt.replace(tzinfo=Timezone(datetime.timedelta(0)))
+            return self.dt, dt.replace(tzinfo=Timezone(datetime.timedelta(0)))
         else:
-            return self._dt, dt
+            return self.dt, dt
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self._bce == other._bce and self._y10k == other._y10k and operator.eq(*self._get_operands(other))
+            return self.bce == other.bce and self.y10k == other.y10k and operator.eq(*self._get_operands(other))
         elif isinstance(other, datetime.datetime):
-            return not self._bce and not self._y10k and operator.eq(*self._get_operands(other))
+            return not self.bce and not self.y10k and operator.eq(*self._get_operands(other))
         else:
             return False
 
     def __lt__(self, other):
         if not isinstance(other, self.__class__):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self._bce ^ other.bce:
-            return self._bce
-        elif self._bce:
-            return self._y10k > other._y10k or operator.gt(*self._get_operands(other))
+        elif self.bce ^ other.bce:
+            return self.bce
+        elif self.bce:
+            return self.y10k > other.y10k or operator.gt(*self._get_operands(other))
         else:
             return operator.lt(*self._get_operands(other))
 
     def __le__(self, other):
         if not isinstance(other, self.__class__):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self._bce ^ other.bce:
-            return self._bce
-        elif self._bce:
+        elif self.bce ^ other.bce:
+            return self.bce
+        elif self.bce:
             return operator.ge(*self._get_operands(other))
         else:
             return operator.le(*self._get_operands(other))
@@ -312,9 +301,9 @@ class AbstractDateTime(object):
     def __gt__(self, other):
         if not isinstance(other, self.__class__):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self._bce ^ other.bce:
-            return not self._bce
-        elif self._bce:
+        elif self.bce ^ other.bce:
+            return not self.bce
+        elif self.bce:
             return operator.lt(*self._get_operands(other))
         else:
             return operator.gt(*self._get_operands(other))
@@ -322,9 +311,9 @@ class AbstractDateTime(object):
     def __ge__(self, other):
         if not isinstance(other, self.__class__):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self._bce ^ other.bce:
-            return not self._bce
-        elif self._bce:
+        elif self.bce ^ other.bce:
+            return not self.bce
+        elif self.bce:
             return operator.le(*self._get_operands(other))
         else:
             return operator.ge(*self._get_operands(other))
@@ -332,8 +321,6 @@ class AbstractDateTime(object):
 
 class DateTime(AbstractDateTime):
     """Class for representing xs:dateTime data."""
-    formats = ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT24:00:00',
-               '-%Y-%m-%dT%H:%M:%S', '-%Y-%m-%dT%H:%M:%S.%f', '-%Y-%m-%dT24:00:00')
     pattern = re.compile(r'^(?P<year>(?:-)?\d*\d{4})-(?P<month>\d{2})-(?P<day>\d{2})'
                          r'(T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?:\.(?P<microsecond>\d+))?)?'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
@@ -357,9 +344,12 @@ class DateTime(AbstractDateTime):
         return self._date_operator(operator.sub, other)
 
 
+class DateTime10(DateTime):
+    version = '1.0'
+
+
 class Date(AbstractDateTime):
     """Class for representing xs:date data."""
-    formats = ('%Y-%m-%d', '-%Y-%m-%d')
     pattern = re.compile(r'^(?P<year>(?:-)?\d*\d{4})-(?P<month>\d{2})-(?P<day>\d{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
@@ -367,7 +357,7 @@ class Date(AbstractDateTime):
         super(Date, self).__init__(year, month, day, tzinfo=tzinfo)
 
     def __str__(self):
-        return '{}-{:02}-{:02}{}'.format(repr_year(self.year), self.month, self.day, str(self.tzinfo or ''))
+        return '{}-{:02}-{:02}{}'.format(self.iso_year, self.month, self.day, str(self.tzinfo or ''))
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
@@ -378,9 +368,12 @@ class Date(AbstractDateTime):
         return self._date_operator(operator.sub, other)
 
 
+class Date10(Date):
+    version = '1.0'
+
+
 class GregorianDay(AbstractDateTime):
     """Class for representing xs:gDay data."""
-    formats = ('---%d',)
     pattern = re.compile(r'^---(?P<day>\d{2})(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, day, tzinfo=None):
@@ -392,7 +385,6 @@ class GregorianDay(AbstractDateTime):
 
 class GregorianMonth(AbstractDateTime):
     """Class for representing xs:gMonth data."""
-    formats = ('--%m',)
     pattern = re.compile(r'^--(?P<month>\d{2})(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, tzinfo=None):
@@ -404,7 +396,6 @@ class GregorianMonth(AbstractDateTime):
 
 class GregorianMonthDay(AbstractDateTime):
     """Class for representing xs:gMonthDay data."""
-    formats = ('--%m-%d',)
     pattern = re.compile(r'^--(?P<month>\d{2})-(?P<day>\d{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
@@ -417,7 +408,6 @@ class GregorianMonthDay(AbstractDateTime):
 
 class GregorianYear(AbstractDateTime):
     """Class for representing xs:gYear data."""
-    formats = ('%Y', '-%Y')
     pattern = re.compile(r'^(?P<year>(?:-)?\d*\d{4})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
@@ -425,12 +415,15 @@ class GregorianYear(AbstractDateTime):
         super(GregorianYear, self).__init__(year, tzinfo=tzinfo)
 
     def __str__(self):
-        return '{}{}'.format(repr_year(self.year), str(self.tzinfo or ''))
+        return '{}{}'.format(self.iso_year, str(self.tzinfo or ''))
+
+
+class GregorianYear10(GregorianYear):
+    version = '1.0'
 
 
 class GregorianYearMonth(AbstractDateTime):
     """Class for representing xs:gYearMonth data."""
-    formats = ('%Y-%m', '-%Y-%m')
     pattern = re.compile(r'^(?P<year>(?:-)?\d*\d{4})-(?P<month>\d{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
@@ -438,12 +431,15 @@ class GregorianYearMonth(AbstractDateTime):
         super(GregorianYearMonth, self).__init__(year, month, tzinfo=tzinfo)
 
     def __str__(self):
-        return '{}-{:02}{}'.format(repr_year(self.year), self.month, str(self.tzinfo or ''))
+        return '{}-{:02}{}'.format(self.iso_year, self.month, str(self.tzinfo or ''))
+
+
+class GregorianYearMonth10(GregorianYearMonth):
+    version = '1.0'
 
 
 class Time(AbstractDateTime):
     """Class for representing xs:time data."""
-    formats = ('%H:%M:%S', '%H:%M:%S.%f', '24:00:00')
     pattern = re.compile(r'^(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?:\.(?P<microsecond>\d+))?'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
@@ -459,9 +455,9 @@ class Time(AbstractDateTime):
 
     def __add__(self, other):
         if isinstance(other, DayTimeDuration):
-            dt = self._dt + other.get_timedelta()
+            dt = self.dt + other.get_timedelta()
         elif isinstance(other, datetime.timedelta):
-            dt = self._dt + other
+            dt = self.dt + other
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
         return Time(hour=dt.hour, minute=dt.minute, second=dt.second, microsecond=dt.microsecond, tzinfo=dt.tzinfo)
@@ -471,7 +467,7 @@ class Time(AbstractDateTime):
             delta = operator.sub(*self._get_operands(other))
             return DayTimeDuration.fromtimedelta(delta)
         elif isinstance(other, DayTimeDuration):
-            dt = self._dt - other.get_timedelta()
+            dt = self.dt - other.get_timedelta()
             return Time(hour=dt.hour, minute=dt.minute, second=dt.second, microsecond=dt.microsecond, tzinfo=dt.tzinfo)
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))

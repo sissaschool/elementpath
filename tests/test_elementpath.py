@@ -38,7 +38,7 @@ from elementpath.namespaces import (
 )
 from elementpath.compat import PY3
 from elementpath.datatypes import months2days, DateTime, Date, GregorianYear, Time, Timezone, \
-    Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic
+    Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear10, Date10, DateTime10
 
 try:
     # noinspection PyPackageRequirements
@@ -143,12 +143,16 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_repr(self):
         dt = Date.fromstring('2000-10-07')
-        #self.assertEqual(repr(dt), "Date(dt=datetime(2000, 10, 7, 0, 0), bce=False, y10k=0)")
-        self.assertEqual(str(dt), '2000-10-07' if PY3 else '2000-10-07 00:00:00')
+        self.assertEqual(repr(dt), "Date(2000, 10, 7)")
+        self.assertEqual(str(dt), '2000-10-07')
 
         dt = Date.fromstring('-0100-04-13')
-        #self.assertEqual(repr(dt), "Date(dt=datetime(101, 4, 13, 0, 0), bce=True, y10k=0)")
-        self.assertEqual(str(dt), '-0100-04-13' if PY3 else '-0100-04-13 00:00:00')
+        self.assertEqual(repr(dt), "Date(-101, 4, 13)")
+        self.assertEqual(str(dt), '-0100-04-13')
+
+        dt = Date10.fromstring('-0100-04-13')
+        self.assertEqual(repr(dt), "Date10(-100, 4, 13)")
+        self.assertEqual(str(dt), '-0100-04-13')
 
     def test_eq(self):
         tz = Timezone.fromstring('-05:00')
