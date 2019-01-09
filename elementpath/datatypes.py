@@ -72,7 +72,7 @@ class AbstractDateTime(object):
 
     :ivar dt: datetime.datetime instance.
     :ivar bce: if `True` the datetime instance represents a BCE date.
-    :ivar y10k: a positive integer value for calculating years exceeding 9999.
+    :ivar y10k: years exceeding 9999 (current value of datetime.MAXYEAR).
     """
     version = '1.1'
     pattern = re.compile(r'^$')
@@ -80,12 +80,18 @@ class AbstractDateTime(object):
     def __init__(self, year=1900, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
         if year == 0:
             raise ElementPathValueError('0 is an illegal value for year')
+        elif year < -9999:
+            self.bce = True
+            self.y10k, year = -year - 9999, 9999
         elif year < 0:
             self.bce = True
-            self.y10k, year = divmod(-year, 10000)
+            self.y10k, year = 0, -year
+        elif year > 9999:
+            self.bce = False
+            self.y10k, year = year - 9999, 9999
         else:
             self.bce = False
-            self.y10k, year = divmod(year, 10000)
+            self.y10k = 0
 
         if hour == 24 and minute == second == 0:
             self.dt = datetime.datetime(year, month, day, 0, minute, second, microsecond, tzinfo)
@@ -116,10 +122,7 @@ class AbstractDateTime(object):
 
     @property
     def year(self):
-        if self.bce:
-            return -self.dt.year - self.y10k * 10000
-        else:
-            return self.dt.year + self.y10k * 10000
+        return -(self.dt.year + self.y10k) if self.bce else self.dt.year + self.y10k
 
     @property
     def iso_year(self):
@@ -173,13 +176,22 @@ class AbstractDateTime(object):
 
         :param dt: the datetime.datetime instance that stores the XSD Date/Time value.
         :param bce: if `True` the date value refers to a BCE (Before Common Era) date.
-        :param y10k: the differential in terms of 10k years units, 0 for default.
+        :param y10k: years exceeding 9999 (current value of datetime.MAXYEAR), 0 for default.
         :return: an AbstractDateTime concrete subclass instance.
         """
+        if not isinstance(dt, datetime.datetime):
+            raise ElementPathTypeError('1st argument has an invalid type %r' % type(dt))
+        elif not isinstance(bce, bool):
+            raise ElementPathTypeError('2nd argument has an invalid type %r' % type(bce))
+        elif not isinstance(y10k, int):
+            raise ElementPathTypeError('3rd argument has an invalid type %r' % type(y10k))
+
         kwargs = {k: getattr(dt, k) for k in cls.pattern.groupindex.keys()}
         if 'year' in kwargs:
             if y10k:
-                kwargs['year'] += y10k * 10000
+                if dt.year != 9999:
+                    raise ElementPathValueError("with y10k != 0 dt.year must be 9999: %r" % dt)
+                kwargs['year'] += y10k if y10k > 0 else -y10k
             if bce:
                 kwargs['year'] = - kwargs['year']
         return cls(**kwargs)
@@ -273,52 +285,32 @@ class AbstractDateTime(object):
             return self.dt, dt
 
     def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.bce == other.bce and self.y10k == other.y10k and operator.eq(*self._get_operands(other))
-        elif isinstance(other, datetime.datetime):
-            return not self.bce and not self.y10k and operator.eq(*self._get_operands(other))
-        else:
-            return False
+        return isinstance(other, (self.__class__, datetime.datetime)) and \
+               self.year == other.year and operator.eq(*self._get_operands(other))
 
     def __lt__(self, other):
-        if not isinstance(other, self.__class__):
+        if not isinstance(other, (self.__class__, datetime.datetime)):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self.bce ^ other.bce:
-            return self.bce
-        elif self.bce:
-            return self.y10k > other.y10k or operator.gt(*self._get_operands(other))
-        else:
-            return operator.lt(*self._get_operands(other))
+        y1, y2 = self.year, other.year
+        return y1 < y2 or y1 == y2 and operator.lt(*self._get_operands(other))
 
     def __le__(self, other):
-        if not isinstance(other, self.__class__):
+        if not isinstance(other, (self.__class__, datetime.datetime)):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self.bce ^ other.bce:
-            return self.bce
-        elif self.bce:
-            return operator.ge(*self._get_operands(other))
-        else:
-            return operator.le(*self._get_operands(other))
+        y1, y2 = self.year, other.year
+        return y1 < y2 or y1 == y2 and operator.le(*self._get_operands(other))
 
     def __gt__(self, other):
-        if not isinstance(other, self.__class__):
+        if not isinstance(other, (self.__class__, datetime.datetime)):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self.bce ^ other.bce:
-            return not self.bce
-        elif self.bce:
-            return operator.lt(*self._get_operands(other))
-        else:
-            return operator.gt(*self._get_operands(other))
+        y1, y2 = self.year, other.year
+        return y1 > y2 or y1 == y2 and operator.gt(*self._get_operands(other))
 
     def __ge__(self, other):
-        if not isinstance(other, self.__class__):
+        if not isinstance(other, (self.__class__, datetime.datetime)):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        elif self.bce ^ other.bce:
-            return not self.bce
-        elif self.bce:
-            return operator.le(*self._get_operands(other))
-        else:
-            return operator.ge(*self._get_operands(other))
+        y1, y2 = self.year, other.year
+        return y1 > y2 or y1 == y2 and operator.ge(*self._get_operands(other))
 
 
 class DateTime(AbstractDateTime):
@@ -465,7 +457,7 @@ class Time(AbstractDateTime):
             dt = self.dt + other
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-        return Time(hour=dt.hour, minute=dt.minute, second=dt.second, microsecond=dt.microsecond, tzinfo=dt.tzinfo)
+        return Time(dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
     def __sub__(self, other):
         if isinstance(other, self.__class__):
@@ -473,7 +465,7 @@ class Time(AbstractDateTime):
             return DayTimeDuration.fromtimedelta(delta)
         elif isinstance(other, DayTimeDuration):
             dt = self.dt - other.get_timedelta()
-            return Time(hour=dt.hour, minute=dt.minute, second=dt.second, microsecond=dt.microsecond, tzinfo=dt.tzinfo)
+            return Time(dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
