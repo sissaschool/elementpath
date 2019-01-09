@@ -170,12 +170,6 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(str(dt), '-0100-04-13')
 
     def test_gregorian_year_repr(self):
-        dt = GregorianDay.fromstring('1991')
-        self.assertEqual(repr(dt), "GregorianYear(1991)")
-        self.assertEqual(str(dt), '1991')
-
-
-    def test_gregorian_year_repr(self):
         dt = GregorianYear.fromstring('1991')
         self.assertEqual(repr(dt), "GregorianYear(1991)")
         self.assertEqual(str(dt), '1991')
@@ -247,6 +241,11 @@ class DateTimeTypesTest(unittest.TestCase):
 
         self.assertFalse(mkdt("2005-04-04T24:00:00", tz) != mkdt("2005-04-04T00:00:00", tz))
 
+        self.assertTrue(DateTime.fromstring("-1000-01-01") == DateTime.fromstring("-1000-01-01"))
+        self.assertTrue(DateTime.fromstring("-10000-01-01") == DateTime.fromstring("-10000-01-01"))
+        self.assertFalse(DateTime.fromstring("20000-01-01") != DateTime.fromstring("20000-01-01"))
+        self.assertFalse(DateTime.fromstring("-10000-01-02") == DateTime.fromstring("-10000-01-01"))
+
     def test_lt(self):
         mkdt = DateTime.fromstring
         mkdate = Date.fromstring
@@ -258,6 +257,9 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-2002-01-01T10:00:00") < mkdt("2001-01-01T17:00:00Z"))
         self.assertFalse(mkdt("2002-01-01T10:00:00") < mkdt("-2001-01-01T17:00:00Z"))
         self.assertTrue(mkdt("-2002-01-01T10:00:00") < mkdt("-2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("-12002-01-01T10:00:00") < mkdt("-12001-01-01T17:00:00Z"))
+        self.assertFalse(mkdt("12002-01-01T10:00:00") < mkdt("12001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("-10000-01-01T10:00:00Z") < mkdt("-10000-01-01T17:00:00Z"))
         self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
     def test_le(self):
@@ -270,6 +272,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-2002-01-01T10:00:00") <= mkdt("2001-01-01T17:00:00Z"))
         self.assertFalse(mkdt("2002-01-01T10:00:00") <= mkdt("-2001-01-01T17:00:00Z"))
         self.assertTrue(mkdt("-2002-01-01T10:00:00") <= mkdt("-2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("-10000-01-01T10:00:00Z") <= mkdt("-10000-01-01T10:00:00Z"))
+        self.assertTrue(mkdt("-190000-01-01T10:00:00Z") <= mkdt("0100-01-01T10:00:00Z"))
         self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
     def test_gt(self):
@@ -282,6 +286,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertFalse(mkdt("2002-04-02T18:00:00+02:00") > mkdt("2002-04-03T00:00:00Z"))
         self.assertTrue(mkdt("2002-01-01T10:00:00") > mkdt("-2001-01-01T17:00:00Z"))
         self.assertFalse(mkdt("-2002-01-01T10:00:00") > mkdt("-2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("13567-04-18T10:00:00Z") > datetime.datetime.now())
+        self.assertFalse(mkdt("15032-11-12T23:17:59Z") > mkdt("15032-11-12T23:17:59Z"))
         self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
     def test_ge(self):
@@ -294,6 +300,9 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertFalse(mkdt("-2002-01-01T10:00:00") >= mkdt("2001-01-01T17:00:00Z"))
         self.assertTrue(mkdt("2002-01-01T10:00:00") >= mkdt("-2001-01-01T17:00:00Z"))
         self.assertFalse(mkdt("-2002-01-01T10:00:00") >= mkdt("-2001-01-01T17:00:00Z"))
+        self.assertTrue(mkdt("-3000-06-21T00:00:00Z") >= mkdt("-3000-06-21T00:00:00Z"))
+        self.assertFalse(mkdt("-3000-06-21T00:00:00Z") >= mkdt("-3000-06-21T01:00:00Z"))
+        self.assertTrue(mkdt("15032-11-12T23:17:59Z") >= mkdt("15032-11-12T23:17:59Z"))
         self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
 
@@ -1563,10 +1572,10 @@ class XPath2ParserTest(XPath1ParserTest):
 
     def test_tokenize_function(self):
         self.check_value('fn:tokenize("abracadabra", "(ab)|(a)")', ['', 'r', 'c', 'd', 'r', ''])
-        self.check_value('fn:tokenize("The cat sat on the mat", "\s+")', ['The', 'cat', 'sat', 'on', 'the', 'mat'])
-        self.check_value('fn:tokenize("1, 15, 24, 50", ",\s*")', ['1', '15', '24', '50'])
+        self.check_value(r'fn:tokenize("The cat sat on the mat", "\s+")', ['The', 'cat', 'sat', 'on', 'the', 'mat'])
+        self.check_value(r'fn:tokenize("1, 15, 24, 50", ",\s*")', ['1', '15', '24', '50'])
         self.check_value('fn:tokenize("1,15,,24,50,", ",")', ['1', '15', '', '24', '50', ''])
-        self.check_value('fn:tokenize("Some unparsed <br> HTML <BR> text", "\s*<br>\s*", "i")',
+        self.check_value(r'fn:tokenize("Some unparsed <br> HTML <BR> text", "\s*<br>\s*", "i")',
                          ['Some unparsed', 'HTML', 'text'])
 
         self.wrong_value('fn:tokenize("abba", ".?")')
