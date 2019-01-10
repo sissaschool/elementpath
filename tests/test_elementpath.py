@@ -219,7 +219,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "Time(0, 0, 0)")
         self.assertEqual(str(dt), '00:00:00')
 
-    def test_eq(self):
+    def test_eq_operator(self):
         tz = Timezone.fromstring('-05:00')
         mkdt = DateTime.fromstring
 
@@ -246,7 +246,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertFalse(DateTime.fromstring("20000-01-01") != DateTime.fromstring("20000-01-01"))
         self.assertFalse(DateTime.fromstring("-10000-01-02") == DateTime.fromstring("-10000-01-01"))
 
-    def test_lt(self):
+    def test_lt_operator(self):
         mkdt = DateTime.fromstring
         mkdate = Date.fromstring
 
@@ -262,7 +262,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-10000-01-01T10:00:00Z") < mkdt("-10000-01-01T17:00:00Z"))
         self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
-    def test_le(self):
+    def test_le_operator(self):
         mkdt = DateTime.fromstring
         mkdate = Date.fromstring
 
@@ -276,7 +276,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-190000-01-01T10:00:00Z") <= mkdt("0100-01-01T10:00:00Z"))
         self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
-    def test_gt(self):
+    def test_gt_operator(self):
         mkdt = DateTime.fromstring
         mkdate = Date.fromstring
 
@@ -290,7 +290,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertFalse(mkdt("15032-11-12T23:17:59Z") > mkdt("15032-11-12T23:17:59Z"))
         self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
-    def test_ge(self):
+    def test_ge_operator(self):
         mkdt = DateTime.fromstring
         mkdate = Date.fromstring
 
@@ -305,12 +305,32 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("15032-11-12T23:17:59Z") >= mkdt("15032-11-12T23:17:59Z"))
         self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
+    def test_months2days_function(self):
+        # self.assertEqual(months2days(-119, 1, 12 * 319), 116512)
+        self.assertEqual(months2days(200, 1, -12 * 320) - 1, -116877 - 2)
+
+        # 0000 BCE tests
+        self.assertEqual(months2days(0, 1, 12), 366)
+        self.assertEqual(months2days(0, 1, -12), -365)
+        self.assertEqual(months2days(1, 1, 12), 365)
+        self.assertEqual(months2days(1, 1, -12), -366)
+
+    def test_sub_operator(self):
+        date = Date.fromstring
+
+        self.assertEqual(date("2002-04-02") - date("2002-04-01"), DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-2002-04-02") - date("-2002-04-01"), DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-0101-01-01") - date("-0100-12-31"), DayTimeDuration.fromstring('-P729D'))
+        self.assertEqual(date("15032-11-12") - date("15032-11-11"), DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-9999-11-12") - date("-9999-11-11"), DayTimeDuration(seconds=-86400))
+        self.assertEqual(date("-9999-11-12") - date("-9999-11-12"), DayTimeDuration(seconds=0))
+
 
 class DurationTypesTest(unittest.TestCase):
 
     def test_months2days_function(self):
         # xs:duration ordering related tests
-        self.assertEqual(months2days(year=1696, month=9, month_delta=0), 0)
+        self.assertEqual(months2days(year=1696, month=9, months_delta=0), 0)
         self.assertEqual(months2days(1696, 9, 1), 30)
         self.assertEqual(months2days(1696, 9, 2), 61)
         self.assertEqual(months2days(1696, 9, 3), 91)
@@ -1953,17 +1973,15 @@ class XPath2ParserTest(XPath1ParserTest):
                          DayTimeDuration.fromstring('P5DT7H'))
 
         # BCE test cases
-        days = months2days(-119, 1, 12 * 319)
-        self.check_value('xs:date("0200-01-01") - xs:date("-0120-01-01")', DayTimeDuration.fromstring('P%dD' % days))
-        days = abs(months2days(200, 1, -12 * 319)) - 1
-        self.check_value('xs:date("-0200-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P%dD' % days))
-
-        self.check_value('xs:date("0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P365D'))
+        self.check_value('xs:date("0001-01-01") - xs:date("-0000-01-01")', DayTimeDuration.fromstring('P366D'))
         self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P0D'))
-        self.check_value('xs:date("-0001-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P365D'))
+        self.check_value('xs:date("-0000-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P366D'))
 
-        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")', DayTimeDuration.fromstring('P1D'))
-        self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('-P3D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")', DayTimeDuration.fromstring('-P1D'))
+        self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P3D'))
+
+        self.check_value('xs:date("0200-01-01") - xs:date("-0120-01-01")', DayTimeDuration.fromstring('P116878D'))
+        self.check_value('xs:date("-0200-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P116877D'))
 
     def test_subtract_times(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))

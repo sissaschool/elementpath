@@ -42,12 +42,19 @@ def adjust_day(year, month, day):
         return min(day, 29) if isleap(year) else min(day, 28)
 
 
-def months2days(year, month, month_delta):
+def months2days(year, month, months_delta):
     """
     Converts a delta of months to a delta of days, counting from the 1st day of the month,
     relative to the year and the month passed as arguments.
+
+    :param year: the reference start year, a negative or zero value means a BCE year.
+    :param month: the starting month (1-12).
+    :param months_delta: the number of months, if negative count backwards.
     """
-    total_months = month - 1 + month_delta
+    if not months_delta:
+        return 0
+
+    total_months = month - 1 + months_delta
     target_year = year + total_months // 12
     target_month = total_months % 12 + 1
 
@@ -228,16 +235,30 @@ class AbstractDateTime(object):
             kwargs['year'] -= 1
         return cls(**kwargs)
 
+    @property
+    def delta_bce(self):
+        """Property that returns the timedelta from 0000-01-01T00:00:00 BCE."""
+        dt = self.dt
+        tzinfo = None if dt.tzinfo is None else Timezone(datetime.timedelta(0))
+        if self.bce:
+            year, month = self.year + 1, dt.month
+            days = -months2days(year, month, -year * 12 + month - 1)
+            delta = (dt - datetime.datetime(dt.year, dt.month, day=1, tzinfo=tzinfo))
+            return datetime.timedelta(days=days, seconds=-delta.total_seconds())
+        else:
+            year, month = self.year, dt.month
+            days = -months2days(year, month, -year * 12 - month + 1)
+            delta = (dt - datetime.datetime(dt.year, dt.month, day=1, tzinfo=tzinfo))
+            return datetime.timedelta(days=days, seconds=delta.total_seconds())
+
     def _date_operator(self, op, other):
         if isinstance(other, self.__class__):
-            if self.bce ^ other.bce:
-                dt1, dt2 = self._get_operands(other)
-                delta1 = op(dt1, datetime.datetime(1, 1, 1, tzinfo=dt1.tzinfo))
-                delta2 = op(dt2, datetime.datetime(1, 1, 1, tzinfo=dt2.tzinfo))
-                delta = datetime.timedelta(seconds=delta1.total_seconds() + delta2.total_seconds())
-            else:
-                delta = operator.sub(*self._get_operands(other))
+            dt1, dt2 = self._get_operands(other)
+            if not self.bce and not other.bce and self.y10k == 0 and other.y10k == 0:
+                return DayTimeDuration.fromtimedelta(dt1 - dt2)
+            delta = self.delta_bce - other.delta_bce
             return DayTimeDuration.fromtimedelta(-delta if self.bce else delta)
+
         elif isinstance(other, (DayTimeDuration, datetime.timedelta)):
             delta = other.get_timedelta() if isinstance(other, DayTimeDuration) else other
             try:
@@ -272,7 +293,7 @@ class AbstractDateTime(object):
             kwargs['year'] = -kwargs['year']
         return type(self)(**kwargs)
 
-    # For Py2 compatibility: Python 2 can't compares offset-naive and offset-aware datetimes
+    # Python can't compares offset-naive and offset-aware datetimes
     def _get_operands(self, other):
         dt = getattr(other, 'dt', other)
         if self.dt.tzinfo is dt.tzinfo:
