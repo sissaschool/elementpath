@@ -39,7 +39,8 @@ from elementpath.namespaces import (
 from elementpath.compat import PY3
 from elementpath.datatypes import months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, \
     Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
-    GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, GregorianDay
+    GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, GregorianDay, \
+    AbstractDateTime, OrderedDateTime
 
 try:
     # noinspection PyPackageRequirements
@@ -133,6 +134,10 @@ class UntypedAtomicTest(unittest.TestCase):
 
 
 class DateTimeTypesTest(unittest.TestCase):
+
+    def test_abstract_classes(self):
+        self.assertRaises(TypeError, AbstractDateTime)
+        self.assertRaises(TypeError, OrderedDateTime)
 
     def test_init_fromstring(self):
         self.assertIsInstance(DateTime.fromstring('2000-10-07T00:00:00'), DateTime)
@@ -338,9 +343,12 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(Date10.fromstring("-0001-01-01").common_era_delta, datetime.timedelta(days=-366))
         self.assertEqual(Date10.fromstring("-0001-02-10").common_era_delta, datetime.timedelta(days=-326))
         self.assertEqual(Date10.fromstring("-0001-12-31Z").common_era_delta, datetime.timedelta(days=-1))
+        self.assertEqual(Date10.fromstring("-0001-12-31-02:00").common_era_delta, datetime.timedelta(hours=-22))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").common_era_delta, datetime.timedelta(hours=-27))
 
     def test_sub_operator(self):
         date = Date.fromstring
+        date10 = Date10.fromstring
 
         self.assertEqual(date("2002-04-02") - date("2002-04-01"), DayTimeDuration(seconds=86400))
         self.assertEqual(date("-2002-04-02") - date("-2002-04-01"), DayTimeDuration(seconds=86400))
@@ -350,6 +358,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(date("15032-11-12") - date("15032-11-11"), DayTimeDuration(seconds=86400))
         self.assertEqual(date("-9999-11-12") - date("-9999-11-11"), DayTimeDuration(seconds=86400))
         self.assertEqual(date("-9999-11-12") - date("-9999-11-12"), DayTimeDuration(seconds=0))
+
+        self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"), DayTimeDuration.fromstring('P1DT2H'))
 
 
 class DurationTypesTest(unittest.TestCase):
