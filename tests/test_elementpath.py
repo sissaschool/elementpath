@@ -152,8 +152,12 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(str(dt), '-0100-04-13T23:59:59')
 
         dt = DateTime10.fromstring('-0100-04-13T10:30:00-04:00')
-        self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
-                                   "tzinfo=Timezone(datetime.timedelta(days=-1, seconds=72000)))")
+        if sys.version_info >= (3, 7):
+            self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
+                                       "tzinfo=Timezone(datetime.timedelta(days=-1, seconds=72000)))")
+        else:
+            self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
+                                       "tzinfo=Timezone(datetime.timedelta(-1, 72000)))")
         self.assertEqual(str(dt), '-0100-04-13T10:30:00-04:00')
 
     def test_date_repr(self):
@@ -315,14 +319,36 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(months2days(1, 1, 12), 365)
         self.assertEqual(months2days(1, 1, -12), -366)
 
+    def test_common_era_delta(self):
+        self.assertEqual(Date.fromstring("0001-01-01").common_era_delta, datetime.timedelta(days=0))
+        self.assertEqual(Date.fromstring("0001-02-01").common_era_delta, datetime.timedelta(days=31))
+        self.assertEqual(Date.fromstring("0001-03-01").common_era_delta, datetime.timedelta(days=59))
+        self.assertEqual(Date.fromstring("0001-06-01").common_era_delta, datetime.timedelta(days=151))
+        self.assertEqual(Date.fromstring("0001-06-03").common_era_delta, datetime.timedelta(days=153))
+        self.assertEqual(DateTime.fromstring("0001-06-03T20:00:00").common_era_delta,
+                         datetime.timedelta(days=153, seconds=72000))
+
+        self.assertEqual(Date.fromstring("0002-01-01").common_era_delta, datetime.timedelta(days=365))
+        self.assertEqual(Date.fromstring("0002-02-01").common_era_delta, datetime.timedelta(days=396))
+
+        self.assertEqual(Date.fromstring("-0000-01-01").common_era_delta, datetime.timedelta(days=-366))
+        self.assertEqual(Date.fromstring("-0000-02-01").common_era_delta, datetime.timedelta(days=-335))
+        self.assertEqual(Date.fromstring("-0000-12-31").common_era_delta, datetime.timedelta(days=-1))
+
+        self.assertEqual(Date10.fromstring("-0001-01-01").common_era_delta, datetime.timedelta(days=-366))
+        self.assertEqual(Date10.fromstring("-0001-02-10").common_era_delta, datetime.timedelta(days=-326))
+        self.assertEqual(Date10.fromstring("-0001-12-31Z").common_era_delta, datetime.timedelta(days=-1))
+
     def test_sub_operator(self):
         date = Date.fromstring
 
         self.assertEqual(date("2002-04-02") - date("2002-04-01"), DayTimeDuration(seconds=86400))
         self.assertEqual(date("-2002-04-02") - date("-2002-04-01"), DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-0002-01-01") - date("-0001-12-31"), DayTimeDuration.fromstring('-P729D'))
+
         self.assertEqual(date("-0101-01-01") - date("-0100-12-31"), DayTimeDuration.fromstring('-P729D'))
         self.assertEqual(date("15032-11-12") - date("15032-11-11"), DayTimeDuration(seconds=86400))
-        self.assertEqual(date("-9999-11-12") - date("-9999-11-11"), DayTimeDuration(seconds=-86400))
+        self.assertEqual(date("-9999-11-12") - date("-9999-11-11"), DayTimeDuration(seconds=86400))
         self.assertEqual(date("-9999-11-12") - date("-9999-11-12"), DayTimeDuration(seconds=0))
 
 
@@ -1870,9 +1896,9 @@ class XPath2ParserTest(XPath1ParserTest):
         self.wrong_value('xs:gMonthDay("--07-32")')
 
         self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1, tzinfo=tz0))
-        self.check_value('xs:gYear("-2004")', GregorianYear(-2005, tzinfo=tz0))
-        self.check_value('xs:gYear("-12540")', GregorianYear(-12541, tzinfo=tz0))
-        self.check_value('xs:gYear("12540")', GregorianYear(12540, tzinfo=tz0))
+        self.check_value('xs:gYear("-2004")', GregorianYear10(-2004, tzinfo=tz0))
+        self.check_value('xs:gYear("-12540")', GregorianYear10(-12540, tzinfo=tz0))
+        self.check_value('xs:gYear("12540")', GregorianYear10(12540, tzinfo=tz0))
         self.wrong_value('xs:gYear("84")')
         self.wrong_value('xs:gYear("821")')
         self.wrong_value('xs:gYear("84")')
@@ -1973,15 +1999,15 @@ class XPath2ParserTest(XPath1ParserTest):
                          DayTimeDuration.fromstring('P5DT7H'))
 
         # BCE test cases
-        self.check_value('xs:date("0001-01-01") - xs:date("-0000-01-01")', DayTimeDuration.fromstring('P366D'))
+        self.check_value('xs:date("0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P366D'))
         self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P0D'))
-        self.check_value('xs:date("-0000-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P366D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P366D'))
 
         self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")', DayTimeDuration.fromstring('-P1D'))
         self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P3D'))
 
-        self.check_value('xs:date("0200-01-01") - xs:date("-0120-01-01")', DayTimeDuration.fromstring('P116878D'))
-        self.check_value('xs:date("-0200-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P116877D'))
+        self.check_value('xs:date("0200-01-01") - xs:date("-0121-01-01")', DayTimeDuration.fromstring('P116878D'))
+        self.check_value('xs:date("-0201-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P116877D'))
 
     def test_subtract_times(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
@@ -2360,7 +2386,7 @@ class XPath2ParserXMLSchemaTest(XPath2ParserTest):
         # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
         self.check_value("5 instance of xs:integer", True)
         self.check_value("5 instance of xs:decimal", True)
-        self.check_value("9.0 instance of xs:integer", False)
+        self.check_value("9.0 instance of xs:integer", False if xmlschema.__version__ >= '1.0.8' else True)
         self.check_value("(5, 6) instance of xs:integer+", True)
         self.check_value(". instance of element()", True, context)
 
