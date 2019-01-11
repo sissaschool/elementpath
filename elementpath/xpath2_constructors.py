@@ -17,8 +17,8 @@ import codecs
 from .compat import unicode_type, urlparse, URLError, string_base_type
 from .exceptions import ElementPathError, ElementPathMissingContextError, xpath_error
 from .xpath_helpers import is_attribute_node, boolean_value, string_value
-from .datatypes import DateTime, Date, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
-    GregorianYear, GregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
+from .datatypes import DateTime10, Date10, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
+    GregorianYear10, GregorianYearMonth10, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
 from .xpath2_functions import XPath2Parser, WHITESPACES_PATTERN, QNAME_PATTERN, \
     NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, \
     NOT_BASE64_BINARY_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
@@ -212,12 +212,12 @@ def cast(value):
 # Constructors for datetime XSD types
 @constructor('dateTime')
 def cast(value, tz=None):
-    return DateTime.fromstring(value, tzinfo=tz)
+    return DateTime10.fromstring(value, tzinfo=tz)
 
 
 @constructor('date')
 def cast(value, tz=None):
-    return Date.fromstring(value, tzinfo=tz)
+    return Date10.fromstring(value, tzinfo=tz)
 
 
 @constructor('gDay')
@@ -237,12 +237,12 @@ def cast(value, tz=None):
 
 @constructor('gYear')
 def cast(value, tz=None):
-    return GregorianYear.fromstring(value, tzinfo=tz)
+    return GregorianYear10.fromstring(value, tzinfo=tz)
 
 
 @constructor('gYearMonth')
 def cast(value, tz=None):
-    return GregorianYearMonth.fromstring(value, tzinfo=tz)
+    return GregorianYearMonth10.fromstring(value, tzinfo=tz)
 
 
 @constructor('time')
