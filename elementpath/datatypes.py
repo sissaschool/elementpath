@@ -315,7 +315,7 @@ class AbstractDateTime(object):
     # Python can't compares offset-naive and offset-aware datetimes
     def _get_operands(self, other):
         if not isinstance(other, (self.__class__, datetime.datetime)) and \
-                not other.__class__ is self.__class__.__bases__[0]:
+                other.__class__ is not self.__class__.__bases__[0]:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
         dt = getattr(other, 'dt', other)
@@ -328,12 +328,8 @@ class AbstractDateTime(object):
         else:
             return self.dt, dt
 
-    def _is_operand(self, other):
-        return isinstance(other, (self.__class__, datetime.datetime)) or \
-               other.__class__ is self.__class__.__bases__[0]
-
     def __eq__(self, other):
-        return self._is_operand(other) and self.year == other.year and operator.eq(*self._get_operands(other))
+        return operator.eq(*self._get_operands(other)) and self.year == other.year
 
 
 class OrderedDateTime(AbstractDateTime):
