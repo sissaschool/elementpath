@@ -2,10 +2,11 @@
 CHANGELOG
 *********
 
-`v1.1.1`_ (2018-12-31)
+`v1.1.1`_ (2018-01-13)
 ======================
-* Fixes for XSD datatypes
-* Rewrite AbstractDateTime for supporting years > 9999
+* Improvements and fixes for XSD datatypes
+* Rewritten AbstractDateTime for supporting years with value > 9999
+* Added fn:dateTime()
 
 `v1.1.0`_ (2018-12-23)
 ======================
@@ -81,3 +82,4 @@ handling of static context evaluation
 .. _v1.0.11: https://github.com/brunato/elementpath/compare/v1.0.10...v1.0.11
 .. _v1.0.12: https://github.com/brunato/elementpath/compare/v1.0.11...v1.0.12
 .. _v1.1.0: https://github.com/brunato/elementpath/compare/v1.0.12...v1.1.0
+.. _v1.1.1: https://github.com/brunato/elementpath/compare/v1.1.0...v1.1.1

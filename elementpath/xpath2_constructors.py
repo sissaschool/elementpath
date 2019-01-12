@@ -210,11 +210,6 @@ def cast(value):
 
 ###
 # Constructors for datetime XSD types
-@constructor('dateTime')
-def cast(value, tz=None):
-    return DateTime10.fromstring(value, tzinfo=tz)
-
-
 @constructor('date')
 def cast(value, tz=None):
     return Date10.fromstring(value, tzinfo=tz)
@@ -250,7 +245,6 @@ def cast(value, tz=None):
     return Time.fromstring(value, tzinfo=tz)
 
 
-@method('dateTime')
 @method('date')
 @method('gDay')
 @method('gMonth')
@@ -486,8 +480,11 @@ def evaluate(self, context=None):
         return [] if item is None else str(item)
 
 
-# Case 4: In XPath 2.0 the 'QName' keyword is used both for fn:QName() and xs:QName().
-# In this case the label is set by the nud method, in dependence of the number of args.
+# Case 4 and 5: In XPath 2.0 the XSD 'QName' and 'dateTime' types have special constructor functions so
+# the 'QName' keyword is used both for fn:QName() and xs:QName(), the same for 'dateTime' keyword.
+#
+# In those cases the label at parse time is set by the nud method, in dependence of the number of args.
+#
 def cast_to_qname(value, namespaces=None):
     if not isinstance(value, string_base_type):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
@@ -502,11 +499,18 @@ def cast_to_qname(value, namespaces=None):
     return value
 
 
+def cast_to_datetime(value, tz=None):
+    return DateTime10.fromstring(value, tzinfo=tz)
+
+
 register('QName', lbp=90, rbp=90, label=('function', 'constructor'),
          pattern=r'\bQName(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(cast_to_qname))
+register('dateTime', lbp=90, rbp=90, label=('function', 'constructor'),
+         pattern=r'\bdateTime(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(cast_to_datetime))
 
 
 @method('QName')
+@method('dateTime')
 def nud(self):
     self.parser.advance('(')
     self[0:] = self.parser.expression(5),
@@ -562,6 +566,32 @@ def evaluate(self, context=None):
             except KeyError:
                 self.parser.namespaces[pfx] = uri
         return qname
+
+
+@method('dateTime')
+def evaluate(self, context=None):
+    if self.label == 'constructor':
+        item = self.get_argument(context)
+        if item is None:
+            return []
+        try:
+            return self.cast(item, tz=None if context is None else context.timezone)
+        except ValueError as err:
+            raise self.error('FOCA0002', str(err))
+        except TypeError as err:
+            raise self.error('FORG0006', str(err))
+    else:
+        dt = self.get_argument(context, cls=Date10)
+        tm = self.get_argument(context, 1, cls=Time)
+        if dt is None or tm is None:
+            return
+        elif dt.tzinfo == tm.tzinfo or tm.tzinfo is None:
+            tzinfo = dt.tzinfo
+        elif dt.tzinfo is None:
+            tzinfo = tm.tzinfo
+        else:
+            raise self.error('FORG0008')
+        return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute, tm.second, tm.microsecond, tzinfo)
 
 
 XPath2Parser.build_tokenizer()  # XPath 2.0 definitions completed, build the tokenizer.
