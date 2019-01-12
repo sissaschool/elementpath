@@ -1,0 +1,1161 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
+# All rights reserved.
+# This file is distributed under the terms of the MIT License.
+# See the file 'LICENSE' in the root directory of the present
+# distribution, or http://opensource.org/licenses/MIT.
+#
+# @author Davide Brunato <brunato@sissa.it>
+#
+#
+# Note: Many tests are built using the examples of the XPath standards,
+#       published by W3C under the W3C Document License.
+#
+#       References:
+#           http://www.w3.org/TR/1999/REC-xpath-19991116/
+#           http://www.w3.org/TR/2010/REC-xpath20-20101214/
+#           http://www.w3.org/TR/2010/REC-xpath-functions-20101214/
+#           https://www.w3.org/Consortium/Legal/2015/doc-license
+#           https://www.w3.org/TR/charmod-norm/
+#
+import unittest
+import datetime
+import io
+import math
+from decimal import Decimal
+import lxml.etree
+
+from elementpath import *
+from elementpath.namespaces import XSI_NAMESPACE
+from elementpath.compat import PY3
+from elementpath.datatypes import DateTime, Date, Time, Timezone, \
+    DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear10
+
+try:
+    from tests import test_xpath1_parser
+except ImportError:
+    # Python2 fallback
+    import test_xpath1_parser
+
+
+XML_POEM_TEST = """<poem author="Wilhelm Busch">
+Kaum hat dies der Hahn gesehen,
+Fängt er auch schon an zu krähen:
+«Kikeriki! Kikikerikih!!»
+Tak, tak, tak! - da kommen sie.
+</poem>"""
+
+
+class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
+
+    def setUp(self):
+        self.parser = XPath2Parser(namespaces=self.namespaces, variables=self.variables)
+
+    def test_xpath_tokenizer2(self):
+        self.check_tokenizer("(: this is a comment :)",
+                             ['(:', '', 'this', '', 'is', '', 'a', '', 'comment', '', ':)'])
+        self.check_tokenizer("last (:", ['last', '', '(:'])
+
+    def test_token_tree2(self):
+        self.check_tree('(1 + 6, 2, 10 - 4)', '(, (, (+ (1) (6)) (2)) (- (10) (4)))')
+        self.check_tree('/A/B2 union /A/B1', '(union (/ (/ (A)) (B2)) (/ (/ (A)) (B1)))')
+
+    def test_token_source2(self):
+        self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
+        self.check_source("$myaddress treat as element(*, USAddress)", "$myaddress treat as element(*, USAddress)")
+
+    def test_xpath_comments(self):
+        self.wrong_syntax("(: this is a comment :)")
+        self.wrong_syntax("(: this is a (: nested :) comment :)")
+        self.check_tree('child (: nasty (:nested :) axis comment :) ::B1', '(child (B1))')
+        self.check_tree('child (: nasty "(: but not nested :)" axis comment :) ::B1', '(child (B1))')
+        self.check_value("5 (: before operator comment :) < 4", False)  # Before infix operator
+        self.check_value("5 < (: after operator comment :) 4", False)  # After infix operator
+        self.check_value("true (:# nasty function comment :) ()", True)
+        self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \nC1 (: last comment :)\t',
+                        '(/ (/ (/ (A)) (B1)) (C1))')
+
+    def test_comma_operator(self):
+        self.check_value("1, 2", [1, 2])
+        self.check_value("(1, 2)", [1, 2])
+        self.check_value("(-9, 28, 10)", [-9, 28, 10])
+        self.check_value("(1, 2)", [1, 2])
+
+        root = self.etree.XML('<A/>')
+        self.check_selector("(7.0, /A, 'foo')", root, [7.0, root, 'foo'])
+        self.check_selector("7.0, /A, 'foo'", root, [7.0, root, 'foo'])
+        self.check_selector("/A, 7.0, 'foo'", self.etree.XML('<dummy/>'), [7.0, 'foo'])
+
+    def test_range_expressions(self):
+        # Some cases from https://www.w3.org/TR/xpath20/#construct_seq
+        self.check_value("1 to 2", [1, 2])
+        self.check_value("1 to 10", list(range(1, 11)))
+        self.check_value("(10, 1 to 4)", [10, 1, 2, 3, 4])
+        self.check_value("10 to 10", [10])
+        self.check_value("15 to 10", [])
+        self.check_value("fn:reverse(10 to 15)", [15, 14, 13, 12, 11, 10])
+
+    def test_parenthesized_expressions(self):
+        self.check_value("(1, 2, '10')", [1, 2, '10'])
+        self.check_value("()", [])
+
+    def test_if_expressions(self):
+        root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
+        self.check_value("if (1) then 2 else 3", 2)
+        self.check_selector("if (true()) then /A/B1 else /A/B2", root, root[:1])
+        self.check_selector("if (false()) then /A/B1 else /A/B2", root, root[1:2])
+
+        # Cases from XPath 2.0 examples
+        root = self.etree.XML('<part discounted="false"><wholesale/><retail/></part>')
+        self.check_selector(
+            'if ($part/@discounted) then $part/wholesale else $part/retail',
+            root, [root[0]], variables={'part': root}
+        )
+        root = self.etree.XML('<widgets>'
+                              '  <widget><unit-cost>25</unit-cost></widget>'
+                              '  <widget><unit-cost>10</unit-cost></widget>'
+                              '  <widget><unit-cost>15</unit-cost></widget>'
+                              '</widgets>')
+        self.check_selector(
+            'if ($widget1/unit-cost < $widget2/unit-cost) then $widget1 else $widget2',
+            root, [root[2]], variables={'widget1': root[0], 'widget2': root[2]}
+        )
+
+    def test_quantifier_expressions(self):
+        # Cases from XPath 2.0 examples
+        root = self.etree.XML('<parts>'
+                              '  <part discounted="true" available="true" />'
+                              '  <part discounted="false" available="true" />'
+                              '  <part discounted="true" />'
+                              '</parts>')
+        self.check_selector("every $part in /parts/part satisfies $part/@discounted", root, True)
+        self.check_selector("every $part in /parts/part satisfies $part/@available", root, False)
+
+        root = self.etree.XML('<emps>'
+                              '  <employee><salary>1000</salary><bonus>400</bonus></employee>'
+                              '  <employee><salary>1200</salary><bonus>300</bonus></employee>'
+                              '  <employee><salary>1200</salary><bonus>200</bonus></employee>'
+                              '</emps>')
+        self.check_selector("some $emp in /emps/employee satisfies "
+                            "   ($emp/bonus > 0.25 * $emp/salary)", root, True)
+        self.check_selector("every $emp in /emps/employee satisfies "
+                            "   ($emp/bonus < 0.5 * $emp/salary)", root, True)
+
+        context = XPathContext(root=self.etree.XML('<dummy/>'))
+        self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", True, context)
+        self.check_value("every $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", False, context)
+
+        self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
+        self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
+
+    def test_for_expressions(self):
+        # Cases from XPath 2.0 examples
+        context = XPathContext(root=self.etree.XML('<dummy/>'))
+        self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
+
+        root = self.etree.XML(
+            """
+            <bib>
+                <book>
+                    <title>TCP/IP Illustrated</title>
+                    <author>Stevens</author>
+                    <publisher>Addison-Wesley</publisher>
+                </book>
+                <book>
+                    <title>Advanced Programming in the Unix Environment</title>
+                    <author>Stevens</author>
+                    <publisher>Addison-Wesley</publisher>
+                </book>
+                <book>
+                    <title>Data on the Web</title>
+                    <author>Abiteboul</author>
+                    <author>Buneman</author>
+                    <author>Suciu</author>
+                </book>
+            </bib>
+            """)
+
+        # Test step-by-step, testing also other basic features.
+        self.check_selector("author[1]", root[0], [root[0][1]])
+        self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
+        self.check_tree("book/author[. = $a][1]", '([ ([ (/ (book) (author)) (= (.) ($ (a)))) (1))')
+        self.check_selector("book/author[. = $a][1]", root, [root[0][1]], variables={'a': 'Stevens'})
+        self.check_selector("book/author[. = 'Stevens'][2]", root, [root[1][1]])
+
+        self.check_selector("for $a in fn:distinct-values(book/author) return $a",
+                            root, ['Stevens', 'Abiteboul', 'Buneman', 'Suciu'])
+
+        self.check_selector("for $a in fn:distinct-values(book/author) "
+                            "return book/author[. = $a]", root, [root[0][1], root[1][1]] + root[2][1:4])
+
+        self.check_selector("for $a in fn:distinct-values(book/author) "
+                            "return book/author[. = $a][1]", root, [root[0][1]] + root[2][1:4])
+        self.check_selector(
+            "for $a in fn:distinct-values(book/author) "
+            "return (book/author[. = $a][1], book[author = $a]/title)", root,
+            [root[0][1], root[0][0], root[1][0], root[2][1], root[2][0], root[2][2], root[2][0],
+             root[2][3], root[2][0]]
+        )
+
+    def test_boolean_functions2(self):
+        root = self.etree.XML('<A><B1/><B2/><B3/></A>')
+        self.check_selector("boolean(/A)", root, True)
+        self.check_selector("boolean((-10, 35))", root, ElementPathTypeError)  # Sequence with two numeric values
+        self.check_selector("boolean((/A, 35))", root, True)
+
+    def test_numerical_expressions2(self):
+        self.check_value("5 idiv 2", 2)
+        self.check_value("-3.5 idiv -2", 1)
+        self.check_value("-3.5 idiv 2", -1)
+
+    def test_comparison_operators2(self):
+        self.check_value("0.05 eq 0.05", True)
+        self.check_value("19.03 ne 19.02999", True)
+        self.check_value("-1.0 eq 1.0", False)
+        self.check_value("1 le 2", True)
+        self.check_value("5 ge 9", False)
+        self.check_value("5 gt 3", True)
+        self.check_value("5 lt 20.0", True)
+        self.check_value("false() eq 1", False)
+        self.check_value("0 eq false()", True)
+        self.check_value("2 * 2 eq 4", True)
+
+        # From XPath 2.0 examples
+        root = self.etree.XML('<collection>'
+                              '   <book><author>Kafka</author></book>'
+                              '   <book><author>Huxley</author></book>'
+                              '   <book><author>Asimov</author></book>'
+                              '</collection>')
+        context = XPathContext(root=root, variables={'book1': root[0]})
+        self.check_value('$book1 / author = "Kafka"', True, context=context)
+        self.check_value('$book1 / author eq "Kafka"', True, context=context)
+
+        self.check_value("(1, 2) = (2, 3)", True)
+        self.check_value("(2, 3) = (3, 4)", True)
+        self.check_value("(1, 2) = (3, 4)", False)
+        self.check_value("(1, 2) != (2, 3)", True)  # != is not the inverse of =
+
+        context = XPathContext(root=root, variables={
+            'a': UntypedAtomic('1'), 'b': UntypedAtomic('2'), 'c': UntypedAtomic('2.0')
+        })
+        self.check_value('($a, $b) = ($c, 3.0)', False, context=context)
+        self.check_value('($a, $b) = ($c, 2.0)', True, context=context)
+
+    def test_number_functions2(self):
+        # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
+        self.check_value("abs(10.5)", 10.5)
+        self.check_value("abs(-10.5)", 10.5)
+        self.check_value("round-half-to-even(0.5)", 0)
+        self.check_value("round-half-to-even(1.5)", 2)
+        self.check_value("round-half-to-even(2.5)", 2)
+        self.check_value("round-half-to-even(3.567812E+3, 2)", 3567.81E0)
+        self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
+        self.check_value("round-half-to-even(35612.25, -2)", 35600)
+
+    def test_aggregate_functions(self):
+        self.check_value("sum((10, 15, 6, -2))", 29)
+
+        context = XPathContext(root=self.etree.XML('<A/>'),
+                               variables={
+                                   'd1': YearMonthDuration.fromstring("P20Y"),
+                                   'd2': YearMonthDuration.fromstring("P10M"),
+                                   'seq3': [3, 4, 5]
+                               })
+        self.check_value("fn:avg($seq3)", 4.0, context=context)
+        self.check_value("fn:avg(($d1, $d2))", YearMonthDuration.fromstring("P125M"), context=context)
+        root_token = self.parser.parse("fn:avg(($d1, $seq3))")
+        self.assertRaises(TypeError, root_token.evaluate, context=context)
+        self.check_value("fn:avg(())", [])
+        self.check_value("fn:avg($seq3)", 4.0, context=context)
+
+        root_token = self.parser.parse("fn:avg((xs:float('INF'), xs:float('-INF')))")
+        self.assertTrue(math.isnan(root_token.evaluate(context)))
+
+        root_token = self.parser.parse("fn:avg(($seq3, xs:float('NaN')))")
+        self.assertTrue(math.isnan(root_token.evaluate(context)))
+
+        self.check_value("fn:max((3,4,5))", 5)
+        self.check_value("fn:max((5, 5.0e0))", 5.0e0)
+        if PY3:
+            self.wrong_type("fn:max((3,4,'Zero'))")
+        else:
+            self.check_value("fn:max((3,4,'Zero'))", 'Zero')
+        dt = datetime.datetime.now()
+        self.check_value('fn:max((fn:current-date(), xs:date("2001-01-01")))',
+                         Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo))
+        self.check_value('fn:max(("a", "b", "c"))', 'c')
+
+        self.check_value("fn:min((3,4,5))", 3)
+        self.check_value("fn:min((5, 5.0e0))", 5.0e0)
+        self.check_value("fn:min((xs:float(0.0E0), xs:float(-0.0E0)))", 0.0)
+        self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))', Date.fromstring("2001-01-01"))
+        self.check_value('fn:min(("a", "b", "c"))', 'a')
+
+    ###
+    # Functions on strings
+    def test_codepoints_to_string_function(self):
+        self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
+
+    def test_string_to_codepoints_function(self):
+        self.check_value(u'string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
+        self.check_value(u'string-to-codepoints(())', [])
+
+    def test_codepoint_equal_function(self):
+        self.check_value("fn:codepoint-equal('abc', 'abc')", True)
+        self.check_value("fn:codepoint-equal('abc', 'abcd')", False)
+        self.check_value("fn:codepoint-equal('', '')", True)
+        self.check_value("fn:codepoint-equal((), 'abc')", [])
+        self.check_value("fn:codepoint-equal('abc', ())", [])
+        self.check_value("fn:codepoint-equal((), ())", [])
+
+    def test_compare_strings_function(self):
+        self.check_value("fn:compare('abc', 'abc')", 0)
+        self.check_value("fn:compare('abc', 'abcd')", -1)
+        self.check_value("fn:compare('abcd', 'abc')", 1)
+
+        self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
+        self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'it_IT')", -1)
+        self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE')", -1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
+
+        self.wrong_value(u"fn:compare('Strasse', 'Straße', 'invalid')")
+        self.wrong_type(u"fn:compare('Strasse', 111)")
+
+    def test_normalize_unicode_function(self):
+        self.check_value('fn:normalize-unicode("menù")', u'menù')
+        self.assertRaises(NotImplementedError, self.parser.parse, 'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
+        self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
+
+        # https://www.w3.org/TR/charmod-norm/#normalization_forms
+        self.check_value(u"fn:normalize-unicode('\u01FA')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFKD')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', ' nfkd ')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFD')", u'\u0041\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301')", u'\uFF21\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFD')", u'\uFF21\u030A\u0301')
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKC')", u'\u01FA')
+        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+
+    def test_lower_case_function(self):
+        self.check_value('lower-case("aBcDe01")', 'abcde01')
+        self.check_value('lower-case(("aBcDe01"))', 'abcde01')
+        self.check_value('lower-case(())', '')
+        self.wrong_type('lower-case((10))')
+
+    def test_upper_case_function(self):
+        self.check_value('upper-case("aBcDe01")', 'ABCDE01')
+        self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
+        self.check_value('upper-case(())', '')
+        self.wrong_type('upper-case((10))')
+
+    def test_encode_for_uri_function(self):
+        self.check_value('encode-for-uri("http://xpath.test")', 'http%3A%2F%2Fxpath.test')
+        self.check_value('encode-for-uri("~bébé")', '~b%C3%A9b%C3%A9')
+        self.check_value('encode-for-uri("100% organic")', '100%25%20organic')
+        self.check_value('encode-for-uri("")', '')
+        self.check_value('encode-for-uri(())', '')
+
+    def test_iri_to_uri_function(self):
+        self.check_value('iri-to-uri("http://www.example.com/00/Weather/CA/Los%20Angeles#ocean")',
+                         'http://www.example.com/00/Weather/CA/Los%20Angeles#ocean')
+        self.check_value('iri-to-uri("http://www.example.com/~bébé")',
+                         'http://www.example.com/~b%C3%A9b%C3%A9')
+        self.check_value('iri-to-uri("")', '')
+        self.check_value('iri-to-uri(())', '')
+
+    def test_escape_html_uri_function(self):
+        self.check_value('escape-html-uri("http://www.example.com/00/Weather/CA/Los Angeles#ocean")',
+                         'http://www.example.com/00/Weather/CA/Los Angeles#ocean')
+        self.check_value("escape-html-uri(\"javascript:if (navigator.browserLanguage == 'fr') "
+                         "window.open('http://www.example.com/~bébé');\")",
+                         "javascript:if (navigator.browserLanguage == 'fr') "
+                         "window.open('http://www.example.com/~b%C3%A9b%C3%A9');")
+        self.check_value('escape-html-uri("")', '')
+        self.check_value('escape-html-uri(())', '')
+
+    def test_string_length_function(self):
+        self.check_value("string-length(())", 0)
+
+    def test_string_join_function(self):
+        self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')", "Now is the time ...")
+        self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
+                         'Blow, blow, thou winter wind!')
+        self.check_value("string-join((), 'separator')", '')
+
+    def test_matches_function(self):
+        self.check_value('fn:matches("abracadabra", "bra")', True)
+        self.check_value('fn:matches("abracadabra", "^a.*a$")', True)
+        self.check_value('fn:matches("abracadabra", "^bra")', False)
+
+        root = self.etree.XML(XML_POEM_TEST)
+
+        context = XPathContext(root=root)
+        self.check_value('fn:matches(., "Kaum.*krähen")', False, context=context)
+        self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=context)
+        self.check_value('fn:matches(., "^Kaum.*gesehen,$", "m")', True, context=context)
+        self.check_value('fn:matches(., "^Kaum.*gesehen,$")', False, context=context)
+        self.check_value('fn:matches(., "kiki", "i")', True, context=context)
+
+    def test_replace_function(self):
+        self.check_value('fn:replace("abracadabra", "bra", "*")', "a*cada*")
+        self.check_value('fn:replace("abracadabra", "a.*a", "*")', "*")
+        self.check_value('fn:replace("abracadabra", "a.*?a", "*")', "*c*bra")
+        self.check_value('fn:replace("abracadabra", "a", "")', "brcdbr")
+
+        self.check_value('fn:replace("abracadabra", "a(.)", "a$1$1")', "abbraccaddabbra")
+        self.wrong_value('fn:replace("abracadabra", ".*?", "$1")')
+        self.check_value('fn:replace("AAAA", "A+", "b")', "b")
+        self.check_value('fn:replace("AAAA", "A+?", "b")', "bbbb")
+        self.check_value('fn:replace("darted", "^(.*?)d(.*)$", "$1c$2")', "carted")
+        self.check_value('fn:replace("abcd", "(ab)|(a)", "[1=$1][2=$2]")', "[1=ab][2=]cd")
+
+    def test_tokenize_function(self):
+        self.check_value('fn:tokenize("abracadabra", "(ab)|(a)")', ['', 'r', 'c', 'd', 'r', ''])
+        self.check_value(r'fn:tokenize("The cat sat on the mat", "\s+")', ['The', 'cat', 'sat', 'on', 'the', 'mat'])
+        self.check_value(r'fn:tokenize("1, 15, 24, 50", ",\s*")', ['1', '15', '24', '50'])
+        self.check_value('fn:tokenize("1,15,,24,50,", ",")', ['1', '15', '', '24', '50', ''])
+        self.check_value(r'fn:tokenize("Some unparsed <br> HTML <BR> text", "\s*<br>\s*", "i")',
+                         ['Some unparsed', 'HTML', 'text'])
+
+        self.wrong_value('fn:tokenize("abba", ".?")')
+        self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", "sxf")')
+        self.wrong_value('fn:tokenize("abracadabra", ())')
+        self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", ())')
+
+    def test_sequence_general_functions(self):
+        # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
+        self.check_value('fn:empty(("hello", "world"))', False)
+        self.check_value('fn:exists(("hello", "world"))', True)
+        self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
+        self.check_value('fn:empty(())', True)
+        self.check_value('fn:exists(())', False)
+        self.check_value('fn:empty(fn:remove(("hello"), 1))', True)
+        self.check_value('fn:exists(fn:remove(("hello"), 1))', False)
+
+        self.check_value('fn:distinct-values((1, 2.0, 3, 2))', [1, 2.0, 3])
+        context = XPathContext(
+            root=self.etree.XML('<dummy/>'),
+            variables={'x': [UntypedAtomic("cherry"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
+        )
+        self.check_value('fn:distinct-values($x)', ['cherry', 'bar'], context)
+
+        self.check_value('fn:index-of ((10, 20, 30, 40), 35)', [])
+        self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
+        self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
+
+        context = XPathContext(root=self.etree.XML('<dummy/>'), variables={'x': ['a', 'b', 'c']})
+        self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 3, "z")', ['a', 'b', 'z', 'c'], context.copy())
+        self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context.copy())
+
+        self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
+        self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
+        self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)
+        self.check_value('fn:remove((), 3)', [])
+
+        self.check_value('reverse($x)', ['c', 'b', 'a'], context)
+        self.check_value('fn:reverse(("hello"))', ['hello'], context)
+        self.check_value('fn:reverse(())', [])
+
+        self.check_value('fn:subsequence((), 5)', [])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 1)', [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 0)', [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), -1)', [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 10)', [])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4)', [4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4, 2)', [4, 5])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 3, 10)', [3, 4, 5, 6, 7])
+
+        self.check_value('fn:unordered(())', [])
+        self.check_value('fn:unordered(("z", 2, "3", "Z", "b", "a"))', [2, '3', 'Z', 'a', 'b', 'z'])
+
+    def test_sequence_cardinality_functions(self):
+        self.check_value('fn:zero-or-one(())', [])
+        self.check_value('fn:zero-or-one((10))', [10])
+        self.wrong_value('fn:zero-or-one((10, 20))')
+
+        self.wrong_value('fn:one-or-more(())')
+        self.check_value('fn:one-or-more((10))', [10])
+        self.check_value('fn:one-or-more((10, 20, 30, 40))', [10, 20, 30, 40])
+
+        self.check_value('fn:exactly-one((20))', [20])
+        self.wrong_value('fn:exactly-one(())')
+        self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
+
+    def test_qname_functions(self):
+        self.check_value('fn:QName("", "person")', 'person')
+        self.check_value('fn:QName((), "person")', 'person')
+        self.check_value('fn:QName("http://www.example.com/example", "person")', 'person')
+        self.check_value('fn:QName("http://www.example.com/example", "ht:person")', 'ht:person')
+        self.wrong_type('fn:QName("", 2)')
+        self.wrong_value('fn:QName("http://www.example.com/example", "xs:person")')
+
+        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/example", "ht:person"))', 'ht')
+        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/example", "person"))', [])
+        self.check_value(
+            'fn:local-name-from-QName(fn:QName("http://www.example.com/example", "person"))', 'person'
+        )
+        self.check_value(
+            'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/example", "person"))',
+            'http://www.example.com/example'
+        )
+
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/example"/><C2/></p0:B3>'
+                              '</p1:A>')
+        context = XPathContext(root=root)
+        self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
+        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/example}C2', context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/example', context=context)
+        self.check_selector("fn:in-scope-prefixes(.)", root, ['p2', 'p0'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
+
+    def test_string_constructors(self):
+        self.check_value("xs:string(5.0)", '5.0')
+        self.check_value('xs:string(" hello  ")', ' hello  ')
+        self.check_value('xs:string("\thello \n")', '\thello \n')
+        self.check_value('xs:string(())', [])
+
+        self.check_value('xs:normalizedString("hello")', "hello")
+        self.check_value('xs:normalizedString(" hello  ")', " hello  ")
+        self.check_value('xs:normalizedString("\thello \n")', " hello  ")
+        self.check_value('xs:normalizedString(())', [])
+
+        self.check_value('xs:token(" hello  world ")', "hello world")
+        self.check_value('xs:token("hello\t world\n")', "hello world")
+        self.check_value('xs:token(())', [])
+
+        self.check_value('xs:language(" en ")', "en")
+        self.check_value('xs:language(" en-GB ")', "en-GB")
+        self.check_value('xs:language("it-IT")', "it-IT")
+        self.wrong_value('xs:language("hello-world")')
+        self.check_value('xs:language(())', [])
+
+        self.check_value('xs:NMTOKEN(" :menù.09-_ ")', ":menù.09-_")
+        self.wrong_value('xs:NMTOKEN("alpha+")')
+        self.wrong_value('xs:NMTOKEN("hello world")')
+        self.check_value('xs:NMTOKEN(())', [])
+
+        self.check_value('xs:Name(" :base ")', ":base")
+        self.check_value('xs:Name(" ::level_alpha ")', "::level_alpha")
+        self.check_value('xs:Name("level-alpha")', "level-alpha")
+        self.check_value('xs:Name("level.alpha\t\n")', "level.alpha")
+        self.check_value('xs:Name("__init__ ")', "__init__")
+        self.check_value(u'xs:Name("\u0110")', u"\u0110")
+        self.wrong_value('xs:Name("2_values")')
+        self.wrong_value('xs:Name(" .values ")')
+        self.wrong_value('xs:Name(" -values ")')
+        self.check_value('xs:Name(())', [])
+
+        self.check_value('xs:NCName(" base ")', "base")
+        self.check_value('xs:NCName(" _level_alpha ")', "_level_alpha")
+        self.check_value('xs:NCName("level-alpha")', "level-alpha")
+        self.check_value('xs:NCName("level.alpha\t\n")', "level.alpha")
+        self.check_value('xs:NCName("__init__ ")', "__init__")
+        self.check_value(u'xs:NCName("\u0110")', u"\u0110")
+        self.wrong_value('xs:NCName("2_values")')
+        self.wrong_value('xs:NCName(" .values ")')
+        self.wrong_value('xs:NCName(" -values ")')
+        self.check_value('xs:NCName(())', [])
+
+        self.check_value('xs:ID("xyz")', 'xyz')
+        self.check_value('xs:IDREF("xyz")', 'xyz')
+        self.check_value('xs:ENTITY("xyz")', 'xyz')
+
+    def test_qname_constructor(self):
+        self.check_value('xs:QName("xs:element")', 'xs:element')
+        self.assertRaises(KeyError, self.parser.parse, 'xs:QName("xsd:element")')
+
+    def test_any_uri_constructor(self):
+        self.check_value('xs:anyURI("")', '')
+        self.check_value('xs:anyURI("https://example.com")', 'https://example.com')
+        self.check_value('xs:anyURI("mailto:info@example.com")', 'mailto:info@example.com')
+        self.check_value('xs:anyURI("urn:example:com")', 'urn:example:com')
+        self.check_value(u'xs:anyURI("../principi/libertà.html")', u'../principi/libertà.html')
+        self.check_value('xs:anyURI("../principi/libert%E0.html")', '../principi/libert%E0.html')
+        self.check_value('xs:anyURI("../path/page.html#frag")', '../path/page.html#frag')
+        self.wrong_value('xs:anyURI("../path/page.html#frag1#frag2")')
+        self.wrong_value('xs:anyURI("https://example.com/index%.html")')
+        self.wrong_value('xs:anyURI("https://example.com/index.%html")')
+        self.wrong_value('xs:anyURI("https://example.com/index.html%  frag")')
+        self.check_value('xs:anyURI(())', [])
+
+    def test_boolean_constructor(self):
+        self.check_value('xs:boolean(())', [])
+        self.check_value('xs:boolean(1)', True)
+        self.check_value('xs:boolean(0)', False)
+
+    def test_integer_constructors(self):
+        self.wrong_value('xs:integer("hello")')
+        self.check_value('xs:integer("19")', 19)
+        self.check_value("xs:integer('-5')", -5)
+
+        self.wrong_value('xs:nonNegativeInteger("-1")')
+        self.wrong_value('xs:nonNegativeInteger(-1)')
+        self.check_value('xs:nonNegativeInteger(0)', 0)
+        self.check_value('xs:nonNegativeInteger(1000)', 1000)
+        self.wrong_value('xs:positiveInteger(0)')
+        self.check_value('xs:positiveInteger("1")', 1)
+        self.wrong_value('xs:negativeInteger(0)')
+        self.check_value('xs:negativeInteger(-1)', -1)
+        self.wrong_value('xs:nonPositiveInteger(1)')
+        self.check_value('xs:nonPositiveInteger(0)', 0)
+        self.check_value('xs:nonPositiveInteger("-1")', -1)
+
+    def test_limited_integer_constructors(self):
+        self.wrong_value('xs:long("true")')
+        self.wrong_value('xs:long("340282366920938463463374607431768211456")')
+        self.check_value('xs:long("-20")', -20)
+        self.wrong_value('xs:int("-20 91")')
+        self.wrong_value('xs:int("9223372036854775808")')
+        self.check_value('xs:int("-9223372036854775808")', -2**63)
+        self.check_value('xs:int("4611686018427387904")', 2**62)
+        self.wrong_value('xs:short("40000")')
+        self.check_value('xs:short("9999")', 9999)
+        self.check_value('xs:short(-9999)', -9999)
+        self.wrong_value('xs:byte(-129)')
+        self.wrong_value('xs:byte(128)')
+        self.check_value('xs:byte("-128")', -128)
+        self.check_value('xs:byte(127)', 127)
+        self.check_value('xs:byte(-90)', -90)
+
+        self.wrong_value('xs:unsignedLong("-10")')
+        self.check_value('xs:unsignedLong("3")', 3)
+        self.wrong_value('xs:unsignedInt("-9223372036854775808")')
+        self.check_value('xs:unsignedInt("9223372036854775808")', 2**63)
+        self.wrong_value('xs:unsignedShort("-1")')
+        self.check_value('xs:unsignedShort("0")', 0)
+        self.wrong_value('xs:unsignedByte(-128)')
+        self.check_value('xs:unsignedByte("128")', 128)
+
+    def test_other_numerical_constructors(self):
+        self.wrong_value('xs:decimal("hello")')
+        self.check_value('xs:decimal("19")', 19)
+        self.check_value('xs:decimal("19")', Decimal)
+
+        self.wrong_value('xs:double("world")')
+        self.check_value('xs:double("39.09")', 39.09)
+        self.check_value('xs:double(-5)', -5.0)
+        self.check_value('xs:double(-5)', float)
+
+        self.wrong_value('xs:float("..")')
+        self.check_value('xs:float(25.05)', 25.05)
+        self.check_value('xs:float(-0.00001)', -0.00001)
+        self.check_value('xs:float(0.00001)', float)
+
+    def test_datetime_constructors(self):
+        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+        tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
+        self.check_value(
+            'xs:dateTime("1969-07-20T20:18:00")', DateTime(1969, 7, 20, 20, 18, tzinfo=tz0)
+        )
+        self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
+                         datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tz1))
+        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(1999, 12, 31, 0, 0, tzinfo=tz0))
+
+        self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
+        self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
+        self.wrong_value('xs:dateTime("2000-05-10T21:3:00+05:24")')
+        self.wrong_value('xs:dateTime("2000-05-10T21:13:0+05:24")')
+        self.wrong_value('xs:dateTime("2000-05-10T21:13:0")')
+
+        self.check_value('xs:time("21:30:00")', datetime.datetime(1900, 1, 1, 21, 30, tzinfo=tz0))
+        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(1900, 1, 1, 11, 15, 48, tzinfo=tz1))
+
+        self.check_value('xs:date("2017-01-19")', datetime.datetime(2017, 1, 19, tzinfo=tz0))
+        self.check_value('xs:date("2011-11-11-14:00")', datetime.datetime(2011, 11, 11, tzinfo=tz2))
+        self.wrong_value('xs:date("2011-11-11-14:01")')
+        self.wrong_value('xs:date("11-11-11")')
+
+        self.check_value('xs:gDay("---30")', datetime.datetime(1900, 1, 30, tzinfo=tz0))
+        self.check_value('xs:gDay("---21+05:24")', datetime.datetime(1900, 1, 21, tzinfo=tz1))
+        self.wrong_value('xs:gDay("---32")')
+        self.wrong_value('xs:gDay("--19")')
+
+        self.check_value('xs:gMonth("--09")', datetime.datetime(1900, 9, 1, tzinfo=tz0))
+        self.check_value('xs:gMonth("--12")', datetime.datetime(1900, 12, 1, tzinfo=tz0))
+        self.wrong_value('xs:gMonth("--9")')
+        self.wrong_value('xs:gMonth("-09")')
+        self.wrong_value('xs:gMonth("--13")')
+
+        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(1900, 7, 2, tzinfo=tz0))
+        self.check_value('xs:gMonthDay("--07-02-14:00")', datetime.datetime(1900, 7, 2, tzinfo=tz2))
+        self.wrong_value('xs:gMonthDay("--7-02")')
+        self.wrong_value('xs:gMonthDay("-07-02")')
+        self.wrong_value('xs:gMonthDay("--07-32")')
+
+        self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1, tzinfo=tz0))
+        self.check_value('xs:gYear("-2004")', GregorianYear10(-2004, tzinfo=tz0))
+        self.check_value('xs:gYear("-12540")', GregorianYear10(-12540, tzinfo=tz0))
+        self.check_value('xs:gYear("12540")', GregorianYear10(12540, tzinfo=tz0))
+        self.wrong_value('xs:gYear("84")')
+        self.wrong_value('xs:gYear("821")')
+        self.wrong_value('xs:gYear("84")')
+
+        self.check_value('xs:gYearMonth("2004-02")', datetime.datetime(2004, 2, 1, tzinfo=tz0))
+        self.wrong_value('xs:gYearMonth("2004-2")')
+        self.wrong_value('xs:gYearMonth("204-02")')
+
+    def test_year_from_datetime_function(self):
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T21:30:00-05:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T19:20:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 1999)
+
+    def test_month_from_datetime_function(self):
+        self.check_value('fn:month-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 5)
+        self.check_value('fn:month-from-dateTime(xs:dateTime("1999-12-31T19:20:00-05:00"))', 12)
+        # self.check_value('fn:month-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+        #                 '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+
+    def test_day_from_datetime_function(self):
+        self.check_value('fn:day-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 31)
+        self.check_value('fn:day-from-dateTime(xs:dateTime("1999-12-31T20:00:00-05:00"))', 31)
+        # self.check_value('fn:day-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+        #                  '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+
+    def test_hours_from_datetime_function(self):
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-05-31T08:20:00-05:00")) ', 8)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T21:20:00-05:00"))', 21)
+        # self.check_value('fn:hours-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+        #                  '"1999-12-31T21:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 2)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T12:00:00")) ', 12)
+        self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 0)
+
+    def test_minutes_from_datetime_function(self):
+        self.check_value('fn:minutes-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 20)
+        self.check_value('fn:minutes-from-dateTime(xs:dateTime("1999-05-31T13:30:00+05:30"))', 30)
+
+    def test_seconds_from_datetime_function(self):
+        self.check_value('fn:seconds-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 0)
+
+    def test_timezone_from_datetime_function(self):
+        self.check_value(
+            'fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', DayTimeDuration(seconds=-18000)
+        )
+
+    def test_year_from_date_function(self):
+        self.check_value('fn:year-from-date(xs:date("1999-05-31"))', 1999)
+        self.check_value('fn:year-from-date(xs:date("2000-01-01+05:00"))', 2000)
+
+    def test_month_from_date_function(self):
+        self.check_value('fn:month-from-date(xs:date("1999-05-31-05:00"))', 5)
+        self.check_value('fn:month-from-date(xs:date("2000-01-01+05:00"))', 1)
+
+    def test_day_from_date_function(self):
+        self.check_value('fn:day-from-date(xs:date("1999-05-31-05:00"))', 31)
+        self.check_value('fn:day-from-date(xs:date("2000-01-01+05:00"))', 1)
+
+    def test_timezone_from_date_function(self):
+        self.check_value('fn:timezone-from-date(xs:date("1999-05-31-05:00"))', DayTimeDuration.fromstring('-PT5H'))
+        self.check_value('fn:timezone-from-date(xs:date("2000-06-12Z"))', DayTimeDuration.fromstring('PT0H'))
+
+    def test_hours_from_time_function(self):
+        self.check_value('fn:hours-from-time(xs:time("11:23:00"))', 11)
+        self.check_value('fn:hours-from-time(xs:time("21:23:00"))', 21)
+        self.check_value('fn:hours-from-time(xs:time("01:23:00+05:00"))', 1)
+        # self.check_value('fn:hours-from-time(fn:adjust-time-to-timezone(xs:time("01:23:00+05:00"), '
+        #                 'xs:dayTimeDuration("PT0S")))', 20)
+        self.check_value('fn:hours-from-time(xs:time("24:00:00"))', 0)
+
+    def test_minutes_from_time_function(self):
+        self.check_value('fn:minutes-from-time(xs:time("13:00:00Z"))', 0)
+        self.check_value('fn:minutes-from-time(xs:time("09:45:10"))', 45)
+
+    def test_seconds_from_time_function(self):
+        self.check_value('fn:seconds-from-time(xs:time("13:20:10.5"))', 10.5)
+        self.check_value('fn:seconds-from-time(xs:time("20:50:10.0"))', 10.0)
+        self.check_value('fn:seconds-from-time(xs:time("03:59:59.000001"))', 59.000001)
+
+    def test_timezone_from_time_function(self):
+        self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))', DayTimeDuration.fromstring('-PT5H'))
+
+    def test_subtract_datetimes(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
+        self.check_value('xs:dateTime("2000-10-30T06:12:00") - xs:dateTime("1999-11-28T09:00:00Z")',
+                         DayTimeDuration.fromstring('P337DT2H12M'), context)
+        self.check_value('xs:dateTime("2000-10-30T06:12:00") - xs:dateTime("1999-11-28T09:00:00Z")',
+                         DayTimeDuration.fromstring('P336DT21H12M'))
+
+    def test_subtract_dates(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('Z'))
+        self.check_value('xs:date("2000-10-30") - xs:date("1999-11-28")',
+                         DayTimeDuration.fromstring('P337D'), context)
+        context.timezone = Timezone.fromstring('+05:00')
+        self.check_value('xs:date("2000-10-30") - xs:date("1999-11-28Z")',
+                         DayTimeDuration.fromstring('P336DT19H'), context)
+        self.check_value('xs:date("2000-10-15-05:00") - xs:date("2000-10-10+02:00")',
+                         DayTimeDuration.fromstring('P5DT7H'))
+
+        # BCE test cases
+        self.check_value('xs:date("0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P366D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P0D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P366D'))
+
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")', DayTimeDuration.fromstring('-P1D'))
+        self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P3D'))
+
+        self.check_value('xs:date("0200-01-01") - xs:date("-0121-01-01")', DayTimeDuration.fromstring('P116878D'))
+        self.check_value('xs:date("-0201-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P116877D'))
+
+    def test_subtract_times(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
+        self.check_value('xs:time("11:12:00Z") - xs:time("04:00:00")',
+                         DayTimeDuration.fromstring('PT2H12M'), context)
+        self.check_value('xs:time("11:00:00-05:00") - xs:time("21:30:00+05:30")',
+                         DayTimeDuration.fromstring('PT0S'), context)
+        self.check_value('xs:time("17:00:00-06:00") - xs:time("08:00:00+09:00")',
+                         DayTimeDuration.fromstring('PT24H'), context)
+        self.check_value('xs:time("24:00:00") - xs:time("23:59:59")',
+                         DayTimeDuration.fromstring('-PT23H59M59S'), context)
+
+    def test_add_year_month_duration_to_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") + xs:yearMonthDuration("P1Y2M")',
+                         DateTime.fromstring("2001-12-30T11:12:00"))
+
+    def test_add_day_time_duration_to_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") + xs:dayTimeDuration("P3DT1H15M")',
+                         DateTime.fromstring("2000-11-02T12:27:00"))
+
+    def test_subtract_year_month_duration_from_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") - xs:yearMonthDuration("P0Y2M")',
+                         DateTime.fromstring("2000-08-30T11:12:00"))
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") - xs:yearMonthDuration("P1Y2M")',
+                         DateTime.fromstring("1999-08-30T11:12:00"))
+
+    def test_subtract_day_time_duration_from_datetime(self):
+        self.check_value('xs:dateTime("2000-10-30T11:12:00") - xs:dayTimeDuration("P3DT1H15M")',
+                         DateTime.fromstring("2000-10-27T09:57:00"))
+
+    def test_add_year_month_duration_to_date(self):
+        self.check_value('xs:date("2000-10-30") + xs:yearMonthDuration("P1Y2M")', Date.fromstring('2001-12-30'))
+
+    def test_subtract_year_month_duration_from_date(self):
+        self.check_value('xs:date("2000-10-30") - xs:yearMonthDuration("P1Y2M")', Date.fromstring('1999-08-30'))
+        self.check_value('xs:date("2000-02-29Z") - xs:yearMonthDuration("P1Y")', Date.fromstring('1999-02-28Z'))
+        self.check_value('xs:date("2000-10-31-05:00") - xs:yearMonthDuration("P1Y1M")',
+                         Date.fromstring('1999-09-30-05:00'))
+
+    def test_subtract_day_time_duration_from_date(self):
+        self.check_value('xs:date("2000-10-30") - xs:dayTimeDuration("P3DT1H15M")', Date.fromstring('2000-10-26'))
+
+    def test_add_day_time_duration_to_time(self):
+        self.check_value('xs:time("11:12:00") + xs:dayTimeDuration("P3DT1H15M")', Time.fromstring('12:27:00'))
+        self.check_value('xs:time("23:12:00+03:00") + xs:dayTimeDuration("P1DT3H15M")',
+                         Time.fromstring('02:27:00+03:00'))
+
+    def test_subtract_day_time_duration_to_time(self):
+        self.check_value('xs:time("11:12:00") - xs:dayTimeDuration("P3DT1H15M")', Time.fromstring('09:57:00'))
+        self.check_value('xs:time("08:20:00-05:00") - xs:dayTimeDuration("P23DT10H10M")',
+                         Time.fromstring('22:10:00-05:00'))
+
+    def test_duration_constructor(self):
+        self.check_value('xs:duration("P3Y5M1D")', (41, 86400))
+        self.check_value('xs:duration("P3Y5M1DT1H")', (41, 90000))
+        self.check_value('xs:duration("P3Y5M1DT1H3M2.01S")', (41, Decimal('90182.01')))
+        self.wrong_value('xs:duration("P3Y5M1X")')
+        self.assertRaises(TypeError, self.parser.parse, 'xs:duration(1)')
+
+    def test_year_month_duration_constructor(self):
+
+        self.check_value('xs:yearMonthDuration("P3Y5M")', (41, 0))
+        self.check_value('xs:yearMonthDuration("-P15M")', (-15, 0))
+        self.check_value('xs:yearMonthDuration("-P20Y18M")', YearMonthDuration.fromstring("-P21Y6M"))
+        self.wrong_value('xs:yearMonthDuration("-P15M1D")')
+        self.wrong_value('xs:yearMonthDuration("P15MT1H")')
+
+    def test_day_time_duration_constructor(self):
+        self.check_value('xs:dayTimeDuration("-P2DT15H")', DayTimeDuration(seconds=-226800))
+        self.check_value('xs:dayTimeDuration("PT240H")', DayTimeDuration.fromstring("P10D"))
+        self.check_value('xs:dayTimeDuration("P365D")', DayTimeDuration.fromstring("P365D"))
+        self.check_value('xs:dayTimeDuration("-P2DT15H0M0S")', DayTimeDuration.fromstring('-P2DT15H'))
+        self.check_value('xs:dayTimeDuration("P3DT10H")', DayTimeDuration.fromstring("P3DT10H"))
+        self.check_value('xs:dayTimeDuration("PT1S")', (0, 1))
+        self.check_value('xs:dayTimeDuration("PT0S")', (0, 0))
+        self.wrong_value('xs:yearMonthDuration("P1MT10H")')
+
+    def test_years_from_duration_function(self):
+        self.check_value('fn:years-from-duration(())', [])
+        self.check_value('fn:years-from-duration(xs:yearMonthDuration("P20Y15M"))', 21)
+        self.check_value('fn:years-from-duration(xs:yearMonthDuration("-P15M"))', -1)
+        self.check_value('fn:years-from-duration(xs:dayTimeDuration("-P2DT15H"))', 0)
+
+    def test_months_from_duration_function(self):
+        self.check_value('fn:months-from-duration(xs:yearMonthDuration("P20Y15M"))', 3)
+        self.check_value('fn:months-from-duration(xs:yearMonthDuration("-P20Y18M"))', -6)
+        self.check_value('fn:months-from-duration(xs:dayTimeDuration("-P2DT15H0M0S"))', 0)
+
+    def test_days_from_duration_function(self):
+        self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT10H"))', 3)
+        self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT55H"))', 5)
+        self.check_value('fn:days-from-duration(xs:yearMonthDuration("P3Y5M"))', 0)
+
+    def test_hours_from_duration_function(self):
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT10H"))', 10)
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT12H32M12S"))', 12)
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("PT123H"))', 3)
+        self.check_value('fn:hours-from-duration(xs:dayTimeDuration("-P3DT10H"))', -10)
+
+    def test_minutes_from_duration_function(self):
+        self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("P3DT10H"))', 0)
+        self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("-P5DT12H30M"))', -30)
+
+    def test_seconds_from_duration_function(self):
+        self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("P3DT10H12.5S"))', 12.5)
+        self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
+
+    def test_year_month_duration_operators(self):
+        self.check_value(
+            'xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=74)
+        )
+        self.check_value(
+            'xs:yearMonthDuration("P2Y11M") - xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=-4)
+        )
+        self.check_value('xs:yearMonthDuration("P2Y11M") * 2.3', YearMonthDuration.fromstring('P6Y9M'))
+        self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5', YearMonthDuration.fromstring('P1Y11M'))
+        self.check_value('xs:yearMonthDuration("P3Y4M") div xs:yearMonthDuration("-P1Y4M")', -2.5)
+
+    def test_day_time_duration_operators(self):
+        self.check_value(
+            'xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")', DayTimeDuration.fromstring('P8DT5M')
+        )
+        self.check_value(
+            'xs:dayTimeDuration("P2DT12H") - xs:dayTimeDuration("P1DT10H30M")', DayTimeDuration.fromstring('P1DT1H30M')
+        )
+        self.check_value('xs:dayTimeDuration("PT2H10M") * 2.1', DayTimeDuration.fromstring('PT4H33M'))
+        self.check_value('xs:dayTimeDuration("P1DT2H30M10.5S") div 1.5', DayTimeDuration.fromstring('PT17H40M7S'))
+        self.check_value(
+            'xs:dayTimeDuration("P2DT53M11S") div xs:dayTimeDuration("P1DT10H")',
+            Decimal('1.437834967320261437908496732')
+        )
+
+    def test_hex_binary_constructor(self):
+        self.check_value('xs:hexBinary("84")', b'3834')
+        self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'3834')
+        self.wrong_type('xs:hexBinary(12)')
+
+    def test_base64_binary_constructor(self):
+        self.check_value('xs:base64Binary("84")', b'ODQ=\n')
+        self.check_value('xs:base64Binary(xs:base64Binary("84"))', b'ODQ=\n')
+        self.check_value('xs:base64Binary("abcefghi")', b'YWJjZWZnaGk=\n')
+        self.wrong_type('xs:base64Binary(1e2)')
+        self.wrong_type('xs:base64Binary(1.1)')
+
+    def test_node_and_item_accessors(self):
+        document = self.etree.parse(io.StringIO(u'<A/>'))
+        element = self.etree.Element('schema')
+        element.attrib.update([('id', '0212349350')])
+        context = XPathContext(root=document)
+        self.check_select("document-node()", [], context)
+        self.check_select("self::document-node()", [document], context)
+        self.check_selector("self::document-node(A)", document, [document])
+        context = XPathContext(root=element)
+        self.check_select("self::element()", [element], context)
+        self.check_select("self::node()", [element], context)
+        self.check_select("self::attribute()", ['0212349350'], context)
+
+        context.item = 7
+        self.check_select("item()", [7], context)
+        self.check_select("node()", [], context)
+        context.item = 10.2
+        self.check_select("item()", [10.2], context)
+        self.check_select("node()", [], context)
+
+    def test_count_function(self):
+        root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
+        self.check_selector("count(5)", root, 1)
+        self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
+
+    def test_node_accessor_functions(self):
+        root = self.etree.XML('<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>'
+                              '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE)
+        self.check_selector("node-name(.)", root, 'A')
+        self.check_selector("node-name(/A/B1)", root, 'B1')
+        self.check_selector("node-name(/A/*)", root, ElementPathTypeError)  # Not allowed more than one item!
+        self.check_selector("nilled(./B1/C1)", root, False)
+        self.check_selector("nilled(./B1/C2)", root, True)
+
+        root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
+                              '<B2 /><B3>an ending text </B3></A>')
+        self.check_selector("string(.)", root, ' a text, an inner text, a tail, an ending text ')
+        self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
+        self.check_selector("data(.)", root, UntypedAtomic)
+
+    def test_union_intersect_except_operators(self):
+        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
+        self.check_selector('/A/B2 union /A/B1', root, root[:2])
+        self.check_selector('/A/B2 union /A/*', root, root[:])
+
+        self.check_selector('/A/B2 intersect /A/B1', root, [])
+        self.check_selector('/A/B2 intersect /A/*', root, [root[1]])
+        self.check_selector('/A/B1/* intersect /A/B2/*', root, [])
+        self.check_selector('/A/B1/* intersect /A/*/*', root, root[0][:])
+
+        self.check_selector('/A/B2 except /A/B1', root, root[1:2])
+        self.check_selector('/A/* except /A/B2', root, [root[0], root[2]])
+        self.check_selector('/A/*/* except /A/B2/*', root, root[0][:])
+        self.check_selector('/A/B2/* except /A/B1/*', root, root[1][:])
+        self.check_selector('/A/B2/* except /A/*/*', root, [])
+
+        root = self.etree.XML('<root><A/><B/><C/></root>')
+
+        # From variables like XPath 2.0 examples
+        context = XPathContext(root, variables={
+            'seq1': root[:2],  # (A, B)
+            'seq2': root[:2],  # (A, B)
+            'seq3': root[1:],  # (B, C)
+        })
+        self.check_select('$seq1 union $seq2', root[:2], context=context)
+        self.check_select('$seq2 union $seq3', root[:], context=context)
+        self.check_select('$seq1 intersect $seq2', root[:2], context=context)
+        self.check_select('$seq2 intersect $seq3', root[1:2], context=context)
+        self.check_select('$seq1 except $seq2', [], context=context)
+        self.check_select('$seq2 except $seq3', root[:1], context=context)
+
+    def test_node_comparison(self):
+        # Test cases from https://www.w3.org/TR/xpath20/#id-node-comparisons
+        root = self.etree.XML('''
+        <books>
+            <book><isbn>1558604820</isbn><call>QA76.9 C3845</call></book>
+            <book><isbn>0070512655</isbn><call>QA76.9 C3846</call></book>
+            <book><isbn>0131477005</isbn><call>QA76.9 C3847</call></book>
+        </books>''')
+        self.check_selector('/books/book[isbn="1558604820"] is /books/book[call="QA76.9 C3845"]', root, True)
+        self.check_selector('/books/book[isbn="0070512655"] is /books/book[call="QA76.9 C3847"]', root, False)
+        self.check_selector('/books/book[isbn="not a code"] is /books/book[call="QA76.9 C3847"]', root, [])
+
+        root = self.etree.XML('''
+        <transactions>
+            <purchase><parcel>28-451</parcel></purchase>
+            <sale><parcel>33-870</parcel></sale>
+            <purchase><parcel>15-392</parcel></purchase>
+            <sale><parcel>35-530</parcel></sale>
+            <purchase><parcel>10-639</parcel></purchase>
+            <purchase><parcel>10-639</parcel></purchase>
+            <sale><parcel>39-729</parcel></sale>
+        </transactions>''')
+
+        self.check_selector(
+            '/transactions/purchase[parcel="28-451"] << /transactions/sale[parcel="33-870"]', root, True
+        )
+        self.check_selector(
+            '/transactions/purchase[parcel="15-392"] >> /transactions/sale[parcel="33-870"]', root, True
+        )
+        self.check_selector(
+            '/transactions/purchase[parcel="10-639"] >> /transactions/sale[parcel="33-870"]',
+            root, ElementPathTypeError
+        )
+
+    def test_adjust_datetime_to_timezone_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
+                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"))',
+                         DateTime.fromstring('2002-03-07T12:00:00-05:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"))',
+                         DateTime.fromstring('2002-03-07T10:00:00'))
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"))',
+                         DateTime.fromstring('2002-03-07T10:00:00-05:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"), $tz)',
+                         DateTime.fromstring('2002-03-07T10:00:00-10:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), $tz)',
+                         DateTime.fromstring('2002-03-07T07:00:00-10:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), '
+                         'xs:dayTimeDuration("PT10H"))', DateTime.fromstring('2002-03-08T03:00:00+10:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T00:00:00+01:00"), '
+                         'xs:dayTimeDuration("-PT8H"))', DateTime.fromstring('2002-03-06T15:00:00-08:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"), ())',
+                         DateTime.fromstring('2002-03-07T10:00:00'), context)
+        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), ())',
+                         DateTime.fromstring('2002-03-07T10:00:00'), context)
+
+    def test_adjust_date_to_timezone_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
+                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"))',
+                         Date.fromstring('2002-03-07-05:00'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"))',
+                         Date.fromstring('2002-03-07-05:00'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"), $tz)',
+                         Date.fromstring('2002-03-07-10:00'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"), ())',
+                         Date.fromstring('2002-03-07'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), ())',
+                         Date.fromstring('2002-03-07'), context)
+        self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), $tz)',
+                         Date.fromstring('2002-03-06-10:00'), context)
+
+    def test_adjust_time_to_timezone_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
+                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"))',
+                         Time.fromstring('10:00:00-05:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"))',
+                         Time.fromstring('12:00:00-05:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"), $tz)',
+                         Time.fromstring('10:00:00-10:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), $tz)',
+                         Time.fromstring('07:00:00-10:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"), ())',
+                         Time.fromstring('10:00:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), ())',
+                         Time.fromstring('10:00:00'), context)
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), xs:dayTimeDuration("PT10H"))',
+                         Time.fromstring('03:00:00+10:00'), context)
+
+    def test_context_functions(self):
+        context = XPathContext(root=self.etree.XML('<A/>'))
+        self.check_value('fn:current-dateTime()', DateTime.fromdatetime(context.current_dt), context=context)
+        self.check_value(
+            path='fn:current-date()', context=context,
+            expected=Date.fromdatetime(context.current_dt),
+        )
+        self.check_value(
+            path='fn:current-time()', context=context,
+            expected=Time.fromdatetime(context.current_dt),
+        )
+        import time
+        self.check_value(
+            path='fn:implicit-timezone()', context=context,
+            expected=Timezone(datetime.timedelta(seconds=time.timezone)),
+        )
+
+    def test_root_function(self):
+        pass
+
+    def test_error_function(self):
+        self.assertRaises(ElementPathError, self.check_value, "fn:error()")
+
+
+class LxmlXPath2ParserTest(XPath2ParserTest):
+    etree = lxml.etree
+
+
+if __name__ == '__main__':
+    unittest.main()
