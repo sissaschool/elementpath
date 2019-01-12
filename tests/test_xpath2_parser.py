@@ -666,10 +666,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:float(-0.00001)', -0.00001)
         self.check_value('xs:float(0.00001)', float)
 
-    def test_datetime_constructors(self):
+    def test_datetime_function(self):
         tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
-        tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))',
+                         datetime.datetime(1999, 12, 31, 12, 0, tzinfo=tz0))
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("24:00:00"))',
+                         datetime.datetime(1999, 12, 31, 0, 0, tzinfo=tz0))
+
+    def test_datetime_constructor(self):
+        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value(
             'xs:dateTime("1969-07-20T20:18:00")', DateTime(1969, 7, 20, 20, 18, tzinfo=tz0)
         )
@@ -683,14 +690,24 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0+05:24")')
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0")')
 
+    def test_time_constructor(self):
+        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value('xs:time("21:30:00")', datetime.datetime(1900, 1, 1, 21, 30, tzinfo=tz0))
         self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(1900, 1, 1, 11, 15, 48, tzinfo=tz1))
 
+    def test_date_constructor(self):
+        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value('xs:date("2017-01-19")', datetime.datetime(2017, 1, 19, tzinfo=tz0))
         self.check_value('xs:date("2011-11-11-14:00")', datetime.datetime(2011, 11, 11, tzinfo=tz2))
         self.wrong_value('xs:date("2011-11-11-14:01")')
         self.wrong_value('xs:date("11-11-11")')
 
+    def test_gregorian_constructors(self):
+        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+        tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value('xs:gDay("---30")', datetime.datetime(1900, 1, 30, tzinfo=tz0))
         self.check_value('xs:gDay("---21+05:24")', datetime.datetime(1900, 1, 21, tzinfo=tz1))
         self.wrong_value('xs:gDay("---32")')
