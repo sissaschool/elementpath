@@ -11,9 +11,6 @@ data structures, both for the standard ElementTree library and for the
 For `lxml.etree <http://lxml.de>`_ this package can be useful for providing XPath 2.0 selectors,
 because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XPath 1.0.
 
-The XPath 2.0 functions implementation is not completed yet, due to wide number of functions that this
-language provides. If you want you can contribute to add an unimplemented function see the section below.
-
 
 Installation and usage
 ======================

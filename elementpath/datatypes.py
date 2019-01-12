@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -650,6 +650,14 @@ class Duration(object):
             months = -months
             seconds = -seconds - (days * 24 + hours) * 3600 - minutes * 60
 
+        if cls is DayTimeDuration:
+            if months:
+                raise ElementPathValueError('months must be 0 for %r.' % cls.__name__)
+            return cls(seconds=seconds)
+        elif cls is YearMonthDuration:
+            if seconds:
+                raise ElementPathValueError('seconds must be 0 for %r.' % cls.__name__)
+            return cls(months=months)
         return cls(months=months, seconds=seconds)
 
     @property
@@ -705,10 +713,8 @@ class Duration(object):
 
 class YearMonthDuration(Duration):
 
-    def __init__(self, months=0, seconds=0):
-        super(YearMonthDuration, self).__init__(months, seconds)
-        if self.seconds:
-            raise ElementPathValueError('seconds must be 0 for %r.' % self.__class__.__name__)
+    def __init__(self, months=0):
+        super(YearMonthDuration, self).__init__(months, 0)
 
     def __repr__(self):
         return '%s(months=%r)' % (self.__class__.__name__, self.months)
@@ -743,10 +749,8 @@ class YearMonthDuration(Duration):
 
 class DayTimeDuration(Duration):
 
-    def __init__(self, months=0, seconds=0):
-        super(DayTimeDuration, self).__init__(months, seconds)
-        if self.months:
-            raise ElementPathValueError('months must be 0 for %r.' % self.__class__.__name__)
+    def __init__(self, seconds=0):
+        super(DayTimeDuration, self).__init__(0, seconds)
 
     @classmethod
     def fromtimedelta(cls, td):
