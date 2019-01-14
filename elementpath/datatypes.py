@@ -276,6 +276,11 @@ class AbstractDateTime(object):
                 kwargs['year'] += y10k if y10k > 0 else -y10k
             if bce:
                 kwargs['year'] = - kwargs['year']
+
+        if 'hour' not in kwargs and dt.hour:
+            tzinfo = kwargs.get('tzinfo')
+            if tzinfo is None:
+                kwargs['tzinfo'] = Timezone(datetime.timedelta(hours=dt.hour))
         return cls(**kwargs)
 
     @classmethod
@@ -335,6 +340,42 @@ class OrderedDateTime(AbstractDateTime):
     def __str__(self):
         pass
 
+    @classmethod
+    def fromdelta(cls, delta):
+        """
+        Creates an XSD dateTime/date instance from a datetime.timedelta related to
+        0001-01-01T00:00:00 CE. In case of a date the time part is not counted.
+        """
+        if delta.total_seconds() >= 0:
+            try:
+                dt = datetime.datetime(1, 1, 1) + delta
+            except OverflowError:
+                days_in_400y = 146097  # = 400 * 365 + 100 + 1 - 4
+                pass
+            else:
+                return cls.fromdatetime(dt)
+        else:
+            days = -delta.days - 1
+            days -= days // 1461 - days // 36524 + days // 146097
+
+            year = days // 365
+            days = -delta.days - year * 365 - leapdays(-year + 1, 1)
+            if 306 < days < 366 and isleap(year):
+                days -= 1
+            td = datetime.timedelta(days=-days, seconds=delta.seconds, microseconds=delta.microseconds)
+
+            print(year, td)
+
+            import pdb
+            pdb.set_trace()
+
+            if year == 0:
+                year += 2 if td else 1
+            elif year == 1 and td:
+                year += 1
+            dt = datetime.datetime(year, 1, 1) + td
+            return cls.fromdatetime(dt, bce=True)
+
     @property
     def common_era_delta(self):
         """Property that returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
@@ -382,6 +423,7 @@ class OrderedDateTime(AbstractDateTime):
                 bce = not self.bce
                 year = abs(year) + 1
             dt = self.dt.replace(year=year, month=month, day=adjust_day(year, month, self.dt.day))
+
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
