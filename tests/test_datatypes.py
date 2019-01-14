@@ -278,7 +278,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
     def test_months2days_function(self):
-        # self.assertEqual(months2days(-119, 1, 12 * 319), 116512)
+        self.assertEqual(months2days(-119, 1, 12 * 319), 116512)
         self.assertEqual(months2days(200, 1, -12 * 320) - 1, -116877 - 2)
 
         # 0000 BCE tests
@@ -308,6 +308,29 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(Date10.fromstring("-0001-12-31Z").common_era_delta, datetime.timedelta(days=-1))
         self.assertEqual(Date10.fromstring("-0001-12-31-02:00").common_era_delta, datetime.timedelta(hours=-22))
         self.assertEqual(Date10.fromstring("-0001-12-31+03:00").common_era_delta, datetime.timedelta(hours=-27))
+
+    def test_fromdelta(self):
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=0)), Date.fromstring("0001-01-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=31)), Date.fromstring("0001-02-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=59)), Date.fromstring("0001-03-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=151)), Date.fromstring("0001-06-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=153)), Date.fromstring("0001-06-03"))
+        self.assertEqual(DateTime.fromdelta(datetime.timedelta(days=153, seconds=72000)),
+                         DateTime.fromstring("0001-06-03T20:00:00"))
+
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=365)), Date.fromstring("0002-01-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=396)), Date.fromstring("0002-02-01"))
+
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-366)), Date.fromstring("-0000-01-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-1)), Date.fromstring("-0000-12-31"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-335)), Date.fromstring("-0000-02-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-1)), Date.fromstring("-0000-12-31"))
+
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-366)), Date10.fromstring("-0001-01-01"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-326)), Date10.fromstring("-0001-02-10"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-1)), Date10.fromstring("-0001-12-31Z"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-22)), Date10.fromstring("-0001-12-31-02:00"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27)), Date10.fromstring("-0001-12-31+03:00"))
 
     def test_sub_operator(self):
         date = Date.fromstring
