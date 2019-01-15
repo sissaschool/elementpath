@@ -24,6 +24,7 @@ import unittest
 import datetime
 import io
 import math
+import time
 from decimal import Decimal
 import lxml.etree
 
@@ -1151,13 +1152,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:current-dateTime()', DateTime.fromdatetime(context.current_dt), context=context)
         self.check_value(
             path='fn:current-date()', context=context,
-            expected=Date.fromdatetime(context.current_dt),
+            expected=Date.fromdatetime(context.current_dt.date()),
         )
         self.check_value(
             path='fn:current-time()', context=context,
             expected=Time.fromdatetime(context.current_dt),
         )
-        import time
         self.check_value(
             path='fn:implicit-timezone()', context=context,
             expected=Timezone(datetime.timedelta(seconds=time.timezone)),

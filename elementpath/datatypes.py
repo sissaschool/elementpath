@@ -39,7 +39,8 @@ def months2days(year, month, months_delta):
     Converts a delta of months to a delta of days, counting from the 1st day of the month,
     relative to the year and the month passed as arguments.
 
-    :param year: the reference start year, a negative or zero value means a BCE year.
+    :param year: the reference start year, a negative or zero value means a BCE year \
+    (0 is 1 BCE, -1 is 2 BCE, -2 is 3 BCE, etc).
     :param month: the starting month (1-12).
     :param months_delta: the number of months, if negative count backwards.
     """
@@ -254,21 +255,22 @@ class AbstractDateTime(object):
     @classmethod
     def fromdatetime(cls, dt, bce=False, y10k=0):
         """
-        Creates an XSD date/time instance from a datetime.datetime instance.
+        Creates an XSD date/time instance from a datetime.datetime/date/time instance.
+        For date-only types hour and minute values are added to timezone.
 
-        :param dt: the datetime.datetime instance that stores the XSD Date/Time value.
+        :param dt: the datetime, date or time instance that stores the XSD Date/Time value.
         :param bce: if `True` the date value refers to a BCE (Before Common Era) date.
         :param y10k: years exceeding 9999 (current value of datetime.MAXYEAR), 0 for default.
         :return: an AbstractDateTime concrete subclass instance.
         """
-        if not isinstance(dt, datetime.datetime):
+        if not isinstance(dt, (datetime.datetime, datetime.date, datetime.time)):
             raise ElementPathTypeError('1st argument has an invalid type %r' % type(dt))
         elif not isinstance(bce, bool):
             raise ElementPathTypeError('2nd argument has an invalid type %r' % type(bce))
         elif not isinstance(y10k, int):
             raise ElementPathTypeError('3rd argument has an invalid type %r' % type(y10k))
 
-        kwargs = {k: getattr(dt, k) for k in cls._pattern.groupindex.keys()}
+        kwargs = {k: getattr(dt, k) for k in cls._pattern.groupindex.keys() if hasattr(dt, k)}
         if 'year' in kwargs:
             if y10k:
                 if dt.year != 9999:
@@ -277,10 +279,22 @@ class AbstractDateTime(object):
             if bce:
                 kwargs['year'] = - kwargs['year']
 
-        if 'hour' not in kwargs and dt.hour:
+        # Adjust timezone for types that don't provides time information
+        if 'hour' not in kwargs and hasattr(dt, 'hour') and (dt.hour or dt.minute):
             tzinfo = kwargs.get('tzinfo')
             if tzinfo is None:
-                kwargs['tzinfo'] = Timezone(datetime.timedelta(hours=dt.hour))
+                hour, minute = dt.hour, dt.minute
+            else:
+                hour = dt.hour - tzinfo.offset.hours
+                minute = dt.minute - tzinfo.offset.minutes
+
+            if hour < 14 or hour == 14 and minute == 0:
+                kwargs['tzinfo'] = Timezone(datetime.timedelta(hours=-hour, minutes=-minute))
+            else:
+                kwargs['tzinfo'] = Timezone(datetime.timedelta(hours=-dt.hour + 24, minutes=-minute))
+                if 'day' in kwargs:
+                    kwargs['day'] += 1
+
         return cls(**kwargs)
 
     @classmethod
@@ -346,49 +360,48 @@ class OrderedDateTime(AbstractDateTime):
         Creates an XSD dateTime/date instance from a datetime.timedelta related to
         0001-01-01T00:00:00 CE. In case of a date the time part is not counted.
         """
-        if delta.total_seconds() >= 0:
+        bce = delta.total_seconds() < 0
+        if False and not bce:
             try:
                 dt = datetime.datetime(1, 1, 1) + delta
             except OverflowError:
-                days_in_400y = 146097  # = 400 * 365 + 100 + 1 - 4
                 pass
             else:
                 return cls.fromdatetime(dt)
-        else:
-            days = -delta.days - 1
-            days -= days // 1461 - days // 36524 + days // 146097
 
-            year = days // 365
-            days = -delta.days - year * 365 - leapdays(-year + 1, 1)
-            if 306 < days < 366 and isleap(year):
-                days -= 1
-            td = datetime.timedelta(days=-days, seconds=delta.seconds, microseconds=delta.microseconds)
+        days = -delta.days - 1 if bce else delta.days
+        days -= days // 1461 - days // 36524 + days // 146097
 
-            print(year, td)
+        year = days // 365
+        days = -delta.days - year * 365 - leapdays(-year + 1, 1) if bce else delta.days
+        if 306 < days < 366 and isleap(year):
+            days -= 1
+        td = datetime.timedelta(days=-days if bce else days, seconds=delta.seconds, microseconds=delta.microseconds)
 
-            import pdb
-            pdb.set_trace()
+        if year == 0:
+            year += 2 if td and bce else 1
+        elif year == 1 and bce and td:
+            year += 1
 
-            if year == 0:
-                year += 2 if td else 1
-            elif year == 1 and td:
-                year += 1
+        if year > 9999:
+            y10k, year = year - 9999, 9999
             dt = datetime.datetime(year, 1, 1) + td
-            return cls.fromdatetime(dt, bce=True)
+            if dt.year < 9999:
+                return cls.fromdatetime(dt.replace(year=9999), bce=bce, y10k=y10k + 1 if bce else y10k - 1)
+            return cls.fromdatetime(dt, bce=bce, y10k=y10k)
+        else:
+            dt = datetime.datetime(year, 1, 1) + td
+            return cls.fromdatetime(dt, bce=bce)
 
     @property
     def common_era_delta(self):
         """Property that returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
-        dt, year = self.dt, self.year
+        dt = self.dt
         tzinfo = None if dt.tzinfo is None else self._utc_timezone
-        if self.bce:
-            days = -months2days(year + 1, dt.month, -year * 12 - dt.month + 1)
-            delta = (dt - datetime.datetime(dt.year, dt.month, day=1, tzinfo=tzinfo))
-            return datetime.timedelta(days=days, seconds=delta.total_seconds())
-        else:
-            days = -months2days(year, dt.month, -(year - 1) * 12 - dt.month + 1)
-            delta = (dt - datetime.datetime(dt.year, dt.month, day=1, tzinfo=tzinfo))
-            return datetime.timedelta(days=days, seconds=delta.total_seconds())
+        years = self.year if self.bce else self.year - 1
+        days = months2days(1, 1, years * 12 + dt.month - 1)
+        delta = (dt - datetime.datetime(dt.year, dt.month, day=1, tzinfo=tzinfo))
+        return datetime.timedelta(days=days, seconds=delta.total_seconds())
 
     def _date_operator(self, op, other):
         if isinstance(other, self.__class__):
