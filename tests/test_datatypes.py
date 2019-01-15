@@ -308,6 +308,69 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(Date10.fromstring("-0001-12-31Z").common_era_delta, datetime.timedelta(days=-1))
         self.assertEqual(Date10.fromstring("-0001-12-31-02:00").common_era_delta, datetime.timedelta(hours=-22))
         self.assertEqual(Date10.fromstring("-0001-12-31+03:00").common_era_delta, datetime.timedelta(hours=-27))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").common_era_delta, datetime.timedelta(hours=-27))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:12").common_era_delta,
+                         datetime.timedelta(hours=-27, minutes=-12))
+
+        # Leap day counting tests
+        self.assertEqual(Date10.fromstring("0001-07-13").common_era_delta, datetime.timedelta(days=193))
+        self.assertEqual(Date10.fromstring("0002-07-13").common_era_delta, datetime.timedelta(days=558))
+        self.assertEqual(Date10.fromstring("0003-07-13").common_era_delta, datetime.timedelta(days=923))
+        self.assertEqual(Date10.fromstring("0004-07-13").common_era_delta, datetime.timedelta(days=1289))
+        self.assertEqual(Date10.fromstring("0005-07-13").common_era_delta, datetime.timedelta(days=1654))
+        self.assertEqual(Date10.fromstring("-0001-07-13").common_era_delta, datetime.timedelta(days=-172))
+        self.assertEqual(Date10.fromstring("-0002-07-13").common_era_delta, datetime.timedelta(days=-538))
+        self.assertEqual(Date10.fromstring("-0003-07-13").common_era_delta, datetime.timedelta(days=-903))
+        self.assertEqual(Date10.fromstring("-0004-07-13").common_era_delta, datetime.timedelta(days=-1268))
+        self.assertEqual(Date10.fromstring("-0005-07-13").common_era_delta, datetime.timedelta(days=-1633))
+
+        # Far years tests
+        self.assertEqual(Date.fromstring("9999-12-31").common_era_delta, datetime.timedelta(days=3652058))
+        self.assertEqual(Date10.fromstring("-9999-12-31").common_era_delta, datetime.timedelta(days=-3651696))
+        self.assertEqual(Date.fromstring("10000-01-01").common_era_delta, datetime.timedelta(days=3652059))
+        self.assertEqual(Date10.fromstring("-10000-01-01").common_era_delta, datetime.timedelta(days=-3652425))
+
+        self.assertEqual(Date.fromstring("9999-05-26").common_era_delta, datetime.timedelta(days=3651839))
+        self.assertEqual(Date.fromstring("10000-05-26").common_era_delta, datetime.timedelta(days=3652205))
+        self.assertEqual(Date.fromstring("10001-05-26").common_era_delta, datetime.timedelta(days=3652570))
+        self.assertEqual(Date10.fromstring("10005-05-26").common_era_delta, datetime.timedelta(days=3654031))
+        self.assertEqual(Date10.fromstring("10006-05-26").common_era_delta, datetime.timedelta(days=3654396))
+
+        self.assertEqual(Date10.fromstring("-9994-05-26").common_era_delta, datetime.timedelta(days=-3650089))
+        self.assertEqual(Date10.fromstring("-9995-05-26").common_era_delta, datetime.timedelta(days=-3650454))
+        self.assertEqual(Date10.fromstring("-9996-05-26").common_era_delta, datetime.timedelta(days=-3650819))
+        self.assertEqual(Date10.fromstring("-9997-05-26").common_era_delta, datetime.timedelta(days=-3651184))
+        self.assertEqual(Date10.fromstring("-9998-05-26").common_era_delta, datetime.timedelta(days=-3651550))
+        self.assertEqual(Date10.fromstring("-9999-05-26").common_era_delta, datetime.timedelta(days=-3651915))
+        self.assertEqual(Date10.fromstring("-10000-05-26").common_era_delta, datetime.timedelta(days=-3652280))
+        self.assertEqual(Date10.fromstring("-10001-05-26").common_era_delta, datetime.timedelta(days=-3652645))
+        self.assertEqual(Date10.fromstring("-10002-05-26").common_era_delta, datetime.timedelta(days=-3653011))
+        self.assertEqual(Date10.fromstring("-10003-05-26").common_era_delta, datetime.timedelta(days=-3653376))
+        self.assertEqual(Date10.fromstring("-10004-05-26").common_era_delta, datetime.timedelta(days=-3653741))
+        self.assertEqual(Date10.fromstring("-10005-05-26").common_era_delta, datetime.timedelta(days=-3654106))
+        self.assertEqual(Date10.fromstring("-10006-05-26").common_era_delta, datetime.timedelta(days=-3654472))
+
+        self.assertEqual(Date10.fromstring("14345-05-26").common_era_delta, datetime.timedelta(days=5239183))
+        self.assertEqual(Date10.fromstring("14346-05-26").common_era_delta, datetime.timedelta(days=5239548))
+        self.assertEqual(Date10.fromstring("14347-05-26").common_era_delta, datetime.timedelta(days=5239913))
+        self.assertEqual(Date10.fromstring("14348-05-26").common_era_delta, datetime.timedelta(days=5240279))
+        self.assertEqual(Date10.fromstring("14349-05-26").common_era_delta, datetime.timedelta(days=5240644))
+
+        self.assertEqual(Date10.fromstring("-10345-05-26").common_era_delta, datetime.timedelta(days=-3778288))
+        self.assertEqual(Date10.fromstring("-10346-05-26").common_era_delta, datetime.timedelta(days=-3778654))
+        self.assertEqual(Date10.fromstring("-10347-05-26").common_era_delta, datetime.timedelta(days=-3779019))
+
+        self.assertEqual(Date10.fromstring("-10445-05-26").common_era_delta, datetime.timedelta(days=-3814813))
+        self.assertEqual(Date10.fromstring("-10446-05-26").common_era_delta, datetime.timedelta(days=-3815179))
+        self.assertEqual(Date10.fromstring("-10447-05-26").common_era_delta, datetime.timedelta(days=-3815544))
+
+        self.assertEqual(Date10.fromstring("-12345-05-26").common_era_delta, datetime.timedelta(days=-4508773))
+        #self.assertEqual(Date10.fromstring("-12346-05-26").common_era_delta, datetime.timedelta(days=-4509138))
+        #self.assertEqual(Date10.fromstring("-12347-05-26").common_era_delta, datetime.timedelta(days=-4509503))
+
+        self.assertEqual(Date10.fromstring("-14345-05-26").common_era_delta, datetime.timedelta(days=-5239258))
+        #self.assertEqual(Date10.fromstring("-14346-05-26").common_era_delta, datetime.timedelta(days=-5239623))
+        #self.assertEqual(Date10.fromstring("-14347-05-26").common_era_delta, datetime.timedelta(days=-5239988))
 
     def test_fromdelta(self):
         self.assertEqual(Date.fromdelta(datetime.timedelta(days=0)), Date.fromstring("0001-01-01"))
@@ -331,6 +394,14 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-1)), Date10.fromstring("-0001-12-31Z"))
         self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-22)), Date10.fromstring("-0001-12-31-02:00"))
         self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27)), Date10.fromstring("-0001-12-31+03:00"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27, minutes=-12)),
+                         Date10.fromstring("-0001-12-31+03:12"))
+
+        self.assertEqual(DateTime10.fromdelta(datetime.timedelta(hours=-27, minutes=-12, seconds=-5)),
+                         DateTime10.fromstring("-0001-12-30T20:47:55"))
+
+        # Far years tests
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-4509139)), Date10.fromstring("-12346-05-26"))
 
     def test_sub_operator(self):
         date = Date.fromstring
