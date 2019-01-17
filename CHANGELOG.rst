@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.1.1`_ (2018-01-13)
+`v1.1.1`_ (2018-01-16)
 ======================
 * Improvements and fixes for XSD datatypes
 * Rewritten AbstractDateTime for supporting years with value > 9999
