@@ -16,10 +16,10 @@ import operator
 import random
 from decimal import Decimal
 from calendar import isleap
-from elementpath.datatypes import months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, \
-    Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
-    GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, GregorianDay, \
-    AbstractDateTime, OrderedDateTime
+from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_era, months2days, \
+    DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, DayTimeDuration, YearMonthDuration, \
+    UntypedAtomic, GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
+    GregorianMonthDay, GregorianMonth, GregorianDay, AbstractDateTime, OrderedDateTime
 
 
 class UntypedAtomicTest(unittest.TestCase):
@@ -279,6 +279,31 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("15032-11-12T23:17:59Z") >= mkdt("15032-11-12T23:17:59Z"))
         self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
 
+    def test_days_from_common_era_function(self):
+        days4y = 365 * 3 + 366
+        days100y = days4y * 24 + 365 * 4
+        days400y = days100y * 4 + 1
+
+        self.assertEqual(days_from_common_era(0), 0)
+        self.assertEqual(days_from_common_era(1), 365)
+        self.assertEqual(days_from_common_era(3), 365 * 3)
+        self.assertEqual(days_from_common_era(4), days4y)
+        self.assertEqual(days_from_common_era(100), days100y)
+        self.assertEqual(days_from_common_era(200), days100y * 2)
+        self.assertEqual(days_from_common_era(300), days100y * 3)
+        self.assertEqual(days_from_common_era(400), days400y)
+        self.assertEqual(days_from_common_era(800), 2 * days400y)
+        self.assertEqual(days_from_common_era(-1), -366)
+        self.assertEqual(days_from_common_era(-4), -days4y)
+        self.assertEqual(days_from_common_era(-5), -days4y - 366)
+        self.assertEqual(days_from_common_era(-100), -days100y - 1)
+        self.assertEqual(days_from_common_era(-200), -days100y * 2 - 1)
+        self.assertEqual(days_from_common_era(-300), -days100y * 3 - 1)
+        self.assertEqual(days_from_common_era(-101), -days100y - 366)
+        self.assertEqual(days_from_common_era(-400), -days400y)
+        self.assertEqual(days_from_common_era(-401), -days400y - 366)
+        self.assertEqual(days_from_common_era(-800), -days400y * 2)
+
     def test_months2days_function(self):
         self.assertEqual(months2days(-119, 1, 12 * 319), 116512)
         self.assertEqual(months2days(200, 1, -12 * 320) - 1, -116877 - 2)
@@ -288,31 +313,6 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(months2days(0, 1, -12), -365)
         self.assertEqual(months2days(1, 1, 12), 365)
         self.assertEqual(months2days(1, 1, -12), -366)
-
-    def test_common_era_delta(self):
-        self.assertEqual(Date.fromstring("0001-01-01").common_era_delta, datetime.timedelta(days=0))
-        self.assertEqual(Date.fromstring("0001-02-01").common_era_delta, datetime.timedelta(days=31))
-        self.assertEqual(Date.fromstring("0001-03-01").common_era_delta, datetime.timedelta(days=59))
-        self.assertEqual(Date.fromstring("0001-06-01").common_era_delta, datetime.timedelta(days=151))
-        self.assertEqual(Date.fromstring("0001-06-03").common_era_delta, datetime.timedelta(days=153))
-        self.assertEqual(DateTime.fromstring("0001-06-03T20:00:00").common_era_delta,
-                         datetime.timedelta(days=153, seconds=72000))
-
-        self.assertEqual(Date.fromstring("0002-01-01").common_era_delta, datetime.timedelta(days=365))
-        self.assertEqual(Date.fromstring("0002-02-01").common_era_delta, datetime.timedelta(days=396))
-
-        self.assertEqual(Date.fromstring("-0000-01-01").common_era_delta, datetime.timedelta(days=-366))
-        self.assertEqual(Date.fromstring("-0000-02-01").common_era_delta, datetime.timedelta(days=-335))
-        self.assertEqual(Date.fromstring("-0000-12-31").common_era_delta, datetime.timedelta(days=-1))
-
-        self.assertEqual(Date10.fromstring("-0001-01-01").common_era_delta, datetime.timedelta(days=-366))
-        self.assertEqual(Date10.fromstring("-0001-02-10").common_era_delta, datetime.timedelta(days=-326))
-        self.assertEqual(Date10.fromstring("-0001-12-31Z").common_era_delta, datetime.timedelta(days=-1))
-        self.assertEqual(Date10.fromstring("-0001-12-31-02:00").common_era_delta, datetime.timedelta(hours=-22))
-        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").common_era_delta, datetime.timedelta(hours=-27))
-        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").common_era_delta, datetime.timedelta(hours=-27))
-        self.assertEqual(Date10.fromstring("-0001-12-31+03:12").common_era_delta,
-                         datetime.timedelta(hours=-27, minutes=-12))
 
     def test_fromdelta(self):
         self.assertIsNotNone(Date.fromstring('10000-02-28'))
@@ -335,42 +335,74 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-366)), Date10.fromstring("-0001-01-01"))
         self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-326)), Date10.fromstring("-0001-02-10"))
         self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-1)), Date10.fromstring("-0001-12-31Z"))
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-22)), Date10.fromstring("-0001-12-31-02:00"))
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27)), Date10.fromstring("-0001-12-31+03:00"))
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27, minutes=-12)),
+
+        # With timezone adjusting
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-22), adjust_timezone=True),
+                         Date10.fromstring("-0001-12-31-02:00"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27), adjust_timezone=True),
+                         Date10.fromstring("-0001-12-31+03:00"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27, minutes=-12), adjust_timezone=True),
                          Date10.fromstring("-0001-12-31+03:12"))
 
         self.assertEqual(DateTime10.fromdelta(datetime.timedelta(hours=-27, minutes=-12, seconds=-5)),
                          DateTime10.fromstring("-0001-12-30T20:47:55"))
 
-    def test_common_era_delta_with_fromdelta(self):
-        days = 68  # 0001-03-10
-        for year in range(1, 15000):
-            if year <= 100 or 9900 <= year <= 10100 or random.randint(1, 20) == 1:
-                date_string = '{:04}-03-10'.format(year) if year < 10000 else '{}-03-10'.format(year)
-                dt1 = Date10.fromstring(date_string)
-                delta1 = dt1.common_era_delta
-                delta2 = datetime.timedelta(days=days)
-                self.assertEqual(delta1, delta2, msg="Fails for %r: %r != %r" % (dt1, delta1, delta2))
-                #dt2 = Date10.fromdelta(delta2)
-                # if dt1 != dt2:
-                #     import pdb
-                #    pdb.set_trace()
-                # self.assertEqual(dt1, dt2)
-            days += 366 if isleap(year + 1) else 365
-        return
+    def test_todelta(self):
+        self.assertEqual(Date.fromstring("0001-01-01").todelta(), datetime.timedelta(days=0))
+        self.assertEqual(Date.fromstring("0001-02-01").todelta(), datetime.timedelta(days=31))
+        self.assertEqual(Date.fromstring("0001-03-01").todelta(), datetime.timedelta(days=59))
+        self.assertEqual(Date.fromstring("0001-06-01").todelta(), datetime.timedelta(days=151))
+        self.assertEqual(Date.fromstring("0001-06-03").todelta(), datetime.timedelta(days=153))
+        self.assertEqual(DateTime.fromstring("0001-06-03T20:00:00").todelta(),
+                         datetime.timedelta(days=153, seconds=72000))
 
-        days = -220  # -0001-05-26
-        for year in range(-1, -15000, -1):
-            if year >= -100 or -9900 >= year >= -10100 or random.randint(1, 20) == 1:
-                date_string = '-{:04}-05-26'.format(abs(year)) if year > -10000 else '{}-05-26'.format(year)
-                dt1 = Date10.fromstring(date_string)
-                delta1 = dt1.common_era_delta
-                delta2 = datetime.timedelta(days=days)
-                self.assertEqual(delta1, delta2, msg="Fails for year %r: %r != %r" % (dt1, delta1, delta2))
-                dt2 = Date10.fromdelta(delta2)
-                self.assertEqual(dt1, dt2)
-            days -= 366 if isleap(year + 1) else 365
+        self.assertEqual(Date.fromstring("0002-01-01").todelta(), datetime.timedelta(days=365))
+        self.assertEqual(Date.fromstring("0002-02-01").todelta(), datetime.timedelta(days=396))
+
+        self.assertEqual(Date.fromstring("-0000-01-01").todelta(), datetime.timedelta(days=-366))
+        self.assertEqual(Date.fromstring("-0000-02-01").todelta(), datetime.timedelta(days=-335))
+        self.assertEqual(Date.fromstring("-0000-12-31").todelta(), datetime.timedelta(days=-1))
+
+        self.assertEqual(Date10.fromstring("-0001-01-01").todelta(), datetime.timedelta(days=-366))
+        self.assertEqual(Date10.fromstring("-0001-02-10").todelta(), datetime.timedelta(days=-326))
+        self.assertEqual(Date10.fromstring("-0001-12-31Z").todelta(), datetime.timedelta(days=-1))
+        self.assertEqual(Date10.fromstring("-0001-12-31-02:00").todelta(), datetime.timedelta(hours=-22))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").todelta(), datetime.timedelta(hours=-27))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").todelta(), datetime.timedelta(hours=-27))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:12").todelta(),
+                         datetime.timedelta(hours=-27, minutes=-12))
+
+    def test_to_and_from_delta(self):
+        for month, day in [(1, 1), (1, 2), (2, 1), (2, 28), (3, 10), (6, 30), (12, 31)]:
+            fmt1 = '{:04}-%s' % '{:02}-{:02}'.format(month, day)
+            fmt2 = '{}-%s' % '{:02}-{:02}'.format(month, day)
+            days = sum(MONTH_DAYS[m] for m in range(1, month)) + day - 1
+            for year in range(1, 15000):
+                if year <= 500 or 9900 <= year <= 10100 or random.randint(1, 20) == 1:
+                    date_string = fmt1.format(year) if year < 10000 else fmt2.format(year)
+                    dt1 = Date10.fromstring(date_string)
+                    delta1 = dt1.todelta()
+                    delta2 = datetime.timedelta(days=days)
+                    self.assertEqual(delta1, delta2, msg="Failed for %r: %r != %r" % (dt1, delta1, delta2))
+                    dt2 = Date10.fromdelta(delta2)
+                    self.assertEqual(dt1, dt2, msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
+                days += 366 if isleap(year if month <= 2 else year + 1) else 365
+
+    def test_to_and_from_delta_bce(self):
+        for month, day in [(1, 1), (1, 2), (2, 1), (2, 28), (3, 10), (5, 26), (6, 30), (12, 31)]:
+            fmt1 = '-{:04}-%s' % '{:02}-{:02}'.format(month, day)
+            fmt2 = '{}-%s' % '{:02}-{:02}'.format(month, day)
+            days = -sum(MONTH_DAYS_LEAP[m] for m in range(month, 13)) + day - 1
+            for year in range(-1, -15000, -1):
+                if year >= -500 or -9900 >= year >= -10100 or random.randint(1, 20) == 1:
+                    date_string = fmt1.format(abs(year)) if year > -10000 else fmt2.format(year)
+                    dt1 = Date10.fromstring(date_string)
+                    delta1 = dt1.todelta()
+                    delta2 = datetime.timedelta(days=days)
+                    self.assertEqual(delta1, delta2, msg="Failed for %r: %r != %r" % (dt1, delta1, delta2))
+                    dt2 = Date10.fromdelta(delta2)
+                    self.assertEqual(dt1, dt2, msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
+                days -= 366 if isleap(year if month <= 2 else year + 1) else 365
 
     def test_sub_operator(self):
         date = Date.fromstring

@@ -38,11 +38,24 @@ def adjust_day(year, month, day):
         return min(day, 29) if isleap(year) else min(day, 28)
 
 
-def leapdays_from_common_era(days):
-    if -306 <= days <= 1520:
-        return 0
-    days = days - 1520 if days > 0 else -days - 306
-    return 1 + days // 1461 - days // 36524 + days // 146097
+def days_from_common_era(year):
+    """
+    Returns the number of days from from 0001-01-01 to the provided year. For a
+    common era year the days are counted until the last day of December, for a
+    BCE year the days are counted down from the end to the 1st of January.
+    """
+    if year > 0:
+        return year * 365 + year // 4 - year // 100 + year // 400
+    elif year >= -1:
+        return year * 366
+    else:
+        year = -year - 1
+        return -(366 + year * 365 + year // 4 - year // 100 + year // 400)
+
+
+DAYS_IN_4Y = days_from_common_era(4)
+DAYS_IN_100Y = days_from_common_era(100)
+DAYS_IN_400Y = days_from_common_era(400)
 
 
 def months2days(year, month, months_delta):
@@ -343,32 +356,59 @@ class OrderedDateTime(AbstractDateTime):
         pass
 
     @classmethod
-    def fromdelta(cls, delta):
+    def fromdelta(cls, delta, adjust_timezone=False):
         """
         Creates an XSD dateTime/date instance from a datetime.timedelta related to
         0001-01-01T00:00:00 CE. In case of a date the time part is not counted.
+
+        :param delta: a datetime.timedelta instance.
+        :param adjust_timezone: if `True` adjust the timezone of Date objects \
+        with eventually present hours and minutes.
         """
         try:
             dt = datetime.datetime(1, 1, 1) + delta
         except OverflowError:
-            if delta.total_seconds() > 0:
-                leap_days = leapdays_from_common_era(delta.days)
-                year = 1 + (delta.days - leap_days) // 365
-                days = delta.days - (year - 1) * 365 - leap_days
-                td = datetime.timedelta(days=days, seconds=delta.seconds, microseconds=delta.microseconds)
-                dt = datetime.datetime(year, 1, 1) + td
-            else:
-                leap_days = leapdays_from_common_era(delta.days)
-                year = (delta.days + leap_days) // 365
-                days = delta.days - year * 365 + leap_days
+            days = delta.days
+            if days > 0:
+                y400, days = divmod(days, DAYS_IN_400Y)
+                y100, days = divmod(days, DAYS_IN_100Y)
+                y4, days = divmod(days, DAYS_IN_4Y)
+                y1, days = divmod(days, 365)
+                year = y400 * 400 + y100 * 100 + y4 * 4 + y1 + 1
+                if y1 == 4 or y100 == 4:
+                    year -= 1
+                    days = 365
+
                 td = datetime.timedelta(days=days, seconds=delta.seconds, microseconds=delta.microseconds)
                 dt = datetime.datetime(4 if isleap(year) else 6, 1, 1) + td
+
+            elif days >= -366:
+                year = -1
+                td = datetime.timedelta(days=days, seconds=delta.seconds, microseconds=delta.microseconds)
+                dt = datetime.datetime(5, 1, 1) + td
+
+            else:
+                days = -days - 366
+                y400, days = divmod(days, DAYS_IN_400Y)
+                y100, days = divmod(days, DAYS_IN_100Y)
+                y4, days = divmod(days, DAYS_IN_4Y)
+                y1, days = divmod(days, 365)
+                year = -y400 * 400 - y100 * 100 - y4 * 4 - y1 - 2
+                if y1 == 4 or y100 == 4:
+                    year += 1
+                    days = 365
+
+                td = datetime.timedelta(days=-days, seconds=delta.seconds, microseconds=delta.microseconds)
+                if not td:
+                    dt = datetime.datetime(4 if isleap(year + 1) else 6, 1, 1)
+                    year += 1
+                else:
+                    dt = datetime.datetime(5 if isleap(year + 1) else 7, 1, 1) + td
         else:
             year = dt.year
 
         if issubclass(cls, Date):
-            # Adjust timezone info for dates
-            if dt.hour or dt.minute:
+            if adjust_timezone and dt.hour or dt.minute:
                 if dt.tzinfo is None:
                     hour, minute = dt.hour, dt.minute
                 else:
@@ -384,12 +424,21 @@ class OrderedDateTime(AbstractDateTime):
             return cls(year, dt.month, dt.day, tzinfo=dt.tzinfo)
         return cls(year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
-    @property
-    def common_era_delta(self):
-        """Property that returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
+    def todelta(self):
+        """Returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
+        if self._year is None:
+            return self._dt - datetime.datetime(1, 1, 1)
+
         year, dt = self.year, self._dt
         tzinfo = None if dt.tzinfo is None else self._utc_timezone
-        days = months2days(1, 1, (self.year - 1 if year > 0 else year) * 12 + dt.month - 1)
+
+        if year > 0:
+            m_days = MONTH_DAYS_LEAP if isleap(year) else MONTH_DAYS
+            days = days_from_common_era(year - 1) + sum(m_days[m] for m in range(1, dt.month))
+        else:
+            m_days = MONTH_DAYS_LEAP if isleap(year + 1) else MONTH_DAYS
+            days = days_from_common_era(year) + sum(m_days[m] for m in range(1, dt.month))
+
         delta = (dt - datetime.datetime(dt.year, dt.month, day=1, tzinfo=tzinfo))
         return datetime.timedelta(days=days, seconds=delta.total_seconds())
 
@@ -398,7 +447,7 @@ class OrderedDateTime(AbstractDateTime):
             dt1, dt2 = self._get_operands(other)
             if self._year is None and other._year is None:
                 return DayTimeDuration.fromtimedelta(dt1 - dt2)
-            return DayTimeDuration.fromtimedelta(self.common_era_delta - other.common_era_delta)
+            return DayTimeDuration.fromtimedelta(self.todelta() - other.todelta())
 
         elif isinstance(other, (DayTimeDuration, datetime.timedelta)):
             delta = other.get_timedelta() if isinstance(other, DayTimeDuration) else other
