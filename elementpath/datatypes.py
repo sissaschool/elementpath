@@ -343,11 +343,16 @@ class AbstractDateTime(object):
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
     def __eq__(self, other):
-        return operator.eq(*self._get_operands(other)) and self.year == other.year
+        try:
+            return operator.eq(*self._get_operands(other)) and self.year == other.year
+        except ElementPathTypeError:
+            return False
 
     def __ne__(self, other):
-        return operator.ne(*self._get_operands(other)) or self.year != other.year
-
+        try:
+            return operator.ne(*self._get_operands(other)) or self.year != other.year
+        except ElementPathTypeError:
+            return True
 
 class OrderedDateTime(AbstractDateTime):
 
