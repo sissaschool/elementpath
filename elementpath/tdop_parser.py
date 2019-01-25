@@ -285,13 +285,13 @@ class Token(MutableSequence):
 
     def wrong_syntax(self, message=None):
         symbol = self.value if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None else self.symbol
-        pos = self.parser.position
+        line_column = 'line %d, column %d' % self.parser.position
         token = self.parser.token
 
         if token is not None and symbol != token.symbol:
-            msg = "unexpected symbol %r after %s at line %d, column %d." % (symbol, token, pos[0], pos[1])
+            msg = "unexpected symbol %r after %s at %s." % (symbol, token, line_column)
         else:
-            msg = "unexpected symbol %r at line %d, column %d." % (symbol, pos[0], pos[1])
+            msg = "unexpected symbol %r at %s." % (symbol, line_column)
         raise ElementPathSyntaxError(msg + ' ' + message if message else msg, self)
 
     def wrong_value(self, message='unknown error'):
@@ -456,7 +456,9 @@ class Parser(object):
                     self.next_token = self.symbol_table['(name)'](self, name)
                     break
                 elif unexpected is not None:
-                    self.wrong_syntax(unexpected)
+                    raise ElementPathSyntaxError(
+                        "unexpected symbol %r at %s." % (unexpected, 'line %d, column %d' % self.position)
+                    )
                 elif str(self.next_match.group()).strip():
                     raise RuntimeError(
                         "Unexpected matching %r: not compatible tokenizer." % self.next_match.group()
@@ -525,6 +527,7 @@ class Parser(object):
 
     @property
     def position(self):
+        """Property that returns the current line and column indexes."""
         if self.match is None:
             return 1, 0
         token_index = self.match.span()[0]
@@ -534,14 +537,18 @@ class Parser(object):
         else:
             return line, token_index - self.source[:token_index].rindex('\n')
 
-    @property
-    def source_first(self):
+    def is_source_start(self):
+        """
+        Returns `True` if the parser is positioned at the start of the source, ignoring the spaces.
+        """
         if self.match is None:
             return True
         return not bool(self.source[0:self.match.span()[0]].strip())
 
-    @property
-    def line_first(self):
+    def is_line_start(self):
+        """
+        Returns `True` if the parser is positioned at the start of a source line, ignoring the spaces.
+        """
         if self.match is None:
             return True
         token_index = self.match.span()[0]
