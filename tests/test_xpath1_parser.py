@@ -614,6 +614,12 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B3/attribute::*', root, {'beta2', 'beta3'})
         self.check_selector('/A/attribute::*', root, {'1', 'alpha'})
 
+        root = self.etree.XML('<value choice="int">10</value>')
+        self.check_selector('@choice', root, ['int'])
+        root = self.etree.XML('<ns:value xmlns:ns="ns" choice="int">10</ns:value>')
+        self.check_selector('@choice', root, ['int'])
+        self.check_selector('@choice="int"', root, True)
+
     def test_namespace_axis(self):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
         namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) + [('tst', 'http://xpath.test/ns')]
