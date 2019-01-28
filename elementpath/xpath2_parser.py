@@ -137,10 +137,10 @@ class XPath2Parser(XPath1Parser):
 
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
-    def __init__(self, namespaces=None, variables=None, strict=True, default_namespace='',
+    def __init__(self, namespaces=None, variables=None, strict=True, default_namespace=None,
                  function_namespace=None, schema=None, compatibility_mode=False):
         super(XPath2Parser, self).__init__(namespaces, variables, strict)
-        if '' not in self.namespaces and default_namespace:
+        if default_namespace is not None:
             self.namespaces[''] = default_namespace
 
         if function_namespace is None:
