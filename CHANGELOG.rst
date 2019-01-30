@@ -2,11 +2,12 @@
 CHANGELOG
 *********
 
-`v1.1.2`_ (TBD)
-===============
+`v1.1.2`_ (2019-01-30)
+======================
 * Fixes for XSD datatypes
+* Change the default value of *default_namespace* argument of XPath2Parser to ``None``
 
-`v1.1.1`_ (2018-01-19)
+`v1.1.1`_ (2019-01-19)
 ======================
 * Improvements and fixes for XSD datatypes
 * Rewritten AbstractDateTime for supporting years with value > 9999

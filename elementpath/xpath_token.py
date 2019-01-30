@@ -23,7 +23,7 @@ from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import is_etree_element, is_document_node, boolean_value, string_value, data_value, number_value
-from .datatypes import UntypedAtomic, Date, Time, Timezone, DayTimeDuration
+from .datatypes import UntypedAtomic, Timezone, DayTimeDuration
 from .tdop_parser import Token
 
 
