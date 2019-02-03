@@ -394,6 +394,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('escape-html-uri("")', '')
         self.check_value('escape-html-uri(())', '')
 
+    def test_ends_with_function(self):
+        self.check_value("ends-with((), ())", True)
+
     def test_string_length_function(self):
         self.check_value("string-length(())", 0)
 

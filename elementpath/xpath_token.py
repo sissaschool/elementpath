@@ -106,7 +106,7 @@ class XPathToken(Token):
 
     ###
     # Context manipulation helpers
-    def get_argument(self, context, index=0, required=False, default_to_context=False, cls=None):
+    def get_argument(self, context, index=0, required=False, default_to_context=False, default=None, cls=None):
         """
         Get the argument value of a function token. A zero length sequence is converted to
         a `None` value. If the function has no argument returns the context's item if the
@@ -117,6 +117,7 @@ class XPathToken(Token):
         :param required: if set to `True` missing or empty sequence arguments are not allowed.
         :param default_to_context: if set to `True` and the argument is missing the item \
         of the dynamic context is returned.
+        :param default: the default value returned in case of an empty sequence.
         :param cls: if a type is provided performs a type checking on item.
         """
         try:
@@ -142,7 +143,7 @@ class XPathToken(Token):
             else:
                 if item is None:
                     if not required:
-                        return
+                        return default
                     ord_arg = ordinal(index + 1)
                     if cls is None:
                         self.missing_sequence("A not empty sequence required for %s argument" % ord_arg)
