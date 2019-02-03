@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.1.3`_ (TDB)
+===============
+* Fix for issue #1
+
 `v1.1.2`_ (2019-01-30)
 ======================
 * Fixes for XSD datatypes
@@ -89,3 +93,4 @@ handling of static context evaluation
 .. _v1.1.0: https://github.com/brunato/elementpath/compare/v1.0.12...v1.1.0
 .. _v1.1.1: https://github.com/brunato/elementpath/compare/v1.1.0...v1.1.1
 .. _v1.1.2: https://github.com/brunato/elementpath/compare/v1.1.1...v1.1.2
+.. _v1.1.3: https://github.com/brunato/elementpath/compare/v1.1.2...v1.1.3
