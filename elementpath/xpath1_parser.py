@@ -1018,8 +1018,8 @@ def evaluate(self, context=None):
 @method(function('substring-before', nargs=2))
 @method(function('substring-after', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
-    arg2 = self.get_argument(context, index=1)
+    arg1 = self.get_argument(context, default='')
+    arg2 = self.get_argument(context, index=1, default='')
     if arg1 is None:
         return ''
 

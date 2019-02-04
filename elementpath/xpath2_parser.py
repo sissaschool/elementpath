@@ -315,6 +315,7 @@ method = XPath2Parser.method
 ##
 # Remove symbols that have to be redefined for XPath 2.0.
 unregister(',')
+unregister('(')
 
 ###
 # Symbols
