@@ -112,8 +112,8 @@ class XPath2Parser(XPath1Parser):
         'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
         'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes', 'resolve-QName',
 
-        # Context functions
-        'current-dateTime', 'current-date', 'current-time', 'implicit-timezone',
+        # Context functions (TODO: 'default-collation')
+        'current-dateTime', 'current-date', 'current-time', 'implicit-timezone', 'static-base-uri',
 
         # Node set functions
         'root',
@@ -138,7 +138,7 @@ class XPath2Parser(XPath1Parser):
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
     def __init__(self, namespaces=None, variables=None, strict=True, default_namespace=None,
-                 function_namespace=None, schema=None, compatibility_mode=False):
+                 function_namespace=None, schema=None, compatibility_mode=False, base_uri=None):
         super(XPath2Parser, self).__init__(namespaces, variables, strict)
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
@@ -161,6 +161,8 @@ class XPath2Parser(XPath1Parser):
 
         if compatibility_mode is False:
             self.compatibility_mode = False  # It's already an XPath1Parser class property
+
+        self.base_uri = base_uri
 
     @property
     def version(self):
