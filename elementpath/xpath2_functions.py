@@ -20,7 +20,7 @@ import re
 import locale
 import unicodedata
 
-from .compat import PY3, string_base_type, unicode_chr, urllib_quote, unicode_type
+from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urllib_quote, unicode_type
 from .datatypes import DateTime, Date, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
@@ -596,6 +596,28 @@ def select(self, context=None):
         for value in pattern.split(input_string):
             if value is not None and pattern.search(value) is None:
                 yield value
+
+###
+# Functions on anyURI
+@method(function('resolve-uri', nargs=(1, 2)))
+def evaluate(self, context=None):
+    relative = self.get_argument(context, cls=string_base_type)
+    if len(self) == 2:
+        base_uri = self.get_argument(context, index=1, required=True, cls=string_base_type)
+        base_uri = urlparse(base_uri).geturl()
+    elif self.parser.base_uri is None:
+        raise self.error('FONS0005')
+    else:
+        base_uri = self.parser.base_uri
+
+    if relative is not None:
+        url_parts = urlparse(relative)
+        if url_parts.path.startswith('/'):
+            return relative
+        elif url_parts.scheme:
+            return urljoin(base_uri, relative.split(':')[1])
+        else:
+            return urljoin(base_uri, relative)
 
 
 ###
