@@ -728,11 +728,11 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
-    arg2 = self.get_argument(context, index=1)
+    arg1 = self.get_argument(context, default='')
+    arg2 = self.get_argument(context, index=1, default='')
     try:
         return arg1.startswith(arg2)
-    except TypeError:
+    except (AttributeError, TypeError):
         self.wrong_type("the arguments must be a string")
 
 

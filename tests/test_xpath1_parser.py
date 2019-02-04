@@ -406,18 +406,12 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_string_functions(self):
         self.check_value("string(10.0)", '10.0')
-        self.check_value("contains('XPath','XP')", True)
-        self.check_value("contains('XP','XPath')", False)
-        self.wrong_type("contains('XPath', 20)")
-        self.wrong_syntax("contains('XPath', 'XP', 20)")
-        self.check_value("concat('alpha', 'beta', 'gamma')", 'alphabetagamma')
-        self.wrong_type("concat('alpha', 10, 'gamma')")
-        self.wrong_syntax("concat()")
         self.check_value("string-length('hello world')", 11)
         self.check_value("string-length('')", 0)
         self.check_value("normalize-space('  hello  \t  world ')", 'hello world')
         self.check_value("starts-with('Hello World', 'Hello')", True)
         self.check_value("starts-with('Hello World', 'hello')", False)
+        self.check_value("starts-with((), ())", True)
         self.check_value("translate('hello world', 'hw', 'HW')", 'Hello World')
         self.wrong_value("translate('hello world', 'hwx', 'HW')")
         self.check_value("substring('Preem Palver', 1)", 'Preem Palver')
@@ -439,6 +433,21 @@ class XPath1ParserTest(unittest.TestCase):
                               '</ups-units>')
         variables = {'ups1': root[0], 'ups2': root[1], 'ups3': root[2]}
         self.check_selector('string($ups1/power)', root, '40kW', variables=variables)
+
+    def test_concat_function(self):
+        self.check_value("concat('alpha', 'beta', 'gamma')", 'alphabetagamma')
+        self.check_value("concat('', '', '')", '')
+        self.check_value("concat((), (), ())", '')
+        self.wrong_type("concat('alpha', 10, 'gamma')")
+        self.wrong_syntax("concat()")
+
+    def test_contains_function(self):
+        self.check_value("contains('XPath','XP')", True)
+        self.check_value("contains('XP','XPath')", False)
+        self.wrong_type("contains('XPath', 20)")
+        self.wrong_syntax("contains('XPath', 'XP', 20)")
+        self.check_value("contains('', '')", True)
+        self.check_value("contains((), ())", True)
 
     def test_boolean_functions(self):
         self.check_value("true()", True)
