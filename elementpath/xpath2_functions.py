@@ -937,6 +937,12 @@ def evaluate(self, context=None):
         return Timezone(datetime.timedelta(seconds=time.timezone))
 
 
+@method(function('static-base-uri', nargs=0))
+def evaluate(self, context=None):
+    if self.parser.base_uri is not None:
+        return self.parser.base_uri
+
+
 ###
 # The root function (Ref: https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-root)
 @method(function('root', nargs=(0, 1)))

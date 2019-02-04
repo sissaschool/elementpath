@@ -295,6 +295,15 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:min(("a", "b", "c"))', 'a')
 
     ###
+    # Functions in common with XPath 1.0
+    def test_substring_after_function2(self):
+        self.check_value('fn:substring-after("tattoo", "tat")', 'too')
+        self.check_value('fn:substring-after("tattoo", "tattoo")', '')
+        self.check_value("fn:substring-after((), ())", '')
+        ##
+
+
+    ###
     # Functions on strings
     def test_codepoints_to_string_function(self):
         self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
@@ -1165,6 +1174,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             path='fn:implicit-timezone()', context=context,
             expected=Timezone(datetime.timedelta(seconds=time.timezone)),
         )
+        self.check_value('fn:static-base-uri()', context=context)
+        parser = XPath2Parser(strict=True, base_uri='http://www.example.com/ns/')
+        self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context), 'http://www.example.com/ns/')
 
     def test_root_function(self):
         pass
