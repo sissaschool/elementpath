@@ -420,11 +420,6 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("substring('Preem Palver', 1, 5)", 'Preem')
         self.wrong_type("substring('Preem Palver', 'c', 5)")
         self.wrong_type("substring('Preem Palver', 1, '5')")
-        self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Wolfgang')", '')
-        self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Amadeus')", 'Wolfgang ')
-        self.wrong_type("substring-before('2017-10-27', 10)")
-        self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Amadeus ')", 'Mozart')
-        self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Mozart')", '')
 
         root = self.etree.XML('<ups-units>'
                               '  <unit><power>40kW</power></unit>'
@@ -448,6 +443,20 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax("contains('XPath', 'XP', 20)")
         self.check_value("contains('', '')", True)
         self.check_value("contains((), ())", True)
+
+    def test_substring_before_function(self):
+        self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Wolfgang')", '')
+        self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Amadeus')", 'Wolfgang ')
+        self.wrong_type("substring-before('2017-10-27', 10)")
+
+    def test_substring_after_function(self):
+        self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Amadeus ')", 'Mozart')
+        self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Mozart')", '')
+        self.check_value("substring-after('', '')", '')
+        self.check_value("substring-after((), ())", '')
+        self.check_value("substring-after('Mozart', '')", 'Mozart')
+        self.check_value('fn:substring-after("tattoo", "tat")', 'too')
+        self.check_value('fn:substring-after("tattoo", "tattoo")', '')
 
     def test_boolean_functions(self):
         self.check_value("true()", True)
