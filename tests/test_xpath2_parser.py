@@ -455,6 +455,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value('fn:tokenize("abracadabra", ())')
         self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", ())')
 
+    def test_resolve_uri_function(self):
+        self.wrong_value('fn:resolve-uri("dir1/dir2")')
+        context = XPathContext(root=self.etree.XML('<A/>'))
+        parser = XPath2Parser(base_uri='http://www.example.com/ns/')
+        self.assertEqual(
+            parser.parse('fn:resolve-uri("dir1/dir2")').evaluate(context), 'http://www.example.com/ns/dir1/dir2'
+        )
+        self.assertEqual(parser.parse('fn:resolve-uri("/dir1/dir2")').evaluate(context), '/dir1/dir2')
+        self.assertEqual(parser.parse(
+            'fn:resolve-uri("file:text.txt")').evaluate(context), 'http://www.example.com/ns/text.txt'
+        )
+        self.assertIsNone(parser.parse('fn:resolve-uri(())').evaluate(context))
+
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)

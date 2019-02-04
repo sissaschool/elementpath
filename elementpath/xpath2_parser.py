@@ -14,7 +14,7 @@ XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 from itertools import product
 from abc import ABCMeta
 
-from .compat import MutableSequence
+from .compat import MutableSequence, urlparse
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
@@ -46,6 +46,7 @@ class XPath2Parser(XPath1Parser):
     optional argument, that involves a mapping of only XSD builtin types. If it's not provided the \
     XPath 2.0 \schema's related expressions cannot be used.
     :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
+    :param base_uri: an absolute URI maybe provided, used when necessary in the resolution of relative URIs.
     """
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
@@ -90,6 +91,9 @@ class XPath2Parser(XPath1Parser):
 
         # Pattern matching functions
         'matches', 'replace', 'tokenize',
+
+        # Functions on anyURI
+        'resolve-uri',
 
         # Functions for extracting fragments from xs:duration
         'years-from-duration', 'months-from-duration', 'days-from-duration',
@@ -162,7 +166,7 @@ class XPath2Parser(XPath1Parser):
         if compatibility_mode is False:
             self.compatibility_mode = False  # It's already an XPath1Parser class property
 
-        self.base_uri = base_uri
+        self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
 
     @property
     def version(self):
