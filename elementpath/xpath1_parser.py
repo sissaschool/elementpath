@@ -929,8 +929,10 @@ def evaluate(self, context=None):
 
 @method(function('contains', nargs=2))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context, default='')
+    arg2 = self.get_argument(context, index=1, default='')
     try:
-        return self[1].evaluate(context) in self[0].evaluate(context)
+        return arg2 in arg1
     except TypeError:
         self.wrong_type("the arguments must be strings")
 
@@ -938,7 +940,7 @@ def evaluate(self, context=None):
 @method(function('concat'))
 def evaluate(self, context=None):
     try:
-        return ''.join(tk.value for tk in self)
+        return ''.join(self.get_argument(context, index=k, default='') for k in range(len(self)))
     except TypeError:
         self.wrong_type("the arguments must be strings")
 
@@ -967,8 +969,8 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
-    arg2 = self.get_argument(context, index=1)
+    arg1 = self.get_argument(context, default='')
+    arg2 = self.get_argument(context, index=1, default='')
     try:
         return arg1.startswith(arg2)
     except (AttributeError, TypeError):
