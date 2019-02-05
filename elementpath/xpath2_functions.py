@@ -237,7 +237,8 @@ def evaluate(self, context=None):
 
 @method(function('nilled', nargs=1))
 def evaluate(self, context=None):
-    return node_nilled(self.get_argument(context))
+    result = node_nilled(self.get_argument(context))
+    return [] if result is None else result
 
 
 @method(function('data', nargs=1))
@@ -263,7 +264,8 @@ def evaluate(self, context=None):
 
 @method(function('document-uri', nargs=1))
 def evaluate(self, context=None):
-    return node_document_uri(self.get_argument(context))
+    arg = self.get_argument(context)
+    return [] if arg is None else node_document_uri(arg)
 
 
 ###
@@ -271,6 +273,11 @@ def evaluate(self, context=None):
 @method(function('round-half-to-even', nargs=(1, 2)))
 def evaluate(self, context=None):
     item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
+        return item
+
     try:
         precision = 0 if len(self) < 2 else self[1].evaluate(context)
         if PY3 or precision < 0:
@@ -280,11 +287,9 @@ def evaluate(self, context=None):
             exp = decimal.Decimal('1' if not precision else '.%s1' % ('0' * (precision - 1)))
             value = float(number.quantize(exp, rounding='ROUND_HALF_EVEN'))
     except TypeError as err:
-        if item is not None and not isinstance(item, list):
-            self.wrong_type(str(err))
+        self.wrong_type(str(err))
     except decimal.DecimalException as err:
-        if item is not None and not isinstance(item, list):
-            self.wrong_value(str(err))
+        self.wrong_value(str(err))
     else:
         return float(value)
 
@@ -292,10 +297,15 @@ def evaluate(self, context=None):
 @method(function('abs', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, float) and math.isnan(item):
+        return item
+
     try:
         return abs(node_string_value(item) if is_xpath_node(item) else item)
-    except TypeError:
-        return float('nan')
+    except TypeError as err:
+        self.wrong_type(str(err))
 
 
 ###
@@ -511,7 +521,7 @@ def select(self, context=None):
 # Regex
 @method(function('matches', nargs=(2, 3)))
 def evaluate(self, context=None):
-    input_string = self.get_argument(context, cls=string_base_type)
+    input_string = self.get_argument(context, default='', cls=string_base_type)
     pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
     flags = 0
     if len(self) > 2:
@@ -521,9 +531,6 @@ def evaluate(self, context=None):
             else:
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
-    if input_string is None:
-        input_string = ''
-
     try:
         return re.search(pattern, input_string, flags=flags) is not None
     except re.error:
@@ -532,7 +539,7 @@ def evaluate(self, context=None):
 
 @method(function('replace', nargs=(3, 4)))
 def evaluate(self, context=None):
-    input_string = self.get_argument(context, cls=string_base_type)
+    input_string = self.get_argument(context, default='', cls=string_base_type)
     pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
     replacement = self.get_argument(context, 2, required=True, cls=string_base_type)
     flags = 0
@@ -542,9 +549,6 @@ def evaluate(self, context=None):
                 flags |= getattr(re, c.upper())
             else:
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
-
-    if input_string is None:
-        input_string = ''
 
     try:
         pattern = re.compile(pattern, flags=flags)
@@ -596,6 +600,7 @@ def select(self, context=None):
         for value in pattern.split(input_string):
             if value is not None and pattern.search(value) is None:
                 yield value
+
 
 ###
 # Functions on anyURI
@@ -680,7 +685,7 @@ def evaluate(self, context=None):
 
 @method(function('normalize-unicode', nargs=(1, 2)))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, cls=string_base_type)
+    arg = self.get_argument(context, default='', cls=string_base_type)
     if len(self) > 1:
         normalization_form = self.get_argument(context, 1, cls=string_base_type)
         if normalization_form is None:

@@ -11,10 +11,11 @@
 """
 XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 """
+from __future__ import division
 from itertools import product
 from abc import ABCMeta
 
-from .compat import MutableSequence, urlparse
+from .compat import PY3, MutableSequence, urlparse
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
@@ -132,6 +133,9 @@ class XPath2Parser(XPath1Parser):
         'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time',
         'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
         'yearMonthDuration', 'base64Binary', 'hexBinary'
+
+        # TODO: Functions and Operators that Generate Sequences
+        # 'id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
     QUALIFIED_FUNCTIONS = {

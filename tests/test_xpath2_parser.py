@@ -295,15 +295,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:min(("a", "b", "c"))', 'a')
 
     ###
-    # Functions in common with XPath 1.0
-    def test_substring_after_function2(self):
-        self.check_value('fn:substring-after("tattoo", "tat")', 'too')
-        self.check_value('fn:substring-after("tattoo", "tattoo")', '')
-        self.check_value("fn:substring-after((), ())", '')
-        ##
-
-
-    ###
     # Functions on strings
     def test_codepoints_to_string_function(self):
         self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
@@ -336,6 +327,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type(u"fn:compare('Strasse', 111)")
 
     def test_normalize_unicode_function(self):
+        self.check_value('fn:normalize-unicode(())', u'')
         self.check_value('fn:normalize-unicode("menù")', u'menù')
         self.assertRaises(NotImplementedError, self.parser.parse, 'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
@@ -404,6 +396,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('escape-html-uri(())', '')
 
     def test_ends_with_function(self):
+        self.check_value('fn:ends-with ( "tattoo", "tattoo")', True)
+        self.check_value('fn:ends-with ( "tattoo", "atto")', False)
         self.check_value("ends-with((), ())", True)
 
     def test_string_length_function(self):
