@@ -648,8 +648,10 @@ def evaluate(self, context=None):
 
 @method(function('string-join', nargs=2))
 def evaluate(self, context=None):
+    items = [string_value(s) if is_element_node(s) else s
+             for s in self[0].select(context)]
     try:
-        return self[1].evaluate(context).join(s for s in self[0].select(context))
+        return self.get_argument(context, 1, cls=string_base_type).join(items)
     except AttributeError as err:
         self.wrong_type("the separator must be a string: %s" % err)
     except TypeError as err:
@@ -683,7 +685,7 @@ def evaluate(self, context=None):
 
 @method(function('upper-case', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
+    arg = self.get_argument(context, cls=string_base_type)
     try:
         return '' if arg is None else arg.upper()
     except AttributeError:
@@ -692,7 +694,7 @@ def evaluate(self, context=None):
 
 @method(function('lower-case', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
+    arg = self.get_argument(context, cls=string_base_type)
     try:
         return '' if arg is None else arg.lower()
     except AttributeError:
@@ -701,7 +703,7 @@ def evaluate(self, context=None):
 
 @method(function('encode-for-uri', nargs=1))
 def evaluate(self, context=None):
-    uri_part = self.get_argument(context)
+    uri_part = self.get_argument(context, cls=string_base_type)
     try:
         return '' if uri_part is None else urllib_quote(uri_part, safe='~')
     except TypeError:
@@ -710,7 +712,7 @@ def evaluate(self, context=None):
 
 @method(function('iri-to-uri', nargs=1))
 def evaluate(self, context=None):
-    iri = self.get_argument(context)
+    iri = self.get_argument(context, cls=string_base_type)
     try:
         return '' if iri is None else urllib_quote(iri, safe='-_.!~*\'()#;/?:@&=+$,[]%')
     except TypeError:
@@ -719,7 +721,7 @@ def evaluate(self, context=None):
 
 @method(function('escape-html-uri', nargs=1))
 def evaluate(self, context=None):
-    uri = self.get_argument(context)
+    uri = self.get_argument(context, cls=string_base_type)
     try:
         return '' if uri is None else urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
     except TypeError:
@@ -728,7 +730,7 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
+    arg1 = self.get_argument(context, cls=string_base_type)
     arg2 = self.get_argument(context, index=1)
     try:
         return arg1.startswith(arg2)
@@ -738,7 +740,7 @@ def evaluate(self, context=None):
 
 @method(function('ends-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
+    arg1 = self.get_argument(context, cls=string_base_type)
     arg2 = self.get_argument(context, index=1)
     try:
         return arg1.endswith(arg2)

@@ -41,6 +41,12 @@ except ImportError:
     import test_xpath1_parser
 
 
+XML_GENERIC_TEST = """<root>
+    <a id="a_id">
+        <b>some content</b>
+        <c> space     space    \t .</c></a>
+</root>"""
+
 XML_POEM_TEST = """<poem author="Wilhelm Busch">
 Kaum hat dies der Hahn gesehen,
 Fängt er auch schon an zu krähen:
@@ -363,11 +369,25 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('lower-case(())', '')
         self.wrong_type('lower-case((10))')
 
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[lower-case(@id) = 'a_id']", root, [root[0]])
+        self.check_selector("a[lower-case(@id) = 'a_i']", root, [])
+        self.check_selector("//b[lower-case(.) = 'some content']", root, [root[0][0]])
+        self.check_selector("//b[lower-case((.)) = 'some content']", root, [root[0][0]])
+        self.check_selector("//none[lower-case((.)) = 'some content']", root, [])
+
     def test_upper_case_function(self):
         self.check_value('upper-case("aBcDe01")', 'ABCDE01')
         self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
         self.check_value('upper-case(())', '')
         self.wrong_type('upper-case((10))')
+
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[upper-case(@id) = 'A_ID']", root, [root[0]])
+        self.check_selector("a[upper-case(@id) = 'A_I']", root, [])
+        self.check_selector("//b[upper-case(.) = 'SOME CONTENT']", root, [root[0][0]])
+        self.check_selector("//b[upper-case((.)) = 'SOME CONTENT']", root, [root[0][0]])
+        self.check_selector("//none[upper-case((.)) = 'SOME CONTENT']", root, [])
 
     def test_encode_for_uri_function(self):
         self.check_value('encode-for-uri("http://xpath.test")', 'http%3A%2F%2Fxpath.test')
@@ -403,19 +423,59 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          'Blow, blow, thou winter wind!')
         self.check_value("string-join((), 'separator')", '')
 
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']", root, [root[0]])
+        self.check_selector("a[string-join((@id, 'foo'), ',') = 'a_id,foo']", root, [root[0]])
+        self.check_selector("//b[string-join((., 'bar'), ' ') = 'some content bar']", root, [root[0][0]])
+        self.check_selector("//b[string-join((., 'bar'), ',') = 'some content,bar']", root, [root[0][0]])
+        self.check_selector("//b[string-join((., 'bar'), ',') = 'some content bar']", root, [])
+        self.check_selector("//none[string-join((., 'bar'), ',') = 'some content,bar']", root, [])
+
     def test_matches_function(self):
         self.check_value('fn:matches("abracadabra", "bra")', True)
         self.check_value('fn:matches("abracadabra", "^a.*a$")', True)
         self.check_value('fn:matches("abracadabra", "^bra")', False)
 
-        root = self.etree.XML(XML_POEM_TEST)
+        poem_context = XPathContext(root=self.etree.XML(XML_POEM_TEST))
+        self.check_value('fn:matches(., "Kaum.*krähen")', False, context=poem_context)
+        self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=poem_context)
+        self.check_value('fn:matches(., "^Kaum.*gesehen,$", "m")', True, context=poem_context)
+        self.check_value('fn:matches(., "^Kaum.*gesehen,$")', False, context=poem_context)
+        self.check_value('fn:matches(., "kiki", "i")', True, context=poem_context)
 
-        context = XPathContext(root=root)
-        self.check_value('fn:matches(., "Kaum.*krähen")', False, context=context)
-        self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=context)
-        self.check_value('fn:matches(., "^Kaum.*gesehen,$", "m")', True, context=context)
-        self.check_value('fn:matches(., "^Kaum.*gesehen,$")', False, context=context)
-        self.check_value('fn:matches(., "kiki", "i")', True, context=context)
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[matches(@id, '^a_id$')]", root, [root[0]])
+        self.check_selector("a[matches(@id, 'a.id')]", root, [root[0]])
+        self.check_selector("a[matches(@id, '_id')]", root, [root[0]])
+        self.check_selector("a[matches(@id, 'a!')]", root, [])
+        self.check_selector("//b[matches(., '^some.content$')]", root, [root[0][0]])
+        self.check_selector("//b[matches(., '^content')]", root, [])
+        self.check_selector("//none[matches(., '.*')]", root, [])
+
+    def test_starts_with_function(self):
+        self.check_value('fn:starts-with("abracadabra", "abra")', True)
+        self.check_value('fn:starts-with("abracadabra", "a")', True)
+        self.check_value('fn:starts-with("abracadabra", "bra")', False)
+
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[starts-with(@id, 'a_id')]", root, [root[0]])
+        self.check_selector("a[starts-with(@id, 'a')]", root, [root[0]])
+        self.check_selector("a[starts-with(@id, 'a!')]", root, [])
+        self.check_selector("//b[starts-with(., 'some')]", root, [root[0][0]])
+        self.check_selector("//b[starts-with(., 'a')]", root, [])
+
+    def test_ends_with_function(self):
+        self.check_value('fn:ends-with("abracadabra", "bra")', True)
+        self.check_value('fn:ends-with("abracadabra", "a")', True)
+        self.check_value('fn:ends-with("abracadabra", "cbra")', False)
+
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[ends-with(@id, 'a_id')]", root, [root[0]])
+        self.check_selector("a[ends-with(@id, 'id')]", root, [root[0]])
+        self.check_selector("a[ends-with(@id, 'a!')]", root, [])
+        self.check_selector("//b[ends-with(., 'some content')]", root, [root[0][0]])
+        self.check_selector("//b[ends-with(., 't')]", root, [root[0][0]])
+        self.check_selector("//none[ends-with(., 's')]", root, [])
 
     def test_replace_function(self):
         self.check_value('fn:replace("abracadabra", "bra", "*")', "a*cada*")
@@ -429,6 +489,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:replace("AAAA", "A+?", "b")', "bbbb")
         self.check_value('fn:replace("darted", "^(.*?)d(.*)$", "$1c$2")', "carted")
         self.check_value('fn:replace("abcd", "(ab)|(a)", "[1=$1][2=$2]")', "[1=ab][2=]cd")
+
+        root = self.etree.XML(XML_GENERIC_TEST)
+        self.check_selector("a[replace(@id, '^a_id$', 'foo') = 'foo']", root, [root[0]])
+        self.check_selector("a[replace(@id, 'a.id', 'foo') = 'foo']", root, [root[0]])
+        self.check_selector("a[replace(@id, '_id', 'no') = 'ano']", root, [root[0]])
+        self.check_selector("//b[replace(., '^some.content$', 'new') = 'new']", root, [root[0][0]])
+        self.check_selector("//b[replace(., '^content', '') = '']", root, [])
+        self.check_selector("//none[replace(., '.*', 'a') = 'a']", root, [])
 
     def test_tokenize_function(self):
         self.check_value('fn:tokenize("abracadabra", "(ab)|(a)")', ['', 'r', 'c', 'd', 'r', ''])
