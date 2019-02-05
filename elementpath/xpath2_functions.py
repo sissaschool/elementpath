@@ -767,6 +767,10 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='')
     arg2 = self.get_argument(context, index=1, default='')
+    if is_xpath_node(arg1):
+        arg1 = node_string_value(arg1)
+    if is_xpath_node(arg2):
+        arg2 = node_string_value(arg2)
     try:
         return arg1.endswith(arg2)
     except (AttributeError, TypeError):

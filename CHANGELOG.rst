@@ -5,6 +5,7 @@ CHANGELOG
 `v1.1.3`_ (TDB)
 ===============
 * Fix for issue #1
+* Added fn:static-base-uri() and fn:resolve-uri()
 
 `v1.1.2`_ (2019-01-30)
 ======================
