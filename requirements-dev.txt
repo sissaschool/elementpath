@@ -2,5 +2,6 @@
 setuptools
 tox
 lxml
-xmlschema>=1.0.7
+xmlschema>=1.0.9
+Sphinx
 -e .

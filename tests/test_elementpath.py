@@ -28,6 +28,7 @@ if __name__ == '__main__':
         from tests.test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
         from tests.test_xpath2_parser import XPath2ParserTest, LxmlXPath2ParserTest
         from tests.test_schema_proxy import XPath2ParserXMLSchemaTest, LxmlXPath2ParserXMLSchemaTest
+        from tests.test_selectors import SelectorTest
         from tests.test_package import PackageTest
     except ImportError:
         # Python 2 fallback
@@ -35,6 +36,7 @@ if __name__ == '__main__':
         from test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
         from test_xpath2_parser import XPath2ParserTest, LxmlXPath2ParserTest
         from test_schema_proxy import XPath2ParserXMLSchemaTest, LxmlXPath2ParserXMLSchemaTest
+        from tests.test_selectors import SelectorTest
         from test_package import PackageTest
 
     unittest.main()
