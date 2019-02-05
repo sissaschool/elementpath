@@ -12,7 +12,7 @@ from __future__ import division
 import math
 import decimal
 
-from .compat import PY3
+from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
 from .tdop_parser import Parser, MultiLabel
@@ -138,7 +138,10 @@ class XPath1Parser(Parser):
                         break
                     self.parser.advance(',')
                 self.parser.advance(')')
-                self.value = self.evaluate()
+                try:
+                    self.value = self.evaluate()
+                except ElementPathMissingContextError:
+                    self.value = None
                 return self
             elif nargs == 0:
                 self.parser.advance(')')
@@ -399,7 +402,9 @@ def select(self, context=None):
         if context is not None:
             context.item = item
         yield item
-    elif context is not None:
+    elif context is None:
+        raise ElementPathMissingContextError("Context required to evaluate `*`")
+    else:
         # Wildcard literal
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
@@ -412,7 +417,7 @@ def select(self, context=None):
 @method(nullary('.'))
 def select(self, context=None):
     if context is None:
-        return
+        raise ElementPathMissingContextError("Context required to evaluate `.`")
     elif context.item is not None:
         yield context.item
     elif is_document_node(context.root):
@@ -421,7 +426,10 @@ def select(self, context=None):
 
 @method(nullary('..'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise ElementPathMissingContextError("Context required to evaluate `..`")
+
+    else:
         try:
             parent = context.parent_map[context.item]
         except KeyError:
@@ -749,7 +757,10 @@ def nud(self):
 @method('@')
 @method(axis('attribute'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise ElementPathMissingContextError("Context required to evaluate `@`")
+
+    else:
         for _ in context.iter_attributes():
             for result in self[0].select(context):
                 yield result
@@ -929,8 +940,10 @@ def evaluate(self, context=None):
 
 @method(function('contains', nargs=2))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context, cls=string_base_type)
+    arg2 = self.get_argument(context, index=1)
     try:
-        return self[1].evaluate(context) in self[0].evaluate(context)
+        return arg2 in arg1
     except TypeError:
         self.wrong_type("the arguments must be strings")
 
@@ -938,14 +951,15 @@ def evaluate(self, context=None):
 @method(function('concat'))
 def evaluate(self, context=None):
     try:
-        return ''.join(tk.value for tk in self)
-    except TypeError:
+        return ''.join([string_value(self.get_argument(context, index=x))
+                        for x in xrange(len(self))])
+    except TypeError as e:
         self.wrong_type("the arguments must be strings")
 
 
 @method(function('string-length', nargs=1))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default_to_context=True)
+    arg1 = self.get_argument(context, default_to_context=True, cls=string_base_type)
     if arg1 is None:
         return 0
     try:
@@ -956,7 +970,7 @@ def evaluate(self, context=None):
 
 @method(function('normalize-space', nargs=1))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default_to_context=True)
+    arg1 = self.get_argument(context, default_to_context=True, cls=string_base_type)
     if arg1 is None:
         return ''
     try:
@@ -967,7 +981,7 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
+    arg1 = self.get_argument(context, cls=string_base_type)
     arg2 = self.get_argument(context, index=1)
     try:
         return arg1.startswith(arg2)
@@ -977,16 +991,17 @@ def evaluate(self, context=None):
 
 @method(function('translate', nargs=3))
 def evaluate(self, context=None):
+    arg1 = self.get_argument(context, cls=string_base_type).encode('utf8')
     try:
         maketrans = str.maketrans
     except AttributeError:
         import string
         maketrans = getattr(string, 'maketrans')
     try:
-        if not all(tk.symbol == '(string)' for tk in self):
+        if not all(tk.symbol == '(string)' for tk in self[1:]):
             raise TypeError
         translation_map = maketrans(self[1].value, self[2].value)
-        return self[0].value.translate(translation_map)
+        return arg1.translate(translation_map)
     except ValueError:
         self.wrong_value("the second and the third arguments must have equal length")
     except TypeError:
@@ -1006,7 +1021,7 @@ def evaluate(self, context=None):
         except TypeError:
             self.wrong_type("the third argument must be xs:numeric")
 
-    item = self.get_argument(context)
+    item = self.get_argument(context, cls=string_base_type)
     try:
         return '' if item is None else item[slice(start, stop)]
     except TypeError:
@@ -1016,7 +1031,7 @@ def evaluate(self, context=None):
 @method(function('substring-before', nargs=2))
 @method(function('substring-after', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context)
+    arg1 = self.get_argument(context, cls=string_base_type)
     arg2 = self.get_argument(context, index=1)
     if arg1 is None:
         return ''
