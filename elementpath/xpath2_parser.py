@@ -46,8 +46,8 @@ class XPath2Parser(XPath1Parser):
     If an `AbstractSchemaProxy` subclass is provided then a schema proxy instance is built without the \
     optional argument, that involves a mapping of only XSD builtin types. If it's not provided the \
     XPath 2.0 \schema's related expressions cannot be used.
-    :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
     :param base_uri: an absolute URI maybe provided, used when necessary in the resolution of relative URIs.
+    :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
@@ -146,7 +146,7 @@ class XPath2Parser(XPath1Parser):
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
     def __init__(self, namespaces=None, variables=None, strict=True, default_namespace=None,
-                 function_namespace=None, schema=None, compatibility_mode=False, base_uri=None):
+                 function_namespace=None, schema=None, base_uri=None, compatibility_mode=False):
         super(XPath2Parser, self).__init__(namespaces, variables, strict)
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
@@ -167,14 +167,20 @@ class XPath2Parser(XPath1Parser):
                 self.schema_constructor(xsd_type.name)
             self.tokenizer = create_tokenizer(self.symbol_table, XML_NCNAME_PATTERN)
 
-        if compatibility_mode is False:
-            self.compatibility_mode = False  # It's already an XPath1Parser class property
-
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
+        self._compatibility_mode = compatibility_mode
 
     @property
     def version(self):
         return '2.0'
+
+    @property
+    def compatibility_mode(self):
+        return self._compatibility_mode
+
+    @compatibility_mode.setter
+    def compatibility_mode(self, value):
+        self._compatibility_mode = value
 
     @property
     def default_namespace(self):

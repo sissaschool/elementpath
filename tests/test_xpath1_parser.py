@@ -479,7 +479,8 @@ class XPath1ParserTest(unittest.TestCase):
     def test_concat_function(self):
         self.check_value("concat('alpha', 'beta', 'gamma')", 'alphabetagamma')
         self.check_value("concat('', '', '')", '')
-        self.wrong_type("concat('alpha', 10, 'gamma')")
+        self.check_value("concat('alpha', 10, 'gamma')", 'alpha10gamma')
+        #self.wrong_type("concat('alpha', 10, 'gamma')")
         self.wrong_syntax("concat()")
         if self.parser.version == '1.0':
             self.wrong_syntax("concat((), (), ())")
@@ -487,15 +488,16 @@ class XPath1ParserTest(unittest.TestCase):
     def test_contains_function(self):
         self.check_value("contains('XPath','XP')", True)
         self.check_value("contains('XP','XPath')", False)
-        self.wrong_type("contains('XPath', 20)")
         self.wrong_syntax("contains('XPath', 'XP', 20)")
         self.check_value("contains('', '')", True)
         if self.parser.version == '1.0':
             self.wrong_syntax("contains((), ())")
+            self.check_value("contains('XPath', 20)", False)
         else:
             self.check_value('fn:contains ( "tattoo", "t")', True)
             self.check_value('fn:contains ( "tattoo", "ttt")', False)
             self.check_value('fn:contains ( "", ())', True)
+            self.wrong_type("contains('XPath', 20)")
 
     def test_substring_before_function(self):
         self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Wolfgang')", '')

@@ -755,26 +755,16 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='')
-    arg2 = self.get_argument(context, index=1, default='')
-    try:
-        return arg1.startswith(arg2)
-    except (AttributeError, TypeError):
-        self.wrong_type("the arguments must be a string")
+    arg1 = self.get_argument(context, default='', cls=string_base_type)
+    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    return arg1.startswith(arg2)
 
 
 @method(function('ends-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='')
-    arg2 = self.get_argument(context, index=1, default='')
-    if is_xpath_node(arg1):
-        arg1 = node_string_value(arg1)
-    if is_xpath_node(arg2):
-        arg2 = node_string_value(arg2)
-    try:
-        return arg1.endswith(arg2)
-    except (AttributeError, TypeError):
-        self.wrong_type("the arguments must be a string")
+    arg1 = self.get_argument(context, default='', cls=string_base_type)
+    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    return arg1.endswith(arg2)
 
 
 ###

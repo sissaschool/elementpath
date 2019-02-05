@@ -42,7 +42,6 @@ class XPath1Parser(Parser):
     like the ElementPath library. Default is `True`.
     """
     token_base_class = XPathToken
-    compatibility_mode = True
 
     SYMBOLS = Parser.SYMBOLS | {
         # Axes
@@ -97,6 +96,11 @@ class XPath1Parser(Parser):
     def version(self):
         """The XPath version string."""
         return '1.0'
+
+    @property
+    def compatibility_mode(self):
+        """XPath 1.0 compatibility mode."""
+        return True
 
     @property
     def default_namespace(self):
@@ -938,18 +942,15 @@ def evaluate(self, context=None):
 
 @method(function('contains', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='')
-    arg2 = self.get_argument(context, index=1, default='')
-    try:
-        return arg2 in arg1
-    except TypeError:
-        self.wrong_type("the arguments must be strings")
+    arg1 = self.get_argument(context, default='', cls=string_base_type)
+    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    return arg2 in arg1
 
 
 @method(function('concat'))
 def evaluate(self, context=None):
     try:
-        return ''.join(self.get_argument(context, index=k, default='') for k in range(len(self)))
+        return ''.join(string_value(self.get_argument(context, index=k)) for k in range(len(self)))
     except TypeError:
         self.wrong_type("the arguments must be strings")
 

@@ -136,7 +136,7 @@ class XPathToken(Token):
             for k, result in enumerate(selector(context)):
                 if k == 0:
                     item = result
-                elif self.parser.version > '1.0':
+                elif not self.parser.compatibility_mode:
                     self.wrong_context_type("a sequence of more than one item is not allowed as argument")
                 else:
                     break
@@ -150,21 +150,22 @@ class XPathToken(Token):
                     else:
                         self.missing_sequence("A not empty sequence of %r required for %s argument" % (cls, ord_arg))
 
-        # Type checking (see "function conversion rules" in XPath 2.0 language definition)
+        # Type checking and conversion (see "function conversion rules" in XPath 2.0 language definition)
         if cls is not None and not isinstance(item, cls):
             if self.parser.compatibility_mode:
                 if issubclass(cls, string_base_type):
                     return string_value(item)
                 elif issubclass(cls, float):
                     return number_value(item)
-            else:
+
+            if self.parser.version > '1.0':
                 value = data_value(item)
                 if isinstance(value, UntypedAtomic):
                     try:
                         return str(value) if issubclass(cls, string_base_type) else cls(value)
                     except (TypeError, ValueError):
                         pass
-            self.wrong_type("the %s argument %r is not a %r instance" % (ordinal(index + 1), item, cls))
+            raise self.error('XPTY0004', "the %s argument %r is not a %r instance" % (ordinal(index + 1), item, cls))
         return item
 
     def get_comparison_data(self, context):
