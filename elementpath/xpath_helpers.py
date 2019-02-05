@@ -263,7 +263,7 @@ def string_value(obj):
     The string value, as computed by fn:string().
     """
     if obj is None:
-        return
+        return ''
     elif is_xpath_node(obj):
         return node_string_value(obj)
     else:

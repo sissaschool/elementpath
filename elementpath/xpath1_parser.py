@@ -12,7 +12,7 @@ from __future__ import division
 import math
 import decimal
 
-from .compat import PY3
+from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
 from .tdop_parser import Parser, MultiLabel
@@ -518,7 +518,16 @@ def evaluate(self, context=None):
 
 @method(infix('div', bp=45))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) / self[1].evaluate(context)
+    dividend = self[0].evaluate(context)
+    divisor = self[1].evaluate(context)
+    if divisor != 0:
+        return dividend / divisor
+    elif dividend == 0:
+        return float('nan')
+    elif dividend > 0:
+        return float('inf')
+    else:
+        return float('-inf')
 
 
 @method(infix('mod', bp=45))
@@ -979,16 +988,15 @@ def evaluate(self, context=None):
 
 @method(function('translate', nargs=3))
 def evaluate(self, context=None):
+    arg = self.get_argument(context, default='', cls=string_base_type)
     try:
         maketrans = str.maketrans
     except AttributeError:
         import string
         maketrans = getattr(string, 'maketrans')
     try:
-        if not all(tk.symbol == '(string)' for tk in self):
-            raise TypeError
         translation_map = maketrans(self[1].value, self[2].value)
-        return self[0].value.translate(translation_map)
+        return arg.translate(translation_map)
     except ValueError:
         self.wrong_value("the second and the third arguments must have equal length")
     except TypeError:
@@ -997,22 +1005,33 @@ def evaluate(self, context=None):
 
 @method(function('substring', nargs=(2, 3)))
 def evaluate(self, context=None):
-    start, stop = 0, None
+    item = self.get_argument(context, default='', cls=string_base_type)
+    start = self[1].evaluate(context)
     try:
-        start = self[1].evaluate(context) - 1
+        if math.isnan(start) or math.isinf(start):
+            return ''
     except TypeError:
         self.wrong_type("the second argument must be xs:numeric")
-    if len(self) > 2:
+    else:
+        start = int(round(start))- 1
+
+    if len(self) == 2:
+        return '' if item is None else item[max(start, 0):]
+    else:
+        length = self[2].evaluate(context)
         try:
-            stop = start + self[2].evaluate(context)
+            if math.isnan(length) or length <= 0:
+                return ''
         except TypeError:
             self.wrong_type("the third argument must be xs:numeric")
 
-    item = self.get_argument(context)
-    try:
-        return '' if item is None else item[slice(start, stop)]
-    except TypeError:
-        self.wrong_type("the first argument must be a string")
+        if item is None:
+            return ''
+        elif math.isinf(length):
+            return item[max(start, 0):]
+        else:
+            stop = start + int(round(length))
+            return '' if item is None else item[slice(max(start, 0), max(stop, 0))]
 
 
 @method(function('substring-before', nargs=2))
@@ -1103,26 +1122,39 @@ def evaluate(self, context=None):
 @method(function('ceiling', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
+        return item
+
     try:
         return math.ceil(item)
     except TypeError as err:
-        if item is not None and not isinstance(item, list):
-            self.wrong_type(str(err))
+        self.wrong_type(str(err))
 
 
 @method(function('floor', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
+        return item
+
     try:
         return math.floor(item)
     except TypeError as err:
-        if item is not None and not isinstance(item, list):
-            self.wrong_type(str(err))
+        self.wrong_type(str(err))
 
 
 @method(function('round', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context)
+    if item is None:
+        return []
+    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
+        return item
+
     try:
         number = decimal.Decimal(item)
         if number > 0:
@@ -1132,11 +1164,9 @@ def evaluate(self, context=None):
         else:
             return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
-        if item is not None and not isinstance(item, list):
-            self.wrong_type(str(err))
+        self.wrong_type(str(err))
     except decimal.DecimalException as err:
-        if item is not None and not isinstance(item, list):
-            self.wrong_value(str(err))
+        self.wrong_value(str(err))
 
 
 register('(end)')
