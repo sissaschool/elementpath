@@ -15,6 +15,7 @@ import decimal
 from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
+from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
@@ -1115,54 +1116,56 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [number_value(v) for v in self[0].select(context)]
-    if any(math.isnan(x) for x in values):
-        return float('nan')
-    elif values or len(self) == 1:
-        return sum(values)
-    else:
-        zero = self.get_argument(context, index=1)
+    values = [number_value(x) if isinstance(x, UntypedAtomic) else x for x in self[0].select(context)]
+    if not values:
+        zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero
+    elif any(isinstance(x, float) and math.isnan(x) for x in values):
+        return float('nan')
+
+    if any(isinstance(x, DayTimeDuration) for x in values) or \
+            all(isinstance(x, YearMonthDuration) for x in values):
+        return sum(values)
+
+    try:
+        return sum(number_value(x) for x in values)
+    except TypeError:
+        if self.parser.version == '1.0':
+            return float('nan')
+        raise self.error('FORG0006')
 
 
 @method(function('ceiling', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context)
-    if item is None:
-        return []
-    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
-        return item
-
-    try:
-        return math.ceil(item)
-    except TypeError as err:
-        self.wrong_type(str(err))
-
-
 @method(function('floor', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    if item is None:
-        return []
-    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
-        return item
+    arg = self.get_argument(context)
+    if arg is None:
+        return float('nan') if self.parser.version == '1.0' else []
+    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+        arg = number_value(arg)
+
+    if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):
+        return arg
 
     try:
-        return math.floor(item)
+        return math.floor(arg) if self.symbol == 'floor' else math.ceil(arg)
     except TypeError as err:
         self.wrong_type(str(err))
 
 
 @method(function('round', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
-    if item is None:
-        return []
-    elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
-        return item
+    arg = self.get_argument(context)
+    if arg is None:
+        return float('nan') if self.parser.version == '1.0' else []
+    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+        arg = number_value(arg)
+
+    if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):
+        return arg
 
     try:
-        number = decimal.Decimal(item)
+        number = decimal.Decimal(arg)
         if number > 0:
             return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
         elif PY3:
