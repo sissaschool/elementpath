@@ -1001,9 +1001,13 @@ def evaluate(self, context=None):
         return arg.translate(maketrans(map_string, trans_string))
     elif len(map_string) > len(trans_string):
         k = len(trans_string)
-        return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
+        if PY3:
+            return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
+        for c in map_string[k:]:
+            arg = arg.replace(c, '')
+        return arg.translate(maketrans(map_string[:k], trans_string))
     else:
-        self.wrong_value("the second and the third arguments must have equal length")
+        self.wrong_value("the third argument must have a length less or equal than the second")
 
 
 @method(function('substring', nargs=(2, 3)))
