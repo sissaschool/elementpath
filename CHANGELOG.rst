@@ -2,10 +2,11 @@
 CHANGELOG
 *********
 
-`v1.1.3`_ (TDB)
-===============
+`v1.1.3`_ (2019-02-06)
+======================
 * Fix for issue #1
 * Added fn:static-base-uri() and fn:resolve-uri()
+* Fixes to XPath 1.0 functions for compatibility mode
 
 `v1.1.2`_ (2019-01-30)
 ======================

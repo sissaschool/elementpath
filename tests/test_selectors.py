@@ -10,7 +10,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import lxml.etree
 import xml.etree.ElementTree as ElementTree
 
 from elementpath import *
