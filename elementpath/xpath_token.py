@@ -108,16 +108,17 @@ class XPathToken(Token):
     # Context manipulation helpers
     def get_argument(self, context, index=0, required=False, default_to_context=False, default=None, cls=None):
         """
-        Get the argument value of a function token. A zero length sequence is converted to
-        a `None` value. If the function has no argument returns the context's item if the
-        dynamic context is not `None`.
+        Get the argument value of a function of constructor token. A zero length sequence is
+        converted to a `None` value. If the function has no argument returns the context's
+        item if the dynamic context is not `None`.
 
         :param context: the dynamic context.
         :param index: an index for select the argument to be got, the first for default.
         :param required: if set to `True` missing or empty sequence arguments are not allowed.
-        :param default_to_context: if set to `True` and the argument is missing the item \
-        of the dynamic context is returned.
-        :param default: the default value returned in case of an empty sequence.
+        :param default_to_context: if set to `True` then the item of the dynamic context is \
+        returned when the argument is missing.
+        :param default: the default value returned in case the argument is an empty sequence. \
+        If not provided returns `None`.
         :param cls: if a type is provided performs a type checking on item.
         """
         try:
@@ -165,7 +166,10 @@ class XPathToken(Token):
                         return str(value) if issubclass(cls, string_base_type) else cls(value)
                     except (TypeError, ValueError):
                         pass
-            raise self.error('XPTY0004', "the %s argument %r is not a %r instance" % (ordinal(index + 1), item, cls))
+
+            code = 'XPTY0004' if self.label == 'function' else 'FORG0006'
+            raise self.error(code, "the %s argument %r is not a %r instance" % (ordinal(index + 1), item, cls))
+
         return item
 
     def get_comparison_data(self, context):

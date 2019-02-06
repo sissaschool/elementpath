@@ -40,12 +40,7 @@ except ImportError:
     # Python2 fallback
     import test_xpath1_parser
 
-
-XML_GENERIC_TEST = """<root>
-    <a id="a_id">
-        <b>some content</b>
-        <c> space     space    \t .</c></a>
-</root>"""
+XML_GENERIC_TEST = test_xpath1_parser.XML_GENERIC_TEST
 
 XML_POEM_TEST = """<poem author="Wilhelm Busch">
 Kaum hat dies der Hahn gesehen,
@@ -415,9 +410,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('escape-html-uri("")', '')
         self.check_value('escape-html-uri(())', '')
 
-    def test_string_length_function(self):
-        self.check_value("string-length(())", 0)
-
     def test_string_join_function(self):
         self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')", "Now is the time ...")
         self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
@@ -452,18 +444,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("//b[matches(., '^some.content$')]", root, [root[0][0]])
         self.check_selector("//b[matches(., '^content')]", root, [])
         self.check_selector("//none[matches(., '.*')]", root, [])
-
-    def test_starts_with_function(self):
-        self.check_value('fn:starts-with("abracadabra", "abra")', True)
-        self.check_value('fn:starts-with("abracadabra", "a")', True)
-        self.check_value('fn:starts-with("abracadabra", "bra")', False)
-
-        root = self.etree.XML(XML_GENERIC_TEST)
-        self.check_selector("a[starts-with(@id, 'a_id')]", root, [root[0]])
-        self.check_selector("a[starts-with(@id, 'a')]", root, [root[0]])
-        self.check_selector("a[starts-with(@id, 'a!')]", root, [])
-        self.check_selector("//b[starts-with(., 'some')]", root, [root[0][0]])
-        self.check_selector("//b[starts-with(., 'a')]", root, [])
 
     def test_ends_with_function(self):
         self.check_value('fn:ends-with("abracadabra", "bra")', True)

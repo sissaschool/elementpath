@@ -81,7 +81,7 @@ class XPath2Parser(XPath1Parser):
         # String functions
         'codepoints-to-string', 'string-to-codepoints', 'compare', 'codepoint-equal',
         'string-join', 'normalize-unicode', 'upper-case', 'lower-case', 'encode-for-uri',
-        'iri-to-uri', 'escape-html-uri', 'starts-with', 'ends-with',
+        'iri-to-uri', 'escape-html-uri', 'ends-with',
 
         # General functions for sequences
         'distinct-values', 'empty', 'exists', 'index-of', 'insert-before', 'remove',
