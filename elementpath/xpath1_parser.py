@@ -142,7 +142,10 @@ class XPath1Parser(Parser):
                         break
                     self.parser.advance(',')
                 self.parser.advance(')')
-                self.value = self.evaluate()
+                try:
+                    self.value = self.evaluate()
+                except ElementPathMissingContextError:
+                    self.value = None
                 return self
             elif nargs == 0:
                 self.parser.advance(')')
@@ -403,7 +406,9 @@ def select(self, context=None):
         if context is not None:
             context.item = item
         yield item
-    elif context is not None:
+    elif context is None:
+        raise ElementPathMissingContextError("Context required to evaluate `*`")
+    else:
         # Wildcard literal
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
@@ -416,7 +421,7 @@ def select(self, context=None):
 @method(nullary('.'))
 def select(self, context=None):
     if context is None:
-        return
+        raise ElementPathMissingContextError("Context required to evaluate `.`")
     elif context.item is not None:
         yield context.item
     elif is_document_node(context.root):
@@ -425,7 +430,10 @@ def select(self, context=None):
 
 @method(nullary('..'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise ElementPathMissingContextError("Context required to evaluate `..`")
+
+    else:
         try:
             parent = context.parent_map[context.item]
         except KeyError:
@@ -762,7 +770,10 @@ def nud(self):
 @method('@')
 @method(axis('attribute'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise ElementPathMissingContextError("Context required to evaluate `@`")
+
+    else:
         for _ in context.iter_attributes():
             for result in self[0].select(context):
                 yield result
@@ -957,7 +968,7 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=1))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default_to_context=True)
+    arg1 = self.get_argument(context, default_to_context=True, cls=string_base_type)
     if arg1 is None:
         return 0
     try:
@@ -968,7 +979,7 @@ def evaluate(self, context=None):
 
 @method(function('normalize-space', nargs=1))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default_to_context=True)
+    arg1 = self.get_argument(context, default_to_context=True, cls=string_base_type)
     if arg1 is None:
         return ''
     try:
@@ -979,8 +990,8 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='')
-    arg2 = self.get_argument(context, index=1, default='')
+    arg1 = self.get_argument(context, default='', cls=string_base_type)
+    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
     try:
         return arg1.startswith(arg2)
     except (AttributeError, TypeError):
@@ -1014,7 +1025,7 @@ def evaluate(self, context=None):
     except TypeError:
         self.wrong_type("the second argument must be xs:numeric")
     else:
-        start = int(round(start))- 1
+        start = int(round(start)) - 1
 
     if len(self) == 2:
         return '' if item is None else item[max(start, 0):]
@@ -1038,8 +1049,8 @@ def evaluate(self, context=None):
 @method(function('substring-before', nargs=2))
 @method(function('substring-after', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='')
-    arg2 = self.get_argument(context, index=1, default='')
+    arg1 = self.get_argument(context, default='', cls=string_base_type)
+    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
     if arg1 is None:
         return ''
 

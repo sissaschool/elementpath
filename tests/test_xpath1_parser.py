@@ -410,22 +410,40 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_value("string(())", '')
 
     def test_string_length_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("string-length('hello world')", 11)
         self.check_value("string-length('')", 0)
+        self.check_selector("a[string-length(@id) = 4]", root, [root[0]])
+        self.check_selector("a[string-length(@id) = 3]", root, [])
+        self.check_selector("//b[string-length(.) = 12]", root, [root[0][0]])
+        self.check_selector("//b[string-length(.) = 10]", root, [])
+        self.check_selector("//none[string-length(.) = 10]", root, [])
         self.check_value('fn:string-length("Harp not on that string, madam; that is past.")', 45)
         if self.parser.version > '1.0':
             self.check_value("string-length(())", 0)
 
     def test_normalize_space_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("normalize-space('  hello  \t  world ')", 'hello world')
+        self.check_selector("//c[normalize-space(.) = 'space space .']", root, [root[0][1]])
         self.check_value('fn:normalize-space(" The  wealthy curled darlings of   our  nation. ")',
                          'The wealthy curled darlings of our nation.')
         if self.parser.version > '1.0':
             self.check_value('fn:normalize-space(())', '')
 
     def test_translate_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("translate('hello world', 'hw', 'HW')", 'Hello World')
         self.wrong_value("translate('hello world', 'hwx', 'HW')")
+        self.check_selector("a[translate(@id, 'id', 'no') = 'a_no']", root, [root[0]])
+        self.check_selector("a[translate(@id, 'id', 'na') = 'a_no']", root, [])
+        self.check_selector("//b[translate(., 'some', 'one2') = 'one2 cnnt2nt']", root, [root[0][0]])
+        self.check_selector("//b[translate(., 'some', 'two2') = 'one2 cnnt2nt']", root, [])
+        self.check_selector("//none[translate(., 'some', 'two2') = 'one2 cnnt2nt']", root, [])
+
         if self.parser.version > '1.0':
             self.check_value("translate((), 'hw', 'HW')", '')
 
@@ -439,12 +457,20 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('string($ups1/power)', root, '40kW', variables=variables)
 
     def test_substring_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("substring('Preem Palver', 1)", 'Preem Palver')
         self.check_value("substring('Preem Palver', 2)", 'reem Palver')
         self.check_value("substring('Preem Palver', 7)", 'Palver')
         self.check_value("substring('Preem Palver', 1, 5)", 'Preem')
         self.wrong_type("substring('Preem Palver', 'c', 5)")
         self.wrong_type("substring('Preem Palver', 1, '5')")
+        self.check_selector("a[substring(@id, 1) = 'a_id']", root, [root[0]])
+        self.check_selector("a[substring(@id, 2) = '_id']", root, [root[0]])
+        self.check_selector("a[substring(@id, 3) = '_id']", root, [])
+        self.check_selector("//b[substring(., 1, 5) = 'some ']", root, [root[0][0]])
+        self.check_selector("//b[substring(., 1, 6) = 'some ']", root, [])
+        self.check_selector("//none[substring(., 1, 6) = 'some ']", root, [])
         self.check_value("substring('12345', 1.5, 2.6)", '234')
         self.check_value("substring('12345', 0, 3)", '12')
         if self.parser.version == '1.0':
@@ -466,9 +492,17 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_value('fn:substring("12345", -1 div 0E0, 1 div 0E0)', '')
 
     def test_starts_with_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("starts-with('Hello World', 'Hello')", True)
         self.check_value("starts-with('Hello World', 'hello')", False)
+        self.check_selector("a[starts-with(@id, 'a_i')]", root, [root[0]])
+        self.check_selector("a[starts-with(@id, 'a_b')]", root, [])
+        self.check_selector("//b[starts-with(., 'some')]", root, [root[0][0]])
+        self.check_selector("//b[starts-with(., 'none')]", root, [])
+        self.check_selector("//none[starts-with(., 'none')]", root, [])
         self.check_value("starts-with('', '')", True)
+
         if self.parser.version == '1.0':
             self.wrong_syntax("starts-with((), ())")
         else:
@@ -477,19 +511,41 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_value('fn:starts-with ((), ())', True)
 
     def test_concat_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("concat('alpha', 'beta', 'gamma')", 'alphabetagamma')
         self.check_value("concat('', '', '')", '')
         self.check_value("concat('alpha', 10, 'gamma')", 'alpha10gamma')
         #self.wrong_type("concat('alpha', 10, 'gamma')")
+
+        self.check_value("concat('alpha', 'beta', 'gamma')", 'alphabetagamma')
+        self.check_value("concat('alpha', 10, 'gamma')", 'alpha10gamma')
+        self.check_value("concat('alpha', 'gamma')", 'alphagamma')
+        self.check_selector("a[concat(@id, '_foo') = 'a_id_foo']", root, [root[0]])
+        self.check_selector("a[concat(@id, '_fo') = 'a_id_foo']", root, [])
+        self.check_selector("//b[concat(., '_foo') = 'some content_foo']", root, [root[0][0]])
+        self.check_selector("//b[concat(., '_fo') = 'some content_foo']", root, [])
+        self.check_selector("//none[concat(., '_fo') = 'some content_foo']", root, [])
+        self.wrong_syntax("concat()")
+
         self.wrong_syntax("concat()")
         if self.parser.version == '1.0':
             self.wrong_syntax("concat((), (), ())")
 
     def test_contains_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("contains('XPath','XP')", True)
         self.check_value("contains('XP','XPath')", False)
         self.wrong_syntax("contains('XPath', 'XP', 20)")
         self.check_value("contains('', '')", True)
+
+        self.check_selector("a[contains(@id, '_i')]", root, [root[0]])
+        self.check_selector("a[contains(@id, '_b')]", root, [])
+        self.check_selector("//b[contains(., 'c')]", root, [root[0][0]])
+        self.check_selector("//b[contains(., ' -con')]", root, [])
+        self.check_selector("//none[contains(., ' -con')]", root, [])
+
         if self.parser.version == '1.0':
             self.wrong_syntax("contains((), ())")
             self.check_value("contains('XPath', 20)", False)
@@ -500,18 +556,31 @@ class XPath1ParserTest(unittest.TestCase):
             self.wrong_type("contains('XPath', 20)")
 
     def test_substring_before_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Wolfgang')", '')
         self.check_value("substring-before('Wolfgang Amadeus Mozart', 'Amadeus')", 'Wolfgang ')
         self.check_value('substring-before("1999/04/01","/")', '1999')
-        self.wrong_type("substring-before('2017-10-27', 10)")
+
+        self.check_selector("a[substring-before(@id, 'a') = '']", root, [root[0]])
+        self.check_selector("a[substring-before(@id, 'id') = 'a_']", root, [root[0]])
+        self.check_selector("a[substring-before(@id, 'id') = '']", root, [])
+        self.check_selector("//b[substring-before(., ' ') = 'some']", root, [root[0][0]])
+        self.check_selector("//b[substring-before(., 'con') = 'some']", root, [])
+        self.check_selector("//none[substring-before(., 'con') = 'some']", root, [])
+
         if self.parser.version == '1.0':
+            self.check_value("substring-before('2017-10-27', 10)", '2017-')
             self.wrong_syntax("fn:substring-before((), ())")
         else:
             self.check_value('fn:substring-before ( "tattoo", "attoo")', 't')
             self.check_value('fn:substring-before ( "tattoo", "tatto")', '')
             self.check_value('fn:substring-before ((), ())', '')
+            self.wrong_type("substring-before('2017-10-27', 10)")
 
     def test_substring_after_function(self):
+        root = self.etree.XML(u'<root><a id="a_id"><b>some content</b><c> space     space    \t .</c></a></root>')
+
         self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Amadeus ')", 'Mozart')
         self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Mozart')", '')
         self.check_value("substring-after('', '')", '')
@@ -524,6 +593,15 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_value('fn:substring-after("tattoo", "tat")', 'too')
             self.check_value('fn:substring-after("tattoo", "tattoo")', '')
             self.check_value("fn:substring-after((), ())", '')
+
+        self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Amadeus ')", 'Mozart')
+        self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Mozart')", '')
+        self.check_selector("a[substring-after(@id, 'a') = '_id']", root, [root[0]])
+        self.check_selector("a[substring-after(@id, 'id') = '']", root, [root[0]])
+        self.check_selector("a[substring-after(@id, 'i') = '']", root, [])
+        self.check_selector("//b[substring-after(., ' ') = 'content']", root, [root[0][0]])
+        self.check_selector("//b[substring-after(., 'con') = 'content']", root, [])
+        self.check_selector("//none[substring-after(., 'con') = 'content']", root, [])
 
     def test_boolean_functions(self):
         self.check_value("true()", True)
