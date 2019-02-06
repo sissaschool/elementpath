@@ -809,17 +809,43 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_selector("sum(/values/*)", root, float('nan'))
 
     def test_ceiling_function(self):
+        root = self.etree.XML(XML_DATA_TEST)
         self.check_value("ceiling(10.5)", 11)
         self.check_value("ceiling(-10.5)", -10)
+        self.check_selector("//a[ceiling(.) = 10]", root, [])
+        self.check_selector("//a[ceiling(.) = -10]", root, [root[2]])
+        if not isinstance(self.parser, XPath2Parser):
+            self.wrong_syntax("ceiling(())")
+        else:
+            self.check_value("ceiling(())", [])
+            self.check_value("ceiling((10.5))", 11)
+            self.wrong_type("ceiling((10.5, 17.3))")
 
     def test_floor_function(self):
+        root = self.etree.XML(XML_DATA_TEST)
         self.check_value("floor(10.5)", 10)
         self.check_value("floor(-10.5)", -11)
+        self.check_selector("//a[floor(.) = 10]", root, [])
+        self.check_selector("//a[floor(.) = 20]", root, [root[1]])
+
+        if not isinstance(self.parser, XPath2Parser):
+            self.wrong_syntax("floor(())")
+            self.check_selector("//ab[floor(.) = 10]", root, [])
+        else:
+            self.check_value("floor(())", [])
+            self.check_value("floor((10.5))", 10)
+            self.wrong_type("floor((10.5, 17.3))")
 
     def test_round_function(self):
         self.check_value("round(2.5)", 3)
         self.check_value("round(2.4999)", 2)
         self.check_value("round(-2.5)", -2)
+        if not isinstance(self.parser, XPath2Parser):
+            self.wrong_syntax("round(())")
+        else:
+            self.check_value("round(())", [])
+            self.check_value("round((10.5))", 11)
+            self.wrong_type("round((2.5, 12.2))")
 
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
