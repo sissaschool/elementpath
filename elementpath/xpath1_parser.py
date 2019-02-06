@@ -960,65 +960,55 @@ def evaluate(self, context=None):
 
 @method(function('concat'))
 def evaluate(self, context=None):
-    try:
-        return ''.join(string_value(self.get_argument(context, index=k)) for k in range(len(self)))
-    except TypeError:
-        self.wrong_type("the arguments must be strings")
+    return ''.join(string_value(self.get_argument(context, index=k)) for k in range(len(self)))
 
 
 @method(function('string-length', nargs=1))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default_to_context=True, cls=string_base_type)
-    if arg1 is None:
-        return 0
-    try:
-        return len(arg1)
-    except TypeError:
-        self.wrong_type("the argument must be a string")
+    return len(self.get_argument(context, default_to_context=True, default='', cls=string_base_type))
 
 
 @method(function('normalize-space', nargs=1))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default_to_context=True, cls=string_base_type)
-    if arg1 is None:
-        return ''
-    try:
-        return ' '.join(arg1.strip().split())
-    except TypeError:
-        self.wrong_type("the argument must be a string")
+    arg = self.get_argument(context, default_to_context=True, cls=string_base_type)
+    return '' if arg is None else ' '.join(arg.strip().split())
 
 
 @method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=string_base_type)
     arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
-    try:
-        return arg1.startswith(arg2)
-    except (AttributeError, TypeError):
-        self.wrong_type("the arguments must be a string")
+    return arg1.startswith(arg2)
 
 
 @method(function('translate', nargs=3))
 def evaluate(self, context=None):
     arg = self.get_argument(context, default='', cls=string_base_type)
-    try:
-        maketrans = str.maketrans
-    except AttributeError:
+    map_string = self.get_argument(context, index=1, default='', cls=string_base_type)
+    trans_string = self.get_argument(context, index=2, default='', cls=string_base_type)
+
+    if not PY3:
         import string
         maketrans = getattr(string, 'maketrans')
-    try:
-        translation_map = maketrans(self[1].value, self[2].value)
-        return arg.translate(translation_map)
-    except ValueError:
+        arg = arg.encode('utf-8')
+        map_string = map_string.encode('utf-8')
+        trans_string = trans_string.encode('utf-8')
+    else:
+        maketrans = str.maketrans
+
+    if len(map_string) == len(trans_string):
+        return arg.translate(maketrans(map_string, trans_string))
+    elif len(map_string) > len(trans_string):
+        k = len(trans_string)
+        return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
+    else:
         self.wrong_value("the second and the third arguments must have equal length")
-    except TypeError:
-        self.wrong_type("the arguments must be strings")
 
 
 @method(function('substring', nargs=(2, 3)))
 def evaluate(self, context=None):
     item = self.get_argument(context, default='', cls=string_base_type)
-    start = self[1].evaluate(context)
+    start = self.get_argument(context, index=1)
     try:
         if math.isnan(start) or math.isinf(start):
             return ''
@@ -1030,7 +1020,7 @@ def evaluate(self, context=None):
     if len(self) == 2:
         return '' if item is None else item[max(start, 0):]
     else:
-        length = self[2].evaluate(context)
+        length = self.get_argument(context, index=2)
         try:
             if math.isnan(length) or length <= 0:
                 return ''
