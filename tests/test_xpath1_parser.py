@@ -40,6 +40,15 @@ XML_GENERIC_TEST = """<root>
         <c> space     space    \t .</c></a>
 </root>"""
 
+XML_DATA_TEST = """<values>
+   <a>3.4</a>
+   <a>20</a>
+   <a>-10.1</a>
+   <b>alpha</b>
+   <c>true</c>
+</values>
+"""
+
 
 class XPath1ParserTest(unittest.TestCase):
     namespaces = {
@@ -124,6 +133,8 @@ class XPath1ParserTest(unittest.TestCase):
         root_token = self.parser.parse(path)
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.evaluate, context)
+        elif isinstance(expected, float) and math.isnan(expected):
+            self.assertTrue(math.isnan(root_token.evaluate(context)))
         elif not callable(expected):
             self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
@@ -158,7 +169,7 @@ class XPath1ParserTest(unittest.TestCase):
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """
-        Checks the selector API, namely the *select* function at package level.
+        Checks using the selector API, namely the *select* function at package level.
 
         :param path: an XPath expression.
         :param root: an Element or an ElementTree instance.
@@ -174,6 +185,8 @@ class XPath1ParserTest(unittest.TestCase):
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             if isinstance(expected, set):
                 self.assertEqual(set(results), expected)
+            elif isinstance(expected, float) and math.isnan(expected):
+                self.assertTrue(math.isnan(results))
             elif not callable(expected):
                 self.assertEqual(results, expected)
             elif isinstance(expected, type):
@@ -762,20 +775,48 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
 
-    def test_number_functions(self):
-        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+    def test_number_function(self):
+        root = self.etree.XML('<root>15</root>')
 
+        self.check_value("number()", 15, context=XPathContext(root))
+        self.check_value("number()", 15, context=XPathContext(root, item=root.text))
+        self.check_value("number(.)", 15, context=XPathContext(root))
         self.check_value("number(5.0)", 5.0)
         self.check_value("number('text')", math.isnan)
         self.check_value("number('-11')", -11)
         self.check_selector("number(9)", root, 9.0)
-        self.check_value("sum($values)", 35)
 
-        # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
+        if not isinstance(self.parser, XPath2Parser):
+            self.wrong_syntax("number(())")
+        else:
+            self.check_value("number(())", float('nan'), context=XPathContext(root))
+
+            root = self.etree.XML(XML_DATA_TEST)
+            self.check_selector("/values/a/number()", root, [3.4, 20.0, -10.1])
+            results = select(root, "/values/*/number()", parser=self.parser.__class__)
+            self.assertEqual(results[:3], [3.4, 20.0, -10.1])
+            self.assertTrue(math.isnan(results[3]) and math.isnan(results[4]))
+
+    def test_sum_function(self):
+        root = self.etree.XML(XML_DATA_TEST)
+        self.check_value("sum($values)", 35)
+        if not isinstance(self.parser, XPath2Parser):
+            self.wrong_syntax("sum(())")
+        else:
+            self.check_value("sum(())", 0)
+            self.check_value("sum((), ())", [])
+            self.check_selector("sum(/values/a)", root, 13.299999999999999)
+            self.check_selector("sum(/values/*)", root, float('nan'))
+
+    def test_ceiling_function(self):
         self.check_value("ceiling(10.5)", 11)
         self.check_value("ceiling(-10.5)", -10)
+
+    def test_floor_function(self):
         self.check_value("floor(10.5)", 10)
         self.check_value("floor(-10.5)", -11)
+
+    def test_round_function(self):
         self.check_value("round(2.5)", 3)
         self.check_value("round(2.4999)", 2)
         self.check_value("round(-2.5)", -2)

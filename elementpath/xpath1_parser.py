@@ -21,7 +21,7 @@ from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES
 from .xpath_token import XPathToken
 from .xpath_helpers import NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
     is_document_node, is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, \
-    node_name, node_string_value, boolean_value, data_value, string_value
+    node_name, node_string_value, boolean_value, data_value, string_value, number_value
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
@@ -970,8 +970,8 @@ def evaluate(self, context=None):
 
 @method(function('normalize-space', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, default_to_context=True, cls=string_base_type)
-    return '' if arg is None else ' '.join(arg.strip().split())
+    arg = self.get_argument(context, default_to_context=True, default='', cls=string_base_type)
+    return ' '.join(arg.strip().split())
 
 
 @method(function('starts-with', nargs=2))
@@ -1106,19 +1106,23 @@ def evaluate(self, context=None):
 # Number functions
 @method(function('number', nargs=(0, 1)))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
+    arg = self.get_argument(context, default_to_context=True)
     try:
-        return float(node_string_value(item) if is_xpath_node(item) else item)
+        return float(node_string_value(arg) if is_xpath_node(arg) else arg)
     except (TypeError, ValueError):
         return float('nan')
 
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    try:
-        return sum(self[0].select(context))
-    except TypeError:
-        return self[1].evaluate(context) if len(self) > 1 else 0
+    values = [number_value(v) for v in self[0].select(context)]
+    if any(math.isnan(x) for x in values):
+        return float('nan')
+    elif values or len(self) == 1:
+        return sum(values)
+    else:
+        zero = self.get_argument(context, index=1)
+        return [] if zero is None else zero
 
 
 @method(function('ceiling', nargs=1))
