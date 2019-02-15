@@ -16,6 +16,7 @@ from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration
+from .schema_proxy import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
@@ -134,6 +135,7 @@ class XPath1Parser(Parser):
     def function(cls, symbol, nargs=None, bp=90):
         """Registers a token class for a symbol that represents an XPath *function*."""
         def nud_(self):
+            self.value = None
             self.parser.advance('(')
             if nargs is None:
                 del self[:]
@@ -143,14 +145,9 @@ class XPath1Parser(Parser):
                         break
                     self.parser.advance(',')
                 self.parser.advance(')')
-                try:
-                    self.value = self.evaluate()
-                except ElementPathMissingContextError:
-                    self.value = None
                 return self
             elif nargs == 0:
                 self.parser.advance(')')
-                self.value = self.evaluate()
                 return self
             elif isinstance(nargs, (tuple, list)):
                 min_args, max_args = nargs
@@ -173,12 +170,6 @@ class XPath1Parser(Parser):
                     break
                 k += 1
             self.parser.advance(')')
-
-            try:
-                self.value = self.evaluate()  # Static context evaluation
-            except ElementPathMissingContextError:
-                self.value = None
-
             return self
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
@@ -401,6 +392,8 @@ def evaluate(self, context=None):
         return None
     elif varname in context.variables:
         return context.variables[varname]
+    elif isinstance(context, XPathSchemaContext):
+        return None
     else:
         raise ElementPathNameError('unknown variable', token=self)
 

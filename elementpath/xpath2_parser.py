@@ -23,7 +23,8 @@ from .datatypes import XSD_BUILTINS_VALIDATORS
 from .xpath_helpers import is_xpath_node, boolean_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
-from .schema_proxy import AbstractSchemaProxy
+from .schema_proxy import XPathSchemaContext, AbstractSchemaProxy
+
 
 class XPath2Parser(XPath1Parser):
     """
@@ -232,11 +233,7 @@ class XPath2Parser(XPath1Parser):
             self.parser.advance('(')
             self[0:] = self.parser.expression(5),
             self.parser.advance(')')
-
-            try:
-                self.value = self.evaluate()  # Static context evaluation
-            except ElementPathMissingContextError:
-                self.value = None
+            self.value = None
             return self
 
         def evaluate_(self, context=None):
@@ -327,6 +324,14 @@ class XPath2Parser(XPath1Parser):
         local_name = type_qname.split('}')[1]
         return XSD_BUILTINS_VALIDATORS[local_name](obj)
 
+    def parse(self, source):
+        root_token = super(XPath1Parser, self).parse(source)
+        context = None if self.schema is None else self.schema.get_context()
+        try:
+            root_token.evaluate(context)  # Static context evaluation
+        except ElementPathMissingContextError:
+            pass
+        return root_token
 
 
 ##
@@ -550,7 +555,7 @@ def evaluate(self, context=None):
     elif self[1].label == 'function':
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
-                if context is not None:
+                if context is not None and not isinstance(context, XPathSchemaContext):
                     self.wrong_sequence_type()
             elif position and (occurs is None or occurs == '?'):
                 self.wrong_sequence_type("more than one item in sequence")

@@ -427,11 +427,7 @@ def nud(self):
     self.parser.advance('(')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
-
-    try:
-        self.value = self.evaluate()  # Static context evaluation
-    except ElementPathMissingContextError:
-        self.value = None
+    self.value = None
     return self
 
 
@@ -461,13 +457,8 @@ register('string', lbp=90, rbp=90, label=('function', 'constructor'),
 def nud(self):
     self.parser.advance('(')
     self[0:] = self.parser.expression(5),
-
     self.parser.advance(')')
-
-    try:
-        self.value = self.evaluate()  # Static context evaluation
-    except ElementPathMissingContextError:
-        self.value = None
+    self.value = None
     return self
 
 
@@ -521,11 +512,7 @@ def nud(self):
     else:
         self.label = 'constructor'
     self.parser.advance(')')
-
-    try:
-        self.value = self.evaluate()  # Static context evaluation
-    except ElementPathMissingContextError:
-        self.value = None
+    self.value = None
     return self
 
 

@@ -11,6 +11,13 @@
 from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass, string_base_type
 from .namespaces import XSD_NAMESPACE
+from .xpath_context import XPathContext
+
+
+class XPathSchemaContext(XPathContext):
+    """
+    A context class used during static analysis phase for type checking.
+    """
 
 
 @add_metaclass(ABCMeta)
@@ -18,6 +25,14 @@ class AbstractSchemaProxy(object):
 
     def __init__(self, schema):
         self._schema = schema
+
+    def get_context(self):
+        """
+        Get a static context instance for static analysis phase. The provided context must
+        be an instance of `XPathSchemaContext` or of an its subclass.
+
+        :returns: An `XPathSchemaContext` instance or `None`.
+        """
 
     @abstractmethod
     def get_type(self, type_qname):
@@ -81,6 +96,9 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             schema = XMLSchema.meta_schema
         super(XMLSchemaProxy, self).__init__(schema)
 
+    def get_context(self):
+        return XPathSchemaContext(root=self._schema)
+
     def get_type(self, type_qname):
         try:
             return self._schema.maps.types[type_qname]
@@ -117,3 +135,4 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         for xsd_type in self._schema.maps.types.values():
             if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
                 yield xsd_type
+

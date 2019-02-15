@@ -66,7 +66,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_token_source2(self):
         self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
-        self.check_source("$elements treat as element(*, USAddress)", "$elements treat as element(*, USAddress)")
+        self.check_source("$myaddress treat as element(*, USAddress)", "$myaddress treat as element(*, USAddress)")
 
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
