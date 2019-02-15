@@ -60,7 +60,7 @@ class XPath1ParserTest(unittest.TestCase):
     }
     variables = {
         'values': [10, 20, 5],
-        'elements':[ElementTree.Element('a'), ElementTree.Element('b'), ElementTree.Element('c')]
+        'myaddress': 'admin@example.com',
     }
     etree = ElementTree
 
