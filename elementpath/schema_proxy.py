@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from .compat import add_metaclass
+from .compat import add_metaclass, string_base_type
 from .namespaces import XSD_NAMESPACE
 
 

@@ -190,6 +190,14 @@ class XPath1Parser(Parser):
             '@', '..', '.', '(', '/', '{'
         }
 
+    def parse(self, source):
+        root_token = super(XPath1Parser, self).parse(source)
+        try:
+            root_token.evaluate()  # Static context evaluation
+        except ElementPathMissingContextError:
+            pass
+        return root_token
+
 
 ##
 # XPath1 definitions
@@ -295,9 +303,9 @@ def evaluate(self, context=None):
         raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
 
     if namespace == XPATH_FUNCTIONS_NAMESPACE and self[1].label != 'function':
-        self[1].wrong_value("must be a function")
-    elif namespace == XSD_NAMESPACE and self[1].label != 'constructor':
-        self[1].wrong_value("must be a constructor function")
+        self[1].wrong_value("Must be a function")
+    elif namespace == XSD_NAMESPACE and self[1].symbol not in ('(name)', '*') and self[1].label != 'constructor':
+        self[1].wrong_value("An XSD element or a constructor function is expected.")
     return self[1].evaluate(context)
 
 

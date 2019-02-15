@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.1.4`_ (TBD)
+===============
+* Doing an effective Static Analysis Phase on XPath 2.0 parser
+
 `v1.1.3`_ (2019-02-06)
 ======================
 * Fix for issue #1
@@ -96,3 +100,4 @@ handling of static context evaluation
 .. _v1.1.1: https://github.com/brunato/elementpath/compare/v1.1.0...v1.1.1
 .. _v1.1.2: https://github.com/brunato/elementpath/compare/v1.1.1...v1.1.2
 .. _v1.1.3: https://github.com/brunato/elementpath/compare/v1.1.2...v1.1.3
+.. _v1.1.4: https://github.com/brunato/elementpath/compare/v1.1.3...v1.1.4
