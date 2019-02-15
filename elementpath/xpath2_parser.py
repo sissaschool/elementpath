@@ -15,15 +15,15 @@ from __future__ import division
 from itertools import product
 from abc import ABCMeta
 
-from .compat import PY3, MutableSequence, urlparse
+from .compat import MutableSequence, urlparse
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
+from .datatypes import XSD_BUILTINS_VALIDATORS
 from .xpath_helpers import is_xpath_node, boolean_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import AbstractSchemaProxy
-
 
 class XPath2Parser(XPath1Parser):
     """
@@ -89,6 +89,9 @@ class XPath2Parser(XPath1Parser):
 
         # Cardinality functions for sequences
         'zero-or-one', 'one-or-more', 'exactly-one',
+
+        # Comparing function for sequences
+        # TODO 'deep-equal',
 
         # Pattern matching functions
         'matches', 'replace', 'tokenize',
@@ -317,6 +320,14 @@ class XPath2Parser(XPath1Parser):
             'text', 'comment', 'processing-instruction', 'schema-attribute', 'schema-element'
         }
 
+    def is_instance(self, obj, type_qname):
+        if get_namespace(type_qname) != XSD_NAMESPACE:
+            xsd_type = self._schema.maps.types[type_qname]
+            return xsd_type.is_valid(obj)
+        local_name = type_qname.split('}')[1]
+        return XSD_BUILTINS_VALIDATORS[local_name](obj)
+
+
 
 ##
 # XPath 2.0 definitions
@@ -499,8 +510,6 @@ def led(self, left):
 
 @method('instance')
 def evaluate(self, context=None):
-    if self.parser.schema is None:
-        self.missing_schema()
     occurs = self[2].symbol if len(self) > 2 else None
     position = None
     if self[1].symbol == 'empty-sequence':
@@ -519,10 +528,10 @@ def evaluate(self, context=None):
         qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
         for position, item in enumerate(self[0].select(context)):
             try:
-                if not self.parser.schema.is_instance(item, qname):
+                if not self.parser.is_instance(item, qname):
                     return False
             except KeyError:
-                self.missing_name("type %r not found in schema" % self[1].source)
+                self.missing_schema("atomic type %r not found in in-scope schema types" % self[1].source)
             else:
                 if position and (occurs is None or occurs == '?'):
                     return False
@@ -532,8 +541,6 @@ def evaluate(self, context=None):
 
 @method('treat')
 def evaluate(self, context=None):
-    if self.parser.schema is None:
-        self.missing_schema()
     occurs = self[2].symbol if len(self) > 2 else None
     position = None
     castable_expr = []
@@ -543,7 +550,8 @@ def evaluate(self, context=None):
     elif self[1].label == 'function':
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
-                self.wrong_sequence_type()
+                if context is not None:
+                    self.wrong_sequence_type()
             elif position and (occurs is None or occurs == '?'):
                 self.wrong_sequence_type("more than one item in sequence")
             castable_expr.append(item)
@@ -554,10 +562,10 @@ def evaluate(self, context=None):
         qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
         for position, item in enumerate(self[0].select(context)):
             try:
-                if not self.parser.schema.is_instance(item, qname):
+                if not self.parser.is_instance(item, qname):
                     self.wrong_sequence_type("item %r is not of type %r" % (item, self[1].source))
             except KeyError:
-                self.missing_name("type %r not found in schema" % self[1].source)
+                self.missing_schema("atomic type %r not found in in-scope schema types" % self[1].source)
             else:
                 if position and (occurs is None or occurs == '?'):
                     self.wrong_sequence_type("more than one item in sequence")
@@ -590,8 +598,9 @@ def evaluate(self, context=None):
         raise self.error('XPST0080')
 
     namespace = get_namespace(atomic_type)
-    if namespace != XSD_NAMESPACE and self.parser.schema is None:
-        self.missing_schema()
+    if namespace != XSD_NAMESPACE and self.parser.schema is None or \
+            self.parser.schema.get_type(atomic_type) is None:
+        self.missing_schema("type %r not found in schema" % atomic_type)
 
     result = [res for res in self[0].select(context)]
     if len(result) > 1:
@@ -611,8 +620,8 @@ def evaluate(self, context=None):
             value = self.parser.schema.cast_as(result[0], atomic_type)
         else:
             local_name = atomic_type.split('}')[1]
-            token_class = self.parser.symbol_table[local_name]
-            if token_class.label != 'constructor':
+            token_class = self.parser.symbol_table.get(local_name)
+            if token_class is None or token_class.label != 'constructor':
                 self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
 
             if local_name in {'base64Binary', 'hexBinary'}:

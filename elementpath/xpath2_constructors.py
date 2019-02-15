@@ -18,10 +18,10 @@ from .compat import unicode_type, urlparse, URLError, string_base_type
 from .exceptions import ElementPathError, ElementPathMissingContextError, xpath_error
 from .xpath_helpers import is_attribute_node, boolean_value, string_value
 from .datatypes import DateTime10, Date10, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
-    GregorianYear10, GregorianYearMonth10, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration
-from .xpath2_functions import XPath2Parser, WHITESPACES_PATTERN, QNAME_PATTERN, \
-    NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, \
+    GregorianYear10, GregorianYearMonth10, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration, \
+    WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, \
     NOT_BASE64_BINARY_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
+from .xpath2_functions import XPath2Parser
 
 
 def collapse_white_spaces(s):

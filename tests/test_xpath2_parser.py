@@ -66,7 +66,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_token_source2(self):
         self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
-        self.check_source("$myaddress treat as element(*, USAddress)", "$myaddress treat as element(*, USAddress)")
+        self.check_source("$elements treat as element(*, USAddress)", "$elements treat as element(*, USAddress)")
 
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
@@ -217,6 +217,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("19.03 ne 19.02999", True)
         self.check_value("-1.0 eq 1.0", False)
         self.check_value("1 le 2", True)
+        self.check_value("3 le 2", False)
         self.check_value("5 ge 9", False)
         self.check_value("5 gt 3", True)
         self.check_value("5 lt 20.0", True)
@@ -244,6 +245,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         })
         self.check_value('($a, $b) = ($c, 3.0)', False, context=context)
         self.check_value('($a, $b) = ($c, 2.0)', True, context=context)
+
+        root = self.etree.XML('<root min="10" max="7"/>')
+        self.check_value('@min', ['10'], context=XPathContext(root=root))
+        self.check_value('@min le @max', True, context=XPathContext(root=root))
+        root = self.etree.XML('<root min="80" max="7"/>')
+        self.check_value('@min le @max', False, context=XPathContext(root=root))
 
     def test_number_functions2(self):
         # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions

@@ -58,7 +58,10 @@ class XPath1ParserTest(unittest.TestCase):
         'fn': XPATH_FUNCTIONS_NAMESPACE,
         'eg': 'http://www.example.com/example',
     }
-    variables = {'values': [10, 20, 5]}
+    variables = {
+        'values': [10, 20, 5],
+        'elements':[ElementTree.Element('a'), ElementTree.Element('b'), ElementTree.Element('c')]
+    }
     etree = ElementTree
 
     def setUp(self):
@@ -130,7 +133,13 @@ class XPath1ParserTest(unittest.TestCase):
         """
         if context is not None:
             context = context.copy()
-        root_token = self.parser.parse(path)
+        try:
+            root_token = self.parser.parse(path)
+        except ElementPathError as err:
+            if isinstance(expected, type) and isinstance(err, expected):
+                return
+            raise 
+
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.evaluate, context)
         elif isinstance(expected, float) and math.isnan(expected):
@@ -309,7 +318,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_source("concat('alpha', 'beta', 'gamma')", "concat('alpha', 'beta', 'gamma')")
         self.check_source('1 +2 *  3 ', '1 + 2 * 3')
         self.check_source('(1 + 2) * 3', '(1 + 2) * 3')
-        self.check_source(' xs : string ', 'xs:string')
+        self.check_source(' eg : example ', 'eg:example')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
 
     def test_wrong_syntax(self):
@@ -331,8 +340,8 @@ class XPath1ParserTest(unittest.TestCase):
         </A>""")
 
         # Prefix references
-        self.check_tree('xs:string', '(: (xs) (string))')
-        self.check_tree('string(xs:unknown)', '(string (: (xs) (unknown)))')
+        self.check_tree('eg:unknown', '(: (eg) (unknown))')
+        self.check_tree('string(eg:unknown)', '(string (: (eg) (unknown)))')
 
         self.check_value("fn:true()", True)
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)

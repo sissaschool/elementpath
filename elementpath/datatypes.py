@@ -19,12 +19,14 @@ import operator
 import re
 import decimal
 import datetime
+import base64
 from calendar import isleap, leapdays
 
 from .compat import PY3, string_base_type, add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
 
-
+###
+# Date/Time helpers
 MONTH_DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 MONTH_DAYS_LEAP = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -354,8 +356,8 @@ class AbstractDateTime(object):
         except ElementPathTypeError:
             return True
 
-class OrderedDateTime(AbstractDateTime):
 
+class OrderedDateTime(AbstractDateTime):
     @abstractmethod
     def __str__(self):
         pass
@@ -1002,3 +1004,94 @@ class UntypedAtomic(object):
 
         def __long__(self):
             return int(self.value)
+
+
+def has_collapsed_white_spaces(x):
+    return not (x and ('\t' in x or '\n' in x or x[0] == ' ' or x[-1] == ' ' or '  ' in x))
+
+
+###
+# XSD atomic builtins validators
+WHITESPACES_PATTERN = re.compile(r'\s+')
+NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$', flags=0 if PY3 else re.U)
+NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
+NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
+QNAME_PATTERN = re.compile(
+    r'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
+)
+HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
+NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
+LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*$')
+WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
+
+
+def base64_binary_validator(x):
+    if not isinstance(x, string_base_type) or NOT_BASE64_BINARY_PATTERN.match(x) is None:
+        return False
+    try:
+        base64.standard_b64decode(x)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True
+
+
+def hex_binary_validator(x):
+    return isinstance(x, string_base_type) and not len(x) % 2 and HEX_BINARY_PATTERN.match(x) is not None,
+
+
+def ncname_validator(x):
+    return isinstance(x, string_base_type) and NCNAME_PATTERN.match(x) is not None
+
+
+XSD_BUILTINS_VALIDATORS = {
+    'string': lambda x: isinstance(x, string_base_type),
+    'decimal': lambda x: isinstance(x, (int, float, decimal.Decimal)),
+    'double': lambda x: isinstance(x, float),
+    'float': lambda x: isinstance(x, float),
+
+    'date': lambda x: isinstance(x, Date),
+    'dateTime': lambda x: isinstance(x, DateTime),
+    'gDay': lambda x: isinstance(x, GregorianDay),
+    'gMonth': lambda x: isinstance(x, GregorianMonth),
+    'gMonthDay': lambda x: isinstance(x, GregorianMonthDay),
+    'gYear': lambda x: isinstance(x, GregorianYear),
+    'gYearMonth': lambda x: isinstance(x, GregorianYearMonth),
+    'time': lambda x: isinstance(x, Time),
+    'duration': lambda x: isinstance(x, Duration),
+    'dayTimeDuration': lambda x: isinstance(x, DayTimeDuration),
+    'yearMonthDuration': lambda x: isinstance(x, YearMonthDuration),
+
+    'QName': lambda x: isinstance(x, string_base_type) and QNAME_PATTERN.match(x) is not None,
+    'NOTATION': lambda x: isinstance(x, string_base_type),
+    'anyURI': lambda x: isinstance(x, string_base_type),
+    'normalizedString': lambda x: isinstance(x, string_base_type) and '\t' not in x and '\r' not in x,
+    'token': lambda x: isinstance(x, string_base_type) and WHITESPACES_PATTERN.match(x) is None,
+    'language': lambda x: isinstance(x, string_base_type) and LANGUAGE_CODE_PATTERN.match(x) is not None,
+    'Name': lambda x: isinstance(x, string_base_type) and NAME_PATTERN.match(x) is not None,
+    'NCName': ncname_validator,
+    'ID': ncname_validator,
+    'IDREF': ncname_validator,
+    'ENTITY': ncname_validator,
+    'NMTOKEN': lambda x: isinstance(x, string_base_type) and NMTOKEN_PATTERN.match(x) is not None,
+
+    'base64Binary': base64_binary_validator,
+    'hexBinary': hex_binary_validator,
+    'dateTimeStamp': lambda x: isinstance(x, string_base_type),
+
+    'integer': lambda x: isinstance(x, int),
+    'long': lambda x: isinstance(x, int) and (-2**127 <= x < 2**127),
+    'int': lambda x: isinstance(x, int) and (-2**63 <= x < 2**63),
+    'short': lambda x: isinstance(x, int) and (-2**15 <= x < 2**15),
+    'byte': lambda x: isinstance(x, int) and (-2**7 <= x < 2**7),
+    'positiveInteger': lambda x: isinstance(x, int) and x > 0,
+    'negativeInteger': lambda x: isinstance(x, int) and x < 0,
+    'nonPositiveInteger': lambda x: isinstance(x, int) and x <= 0,
+    'nonNegativeInteger': lambda x: isinstance(x, int) and x >= 0,
+    'unsignedLong': lambda x: isinstance(x, int) and (0 <= x < 2**128),
+    'unsignedInt': lambda x: isinstance(x, int) and (0 <= x < 2**64),
+    'unsignedShort': lambda x: isinstance(x, int) and (0 <= x < 2**16),
+    'unsignedByte': lambda x: isinstance(x, int) and (0 <= x < 2**8),
+
+    'boolean': lambda x: isinstance(x, bool),
+}

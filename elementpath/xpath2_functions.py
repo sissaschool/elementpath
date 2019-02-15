@@ -21,7 +21,7 @@ import locale
 import unicodedata
 
 from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urllib_quote, unicode_type
-from .datatypes import DateTime, Date, Time, Timezone, Duration, DayTimeDuration
+from .datatypes import QNAME_PATTERN, DateTime, Date, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, data_value, string_value
@@ -30,19 +30,6 @@ from .xpath2_parser import XPath2Parser
 method = XPath2Parser.method
 function = XPath2Parser.function
 
-###
-# Regex compiled patterns for functions and XSD constructors
-WHITESPACES_PATTERN = re.compile(r'\s+')
-NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$', flags=0 if PY3 else re.U)
-NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
-NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
-QNAME_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
-)
-HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
-LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*$')
-WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
 WRONG_REPLACEMENT_PATTERN = re.compile(r'(?<!\\)\$([^\d]|$)|((?<=[^\\])|^)\\([^$]|$)|\\\\\$')
 
 
