@@ -9,7 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from .compat import add_metaclass, string_base_type
+from .compat import add_metaclass
+from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XSD_NAMESPACE
 from .xpath_context import XPathContext
 
@@ -22,9 +23,15 @@ class XPathSchemaContext(XPathContext):
 
 @add_metaclass(ABCMeta)
 class AbstractSchemaProxy(object):
+    """
+    Abstract class for defining schema proxies.
 
-    def __init__(self, schema):
+    :param schema: the schema instance.
+    :param base_element: the schema element used as base item for static analysis.
+    """
+    def __init__(self, schema, base_element=None):
         self._schema = schema
+        self._base_element = base_element
 
     def get_context(self):
         """
@@ -90,14 +97,22 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     Library ref:https://github.com/brunato/xmlschema
     """
-    def __init__(self, schema=None):
+    def __init__(self, schema=None, base_element=None):
         if schema is None:
             from xmlschema import XMLSchema
             schema = XMLSchema.meta_schema
-        super(XMLSchemaProxy, self).__init__(schema)
+
+        if base_element is not None:
+            try:
+                if base_element.schema is not schema:
+                    raise ElementPathValueError("%r is not an element of %r" % (base_element, schema))
+            except AttributeError:
+                raise ElementPathTypeError("%r is not an XsdElement" % base_element)
+
+        super(XMLSchemaProxy, self).__init__(schema, base_element)
 
     def get_context(self):
-        return XPathSchemaContext(root=self._schema)
+        return XPathSchemaContext(root=self._schema, item=self._base_element)
 
     def get_type(self, type_qname):
         try:
@@ -125,7 +140,12 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def is_instance(self, obj, type_qname):
         xsd_type = self._schema.maps.types[type_qname]
-        return xsd_type.is_valid(obj)
+        try:
+            xsd_type.encode(obj)
+        except ValueError:
+            return False
+        else:
+            return True
 
     def cast_as(self, obj, type_qname):
         xsd_type = self._schema.maps.types[type_qname]
@@ -135,4 +155,3 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         for xsd_type in self._schema.maps.types.values():
             if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
                 yield xsd_type
-

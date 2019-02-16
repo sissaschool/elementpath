@@ -775,10 +775,9 @@ def select(self, context=None):
     if context is None:
         raise ElementPathMissingContextError("Context required to evaluate `@`")
 
-    else:
-        for _ in context.iter_attributes():
-            for result in self[0].select(context):
-                yield result
+    for _ in context.iter_attributes():
+        for result in self[0].select(context):
+            yield result
 
 
 @method(axis('namespace'))

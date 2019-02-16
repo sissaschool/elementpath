@@ -1246,6 +1246,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_error_function(self):
         self.assertRaises(ElementPathError, self.check_value, "fn:error()")
 
+    def test_static_analysis_phase(self):
+        self.check_value('fn:concat($word, fn:lower-case(" BETA"))', 'alpha beta')
+        self.check_value('fn:concat($word, fn:lower-case(10))', TypeError)
+        self.check_value('fn:concat($unknown, fn:lower-case(10))', TypeError)
+
 
 class LxmlXPath2ParserTest(XPath2ParserTest):
     etree = lxml.etree

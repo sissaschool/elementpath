@@ -13,7 +13,7 @@ import unittest
 import lxml.etree
 
 from elementpath import *
-from elementpath.namespaces import XML_LANG_QNAME
+from elementpath.namespaces import XML_LANG_QNAME, XSD_NAMESPACE
 
 try:
     # noinspection PyPackageRequirements
@@ -28,20 +28,17 @@ except ImportError:
     import test_xpath2_parser
 
 
-@unittest.skipIf(xmlschema is None, "xmlschema library >= v1.0.7 required.")
+@unittest.skipIf(xmlschema is None, "xmlschema library required.")
 class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
 
-    if xmlschema:
-        schema = XMLSchemaProxy(
-            schema=xmlschema.XMLSchema('''
-            <!-- Dummy schema, only for tests -->
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
-            <xs:element name="test_element" type="xs:string"/>
-            <xs:attribute name="test_attribute" type="xs:string"/>
-            </xs:schema>''')
-        )
-    else:
-        schema = None
+    schema = XMLSchemaProxy(
+        schema=xmlschema.XMLSchema('''
+        <!-- Dummy schema for testing proxy API -->
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
+          <xs:element name="test_element" type="xs:string"/>
+          <xs:attribute name="test_attribute" type="xs:string"/>
+        </xs:schema>''')
+    )
 
     def setUp(self):
         self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema, variables=self.variables)
@@ -62,7 +59,28 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("schema-attribute(xml:lang)", context.item, context)
         self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
 
-    def test_instance_expression(self):
+    def test_is_instance_api(self):
+        self.assertFalse(self.schema.is_instance(True, '{%s}integer' % XSD_NAMESPACE))
+        self.assertTrue(self.schema.is_instance(5, '{%s}integer' % XSD_NAMESPACE))
+        self.assertFalse(self.schema.is_instance('alpha', '{%s}integer' % XSD_NAMESPACE))
+        self.assertTrue(self.schema.is_instance('alpha', '{%s}string' % XSD_NAMESPACE))
+        self.assertTrue(self.schema.is_instance('alpha beta', '{%s}token' % XSD_NAMESPACE))
+        self.assertTrue(self.schema.is_instance('alpha', '{%s}Name' % XSD_NAMESPACE))
+        self.assertFalse(self.schema.is_instance('alpha beta', '{%s}Name' % XSD_NAMESPACE))
+        self.assertFalse(self.schema.is_instance('1alpha', '{%s}Name' % XSD_NAMESPACE))
+        self.assertTrue(self.schema.is_instance('alpha', '{%s}NCName' % XSD_NAMESPACE))
+        self.assertFalse(self.schema.is_instance('eg:alpha', '{%s}NCName' % XSD_NAMESPACE))
+
+    def test_attribute_type(self):
+        schema = XMLSchemaProxy(
+            schema=xmlschema.XMLSchema('''
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
+              <xs:element name="test_element" type="xs:string"/>
+              <xs:attribute name="test_attribute" type="xs:string"/>
+            </xs:schema>''')
+        )
+
+    def test_instance_of_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
 
@@ -80,7 +98,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("5 instance of empty-sequence()", False)
         self.check_value("() instance of empty-sequence()", True)
 
-    def test_treat_expression(self):
+    def test_treat_as_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
 

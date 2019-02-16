@@ -15,7 +15,7 @@ import decimal
 import codecs
 
 from .compat import unicode_type, urlparse, URLError, string_base_type
-from .exceptions import ElementPathError, ElementPathMissingContextError, xpath_error
+from .exceptions import ElementPathError, xpath_error
 from .xpath_helpers import is_attribute_node, boolean_value, string_value
 from .datatypes import DateTime10, Date10, Time, GregorianDay, GregorianMonth, GregorianMonthDay, \
     GregorianYear10, GregorianYearMonth10, UntypedAtomic, Duration, YearMonthDuration, DayTimeDuration, \
