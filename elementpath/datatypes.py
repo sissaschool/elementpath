@@ -1049,7 +1049,6 @@ XSD_BUILTINS_VALIDATORS = {
     'decimal': lambda x: isinstance(x, (int, float, decimal.Decimal)),
     'double': lambda x: isinstance(x, float),
     'float': lambda x: isinstance(x, float),
-
     'date': lambda x: isinstance(x, Date),
     'dateTime': lambda x: isinstance(x, DateTime),
     'gDay': lambda x: isinstance(x, GregorianDay),
@@ -1061,7 +1060,6 @@ XSD_BUILTINS_VALIDATORS = {
     'duration': lambda x: isinstance(x, Duration),
     'dayTimeDuration': lambda x: isinstance(x, DayTimeDuration),
     'yearMonthDuration': lambda x: isinstance(x, YearMonthDuration),
-
     'QName': lambda x: isinstance(x, string_base_type) and QNAME_PATTERN.match(x) is not None,
     'NOTATION': lambda x: isinstance(x, string_base_type),
     'anyURI': lambda x: isinstance(x, string_base_type),
@@ -1074,11 +1072,9 @@ XSD_BUILTINS_VALIDATORS = {
     'IDREF': ncname_validator,
     'ENTITY': ncname_validator,
     'NMTOKEN': lambda x: isinstance(x, string_base_type) and NMTOKEN_PATTERN.match(x) is not None,
-
     'base64Binary': base64_binary_validator,
     'hexBinary': hex_binary_validator,
     'dateTimeStamp': lambda x: isinstance(x, string_base_type),
-
     'integer': lambda x: isinstance(x, int),
     'long': lambda x: isinstance(x, int) and (-2**127 <= x < 2**127),
     'int': lambda x: isinstance(x, int) and (-2**63 <= x < 2**63),
@@ -1092,6 +1088,5 @@ XSD_BUILTINS_VALIDATORS = {
     'unsignedInt': lambda x: isinstance(x, int) and (0 <= x < 2**64),
     'unsignedShort': lambda x: isinstance(x, int) and (0 <= x < 2**16),
     'unsignedByte': lambda x: isinstance(x, int) and (0 <= x < 2**8),
-
     'boolean': lambda x: isinstance(x, bool),
 }

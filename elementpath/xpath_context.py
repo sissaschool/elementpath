@@ -60,7 +60,7 @@ class XPathContext(object):
         )
 
     def copy(self, clear_axis=True):
-        obj = type(self)    (
+        obj = type(self)(
             root=self.root,
             item=self.item,
             position=self.position,

@@ -61,6 +61,7 @@ class XPath1ParserTest(unittest.TestCase):
     variables = {
         'values': [10, 20, 5],
         'myaddress': 'admin@example.com',
+        'word': 'alpha',
     }
     etree = ElementTree
 

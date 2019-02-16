@@ -318,9 +318,8 @@ class XPath2Parser(XPath1Parser):
         }
 
     def is_instance(self, obj, type_qname):
-        if get_namespace(type_qname) != XSD_NAMESPACE:
-            xsd_type = self._schema.maps.types[type_qname]
-            return xsd_type.is_valid(obj)
+        if self.schema is not None:
+            return self.schema.is_instance(obj, type_qname)
         local_name = type_qname.split('}')[1]
         return XSD_BUILTINS_VALIDATORS[local_name](obj)
 
