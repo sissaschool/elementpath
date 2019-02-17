@@ -24,7 +24,9 @@ class XPathSchemaContext(XPathContext):
 @add_metaclass(ABCMeta)
 class AbstractSchemaProxy(object):
     """
-    Abstract class for defining schema proxies.
+    Abstract class for defining schema proxies. The schema elements must implement
+    an ElementTree API compatible with the `XPathContext` and a *decode* method to
+    apply to XML values.
 
     :param schema: the schema instance.
     :param base_element: the schema element used as base item for static analysis.
