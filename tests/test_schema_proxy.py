@@ -72,13 +72,24 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.assertFalse(self.schema.is_instance('eg:alpha', '{%s}NCName' % XSD_NAMESPACE))
 
     def test_attribute_type(self):
-        schema = XMLSchemaProxy(
-            schema=xmlschema.XMLSchema('''
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
-              <xs:element name="test_element" type="xs:string"/>
-              <xs:attribute name="test_attribute" type="xs:string"/>
+        parser = XPath2Parser(namespaces=self.namespaces)
+        token = parser.parse("@min le @max")
+        self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
+        self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
+
+        schema=xmlschema.XMLSchema('''
+            <xs:schema xmlns="http://xpath.test/ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                targetNamespace="http://xpath.test/ns">
+              <xs:element name="range" type="intRange"/>
+              <xs:complexType name="intRange">
+                <xs:attribute name="min" type="xs:int"/>
+                <xs:attribute name="max" type="xs:int"/>
+              </xs:complexType>
             </xs:schema>''')
-        )
+        parser = XPath2Parser(namespaces=self.namespaces, schema=XMLSchemaProxy(schema, schema.elements['range']))
+        token = parser.parse("@min le @max")
+        self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
+        self.assertFalse(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
 
     def test_instance_of_expression(self):
         element = self.etree.Element('schema')

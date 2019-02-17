@@ -237,15 +237,46 @@ def evaluate(self, context=None):
 @method('(name)')
 def select(self, context=None):
     if context is not None:
-        value = self.value
-        if value[0] != '{' and self.parser.default_namespace:
-            value = u'{%s}%s' % (self.parser.default_namespace, value)
+        name = self.value
+        if name[0] != '{' and self.parser.default_namespace:
+            name = u'{%s}%s' % (self.parser.default_namespace, name)
 
-        for item in context.iter_children_or_self():
-            if is_attribute_node(item, value):
-                yield item[1]
-            elif is_element_node(item, value):
-                yield item
+        if isinstance(context, XPathSchemaContext):
+            # Typing elements and attributes
+            for item in context.iter_children_or_self():
+                if is_attribute_node(item, name):
+                    xsd_type = item[1].type
+                    yield xsd_type.primitive_type.value
+                elif is_element_node(item, name):
+                    xsd_type = item.type
+                    yield xsd_type.primitive_type.value if xsd_type.has_simple_content() else ''
+                else:
+                    continue
+
+                if self.xsd_type is not None and xsd_type is not self.xsd_type:
+                    raise ElementPathTypeError("ambiguous XSD type for %r" % self)
+                self.xsd_type = xsd_type
+
+        elif self.xsd_type is None:
+            # Untyped selection
+            for item in context.iter_children_or_self():
+                if is_attribute_node(item, name):
+                    yield item[1]
+                elif is_element_node(item, name):
+                    yield item
+
+        else:
+            # Typed selection
+            for item in context.iter_children_or_self():
+                try:
+                    if is_attribute_node(item, name):
+                        yield self.xsd_type.decode(item[1])
+                    elif is_element_node(item, name):
+                        yield self.xsd_type.decode(item)
+                except AttributeError:
+                    yield item[1] if isinstance(item, tuple) else item  # Not compliant XSD type instance
+                except (TypeError, ValueError):
+                    self.wrong_sequence_type("Type %r does not match sequence type of %r" % (self.xsd_type, item))
 
 
 ###

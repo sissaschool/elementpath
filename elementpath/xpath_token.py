@@ -43,7 +43,8 @@ def ordinal(n):
 # XPathToken
 class XPathToken(Token):
 
-    comment = None  # for XPath 2.0 comments
+    comment = None   # for XPath 2.0+ comments
+    xsd_type = None  # fox XPath 2.0+ schema types labeling
 
     def evaluate(self, context=None):
         """
