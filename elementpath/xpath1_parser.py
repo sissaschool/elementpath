@@ -16,7 +16,7 @@ from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration
-from .schema_proxy import XPathSchemaContext
+from .schema_proxy import AbstractSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
@@ -223,60 +223,77 @@ literal('(name)', bp=10)
 
 @method('(name)')
 def evaluate(self, context=None):
-    if context is not None:
-        value = self.value
-        if value[0] != '{' and self.parser.default_namespace:
-            value = u'{%s}%s' % (self.parser.default_namespace, value)
+    if context is None:
+        return
+    name = self.value
+    if name[0] != '{' and self.parser.default_namespace:
+        name = u'{%s}%s' % (self.parser.default_namespace, name)
 
-        if is_element_node(context.item, value):
+    if isinstance(context, AbstractSchemaContext):
+        # Typing elements and attributes during static analysis
+        match = context.match_schema_type(name)
+        if match is not None:
+            xsd_type, value = match
+            if self.xsd_type is None:
+                self.xsd_type = xsd_type
+            elif self.xsd_type is not xsd_type:
+                raise ElementPathTypeError("ambiguous XSD type for %r" % self)
+            return value
+
+    elif self.xsd_type is None:
+        if is_attribute_node(context.item, name):
+            return context.item[1]
+        elif is_element_node(context.item, name):
             return context.item
-        elif is_attribute_node(context.item, value):
-            return context.item
+
+    else:
+        try:
+            if is_attribute_node(context.item, name):
+                return self.xsd_type.decode(context.item[1])
+            elif is_element_node(context.item, name):
+                return self.xsd_type.decode(context.item)
+        except (TypeError, ValueError):
+            self.wrong_context_type("Type %r is not appropriate for the context" % (type(context.item)))
 
 
 @method('(name)')
 def select(self, context=None):
-    if context is not None:
-        name = self.value
-        if name[0] != '{' and self.parser.default_namespace:
-            name = u'{%s}%s' % (self.parser.default_namespace, name)
+    if context is None:
+        return
+    name = self.value
+    if name[0] != '{' and self.parser.default_namespace:
+        name = u'{%s}%s' % (self.parser.default_namespace, name)
 
-        if isinstance(context, XPathSchemaContext):
-            # Typing elements and attributes
-            for item in context.iter_children_or_self():
-                if is_attribute_node(item, name):
-                    xsd_type = item[1].type
-                    yield xsd_type.primitive_type.value
-                elif is_element_node(item, name):
-                    xsd_type = item.type
-                    yield xsd_type.primitive_type.value if xsd_type.has_simple_content() else ''
-                else:
-                    continue
-
-                if self.xsd_type is not None and xsd_type is not self.xsd_type:
+    if isinstance(context, AbstractSchemaContext):
+        # Typing elements and attributes
+        for _ in context.iter_children_or_self():
+            match = context.match_schema_type(name)
+            if match is not None:
+                xsd_type, value = match
+                if self.xsd_type is None:
+                    self.xsd_type = xsd_type
+                elif self.xsd_type is not xsd_type:
                     raise ElementPathTypeError("ambiguous XSD type for %r" % self)
-                self.xsd_type = xsd_type
+                yield value
 
-        elif self.xsd_type is None:
-            # Untyped selection
-            for item in context.iter_children_or_self():
+    elif self.xsd_type is None:
+        # Untyped selection
+        for item in context.iter_children_or_self():
+            if is_attribute_node(item, name):
+                yield item[1]
+            elif is_element_node(item, name):
+                yield item
+
+    else:
+        # Typed selection
+        for item in context.iter_children_or_self():
+            try:
                 if is_attribute_node(item, name):
-                    yield item[1]
+                    yield self.xsd_type.decode(item[1])
                 elif is_element_node(item, name):
-                    yield item
-
-        else:
-            # Typed selection
-            for item in context.iter_children_or_self():
-                try:
-                    if is_attribute_node(item, name):
-                        yield self.xsd_type.decode(item[1])
-                    elif is_element_node(item, name):
-                        yield self.xsd_type.decode(item)
-                except AttributeError:
-                    yield item[1] if isinstance(item, tuple) else item  # Not compliant XSD type instance
-                except (TypeError, ValueError):
-                    self.wrong_sequence_type("Type %r does not match sequence type of %r" % (self.xsd_type, item))
+                    yield self.xsd_type.decode(item)
+            except (TypeError, ValueError):
+                self.wrong_sequence_type("Type %r does not match sequence type of %r" % (self.xsd_type, item))
 
 
 ###
@@ -423,7 +440,7 @@ def evaluate(self, context=None):
         return None
     elif varname in context.variables:
         return context.variables[varname]
-    elif isinstance(context, XPathSchemaContext):
+    elif isinstance(context, AbstractSchemaContext):
         return None
     else:
         raise ElementPathNameError('unknown variable', token=self)
