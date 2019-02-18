@@ -23,7 +23,7 @@ import unicodedata
 from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urllib_quote, unicode_type
 from .datatypes import QNAME_PATTERN, DateTime, Date, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
-from .schema_proxy import XPathSchemaContext
+from .schema_proxy import AbstractSchemaContext
 from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, data_value, string_value
 
@@ -202,7 +202,7 @@ def evaluate(self, context=None):
                 if p == pfx:
                     return '{%s}%s' % (uri, match.groupdict()['local']) if uri else match.groupdict()['local']
 
-        if not isinstance(context, XPathSchemaContext):
+        if not isinstance(context, AbstractSchemaContext):
             raise self.error('FONS0004', 'No namespace found for prefix %r' % pfx)
 
 

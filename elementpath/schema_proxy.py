@@ -12,20 +12,37 @@ from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XSD_NAMESPACE
+from .xpath_helpers import AttributeNode, is_etree_element
 from .xpath_context import XPathContext
 
 
-class XPathSchemaContext(XPathContext):
+@add_metaclass(ABCMeta)
+class AbstractSchemaContext(XPathContext):
     """
-    A context class used during static analysis phase for type checking.
+    Abstract context class for implement a concrete schema context to be used during static
+    analysis phase for type checking. A concrete implementation must implement a method for
+    matching type of elements and attributes.
     """
+
+    @abstractmethod
+    def match_schema_type(self, name=None):
+        """
+        Match the XSD type of the context item. Returns an *XSD type instance* and a *sample value*
+        if the context item is a matching attribute or element, or `None` otherwise. The returned
+        XSD type objects must implement a *decode* method for decoding XML strings into values.
+        For simple or simple content XSD types the sample value is an instance in the value-space
+        of the primitive type. For complex content types the sample value is an empty string.
+
+        :param name: An optional name to filter named nodes (eg. attributes or elements).
+        :returns: A couple with XSD type instance and a value, or `None`.
+        """
 
 
 @add_metaclass(ABCMeta)
 class AbstractSchemaProxy(object):
     """
     Abstract class for defining schema proxies. The schema elements must implement
-    an ElementTree API compatible with the `XPathContext` and a *decode* method to
+    a compatible ElementTree API with the `XPathContext` and a *decode* method to
     apply to XML values.
 
     :param schema: the schema instance.
@@ -35,6 +52,7 @@ class AbstractSchemaProxy(object):
         self._schema = schema
         self._base_element = base_element
 
+    @abstractmethod
     def get_context(self):
         """
         Get a static context instance for static analysis phase. The provided context must
@@ -93,11 +111,35 @@ class AbstractSchemaProxy(object):
         """Iterate over not builtin atomic types defined in the schema's scope."""
 
 
+class XMLSchemaContext(AbstractSchemaContext):
+    """
+    Schema context for the *xmlschema* library.
+    """
+    def match_schema_type(self, name=None):
+        if isinstance(self.item, AttributeNode):
+            if name is not None and not self.item[1].is_matching(name):
+                return
+            xsd_type = self.item[1].type
+            return xsd_type, xsd_type.primitive_type.value
+
+        elif is_etree_element(self.item):
+            if name is not None:
+                try:
+                    if not self.item.is_matching(name):
+                        return
+                except AttributeError:
+                    if self.item.tag != name:
+                        return
+            xsd_type = self.item.type
+            if xsd_type.has_simple_content():
+                return xsd_type, xsd_type.content_type.primitive_type.value
+            else:
+                return xsd_type, ''
+
+
 class XMLSchemaProxy(AbstractSchemaProxy):
     """
-    XML Schema proxy for schemas created with the 'xmlschema' library.
-
-    Library ref:https://github.com/brunato/xmlschema
+    Schema proxy for the *xmlschema* library.
     """
     def __init__(self, schema=None, base_element=None):
         if schema is None:
@@ -114,7 +156,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         super(XMLSchemaProxy, self).__init__(schema, base_element)
 
     def get_context(self):
-        return XPathSchemaContext(root=self._schema, item=self._base_element)
+        return XMLSchemaContext(root=self._schema, item=self._base_element)
 
     def get_type(self, type_qname):
         try:
