@@ -77,7 +77,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
         self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
 
-        schema=xmlschema.XMLSchema('''
+        schema = xmlschema.XMLSchema('''
             <xs:schema xmlns="http://xpath.test/ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 targetNamespace="http://xpath.test/ns">
               <xs:element name="range" type="intRange"/>
@@ -91,7 +91,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
         self.assertFalse(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
 
-        schema=xmlschema.XMLSchema('''
+        schema = xmlschema.XMLSchema('''
             <xs:schema xmlns="http://xpath.test/ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 targetNamespace="http://xpath.test/ns">
               <xs:element name="range" type="intRange"/>
