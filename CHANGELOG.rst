@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v1.1.4`_ (TBD)
-===============
-* Doing an effective Static Analysis Phase on XPath 2.0 parser
+`v1.1.4`_ (2019-02-19)
+======================
+* Implementation of a full Static Analysis Phase at parse() level
+* Schema-based static analysis for XPath 2.0 parsers using schema contexts
+* Added ``XPathSchemaContext`` class for processing schema contexts
 
 `v1.1.3`_ (2019-02-06)
 ======================

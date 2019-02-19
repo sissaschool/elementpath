@@ -2,7 +2,23 @@
 Public XPath API
 ****************
 
-The package includes some classes and functions that implement XPath parsers, tokens, context and selectors.
+The package includes some classes and functions that implement XPath selectors, parsers, tokens,
+contexts and schema proxy.
+
+
+XPath selectors
+===============
+
+.. autofunction:: elementpath.select
+
+.. autofunction:: elementpath.iter_select
+
+.. autoclass:: elementpath.Selector
+
+    .. autoattribute:: namespaces
+    .. automethod:: select
+    .. automethod:: iter_select
+
 
 XPath parsers
 =============
@@ -48,15 +64,24 @@ XPath dynamic context
 .. autoclass:: elementpath.XPathContext
 
 
-XPath selectors
-===============
+XML Schema proxy
+================
 
-.. autofunction:: elementpath.select
+The XPath 2.0 parser can be interfaced with an XML Schema processor through a schema proxy.
+An :class:`XMLSchemaProxy` class is defined for interfacing schemas created with the *xmlschema* package.
+This class is based on an abstract class :class:`AbstractSchemaProxy`, that can be used for
+implementing concrete interfaces to other types of XML Schema processors.
 
-.. autofunction:: elementpath.iter_select
+.. autoclass:: elementpath.XMLSchemaProxy
 
-.. autoclass:: elementpath.Selector
+.. autoclass:: elementpath.AbstractSchemaProxy
 
-    .. autoattribute:: namespaces
-    .. automethod:: select
-    .. automethod:: iter_select
+    .. automethod:: get_context
+    .. automethod:: get_type
+    .. automethod:: get_attribute
+    .. automethod:: get_element
+    .. automethod:: get_element
+    .. automethod:: is_instance
+    .. automethod:: cast_as
+    .. automethod:: is_instance
+    .. automethod:: iter_atomic_types
