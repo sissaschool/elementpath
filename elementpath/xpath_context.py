@@ -229,3 +229,7 @@ class XPathContext(object):
             for self.position, self.item in enumerate(elem):
                 for item in self._iter_context():
                     yield item
+
+
+class XPathSchemaContext(XPathContext):
+    """Schema context class used during static analysis phase for matching tokens with schema types."""

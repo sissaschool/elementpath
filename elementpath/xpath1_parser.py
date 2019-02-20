@@ -16,7 +16,7 @@ from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
     ElementPathMissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration
-from .schema_proxy import AbstractSchemaContext
+from .schema_proxy import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
@@ -229,29 +229,22 @@ def evaluate(self, context=None):
     if name[0] != '{' and self.parser.default_namespace:
         name = u'{%s}%s' % (self.parser.default_namespace, name)
 
-    if isinstance(context, AbstractSchemaContext):
-        # Typing elements and attributes during static analysis
-        match = context.match_schema_type(name)
-        if match is not None:
-            xsd_type, value = match
-            if self.xsd_type is None:
-                self.xsd_type = xsd_type
-            elif self.xsd_type is not xsd_type:
-                raise ElementPathTypeError("ambiguous XSD type for %r" % self)
-            return value
-
+    if isinstance(context, XPathSchemaContext):
+        return self.match_xsd_type(context.item, name)
     elif self.xsd_type is None:
         if is_attribute_node(context.item, name):
             return context.item[1]
         elif is_element_node(context.item, name):
             return context.item
-
     else:
         try:
             if is_attribute_node(context.item, name):
                 return self.xsd_type.decode(context.item[1])
             elif is_element_node(context.item, name):
-                return self.xsd_type.decode(context.item)
+                if self.xsd_type.is_simple():
+                    return self.xsd_type.decode(context.item)
+                else:
+                    return context.item
         except (TypeError, ValueError):
             self.wrong_context_type("Type %r is not appropriate for the context" % (type(context.item)))
 
@@ -264,16 +257,10 @@ def select(self, context=None):
     if name[0] != '{' and self.parser.default_namespace:
         name = u'{%s}%s' % (self.parser.default_namespace, name)
 
-    if isinstance(context, AbstractSchemaContext):
-        # Typing elements and attributes
-        for _ in context.iter_children_or_self():
-            match = context.match_schema_type(name)
-            if match is not None:
-                xsd_type, value = match
-                if self.xsd_type is None:
-                    self.xsd_type = xsd_type
-                elif self.xsd_type is not xsd_type:
-                    raise ElementPathTypeError("ambiguous XSD type for %r" % self)
+    if isinstance(context, XPathSchemaContext):
+        for item in context.iter_children_or_self():
+            value = self.match_xsd_type(item, name)
+            if value is not None:
                 yield value
 
     elif self.xsd_type is None:
@@ -283,7 +270,6 @@ def select(self, context=None):
                 yield item[1]
             elif is_element_node(item, name):
                 yield item
-
     else:
         # Typed selection
         for item in context.iter_children_or_self():
@@ -291,7 +277,10 @@ def select(self, context=None):
                 if is_attribute_node(item, name):
                     yield self.xsd_type.decode(item[1])
                 elif is_element_node(item, name):
-                    yield self.xsd_type.decode(item)
+                    if self.xsd_type.is_simple():
+                        yield self.xsd_type.decode(item)
+                    else:
+                        yield item
             except (TypeError, ValueError):
                 self.wrong_sequence_type("Type %r does not match sequence type of %r" % (self.xsd_type, item))
 
@@ -440,7 +429,7 @@ def evaluate(self, context=None):
         return None
     elif varname in context.variables:
         return context.variables[varname]
-    elif isinstance(context, AbstractSchemaContext):
+    elif isinstance(context, XPathSchemaContext):
         return None
     else:
         raise ElementPathNameError('unknown variable', token=self)
@@ -651,7 +640,7 @@ def select(self, context=None):
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
             if not is_element_node(context.item):
-                self.wrong_type("left operand must returns element nodes: %r" % context.item)
+                self.wrong_type("left operand must returns element nodes: {}".format(context.item))
             for result in self[1].select(context):
                 if is_etree_element(result) or isinstance(result, tuple):
                     if result not in items:

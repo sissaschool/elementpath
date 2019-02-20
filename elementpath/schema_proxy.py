@@ -12,80 +12,172 @@ from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XSD_NAMESPACE
-from .xpath_helpers import AttributeNode, is_etree_element
-from .xpath_context import XPathContext
+from .xpath_helpers import is_etree_element
+from .xpath_context import XPathSchemaContext
+
+
+####
+# Interfaces for XSD components
+#
+# Following interfaces can be used for defining XSD components into alternative
+# schema proxies. Anyway no type-checking is done on XSD components returned by
+# schema proxy instances, so one could decide to implement XSD components without
+# the usage of these interfaces.
+#
+
+@add_metaclass(ABCMeta)
+class AbstractXsdComponent(object):
+    """Interface for XSD components."""
+
+    @property
+    @abstractmethod
+    def name(self):
+        """The XSD component's name. It's `None` for a local type definition."""
+
+    @abstractmethod
+    def is_matching(self, name, default_namespace):
+        """
+        Returns `True` if the component name is matching the name provided as argument, `False` otherwise.
+
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used if it's not None and not empty for completing the name \
+        argument in case it's a local name.
+        """
 
 
 @add_metaclass(ABCMeta)
-class AbstractSchemaContext(XPathContext):
-    """
-    Abstract context class for implement a concrete schema context to be used during static
-    analysis phase for type checking. A concrete implementation must implement a method for
-    matching type of elements and attributes.
-    """
+class AbstractEtreeElement(object):
+    """Interface for ElementTree compatible elements."""
+
+    @property
+    @abstractmethod
+    def tag(self):
+        """The element tag."""
+
+    @property
+    @abstractmethod
+    def attrib(self):
+        """The element's attributes dictionary."""
+
+    @property
+    @abstractmethod
+    def text(self):
+        """The element text."""
 
     @abstractmethod
-    def match_schema_type(self, name=None):
-        """
-        Match the XSD type of the context item. Returns an *XSD type instance* and a *sample value*
-        if the context item is a matching attribute or element, or `None` otherwise. The returned
-        XSD type objects must implement a *decode* method for decoding XML strings into values.
-        For simple or simple content XSD types the sample value is an instance in the value-space
-        of the primitive type. For complex content types the sample value is an empty string.
+    def __iter__(self):
+        """Iterate over element's children."""
 
-        :param name: An optional name to filter named nodes (eg. attributes or elements).
-        :returns: A couple with XSD type instance and a value, or `None`.
+
+class AbstractXsdElement(AbstractXsdComponent, AbstractEtreeElement):
+    """Interface for XSD attribute."""
+
+    @property
+    @abstractmethod
+    def type(self):
+        """The element's XSD type."""
+
+
+class AbstractXsdAttribute(AbstractXsdComponent):
+    """Interface for XSD attribute."""
+
+    @property
+    @abstractmethod
+    def type(self):
+        """The attribute's XSD type."""
+
+
+class AbstractXsdType(AbstractXsdComponent):
+    """Interface for XSD types."""
+
+    @abstractmethod
+    def is_simple(self):
+        """Returns `True` if it's a simpleType instance, `False` if it's a complexType."""
+
+    @abstractmethod
+    def has_simple_content(self):
+        """
+        Returns `True` if it's a simpleType instance or a complexType with simple content,
+        `False` otherwise.
         """
 
+    @property
+    @abstractmethod
+    def primitive_type(self):
+        """The XSD built-in primitive type."""
+
+
+####
+# Schema proxy classes
+#
 
 @add_metaclass(ABCMeta)
 class AbstractSchemaProxy(object):
     """
-    Abstract class for defining schema proxies. The schema elements must implement
-    a compatible ElementTree API with the `XPathContext` and a *decode* method to
-    apply to XML values.
+    Abstract class for defining schema proxies.
 
     :param schema: the schema instance.
     :param base_element: the schema element used as base item for static analysis.
     """
     def __init__(self, schema, base_element=None):
+        if not is_etree_element(schema):
+            raise ElementPathTypeError("argument {!r} is not a compatible schema".format(schema))
+        if base_element is not None and not is_etree_element(base_element):
+            raise ElementPathTypeError("argument 'base_element' is not a compatible element")
+
         self._schema = schema
         self._base_element = base_element
 
-    @abstractmethod
     def get_context(self):
         """
-        Get a static context instance for static analysis phase. The provided context must
-        be an instance of `XPathSchemaContext` or of an its subclass.
+        Get a context instance for static analysis phase.
 
-        :returns: An `XPathSchemaContext` instance or `None`.
+        :returns: an `XPathSchemaContext` instance.
+        """
+        return XPathSchemaContext(root=self._schema, item=self._base_element)
+
+    @abstractmethod
+    def get_type(self, qname):
+        """
+        Get the XSD global type from the schema's scope. A concrete implementation must
+        returns an object that implements the `AbstractXsdType` interface, or `None` if
+        the global type is not found.
+
+        :param qname: the fully qualified name of the type to retrieve.
+        :returns: an object that represents an XSD type or `None`.
         """
 
     @abstractmethod
-    def get_type(self, type_qname):
+    def get_attribute(self, qname):
         """
-        Get the XSD global type from the schema's scope.
+        Get the XSD global attribute from the schema's scope. A concrete implementation must
+        returns an object that implements the `AbstractXsdAttribute` interface, or `None` if
+        the global attribute is not found.
 
-        :param type_qname: The QName of the type to retrieve.
-        :returns: The XSD Element or `None` if it isn't found.
-        """
-
-    @abstractmethod
-    def get_attribute(self, attribute_qname):
-        """
-        Get the XSD global attribute from the schema's scope.
-
-        :param attribute_qname: The QName of the attribute to retrieve.
-        :returns: The XSD Element or `None` if it isn't found.
+        :param qname: the fully qualified name of the attribute to retrieve.
+        :returns: an object that represents an XSD attribute or `None`.
         """
 
     @abstractmethod
-    def get_element(self, element_qname):
+    def get_element(self, qname):
         """
-        Get the XSD global element from the schema's scope.
+        Get the XSD global element from the schema's scope. A concrete implementation must
+        returns an object that implements the `AbstractXsdElement` interface or `None` if
+        the global element is not found.
 
-        :param element_qname: The QName of the element to retrieve.
-        :returns: The XSD Element or `None` if it isn't found.
+        :param qname: the fully qualified name of the element to retrieve.
+        :returns: an object that represents an XSD element or `None`.
+        """
+
+    @abstractmethod
+    def get_substitution_group(self, qname):
+        """
+        Get a substitution group. A concrete implementation must returns a list containing
+        substitution elements or `None` if the substitution group is not found. Moreover each item
+        of the returned list must be an object that implements the `AbstractXsdElement` interface.
+
+        :param qname: the fully qualified name of the substitution group to retrieve.
+        :returns: a list containing substitution elements or `None`.
         """
 
     @abstractmethod
@@ -93,48 +185,27 @@ class AbstractSchemaProxy(object):
         """
         Returns `True` if *obj* is an instance of the XSD global type, `False` if not.
 
-        :param obj: The instance to be tested.
-        :param type_qname: The QName of the type to test the instance.
+        :param obj: the instance to be tested.
+        :param type_qname: the fully qualified name of the type used to test the instance.
         """
 
     @abstractmethod
     def cast_as(self, obj, type_qname):
         """
-        Cast *obj* to the base type defined by XSD global type. Raise a ValueError or TypeError if the .
+        Converts *obj* to the Python type associated with an XSD global type. A concrete
+        implementation must raises a `ValueError` or `TypeError` in case of a decoding
+        error or a `KeyError` if the type is not bound to the schema's scope.
 
-        :param obj: The instance to be casted.
-        :param type_qname: The QName of the type to cast the instance.
+        :param obj: the instance to be casted.
+        :param type_qname: the fully qualified name of the type used to convert the instance.
         """
 
     @abstractmethod
     def iter_atomic_types(self):
-        """Iterate over not builtin atomic types defined in the schema's scope."""
-
-
-class XMLSchemaContext(AbstractSchemaContext):
-    """
-    Schema context for the *xmlschema* library.
-    """
-    def match_schema_type(self, name=None):
-        if isinstance(self.item, AttributeNode):
-            if name is not None and not self.item[1].is_matching(name):
-                return
-            xsd_type = self.item[1].type
-            return xsd_type, xsd_type.primitive_type.value
-
-        elif is_etree_element(self.item):
-            if name is not None:
-                try:
-                    if not self.item.is_matching(name):
-                        return
-                except AttributeError:
-                    if self.item.tag != name:
-                        return
-            xsd_type = self.item.type
-            if xsd_type.has_simple_content():
-                return xsd_type, xsd_type.content_type.primitive_type.value
-            else:
-                return xsd_type, ''
+        """
+        Returns an iterator for not builtin atomic types defined in the schema's scope. A concrete
+        implementation must yields objects that implement the `AbstractXsdType` interface.
+        """
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
@@ -145,6 +216,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if schema is None:
             from xmlschema import XMLSchema
             schema = XMLSchema.meta_schema
+        super(XMLSchemaProxy, self).__init__(schema, base_element)
 
         if base_element is not None:
             try:
@@ -153,32 +225,27 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             except AttributeError:
                 raise ElementPathTypeError("%r is not an XsdElement" % base_element)
 
-        super(XMLSchemaProxy, self).__init__(schema, base_element)
-
-    def get_context(self):
-        return XMLSchemaContext(root=self._schema, item=self._base_element)
-
-    def get_type(self, type_qname):
+    def get_type(self, qname):
         try:
-            return self._schema.maps.types[type_qname]
+            return self._schema.maps.types[qname]
         except KeyError:
             return None
 
-    def get_attribute(self, attribute_qname):
+    def get_attribute(self, qname):
         try:
-            return self._schema.maps.attributes[attribute_qname]
+            return self._schema.maps.attributes[qname]
         except KeyError:
             return None
 
-    def get_element(self, element_qname):
+    def get_element(self, qname):
         try:
-            return self._schema.maps.elements[element_qname]
+            return self._schema.maps.elements[qname]
         except KeyError:
             return None
 
-    def get_substitution_group(self, element_qname):
+    def get_substitution_group(self, qname):
         try:
-            return self._schema.maps.substitution_groups[element_qname]
+            return self._schema.maps.substitution_groups[qname]
         except KeyError:
             return None
 
