@@ -19,10 +19,10 @@ __status__ = "Production/Stable"
 from .exceptions import *
 from . import datatypes
 from .tdop_parser import Token, Parser
-from .xpath_context import XPathContext
+from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_helpers import AttributeNode, NamespaceNode
 from .xpath_token import XPathToken
 from .xpath1_parser import XPath1Parser
 from .xpath2_constructors import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
-from .schema_proxy import AbstractSchemaContext, AbstractSchemaProxy, XMLSchemaContext, XMLSchemaProxy
+from .schema_proxy import AbstractSchemaProxy, XMLSchemaProxy

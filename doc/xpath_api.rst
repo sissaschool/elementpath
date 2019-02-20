@@ -62,6 +62,7 @@ XPath dynamic context
 =====================
 
 .. autoclass:: elementpath.XPathContext
+.. autoclass:: elementpath.XPathSchemaContext
 
 
 XML Schema proxy

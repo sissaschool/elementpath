@@ -23,7 +23,7 @@ from .datatypes import XSD_BUILTINS_VALIDATORS
 from .xpath_helpers import is_xpath_node, boolean_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
-from .schema_proxy import AbstractSchemaContext, AbstractSchemaProxy
+from .schema_proxy import XPathSchemaContext, AbstractSchemaProxy
 
 
 class XPath2Parser(XPath1Parser):
@@ -554,7 +554,7 @@ def evaluate(self, context=None):
     elif self[1].label == 'function':
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
-                if context is not None and not isinstance(context, AbstractSchemaContext):
+                if context is not None and not isinstance(context, XPathSchemaContext):
                     self.wrong_sequence_type()
             elif position and (occurs is None or occurs == '?'):
                 self.wrong_sequence_type("more than one item in sequence")

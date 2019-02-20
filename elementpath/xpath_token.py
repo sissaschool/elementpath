@@ -22,7 +22,8 @@ for documents. Generic tuples are used for representing attributes and named-tup
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import is_etree_element, is_document_node, boolean_value, string_value, data_value, number_value
+from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, boolean_value, \
+    string_value, data_value, number_value
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration
 from .tdop_parser import Token
 
@@ -263,6 +264,37 @@ class XPathToken(Token):
         elif timezone is None:
             item.tzinfo = None
         return item
+
+    def match_xsd_type(self, schema_item, name):
+        """
+        Match a token with a schema type, checking the matching between the provided schema
+        item and name. If there is a match and the token is already related with another
+        schema type an exception is raised.
+
+        :param schema_item: an XPath item related with a schema instance.
+        :param name: a not empty string.
+        :returns: a value valid in the value-space of the primitive type if the XSD type is \
+        a simpleType definition or `None` otherwise.
+        """
+        if isinstance(schema_item, AttributeNode):
+            if not schema_item[1].is_matching(name):
+                return
+            xsd_type = schema_item[1].type
+        elif is_etree_element(schema_item):
+            if hasattr(schema_item, 'is_matching') and not schema_item.is_matching(name) \
+                    or schema_item.tag != name:
+                return
+            xsd_type = schema_item.type
+        else:
+            return
+
+        if self.xsd_type is None:
+            self.xsd_type = xsd_type
+        elif self.xsd_type is not xsd_type:
+            self.wrong_context_type("Multiple XSD type matching during static analysis")
+
+        if self.xsd_type.has_simple_content():
+            return getattr(self.xsd_type.primitive_type, 'value', None)
 
     ###
     # Error handling helpers
