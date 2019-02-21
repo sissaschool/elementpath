@@ -23,7 +23,7 @@ from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, is_element_node, \
-    boolean_value, string_value, data_value, number_value
+    string_value, data_value, number_value
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration
 from .tdop_parser import Token
 
@@ -223,10 +223,10 @@ class XPathToken(Token):
             try:
                 if isinstance(operand1[0], bool):
                     if len(operand1) == 1:
-                        return [(operand1[0], boolean_value(operand2))]
+                        return [(operand1[0], self.boolean(operand2))]
                 if isinstance(operand2[0], bool):
                     if len(operand2) == 1:
-                        return [(boolean_value(operand1), operand2[0])]
+                        return [(self.boolean(operand1), operand2[0])]
             except IndexError:
                 return []
 

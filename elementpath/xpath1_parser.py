@@ -23,7 +23,7 @@ from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES
 from .xpath_token import XPathToken
 from .xpath_helpers import AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
     is_document_node, is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, \
-    node_name, node_string_value, boolean_value, data_value, string_value, number_value
+    node_name, node_string_value, data_value, string_value, number_value
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
@@ -717,7 +717,7 @@ def select(self, context=None):
                     isinstance(predicate[0], (int, float)):
                 if context.position == predicate[0] - 1:
                     yield context.item
-            elif boolean_value(predicate):
+            elif self.boolean(predicate):
                 yield context.item
 
 
@@ -1113,12 +1113,12 @@ def evaluate(self, context=None):
 # Boolean functions
 @method(function('boolean', nargs=1))
 def evaluate(self, context=None):
-    return boolean_value(self[0].get_results(context))
+    return self.boolean(self[0].get_results(context))
 
 
 @method(function('not', nargs=1))
 def evaluate(self, context=None):
-    return not boolean_value(self[0].get_results(context))
+    return not self.boolean(self[0].get_results(context))
 
 
 @method(function('true', nargs=0))

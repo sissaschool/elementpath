@@ -21,7 +21,7 @@ from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissi
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
 from .datatypes import XSD_BUILTIN_TYPES
-from .xpath_helpers import is_xpath_node, boolean_value
+from .xpath_helpers import is_xpath_node
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .schema_proxy import XPathSchemaContext, AbstractSchemaProxy
@@ -408,7 +408,7 @@ def nud(self):
 
 @method('if')
 def evaluate(self, context=None):
-    if boolean_value(self[0].evaluate(context)):
+    if self.boolean(self[0].evaluate(context)):
         return self[1].evaluate(context)
     else:
         return self[2].evaluate(context)
@@ -416,7 +416,7 @@ def evaluate(self, context=None):
 
 @method('if')
 def select(self, context=None):
-    if boolean_value(list(self[0].select(context))):
+    if self.boolean(list(self[0].select(context))):
         for result in self[1].select(context):
             yield result
     else:
@@ -457,7 +457,7 @@ def evaluate(self, context=None):
     for results in product(*selectors):
         for i in range(len(results)):
             context.variables[self[i * 2][0].value] = results[i]
-        if boolean_value(list(self[-1].select(context.copy()))):
+        if self.boolean(list(self[-1].select(context.copy()))):
             if some:
                 return True
         elif not some:
