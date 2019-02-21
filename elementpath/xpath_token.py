@@ -40,9 +40,8 @@ def ordinal(n):
         return '%dth' % n
 
 
-###
-# XPathToken
 class XPathToken(Token):
+    """Base class for XPath tokens."""
 
     comment = None   # for XPath 2.0+ comments
     xsd_type = None  # fox XPath 2.0+ schema types labeling
@@ -273,16 +272,17 @@ class XPathToken(Token):
 
         :param schema_item: an XPath item related with a schema instance.
         :param name: a not empty string.
-        :returns: a value valid in the value-space of the primitive type if the XSD type is \
-        a simpleType definition or `None` otherwise.
+        :returns: the matched XSD type or `None` if there isn't a match.
         """
         if isinstance(schema_item, AttributeNode):
-            if not schema_item[1].is_matching(name):
+            if not schema_item[1].is_matching(name, self.parser.default_namespace):
                 return
             xsd_type = schema_item[1].type
         elif is_etree_element(schema_item):
-            if hasattr(schema_item, 'is_matching') and not schema_item.is_matching(name) \
-                    or schema_item.tag != name:
+            if hasattr(schema_item, 'is_matching'):
+                if not schema_item.is_matching(name, self.parser.default_namespace):
+                    return
+            elif schema_item.tag != name:
                 return
             xsd_type = schema_item.type
         else:
@@ -292,9 +292,7 @@ class XPathToken(Token):
             self.xsd_type = xsd_type
         elif self.xsd_type is not xsd_type:
             self.wrong_context_type("Multiple XSD type matching during static analysis")
-
-        if self.xsd_type.has_simple_content():
-            return getattr(self.xsd_type.primitive_type, 'value', None)
+        return xsd_type
 
     ###
     # Error handling helpers

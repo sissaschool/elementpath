@@ -19,7 +19,7 @@ from .compat import MutableSequence, urlparse
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
-from .datatypes import XSD_BUILTINS_VALIDATORS
+from .datatypes import XSD_BUILTIN_TYPES
 from .xpath_helpers import is_xpath_node, boolean_value
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
@@ -321,7 +321,7 @@ class XPath2Parser(XPath1Parser):
         if self.schema is not None:
             return self.schema.is_instance(obj, type_qname)
         local_name = type_qname.split('}')[1]
-        return XSD_BUILTINS_VALIDATORS[local_name](obj)
+        return XSD_BUILTIN_TYPES[local_name].validator(obj)
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
