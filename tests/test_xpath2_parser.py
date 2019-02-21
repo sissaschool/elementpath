@@ -226,6 +226,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("2 * 2 eq 4", True)
 
         self.check_value("() le 4")
+        self.check_value("4 gt ()")
+        self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
 
         # From XPath 2.0 examples
         root = self.etree.XML('<collection>'
@@ -253,6 +255,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('@min le @max', True, context=XPathContext(root=root))
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))
+        self.check_value('@min le @maximum', None, context=XPathContext(root=root))
 
     def test_number_functions2(self):
         # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions

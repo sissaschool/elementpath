@@ -14,10 +14,8 @@ Helper functions for nodes and for most-used XPath errorless functions.
 from collections import namedtuple
 
 from .compat import PY3
-from .exceptions import ElementPathTypeError
-from .namespaces import (
-    XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
-)
+from .namespaces import XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, \
+    XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
 from .datatypes import UntypedAtomic
 
 ###
@@ -239,7 +237,11 @@ def boolean_value(obj):
     The effective boolean value, as computed by fn:boolean().
 
     Ref: https://www.w3.org/TR/xpath20/#dt-ebv
+
+    TODO: replaced by XPathToken.boolean() but used by xmlschema-1.0.9, so to be removed asap.
     """
+    from .exceptions import ElementPathTypeError
+
     if isinstance(obj, list):
         if not obj:
             return False

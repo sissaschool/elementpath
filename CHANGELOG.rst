@@ -2,11 +2,13 @@
 CHANGELOG
 *********
 
-`v1.1.4`_ (2019-02-19)
+`v1.1.4`_ (2019-02-21)
 ======================
 * Implementation of a full Static Analysis Phase at parse() level
 * Schema-based static analysis for XPath 2.0 parsers using schema contexts
 * Added ``XPathSchemaContext`` class for processing schema contexts
+* Added boolean(), atomization() and get_atomized_operand() helpers to XPathToken
+* Fix value comparison operators
 
 `v1.1.3`_ (2019-02-06)
 ======================
