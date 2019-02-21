@@ -22,7 +22,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, is_element_node, \
+from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, boolean_value, \
     string_value, data_value, number_value
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration
 from .tdop_parser import Token
@@ -105,8 +105,16 @@ class XPathToken(Token):
             return u'%s treat as %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         return super(XPathToken, self).source
 
+    @property
+    def error_prefix(self):
+        for prefix, ns in self.parser.namespaces.items():
+            if ns == XQT_ERRORS_NAMESPACE:
+                return prefix
+        else:
+            return 'err'
+
     ###
-    # Helper methods related to XPath context
+    # Helper methods
     def get_argument(self, context, index=0, required=False, default_to_context=False, default=None, cls=None):
         """
         Get the argument value of a function of constructor token. A zero length sequence is
@@ -184,11 +192,17 @@ class XPathToken(Token):
         for item in self.select(context):
             value = data_value(item)
             if value is None:
-                raise self.error('FOTY0012', "argument node does not have a typed value: %r" % item)
+                raise self.error('FOTY0012', "argument node does not have a typed value: {}".format(item))
             else:
                 yield value
 
     def get_atomized_operand(self, context=None):
+        """
+        Get the atomized value for an XPath operator.
+
+        :param context: the XPath context.
+        :return: the atomized value of a single length sequence or `None` if the sequence is empty.
+        """
         selector = iter(self.atomization(context))
         try:
             value = next(selector)
@@ -210,7 +224,7 @@ class XPathToken(Token):
         Ref: https://www.w3.org/TR/xpath20/#id-general-comparisons
 
         :param context: the XPath dynamic context.
-        :returns: a list.
+        :returns: a list of data couples.
         """
         if context is None:
             operand1, operand2 = list(self[0].select()), list(self[1].select())
@@ -223,10 +237,10 @@ class XPathToken(Token):
             try:
                 if isinstance(operand1[0], bool):
                     if len(operand1) == 1:
-                        return [(operand1[0], self.boolean(operand2))]
+                        return [(operand1[0], boolean_value(operand2, self))]
                 if isinstance(operand2[0], bool):
                     if len(operand2) == 1:
-                        return [(self.boolean(operand1), operand2[0])]
+                        return [(boolean_value(operand1, self), operand2[0])]
             except IndexError:
                 return []
 
@@ -293,32 +307,6 @@ class XPathToken(Token):
             item.tzinfo = None
         return item
 
-    ###
-    # Other helper methods that can generate token-related exceptions
-    def boolean(self, obj):
-        """
-        The effective boolean value, as computed by fn:boolean().
-
-        Ref: https://www.w3.org/TR/xpath20/#dt-ebv
-
-        :returns: a bool() instance.
-        """
-        if isinstance(obj, list):
-            if not obj:
-                return False
-            elif isinstance(obj[0], tuple) or is_element_node(obj[0]):
-                return True
-            elif len(obj) == 1:
-                return bool(obj[0])
-            else:
-                self.wrong_type(
-                    "Effective boolean value is not defined for a sequence of two or "
-                    "more items not starting with an XPath node."
-                )
-        elif isinstance(obj, tuple) or is_element_node(obj):
-            self.wrong_type("Effective boolean value is not defined for {}.".format(obj))
-        return bool(obj)
-
     def match_xsd_type(self, schema_item, name):
         """
         Match a token with a schema type, checking the matching between the provided schema
@@ -359,12 +347,7 @@ class XPathToken(Token):
         :param code: the error code.
         :param message: an optional custom additional message.
         """
-        for prefix, ns in self.parser.namespaces.items():
-            if ns == XQT_ERRORS_NAMESPACE:
-                break
-        else:
-            prefix = 'err'
-        return xpath_error(code, message, self, prefix)
+        return xpath_error(code, message, self, self.error_prefix)
 
     # Shortcuts for XPath errors
     def wrong_value(self, message=None):

@@ -9,13 +9,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Helper functions for nodes and for most-used XPath errorless functions.
+Helper functions for XPath nodes and functions.
 """
 from collections import namedtuple
 
 from .compat import PY3
 from .namespaces import XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, \
     XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
+from .exceptions import xpath_error
 from .datatypes import UntypedAtomic
 
 ###
@@ -232,16 +233,10 @@ def node_type_name(obj, schema=None):
 
 ###
 # XPath base functions
-def boolean_value(obj):
+def boolean_value(obj, token=None):
     """
     The effective boolean value, as computed by fn:boolean().
-
-    Ref: https://www.w3.org/TR/xpath20/#dt-ebv
-
-    TODO: replaced by XPathToken.boolean() but used by xmlschema-1.0.9, so to be removed asap.
     """
-    from .exceptions import ElementPathTypeError
-
     if isinstance(obj, list):
         if not obj:
             return False
@@ -250,12 +245,16 @@ def boolean_value(obj):
         elif len(obj) == 1:
             return bool(obj[0])
         else:
-            raise ElementPathTypeError(
-                "Effective boolean value is not defined for a sequence of two or "
-                "more items not starting with an XPath node: %r" % obj
+            raise xpath_error(
+                code='FORG0006', token=token, prefix=getattr(token, 'error_prefix', 'err'),
+                message="Effective boolean value is not defined for a sequence of two or "
+                "more items not starting with an XPath node.",
             )
     elif isinstance(obj, tuple) or is_element_node(obj):
-        raise ElementPathTypeError("Effective boolean value is not defined for %r." % obj)
+        raise xpath_error(
+            code='FORG0006', token=token, prefix=getattr(token, 'error_prefix', 'err'),
+            message="Effective boolean value is not defined for {}.".format(obj)
+        )
     return bool(obj)
 
 

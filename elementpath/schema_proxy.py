@@ -34,6 +34,11 @@ class AbstractXsdComponent(object):
     def name(self):
         """The XSD component's name. It's `None` for a local type definition."""
 
+    @property
+    @abstractmethod
+    def local_name(self):
+        """The local part of the XSD component's name. It's `None` for a local type definition."""
+
     @abstractmethod
     def is_matching(self, name, default_namespace):
         """
@@ -101,10 +106,11 @@ class AbstractXsdType(AbstractXsdComponent):
         `False` otherwise.
         """
 
-    @property
     @abstractmethod
-    def primitive_type(self):
-        """The XSD built-in primitive type."""
+    def decode(self, obj, *args, **kwargs):
+        """
+        Decodes XML data using the XSD type.
+        """
 
 
 ####
@@ -207,6 +213,15 @@ class AbstractSchemaProxy(object):
         implementation must yields objects that implement the `AbstractXsdType` interface.
         """
 
+    @abstractmethod
+    def get_primitive_type(self, xsd_type):
+        """
+        Returns the primitive type of an XSD type.
+
+        :param xsd_type: an XSD type instance.
+        :return: an XSD builtin primitive type.
+        """
+
 
 class XMLSchemaProxy(AbstractSchemaProxy):
     """
@@ -266,6 +281,16 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         for xsd_type in self._schema.maps.types.values():
             if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
                 yield xsd_type
+
+    def get_primitive_type(self, xsd_type):
+        if not xsd_type.is_simple():
+            return self._schema.maps.types['{%s}anyType']
+        elif not hasattr(xsd_type, 'primitive_type'):
+            return self.get_primitive_type(xsd_type.base_type)
+        elif xsd_type.primitive_type is not xsd_type:
+            return self.get_primitive_type(xsd_type.primitive_type)
+        else:
+            return xsd_type
 
 
 __all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdType', 'AbstractXsdAttribute',
