@@ -58,8 +58,8 @@ XPath tokens
     .. automethod:: error
 
 
-XPath dynamic context
-=====================
+XPath contexts
+==============
 
 .. autoclass:: elementpath.XPathContext
 .. autoclass:: elementpath.XPathSchemaContext

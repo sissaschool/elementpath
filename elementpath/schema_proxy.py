@@ -266,3 +266,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         for xsd_type in self._schema.maps.types.values():
             if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
                 yield xsd_type
+
+
+__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdType', 'AbstractXsdAttribute',
+           'AbstractXsdElement', 'AbstractSchemaProxy', 'XMLSchemaProxy']

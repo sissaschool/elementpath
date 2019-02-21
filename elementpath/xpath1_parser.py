@@ -21,7 +21,7 @@ from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
-from .xpath_helpers import NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
+from .xpath_helpers import AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
     is_document_node, is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, \
     node_name, node_string_value, boolean_value, data_value, string_value, number_value
 
@@ -230,7 +230,13 @@ def evaluate(self, context=None):
         name = u'{%s}%s' % (self.parser.default_namespace, name)
 
     if isinstance(context, XPathSchemaContext):
-        return self.match_xsd_type(context.item, name)
+        xsd_type = self.match_xsd_type(context.item, name)
+        if xsd_type is not None:
+            if isinstance(context.item, AttributeNode):
+                return getattr(self.xsd_type.primitive_type, 'value', None)
+            else:
+                return context.item
+
     elif self.xsd_type is None:
         if is_attribute_node(context.item, name):
             return context.item[1]
@@ -259,9 +265,12 @@ def select(self, context=None):
 
     if isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
-            value = self.match_xsd_type(item, name)
-            if value is not None:
-                yield value
+            xsd_type = self.match_xsd_type(item, name)
+            if xsd_type is not None:
+                if isinstance(context.item, AttributeNode):
+                    yield getattr(self.xsd_type.primitive_type, 'value', None)
+                else:
+                    yield context.item
 
     elif self.xsd_type is None:
         # Untyped selection
@@ -640,6 +649,8 @@ def select(self, context=None):
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
             if not is_element_node(context.item):
+                import pdb
+                pdb.set_trace()
                 self.wrong_type("left operand must returns element nodes: {}".format(context.item))
             for result in self[1].select(context):
                 if is_etree_element(result) or isinstance(result, tuple):
