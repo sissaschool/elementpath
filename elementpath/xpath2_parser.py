@@ -14,6 +14,7 @@ XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 from __future__ import division
 from itertools import product
 from abc import ABCMeta
+import operator
 
 from .compat import MutableSequence, urlparse
 from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
@@ -705,35 +706,24 @@ def select(self, context=None):
 
 
 ###
-# Value comparison operators
+# Value comparison operators (eq, ne, lt, le, gt, and ge)
+#
+# Ref: https://www.w3.org/TR/xpath20/#id-value-comparisons
+#
 @method(infix('eq', bp=30))
-def evaluate(self, context=None):
-    return self[0].evaluate(context) == self[1].evaluate(context)
-
-
 @method(infix('ne', bp=30))
-def evaluate(self, context=None):
-    return self[0].evaluate(context) != self[1].evaluate(context)
-
-
 @method(infix('lt', bp=30))
-def evaluate(self, context=None):
-    return self[0].evaluate(context) < self[1].evaluate(context)
-
-
 @method(infix('gt', bp=30))
-def evaluate(self, context=None):
-    return self[0].evaluate(context) > self[1].evaluate(context)
-
-
 @method(infix('le', bp=30))
-def evaluate(self, context=None):
-    return self[0].evaluate(context) <= self[1].evaluate(context)
-
-
 @method(infix('ge', bp=30))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) >= self[1].evaluate(context)
+    if context is None:
+        op1, op2 = self[0].get_atomized_operand(), self[1].get_atomized_operand()
+    else:
+        op1, op2 = self[0].get_atomized_operand(context.copy()), self[1].get_atomized_operand(context.copy())
+
+    if op1 is not None and op2 is not None:
+        return getattr(operator, self.symbol)(op1, op2)
 
 
 ###

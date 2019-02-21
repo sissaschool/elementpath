@@ -225,6 +225,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("0 eq false()", True)
         self.check_value("2 * 2 eq 4", True)
 
+        self.check_value("() le 4")
+
         # From XPath 2.0 examples
         root = self.etree.XML('<collection>'
                               '   <book><author>Kafka</author></book>'
