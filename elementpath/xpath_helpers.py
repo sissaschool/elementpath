@@ -9,8 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Helper functions for XPath. Includes test functions for nodes, a class for UntypedAtomic data and
-implementation for XPath functions that are reused in many contexts.
+Helper functions for nodes and for most-used XPath errorless functions.
 """
 from collections import namedtuple
 

@@ -22,8 +22,8 @@ for documents. Generic tuples are used for representing attributes and named-tup
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, boolean_value, \
-    string_value, data_value, number_value
+from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, is_element_node, \
+    boolean_value, string_value, data_value, number_value
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration
 from .tdop_parser import Token
 
@@ -106,7 +106,7 @@ class XPathToken(Token):
         return super(XPathToken, self).source
 
     ###
-    # Context manipulation helpers
+    # Helper methods related to XPath context
     def get_argument(self, context, index=0, required=False, default_to_context=False, default=None, cls=None):
         """
         Get the argument value of a function of constructor token. A zero length sequence is
@@ -173,9 +173,38 @@ class XPathToken(Token):
 
         return item
 
+    def atomization(self, context=None):
+        """
+        Helper method for value atomization of a sequence.
+
+        Ref: https://www.w3.org/TR/xpath20/#id-atomization
+
+        :param context: the XPath context.
+        """
+        for item in self.select(context):
+            value = data_value(item)
+            if value is None:
+                raise self.error('FOTY0012', "argument node does not have a typed value: %r" % item)
+            else:
+                yield value
+
+    def get_atomized_operand(self, context=None):
+        selector = iter(self.atomization(context))
+        try:
+            value = next(selector)
+        except StopIteration:
+            return
+        else:
+            try:
+                next(selector)
+            except StopIteration:
+                return str(value) if isinstance(value, UntypedAtomic) else value
+            else:
+                self.wrong_context_type("atomized operand is a sequence of length greater than one")
+
     def get_comparison_data(self, context):
         """
-        Get comparison data couples for the general comparison. Different sequences
+        Get comparison data couples for the general comparison of sequences. Different sequences
         maybe generated with an XPath 2.0 parser, depending on compatibility mode setting.
 
         Ref: https://www.w3.org/TR/xpath20/#id-general-comparisons
@@ -184,7 +213,7 @@ class XPathToken(Token):
         :returns: a list.
         """
         if context is None:
-            operand1, operand2 = list(self[0].select(None)), list(self[1].select(None))
+            operand1, operand2 = list(self[0].select()), list(self[1].select())
         else:
             operand1 = list(self[0].select(context.copy()))
             operand2 = list(self[1].select(context.copy()))
@@ -263,6 +292,32 @@ class XPathToken(Token):
         elif timezone is None:
             item.tzinfo = None
         return item
+
+    ###
+    # Other helper methods that can generate token-related exceptions
+    def boolean(self, obj):
+        """
+        The effective boolean value, as computed by fn:boolean().
+
+        Ref: https://www.w3.org/TR/xpath20/#dt-ebv
+
+        :returns: a bool() instance.
+        """
+        if isinstance(obj, list):
+            if not obj:
+                return False
+            elif isinstance(obj[0], tuple) or is_element_node(obj[0]):
+                return True
+            elif len(obj) == 1:
+                return bool(obj[0])
+            else:
+                self.wrong_type(
+                    "Effective boolean value is not defined for a sequence of two or "
+                    "more items not starting with an XPath node."
+                )
+        elif isinstance(obj, tuple) or is_element_node(obj):
+            self.wrong_type("Effective boolean value is not defined for {}.".format(obj))
+        return bool(obj)
 
     def match_xsd_type(self, schema_item, name):
         """

@@ -649,8 +649,6 @@ def select(self, context=None):
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
             if not is_element_node(context.item):
-                import pdb
-                pdb.set_trace()
                 self.wrong_type("left operand must returns element nodes: {}".format(context.item))
             for result in self[1].select(context):
                 if is_etree_element(result) or isinstance(result, tuple):
