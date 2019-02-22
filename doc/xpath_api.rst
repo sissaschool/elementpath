@@ -86,3 +86,4 @@ implementing concrete interfaces to other types of XML Schema processors.
     .. automethod:: cast_as
     .. automethod:: is_instance
     .. automethod:: iter_atomic_types
+    .. automethod:: get_primitive_type
