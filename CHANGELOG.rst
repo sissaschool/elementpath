@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.1.5`_ (2019-02-23)
+======================
+* Differentiated unordered XPath gregorian types from ordered types for XSD
+* Fix issue #2
+
 `v1.1.4`_ (2019-02-21)
 ======================
 * Implementation of a full Static Analysis Phase at parse() level
@@ -105,3 +110,4 @@ handling of static context evaluation
 .. _v1.1.2: https://github.com/brunato/elementpath/compare/v1.1.1...v1.1.2
 .. _v1.1.3: https://github.com/brunato/elementpath/compare/v1.1.2...v1.1.3
 .. _v1.1.4: https://github.com/brunato/elementpath/compare/v1.1.3...v1.1.4
+.. _v1.1.5: https://github.com/brunato/elementpath/compare/v1.1.4...v1.1.5

@@ -21,7 +21,7 @@ import locale
 import unicodedata
 
 from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urllib_quote, unicode_type
-from .datatypes import QNAME_PATTERN, DateTime, Date, Time, Timezone, Duration, DayTimeDuration
+from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
 from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
@@ -817,67 +817,67 @@ def evaluate(self, context=None):
 
 @method(function('year-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else -(item.year + 1) if item.bce else item.year
 
 
 @method(function('month-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else item.month
 
 
 @method(function('day-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else item.day
 
 
 @method(function('hours-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else item.hour
 
 
 @method(function('minutes-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else item.minute
 
 
 @method(function('seconds-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else item.second
 
 
 @method(function('timezone-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime)
+    item = self.get_argument(context, cls=DateTime10)
     return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('year-from-date', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date)
+    item = self.get_argument(context, cls=Date10)
     return [] if item is None else item.year
 
 
 @method(function('month-from-date', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date)
+    item = self.get_argument(context, cls=Date10)
     return [] if item is None else item.month
 
 
 @method(function('day-from-date', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date)
+    item = self.get_argument(context, cls=Date10)
     return [] if item is None else item.day
 
 
 @method(function('timezone-from-date', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date)
+    item = self.get_argument(context, cls=Date10)
     return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
@@ -909,12 +909,12 @@ def evaluate(self, context=None):
 # Timezone adjustment functions
 @method(function('adjust-dateTime-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
-    return self.adjust_datetime(context, DateTime)
+    return self.adjust_datetime(context, DateTime10)
 
 
 @method(function('adjust-date-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
-    return self.adjust_datetime(context, Date)
+    return self.adjust_datetime(context, Date10)
 
 
 @method(function('adjust-time-to-timezone', nargs=(1, 2)))
@@ -927,13 +927,13 @@ def evaluate(self, context=None):
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
-    return DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
+    return DateTime10(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
 
 @method(function('current-date', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
-    return Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
+    return Date10(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
 
 
 @method(function('current-time', nargs=0))

@@ -181,7 +181,7 @@ class AbstractDateTime(object):
     A class for representing XSD date/time objects. It uses and internal datetime.datetime
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
     """
-    version = '1.1'
+    version = '1.0'
     _pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
 
@@ -238,9 +238,9 @@ class AbstractDateTime(object):
         """The ISO string representation of the year field."""
         year = self.year
         if -9999 <= year < -1:
-            return '{:05}'.format(year + 1 if self.version == '1.1' else year)
+            return '{:05}'.format(year if self.version == '1.0' else year + 1)
         elif year == -1:
-            return '{:04}'.format(year + 1 if self.version == '1.1' else year)
+            return '{:04}'.format(year if self.version == '1.0' else year + 1)
         elif 0 <= year <= 9999:
             return '{:04}'.format(year)
         else:
@@ -306,7 +306,7 @@ class AbstractDateTime(object):
             kwargs['microsecond'] = 0 if pow10 < 0 else kwargs['microsecond'] * 10**pow10
 
         year = kwargs.get('year')
-        if year is not None and year <= 0 and cls.version == '1.1':
+        if year is not None and year <= 0 and cls.version != '1.0':
             kwargs['year'] -= 1
         return cls(**kwargs)
 
@@ -415,7 +415,7 @@ class OrderedDateTime(AbstractDateTime):
         else:
             year = dt.year
 
-        if issubclass(cls, Date):
+        if issubclass(cls, Date10):
             if adjust_timezone and dt.hour or dt.minute:
                 if dt.tzinfo is None:
                     hour, minute = dt.hour, dt.minute
@@ -521,15 +521,15 @@ class OrderedDateTime(AbstractDateTime):
         return self._date_operator(operator.sub, other)
 
 
-class DateTime(OrderedDateTime):
-    """Class for representing xs:dateTime data."""
+class DateTime10(OrderedDateTime):
+    """XSD 1.0 xs:dateTime builtin type"""
     _pattern = re.compile(
         r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)?'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
-        super(DateTime, self).__init__(year, month, day, hour, minute, second, microsecond, tzinfo)
+        super(DateTime10, self).__init__(year, month, day, hour, minute, second, microsecond, tzinfo)
 
     def __str__(self):
         if self.microsecond:
@@ -542,94 +542,118 @@ class DateTime(OrderedDateTime):
         )
 
 
-class DateTime10(DateTime):
-    version = '1.0'
+class DateTime(DateTime10):
+    """XSD 1.1 xs:dateTime builtin type"""
+    version = '1.1'
 
 
-class Date(OrderedDateTime):
-    """Class for representing xs:date data."""
+class Date10(OrderedDateTime):
+    """XSD 1.0 xs:date builtin type"""
     _pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
                           r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, day, tzinfo=None):
-        super(Date, self).__init__(year, month, day, tzinfo=tzinfo)
+        super(Date10, self).__init__(year, month, day, tzinfo=tzinfo)
 
     def __str__(self):
         return '{}-{:02}-{:02}{}'.format(self.iso_year, self.month, self.day, str(self.tzinfo or ''))
 
 
-class Date10(Date):
-    version = '1.0'
+class Date(Date10):
+    """XSD 1.1 xs:date builtin type"""
+    version = '1.1'
 
 
-class GregorianDay(AbstractDateTime):
-    """Class for representing xs:gDay data."""
+class XPathGregorianDay(AbstractDateTime):
+    """xs:gDay datatype for XPath expressions"""
     _pattern = re.compile(r'^---(?P<day>[0-9]{2})(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, day, tzinfo=None):
-        super(GregorianDay, self).__init__(day=day, tzinfo=tzinfo)
+        super(XPathGregorianDay, self).__init__(day=day, tzinfo=tzinfo)
 
     def __str__(self):
         return '---{:02}{}'.format(self.day, str(self.tzinfo or ''))
 
 
-class GregorianMonth(AbstractDateTime):
-    """Class for representing xs:gMonth data."""
+class GregorianDay(XPathGregorianDay, OrderedDateTime):
+    """XSD xs:gDay builtin type"""
+
+
+class XPathGregorianMonth(AbstractDateTime):
+    """xs:gMonth datatype for XPath expressions"""
     _pattern = re.compile(r'^--(?P<month>[0-9]{2})(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, tzinfo=None):
-        super(GregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
+        super(XPathGregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
 
     def __str__(self):
         return '--{:02}{}'.format(self.month, str(self.tzinfo or ''))
 
 
-class GregorianMonthDay(AbstractDateTime):
-    """Class for representing xs:gMonthDay data."""
+class GregorianMonth(XPathGregorianMonth, OrderedDateTime):
+    """XSD xs:gMonth builtin type"""
+
+
+class XPathGregorianMonthDay(AbstractDateTime):
+    """xs:gMonthDay datatype for XPath expressions"""
     _pattern = re.compile(r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
                           r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, day, tzinfo=None):
-        super(GregorianMonthDay, self).__init__(month=month, day=day, tzinfo=tzinfo)
+        super(XPathGregorianMonthDay, self).__init__(month=month, day=day, tzinfo=tzinfo)
 
     def __str__(self):
         return '--{:02}-{:02}{}'.format(self.month, self.day, str(self.tzinfo or ''))
 
 
-class GregorianYear(AbstractDateTime):
-    """Class for representing xs:gYear data."""
+class GregorianMonthDay(XPathGregorianMonthDay, OrderedDateTime):
+    """XSD xs:gMonthDay builtin type"""
+
+
+class XPathGregorianYear(AbstractDateTime):
+    """xs:gYear datatype for XPath expressions"""
     _pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})'
                           r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, tzinfo=None):
-        super(GregorianYear, self).__init__(year, tzinfo=tzinfo)
+        super(XPathGregorianYear, self).__init__(year, tzinfo=tzinfo)
 
     def __str__(self):
         return '{}{}'.format(self.iso_year, str(self.tzinfo or ''))
 
 
-class GregorianYear10(GregorianYear):
-    version = '1.0'
+class GregorianYear10(XPathGregorianYear, OrderedDateTime):
+    """XSD 1.0 xs:gYear builtin type"""
 
 
-class GregorianYearMonth(AbstractDateTime):
-    """Class for representing xs:gYearMonth data."""
+class GregorianYear(GregorianYear10):
+    """XSD 1.1 xs:gYear builtin type"""
+    version = '1.1'
+
+
+class XPathGregorianYearMonth(AbstractDateTime):
+    """xs:gYearMonth datatype for XPath expressions"""
     _pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
                           r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, tzinfo=None):
-        super(GregorianYearMonth, self).__init__(year, month, tzinfo=tzinfo)
+        super(XPathGregorianYearMonth, self).__init__(year, month, tzinfo=tzinfo)
 
     def __str__(self):
         return '{}-{:02}{}'.format(self.iso_year, self.month, str(self.tzinfo or ''))
 
 
-class GregorianYearMonth10(GregorianYearMonth):
-    version = '1.0'
+class GregorianYearMonth10(XPathGregorianYearMonth, OrderedDateTime):
+    """XSD 1.0 xs:gYearMonth builtin type"""
+
+
+class GregorianYearMonth(GregorianYearMonth10):
+    """XSD 1.1 xs:gYearMonth builtin type"""
+    version = '1.1'
 
 
 class Time(AbstractDateTime):
-    """Class for representing xs:time data."""
+    """XSD xs:time builtin type"""
     _pattern = re.compile(
         r'^(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
