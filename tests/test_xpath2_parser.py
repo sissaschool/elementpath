@@ -773,8 +773,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_time_constructor(self):
         tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
-        self.check_value('xs:time("21:30:00")', datetime.datetime(1900, 1, 1, 21, 30, tzinfo=tz0))
-        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(1900, 1, 1, 11, 15, 48, tzinfo=tz1))
+        self.check_value('xs:time("21:30:00")', datetime.datetime(2000, 1, 1, 21, 30, tzinfo=tz0))
+        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(2000, 1, 1, 11, 15, 48, tzinfo=tz1))
 
     def test_date_constructor(self):
         tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
@@ -788,19 +788,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
-        self.check_value('xs:gDay("---30")', datetime.datetime(1900, 1, 30, tzinfo=tz0))
-        self.check_value('xs:gDay("---21+05:24")', datetime.datetime(1900, 1, 21, tzinfo=tz1))
+        self.check_value('xs:gDay("---30")', datetime.datetime(2000, 1, 30, tzinfo=tz0))
+        self.check_value('xs:gDay("---21+05:24")', datetime.datetime(2000, 1, 21, tzinfo=tz1))
         self.wrong_value('xs:gDay("---32")')
         self.wrong_value('xs:gDay("--19")')
 
-        self.check_value('xs:gMonth("--09")', datetime.datetime(1900, 9, 1, tzinfo=tz0))
-        self.check_value('xs:gMonth("--12")', datetime.datetime(1900, 12, 1, tzinfo=tz0))
+        self.check_value('xs:gMonth("--09")', datetime.datetime(2000, 9, 1, tzinfo=tz0))
+        self.check_value('xs:gMonth("--12")', datetime.datetime(2000, 12, 1, tzinfo=tz0))
         self.wrong_value('xs:gMonth("--9")')
         self.wrong_value('xs:gMonth("-09")')
         self.wrong_value('xs:gMonth("--13")')
 
-        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(1900, 7, 2, tzinfo=tz0))
-        self.check_value('xs:gMonthDay("--07-02-14:00")', datetime.datetime(1900, 7, 2, tzinfo=tz2))
+        self.check_value('xs:gMonthDay("--07-02")', datetime.datetime(2000, 7, 2, tzinfo=tz0))
+        self.check_value('xs:gMonthDay("--07-02-14:00")', datetime.datetime(2000, 7, 2, tzinfo=tz2))
         self.wrong_value('xs:gMonthDay("--7-02")')
         self.wrong_value('xs:gMonthDay("-07-02")')
         self.wrong_value('xs:gMonthDay("--07-32")')

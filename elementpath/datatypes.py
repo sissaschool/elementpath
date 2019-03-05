@@ -185,7 +185,7 @@ class AbstractDateTime(object):
     _pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
 
-    def __init__(self, year=1900, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
+    def __init__(self, year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
         if hour == 24 and minute == second == 0:
             hour = 0
 
