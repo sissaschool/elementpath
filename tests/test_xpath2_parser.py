@@ -587,30 +587,30 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_qname_functions(self):
         self.check_value('fn:QName("", "person")', 'person')
         self.check_value('fn:QName((), "person")', 'person')
-        self.check_value('fn:QName("http://www.example.com/example", "person")', 'person')
-        self.check_value('fn:QName("http://www.example.com/example", "ht:person")', 'ht:person')
+        self.check_value('fn:QName("http://www.example.com/ns/", "person")', 'person')
+        self.check_value('fn:QName("http://www.example.com/ns/", "ht:person")', 'ht:person')
         self.wrong_type('fn:QName("", 2)')
-        self.wrong_value('fn:QName("http://www.example.com/example", "xs:person")')
+        self.wrong_value('fn:QName("http://www.example.com/ns/", "xs:person")')
 
-        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/example", "ht:person"))', 'ht')
-        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/example", "person"))', [])
+        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "ht:person"))', 'ht')
+        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "person"))', [])
         self.check_value(
-            'fn:local-name-from-QName(fn:QName("http://www.example.com/example", "person"))', 'person'
+            'fn:local-name-from-QName(fn:QName("http://www.example.com/ns/", "person"))', 'person'
         )
         self.check_value(
-            'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/example", "person"))',
-            'http://www.example.com/example'
+            'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
+            'http://www.example.com/ns/'
         )
 
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
                               '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
-                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/example"/><C2/></p0:B3>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
                               '</p1:A>')
         context = XPathContext(root=root)
         self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
-        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/example}C2', context=context.copy())
+        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2', context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/example', context=context)
+        self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/ns/', context=context)
         self.check_selector("fn:in-scope-prefixes(.)", root, ['p2', 'p0'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
 
     def test_string_constructors(self):
@@ -1242,8 +1242,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             expected=Timezone(datetime.timedelta(seconds=time.timezone)),
         )
         self.check_value('fn:static-base-uri()', context=context)
-        parser = XPath2Parser(strict=True, base_uri='http://www.example.com/ns/')
-        self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context), 'http://www.example.com/ns/')
+        parser = XPath2Parser(strict=True, base_uri='http://example.com/ns/')
+        self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context), 'http://example.com/ns/')
 
     def test_root_function(self):
         pass

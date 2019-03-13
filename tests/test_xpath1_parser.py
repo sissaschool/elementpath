@@ -56,7 +56,7 @@ class XPath1ParserTest(unittest.TestCase):
         'xs': XSD_NAMESPACE,
         'xsi': XSI_NAMESPACE,
         'fn': XPATH_FUNCTIONS_NAMESPACE,
-        'eg': 'http://www.example.com/example',
+        'eg': 'http://www.example.com/ns/',
     }
     variables = {
         'values': [10, 20, 5],
@@ -903,6 +903,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('child::text()', root, ['A text'])
         self.check_selector('child::node()', root, ['A text'] + root[:])
         self.check_selector('child::*', root, root[:])
+
+        root = self.etree.XML('<A xmlns:ns="http://www.example.com/ns/"><ns:B1/><B2/></A>')
+        self.check_selector('child::eg:A', root, [], namespaces={'eg': 'http://www.example.com/ns/'})
+        self.check_selector('child::eg:B1', root, [root[0]], namespaces={'eg': 'http://www.example.com/ns/'})
 
     def test_descendant_axis(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')

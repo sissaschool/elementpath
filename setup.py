@@ -21,7 +21,7 @@ setup(
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/elementpath',
     license='MIT',
-    description='XPath 1.0/2.0 parsers and selectors for ElementTree.',
+    description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
