@@ -1042,7 +1042,8 @@ NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$', flags=0 if PY3 else re.U)
 NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
 QNAME_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w.-]*):)?(?P<local>[^\d\W][\w.-]*)$', flags=0 if PY3 else re.U
+    r'^(?:(?P<prefix>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*):)?(?P<local>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*)$',
+    flags=0 if PY3 else re.U
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
@@ -1164,10 +1165,10 @@ XSD_BUILTIN_TYPES = {
         lambda x: isinstance(x, int), value=1
     ),
     'long': XsdBuiltin(
-        lambda x: isinstance(x, int) and (-2**127 <= x < 2**127), value=1
+        lambda x: isinstance(x, int) and (-2**63 <= x < 2**63), value=1
     ),
     'int': XsdBuiltin(
-        lambda x: isinstance(x, int) and (-2**63 <= x < 2**63), value=1
+        lambda x: isinstance(x, int) and (-2**31 <= x < 2**31), value=1
     ),
     'short': XsdBuiltin(
         lambda x: isinstance(x, int) and (-2**15 <= x < 2**15), value=1
@@ -1188,10 +1189,10 @@ XSD_BUILTIN_TYPES = {
         lambda x: isinstance(x, int) and x >= 0, value=0
     ),
     'unsignedLong': XsdBuiltin(
-        lambda x: isinstance(x, int) and (0 <= x < 2**128), value=1
+        lambda x: isinstance(x, int) and (0 <= x < 2**64), value=1
     ),
     'unsignedInt': XsdBuiltin(
-        lambda x: isinstance(x, int) and (0 <= x < 2**64), value=1
+        lambda x: isinstance(x, int) and (0 <= x < 2**32), value=1
     ),
     'unsignedShort': XsdBuiltin(
         lambda x: isinstance(x, int) and (0 <= x < 2**16), value=1
