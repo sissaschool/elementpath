@@ -48,7 +48,7 @@ class XPath2Parser(XPath1Parser):
     :param schema: the schema proxy class or instance to use for types, attributes and elements lookups. \
     If an `AbstractSchemaProxy` subclass is provided then a schema proxy instance is built without the \
     optional argument, that involves a mapping of only XSD builtin types. If it's not provided the \
-    XPath 2.0 \schema's related expressions cannot be used.
+    XPath 2.0 schema's related expressions cannot be used.
     :param base_uri: an absolute URI maybe provided, used when necessary in the resolution of relative URIs.
     :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
     """
@@ -503,7 +503,7 @@ def select(self, context=None):
 @method('instance', bp=60)
 @method('treat', bp=61)
 def led(self, left):
-    self.parser.advance('of' if self.symbol is 'instance' else 'as')
+    self.parser.advance('of' if self.symbol == 'instance' else 'as')
     if not self.parser.next_is_sequence_type_token():
         self.parser.next_token.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=self.rbp)
