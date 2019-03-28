@@ -191,7 +191,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
         self.check_value("5 instance of xs:integer", True)
         self.check_value("5 instance of xs:decimal", True)
-        self.check_value("9.0 instance of xs:integer", False if xmlschema.__version__ >= '1.0.8' else True)
+        self.check_value("9.0 instance of xs:integer",
+                         False if [int(n) for n in xmlschema.__version__.split('.')] >= [1, 0, 8] else True)
         self.check_value("(5, 6) instance of xs:integer+", True)
         self.check_value(". instance of element()", True, context)
 

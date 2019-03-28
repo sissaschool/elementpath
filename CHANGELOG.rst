@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.1.6`_ (2019-03-28)
+======================
+* Fixes for XSD datatypes
+* Minor fixes after a first test run with Python v3.8a3
+
 `v1.1.5`_ (2019-02-23)
 ======================
 * Differentiated unordered XPath gregorian types from ordered types for XSD
@@ -69,8 +74,7 @@ CHANGELOG
 ======================
 * Added n.10 XPath 2.0 functions for strings
 * Fix README.rst for right rendering in PyPI
-* Added ElementPathMissingContextError exception for a correct
-handling of static context evaluation
+* Added ElementPathMissingContextError exception for a correct handling of static context evaluation
 
 `v1.0.4`_ (2018-03-27)
 ======================
@@ -111,3 +115,4 @@ handling of static context evaluation
 .. _v1.1.3: https://github.com/brunato/elementpath/compare/v1.1.2...v1.1.3
 .. _v1.1.4: https://github.com/brunato/elementpath/compare/v1.1.3...v1.1.4
 .. _v1.1.5: https://github.com/brunato/elementpath/compare/v1.1.4...v1.1.5
+.. _v1.1.6: https://github.com/brunato/elementpath/compare/v1.1.5...v1.1.6
