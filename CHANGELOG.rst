@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.1.7`_ (TBD)
+===============
+* Added Parser.is_spaced() method for checking if the current token has extra spaces before or after
+* Fixes for '/' and ':' tokens
+
 `v1.1.6`_ (2019-03-28)
 ======================
 * Fixes for XSD datatypes
@@ -116,3 +121,4 @@ CHANGELOG
 .. _v1.1.4: https://github.com/brunato/elementpath/compare/v1.1.3...v1.1.4
 .. _v1.1.5: https://github.com/brunato/elementpath/compare/v1.1.4...v1.1.5
 .. _v1.1.6: https://github.com/brunato/elementpath/compare/v1.1.5...v1.1.6
+.. _v1.1.7: https://github.com/brunato/elementpath/compare/v1.1.6...v1.1.7

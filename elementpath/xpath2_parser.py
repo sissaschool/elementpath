@@ -310,7 +310,7 @@ class XPath2Parser(XPath1Parser):
 
     def next_is_path_step_token(self):
         return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '/', '{'
+            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
         }
 
     def next_is_sequence_type_token(self):

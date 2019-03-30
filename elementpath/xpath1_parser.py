@@ -178,7 +178,7 @@ class XPath1Parser(Parser):
     def next_is_path_step_token(self):
         return self.next_token.label == 'axis' or self.next_token.symbol in {
             '(integer)', '(string)', '(float)',  '(decimal)', '(name)', 'node', 'text', '*',
-            '@', '..', '.', '(', '/', '{'
+            '@', '..', '.', '(', '{'
         }
 
     def parse(self, source):
@@ -328,6 +328,8 @@ def led(self, left):
     elif left.symbol == '*' and next_token.symbol != '(name)':
         next_token.wrong_syntax()
 
+    if self.parser.is_spaced():
+        self.wrong_syntax("a QName cannot contains spaces before or after ':'")
     self[:] = left, self.parser.expression(90)
     return self
 
