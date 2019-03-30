@@ -265,6 +265,8 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tokenizer("_last()", ['_last', '(', ')'])
         self.check_tokenizer("last ()", ['last', '', '(', ')'])
         self.check_tokenizer('child::text()', ['child', '::', 'text', '(', ')'])
+        self.check_tokenizer('./ /.', ['.', '/', '', '/', '.'])
+        self.check_tokenizer('tns :*', ['tns', '', ':', '*'])
 
     def test_tokens(self):
         # Literals
@@ -319,8 +321,9 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_source("concat('alpha', 'beta', 'gamma')", "concat('alpha', 'beta', 'gamma')")
         self.check_source('1 +2 *  3 ', '1 + 2 * 3')
         self.check_source('(1 + 2) * 3', '(1 + 2) * 3')
-        self.check_source(' eg : example ', 'eg:example')
+        self.check_source(' eg:example ', 'eg:example')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
+        self.check_source(".//eg:a | .//eg:b", '. // eg:a | . // eg:b')
 
     def test_wrong_syntax(self):
         self.wrong_syntax('')
@@ -329,6 +332,8 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax("count(0, 1, 2)")
         self.wrong_syntax("{}egg")
         self.wrong_syntax("./*:*")
+        self.wrong_syntax('./ /.')
+        self.wrong_syntax(' eg : example ')
 
     # Features tests
     def test_references(self):

@@ -287,12 +287,15 @@ class Token(MutableSequence):
         symbol = self.value if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None else self.symbol
         line_column = 'line %d, column %d' % self.parser.position
         token = self.parser.token
-
         if token is not None and symbol != token.symbol:
-            msg = "unexpected symbol %r after %s at %s." % (symbol, token, line_column)
+            msg = "symbol %r after %s at %s" % (symbol, token, line_column)
         else:
-            msg = "unexpected symbol %r at %s." % (symbol, line_column)
-        raise ElementPathSyntaxError(msg + ' ' + message if message else msg, self)
+            msg = "symbol %r at %s" % (symbol, line_column)
+
+        if message:
+            raise ElementPathSyntaxError('%s: %s' % (msg, message), self)
+        else:
+            raise ElementPathSyntaxError('unexpected %s.' % msg, self)
 
     def wrong_value(self, message='unknown error'):
         raise ElementPathValueError(message, self)
@@ -554,6 +557,24 @@ class Parser(object):
         token_index = self.match.span()[0]
         line_start = self.source[0:token_index].rindex('\n') + 1
         return not bool(self.source[line_start:token_index].strip())
+
+    def is_spaced(self, before=True, after=True):
+        """
+        Returns `True` if the source has an extra space (whitespace, tab or newline) immediately
+        before or after the current position of the parser.
+
+        :param before: if `True` considers also the extra spaces before the current token symbol.
+        :param after: if `True` considers also the extra spaces after the current token symbol.
+        """
+        if self.match is None:
+            return False
+        start, end = self.match.span()
+        if before and start > 0 and self.source[start - 1] in ' \t\n':
+            return True
+        try:
+            return after and self.source[end] in ' \t\n'
+        except IndexError:
+            return False
 
     @classmethod
     def register(cls, symbol, **kwargs):

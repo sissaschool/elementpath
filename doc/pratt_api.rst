@@ -38,6 +38,8 @@ Parser base class
 
 .. autoclass:: elementpath.Parser
 
+    .. autoattribute:: position
+
     Parsing methods:
 
     .. automethod:: build_tokenizer
@@ -45,6 +47,12 @@ Parser base class
     .. automethod:: advance
     .. automethod:: raw_advance
     .. automethod:: expression
+
+    Helper methods for checking parser status:
+
+    .. automethod:: is_source_start
+    .. automethod:: is_line_start
+    .. automethod:: is_spaced
 
     Helper methods for building effective parser classes:
 
