@@ -335,6 +335,8 @@ def evaluate(self, context=None):
         value = max(self[0].select(context))
     except TypeError as err:
         self.wrong_type(str(err))
+    except ValueError:
+        return []
     else:
         locale.setlocale(locale.LC_ALL, default_locale)
         return value
@@ -355,6 +357,8 @@ def evaluate(self, context=None):
         value = min(self[0].select(context))
     except TypeError as err:
         self.wrong_type(str(err))
+    except ValueError:
+        return []
     else:
         locale.setlocale(locale.LC_ALL, default_locale)
         return value
