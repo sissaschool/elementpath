@@ -2,10 +2,11 @@
 CHANGELOG
 *********
 
-`v1.1.7`_ (TBD)
-===============
+`v1.1.7`_ (2019-04-25)
+======================
 * Added Parser.is_spaced() method for checking if the current token has extra spaces before or after
 * Fixes for '/' and ':' tokens
+* Fixes for fn:max() and fn:min() functions
 
 `v1.1.6`_ (2019-03-28)
 ======================

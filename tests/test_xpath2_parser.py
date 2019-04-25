@@ -268,9 +268,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
 
-    def test_aggregate_functions(self):
+    def test_sum_function(self):
         self.check_value("sum((10, 15, 6, -2))", 29)
 
+    def test_avg_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'),
                                variables={
                                    'd1': YearMonthDuration.fromstring("P20Y"),
@@ -290,6 +291,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root_token = self.parser.parse("fn:avg(($seq3, xs:float('NaN')))")
         self.assertTrue(math.isnan(root_token.evaluate(context)))
 
+        root = self.etree.XML('<a><b>1</b><b>9</b></a>')
+        self.check_selector('avg(/a/b/number(text()))', root, 5)
+
+    def test_max_function(self):
         self.check_value("fn:max((3,4,5))", 5)
         self.check_value("fn:max((5, 5.0e0))", 5.0e0)
         if PY3:
@@ -301,11 +306,18 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo))
         self.check_value('fn:max(("a", "b", "c"))', 'c')
 
+        root = self.etree.XML('<a><b>1</b><b>9</b></a>')
+        self.check_selector('max(/a/b/number(text()))', root, 9)
+
+    def test_min_function(self):
         self.check_value("fn:min((3,4,5))", 3)
         self.check_value("fn:min((5, 5.0e0))", 5.0e0)
         self.check_value("fn:min((xs:float(0.0E0), xs:float(-0.0E0)))", 0.0)
         self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))', Date.fromstring("2001-01-01"))
         self.check_value('fn:min(("a", "b", "c"))', 'a')
+
+        root = self.etree.XML('<a><b>1</b><b>9</b></a>')
+        self.check_selector('min(/a/b/number(text()))', root, 1)
 
     ###
     # Functions on strings
