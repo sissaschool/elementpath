@@ -13,7 +13,7 @@ import unittest
 import lxml.etree
 
 from elementpath import *
-from elementpath.namespaces import XML_LANG_QNAME, XSD_NAMESPACE
+from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 
 try:
     # noinspection PyPackageRequirements
@@ -52,7 +52,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("schema-element(xs:schema)", context.item, context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
 
-        context.item = AttributeNode(XML_LANG_QNAME, 'en')
+        context.item = AttributeNode(XML_LANG, 'en')
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")
         self.check_value("schema-attribute(xml:lang)", None)

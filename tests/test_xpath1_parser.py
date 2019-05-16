@@ -1032,7 +1032,7 @@ class XPath1ParserTest(unittest.TestCase):
     def test_default_namespace(self):
         root = self.etree.XML('<foo>bar</foo>')
         self.check_selector('/foo', root, [root])
-        if type(self.parser) is XPath1Parser:
+        if self.parser.version == '1.0':
             # XPath 1.0 ignores the default namespace
             self.check_selector('/foo', root, [root], namespaces={'': 'ns'})  # foo --> foo
         else:
@@ -1045,6 +1045,15 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_selector('/foo', root, [], namespaces={'': 'ns'})
         else:
             self.check_selector('/foo', root, [root], namespaces={'': 'ns'})
+
+        root = self.etree.XML('<A xmlns="http://xpath.test/ns"><B1/></A>')
+        if self.parser.version > '1.0' or not hasattr(root, 'nsmap'):
+            self.check_selector("name(tst:B1)", root, 'tst:B1', namespaces={'tst': "http://xpath.test/ns"})
+        if self.parser.version > '1.0':
+            self.check_selector("name(B1)", root, 'B1', namespaces={'': "http://xpath.test/ns"})
+        else:
+            # XPath 1.0 ignores the default namespace declarations
+            self.check_selector("name(B1)", root, '', namespaces={'': "http://xpath.test/ns"})
 
 
 class LxmlXPath1ParserTest(XPath1ParserTest):

@@ -16,6 +16,22 @@ from elementpath import *
 
 
 class SelectorTest(unittest.TestCase):
+    root = ElementTree.XML('<author>Dickens</author>')
+
+    def test_select_function(self):
+        self.assertListEqual(select(self.root, 'text()'), ['Dickens'])
+
+    def test_iter_select_function(self):
+        self.assertListEqual(list(iter_select(self.root, 'text()')), ['Dickens'])
+
+    def test_selector_class(self):
+        selector = Selector('/A')
+        self.assertEqual(repr(selector), "Selector(path='/A', parser=XPath2Parser)")
+        self.assertEqual(selector.namespaces, XPath2Parser.DEFAULT_NAMESPACES)
+
+        selector = Selector('text()')
+        self.assertListEqual(selector.select(self.root), ['Dickens'])
+        self.assertListEqual(list(selector.iter_select(self.root)), ['Dickens'])
 
     def test_issue_001(self):
         selector = Selector("//FullPath[ends-with(., 'Temp')]")

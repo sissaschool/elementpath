@@ -71,9 +71,7 @@ class Selector(object):
         self.root_token = self.parser.parse(path)
 
     def __repr__(self):
-        return u'%s(path=%r, namespaces=%r, parser=%s)' % (
-            self.__class__.__name__, self.path, self.namespaces, self.parser.__class__.__name__
-        )
+        return u'%s(path=%r, parser=%s)' % (self.__class__.__name__, self.path, self.parser.__class__.__name__)
 
     @property
     def namespaces(self):
@@ -101,3 +99,5 @@ class Selector(object):
         """
         context = XPathContext(root)
         return self.root_token.select(context)
+
+# 45-48, 74, 81
