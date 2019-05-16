@@ -18,7 +18,7 @@ from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPat
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, XSD_BUILTIN_TYPES
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
-from .namespaces import XML_ID_QNAME, XML_LANG_QNAME, XPATH_1_DEFAULT_NAMESPACES, \
+from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
 from .xpath_helpers import AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
@@ -972,7 +972,7 @@ def select(self, context=None):
         item = context.item
         if is_element_node(item):
             for elem in item.iter():
-                if elem.get(XML_ID_QNAME) == value:
+                if elem.get(XML_ID) == value:
                     yield elem
 
 
@@ -1143,11 +1143,11 @@ def evaluate(self, context=None):
         return False
     else:
         try:
-            lang = context.item.attrib[XML_LANG_QNAME].strip()
+            lang = context.item.attrib[XML_LANG].strip()
         except KeyError:
             for elem in context.iter_ancestor():
-                if XML_LANG_QNAME in elem.attrib:
-                    lang = elem.attrib[XML_LANG_QNAME]
+                if XML_LANG in elem.attrib:
+                    lang = elem.attrib[XML_LANG]
                     break
             else:
                 return False

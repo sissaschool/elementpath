@@ -7,6 +7,7 @@
 .project
 .ipynb_checkpoints/
 .tox/
+.coverage
 doc/_*
 __pycache__/
 dist/

@@ -612,6 +612,15 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertEqual(str(Timezone.fromstring('+05:00')), '+05:00')
         self.assertEqual(str(Timezone.fromstring('-13:15')), '-13:15')
 
+    def test_eq_operator(self):
+        self.assertEqual(Timezone.fromstring('+05:00'), Timezone.fromstring('+05:00'))
+
+    def test_ne_operator(self):
+        self.assertNotEqual(Timezone.fromstring('+05:00'), Timezone.fromstring('+06:00'))
+
+    def test_hashing(self):
+        self.assertEqual(hash(Timezone.fromstring('+05:00')), 1289844826723787395)
+
 
 if __name__ == '__main__':
     unittest.main()

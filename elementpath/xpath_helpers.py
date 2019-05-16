@@ -13,11 +13,10 @@ Helper functions for XPath nodes and functions.
 """
 from collections import namedtuple
 
-from .compat import PY3
-from .namespaces import XML_BASE_QNAME, XML_ID_QNAME, XSI_TYPE_QNAME, XSI_NIL_QNAME, \
-    XSD_UNTYPED, XSD_UNTYPED_ATOMIC, prefixed_to_qname
-from .exceptions import xpath_error
-from .datatypes import UntypedAtomic
+from .compat import PY3, urlparse
+from .namespaces import XML_BASE, XSI_NIL, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
+from .exceptions import ElementPathValueError, xpath_error
+from .datatypes import UntypedAtomic, ncname_validator
 
 ###
 # Node types
@@ -53,43 +52,61 @@ def elem_iter_strings(elem):
 # for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 ###
 def is_element_node(obj, tag=None):
-    if tag is None:
-        return is_etree_element(obj) and not callable(obj.tag)
-    elif not is_etree_element(obj):
+    """
+    Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
+    Raises a ValueError if the argument tag has to be used but it's in a wrong format.
+
+    :param obj: the node to be tested.
+    :param tag: a fully qualified name, a local name or a wildcard. The accepted wildcard formats \
+    are '*', '*:*', '*:local-name' and '{namespace}*'.
+    """
+    if not is_etree_element(obj) or callable(obj.tag):
         return False
+    elif tag is None:
+        return True
+    elif not obj.tag:
+        return obj.tag == tag
+    elif tag == '*' or tag == '*:*':
+        return obj.tag != ''
     elif tag[0] == '*':
-        if not obj.tag:
-            return False
-        elif obj.tag[0] == '{':
-            return obj.tag.split('}')[1] == tag.split(':')[1]
+        try:
+            _, name = tag.split(':')
+        except (ValueError, IndexError):
+            raise ElementPathValueError("unexpected format %r for argument 'tag'" % tag)
         else:
-            return obj.tag == tag.split(':')[1]
+            return obj.tag.split('}')[1] == name if obj.tag[0] == '{' else obj.tag == name
     elif tag[-1] == '*':
-        if not obj.tag:
-            return False
-        elif obj.tag[0] == '{':
-            return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:]
-        else:
-            return True
+        if tag[0] != '{' or '}' not in tag:
+            raise ElementPathValueError("unexpected format %r for argument 'tag'" % tag)
+        return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:] if obj.tag[0] == '{' else False
     else:
         return obj.tag == tag
 
 
 def is_attribute_node(obj, name=None):
-    if name is None:
+    """
+    Returns `True` if the first argument is an attribute node matching the name, `False` otherwise.
+    Raises a ValueError if the argument name has to be used but it's in a wrong format.
+
+    :param obj: the node to be tested.
+    :param name: a fully qualified name, a local name or a wildcard. The accepted wildcard formats \
+    are '*', '*:*', '*:local-name' and '{namespace}*'.
+    """
+    if name is None or name == '*' or name == '*:*':
         return isinstance(obj, AttributeNode)
     elif not isinstance(obj, AttributeNode):
         return False
     elif name[0] == '*':
-        if obj[0][0] == '{':
-            return obj[0].split('}')[1] == name.split(':')[1]
+        try:
+            _, _name = name.split(':')
+        except (ValueError, IndexError):
+            raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
         else:
-            return obj[0] == name.split(':')[1]
+            return obj[0].split('}')[1] == _name if obj[0][0] == '{' else obj[0] == _name
     elif name[-1] == '*':
-        if obj[0][0] == '{':
-            return obj[0].split('}')[0][1:] == name.split('}')[0][1:]
-        else:
-            return True
+        if name[0] != '{' or '}' not in name:
+            raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+        return obj[0].split('}')[0][1:] == name.split('}')[0][1:] if obj[0][0] == '{' else False
     else:
         return obj[0] == name
 
@@ -123,7 +140,8 @@ def is_xpath_node(obj):
 
 
 ###
-# Node accessors
+# Node accessors: in this implementation node accessors return None instead of empty sequence.
+# Ref: https://www.w3.org/TR/xpath-datamodel-31/#dm-document-uri
 def node_attributes(obj):
     if is_element_node(obj):
         return obj.attrib
@@ -132,49 +150,49 @@ def node_attributes(obj):
 def node_base_uri(obj):
     try:
         if is_element_node(obj):
-            return obj.attrib[XML_BASE_QNAME]
+            return obj.attrib[XML_BASE]
         elif is_document_node(obj):
-            return obj.getroot().attrib[XML_BASE_QNAME]
+            return obj.getroot().attrib[XML_BASE]
     except KeyError:
         pass
 
 
 def node_document_uri(obj):
-    # Try the xml:base of root node because an ElementTree doesn't save reference to source.
-    for uri in node_base_uri(obj):
-        return uri
+    if is_document_node(obj):
+        try:
+            uri = obj.getroot().attrib[XML_BASE]
+            parts = urlparse(uri)
+        except (KeyError, ValueError):
+            pass
+        else:
+            if parts.scheme and parts.netloc or parts.path.startswith('/'):
+                return uri
 
 
 def node_children(obj):
     if is_element_node(obj):
-        for child in obj:
-            return child
+        return (child for child in obj)
     elif is_document_node(obj):
-        return obj.getroot()
+        return (child for child in [obj.getroot()])
 
 
 def node_is_id(obj):
     if is_element_node(obj):
-        return XML_ID_QNAME in obj.attrib
+        return ncname_validator(obj.text)
     elif is_attribute_node(obj):
-        return obj[0] == XML_ID_QNAME
+        return ncname_validator(obj[1])
 
 
-def node_is_idrefs(obj, namespaces):
+def node_is_idrefs(obj):
     if is_element_node(obj):
-        try:
-            node_type = obj.attrib[XSI_TYPE_QNAME]
-        except KeyError:
-            pass
-        else:
-            return prefixed_to_qname(node_type, namespaces) in ("IDREF", "IDREFS")
-    elif is_attribute_node(obj) and obj[0] == XSI_TYPE_QNAME:
-        return prefixed_to_qname(obj[1], namespaces) in ("IDREF", "IDREFS")
+        return obj.text is not None and all(ncname_validator(x) for x in obj.text.split())
+    elif is_attribute_node(obj):
+        return all(ncname_validator(x) for x in obj[1].split())
 
 
 def node_nilled(obj):
     if is_element_node(obj):
-        return obj.get(XSI_NIL_QNAME) == 'true'
+        return obj.get(XSI_NIL) in ('true', '1')
 
 
 def node_kind(obj):
@@ -197,9 +215,7 @@ def node_kind(obj):
 def node_name(obj):
     if is_element_node(obj):
         return obj.tag
-    elif is_attribute_node(obj):
-        return obj[0]
-    elif is_namespace_node(obj):
+    elif is_attribute_node(obj) or is_namespace_node(obj):
         return obj[0]
 
 
@@ -222,11 +238,19 @@ def node_string_value(obj):
 
 def node_type_name(obj, schema=None):
     if is_element_node(obj):
-        if schema is None:
-            return XSD_UNTYPED
+        if schema is not None:
+            xsd_element = schema.get_element(obj.tag)
+            if xsd_element is not None:
+                return xsd_element.type.name
+        return XSD_UNTYPED
+
     elif is_attribute_node(obj):
-        if schema is None:
-            return XSD_UNTYPED_ATOMIC  # TODO: from a PSVI ...
+        if schema is not None:
+            xsd_attribute = schema.get_attribute(obj[0])
+            if xsd_attribute is not None:
+                return xsd_attribute.type.name
+        return XSD_UNTYPED_ATOMIC
+
     elif is_text_node(obj):
         return XSD_UNTYPED_ATOMIC
 
@@ -280,9 +304,7 @@ def data_value(obj):
     elif not is_xpath_node(obj):
         return obj
     else:
-        value = node_string_value(obj)
-        if value is not None:
-            return UntypedAtomic(value)
+        return UntypedAtomic(node_string_value(obj))
 
 
 def number_value(obj):

@@ -33,22 +33,25 @@ XPATH_2_DEFAULT_NAMESPACES = {
 }
 
 # XML namespace attributes
-XML_BASE_QNAME = '{%s}base' % XML_NAMESPACE
-XML_LANG_QNAME = '{%s}lang' % XML_NAMESPACE
-XML_SPACE_QNAME = '{%s}space' % XML_NAMESPACE
-XML_ID_QNAME = '{%s}id' % XML_NAMESPACE
+XML_BASE = '{%s}base' % XML_NAMESPACE
+XML_LANG = '{%s}lang' % XML_NAMESPACE
+XML_SPACE = '{%s}space' % XML_NAMESPACE
+XML_ID = '{%s}id' % XML_NAMESPACE
 
 # XML Schema Instance namespace attributes
-XSI_TYPE_QNAME = '{%s}type' % XSI_NAMESPACE
-XSI_NIL_QNAME = '{%s}nil' % XSI_NAMESPACE
-XSI_SCHEMA_LOCATION_QNAME = '{%s}schemaLocation' % XSI_NAMESPACE
-XSI_NONS_SCHEMA_LOCATION_QNAME = '{%s}schemaLocation' % XSI_NAMESPACE
+XSI_TYPE = '{%s}type' % XSI_NAMESPACE
+XSI_NIL = '{%s}nil' % XSI_NAMESPACE
+XSI_SCHEMA_LOCATION = '{%s}schemaLocation' % XSI_NAMESPACE
+XSI_NONS_SCHEMA_LOCATION = '{%s}schemaLocation' % XSI_NAMESPACE
 
-# XSD tags and attributes
+# XML Schema types
 XSD_NOTATION = '{%s}NOTATION' % XSD_NAMESPACE
 XSD_ANY_ATOMIC_TYPE = '{%s}anyAtomicType' % XSD_NAMESPACE
 XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
 XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
+XSD_ID = '{%s}ID' % XSD_NAMESPACE
+XSD_IDREF = '{%s}IDREF' % XSD_NAMESPACE
+XSD_IDREFS = '{%s}IDREFS' % XSD_NAMESPACE
 
 
 def get_namespace(name):
