@@ -19,6 +19,9 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
+import locale
+import contextlib
+
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
@@ -336,6 +339,21 @@ class XPathToken(Token):
         elif self.xsd_type is not xsd_type:
             self.wrong_context_type("Multiple XSD type matching during static analysis")
         return xsd_type
+
+    @contextlib.contextmanager
+    def use_locale(self, collation):
+        """A context manager for setting a specific collation for a code block."""
+        locale.setlocale(locale.LC_ALL, '')
+        default_locale = locale.getlocale()
+
+        try:
+            locale.setlocale(locale.LC_ALL, collation)
+        except locale.Error:
+            raise self.error('FOCH0002', 'Unsupported collation %r' % collation)
+        else:
+            yield
+        finally:
+            locale.setlocale(locale.LC_ALL, default_locale)
 
     ###
     # Error handling helpers

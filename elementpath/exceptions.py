@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import unicode_literals
+import locale
 from .compat import PY3
 
 XQT_ERRORS_NAMESPACE = "http://www.w3.org/2005/xqt-errors"
@@ -60,6 +61,10 @@ class ElementPathTypeError(ElementPathError, TypeError):
 
 
 class ElementPathValueError(ElementPathError, ValueError):
+    pass
+
+
+class ElementPathLocaleError(ElementPathError, locale.Error):
     pass
 
 
@@ -138,7 +143,7 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     elif code == 'FOCH0001':
         return ElementPathValueError(message or 'Code point not valid', pcode, token)
     elif code == 'FOCH0002':
-        return ElementPathValueError(message or 'Unsupported collation', pcode, token)
+        return ElementPathLocaleError(message or 'Unsupported collation', pcode, token)
     elif code == 'FOCH0003':
         return ElementPathValueError(message or 'Unsupported normalization form', pcode, token)
     elif code == 'FOCH0004':
@@ -199,8 +204,5 @@ def xpath_error(code, message=None, token=None, prefix='err'):
         return ElementPathValueError(message or 'Invalid replacement string', pcode, token)
     elif code == 'FOTY0012':
         return ElementPathValueError(message or 'Argument node does not have a typed value', pcode, token)
-    elif code == '':
-        return ElementPathValueError(message or '', pcode, token)
-
     else:
         raise ElementPathValueError('Unknown XPath error code %r.' % code)
