@@ -348,7 +348,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE')", -1)
         self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
 
-        self.wrong_value(u"fn:compare('Strasse', 'Straße', 'invalid')")
+        with self.assertRaises(ElementPathLocaleError):
+            self.check_value(u"fn:compare('Strasse', 'Straße', 'invalid_collation')")
         self.wrong_type(u"fn:compare('Strasse', 111)")
 
     def test_normalize_unicode_function(self):

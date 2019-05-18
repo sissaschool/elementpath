@@ -26,8 +26,8 @@ from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
 from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
     node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, data_value, string_value
-
 from .xpath2_parser import XPath2Parser
+
 method = XPath2Parser.method
 function = XPath2Parser.function
 
@@ -321,47 +321,19 @@ def evaluate(self, context=None):
 
 
 @method(function('max', nargs=(1, 2)))
-def evaluate(self, context=None):
-    locale.setlocale(locale.LC_ALL, '')
-    default_locale = locale.getlocale()
-    if len(self) > 1:
-        collation = self.get_argument(context, 1)
-        try:
-            locale.setlocale(locale.LC_ALL, collation)
-        except locale.Error as err:
-            self.wrong_value(str(err) + ' ' + repr(collation))
-
-    try:
-        value = max(self[0].select(context))
-    except TypeError as err:
-        self.wrong_type(str(err))
-    except ValueError:
-        return []
-    else:
-        locale.setlocale(locale.LC_ALL, default_locale)
-        return value
-
-
 @method(function('min', nargs=(1, 2)))
 def evaluate(self, context=None):
-    locale.setlocale(locale.LC_ALL, '')
-    default_locale = locale.getlocale()
-    if len(self) > 1:
-        collation = self.get_argument(context, 1)
-        try:
-            locale.setlocale(locale.LC_ALL, collation)
-        except locale.Error as err:
-            self.wrong_value(str(err) + ' ' + repr(collation))
-
+    arg = self[0].select(context)
+    func = max if self.symbol == 'max' else min
     try:
-        value = min(self[0].select(context))
+        if len(self) > 1:
+            with self.use_locale(collation=self.get_argument(context, 1)):
+                return func(arg)
+        return func(arg)
     except TypeError as err:
         self.wrong_type(str(err))
     except ValueError:
         return []
-    else:
-        locale.setlocale(locale.LC_ALL, default_locale)
-        return value
 
 
 ###
@@ -639,18 +611,12 @@ def evaluate(self, context=None):
     if comp1 is None or comp2 is None:
         return []
 
-    locale.setlocale(locale.LC_ALL, '')
     if len(self) < 3:
+        locale.setlocale(locale.LC_ALL, '')
         value = locale.strcoll(comp1, comp2)
     else:
-        collation = self.get_argument(context, 2)
-        default_locale = locale.getlocale()
-        try:
-            locale.setlocale(locale.LC_ALL, collation)
-        except locale.Error as err:
-            self.wrong_value(str(err) + ' ' + repr(collation))
-        value = locale.strcoll(comp1, comp2)
-        locale.setlocale(locale.LC_ALL, default_locale)
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            value = locale.strcoll(comp1, comp2)
 
     return 1 if value > 0 else -1 if value < 0 else 0
 
