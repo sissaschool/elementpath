@@ -19,7 +19,7 @@ import math
 import operator
 
 from .compat import MutableSequence, urlparse
-from .exceptions import ElementPathError, ElementPathTypeError, ElementPathMissingContextError
+from .exceptions import ElementPathError, ElementPathTypeError, MissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
 from .datatypes import XSD_BUILTIN_TYPES
@@ -64,7 +64,7 @@ class XPath2Parser(XPath1Parser):
 
         # Value comparison operators
         'eq', 'ne', 'lt', 'le', 'gt', 'ge',
-        
+
         # Node comparison operators
         'is', '<<', '>>',
 
@@ -258,7 +258,7 @@ class XPath2Parser(XPath1Parser):
                 raise self.error('FORG0006', str(err))
 
         def cast(value):
-            raise NotImplemented
+            raise NotImplementedError
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
         token_class = cls.register(symbol, pattern=pattern, label='constructor', lbp=bp, rbp=bp,
@@ -282,7 +282,7 @@ class XPath2Parser(XPath1Parser):
 
             try:
                 self_.value = self_.evaluate()  # Static context evaluation
-            except ElementPathMissingContextError:
+            except MissingContextError:
                 self_.value = None
             return self_
 
@@ -314,7 +314,7 @@ class XPath2Parser(XPath1Parser):
 
     def next_is_path_step_token(self):
         return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
+            '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
         }
 
     def next_is_sequence_type_token(self):
@@ -334,7 +334,7 @@ class XPath2Parser(XPath1Parser):
         context = None if self.schema is None else self.schema.get_context()
         try:
             root_token.evaluate(context)  # Static context evaluation
-        except ElementPathMissingContextError:
+        except MissingContextError:
             pass
         return root_token
 

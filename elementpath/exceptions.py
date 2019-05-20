@@ -42,6 +42,10 @@ class ElementPathError(Exception):
         __str__ = __unicode__
 
 
+class MissingContextError(ElementPathError):
+    """Raised when the dynamic context is required for evaluate the XPath expression."""
+
+
 class ElementPathNameError(ElementPathError, NameError):
     pass
 
@@ -63,10 +67,6 @@ class ElementPathValueError(ElementPathError, ValueError):
 
 
 class ElementPathLocaleError(ElementPathError, locale.Error):
-    pass
-
-
-class ElementPathMissingContextError(ElementPathError):
     pass
 
 
@@ -93,7 +93,7 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     if code == 'XPST0001':
         return ElementPathValueError(message or 'Parser not bound to a schema', pcode, token)
     elif code == 'XPDY0002':
-        return ElementPathMissingContextError(message or 'Dynamic context required for evaluate', pcode, token)
+        return MissingContextError(message or 'Dynamic context required for evaluate', pcode, token)
     elif code == 'XPTY0004':
         return ElementPathTypeError(message or 'Type is not appropriate for the context', pcode, token)
     elif code == 'XPST0005':

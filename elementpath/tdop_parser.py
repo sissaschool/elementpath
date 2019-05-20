@@ -699,9 +699,9 @@ class Parser(object):
     def infixr(cls, symbol, bp=0):
         """Register a token for a symbol that represents an *infixr* binary operator."""
         def led(self, left):
-            self[:] = left, self.parser.expression(rbp=bp-1)
+            self[:] = left, self.parser.expression(rbp=bp - 1)
             return self
-        return cls.register(symbol, label='operator', lbp=bp, rbp=bp-1, led=led)
+        return cls.register(symbol, label='operator', lbp=bp, rbp=bp - 1, led=led)
 
     @classmethod
     def method(cls, symbol, bp=0):

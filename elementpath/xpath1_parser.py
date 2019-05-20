@@ -14,7 +14,7 @@ import decimal
 
 from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
-    ElementPathMissingContextError
+    MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, XSD_BUILTIN_TYPES
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
@@ -78,7 +78,7 @@ class XPath1Parser(Parser):
 
     DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
     """
-    The default prefix-to-namespace associations of the XPath class. Those namespaces are updated 
+    The default prefix-to-namespace associations of the XPath class. Those namespaces are updated
     in the instance with the ones passed with the *namespaces* argument.
     """
 
@@ -115,7 +115,7 @@ class XPath1Parser(Parser):
     @classmethod
     def axis(cls, symbol, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
-        def nud_(self): 
+        def nud_(self):
             self.parser.advance('::')
             self.parser.next_token.expected(
                 '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
@@ -187,7 +187,7 @@ class XPath1Parser(Parser):
 
     def next_is_path_step_token(self):
         return self.next_token.label == 'axis' or self.next_token.symbol in {
-            '(integer)', '(string)', '(float)',  '(decimal)', '(name)', 'node', 'text', '*',
+            '(integer)', '(string)', '(float)', '(decimal)', '(name)', 'node', 'text', '*',
             '@', '..', '.', '(', '{'
         }
 
@@ -195,7 +195,7 @@ class XPath1Parser(Parser):
         root_token = super(XPath1Parser, self).parse(source)
         try:
             root_token.evaluate()  # Static context evaluation
-        except ElementPathMissingContextError:
+        except MissingContextError:
             pass
         return root_token
 
@@ -469,7 +469,7 @@ def select(self, context=None):
             context.item = item
         yield item
     elif context is None:
-        raise ElementPathMissingContextError("Context required to evaluate `*`")
+        self.missing_context()
     else:
         # Wildcard literal
         for item in context.iter_children_or_self():
@@ -483,7 +483,7 @@ def select(self, context=None):
 @method(nullary('.'))
 def select(self, context=None):
     if context is None:
-        raise ElementPathMissingContextError("Context required to evaluate `.`")
+        self.missing_context()
     elif context.item is not None:
         yield context.item
     elif is_document_node(context.root):
@@ -493,8 +493,7 @@ def select(self, context=None):
 @method(nullary('..'))
 def select(self, context=None):
     if context is None:
-        raise ElementPathMissingContextError("Context required to evaluate `..`")
-
+        self.missing_context()
     else:
         try:
             parent = context.parent_map[context.item]
@@ -833,7 +832,7 @@ def nud(self):
 @method(axis('attribute'))
 def select(self, context=None):
     if context is None:
-        raise ElementPathMissingContextError("Context required to evaluate `@`")
+        self.missing_context()
 
     for _ in context.iter_attributes():
         for result in self[0].select(context):

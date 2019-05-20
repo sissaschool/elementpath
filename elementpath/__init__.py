@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '1.1.7'
+__version__ = '1.1.8'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2019, SISSA"
@@ -16,7 +16,10 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 
-from .exceptions import *
+from .exceptions import ElementPathError, MissingContextError, \
+    ElementPathSyntaxError, ElementPathNameError, ElementPathKeyError, \
+    ElementPathTypeError, ElementPathLocaleError, ElementPathValueError
+
 from . import datatypes
 from .tdop_parser import Token, Parser
 from .xpath_context import XPathContext, XPathSchemaContext

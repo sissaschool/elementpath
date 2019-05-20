@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.1.8`_ (2019-05-20)
+======================
+* Added code coverage and flake8 checks
+* Drop Python 3.4 support
+* Use more specific XPath errors for functions and namespace resolving
+* Fix for issue #4
+
 `v1.1.7`_ (2019-04-25)
 ======================
 * Added Parser.is_spaced() method for checking if the current token has extra spaces before or after
@@ -123,3 +130,4 @@ CHANGELOG
 .. _v1.1.5: https://github.com/brunato/elementpath/compare/v1.1.4...v1.1.5
 .. _v1.1.6: https://github.com/brunato/elementpath/compare/v1.1.5...v1.1.6
 .. _v1.1.7: https://github.com/brunato/elementpath/compare/v1.1.6...v1.1.7
+.. _v1.1.8: https://github.com/brunato/elementpath/compare/v1.1.7...v1.1.8

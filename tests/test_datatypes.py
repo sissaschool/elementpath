@@ -619,7 +619,10 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertNotEqual(Timezone.fromstring('+05:00'), Timezone.fromstring('+06:00'))
 
     def test_hashing(self):
-        self.assertEqual(hash(Timezone.fromstring('+05:00')), 1289844826723787395)
+        if sys.version_info < (3, 8):
+            self.assertEqual(hash(Timezone.fromstring('+05:00')), 1289844826723787395)
+        else:
+            self.assertEqual(hash(Timezone.fromstring('+05:00')), 7009945331308913293)
 
 
 if __name__ == '__main__':
