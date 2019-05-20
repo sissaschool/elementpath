@@ -10,9 +10,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import lxml.etree
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from elementpath import *
+from elementpath.compat import PY3
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 
 try:
@@ -231,17 +235,17 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
     def test_cast_expression(self):
         self.check_value("5 cast as xs:integer", 5)
         self.check_value("'5' cast as xs:integer", 5)
-        self.check_value("'hello' cast as xs:integer", ElementPathValueError)
-        self.check_value("('5', '6') cast as xs:integer", ElementPathTypeError)
-        self.check_value("() cast as xs:integer", ElementPathValueError)
+        self.check_value("'hello' cast as xs:integer", ValueError)
+        self.check_value("('5', '6') cast as xs:integer", TypeError)
+        self.check_value("() cast as xs:integer", ValueError)
         self.check_value("() cast as xs:integer?", [])
         self.check_value('"1" cast as xs:boolean', True)
         self.check_value('"0" cast as xs:boolean', False)
 
 
-@unittest.skipIf(xmlschema is None, "xmlschema library >= v1.0.7 required.")
+@unittest.skipIf(xmlschema is None or lxml_etree is None, "both xmlschema and lxml required")
 class LxmlXPath2ParserXMLSchemaTest(XPath2ParserXMLSchemaTest):
-    etree = lxml.etree
+    etree = lxml_etree
 
 
 if __name__ == '__main__':

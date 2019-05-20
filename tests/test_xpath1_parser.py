@@ -28,7 +28,11 @@ import pickle
 from decimal import Decimal
 from collections import namedtuple
 from xml.etree import ElementTree
-import lxml.etree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from elementpath import *
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
@@ -206,16 +210,16 @@ class XPath1ParserTest(unittest.TestCase):
 
     # Wrong XPath expression checker shortcuts
     def wrong_syntax(self, path):
-        self.assertRaises(ElementPathSyntaxError, self.parser.parse, path)
+        self.assertRaises(SyntaxError, self.parser.parse, path)
 
     def wrong_value(self, path):
-        self.assertRaises(ElementPathValueError, self.parser.parse, path)
+        self.assertRaises(ValueError, self.parser.parse, path)
 
     def wrong_type(self, path):
-        self.assertRaises(ElementPathTypeError, self.parser.parse, path)
+        self.assertRaises(TypeError, self.parser.parse, path)
 
     def wrong_name(self, path):
-        self.assertRaises(ElementPathNameError, self.parser.parse, path)
+        self.assertRaises(NameError, self.parser.parse, path)
 
     #
     # Test methods
@@ -870,7 +874,7 @@ class XPath1ParserTest(unittest.TestCase):
         context = XPathContext(root, variables={'alpha': 10, 'id': '19273222'})
         self.check_value("$alpha", None)  # Do not raise if the dynamic context is None
         self.check_value("$alpha", 10, context=context)
-        self.check_value("$beta", ElementPathNameError, context=context)
+        self.check_value("$beta", NameError, context=context)
         self.check_value("$id", '19273222', context=context)
         self.wrong_syntax("$id()")
 
@@ -897,7 +901,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/.', root, [root])
         self.check_selector('/A/B1/.', root, [root[0]])
         self.check_selector('/A/B1/././.', root, [root[0]])
-        self.check_selector('1/.', root, ElementPathTypeError)
+        self.check_selector('1/.', root, TypeError)
 
     def test_self_axis(self):
         root = self.etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
@@ -1062,8 +1066,9 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_selector("name(B1)", root, '', namespaces={'': "http://xpath.test/ns"})
 
 
+@unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath1ParserTest(XPath1ParserTest):
-    etree = lxml.etree
+    etree = lxml_etree
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """Check using the selector API (the *select* function of the package)."""

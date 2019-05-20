@@ -99,5 +99,3 @@ class Selector(object):
         """
         context = XPathContext(root)
         return self.root_token.select(context)
-
-# 45-48, 74, 81

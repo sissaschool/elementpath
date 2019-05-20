@@ -23,10 +23,15 @@
 import unittest
 import datetime
 import io
+import locale
 import math
 import time
 from decimal import Decimal
-import lxml.etree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from elementpath import *
 from elementpath.namespaces import XSI_NAMESPACE
@@ -204,7 +209,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
         self.check_selector("boolean(/A)", root, True)
-        self.check_selector("boolean((-10, 35))", root, ElementPathTypeError)  # Sequence with two numeric values
+        self.check_selector("boolean((-10, 35))", root, TypeError)  # Sequence with two numeric values
         self.check_selector("boolean((/A, 35))", root, True)
 
     def test_numerical_expressions2(self):
@@ -350,7 +355,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE')", -1)
         self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
 
-        with self.assertRaises(ElementPathLocaleError):
+        with self.assertRaises(locale.Error):
             self.check_value(u"fn:compare('Strasse', 'Straße', 'invalid_collation')")
         self.wrong_type(u"fn:compare('Strasse', 111)")
 
@@ -1113,7 +1118,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                               '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE)
         self.check_selector("node-name(.)", root, 'A')
         self.check_selector("node-name(/A/B1)", root, 'B1')
-        self.check_selector("node-name(/A/*)", root, ElementPathTypeError)  # Not allowed more than one item!
+        self.check_selector("node-name(/A/*)", root, TypeError)  # Not allowed more than one item!
         self.check_selector("nilled(./B1/C1)", root, False)
         self.check_selector("nilled(./B1/C2)", root, True)
 
@@ -1185,7 +1190,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         )
         self.check_selector(
             '/transactions/purchase[parcel="10-639"] >> /transactions/sale[parcel="33-870"]',
-            root, ElementPathTypeError
+            root, TypeError
         )
 
     def test_adjust_datetime_to_timezone_function(self):
@@ -1278,8 +1283,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:concat($unknown, fn:lower-case(10))', TypeError)
 
 
+@unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):
-    etree = lxml.etree
+    etree = lxml_etree
 
 
 if __name__ == '__main__':

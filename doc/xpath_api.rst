@@ -87,3 +87,23 @@ implementing concrete interfaces to other types of XML Schema processors.
     .. automethod:: is_instance
     .. automethod:: iter_atomic_types
     .. automethod:: get_primitive_type
+
+
+Exception classes
+=================
+
+.. autoexception:: elementpath.ElementPathError
+.. autoexception:: elementpath.MissingContextError
+
+Other exceptions
+----------------
+
+There are some exceptions derived from the base exception and Python built-in exceptions:
+
+.. autoexception:: elementpath.ElementPathKeyError
+.. autoexception:: elementpath.ElementPathLocaleError
+.. autoexception:: elementpath.ElementPathNameError
+.. autoexception:: elementpath.ElementPathSyntaxError
+.. autoexception:: elementpath.ElementPathTypeError
+.. autoexception:: elementpath.ElementPathValueError
+
