@@ -329,11 +329,17 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax('')
         self.wrong_syntax("     \n     \n   )")
         self.wrong_syntax('child::1')
-        self.wrong_syntax("count(0, 1, 2)")
         self.wrong_syntax("{}egg")
         self.wrong_syntax("./*:*")
         self.wrong_syntax('./ /.')
         self.wrong_syntax(' eg : example ')
+
+    def test_wrong_nargs(self):
+        self.wrong_type("boolean()")       # Too few arguments
+        self.wrong_type("count(0, 1, 2)")  # Too many arguments
+        self.wrong_type("round(2.5, 1.7)")
+        self.wrong_type("contains('XPath', 'XP', 20)")
+        self.wrong_type("boolean(1, 5)")
 
     # Features tests
     def test_references(self):
@@ -634,7 +640,6 @@ class XPath1ParserTest(unittest.TestCase):
 
         self.check_value("contains('XPath','XP')", True)
         self.check_value("contains('XP','XPath')", False)
-        self.wrong_syntax("contains('XPath', 'XP', 20)")
         self.check_value("contains('', '')", True)
 
         self.check_selector("a[contains(@id, '_i')]", root, [root[0]])
@@ -722,8 +727,6 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("boolean('hello!')", True)
         self.check_value("boolean('   ')", True)
         self.check_value("boolean('')", False)
-        self.wrong_syntax("boolean()")      # Argument required
-        self.wrong_syntax("boolean(1, 5)")  # Too much arguments
 
         if not isinstance(self.parser, XPath2Parser):
             self.wrong_syntax("boolean(())")
@@ -1004,6 +1007,9 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_selector('/root/a/name()', root, ['a', 'a'])
             self.check_selector('/root/a/last()', root, [2, 2])
             self.check_selector('/root/a/position()', root, [1, 2])
+
+    def test_unknown_axis(self):
+        self.check_value('unknown::node()', NameError)
 
     def test_predicate(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')

@@ -234,6 +234,8 @@ class XPath2Parser(XPath1Parser):
         def nud_(self):
             self.parser.advance('(')
             self[0:] = self.parser.expression(5),
+            if self.parser.next_token.symbol == ',':
+                self.wrong_nargs('Too many arguments: expected at most 1 argument')
             self.parser.advance(')')
             self.value = None
             return self

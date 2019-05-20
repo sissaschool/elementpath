@@ -420,13 +420,14 @@ class Parser(object):
         parse error.
         :return: The next token instance.
         """
-        if getattr(self.next_token, 'symbol', None) == '(end)':
-            if self.token is None:
-                raise ElementPathSyntaxError("source is empty.")
-            else:
-                raise ElementPathSyntaxError("unexpected end of source after %s." % self.token)
-        elif self.next_token is not None:
-            self.next_token.expected(*symbols)
+        if self.next_token is not None:
+            if self.next_token.symbol == '(end)':
+                if self.token is None:
+                    raise ElementPathSyntaxError("source is empty.")
+                else:
+                    raise ElementPathSyntaxError("unexpected end of source after %s." % self.token)
+            elif symbols:
+                self.next_token.expected(*symbols)
 
         self.token = self.next_token
         self.match = self.next_match

@@ -425,7 +425,11 @@ register('boolean', lbp=90, rbp=90, label=('function', 'constructor'),
 @method('boolean')
 def nud(self):
     self.parser.advance('(')
+    if self.parser.next_token.symbol == ')':
+        self.wrong_nargs('Too few arguments: expected at least 1 argument')
     self[0:] = self.parser.expression(5),
+    if self.parser.next_token.symbol == ',':
+        self.wrong_nargs('Too many arguments: expected at most 1 argument')
     self.parser.advance(')')
     self.value = None
     return self
