@@ -141,20 +141,26 @@ def evaluate(self, context=None):
     match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
+    prefix = match.groupdict()['prefix'] or ''
+
     try:
-        return self.parser.namespaces[match.groupdict()['prefix'] or '']
+        namespace = self.parser.namespaces[prefix]
     except KeyError as err:
         raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
+    else:
+        if not namespace and prefix:
+            raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
+        return namespace
 
 
 @method(function('namespace-uri-for-prefix', nargs=2))
 def evaluate(self, context=None):
     if context is not None:
-        pfx = self.get_argument(context.copy())
-        if pfx is None:
-            pfx = ''
-        if not isinstance(pfx, string_base_type):
-            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(pfx))
+        prefix = self.get_argument(context.copy())
+        if prefix is None:
+            prefix = ''
+        if not isinstance(prefix, string_base_type):
+            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(prefix))
 
         elem = self.get_argument(context, index=1)
         if not is_element_node(elem):
@@ -162,8 +168,11 @@ def evaluate(self, context=None):
         ns_uris = {get_namespace(e.tag) for e in elem.iter()}
         for p, uri in self.parser.namespaces.items():
             if uri in ns_uris:
-                if p == pfx:
-                    return uri
+                if p == prefix:
+                    if not prefix or uri:
+                        return uri
+                    else:
+                        raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
         return []
 
 
@@ -191,7 +200,7 @@ def evaluate(self, context=None):
         match = QNAME_PATTERN.match(qname)
         if match is None:
             raise self.error('FOCA0002', '1st argument must be an xs:QName')
-        pfx = match.groupdict()['prefix'] or ''
+        prefix = match.groupdict()['prefix'] or ''
 
         elem = self.get_argument(context, index=1)
         if not is_element_node(elem):
@@ -199,11 +208,13 @@ def evaluate(self, context=None):
         ns_uris = {get_namespace(e.tag) for e in elem.iter()}
         for p, uri in self.parser.namespaces.items():
             if uri in ns_uris:
-                if p == pfx:
+                if not prefix or uri:
                     return '{%s}%s' % (uri, match.groupdict()['local']) if uri else match.groupdict()['local']
+                else:
+                    raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
 
         if not isinstance(context, XPathSchemaContext):
-            raise self.error('FONS0004', 'No namespace found for prefix %r' % pfx)
+            raise self.error('FONS0004', 'No namespace found for prefix %r' % prefix)
 
 
 ###

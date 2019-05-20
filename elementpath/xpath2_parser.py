@@ -14,6 +14,8 @@ XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 from __future__ import division
 from itertools import product
 from abc import ABCMeta
+import decimal
+import math
 import operator
 
 from .compat import MutableSequence, urlparse
@@ -788,7 +790,14 @@ def select(self, context=None):
 # Numerical operators
 @method(infix('idiv', bp=45))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) // self[1].evaluate(context)
+    arg1 = self[0].evaluate(context)
+    arg2 = self[1].evaluate(context)
+    if math.isinf(arg1) or math.isnan(arg1) or math.isnan(arg2):
+        raise self.error('FOAR0002')
 
+    try:
+        return arg1 // arg2
+    except decimal.DivisionByZero:
+        raise self.error('FOAR0001')
 
 # XPath 2.0 definitions continue into module xpath2_functions
