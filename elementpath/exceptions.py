@@ -12,8 +12,6 @@ from __future__ import unicode_literals
 import locale
 from .compat import PY3
 
-XQT_ERRORS_NAMESPACE = "http://www.w3.org/2005/xqt-errors"
-
 
 class ElementPathError(Exception):
     """
@@ -105,7 +103,7 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     elif code == 'XPST0010':
         return ElementPathNameError(message or 'Axis not found', pcode, token)
     elif code == 'XPST0017':
-        return ElementPathValueError(message or 'Wrong number of arguments', pcode, token)
+        return ElementPathTypeError(message or 'Wrong number of arguments', pcode, token)
     elif code == 'XPTY0018':
         return ElementPathTypeError(message or 'Step result contains both nodes and atomic values', pcode, token)
     elif code == 'XPTY0019':

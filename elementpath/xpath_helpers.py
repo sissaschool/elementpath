@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Helper functions for XPath nodes and functions.
+Helper functions for XPath nodes and basic data types.
 """
 from collections import namedtuple
 

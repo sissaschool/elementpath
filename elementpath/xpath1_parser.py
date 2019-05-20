@@ -156,10 +156,15 @@ class XPath1Parser(Parser):
 
             k = 0
             while k < min_args:
+                if self.parser.next_token.symbol == ')':
+                    msg = 'Too few arguments: expected at least %s arguments' % min_args
+                    self.wrong_nargs(msg[:-1] if min_args == 1 else msg)
+
                 self[k:] = self.parser.expression(5),
                 k += 1
                 if k < min_args:
                     self.parser.advance(',')
+
             while k < max_args:
                 if self.parser.next_token.symbol == ',':
                     self.parser.advance(',')
@@ -169,6 +174,11 @@ class XPath1Parser(Parser):
                 else:
                     break
                 k += 1
+
+            if self.parser.next_token.symbol == ',':
+                msg = 'Too many arguments: expected at most %s arguments' % max_args
+                self.wrong_nargs(msg[:-1] if max_args == 1 else msg)
+
             self.parser.advance(')')
             return self
 

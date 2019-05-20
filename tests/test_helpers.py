@@ -16,16 +16,36 @@ import math
 import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchema
+from elementpath.exceptions import ElementPathError, xpath_error
 from elementpath.schema_proxy import XMLSchemaProxy
 from elementpath.namespaces import XSD_NAMESPACE, get_namespace, qname_to_prefixed, prefixed_to_qname
 from elementpath.xpath_helpers import AttributeNode, NamespaceNode, is_etree_element, is_element_node, \
     is_attribute_node, is_comment_node, is_document_node, is_namespace_node, is_processing_instruction_node, \
     is_text_node, node_attributes, node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
     node_nilled, node_kind, node_name, node_string_value, node_type_name, boolean_value, data_value, number_value
+from elementpath.xpath1_parser import XPath1Parser
 
 
-class HelpersTest(unittest.TestCase):
-    elem = ElementTree.XML('<node a1="10"/>')
+class ExceptionHelpersTest(unittest.TestCase):
+    parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
+
+    def test_exception_repr(self):
+        err = ElementPathError("unknown error")
+        self.assertEqual(str(err), 'unknown error')
+        err = ElementPathError("unknown error", code='XPST0001')
+        self.assertEqual(str(err), '[XPST0001] unknown error.')
+        token = self.parser.symbol_table['true'](self.parser)
+        err = ElementPathError("unknown error", code='XPST0001', token=token)
+        self.assertEqual(str(err), "'true' function: [XPST0001] unknown error.")
+
+    def test_xpath_error(self):
+        self.assertEqual(str(xpath_error('XPST0001')), '[err:XPST0001] Parser not bound to a schema.')
+        self.assertEqual(str(xpath_error('err:XPDY0002', "test message")), '[err:XPDY0002] test message.')
+        self.assertRaises(ValueError, xpath_error, '')
+        self.assertRaises(ValueError, xpath_error, 'error:XPDY0002')
+
+
+class NamespaceHelpersTest(unittest.TestCase):
     namespaces = {
         'xs': XSD_NAMESPACE,
         'tst': "http://xpath.test/ns"
@@ -56,6 +76,10 @@ class HelpersTest(unittest.TestCase):
             prefixed_to_qname(':foo', {'': 'ns'})
         with self.assertRaises(ValueError):
             prefixed_to_qname('foo:', {'': 'ns'})
+
+
+class XPathHelpersTest(unittest.TestCase):
+    elem = ElementTree.XML('<node a1="10"/>')
 
     def test_is_etree_element_function(self):
         self.assertTrue(is_etree_element(self.elem))
