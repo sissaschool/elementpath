@@ -211,6 +211,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
+        self.wrong_value("-3.5 idiv 0")
+        self.wrong_value("xs:float('INF') idiv 2")
 
     def test_comparison_operators2(self):
         self.check_value("0.05 eq 0.05", True)
@@ -598,6 +600,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
     def test_qname_functions(self):
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
+                              '</p1:A>')
+        context = XPathContext(root=root)
+
         self.check_value('fn:QName("", "person")', 'person')
         self.check_value('fn:QName((), "person")', 'person')
         self.check_value('fn:QName("http://www.example.com/ns/", "person")', 'person')
@@ -614,16 +622,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
         )
+        self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, NameError, namespaces={'p3': ''})
 
-        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
-                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
-                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
-                              '</p1:A>')
-        context = XPathContext(root=root)
         self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
         self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2', context=context.copy())
+        self.check_selector("fn:resolve-QName('p3:C3', .)", root, NameError, namespaces={'p3': ''})
+
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/ns/', context=context)
+        self.check_selector("fn:namespace-uri-for-prefix('p3', .)", root, NameError, namespaces={'p3': ''})
+
         self.check_selector("fn:in-scope-prefixes(.)", root, ['p2', 'p0'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
 
     def test_string_constructors(self):
