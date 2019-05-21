@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ElementTree
 from elementpath import *
 
 
-class SelectorTest(unittest.TestCase):
+class XPathSelectorsTest(unittest.TestCase):
     root = ElementTree.XML('<author>Dickens</author>')
 
     def test_select_function(self):
