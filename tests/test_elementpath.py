@@ -26,7 +26,7 @@ if __name__ == '__main__':
     try:
         from tests.test_helpers import ExceptionHelpersTest, NamespaceHelpersTest, XPathHelpersTest
         from tests.test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
-        from tests.test_contexts import XPathContextTest
+        from tests.test_context import XPathContextTest
         from tests.test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
         from tests.test_xpath2_parser import XPath2ParserTest, LxmlXPath2ParserTest
         from tests.test_schema_proxy import XPath2ParserXMLSchemaTest, LxmlXPath2ParserXMLSchemaTest
@@ -36,11 +36,11 @@ if __name__ == '__main__':
         # Python 2 fallback
         from test_helpers import ExceptionHelpersTest, NamespaceHelpersTest, XPathHelpersTest
         from test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
-        from test_contexts import XPathContextTest
+        from test_context import XPathContextTest
         from test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
         from test_xpath2_parser import XPath2ParserTest, LxmlXPath2ParserTest
         from test_schema_proxy import XPath2ParserXMLSchemaTest, LxmlXPath2ParserXMLSchemaTest
-        from test_selectors import SelectorTest
+        from test_selectors import XPathSelectorsTest
         from test_package import PackageTest
 
     unittest.main()
