@@ -20,6 +20,7 @@ setup(
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/elementpath',
+    keywords=['XPath', 'XPath2', 'Pratt-parser', 'ElementTree', 'lxml'],
     license='MIT',
     description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,

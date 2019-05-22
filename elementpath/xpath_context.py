@@ -10,8 +10,9 @@
 #
 import datetime
 
-from .exceptions import ElementPathTypeError, ElementPathValueError
-from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, is_document_node, is_attribute_node
+from .exceptions import ElementPathTypeError
+from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, \
+    is_document_node, is_attribute_node
 
 
 class XPathContext(object):
@@ -38,7 +39,7 @@ class XPathContext(object):
                  current_dt=None, timezone=None):
         if not is_element_node(root) and not is_document_node(root):
             raise ElementPathTypeError("argument 'root' must be an Element: %r" % root)
-        self.root = root
+        self._root = root
         if item is not None:
             self.item = item
         elif is_element_node(root):
@@ -56,12 +57,12 @@ class XPathContext(object):
 
     def __repr__(self):
         return '%s(root=%r, item=%r, position=%r, size=%r, axis=%r)' % (
-            self.__class__.__name__, self.root, self.item, self.position, self.size, self.axis
+            self.__class__.__name__, self._root, self.item, self.position, self.size, self.axis
         )
 
     def copy(self, clear_axis=True):
         obj = type(self)(
-            root=self.root,
+            root=self._root,
             item=self.item,
             position=self.position,
             size=self.size,
@@ -74,9 +75,13 @@ class XPathContext(object):
         return obj
 
     @property
+    def root(self):
+        return self._root
+
+    @property
     def parent_map(self):
         if self._parent_map is None:
-            self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
+            self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
         return self._parent_map
 
     def is_principal_node_kind(self):
@@ -118,7 +123,7 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            self.item = self.root.getroot() if is_document_node(self.root) else self.root
+            self.item = self._root.getroot() if is_document_node(self._root) else self._root
             yield self.item
         elif is_element_node(self.item):
             elem = self.item
@@ -151,8 +156,8 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            yield self.root
-            self.item = self.root.getroot() if is_document_node(self.root) else self.root
+            yield self._root
+            self.item = self._root.getroot() if is_document_node(self._root) else self._root
         elif not is_etree_element(self.item):
             return
 
@@ -179,21 +184,17 @@ class XPathContext(object):
 
         if item is not None:
             self.item = item
-
         if not is_etree_element(self.item):
             return
-        elem = self.item
-        parent_map = self.parent_map
+
         while True:
             try:
-                parent = parent_map[self.item]
+                parent = self.parent_map[self.item]
             except KeyError:
                 break
             else:
-                if parent is elem:
-                    raise ElementPathValueError("not an Element tree, circularity found for %r." % elem)
                 self.item = parent
-                yield self.item
+                yield parent
 
         self.item, self.size, self.position, self.axis = status
 
@@ -203,8 +204,8 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            yield self.root
-            self.item = self.root.getroot() if is_document_node(self.root) else self.root
+            yield self._root
+            self.item = self._root.getroot() if is_document_node(self._root) else self._root
         elif not is_etree_element(self.item):
             return
 
