@@ -9,7 +9,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from __future__ import unicode_literals
 import unittest
+import xml.etree.ElementTree as ElementTree
+import io
 try:
     import lxml.etree as lxml_etree
 except ImportError:
@@ -35,17 +38,35 @@ except ImportError:
 @unittest.skipIf(xmlschema is None, "xmlschema library required.")
 class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
 
-    schema = XMLSchemaProxy(
-        schema=xmlschema.XMLSchema('''
+    schema = xmlschema.XMLSchema('''
         <!-- Dummy schema for testing proxy API -->
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
           <xs:element name="test_element" type="xs:string"/>
           <xs:attribute name="test_attribute" type="xs:string"/>
         </xs:schema>''')
-    )
 
     def setUp(self):
-        self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema, variables=self.variables)
+        self.schema_proxy = XMLSchemaProxy(self.schema)
+        self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema_proxy, variables=self.variables)
+
+    def test_schema_proxy_init(self):
+        schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                            <xs:element name="test_element" type="xs:string"/>
+                        </xs:schema>"""
+        schema_tree = ElementTree.parse(io.StringIO(schema_src))
+
+        self.assertIsInstance(XMLSchemaProxy(), XMLSchemaProxy)
+        self.assertIsInstance(XMLSchemaProxy(xmlschema.XMLSchema(schema_src)), XMLSchemaProxy)
+        with self.assertRaises(TypeError):
+            XMLSchemaProxy(schema=schema_tree)
+        with self.assertRaises(TypeError):
+            XMLSchemaProxy(schema=xmlschema.XMLSchema(schema_src), base_element=schema_tree)
+        with self.assertRaises(TypeError):
+            XMLSchemaProxy(schema=xmlschema.XMLSchema(schema_src), base_element=schema_tree.getroot())
+
+        schema = xmlschema.XMLSchema(schema_src)
+        with self.assertRaises(ValueError):
+            XMLSchemaProxy(base_element=schema.elements['test_element'])
 
     def test_xmlschema_proxy(self):
         context = XPathContext(root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>'))
@@ -63,17 +84,41 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("schema-attribute(xml:lang)", context.item, context)
         self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
 
+    def test_get_type_api(self):
+        schema_proxy = XMLSchemaProxy()
+        self.assertIsNone(schema_proxy.get_type('unknown'))
+        self.assertEqual(schema_proxy.get_type('{%s}string' % XSD_NAMESPACE),
+                         xmlschema.XMLSchema.builtin_types()['string'])
+
+    def test_get_primitive_type_api(self):
+        schema_proxy = XMLSchemaProxy()
+        short_type = schema_proxy.get_type('{%s}short' % XSD_NAMESPACE)
+        decimal_type = schema_proxy.get_type('{%s}decimal' % XSD_NAMESPACE)
+        self.assertEqual(schema_proxy.get_primitive_type(short_type), decimal_type)
+
+        ntokens_type = schema_proxy.get_type('{%s}NMTOKENS' % XSD_NAMESPACE)
+        string_type = schema_proxy.get_type('{%s}string' % XSD_NAMESPACE)
+        self.assertEqual(schema_proxy.get_primitive_type(ntokens_type), string_type)
+
+        facet_type = schema_proxy.get_type('{%s}facet' % XSD_NAMESPACE)
+        any_type = schema_proxy.get_type('{%s}anyType' % XSD_NAMESPACE)
+        self.assertEqual(schema_proxy.get_primitive_type(facet_type), any_type)
+
     def test_is_instance_api(self):
-        self.assertFalse(self.schema.is_instance(True, '{%s}integer' % XSD_NAMESPACE))
-        self.assertTrue(self.schema.is_instance(5, '{%s}integer' % XSD_NAMESPACE))
-        self.assertFalse(self.schema.is_instance('alpha', '{%s}integer' % XSD_NAMESPACE))
-        self.assertTrue(self.schema.is_instance('alpha', '{%s}string' % XSD_NAMESPACE))
-        self.assertTrue(self.schema.is_instance('alpha beta', '{%s}token' % XSD_NAMESPACE))
-        self.assertTrue(self.schema.is_instance('alpha', '{%s}Name' % XSD_NAMESPACE))
-        self.assertFalse(self.schema.is_instance('alpha beta', '{%s}Name' % XSD_NAMESPACE))
-        self.assertFalse(self.schema.is_instance('1alpha', '{%s}Name' % XSD_NAMESPACE))
-        self.assertTrue(self.schema.is_instance('alpha', '{%s}NCName' % XSD_NAMESPACE))
-        self.assertFalse(self.schema.is_instance('eg:alpha', '{%s}NCName' % XSD_NAMESPACE))
+        self.assertFalse(self.schema_proxy.is_instance(True, '{%s}integer' % XSD_NAMESPACE))
+        self.assertTrue(self.schema_proxy.is_instance(5, '{%s}integer' % XSD_NAMESPACE))
+        self.assertFalse(self.schema_proxy.is_instance('alpha', '{%s}integer' % XSD_NAMESPACE))
+        self.assertTrue(self.schema_proxy.is_instance('alpha', '{%s}string' % XSD_NAMESPACE))
+        self.assertTrue(self.schema_proxy.is_instance('alpha beta', '{%s}token' % XSD_NAMESPACE))
+        self.assertTrue(self.schema_proxy.is_instance('alpha', '{%s}Name' % XSD_NAMESPACE))
+        self.assertFalse(self.schema_proxy.is_instance('alpha beta', '{%s}Name' % XSD_NAMESPACE))
+        self.assertFalse(self.schema_proxy.is_instance('1alpha', '{%s}Name' % XSD_NAMESPACE))
+        self.assertTrue(self.schema_proxy.is_instance('alpha', '{%s}NCName' % XSD_NAMESPACE))
+        self.assertFalse(self.schema_proxy.is_instance('eg:alpha', '{%s}NCName' % XSD_NAMESPACE))
+
+    def test_cast_as_api(self):
+        schema_proxy = XMLSchemaProxy()
+        self.assertEqual(schema_proxy.cast_as('19', '{%s}short' % XSD_NAMESPACE), 19)
 
     def test_attributes_type(self):
         parser = XPath2Parser(namespaces=self.namespaces)

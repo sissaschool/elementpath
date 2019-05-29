@@ -122,14 +122,15 @@ class AbstractSchemaProxy(object):
     """
     Abstract class for defining schema proxies.
 
-    :param schema: the schema instance.
-    :param base_element: the schema element used as base item for static analysis.
+    :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
+    :param base_element: the schema element used as base item for static analysis. It must \
+    implements the `AbstractXsdElement` interface.
     """
     def __init__(self, schema, base_element=None):
         if not is_etree_element(schema):
-            raise ElementPathTypeError("argument {!r} is not a compatible schema".format(schema))
+            raise ElementPathTypeError("argument {!r} is not a compatible schema instance".format(schema))
         if base_element is not None and not is_etree_element(base_element):
-            raise ElementPathTypeError("argument 'base_element' is not a compatible element")
+            raise ElementPathTypeError("argument 'base_element' is not a compatible element instance")
 
         self._schema = schema
         self._base_element = base_element
@@ -284,7 +285,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def get_primitive_type(self, xsd_type):
         if not xsd_type.is_simple():
-            return self._schema.maps.types['{%s}anyType']
+            return self._schema.maps.types['{%s}anyType' % XSD_NAMESPACE]
         elif not hasattr(xsd_type, 'primitive_type'):
             return self.get_primitive_type(xsd_type.base_type)
         elif xsd_type.primitive_type is not xsd_type:
