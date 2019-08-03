@@ -11,7 +11,7 @@
 import datetime
 
 from .exceptions import ElementPathTypeError
-from .xpath_helpers import AttributeNode, is_etree_element, is_element_node, \
+from .xpath_nodes import AttributeNode, is_etree_element, is_element_node, \
     is_document_node, is_attribute_node
 
 

@@ -23,7 +23,7 @@ from .exceptions import ElementPathError, ElementPathTypeError, MissingContextEr
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XPATH_2_DEFAULT_NAMESPACES, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname
 from .datatypes import XSD_BUILTIN_TYPES
-from .xpath_helpers import is_xpath_node, boolean_value
+from .xpath_nodes import is_xpath_node
 from .tdop_parser import create_tokenizer
 from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
 from .xpath_context import XPathSchemaContext
@@ -257,7 +257,7 @@ class XPath2Parser(XPath1Parser):
             except TypeError as err:
                 raise self.error('FORG0006', str(err))
 
-        def cast(value):
+        def cast(_value):
             raise NotImplementedError
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
@@ -413,7 +413,7 @@ def nud(self):
 
 @method('if')
 def evaluate(self, context=None):
-    if boolean_value(self[0].evaluate(context), self):
+    if self.boolean_value(self[0].evaluate(context)):
         return self[1].evaluate(context)
     else:
         return self[2].evaluate(context)
@@ -421,7 +421,7 @@ def evaluate(self, context=None):
 
 @method('if')
 def select(self, context=None):
-    if boolean_value(list(self[0].select(context)), self):
+    if self.boolean_value(list(self[0].select(context))):
         for result in self[1].select(context):
             yield result
     else:
@@ -462,7 +462,7 @@ def evaluate(self, context=None):
     for results in product(*selectors):
         for i in range(len(results)):
             context.variables[self[i * 2][0].value] = results[i]
-        if boolean_value(list(self[-1].select(context.copy())), self):
+        if self.boolean_value(list(self[-1].select(context.copy()))):
             if some:
                 return True
         elif not some:
@@ -608,8 +608,8 @@ def evaluate(self, context=None):
         raise self.error('XPST0080')
 
     namespace = get_namespace(atomic_type)
-    if namespace != XSD_NAMESPACE and self.parser.schema is None or \
-            self.parser.schema.get_type(atomic_type) is None:
+    if namespace != XSD_NAMESPACE and \
+            (self.parser.schema is None or self.parser.schema.get_type(atomic_type) is None):
         self.missing_schema("type %r not found in schema" % atomic_type)
 
     result = [res for res in self[0].select(context)]

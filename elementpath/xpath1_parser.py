@@ -13,17 +13,17 @@ import math
 import decimal
 
 from .compat import PY3, string_base_type
-from .exceptions import ElementPathSyntaxError, ElementPathTypeError, ElementPathNameError, \
-    MissingContextError
+from .exceptions import ElementPathSyntaxError, ElementPathTypeError, \
+    ElementPathNameError, MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, XSD_BUILTIN_TYPES
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
-from .xpath_helpers import AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, is_element_node, \
-    is_document_node, is_attribute_node, is_text_node, is_comment_node, is_processing_instruction_node, \
-    node_name, node_string_value, boolean_value, data_value, string_value, number_value
+from .xpath_nodes import AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, \
+    is_element_node, is_document_node, is_attribute_node, is_text_node, is_comment_node, \
+    is_processing_instruction_node, node_name, node_string_value
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
@@ -687,7 +687,7 @@ def evaluate(self, context=None):
             try:
                 next(selector)
             except StopIteration:
-                return data_value(value)
+                return self.data_value(value)
             else:
                 self.wrong_context_type("atomized operand is a sequence of length greater than one")
 
@@ -730,7 +730,7 @@ def select(self, context=None):
                     isinstance(predicate[0], (int, float)):
                 if context.position == predicate[0] - 1:
                     yield context.item
-            elif boolean_value(predicate, self):
+            elif self.boolean_value(predicate):
                 yield context.item
 
 
@@ -1008,7 +1008,7 @@ def evaluate(self, context=None):
 # String functions
 @method(function('string', nargs=1))
 def evaluate(self, context=None):
-    return string_value(self.get_argument(context))
+    return self.string_value(self.get_argument(context))
 
 
 @method(function('contains', nargs=2))
@@ -1020,7 +1020,8 @@ def evaluate(self, context=None):
 
 @method(function('concat'))
 def evaluate(self, context=None):
-    return ''.join(string_value(self.get_argument(context, index=k)) for k in range(len(self)))
+    return ''.join(self.string_value(self.get_argument(context, index=k))
+                   for k in range(len(self)))
 
 
 @method(function('string-length', nargs=1))
@@ -1126,12 +1127,12 @@ def evaluate(self, context=None):
 # Boolean functions
 @method(function('boolean', nargs=1))
 def evaluate(self, context=None):
-    return boolean_value(self[0].get_results(context), self)
+    return self.boolean_value(self[0].get_results(context))
 
 
 @method(function('not', nargs=1))
 def evaluate(self, context=None):
-    return not boolean_value(self[0].get_results(context), self)
+    return not self.boolean_value(self[0].get_results(context))
 
 
 @method(function('true', nargs=0))
@@ -1179,7 +1180,8 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [number_value(x) if isinstance(x, UntypedAtomic) else x for x in self[0].select(context)]
+    values = [self.number_value(x) if isinstance(x, UntypedAtomic) else x
+              for x in self[0].select(context)]
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero
@@ -1191,7 +1193,7 @@ def evaluate(self, context=None):
         return sum(values)
 
     try:
-        return sum(number_value(x) for x in values)
+        return sum(self.number_value(x) for x in values)
     except TypeError:
         if self.parser.version == '1.0':
             return float('nan')
@@ -1205,7 +1207,7 @@ def evaluate(self, context=None):
     if arg is None:
         return float('nan') if self.parser.version == '1.0' else []
     elif is_xpath_node(arg) or self.parser.compatibility_mode:
-        arg = number_value(arg)
+        arg = self.number_value(arg)
 
     if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):
         return arg
@@ -1222,7 +1224,7 @@ def evaluate(self, context=None):
     if arg is None:
         return float('nan') if self.parser.version == '1.0' else []
     elif is_xpath_node(arg) or self.parser.compatibility_mode:
-        arg = number_value(arg)
+        arg = self.number_value(arg)
 
     if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):
         return arg

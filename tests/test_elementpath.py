@@ -24,7 +24,7 @@ import unittest
 
 if __name__ == '__main__':
     try:
-        from tests.test_helpers import ExceptionHelpersTest, NamespaceHelpersTest, XPathHelpersTest
+        from tests.test_helpers import ExceptionHelpersTest, NamespaceHelpersTest, NodeHelpersTest
         from tests.test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
         from tests.test_context import XPathContextTest
         from tests.test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         from tests.test_package import PackageTest
     except ImportError:
         # Python 2 fallback
-        from test_helpers import ExceptionHelpersTest, NamespaceHelpersTest, XPathHelpersTest
+        from test_helpers import ExceptionHelpersTest, NamespaceHelpersTest, NodeHelpersTest
         from test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
         from test_context import XPathContextTest
         from test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
