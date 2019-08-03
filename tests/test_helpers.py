@@ -12,17 +12,16 @@
 from __future__ import unicode_literals
 import unittest
 import io
-import math
 import xml.etree.ElementTree as ElementTree
 
-from xmlschema import XMLSchema
 from elementpath.exceptions import ElementPathError, xpath_error
-from elementpath.schema_proxy import XMLSchemaProxy
-from elementpath.namespaces import XSD_NAMESPACE, get_namespace, qname_to_prefixed, prefixed_to_qname
-from elementpath.xpath_helpers import AttributeNode, NamespaceNode, is_etree_element, is_element_node, \
-    is_attribute_node, is_comment_node, is_document_node, is_namespace_node, is_processing_instruction_node, \
-    is_text_node, node_attributes, node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
-    node_nilled, node_kind, node_name, node_string_value, node_type_name, boolean_value, data_value, number_value
+from elementpath.namespaces import XSD_NAMESPACE, get_namespace, qname_to_prefixed, \
+    prefixed_to_qname
+from elementpath.xpath_nodes import AttributeNode, NamespaceNode, is_etree_element, \
+    is_element_node, is_attribute_node, is_comment_node, is_document_node, \
+    is_namespace_node, is_processing_instruction_node, is_text_node, node_attributes, \
+    node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
+    node_nilled, node_kind, node_name, node_string_value
 from elementpath.xpath1_parser import XPath1Parser
 
 
@@ -78,7 +77,7 @@ class NamespaceHelpersTest(unittest.TestCase):
             prefixed_to_qname('foo:', {'': 'ns'})
 
 
-class XPathHelpersTest(unittest.TestCase):
+class NodeHelpersTest(unittest.TestCase):
     elem = ElementTree.XML('<node a1="10"/>')
 
     def test_is_etree_element_function(self):
@@ -244,40 +243,6 @@ class XPathHelpersTest(unittest.TestCase):
         self.assertEqual(node_string_value(text), 'betelgeuse')
         self.assertIsNone(node_string_value(None))
         self.assertIsNone(node_string_value(10))
-
-    def test_node_type_name_function(self):
-        schema = XMLSchemaProxy(
-            XMLSchema("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                <xs:attribute name="slot" type="xs:token" />
-                <xs:element name="frame" type="xs:decimal" />
-            </xs:schema>""")
-        )
-        elem = ElementTree.Element('frame')
-        self.assertEqual(node_type_name(elem, schema), '{http://www.w3.org/2001/XMLSchema}decimal')
-        self.assertEqual(node_type_name(elem), '{http://www.w3.org/2001/XMLSchema}untyped')
-        elem = ElementTree.Element('alpha')
-        self.assertEqual(node_type_name(elem, schema), '{http://www.w3.org/2001/XMLSchema}untyped')
-
-        attr = AttributeNode('slot', 'x1')
-        self.assertEqual(node_type_name(attr, schema), '{http://www.w3.org/2001/XMLSchema}token')
-        self.assertEqual(node_type_name(attr), '{http://www.w3.org/2001/XMLSchema}untypedAtomic')
-        attr = AttributeNode('alpha', 'x1')
-        self.assertEqual(node_type_name(attr, schema), '{http://www.w3.org/2001/XMLSchema}untypedAtomic')
-
-        self.assertEqual(node_type_name('slot'), '{http://www.w3.org/2001/XMLSchema}untypedAtomic')
-        self.assertIsNone(node_type_name(10))
-
-    def test_boolean_value_function(self):
-        elem = ElementTree.Element('A')
-        with self.assertRaises(TypeError):
-            boolean_value(elem)
-
-    def test_data_value_function(self):
-        self.assertIsNone(data_value(None))
-
-    def test_number_value_function(self):
-        self.assertEqual(number_value("19"), 19)
-        self.assertTrue(math.isnan(number_value("not a number")))
 
 
 if __name__ == '__main__':

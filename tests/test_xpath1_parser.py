@@ -208,6 +208,21 @@ class XPath1ParserTest(unittest.TestCase):
             else:
                 self.assertTrue(expected(results))
 
+    def test_boolean_value_function(self):
+        token = self.parser.parse('true()')
+        elem = ElementTree.Element('A')
+        with self.assertRaises(TypeError):
+            token.boolean_value(elem)
+
+    def test_data_value_function(self):
+        token = self.parser.parse('true()')
+        self.assertIsNone(token.data_value(None))
+
+    def test_number_value_function(self):
+        token = self.parser.parse('true()')
+        self.assertEqual(token.number_value("19"), 19)
+        self.assertTrue(math.isnan(token.number_value("not a number")))
+
     # Wrong XPath expression checker shortcuts
     def wrong_syntax(self, path):
         self.assertRaises(SyntaxError, self.parser.parse, path)

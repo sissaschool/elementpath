@@ -24,8 +24,8 @@ from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urlli
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
-from .xpath_helpers import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
-    node_name, node_string_value, node_nilled, node_base_uri, node_document_uri, data_value, string_value
+from .xpath_nodes import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
+    node_name, node_string_value, node_nilled, node_base_uri, node_document_uri
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -245,7 +245,7 @@ def evaluate(self, context=None):
 @method(function('data', nargs=1))
 def select(self, context=None):
     for item in self[0].select(context):
-        value = data_value(item)
+        value = self.data_value(item)
         if value is None:
             raise self.error('FOTY0012', "argument node does not have a typed value: %r" % item)
         else:
@@ -380,7 +380,7 @@ def select(self, context=None):
     nan = False
     results = []
     for item in self[0].select(context):
-        value = data_value(item)
+        value = self.data_value(item)
         if context is not None:
             context.item = value
         if not nan and isinstance(value, float) and math.isnan(value):
@@ -440,7 +440,7 @@ def select(self, context=None):
 
 @method(function('unordered', nargs=1))
 def select(self, context=None):
-    for result in sorted(list(self[0].select(context)), key=lambda x: string_value(x)):
+    for result in sorted(list(self[0].select(context)), key=lambda x: self.string_value(x)):
         yield result
 
 
@@ -646,7 +646,7 @@ def evaluate(self, context=None):
 
 @method(function('string-join', nargs=2))
 def evaluate(self, context=None):
-    items = [string_value(s) if is_element_node(s) else s
+    items = [self.string_value(s) if is_element_node(s) else s
              for s in self[0].select(context)]
     try:
         return self.get_argument(context, 1, cls=string_base_type).join(items)

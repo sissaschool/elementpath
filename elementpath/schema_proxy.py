@@ -12,7 +12,7 @@ from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XSD_NAMESPACE
-from .xpath_helpers import is_etree_element
+from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
 

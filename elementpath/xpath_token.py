@@ -25,9 +25,9 @@ import contextlib
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_helpers import AttributeNode, is_etree_element, is_document_node, boolean_value, \
-    string_value, data_value, number_value
-from .datatypes import UntypedAtomic, Timezone, DayTimeDuration
+from .xpath_nodes import AttributeNode, is_etree_element, \
+    is_element_node, is_document_node, is_xpath_node, node_string_value
+from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
 from .tdop_parser import Token
 
 
@@ -167,12 +167,12 @@ class XPathToken(Token):
         if cls is not None and not isinstance(item, cls):
             if self.parser.compatibility_mode:
                 if issubclass(cls, string_base_type):
-                    return string_value(item)
+                    return self.string_value(item)
                 elif issubclass(cls, float):
-                    return number_value(item)
+                    return self.number_value(item)
 
             if self.parser.version > '1.0':
-                value = data_value(item)
+                value = self.data_value(item)
                 if isinstance(value, UntypedAtomic):
                     try:
                         return str(value) if issubclass(cls, string_base_type) else cls(value)
@@ -193,7 +193,7 @@ class XPathToken(Token):
         :param context: the XPath context.
         """
         for item in self.select(context):
-            value = data_value(item)
+            value = self.data_value(item)
             if value is None:
                 raise self.error('FOTY0012', "argument node does not have a typed value: {}".format(item))
             else:
@@ -240,21 +240,22 @@ class XPathToken(Token):
             try:
                 if isinstance(operand1[0], bool):
                     if len(operand1) == 1:
-                        return [(operand1[0], boolean_value(operand2, self))]
+                        return [(operand1[0], self.boolean_value(operand2))]
                 if isinstance(operand2[0], bool):
                     if len(operand2) == 1:
-                        return [(boolean_value(operand1, self), operand2[0])]
+                        return [(self.boolean_value(operand1), operand2[0])]
             except IndexError:
                 return []
 
             # Converts to float for lesser-greater operators (3.)
             if self.symbol in ('<', '<=', '>', '>='):
                 return [
-                    (float(data_value(value1)), float(data_value(value2)))
+                    (float(self.data_value(value1)), float(self.data_value(value2)))
                     for value1 in operand1 for value2 in operand2
                 ]
 
-        return [(data_value(value1), data_value(value2)) for value1 in operand1 for value2 in operand2]
+        return [(self.data_value(value1), self.data_value(value2))
+                for value1 in operand1 for value2 in operand2]
 
     def get_results(self, context):
         """
@@ -354,6 +355,68 @@ class XPathToken(Token):
             yield
         finally:
             locale.setlocale(locale.LC_ALL, default_locale)
+
+    ###
+    # XPath data conversion base functions
+    def data_value(self, obj):
+        """
+        The typed value, as computed by fn:data() on each item. Returns an instance of
+        UntypedAtomic.
+        """
+        if obj is None:
+            return
+        elif not is_xpath_node(obj):
+            return obj
+        elif not hasattr(obj, 'type'):
+            return UntypedAtomic(node_string_value(obj))
+        elif obj.type.is_simple():
+            # In case of schema element or attribute use a the sample value
+            # of the primitive type
+            primitive_type = self.parser.schema.get_primitive_type(obj.type)
+            return XSD_BUILTIN_TYPES[primitive_type.local_name].value
+
+    def boolean_value(self, obj):
+        """
+        The effective boolean value, as computed by fn:boolean().
+        """
+        if isinstance(obj, list):
+            if not obj:
+                return False
+            elif isinstance(obj[0], tuple) or is_element_node(obj[0]):
+                return True
+            elif len(obj) == 1:
+                return bool(obj[0])
+            else:
+                raise self.error(
+                    code='FORG0006',
+                    message="Effective boolean value is not defined for a sequence of two or "
+                            "more items not starting with an XPath node.",
+                )
+        elif isinstance(obj, tuple) or is_element_node(obj):
+            raise self.error('FORG0006', "Effective boolean value is not defined for {}.".format(obj))
+        return bool(obj)
+
+    @staticmethod
+    def string_value(obj):
+        """
+        The string value, as computed by fn:string().
+        """
+        if obj is None:
+            return ''
+        elif is_xpath_node(obj):
+            return node_string_value(obj)
+        else:
+            return str(obj)
+
+    @staticmethod
+    def number_value(obj):
+        """
+        The numeric value, as computed by fn:number() on each item. Returns a float value.
+        """
+        try:
+            return float(node_string_value(obj) if is_xpath_node(obj) else obj)
+        except (TypeError, ValueError):
+            return float('nan')
 
     ###
     # Error handling helpers

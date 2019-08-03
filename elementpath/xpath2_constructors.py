@@ -16,7 +16,7 @@ import codecs
 
 from .compat import unicode_type, urlparse, URLError, string_base_type
 from .exceptions import ElementPathError, xpath_error
-from .xpath_helpers import is_attribute_node, boolean_value, string_value
+from .xpath_nodes import is_attribute_node
 from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, XPathGregorianMonth, \
     XPathGregorianMonthDay, XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic, Duration, \
     YearMonthDuration, DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
@@ -438,7 +438,7 @@ def nud(self):
 @method('boolean')
 def evaluate(self, context=None):
     if self.label == 'function':
-        return boolean_value(self[0].get_results(context), self)
+        return self.boolean_value(self[0].get_results(context))
 
     # xs:boolean constructor
     item = self.get_argument(context)
@@ -469,7 +469,7 @@ def nud(self):
 @method('string')
 def evaluate(self, context=None):
     if self.label == 'function':
-        return string_value(self.get_argument(context))
+        return self.string_value(self.get_argument(context))
     else:
         item = self.get_argument(context)
         return [] if item is None else str(item)
