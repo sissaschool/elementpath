@@ -287,6 +287,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if not xsd_type.is_simple():
             return self._schema.maps.types['{%s}anyType' % XSD_NAMESPACE]
         elif not hasattr(xsd_type, 'primitive_type'):
+            if xsd_type.base_type is None:
+                return xsd_type
             return self.get_primitive_type(xsd_type.base_type)
         elif xsd_type.primitive_type is not xsd_type:
             return self.get_primitive_type(xsd_type.primitive_type)

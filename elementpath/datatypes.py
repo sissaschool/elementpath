@@ -1071,6 +1071,17 @@ def ncname_validator(x):
 
 
 XSD_BUILTIN_TYPES = {
+    'anyType': XsdBuiltin(
+        lambda x: True, UntypedAtomic('1')
+    ),
+    'anySimpleType': XsdBuiltin(
+        lambda x: isinstance(x, (string_base_type, int, float, bool, decimal.Decimal,
+                                 AbstractDateTime, Duration, Timezone, UntypedAtomic)),
+        value=UntypedAtomic('1')
+    ),
+    'anyAtomicType': XsdBuiltin(
+        lambda x: False, value=None
+    ),
     'string': XsdBuiltin(
         lambda x: isinstance(x, string_base_type), value='  alpha\t'
     ),
