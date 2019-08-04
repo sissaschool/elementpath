@@ -97,6 +97,13 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(9.0 / UntypedAtomic('3'), 3.0)
         self.assertEqual(UntypedAtomic('15') * UntypedAtomic('4'), 60)
 
+    def test_abs(self):
+        self.assertEqual(abs(UntypedAtomic(-10)), 10)
+
+    def test_mod(self):
+        self.assertEqual(UntypedAtomic(1) % 2, 1)
+        self.assertEqual(UntypedAtomic('1') % 2, 1.0)
+
 
 class DateTimeTypesTest(unittest.TestCase):
 
