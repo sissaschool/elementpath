@@ -18,7 +18,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import *
+from elementpath import AttributeNode, XPathContext, XPath2Parser, ElementPathTypeError
 from elementpath.compat import PY3
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 
@@ -27,6 +27,11 @@ try:
     import xmlschema
 except (ImportError, AttributeError):
     xmlschema = None
+else:
+    try:
+        from xmlschema.xpath import XMLSchemaProxy  # it works if xmlschema~=1.0.14
+    except ImportError:
+        from elementpath.schema_proxy import XMLSchemaProxy
 
 try:
     from tests import test_xpath2_parser
@@ -47,7 +52,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
 
     def setUp(self):
         self.schema_proxy = XMLSchemaProxy(self.schema)
-        self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema_proxy, variables=self.variables)
+        self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema_proxy,
+                                   variables=self.variables)
 
     def test_schema_proxy_init(self):
         schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -60,16 +66,20 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         with self.assertRaises(TypeError):
             XMLSchemaProxy(schema=schema_tree)
         with self.assertRaises(TypeError):
-            XMLSchemaProxy(schema=xmlschema.XMLSchema(schema_src), base_element=schema_tree)
+            XMLSchemaProxy(schema=xmlschema.XMLSchema(schema_src),
+                           base_element=schema_tree)
         with self.assertRaises(TypeError):
-            XMLSchemaProxy(schema=xmlschema.XMLSchema(schema_src), base_element=schema_tree.getroot())
+            XMLSchemaProxy(schema=xmlschema.XMLSchema(schema_src),
+                           base_element=schema_tree.getroot())
 
         schema = xmlschema.XMLSchema(schema_src)
         with self.assertRaises(ValueError):
             XMLSchemaProxy(base_element=schema.elements['test_element'])
 
     def test_xmlschema_proxy(self):
-        context = XPathContext(root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>'))
+        context = XPathContext(
+            root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>')
+        )
 
         self.wrong_name("schema-element(nil)")
         self.wrong_name("schema-element(xs:string)")
@@ -82,7 +92,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.wrong_name("schema-attribute(xs:string)")
         self.check_value("schema-attribute(xml:lang)", None)
         self.check_value("schema-attribute(xml:lang)", context.item, context)
-        self.check_tree("schema-attribute(xsi:schemaLocation)", '(schema-attribute (: (xsi) (schemaLocation)))')
+        self.check_tree("schema-attribute(xsi:schemaLocation)",
+                        '(schema-attribute (: (xsi) (schemaLocation)))')
 
     def test_get_type_api(self):
         schema_proxy = XMLSchemaProxy()
@@ -135,7 +146,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
                 <xs:attribute name="max" type="xs:int"/>
               </xs:complexType>
             </xs:schema>''')
-        parser = XPath2Parser(namespaces=self.namespaces, schema=XMLSchemaProxy(schema, schema.elements['range']))
+        parser = XPath2Parser(namespaces=self.namespaces,
+                              schema=XMLSchemaProxy(schema, schema.elements['range']))
         token = parser.parse("@min le @max")
         self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
         self.assertFalse(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
@@ -149,7 +161,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
                 <xs:attribute name="max" type="xs:string"/>
               </xs:complexType>
             </xs:schema>''')
-        parser = XPath2Parser(namespaces=self.namespaces, schema=XMLSchemaProxy(schema, schema.elements['range']))
+        parser = XPath2Parser(namespaces=self.namespaces,
+                              schema=XMLSchemaProxy(schema, schema.elements['range']))
         if PY3:
             self.assertRaises(TypeError, parser.parse, '@min le @max')
         else:
@@ -225,7 +238,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(token[0][1].xsd_type, schema.types['rangeType'])
         self.assertEqual(token[1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
-        context = XPathContext(root=self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>'))
+        context = XPathContext(
+            root=self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>'))
         token = parser.parse("//b/@min lt //b/@max")
         self.assertEqual(token[0][0][0].xsd_type, schema.types['rangeType'])
         self.assertEqual(token[0][1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])

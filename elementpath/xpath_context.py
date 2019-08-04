@@ -233,4 +233,9 @@ class XPathContext(object):
 
 
 class XPathSchemaContext(XPathContext):
-    """Schema context class used during static analysis phase for matching tokens with schema types."""
+    """
+    The XPath dynamic context base class for schema bounded parsers. Use this class
+    as dynamic context for schema instances in order to perform a schema-based type
+    checking during the static analysis phase. Don't use this as dynamic context on
+    XML instances.
+    """
