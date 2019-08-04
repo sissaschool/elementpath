@@ -82,6 +82,8 @@ class XPath1Parser(Parser):
     in the instance with the ones passed with the *namespaces* argument.
     """
 
+    schema = None  # To simplify the schema bind checks in compatibility with XPath2Parser
+
     def __init__(self, namespaces=None, variables=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = self.DEFAULT_NAMESPACES.copy()
@@ -1026,12 +1028,18 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=1))
 def evaluate(self, context=None):
+    if self.parser.version == '1.0':
+        arg = self.get_argument(context, default_to_context=True, default='')
+        return len(self.string_value(arg))
     return len(self.get_argument(context, default_to_context=True, default='', cls=string_base_type))
 
 
 @method(function('normalize-space', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, default_to_context=True, default='', cls=string_base_type)
+    if self.parser.version == '1.0':
+        arg = self.string_value(self.get_argument(context, default_to_context=True, default=''))
+    else:
+        arg = self.get_argument(context, default_to_context=True, default='', cls=string_base_type)
     return ' '.join(arg.strip().split())
 
 

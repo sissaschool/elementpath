@@ -226,7 +226,9 @@ class AbstractSchemaProxy(object):
 
 class XMLSchemaProxy(AbstractSchemaProxy):
     """
-    Schema proxy for the *xmlschema* library.
+    Schema proxy for the *xmlschema* library. It will be removed soon because
+    xmlschema v1.0.14 will includes an its own version of schema proxy that
+    uses a custom context implementation that recognizes circular references.
     """
     def __init__(self, schema=None, base_element=None):
         if schema is None:
