@@ -449,11 +449,11 @@ def evaluate(self, context=None):
     if varname in self.parser.variables:
         return self.parser.variables[varname]
     elif context is None:
-        return None
+        return
     elif varname in context.variables:
         return context.variables[varname]
     elif isinstance(context, XPathSchemaContext):
-        return None
+        return
     else:
         raise ElementPathNameError('unknown variable', token=self)
 

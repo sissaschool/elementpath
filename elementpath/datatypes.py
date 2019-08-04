@@ -1001,6 +1001,9 @@ class UntypedAtomic(object):
     def __abs__(self):
         return abs(self.value)
 
+    def __mod__(self, other):
+        return operator.mod(*self._get_operands(other))
+
     if PY3:
         def __str__(self):
             return str(self.value)
