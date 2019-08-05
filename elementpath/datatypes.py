@@ -1075,7 +1075,8 @@ def ncname_validator(x):
 
 XSD_BUILTIN_TYPES = {
     'anyType': XsdBuiltin(
-        lambda x: True, UntypedAtomic('1')
+        lambda x: True,
+        value=UntypedAtomic('1')
     ),
     'anySimpleType': XsdBuiltin(
         lambda x: isinstance(x, (string_base_type, int, float, bool, decimal.Decimal,
@@ -1083,138 +1084,183 @@ XSD_BUILTIN_TYPES = {
         value=UntypedAtomic('1')
     ),
     'anyAtomicType': XsdBuiltin(
-        lambda x: False, value=None
+        lambda x: False,
+        value=None
     ),
     'string': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type), value='  alpha\t'
+        lambda x: isinstance(x, string_base_type),
+        value='  alpha\t'
     ),
     'decimal': XsdBuiltin(
-        lambda x: isinstance(x, (int, float, decimal.Decimal)), value=decimal.Decimal('1.0')
+        lambda x: isinstance(x, (int, float, decimal.Decimal)) and not isinstance(x, bool),
+        value=decimal.Decimal('1.0')
     ),
     'double': XsdBuiltin(
-        lambda x: isinstance(x, float), value=1.0
+        lambda x: isinstance(x, float),
+        value=1.0
     ),
     'float': XsdBuiltin(
-        lambda x: isinstance(x, float), value=1.0
+        lambda x: isinstance(x, float),
+        value=1.0
     ),
     'date': XsdBuiltin(
-        lambda x: isinstance(x, Date), value=Date.fromstring('2000-01-01')
+        lambda x: isinstance(x, Date),
+        value=Date.fromstring('2000-01-01')
     ),
     'dateTime': XsdBuiltin(
-        lambda x: isinstance(x, DateTime), value=DateTime.fromstring('2000-01-01T12:00:00')
+        lambda x: isinstance(x, DateTime),
+        value=DateTime.fromstring('2000-01-01T12:00:00')
     ),
     'gDay': XsdBuiltin(
-        lambda x: isinstance(x, GregorianDay), value=GregorianDay.fromstring('---31')
+        lambda x: isinstance(x, GregorianDay),
+        value=GregorianDay.fromstring('---31')
     ),
     'gMonth': XsdBuiltin(
-        lambda x: isinstance(x, GregorianMonth), value=GregorianMonth.fromstring('--12')
+        lambda x: isinstance(x, GregorianMonth),
+        value=GregorianMonth.fromstring('--12')
     ),
     'gMonthDay': XsdBuiltin(
-        lambda x: isinstance(x, GregorianMonthDay), value=GregorianMonthDay.fromstring('--12-01')
+        lambda x: isinstance(x, GregorianMonthDay),
+        value=GregorianMonthDay.fromstring('--12-01')
     ),
     'gYear': XsdBuiltin(
-        lambda x: isinstance(x, GregorianYear), value=GregorianYear.fromstring('1999')
+        lambda x: isinstance(x, GregorianYear),
+        value=GregorianYear.fromstring('1999')
     ),
     'gYearMonth': XsdBuiltin(
-        lambda x: isinstance(x, GregorianYearMonth), value=GregorianYearMonth.fromstring('1999-09')
+        lambda x: isinstance(x, GregorianYearMonth),
+        value=GregorianYearMonth.fromstring('1999-09')
     ),
     'time': XsdBuiltin(
-        lambda x: isinstance(x, Time), value=Time.fromstring('09:26:54')
+        lambda x: isinstance(x, Time),
+        value=Time.fromstring('09:26:54')
     ),
     'duration': XsdBuiltin(
-        lambda x: isinstance(x, Duration), value=Duration.fromstring('P1MT1S')
+        lambda x: isinstance(x, Duration),
+        value=Duration.fromstring('P1MT1S')
     ),
     'dayTimeDuration': XsdBuiltin(
-        lambda x: isinstance(x, DayTimeDuration), value=DayTimeDuration.fromstring('P1DT1S')
+        lambda x: isinstance(x, DayTimeDuration),
+        value=DayTimeDuration.fromstring('P1DT1S')
     ),
     'yearMonthDuration': XsdBuiltin(
-        lambda x: isinstance(x, YearMonthDuration), value=YearMonthDuration.fromstring('P1Y1M')
+        lambda x: isinstance(x, YearMonthDuration),
+        value=YearMonthDuration.fromstring('P1Y1M')
     ),
     'QName': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and QNAME_PATTERN.match(x) is not None, value='xs:element'
+        lambda x: isinstance(x, string_base_type) and QNAME_PATTERN.match(x) is not None,
+        value='xs:element'
     ),
     'NOTATION': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type), value='alpha'
+        lambda x: isinstance(x, string_base_type),
+        value='alpha'
     ),
     'anyURI': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type), value='https://example.com'
+        lambda x: isinstance(x, string_base_type),
+        value='https://example.com'
     ),
     'normalizedString': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and '\t' not in x and '\r' not in x, value=' alpha  ',
+        lambda x: isinstance(x, string_base_type) and '\t' not in x and '\r' not in x,
+        value=' alpha  ',
     ),
     'token': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and WHITESPACES_PATTERN.match(x) is None, value='a token'
+        lambda x: isinstance(x, string_base_type) and WHITESPACES_PATTERN.match(x) is None,
+        value='a token'
     ),
     'language': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and LANGUAGE_CODE_PATTERN.match(x) is not None, value='en-US'
+        lambda x: isinstance(x, string_base_type) and LANGUAGE_CODE_PATTERN.match(x) is not None,
+        value='en-US'
     ),
     'Name': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and NAME_PATTERN.match(x) is not None, value='_a.name::'
+        lambda x: isinstance(x, string_base_type) and NAME_PATTERN.match(x) is not None,
+        value='_a.name::'
     ),
     'NCName': XsdBuiltin(
-        ncname_validator, value='nc-name'
+        ncname_validator,
+        value='nc-name'
     ),
     'ID': XsdBuiltin(
-        ncname_validator, value='id1'
+        ncname_validator,
+        value='id1'
     ),
     'IDREF': XsdBuiltin(
-        ncname_validator, value='id_ref1'
+        ncname_validator,
+        value='id_ref1'
     ),
     'ENTITY': XsdBuiltin(
-        ncname_validator, value='entity1'
+        ncname_validator,
+        value='entity1'
     ),
     'NMTOKEN': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and NMTOKEN_PATTERN.match(x) is not None, value='a_token'
+        lambda x: isinstance(x, string_base_type) and NMTOKEN_PATTERN.match(x) is not None,
+        value='a_token'
     ),
     'base64Binary': XsdBuiltin(
-        base64_binary_validator, value=b'YWxwaGE='
+        base64_binary_validator,
+        value=b'YWxwaGE='
     ),
     'hexBinary': XsdBuiltin(
-        hex_binary_validator, value=b'31'
+        hex_binary_validator,
+        value=b'31'
     ),
     'dateTimeStamp': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type), value='2000-01-01T12:00:00+01:00'
+        lambda x: isinstance(x, string_base_type),
+        value='2000-01-01T12:00:00+01:00'
     ),
     'integer': XsdBuiltin(
-        lambda x: isinstance(x, int), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool),
+        value=1
     ),
     'long': XsdBuiltin(
-        lambda x: isinstance(x, int) and (-2**63 <= x < 2**63), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**63 <= x < 2**63),
+        value=1
     ),
     'int': XsdBuiltin(
-        lambda x: isinstance(x, int) and (-2**31 <= x < 2**31), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**31 <= x < 2**31),
+        value=1
     ),
     'short': XsdBuiltin(
-        lambda x: isinstance(x, int) and (-2**15 <= x < 2**15), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**15 <= x < 2**15),
+        value=1
     ),
     'byte': XsdBuiltin(
-        lambda x: isinstance(x, int) and (-2**7 <= x < 2**7), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**7 <= x < 2**7),
+        value=1
     ),
     'positiveInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and x > 0, value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and x > 0,
+        value=1
     ),
     'negativeInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and x < 0, value=-1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and x < 0,
+        value=-1
     ),
     'nonPositiveInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and x <= 0, value=0
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and x <= 0,
+        value=0
     ),
     'nonNegativeInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and x >= 0, value=0
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and x >= 0,
+        value=0
     ),
     'unsignedLong': XsdBuiltin(
-        lambda x: isinstance(x, int) and (0 <= x < 2**64), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**64),
+        value=1
     ),
     'unsignedInt': XsdBuiltin(
-        lambda x: isinstance(x, int) and (0 <= x < 2**32), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**32),
+        value=1
     ),
     'unsignedShort': XsdBuiltin(
-        lambda x: isinstance(x, int) and (0 <= x < 2**16), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**16),
+        value=1
     ),
     'unsignedByte': XsdBuiltin(
-        lambda x: isinstance(x, int) and (0 <= x < 2**8), value=1
+        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**8),
+        value=1
     ),
     'boolean': XsdBuiltin(
-        lambda x: isinstance(x, bool), value=True
+        lambda x: isinstance(x, bool),
+        value=True
     ),
 }

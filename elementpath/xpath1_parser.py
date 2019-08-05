@@ -1028,9 +1028,6 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=1))
 def evaluate(self, context=None):
-    if self.parser.version == '1.0':
-        arg = self.get_argument(context, default_to_context=True, default='')
-        return len(self.string_value(arg))
     return len(self.get_argument(context, default_to_context=True, default='', cls=string_base_type))
 
 
