@@ -331,11 +331,17 @@ class XPath2Parser(XPath1Parser):
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
-        context = None if self.schema is None else self.schema.get_context()
-        try:
-            root_token.evaluate(context)  # Static context evaluation
-        except MissingContextError:
-            pass
+
+        if self.schema is None:
+            try:
+                root_token.evaluate()  # Static context evaluation
+            except MissingContextError:
+                pass
+        else:
+            # Static context evaluation with a dynamic schema context
+            for _ in root_token.select(context=self.schema.get_context()):
+                pass
+
         return root_token
 
 
