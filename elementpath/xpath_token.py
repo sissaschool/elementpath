@@ -21,6 +21,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 import locale
 import contextlib
+import decimal
 
 from .compat import string_base_type
 from .exceptions import xpath_error
@@ -118,7 +119,8 @@ class XPathToken(Token):
 
     ###
     # Helper methods
-    def get_argument(self, context, index=0, required=False, default_to_context=False, default=None, cls=None):
+    def get_argument(self, context, index=0, required=False, default_to_context=False,
+                     default=None, cls=None):
         """
         Get the argument value of a function of constructor token. A zero length sequence is
         converted to a `None` value. If the function has no argument returns the context's
@@ -158,12 +160,9 @@ class XPathToken(Token):
                     if not required:
                         return default
                     ord_arg = ordinal(index + 1)
-                    if cls is None:
-                        self.missing_sequence("A not empty sequence required for %s argument" % ord_arg)
-                    else:
-                        self.missing_sequence("A not empty sequence of %r required for %s argument" % (cls, ord_arg))
+                    self.missing_sequence("A not empty sequence required for %s argument" % ord_arg)
 
-        # Type checking and conversion (see "function conversion rules" in XPath 2.0 language definition)
+        # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         if cls is not None and not isinstance(item, cls):
             if self.parser.compatibility_mode:
                 if issubclass(cls, string_base_type):
@@ -173,14 +172,20 @@ class XPathToken(Token):
 
             if self.parser.version > '1.0':
                 value = self.data_value(item)
-                if isinstance(value, UntypedAtomic):
+                if isinstance(value, cls):
+                    return value
+                elif isinstance(value, UntypedAtomic):
                     try:
                         return str(value) if issubclass(cls, string_base_type) else cls(value)
                     except (TypeError, ValueError):
                         pass
+                elif issubclass(cls, float) and not isinstance(value, bool) \
+                        and isinstance(value, (int, float, decimal.Decimal)):
+                    return self.number_value(value)
 
             code = 'XPTY0004' if self.label == 'function' else 'FORG0006'
-            raise self.error(code, "the %s argument %r is not a %r instance" % (ordinal(index + 1), item, cls))
+            message = "the %s argument %r is not a %r instance"
+            raise self.error(code, message % (ordinal(index + 1), item, cls))
 
         return item
 
@@ -374,6 +379,8 @@ class XPathToken(Token):
             # of the primitive type
             primitive_type = self.parser.schema.get_primitive_type(obj.type)
             return XSD_BUILTIN_TYPES[primitive_type.local_name].value
+        elif obj.type.local_name == 'anyType':
+            return XSD_BUILTIN_TYPES['anyType'].value
 
     def boolean_value(self, obj):
         """
