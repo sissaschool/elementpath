@@ -16,10 +16,11 @@ import operator
 import random
 from decimal import Decimal
 from calendar import isleap
-from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_era, months2days, \
-    DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, DayTimeDuration, YearMonthDuration, \
-    UntypedAtomic, GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
-    GregorianMonthDay, GregorianMonth, GregorianDay, AbstractDateTime, OrderedDateTime
+from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_era, \
+    months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
+    DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
+    GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
+    GregorianDay, AbstractDateTime, OrderedDateTime, NumericTypeProxy, ArithmeticTypeProxy
 
 
 class UntypedAtomicTest(unittest.TestCase):
@@ -630,6 +631,19 @@ class TimezoneTypeTest(unittest.TestCase):
             self.assertEqual(hash(Timezone.fromstring('+05:00')), 1289844826723787395)
         else:
             self.assertEqual(hash(Timezone.fromstring('+05:00')), 7009945331308913293)
+
+
+class TypeProxiesTest(unittest.TestCase):
+
+    def test_numeric_type_proxy(self):
+        self.assertIsInstance(10, NumericTypeProxy)
+        self.assertIsInstance(17.8, NumericTypeProxy)
+        self.assertIsInstance(Decimal('18.12'), NumericTypeProxy)
+        self.assertNotIsInstance(True, NumericTypeProxy)
+        self.assertNotIsInstance(Duration.fromstring('P1Y'), NumericTypeProxy)
+
+    def test_arithmetic_type_proxy(self):
+        self.assertIsInstance(10, ArithmeticTypeProxy)
 
 
 if __name__ == '__main__':

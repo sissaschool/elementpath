@@ -1054,6 +1054,89 @@ LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{
 WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
 
 
+class TypeProxyMeta(type):
+    """
+    A metaclass for creating type proxy classes, that can be used for instance
+    and subclass checking and for building instances of related types. A type
+    proxy class has to implement three methods as concrete class/static methods.
+    """
+    def __instancecheck__(cls, instance):
+        return cls.instance_check(instance)
+
+    def __subclasscheck__(cls, subclass):
+        return cls.subclass_check(subclass)
+
+    def __call__(cls, *args, **kwargs):
+        return cls.instance_build(*args, **kwargs)
+
+    def instance_check(cls, instance):
+        """Checks the if the argument is an instance of one of related types."""
+        raise NotImplementedError
+
+    def subclass_check(cls, subclass):
+        """Checks the if the argument is a subclass of one of related types."""
+        raise NotImplementedError
+
+    def instance_build(cls, *args, **kwargs):
+        """Builds an instance belonging to one of related types."""
+        raise NotImplementedError
+
+
+@add_metaclass(TypeProxyMeta)
+class NumericTypeProxy(object):
+    """
+    A type proxy class for xs:numeric related types (xs:float, xs:decimal and
+    derived types). Builds xs:float instances.
+    """
+    @staticmethod
+    def instance_check(other):
+        return isinstance(other, (int, float, decimal.Decimal)) and not isinstance(other, bool)
+
+    @staticmethod
+    def subclass_check(subclass):
+        if issubclass(subclass, bool):
+            return False
+        return issubclass(subclass, int) or issubclass(subclass, float) or issubclass(subclass, decimal.Decimal)
+
+    @staticmethod
+    def instance_build(x=0):
+        return float(x)
+
+
+@add_metaclass(TypeProxyMeta)
+class ArithmeticTypeProxy(object):
+    """
+    A type proxy class for XSD types related to arithmetic operators, including
+    types related to xs:numeric and datetime or duration types. Builds xs:float
+    instances.
+    """
+
+    @staticmethod
+    def instance_check(other):
+        return isinstance(other, (int, float, decimal.Decimal, AbstractDateTime, Duration)) \
+               and not isinstance(other, bool)
+
+    @staticmethod
+    def subclass_check(subclass):
+        if issubclass(subclass, bool):
+            return False
+        return issubclass(subclass, int) or issubclass(subclass, float) or \
+            issubclass(subclass, decimal.Decimal) or issubclass(subclass, Duration) \
+            or issubclass(subclass, AbstractDateTime)
+
+    @staticmethod
+    def instance_build(x=0):
+        return float(x)
+
+
+def decimal_validator(x):
+    return isinstance(x, (int, decimal.Decimal)) and not isinstance(x, bool)
+
+
+def integer_validator(x):
+    return isinstance(x, int) and not isinstance(x, bool)
+
+
 def base64_binary_validator(x):
     if not isinstance(x, string_base_type) or NOT_BASE64_BINARY_PATTERN.match(x) is None:
         return False
@@ -1092,7 +1175,7 @@ XSD_BUILTIN_TYPES = {
         value='  alpha\t'
     ),
     'decimal': XsdBuiltin(
-        lambda x: isinstance(x, (int, float, decimal.Decimal)) and not isinstance(x, bool),
+        decimal_validator,
         value=decimal.Decimal('1.0')
     ),
     'double': XsdBuiltin(
@@ -1208,55 +1291,55 @@ XSD_BUILTIN_TYPES = {
         value='2000-01-01T12:00:00+01:00'
     ),
     'integer': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool),
+        integer_validator,
         value=1
     ),
     'long': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**63 <= x < 2**63),
+        lambda x: integer_validator(x) and (-2**63 <= x < 2**63),
         value=1
     ),
     'int': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**31 <= x < 2**31),
+        lambda x: integer_validator(x) and (-2**31 <= x < 2**31),
         value=1
     ),
     'short': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**15 <= x < 2**15),
+        lambda x: integer_validator(x) and (-2**15 <= x < 2**15),
         value=1
     ),
     'byte': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (-2**7 <= x < 2**7),
+        lambda x: integer_validator(x) and (-2**7 <= x < 2**7),
         value=1
     ),
     'positiveInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and x > 0,
+        lambda x: integer_validator(x) and x > 0,
         value=1
     ),
     'negativeInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and x < 0,
+        lambda x: integer_validator(x) and x < 0,
         value=-1
     ),
     'nonPositiveInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and x <= 0,
+        lambda x: integer_validator(x) and x <= 0,
         value=0
     ),
     'nonNegativeInteger': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and x >= 0,
+        lambda x: integer_validator(x) and x >= 0,
         value=0
     ),
     'unsignedLong': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**64),
+        lambda x: integer_validator(x) and (0 <= x < 2**64),
         value=1
     ),
     'unsignedInt': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**32),
+        lambda x: integer_validator(x) and (0 <= x < 2**32),
         value=1
     ),
     'unsignedShort': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**16),
+        lambda x: integer_validator(x) and (0 <= x < 2**16),
         value=1
     ),
     'unsignedByte': XsdBuiltin(
-        lambda x: isinstance(x, int) and not isinstance(x, bool) and (0 <= x < 2**8),
+        lambda x: integer_validator(x) and (0 <= x < 2**8),
         value=1
     ),
     'boolean': XsdBuiltin(

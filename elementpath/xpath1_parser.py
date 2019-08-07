@@ -13,9 +13,9 @@ import math
 import decimal
 
 from .compat import PY3, string_base_type
-from .exceptions import ElementPathSyntaxError, ElementPathTypeError, \
-    ElementPathNameError, MissingContextError
-from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, XSD_BUILTIN_TYPES
+from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingContextError
+from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
+    NumericTypeProxy, XSD_BUILTIN_TYPES
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
@@ -560,15 +560,28 @@ def evaluate(self, context=None):
     if not self:
         return
     elif len(self) == 1:
+        arg = self.get_argument(context, cls=NumericTypeProxy)
+        if arg is None:
+            return
         try:
-            return +self[0].evaluate(context)
+            return +arg
         except TypeError:
-            raise ElementPathTypeError("numeric values are required: %r." % self[:])
+            raise self.wrong_type("numeric value is required: %r" % arg)
     else:
+        arg1 = self.get_argument(context)
+        arg2 = self.get_argument(context, index=1)
+        if arg1 is None or arg2 is None:
+            return
+        elif isinstance(arg1, string_base_type):
+            if isinstance(arg2, string_base_type):
+                raise self.wrong_type("unsupported operands %r and %r" % (arg1, arg2))
+            elif isinstance(arg2, NumericTypeProxy):
+                arg1 = float(arg1)
+
         try:
             return self[0].evaluate(context) + self[1].evaluate(context)
         except TypeError as err:
-            raise ElementPathTypeError(str(err))
+            raise self.wrong_type(str(err))
 
 
 @method(infix('-', bp=40))
@@ -607,7 +620,13 @@ def evaluate(self, context=None):
 
 @method(infix('mod', bp=45))
 def evaluate(self, context=None):
-    return self[0].evaluate(context) % self[1].evaluate(context)
+    arg1 = self.get_argument(context, cls=NumericTypeProxy)
+    arg2 = self.get_argument(context, index=1, cls=NumericTypeProxy)
+    if arg1 is not None and arg2 is not None:
+        try:
+            return arg1 % arg2
+        except TypeError as err:
+            raise self.wrong_type(str(err))
 
 
 ###
