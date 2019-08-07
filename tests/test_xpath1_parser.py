@@ -38,22 +38,25 @@ from elementpath import *
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 
 
-XML_GENERIC_TEST = """<root>
+XML_GENERIC_TEST = """
+<root>
     <a id="a_id">
         <b>some content</b>
         <c> space     space    \t .</c></a>
 </root>"""
 
-XML_DATA_TEST = """<values>
+XML_DATA_TEST = """
+<values>
    <a>3.4</a>
    <a>20</a>
    <a>-10.1</a>
    <b>alpha</b>
    <c>true</c>
-</values>
-"""
+   <d>44</d>
+</values>"""
 
 
+# noinspection PyPropertyAccess
 class XPath1ParserTest(unittest.TestCase):
     namespaces = {
         'xml': XML_NAMESPACE,
@@ -466,7 +469,7 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_string_function(self):
         self.check_value("string(10.0)", '10.0')
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("string(())")
         else:
             self.check_value("string(())", '')
@@ -483,7 +486,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("//none[string-length(.) = 10]", root, [])
         self.check_value('fn:string-length("Harp not on that string, madam; that is past.")', 45)
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("string-length(())")
             self.check_value("string-length(12345)", 5)
         else:
@@ -504,7 +507,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("//c[normalize-space(.) = 'space space .']", root, [root[0][1]])
         self.check_value('fn:normalize-space(" The  wealthy curled darlings of   our  nation. ")',
                          'The wealthy curled darlings of our nation.')
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax('fn:normalize-space(())')
             self.check_value("normalize-space(1000)", '1000')
             self.check_value("normalize-space(true())", 'True')
@@ -563,7 +566,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("substring('12345', 1.5, 2.6)", '234')
         self.check_value("substring('12345', 0, 3)", '12')
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.check_value("substring('12345', 0 div 0, 3)", '')
             self.check_value("substring('12345', 1, 0 div 0)", '')
             self.check_value("substring('12345', -42, 1 div 0)", '12345')
@@ -614,7 +617,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value('fn:starts-with("abracadabra", "a")', True)
         self.check_value('fn:starts-with("abracadabra", "bra")', False)
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("starts-with((), ())")
             self.check_value("starts-with('1999', 19)", True)
         else:
@@ -644,7 +647,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_syntax("concat()")
 
         self.wrong_syntax("concat()")
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("concat((), (), ())")
         else:
             self.check_value("concat((), (), ())", '')
@@ -667,7 +670,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("//b[contains(., ' -con')]", root, [])
         self.check_selector("//none[contains(., ' -con')]", root, [])
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("contains((), ())")
             self.check_value("contains('XPath', 20)", False)
         else:
@@ -693,7 +696,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("//b[substring-before(., 'con') = 'some']", root, [])
         self.check_selector("//none[substring-before(., 'con') = 'some']", root, [])
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.check_value("substring-before('2017-10-27', 10)", '2017-')
             self.wrong_syntax("fn:substring-before((), ())")
         else:
@@ -724,7 +727,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("//b[substring-after(., 'con') = 'content']", root, [])
         self.check_selector("//none[substring-after(., 'con') = 'content']", root, [])
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("fn:substring-after((), ())")
         else:
             self.check_value('fn:substring-after("tattoo", "tat")', 'too')
@@ -747,7 +750,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("boolean('   ')", True)
         self.check_value("boolean('')", False)
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("boolean(())")
         else:
             self.check_value("boolean(())", False)
@@ -804,13 +807,41 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("8 - 5", 3)
         self.check_value("-8 - 5", -13)
         self.check_value("5 div 2", 2.5)
-        self.check_value("11 mod 3", 2)
-        self.check_value("4.5 mod 1.2", Decimal('0.9'))
-        self.check_value("1.23E2 mod 0.6E1", 3.0E0)
         self.check_value("-3 * 7", -21)
         self.check_value("9 - 1 + 6", 14)
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
+
+    def test_numerical_add_operator(self):
+        self.check_value("3 + 8", 11)
+        self.check_value("9 - 5.0", 4)
+
+        root = self.etree.XML(XML_DATA_TEST)
+        if self.parser.version == '1.0':
+            self.check_value("'9' - 5.0", 4)
+
+            self.check_selector("/values/a mod 2", root, [1.4])
+            self.check_value("/values/b mod 2", float('nan'), context=XPathContext(root))
+        else:
+            self.check_selector("/values/a mod 2", root, TypeError)
+            self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
+
+        self.check_selector("/values/d mod 3", root, [2])
+
+    def test_numerical_mod_operator(self):
+        self.check_value("11 mod 3", 2)
+        self.check_value("4.5 mod 1.2", Decimal('0.9'))
+        self.check_value("1.23E2 mod 0.6E1", 3.0E0)
+
+        root = self.etree.XML(XML_DATA_TEST)
+        if self.parser.version == '1.0':
+            self.check_selector("/values/a mod 2", root, [1.4])
+            self.check_value("/values/b mod 2", float('nan'), context=XPathContext(root))
+        else:
+            self.check_selector("/values/a mod 2", root, TypeError)
+            self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
+
+        self.check_selector("/values/d mod 3", root, [2])
 
     def test_number_function(self):
         root = self.etree.XML('<root>15</root>')
@@ -823,7 +854,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("number('-11')", -11)
         self.check_selector("number(9)", root, 9.0)
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("number(())")
         else:
             self.check_value("number(())", float('nan'), context=XPathContext(root))
@@ -837,7 +868,7 @@ class XPath1ParserTest(unittest.TestCase):
     def test_sum_function(self):
         root = self.etree.XML(XML_DATA_TEST)
         self.check_value("sum($values)", 35)
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("sum(())")
         else:
             self.check_value("sum(())", 0)
@@ -851,7 +882,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("ceiling(-10.5)", -10)
         self.check_selector("//a[ceiling(.) = 10]", root, [])
         self.check_selector("//a[ceiling(.) = -10]", root, [root[2]])
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("ceiling(())")
         else:
             self.check_value("ceiling(())", [])
@@ -865,7 +896,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("//a[floor(.) = 10]", root, [])
         self.check_selector("//a[floor(.) = 20]", root, [root[1]])
 
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("floor(())")
             self.check_selector("//ab[floor(.) = 10]", root, [])
         else:
@@ -877,7 +908,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("round(2.5)", 3)
         self.check_value("round(2.4999)", 2)
         self.check_value("round(-2.5)", -2)
-        if not isinstance(self.parser, XPath2Parser):
+        if self.parser.version == '1.0':
             self.wrong_syntax("round(())")
         else:
             self.check_value("round(())", [])

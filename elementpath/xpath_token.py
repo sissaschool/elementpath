@@ -21,14 +21,13 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 import locale
 import contextlib
-import decimal
 
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_nodes import AttributeNode, is_etree_element, \
     is_element_node, is_document_node, is_xpath_node, node_string_value
-from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
+from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, NumericTypeProxy, XSD_BUILTIN_TYPES
 from .tdop_parser import Token
 
 
@@ -167,7 +166,7 @@ class XPathToken(Token):
             if self.parser.compatibility_mode:
                 if issubclass(cls, string_base_type):
                     return self.string_value(item)
-                elif issubclass(cls, float):
+                elif issubclass(cls, float) or cls is NumericTypeProxy:
                     return self.number_value(item)
 
             if self.parser.version > '1.0':
@@ -176,15 +175,19 @@ class XPathToken(Token):
                     return value
                 elif isinstance(value, UntypedAtomic):
                     try:
-                        return str(value) if issubclass(cls, string_base_type) else cls(value)
+                        if cls is NumericTypeProxy:
+                            return float(value)
+                        elif issubclass(cls, string_base_type):
+                            return str(value)
+                        else:
+                            return cls(value)
                     except (TypeError, ValueError):
                         pass
-                elif issubclass(cls, float) and not isinstance(value, bool) \
-                        and isinstance(value, (int, float, decimal.Decimal)):
+                elif issubclass(cls, float) and isinstance(value, NumericTypeProxy):
                     return self.number_value(value)
 
             code = 'XPTY0004' if self.label == 'function' else 'FORG0006'
-            message = "the %s argument %r is not a %r instance"
+            message = "the %s argument %r is not an instance of %r"
             raise self.error(code, message % (ordinal(index + 1), item, cls))
 
         return item

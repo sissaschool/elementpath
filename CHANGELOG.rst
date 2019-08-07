@@ -2,8 +2,12 @@
 CHANGELOG
 *********
 
-`v1.1.9`_ (TBD)
+`v1.2.0`_ (TBD)
 ===============
+* Added special XSD datatypes
+* Better handling of schema contexts
+* Added validators for numeric types
+* Fixed function conversion rules
 * Added tests for uncovered code
 
 `v1.1.8`_ (2019-05-20)
