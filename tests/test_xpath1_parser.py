@@ -818,15 +818,14 @@ class XPath1ParserTest(unittest.TestCase):
 
         root = self.etree.XML(XML_DATA_TEST)
         if self.parser.version == '1.0':
-            self.check_value("'9' - 5.0", 4)
-
-            self.check_selector("/values/a mod 2", root, [1.4])
-            self.check_value("/values/b mod 2", float('nan'), context=XPathContext(root))
+            self.check_value("'9' + 5.0", 14)
+            self.check_selector("/values/a + 2", root, [5.4])
+            self.check_value("/values/b + 2", float('nan'), context=XPathContext(root))
         else:
-            self.check_selector("/values/a mod 2", root, TypeError)
-            self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
+            self.check_selector("/values/a + 2", root, TypeError)
+            self.check_value("/values/b + 2", TypeError, context=XPathContext(root))
 
-        self.check_selector("/values/d mod 3", root, [2])
+        self.check_selector("/values/d + 3", root, [47])
 
     def test_numerical_mod_operator(self):
         self.check_value("11 mod 3", 2)
