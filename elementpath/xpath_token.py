@@ -21,13 +21,14 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 import locale
 import contextlib
+from decimal import Decimal
 
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_nodes import AttributeNode, is_etree_element, \
     is_element_node, is_document_node, is_xpath_node, node_string_value
-from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, NumericTypeProxy, XSD_BUILTIN_TYPES
+from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
 from .tdop_parser import Token
 
 
@@ -166,7 +167,7 @@ class XPathToken(Token):
             if self.parser.compatibility_mode:
                 if issubclass(cls, string_base_type):
                     return self.string_value(item)
-                elif issubclass(cls, float) or cls is NumericTypeProxy:
+                elif issubclass(cls, float) or issubclass(float, cls):
                     return self.number_value(item)
 
             if self.parser.version > '1.0':
@@ -175,16 +176,12 @@ class XPathToken(Token):
                     return value
                 elif isinstance(value, UntypedAtomic):
                     try:
-                        if cls is NumericTypeProxy:
-                            return float(value)
-                        elif issubclass(cls, string_base_type):
+                        if issubclass(cls, string_base_type):
                             return str(value)
                         else:
                             return cls(value)
                     except (TypeError, ValueError):
                         pass
-                elif issubclass(cls, float) and isinstance(value, NumericTypeProxy):
-                    return self.number_value(value)
 
             code = 'XPTY0004' if self.label == 'function' else 'FORG0006'
             message = "the %s argument %r is not an instance of %r"
@@ -288,6 +285,31 @@ class XPathToken(Token):
                 return results
         else:
             return results
+
+    def get_operands(self, context, cls=None):
+        """
+        Returns the operands for a binary operator. Float arguments are converted
+        to decimal if the other argument is a `Decimal` instance.
+
+        :param context: the XPath dynamic context.
+        :param cls: if a type is provided performs a type checking on item.
+        :return: a couple of values representing the operands. If any operand \
+        is not available returns a `(None, None)` couple.
+        """
+        arg1 = self.get_argument(context, cls=cls)
+        if arg1 is None:
+            return None, None
+
+        arg2 = self.get_argument(context, index=1, cls=cls)
+        if arg2 is None:
+            return None, None
+
+        if isinstance(arg1, Decimal) and isinstance(arg2, float):
+            return arg1, Decimal(arg2)
+        elif isinstance(arg2, Decimal) and isinstance(arg1, float):
+            return Decimal(arg1), arg2
+
+        return arg1, arg2
 
     def adjust_datetime(self, context, cls):
         """

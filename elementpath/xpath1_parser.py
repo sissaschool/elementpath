@@ -15,7 +15,7 @@ import decimal
 from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
-    NumericTypeProxy, XSD_BUILTIN_TYPES
+    NumericTypeProxy, ArithmeticTypeProxy, XSD_BUILTIN_TYPES
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
@@ -561,55 +561,59 @@ def evaluate(self, context=None):
         return
     elif len(self) == 1:
         arg = self.get_argument(context, cls=NumericTypeProxy)
-        if arg is None:
-            return
-        try:
-            return +arg
-        except TypeError:
-            raise self.wrong_type("numeric value is required: %r" % arg)
+        if arg is not None:
+            try:
+                return +arg
+            except TypeError:
+                raise self.wrong_type("numeric value is required: %r" % arg)
     else:
-        arg1 = self.get_argument(context)
-        arg2 = self.get_argument(context, index=1)
-        if arg1 is None or arg2 is None:
-            return
-        elif isinstance(arg1, string_base_type):
-            if isinstance(arg2, string_base_type):
-                raise self.wrong_type("unsupported operands %r and %r" % (arg1, arg2))
-            elif isinstance(arg2, NumericTypeProxy):
-                arg1 = float(arg1)
-
-        try:
-            return self[0].evaluate(context) + self[1].evaluate(context)
-        except TypeError as err:
-            raise self.wrong_type(str(err))
+        op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
+        if op1 is not None:
+            try:
+                return op1 + op2
+            except TypeError as err:
+                raise self.wrong_type(str(err))
 
 
 @method(infix('-', bp=40))
 def evaluate(self, context=None):
-    try:
-        try:
-            return self[0].evaluate(context) - self[1].evaluate(context)
-        except TypeError:
-            self.wrong_type("values must be numeric: %r" % [tk.evaluate(context) for tk in self])
-    except IndexError:
-        try:
-            return -self[0].evaluate(context)
-        except TypeError:
-            self.wrong_type("value must be numeric: %r" % self[0].evaluate(context))
+    if len(self) == 1:
+        arg = self.get_argument(context, cls=NumericTypeProxy)
+        if arg is not None:
+            try:
+                return -arg
+            except TypeError:
+                raise self.wrong_type("numeric value is required: %r" % arg)
+    else:
+        op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
+        if op1 is not None:
+            try:
+                return op1 - op2
+            except TypeError as err:
+                raise self.wrong_type(str(err))
 
 
 @method(infix('*', bp=45))
 def evaluate(self, context=None):
     if self:
-        return self[0].evaluate(context) * self[1].evaluate(context)
+        op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
+        if op1 is not None:
+            try:
+                return op1 * op2
+            except TypeError as err:
+                raise self.wrong_type(str(err))
 
 
 @method(infix('div', bp=45))
 def evaluate(self, context=None):
-    dividend = self[0].evaluate(context)
-    divisor = self[1].evaluate(context)
-    if divisor != 0:
-        return dividend / divisor
+    dividend, divisor = self.get_operands(context, cls=ArithmeticTypeProxy)
+    if dividend is None:
+        return
+    elif divisor != 0:
+        try:
+            return dividend / divisor
+        except TypeError as err:
+            raise self.wrong_type(str(err))
     elif dividend == 0:
         return float('nan')
     elif dividend > 0:
@@ -620,11 +624,10 @@ def evaluate(self, context=None):
 
 @method(infix('mod', bp=45))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, cls=NumericTypeProxy)
-    arg2 = self.get_argument(context, index=1, cls=NumericTypeProxy)
-    if arg1 is not None and arg2 is not None:
+    op1, op2 = self.get_operands(context, cls=NumericTypeProxy)
+    if op1 is not None:
         try:
-            return arg1 % arg2
+            return op1 % op2
         except TypeError as err:
             raise self.wrong_type(str(err))
 

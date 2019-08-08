@@ -241,6 +241,8 @@ class Token(MutableSequence):
         symbol = self.symbol
         if symbol == '(name)':
             return self.value
+        elif symbol == '(decimal)':
+            return str(self.value)
         elif SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
             return repr(self.value)
         else:
