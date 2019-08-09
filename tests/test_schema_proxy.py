@@ -114,6 +114,10 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         facet_type = schema_proxy.get_type('{%s}facet' % XSD_NAMESPACE)
         any_type = schema_proxy.get_type('{%s}anyType' % XSD_NAMESPACE)
         self.assertEqual(schema_proxy.get_primitive_type(facet_type), any_type)
+        self.assertEqual(schema_proxy.get_primitive_type(any_type), any_type)
+
+        any_simple_type = schema_proxy.get_type('{%s}anySimpleType' % XSD_NAMESPACE)
+        self.assertEqual(schema_proxy.get_primitive_type(any_simple_type), any_simple_type)
 
     def test_is_instance_api(self):
         self.assertFalse(self.schema_proxy.is_instance(True, '{%s}integer' % XSD_NAMESPACE))

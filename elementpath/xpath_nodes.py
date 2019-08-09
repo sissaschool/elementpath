@@ -235,30 +235,3 @@ def node_string_value(obj):
     elif is_processing_instruction_node(obj):
         return obj.text
 
-
-###
-# XPath base functions
-def boolean_value(obj, token=None):
-    """
-    The effective boolean value, as computed by fn:boolean().
-    Moved to token class but kept for backward compatibility.
-    """
-    if isinstance(obj, list):
-        if not obj:
-            return False
-        elif isinstance(obj[0], tuple) or is_element_node(obj[0]):
-            return True
-        elif len(obj) == 1:
-            return bool(obj[0])
-        else:
-            raise xpath_error(
-                code='FORG0006', token=token, prefix=getattr(token, 'error_prefix', 'err'),
-                message="Effective boolean value is not defined for a sequence of two or "
-                "more items not starting with an XPath node.",
-            )
-    elif isinstance(obj, tuple) or is_element_node(obj):
-        raise xpath_error(
-            code='FORG0006', token=token, prefix=getattr(token, 'error_prefix', 'err'),
-            message="Effective boolean value is not defined for {}.".format(obj)
-        )
-    return bool(obj)

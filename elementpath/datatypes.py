@@ -1114,7 +1114,7 @@ class ArithmeticTypeProxy(object):
     @staticmethod
     def instance_check(other):
         return isinstance(other, (int, float, decimal.Decimal, AbstractDateTime, Duration)) \
-               and not isinstance(other, bool)
+            and not isinstance(other, bool)
 
     @staticmethod
     def subclass_check(subclass):

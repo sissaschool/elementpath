@@ -22,6 +22,7 @@ from elementpath.xpath_nodes import AttributeNode, NamespaceNode, is_etree_eleme
     is_namespace_node, is_processing_instruction_node, is_text_node, node_attributes, \
     node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
     node_nilled, node_kind, node_name, node_string_value
+from elementpath.xpath_helpers import boolean_value
 from elementpath.xpath1_parser import XPath1Parser
 
 
@@ -243,6 +244,24 @@ class NodeHelpersTest(unittest.TestCase):
         self.assertEqual(node_string_value(text), 'betelgeuse')
         self.assertIsNone(node_string_value(None))
         self.assertIsNone(node_string_value(10))
+
+
+class CompatibilityHelpersTest(unittest.TestCase):
+
+    def test_boolean_value_function(self):
+        elem = ElementTree.Element('A')
+
+        self.assertFalse(boolean_value([]))
+        self.assertTrue(boolean_value([elem]))
+        self.assertFalse(boolean_value([0]))
+        self.assertTrue(boolean_value([1]))
+        with self.assertRaises(TypeError):
+            boolean_value([1, 1])
+        with self.assertRaises(TypeError):
+            boolean_value(elem)
+        self.assertFalse(boolean_value(0))
+        self.assertTrue(boolean_value(1))
+
 
 
 if __name__ == '__main__':
