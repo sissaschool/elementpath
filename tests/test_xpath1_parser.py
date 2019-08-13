@@ -221,6 +221,26 @@ class XPath1ParserTest(unittest.TestCase):
         token = self.parser.parse('true()')
         self.assertIsNone(token.data_value(None))
 
+    def test_string_value_function(self):
+        token = self.parser.parse('true()')
+
+        document = ElementTree.parse(io.StringIO(u'<A>123<B1>456</B1><B2>789</B2></A>'))
+        element = ElementTree.Element('schema')
+        attribute = AttributeNode('id', '0212349350')
+        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
+        comment = ElementTree.Comment('nothing important')
+        pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
+        text = u'betelgeuse'
+        self.assertEqual(token.string_value(document), '123456789')
+        self.assertEqual(token.string_value(element), '')
+        self.assertEqual(token.string_value(attribute), '0212349350')
+        self.assertEqual(token.string_value(namespace), 'http://www.w3.org/2001/XMLSchema')
+        self.assertEqual(token.string_value(comment), 'nothing important')
+        self.assertEqual(token.string_value(pi), 'action nothing to do')
+        self.assertEqual(token.string_value(text), 'betelgeuse')
+        self.assertEqual(token.string_value(None), '')
+        self.assertEqual(token.string_value(10), '10')
+
     def test_number_value_function(self):
         token = self.parser.parse('true()')
         self.assertEqual(token.number_value("19"), 19)
@@ -845,6 +865,7 @@ class XPath1ParserTest(unittest.TestCase):
     def test_number_function(self):
         root = self.etree.XML('<root>15</root>')
 
+        self.check_value("number()", MissingContextError)
         self.check_value("number()", 15, context=XPathContext(root))
         self.check_value("number()", 15, context=XPathContext(root, item=root.text))
         self.check_value("number(.)", 15, context=XPathContext(root))
@@ -863,6 +884,8 @@ class XPath1ParserTest(unittest.TestCase):
             results = select(root, "/values/*/number()", parser=self.parser.__class__)
             self.assertEqual(results[:3], [3.4, 20.0, -10.1])
             self.assertTrue(math.isnan(results[3]) and math.isnan(results[4]))
+            self.check_selector("number(/values/d)", root, 44.0)
+            self.check_selector("number(/values/a)", root, TypeError)
 
     def test_sum_function(self):
         root = self.etree.XML(XML_DATA_TEST)

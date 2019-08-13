@@ -15,7 +15,7 @@ from collections import namedtuple
 
 from .compat import PY3, urlparse
 from .namespaces import XML_BASE, XSI_NIL
-from .exceptions import ElementPathValueError, xpath_error
+from .exceptions import ElementPathValueError
 from .datatypes import ncname_validator
 
 ###
@@ -111,6 +111,10 @@ def is_attribute_node(obj, name=None):
         return obj[0] == name
 
 
+def is_schema_node(obj):
+    return hasattr(obj, 'name') and hasattr(obj, 'local_name') and hasattr(obj, 'type')
+
+
 def is_comment_node(obj):
     return is_etree_element(obj) and callable(obj.tag) and obj.tag.__name__ == 'Comment'
 
@@ -136,7 +140,8 @@ else:
 
 
 def is_xpath_node(obj):
-    return isinstance(obj, tuple) or is_etree_element(obj) or is_document_node(obj) or is_text_node(obj)
+    return isinstance(obj, tuple) or is_etree_element(obj) or \
+        is_document_node(obj) or is_text_node(obj) or is_schema_node(obj)
 
 
 ###
@@ -217,21 +222,3 @@ def node_name(obj):
         return obj.tag
     elif is_attribute_node(obj) or is_namespace_node(obj):
         return obj[0]
-
-
-def node_string_value(obj):
-    if is_element_node(obj):
-        return u''.join(elem_iter_strings(obj))
-    elif is_attribute_node(obj):
-        return obj[1]
-    elif is_text_node(obj):
-        return obj
-    elif is_document_node(obj):
-        return u''.join(e.text for e in obj.getroot().iter() if e.text is not None)
-    elif is_namespace_node(obj):
-        return obj[1]
-    elif is_comment_node(obj):
-        return obj.text
-    elif is_processing_instruction_node(obj):
-        return obj.text
-

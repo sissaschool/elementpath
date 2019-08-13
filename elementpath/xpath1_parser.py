@@ -21,9 +21,9 @@ from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
-from .xpath_nodes import AttributeNode, NamespaceNode, is_etree_element, is_xpath_node, \
-    is_element_node, is_document_node, is_attribute_node, is_text_node, is_comment_node, \
-    is_processing_instruction_node, node_name, node_string_value
+from .xpath_nodes import AttributeNode, NamespaceNode, is_etree_element, \
+    is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
+    is_text_node, is_comment_node, is_processing_instruction_node, node_name
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
@@ -1200,7 +1200,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     try:
-        return float(node_string_value(arg) if is_xpath_node(arg) else arg)
+        return float(self.string_value(arg) if is_xpath_node(arg) else arg)
     except (TypeError, ValueError):
         return float('nan')
 
