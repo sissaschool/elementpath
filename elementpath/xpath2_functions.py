@@ -24,8 +24,8 @@ from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urlli
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
-from .xpath_nodes import is_document_node, is_xpath_node, is_element_node, is_attribute_node, \
-    node_name, node_string_value, node_nilled, node_base_uri, node_document_uri
+from .xpath_nodes import is_document_node, is_xpath_node, is_element_node, \
+    is_attribute_node, node_name, node_nilled, node_base_uri, node_document_uri
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -304,7 +304,7 @@ def evaluate(self, context=None):
         return item
 
     try:
-        return abs(node_string_value(item) if is_xpath_node(item) else item)
+        return abs(self.string_value(item) if is_xpath_node(item) else item)
     except TypeError as err:
         self.wrong_type(str(err))
 

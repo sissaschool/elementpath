@@ -21,7 +21,7 @@ from elementpath.xpath_nodes import AttributeNode, NamespaceNode, is_etree_eleme
     is_element_node, is_attribute_node, is_comment_node, is_document_node, \
     is_namespace_node, is_processing_instruction_node, is_text_node, node_attributes, \
     node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
-    node_nilled, node_kind, node_name, node_string_value
+    node_nilled, node_kind, node_name
 from elementpath.xpath_helpers import boolean_value
 from elementpath.xpath1_parser import XPath1Parser
 
@@ -227,24 +227,6 @@ class NodeHelpersTest(unittest.TestCase):
         self.assertEqual(node_name(attr), 'a1')
         self.assertEqual(node_name(namespace), 'xs')
 
-    def test_node_string_value_function(self):
-        document = ElementTree.parse(io.StringIO(u'<A>123<B1>456</B1><B2>789</B2></A>'))
-        element = ElementTree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
-        comment = ElementTree.Comment('nothing important')
-        pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        text = u'betelgeuse'
-        self.assertEqual(node_string_value(document), '123456789')
-        self.assertEqual(node_string_value(element), '')
-        self.assertEqual(node_string_value(attribute), '0212349350')
-        self.assertEqual(node_string_value(namespace), 'http://www.w3.org/2001/XMLSchema')
-        self.assertEqual(node_string_value(comment), 'nothing important')
-        self.assertEqual(node_string_value(pi), 'action nothing to do')
-        self.assertEqual(node_string_value(text), 'betelgeuse')
-        self.assertIsNone(node_string_value(None))
-        self.assertIsNone(node_string_value(10))
-
 
 class CompatibilityHelpersTest(unittest.TestCase):
 
@@ -261,7 +243,6 @@ class CompatibilityHelpersTest(unittest.TestCase):
             boolean_value(elem)
         self.assertFalse(boolean_value(0))
         self.assertTrue(boolean_value(1))
-
 
 
 if __name__ == '__main__':

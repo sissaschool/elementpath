@@ -26,8 +26,10 @@ from decimal import Decimal
 from .compat import string_base_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_nodes import AttributeNode, is_etree_element, \
-    is_element_node, is_document_node, is_xpath_node, node_string_value
+from .xpath_nodes import AttributeNode, is_etree_element, is_attribute_node, \
+    elem_iter_strings, is_text_node, is_namespace_node, is_comment_node, \
+    is_processing_instruction_node, is_element_node, is_document_node, \
+    is_xpath_node, is_schema_node
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
 from .tdop_parser import Token
 
@@ -351,17 +353,35 @@ class XPathToken(Token):
         :param name: a not empty string.
         :returns: the matched XSD type or `None` if there isn't a match.
         """
+        if name[0] != '{' and self.parser.default_namespace:
+            name = '{%s}%s' % (self.parser.default_namespace, name)
+
         if isinstance(schema_item, AttributeNode):
-            if not schema_item[1].is_matching(name, self.parser.default_namespace):
+            if not schema_item[1].is_matching(name):
                 return
-            xsd_type = schema_item[1].type
+
+            try:
+                xsd_type = schema_item[1].type
+            except AttributeError:
+                try:
+                    xsd_type = self.parser.schema.get_attribute(name).type
+                except AttributeError:
+                    return
+
         elif is_etree_element(schema_item):
             if hasattr(schema_item, 'is_matching'):
                 if not schema_item.is_matching(name, self.parser.default_namespace):
                     return
             elif schema_item.tag != name:
                 return
-            xsd_type = schema_item.type
+
+            try:
+                xsd_type = schema_item.type
+            except AttributeError:
+                try:
+                    xsd_type = self.parser.schema.get_element(name).type
+                except AttributeError:
+                    return
         else:
             return
 
@@ -397,15 +417,10 @@ class XPathToken(Token):
             return
         elif not is_xpath_node(obj):
             return obj
-        elif not hasattr(obj, 'type'):
-            return UntypedAtomic(node_string_value(obj))
-        elif obj.type.is_simple():
-            # In case of schema element or attribute use a the sample value
-            # of the primitive type
-            primitive_type = self.parser.schema.get_primitive_type(obj.type)
-            return XSD_BUILTIN_TYPES[primitive_type.local_name].value
-        elif obj.type.local_name == 'anyType':
-            return XSD_BUILTIN_TYPES['anyType'].value
+        elif hasattr(obj, 'type'):
+            return self.schema_node_value(obj)
+        else:
+            return UntypedAtomic(self.string_value(obj))
 
     def boolean_value(self, obj):
         """
@@ -428,27 +443,55 @@ class XPathToken(Token):
             raise self.error('FORG0006', "Effective boolean value is not defined for {}.".format(obj))
         return bool(obj)
 
-    @staticmethod
-    def string_value(obj):
+    def string_value(self, obj):
         """
         The string value, as computed by fn:string().
         """
         if obj is None:
             return ''
-        elif is_xpath_node(obj):
-            return node_string_value(obj)
+        elif is_element_node(obj):
+            return u''.join(elem_iter_strings(obj))
+        elif is_attribute_node(obj):
+            return obj[1]
+        elif is_text_node(obj):
+            return obj
+        elif is_document_node(obj):
+            return u''.join(e.text for e in obj.getroot().iter() if e.text is not None)
+        elif is_namespace_node(obj):
+            return obj[1]
+        elif is_comment_node(obj):
+            return obj.text
+        elif is_processing_instruction_node(obj):
+            return obj.text
+        elif is_schema_node(obj):
+            return str(self.schema_node_value(obj))
         else:
             return str(obj)
 
-    @staticmethod
-    def number_value(obj):
+    def number_value(self, obj):
         """
         The numeric value, as computed by fn:number() on each item. Returns a float value.
         """
         try:
-            return float(node_string_value(obj) if is_xpath_node(obj) else obj)
+            return float(self.string_value(obj) if is_xpath_node(obj) else obj)
         except (TypeError, ValueError):
             return float('nan')
+
+    def schema_node_value(self, obj):
+        """
+        Returns a sample typed value for the XSD schema node, valid in the value space
+        of the node. Used for schema-based dynamic evaluation of XPath expressions.
+        """
+        try:
+            if obj.type.is_simple():
+                # In case of schema element or attribute use a the sample value
+                # of the primitive type
+                primitive_type = self.parser.schema.get_primitive_type(obj.type)
+                return XSD_BUILTIN_TYPES[primitive_type.local_name].value
+            elif obj.type.local_name == 'anyType':
+                return XSD_BUILTIN_TYPES['anyType'].value
+        except AttributeError:
+            raise self.wrong_type("the argument %r is not a node of an XSD schema" % obj)
 
     ###
     # Error handling helpers

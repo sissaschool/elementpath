@@ -212,36 +212,50 @@ def cast(value):
 # Constructors for datetime XSD types
 @constructor('date')
 def cast(value, tz=None):
+    if isinstance(value, Date10):
+        return value
     return Date10.fromstring(value, tzinfo=tz)
 
 
 @constructor('gDay')
 def cast(value, tz=None):
+    if isinstance(value, XPathGregorianDay):
+        return value
     return XPathGregorianDay.fromstring(value, tzinfo=tz)
 
 
 @constructor('gMonth')
 def cast(value, tz=None):
+    if isinstance(value, XPathGregorianMonth):
+        return value
     return XPathGregorianMonth.fromstring(value, tzinfo=tz)
 
 
 @constructor('gMonthDay')
 def cast(value, tz=None):
+    if isinstance(value, XPathGregorianMonthDay):
+        return value
     return XPathGregorianMonthDay.fromstring(value, tzinfo=tz)
 
 
 @constructor('gYear')
 def cast(value, tz=None):
+    if isinstance(value, XPathGregorianYear):
+        return value
     return XPathGregorianYear.fromstring(value, tzinfo=tz)
 
 
 @constructor('gYearMonth')
 def cast(value, tz=None):
+    if isinstance(value, XPathGregorianYearMonth):
+        return value
     return XPathGregorianYearMonth.fromstring(value, tzinfo=tz)
 
 
 @constructor('time')
 def cast(value, tz=None):
+    if isinstance(value, Time):
+        return value
     return Time.fromstring(value, tzinfo=tz)
 
 

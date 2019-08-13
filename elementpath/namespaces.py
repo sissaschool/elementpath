@@ -47,11 +47,13 @@ XSI_NONS_SCHEMA_LOCATION = '{%s}schemaLocation' % XSI_NAMESPACE
 # XML Schema types
 XSD_NOTATION = '{%s}NOTATION' % XSD_NAMESPACE
 XSD_ANY_ATOMIC_TYPE = '{%s}anyAtomicType' % XSD_NAMESPACE
-XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
-XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
 XSD_ID = '{%s}ID' % XSD_NAMESPACE
 XSD_IDREF = '{%s}IDREF' % XSD_NAMESPACE
 XSD_IDREFS = '{%s}IDREFS' % XSD_NAMESPACE
+
+# XPath type labels defined in XSD namespace that are not XSD builtin types
+XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
+XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
 
 
 def get_namespace(name):
