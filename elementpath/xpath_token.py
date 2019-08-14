@@ -275,13 +275,15 @@ class XPathToken(Token):
         results = list(self.select(context))
         if len(results) == 1:
             res = results[0]
-            if isinstance(res, tuple) or is_etree_element(res) or is_document_node(res):
+            if isinstance(res, (bool, int, float, Decimal)):
+                return res
+            elif isinstance(res, tuple) or is_etree_element(res) or is_document_node(res):
+                return results
+            elif is_schema_node(res):
                 return results
             elif self.symbol in ('text', 'node'):
                 return results
             elif self.label in ('function', 'literal'):
-                return res
-            elif isinstance(res, bool):  # Tests and comparisons
                 return res
             else:
                 return results
@@ -483,13 +485,15 @@ class XPathToken(Token):
         of the node. Used for schema-based dynamic evaluation of XPath expressions.
         """
         try:
-            if obj.type.is_simple():
+            if obj.type.is_simple() or obj.type.has_simple_content():
                 # In case of schema element or attribute use a the sample value
                 # of the primitive type
                 primitive_type = self.parser.schema.get_primitive_type(obj.type)
                 return XSD_BUILTIN_TYPES[primitive_type.local_name].value
             elif obj.type.local_name == 'anyType':
                 return XSD_BUILTIN_TYPES['anyType'].value
+            else:
+                return UntypedAtomic('')
         except AttributeError:
             raise self.wrong_type("the argument %r is not a node of an XSD schema" % obj)
 

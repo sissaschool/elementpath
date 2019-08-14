@@ -839,13 +839,13 @@ class XPath1ParserTest(unittest.TestCase):
         root = self.etree.XML(XML_DATA_TEST)
         if self.parser.version == '1.0':
             self.check_value("'9' + 5.0", 14)
-            self.check_selector("/values/a + 2", root, [5.4])
+            self.check_selector("/values/a + 2", root, 5.4)
             self.check_value("/values/b + 2", float('nan'), context=XPathContext(root))
         else:
             self.check_selector("/values/a + 2", root, TypeError)
             self.check_value("/values/b + 2", TypeError, context=XPathContext(root))
 
-        self.check_selector("/values/d + 3", root, [47])
+        self.check_selector("/values/d + 3", root, 47)
 
     def test_numerical_mod_operator(self):
         self.check_value("11 mod 3", 2)
@@ -854,13 +854,13 @@ class XPath1ParserTest(unittest.TestCase):
 
         root = self.etree.XML(XML_DATA_TEST)
         if self.parser.version == '1.0':
-            self.check_selector("/values/a mod 2", root, [1.4])
+            self.check_selector("/values/a mod 2", root, 1.4)
             self.check_value("/values/b mod 2", float('nan'), context=XPathContext(root))
         else:
             self.check_selector("/values/a mod 2", root, TypeError)
             self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
 
-        self.check_selector("/values/d mod 3", root, [2])
+        self.check_selector("/values/d mod 3", root, 2)
 
     def test_number_function(self):
         root = self.etree.XML('<root>15</root>')
@@ -1145,13 +1145,14 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         else:
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
             variables = kwargs.get('variables', {})
+            if namespaces and '' in namespaces:
+                namespaces = {k: v for k, v in namespaces.items() if k}
+
             if isinstance(expected, set):
-                if namespaces and '' not in namespaces:
-                    self.assertEqual(set(root.xpath(path, namespaces=namespaces, **variables)), expected)
+                self.assertEqual(set(root.xpath(path, namespaces=namespaces, **variables)), expected)
                 self.assertEqual(set(results), expected)
             elif not callable(expected):
-                if namespaces and '' not in namespaces:
-                    self.assertEqual(root.xpath(path, namespaces=namespaces, **variables), expected)
+                self.assertEqual(root.xpath(path, namespaces=namespaces, **variables), expected)
                 self.assertEqual(results, expected)
             elif isinstance(expected, type):
                 self.assertTrue(isinstance(results, expected))
