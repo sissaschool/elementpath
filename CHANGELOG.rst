@@ -2,12 +2,13 @@
 CHANGELOG
 *********
 
-`v1.2.0`_ (TBD)
-===============
+`v1.2.0`_ (2019-08-14)
+======================
 * Added special XSD datatypes
 * Better handling of schema contexts
 * Added validators for numeric types
 * Fixed function conversion rules
+* Fixed tests with lxml and XPath 1.0
 * Added tests for uncovered code
 
 `v1.1.8`_ (2019-05-20)
@@ -140,3 +141,4 @@ CHANGELOG
 .. _v1.1.7: https://github.com/brunato/elementpath/compare/v1.1.6...v1.1.7
 .. _v1.1.8: https://github.com/brunato/elementpath/compare/v1.1.7...v1.1.8
 .. _v1.1.9: https://github.com/brunato/elementpath/compare/v1.1.8...v1.1.9
+.. _v1.2.0: https://github.com/brunato/elementpath/compare/v1.1.9...v1.2.0
