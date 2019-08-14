@@ -657,7 +657,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:language(" en ")', "en")
         self.check_value('xs:language(" en-GB ")', "en-GB")
         self.check_value('xs:language("it-IT")', "it-IT")
-        self.wrong_value('xs:language("hello-world")')
+        self.check_value('xs:language("i-klingon")', 'i-klingon')  # IANA-registered language
+        self.check_value('xs:language("x-another-language-code")', 'x-another-language-code')
+        self.wrong_value('xs:language("MoreThan8")')
         self.check_value('xs:language(())', [])
 
         self.check_value('xs:NMTOKEN(" :menù.09-_ ")', ":menù.09-_")

@@ -1050,7 +1050,7 @@ QNAME_PATTERN = re.compile(
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
-LANGUAGE_CODE_PATTERN = re.compile(r'^([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*$')
+LANGUAGE_CODE_PATTERN = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
 WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
 
 
