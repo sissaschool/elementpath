@@ -1,0 +1,69 @@
+# This repository adheres to the publiccode.yml standard by including this 
+# metadata file that makes public software easily discoverable.
+# More info at https://github.com/italia/publiccode.yml
+
+publiccodeYmlVersion: '0.2'
+name: elementpath
+url: 'https://github.com/sissaschool/elementpath'
+landingURL: 'https://github.com/sissaschool/elementpath'
+releaseDate: '2019-08-14'
+softwareVersion: v1.2.0
+developmentStatus: stable
+platforms:
+  - linux
+  - windows
+  - mac
+softwareType: library
+inputTypes:
+  - XML
+categories:
+  - data-analytics
+  - data-collection
+maintenance:
+  type: internal
+  contacts:
+    - name: Davide Brunato
+      email: davide.brunato@sissa.it
+      affiliation: ' Scuola Internazionale Superiore di Studi Avanzati'
+legal:
+  license: MIT
+  mainCopyrightOwner: Scuola Internazionale Superiore di Studi Avanzati
+  repoOwner: Scuola Internazionale Superiore di Studi Avanzati
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en
+it:
+  riuso:
+    codiceIPA: sissa
+  piattaforme:
+    spid: true
+description:
+  en:
+    genericName: elementpath
+    apiDocumentation: 'https://elementpath.readthedocs.io/en/latest/xpath_api.html'
+    documentation: 'https://elementpath.readthedocs.io/en/latest/'
+    shortDescription: >-
+      Python library that provides XPath 1.0/2.0 parsers and selectors for
+      ElementTree and lxml
+    longDescription: >+
+      This is a library for Python 2.7/3.5+ that provides XPath 1.0 and 2.0
+      selectors for Python's ElementTree XML data structures, both for the
+      standard ElementTree library and for the lxml.etree library. 
+
+
+      For [lxml.etree](http://lxml.de/) this package can be useful for providing
+      XPath 2.0 selectors, because [lxml.etree](http://lxml.de/) already has
+      it's own implementation of XPath 1.0.
+
+
+      ## Installation and usage
+
+
+      You can install the package with _pip_ in a Python 2.7 or Python 3.5+
+      environment:
+
+          pip install elementpath
+
+    features:
+      - XPath 1.0 and XPath 2.0 implementations
