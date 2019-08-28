@@ -130,14 +130,14 @@ class Timezone(datetime.tzinfo):
     def __getinitargs__(self):
         return self.offset,
 
+    def __hash__(self):
+        return hash(self.offset)
+
     def __eq__(self, other):
         return isinstance(other, Timezone) and self.offset == other.offset
 
     def __ne__(self, other):
         return not isinstance(other, Timezone) or self.offset != other.offset
-
-    def __hash__(self):
-        return hash(self.offset)
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.offset)
@@ -344,6 +344,9 @@ class AbstractDateTime(object):
                 return self._dt, dt
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
+
+    def __hash__(self):
+        return hash((self._dt, self._year))
 
     def __eq__(self, other):
         try:
@@ -815,6 +818,9 @@ class Duration(object):
                datetime.timedelta(months2days(1903, 7, m2), s2, ms2)),
         ])
 
+    def __hash__(self):
+        return hash((self.months, self.seconds))
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.months == other.months and self.seconds == other.seconds
@@ -950,6 +956,9 @@ class UntypedAtomic(object):
             return float(self.value), other
         else:
             return type(other)(self.value), other
+
+    def __hash__(self):
+        return hash(self.value)
 
     def __eq__(self, other):
         return operator.eq(*self._get_operands(other, force_float=False))

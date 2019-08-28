@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.2.1`_ (TBD)
+===============
+* Hashable XSD datatypes classes
+
 `v1.2.0`_ (2019-08-14)
 ======================
 * Added special XSD datatypes
@@ -142,3 +146,4 @@ CHANGELOG
 .. _v1.1.8: https://github.com/brunato/elementpath/compare/v1.1.7...v1.1.8
 .. _v1.1.9: https://github.com/brunato/elementpath/compare/v1.1.8...v1.1.9
 .. _v1.2.0: https://github.com/brunato/elementpath/compare/v1.1.9...v1.2.0
+.. _v1.2.1: https://github.com/brunato/elementpath/compare/v1.2.0...v1.2.1
