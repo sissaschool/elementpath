@@ -15,7 +15,7 @@ platforms:
   - mac
 softwareType: library
 inputTypes:
-  - XML
+  - text/XML
 categories:
   - data-analytics
   - data-collection
@@ -57,17 +57,17 @@ description:
 
       You can install the package with _pip_ in a Python 2.7 or Python 3.5+
       environment:
-
-          pip install elementpath
-
+      ~~~
+      pip install elementpath
+      ~~~
       For using it import the package and apply the selectors on ElementTree
       nodes:
-
-          >>> import elementpath
-          >>> from xml.etree import ElementTree
-          >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
-          >>> elementpath.select(root, '/A/B2/\*') [<Element 'C1' at ...>, <Element'C2' at ...>, <Element 'C3' at ...>]
-
+      ~~~ 
+      >>> import elementpath
+      >>> from xml.etree import ElementTree
+      >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+      >>> elementpath.select(root, '/A/B2/\*') [<Element 'C1' at ...>, <Element'C2' at ...>, <Element 'C3' at ...>]
+      ~~~
 
     features:
       - XPath 1.0 and XPath 2.0 implementations
