@@ -37,7 +37,7 @@ it:
   riuso:
     codiceIPA: sissa
   piattaforme:
-    spid: true
+    spid: false
 description:
   en:
     genericName: elementpath
