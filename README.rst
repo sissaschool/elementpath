@@ -21,11 +21,11 @@ You can install the package with *pip* in a Python 2.7 or Python 3.4+ environmen
 
 For using it import the package and apply the selectors on ElementTree nodes:
 
-    >>> import elementpath
-    >>> from xml.etree import ElementTree
-    >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
-    >>> elementpath.select(root, '/A/B2/*')
-    [<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
+>>> import elementpath
+>>> from xml.etree import ElementTree
+>>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+>>> elementpath.select(root, '/A/B2/*')
+[<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
 
 The *select* API provides the standard XPath result format that is a list or an elementary
 datatype's value. If you want only to iterate over results you can use the generator function
@@ -34,26 +34,25 @@ datatype's value. If you want only to iterate over results you can use the gener
 The selectors API works also using XML data trees based on the `lxml.etree <http://lxml.de>`_
 library:
 
-    >>> import elementpath
-    >>> import lxml.etree as etree
-    >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
-    >>> elementpath.select(root, '/A/B2/*')
-    [<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
-
+>>> import elementpath
+>>> import lxml.etree as etree
+>>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+>>> elementpath.select(root, '/A/B2/*')
+[<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 When you need to apply the same XPath expression to several XML data you can also use the
 *Selector* class, creating an instance and then using it to apply the path on distinct XML
 data:
 
-    >>> import elementpath
-    >>> import lxml.etree as etree
-    >>> selector = elementpath.Selector('/A/*/*')
-    >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
-    >>> selector.select(root)
-    [<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
-    >>> root = etree.XML('<A><B1><C0/></B1><B2><C1/><C2/><C3/></B2></A>')
-    >>> selector.select(root)
-    [<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
+>>> import elementpath
+>>> import lxml.etree as etree
+>>> selector = elementpath.Selector('/A/*/*')
+>>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+>>> selector.select(root)
+[<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
+>>> root = etree.XML('<A><B1><C0/></B1><B2><C1/><C2/><C3/></B2></A>')
+>>> selector.select(root)
+[<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 Public API classes and functions are described into the
 `elementpath manual on the "Read the Docs" site <http://elementpath.readthedocs.io/en/latest/>`_.
