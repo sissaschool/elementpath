@@ -802,7 +802,14 @@ class Duration(object):
 
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-2-20120405/#duration
         """
-        if not isinstance(other, self.__class__):
+        if isinstance(other, self.__class__):
+            pass
+        elif other.__class__ is Duration:
+            if isinstance(self.__class__, DayTimeDuration) and other.months:
+                raise ElementPathValueError("the 2nd operand must has 0 months value")
+            elif isinstance(self.__class__, YearMonthDuration) and other.months:
+                raise ElementPathValueError("the 2nd operand must has 0 days value")
+        else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
         m1, s1 = self.months, int(self.seconds)
         m2, s2 = other.months, int(other.seconds)
