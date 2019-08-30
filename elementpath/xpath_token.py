@@ -35,6 +35,9 @@ from .tdop_parser import Token
 
 
 def ordinal(n):
+    if n in {11, 12, 13}:
+        return '%dth' % n
+
     least_significant_digit = n % 10
     if least_significant_digit == 1:
         return '%dst' % n
@@ -81,7 +84,7 @@ class XPathToken(Token):
         if symbol == '$':
             return '$%s variable reference' % (self[0].value if self else '')
         elif symbol == ',':
-            return 'comma operator'
+            return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
         elif label == 'function':
             return '%r function' % symbol
         elif label == 'axis':
@@ -104,7 +107,7 @@ class XPathToken(Token):
         elif symbol == '$':
             return u'$%s' % self[0].source
         elif symbol == '{':
-            return u'{%s}%s' % (self.value, self[0].source)
+            return u'{%s}%s' % (self[0].value, self[1].value)
         elif symbol == 'instance':
             return u'%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         elif symbol == 'treat':

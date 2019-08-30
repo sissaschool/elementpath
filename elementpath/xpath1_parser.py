@@ -40,8 +40,8 @@ class XPath1Parser(Parser):
 
     :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
     :param variables: A dictionary with the static context's in-scope variables.
-    :param strict: If strict mode is `False` the parser enables parsing of QNames, \
-    like the ElementPath library. Default is `True`.
+    :param strict: If strict mode is `False` the parser enables parsing of QNames \
+    in extended format, like the Python's ElementPath library. Default is `True`.
     """
     token_base_class = XPathToken
 
@@ -160,11 +160,14 @@ class XPath1Parser(Parser):
             while k < min_args:
                 if self.parser.next_token.symbol == ')':
                     msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    self.wrong_nargs(msg[:-1] if min_args == 1 else msg)
+                    self.wrong_nargs(msg if min_args > 1 else msg[:-1])
 
                 self[k:] = self.parser.expression(5),
                 k += 1
                 if k < min_args:
+                    if self.parser.next_token.symbol == ')':
+                        msg = 'Too few arguments: expected at least %s arguments' % min_args
+                        self.wrong_nargs(msg if min_args > 1 else msg[:-1])
                     self.parser.advance(',')
 
             while k < max_args:
@@ -179,7 +182,7 @@ class XPath1Parser(Parser):
 
             if self.parser.next_token.symbol == ',':
                 msg = 'Too many arguments: expected at most %s arguments' % max_args
-                self.wrong_nargs(msg[:-1] if max_args == 1 else msg)
+                self.wrong_nargs(msg if max_args > 1 else msg[:-1])
 
             self.parser.advance(')')
             return self

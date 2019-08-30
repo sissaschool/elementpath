@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: elementpath
 url: 'https://github.com/sissaschool/elementpath'
 landingURL: 'https://github.com/sissaschool/elementpath'
-releaseDate: '2019-08-14'
-softwareVersion: v1.2.0
+releaseDate: '2019-08-30'
+softwareVersion: v1.2.1
 developmentStatus: stable
 platforms:
   - linux
@@ -24,7 +24,7 @@ maintenance:
   contacts:
     - name: Davide Brunato
       email: davide.brunato@sissa.it
-      affiliation: ' Scuola Internazionale Superiore di Studi Avanzati'
+      affiliation: 'Scuola Internazionale Superiore di Studi Avanzati'
 legal:
   license: MIT
   mainCopyrightOwner: Scuola Internazionale Superiore di Studi Avanzati

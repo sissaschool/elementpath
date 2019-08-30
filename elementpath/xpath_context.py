@@ -38,7 +38,9 @@ class XPathContext(object):
     def __init__(self, root, item=None, position=0, size=1, axis=None, variables=None,
                  current_dt=None, timezone=None):
         if not is_element_node(root) and not is_document_node(root):
-            raise ElementPathTypeError("argument 'root' must be an Element: %r" % root)
+            raise ElementPathTypeError(
+                "invalid argument root={!r}, an Element is required.".format(root)
+            )
         self._root = root
         if item is not None:
             self.item = item

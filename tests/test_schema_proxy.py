@@ -300,7 +300,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("'5' cast as xs:integer", 5)
         self.check_value("'hello' cast as xs:integer", ValueError)
         self.check_value("('5', '6') cast as xs:integer", TypeError)
-        self.check_value("() cast as xs:integer", ValueError)
+        self.check_value("() cast as xs:integer", TypeError)
         self.check_value("() cast as xs:integer?", [])
         self.check_value('"1" cast as xs:boolean', True)
         self.check_value('"0" cast as xs:boolean', False)

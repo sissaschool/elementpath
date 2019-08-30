@@ -22,12 +22,16 @@ from elementpath.xpath_nodes import AttributeNode, NamespaceNode, is_etree_eleme
     is_namespace_node, is_processing_instruction_node, is_text_node, node_attributes, \
     node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
     node_nilled, node_kind, node_name
+from elementpath.xpath_token import ordinal
 from elementpath.xpath_helpers import boolean_value
 from elementpath.xpath1_parser import XPath1Parser
 
 
 class ExceptionHelpersTest(unittest.TestCase):
-    parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
 
     def test_exception_repr(self):
         err = ElementPathError("unknown error")
@@ -228,7 +232,20 @@ class NodeHelpersTest(unittest.TestCase):
         self.assertEqual(node_name(namespace), 'xs')
 
 
-class CompatibilityHelpersTest(unittest.TestCase):
+class XPathTokenHelpersTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
+
+    def test_ordinal_function(self):
+        self.assertEqual(ordinal(1), '1st')
+        self.assertEqual(ordinal(2), '2nd')
+        self.assertEqual(ordinal(3), '3rd')
+        self.assertEqual(ordinal(4), '4th')
+        self.assertEqual(ordinal(11), '11th')
+        self.assertEqual(ordinal(23), '23rd')
+        self.assertEqual(ordinal(34), '34th')
 
     def test_boolean_value_function(self):
         elem = ElementTree.Element('A')
@@ -243,6 +260,13 @@ class CompatibilityHelpersTest(unittest.TestCase):
             boolean_value(elem)
         self.assertFalse(boolean_value(0))
         self.assertTrue(boolean_value(1))
+
+    def test_get_argument_method(self):
+        token = self.parser.symbol_table['true'](self.parser)
+
+        self.assertIsNone(token.get_argument(2))
+        with self.assertRaises(TypeError):
+            token.get_argument(1, required=True)
 
 
 if __name__ == '__main__':

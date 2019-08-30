@@ -323,6 +323,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_token('(name)', 'literal', "'schema' name",
                          "_name_literal_token(value='schema')", 'schema')
 
+        # Variables
+        self.check_token('$', 'operator', "$ variable reference",
+                         "_DollarSign_operator_token()")
+
         # Axes
         self.check_token('self', 'axis', "'self' axis", "_self_axis_token()")
         self.check_token('child', 'axis', "'child' axis", "_child_axis_token()")
@@ -344,6 +348,10 @@ class XPath1ParserTest(unittest.TestCase):
 
         # Operators
         self.check_token('and', 'operator', "'and' operator", "_and_operator_token()")
+        if self.parser.version == '1.0':
+            self.check_token(',', 'symbol', "comma symbol", "_Comma_symbol_token()")
+        else:
+            self.check_token(',', 'operator', "comma operator", "_Comma_operator_token()")
 
     def test_token_tree(self):
         self.check_tree('child::B1', '(child (B1))')
@@ -366,6 +374,12 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_source(' eg:example ', 'eg:example')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
         self.check_source(".//eg:a | .//eg:b", '. // eg:a | . // eg:b')
+
+        try:
+            self.parser.strict = False
+            self.check_source("{tns1}name", '{tns1}name')
+        finally:
+            self.parser.strict = True
 
     def test_wrong_syntax(self):
         self.wrong_syntax('')

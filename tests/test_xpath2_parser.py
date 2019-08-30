@@ -500,6 +500,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:replace("abracadabra", "a.*a", "*")', "*")
         self.check_value('fn:replace("abracadabra", "a.*?a", "*")', "*c*bra")
         self.check_value('fn:replace("abracadabra", "a", "")', "brcdbr")
+        self.wrong_type('fn:replace("abracadabra")')
 
         self.check_value('fn:replace("abracadabra", "a(.)", "a$1$1")', "abbraccaddabbra")
         self.wrong_value('fn:replace("abracadabra", ".*?", "$1")')
