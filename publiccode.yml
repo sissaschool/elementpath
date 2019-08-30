@@ -15,7 +15,7 @@ platforms:
   - mac
 softwareType: library
 inputTypes:
-  - XML
+  - text/XML
 categories:
   - data-analytics
   - data-collection
@@ -34,10 +34,9 @@ localisation:
   availableLanguages:
     - en
 it:
+  countryExtensionVersion: '0.2'
   riuso:
     codiceIPA: sissa
-  piattaforme:
-    spid: false
 description:
   en:
     genericName: elementpath
@@ -46,24 +45,29 @@ description:
     shortDescription: >-
       Python library that provides XPath 1.0/2.0 parsers and selectors for
       ElementTree and lxml
-    longDescription: >+
+    longDescription: >
       This is a library for Python 2.7/3.5+ that provides XPath 1.0 and 2.0
       selectors for Python's ElementTree XML data structures, both for the
-      standard ElementTree library and for the lxml.etree library. 
-
-
-      For [lxml.etree](http://lxml.de/) this package can be useful for providing
-      XPath 2.0 selectors, because [lxml.etree](http://lxml.de/) already has
-      it's own implementation of XPath 1.0.
+      standard **ElementTree** library and for the **lxml** library. For lxml
+      this package can be useful for providing XPath 2.0 selectors, because lxml
+      already has it's own implementation of XPath 1.0.
 
 
       ## Installation and usage
 
-
       You can install the package with _pip_ in a Python 2.7 or Python 3.5+
       environment:
-
-          pip install elementpath
+      ~~~
+      pip install elementpath
+      ~~~
+      For using it import the package and apply the selectors on ElementTree
+      nodes:
+      ~~~ 
+      >>> import elementpath
+      >>> from xml.etree import ElementTree
+      >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+      >>> elementpath.select(root, '/A/B2/\*') [<Element 'C1' at ...>, <Element'C2' at ...>, <Element 'C3' at ...>]
+      ~~~
 
     features:
       - XPath 1.0 and XPath 2.0 implementations
