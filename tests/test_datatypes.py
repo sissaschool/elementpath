@@ -105,6 +105,10 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic(1) % 2, 1)
         self.assertEqual(UntypedAtomic('1') % 2, 1.0)
 
+    def test_hashing(self):
+        self.assertEqual(hash(UntypedAtomic(12345)), 12345)
+        self.assertIsInstance(hash(UntypedAtomic('alpha')), int)
+
 
 class DateTimeTypesTest(unittest.TestCase):
 
@@ -427,6 +431,10 @@ class DateTimeTypesTest(unittest.TestCase):
 
         self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"), DayTimeDuration.fromstring('P1DT2H'))
 
+    def test_hashing(self):
+        dt = DateTime.fromstring("2002-04-02T12:00:00-01:00")
+        self.assertIsInstance(hash(dt), int)
+
 
 class DurationTypesTest(unittest.TestCase):
 
@@ -581,6 +589,12 @@ class DurationTypesTest(unittest.TestCase):
 
     def test_year_month_duration(self):
         self.assertEqual(YearMonthDuration(10).months, 10)
+
+    def test_hashing(self):
+        if sys.version_info < (3, 8):
+            self.assertEqual(hash(Duration(16)), 3713063228956366931)
+        else:
+            self.assertEqual(hash(Duration(16)), 6141449309508620102)
 
 
 class TimezoneTypeTest(unittest.TestCase):

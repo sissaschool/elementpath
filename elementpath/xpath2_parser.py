@@ -637,7 +637,7 @@ def evaluate(self, context=None):
         elif self.symbol != 'cast':
             return False
         else:
-            self.wrong_value("atomic value is required")
+            self.wrong_context_type("an atomic value is required")
 
     try:
         if namespace != XSD_NAMESPACE:

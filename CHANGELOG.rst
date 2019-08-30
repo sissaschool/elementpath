@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.2.1`_ (TBD)
-===============
+`v1.2.1`_ (2019-08-30)
+======================
 * Hashable XSD datatypes classes
+* Fix Duration types comparison
 
 `v1.2.0`_ (2019-08-14)
 ======================
