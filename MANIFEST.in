@@ -7,5 +7,6 @@ include setup.cfg
 include requirements-dev.txt
 include tox.ini
 include doc/*
+recursive-include tests *.py
 
 global-exclude *.py[cod]
