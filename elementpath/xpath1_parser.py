@@ -724,6 +724,7 @@ def select(self, context=None):
     if context is None:
         return
     elif len(self) == 1:
+        context.item = None
         for _ in context.iter_descendants(axis='descendant-or-self'):
             for result in self[0].select(context):
                 yield result
@@ -972,9 +973,7 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():
-            if item is None:
-                yield context.root
-            elif is_text_node(item):
+            if is_text_node(item):
                 yield item
 
 
