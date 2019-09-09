@@ -464,7 +464,12 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_select("text()", [], context)  # Selects the children
         self.check_selector("node()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
         self.check_selector("text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
-        self.check_selector("//self::text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
+
+        root = self.etree.XML('<author>Dickens</author>')
+        if self.etree is not lxml_etree:
+            # Skip lxml test because lxml's XPath doesn't include document root
+            self.check_selector("//self::node()", root, [root, root, 'Dickens'])
+        self.check_selector("//self::text()", root, ['Dickens'])
 
     def test_node_set_id_function(self):
         # XPath 1.0 id() function: https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id

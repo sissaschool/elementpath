@@ -43,7 +43,9 @@ except ImportError:
 @unittest.skipIf(xmlschema is None, "xmlschema library required.")
 class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
 
-    schema = xmlschema.XMLSchema('''
+    @classmethod
+    def setUpClass(cls):
+        cls.schema = xmlschema.XMLSchema('''
         <!-- Dummy schema for testing proxy API -->
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
           <xs:element name="test_element" type="xs:string"/>
