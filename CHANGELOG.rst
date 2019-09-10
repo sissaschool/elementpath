@@ -6,6 +6,7 @@ CHANGELOG
 ===============
 * Fix descendant shortcut operator '//'
 * Fix text() function
+* Fix typed select of '(name)' token
 
 `v1.2.1`_ (2019-08-30)
 ======================
