@@ -304,11 +304,13 @@ def select(self, context=None):
                     yield self.xsd_type.decode(item[1])
                 elif is_element_node(item, name):
                     if self.xsd_type.is_simple():
-                        yield self.xsd_type.decode(item)
+                        self.xsd_type.validate(item.text)
                     else:
-                        yield item
+                        self.xsd_type.validate(item)
+                    yield item
             except (TypeError, ValueError):
-                self.wrong_sequence_type("Type %r does not match sequence type of %r" % (self.xsd_type, item))
+                msg = "Type {!r} does not match sequence type of {!r}"
+                self.wrong_sequence_type(msg.format(self.xsd_type, item))
 
 
 ###
