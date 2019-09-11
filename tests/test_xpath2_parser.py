@@ -791,7 +791,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         )
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
                          datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tz1))
-        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(1999, 12, 31, 0, 0, tzinfo=tz0))
+        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(2000, 1, 1, 0, 0, tzinfo=tz0))
 
         self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
@@ -850,7 +850,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T21:30:00-05:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T19:20:00"))', 1999)
-        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 1999)
+        self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 2000)
 
     def test_month_from_datetime_function(self):
         self.check_value('fn:month-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 5)

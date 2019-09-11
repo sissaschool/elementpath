@@ -142,6 +142,10 @@ class DateTimeTypesTest(unittest.TestCase):
                                        "tzinfo=Timezone(datetime.timedelta(-1, 72000)))")
         self.assertEqual(str(dt), '-0100-04-13T10:30:00-04:00')
 
+    def test_24_hour_datetime(self):
+        dt = DateTime.fromstring('0000-09-19T24:00:00Z')
+        self.assertEqual(str(dt), '0000-09-20T00:00:00Z')
+
     def test_date_repr(self):
         dt = Date.fromstring('2000-10-07')
         self.assertEqual(repr(dt), "Date(2000, 10, 7)")
@@ -214,18 +218,18 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertFalse(mkdt("2002-04-02T12:00:00") == mkdt("2002-04-02T17:00:00"))
         self.assertTrue(mkdt("2002-04-02T12:00:00") == mkdt("2002-04-02T12:00:00"))
         self.assertTrue(mkdt("2002-04-02T23:00:00-04:00") == mkdt("2002-04-03T02:00:00-01:00"))
-        self.assertTrue(mkdt("1999-12-31T24:00:00") == mkdt("1999-12-31T00:00:00"))
-        self.assertTrue(mkdt("2005-04-04T24:00:00") == mkdt("2005-04-04T00:00:00"))
+        self.assertTrue(mkdt("1999-12-31T24:00:00") == mkdt("2000-01-01T00:00:00"))
+        self.assertTrue(mkdt("2005-04-04T24:00:00") == mkdt("2005-04-05T00:00:00"))
 
         self.assertTrue(mkdt("2002-04-02T12:00:00-01:00", tz) == mkdt("2002-04-02T17:00:00+04:00", tz))
         self.assertTrue(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T23:00:00+06:00", tz))
         self.assertFalse(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T17:00:00", tz))
         self.assertTrue(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T12:00:00", tz))
         self.assertTrue(mkdt("2002-04-02T23:00:00-04:00", tz) == mkdt("2002-04-03T02:00:00-01:00", tz))
-        self.assertTrue(mkdt("1999-12-31T24:00:00", tz) == mkdt("1999-12-31T00:00:00", tz))
-        self.assertTrue(mkdt("2005-04-04T24:00:00", tz) == mkdt("2005-04-04T00:00:00", tz))
+        self.assertTrue(mkdt("1999-12-31T24:00:00", tz) == mkdt("2000-01-01T00:00:00", tz))
 
-        self.assertFalse(mkdt("2005-04-04T24:00:00", tz) != mkdt("2005-04-04T00:00:00", tz))
+        self.assertTrue(mkdt("2005-04-04T24:00:00", tz) == mkdt("2005-04-05T00:00:00", tz))
+        self.assertFalse(mkdt("2005-04-04T24:00:00", tz) != mkdt("2005-04-05T00:00:00", tz))
 
         self.assertTrue(DateTime.fromstring("-1000-01-01") == DateTime.fromstring("-1000-01-01"))
         self.assertTrue(DateTime.fromstring("-10000-01-01") == DateTime.fromstring("-10000-01-01"))
