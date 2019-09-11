@@ -7,6 +7,7 @@ CHANGELOG
 * Fix descendant shortcut operator '//'
 * Fix text() function
 * Fix typed select of '(name)' token
+* Fix 24-hour time for DateTime
 
 `v1.2.1`_ (2019-08-30)
 ======================

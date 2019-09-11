@@ -187,7 +187,10 @@ class AbstractDateTime(object):
 
     def __init__(self, year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
         if hour == 24 and minute == second == 0:
+            delta = datetime.timedelta(days=1)
             hour = 0
+        else:
+            delta = 0
 
         if 1 <= year <= 9999:
             self._year = None
@@ -202,6 +205,9 @@ class AbstractDateTime(object):
                 self._dt = datetime.datetime(4, month, day, hour, minute, second, microsecond, tzinfo)
             else:
                 self._dt = datetime.datetime(6, month, day, hour, minute, second, microsecond, tzinfo)
+
+        if delta:
+            self._dt += delta
 
     def __repr__(self):
         fields = self._pattern.groupindex.keys()
@@ -662,6 +668,8 @@ class Time(AbstractDateTime):
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
+        if hour == 24 and minute == second == 0:
+            hour = 0
         super(Time, self).__init__(hour=hour, minute=minute, second=second, microsecond=microsecond, tzinfo=tzinfo)
 
     def __str__(self):
