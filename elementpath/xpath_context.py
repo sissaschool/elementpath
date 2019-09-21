@@ -223,9 +223,8 @@ class XPathContext(object):
             self.item = elem.text
             yield self.item
 
-        for item in elem.attrib.items():
-            self.item = item
-            yield item
+        for self.item in map(lambda x: AttributeNode(*x), elem.attrib.items()):
+            yield self.item
 
         if len(elem):
             self.size = len(elem)

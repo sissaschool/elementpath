@@ -225,7 +225,15 @@ class XPathToken(Token):
             try:
                 next(selector)
             except StopIteration:
-                return str(value) if isinstance(value, UntypedAtomic) else value
+                if isinstance(value, UntypedAtomic):
+                    value = str(value)
+                if self.xsd_type is not None and isinstance(value, string_base_type):
+                    try:
+                        value = self.xsd_type.decode(value)
+                    except (TypeError, ValueError):
+                        msg = "Type {!r} is not appropriate for the context"
+                        self.wrong_context_type(msg.format(type(value)))
+                return value
             else:
                 self.wrong_context_type("atomized operand is a sequence of length greater than one")
 

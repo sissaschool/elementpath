@@ -646,6 +646,8 @@ def select(self, context=None):
         for item in context.iter():
             if item in results:
                 yield item
+            elif is_attribute_node(item) and item[1] in results:
+                yield item[1]
 
 
 ###
