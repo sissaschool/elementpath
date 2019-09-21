@@ -116,13 +116,15 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertRaises(TypeError, AbstractDateTime)
         self.assertRaises(TypeError, OrderedDateTime)
 
-    def test_init_fromstring(self):
+    def test_datetime_init_fromstring(self):
         self.assertIsInstance(DateTime.fromstring('2000-10-07T00:00:00'), DateTime)
         self.assertIsInstance(DateTime.fromstring('-2000-10-07T00:00:00'), DateTime)
         self.assertRaises(ValueError, DateTime.fromstring, '00-10-07')
 
+    def test_date_init_fromstring(self):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
+        self.assertIsInstance(Date.fromstring('0000-02-29'), Date)
 
     def test_datetime_repr(self):
         dt = DateTime.fromstring('2000-10-07')

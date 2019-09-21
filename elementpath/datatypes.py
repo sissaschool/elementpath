@@ -201,7 +201,7 @@ class AbstractDateTime(object):
             raise ElementPathTypeError("wrong type %r for year" % type(year))
         else:
             self._year = year
-            if isleap(year):
+            if isleap(year + bool(self.version != '1.0')):
                 self._dt = datetime.datetime(4, month, day, hour, minute, second, microsecond, tzinfo)
             else:
                 self._dt = datetime.datetime(6, month, day, hour, minute, second, microsecond, tzinfo)
