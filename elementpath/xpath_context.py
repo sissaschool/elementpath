@@ -82,6 +82,7 @@ class XPathContext(object):
 
     @property
     def parent_map(self):
+        # TODO: try to implement a dynamic parent map to save memory ...
         if self._parent_map is None:
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
         return self._parent_map
@@ -135,6 +136,34 @@ class XPathContext(object):
             self.size = len(elem)
             for self.position, self.item in enumerate(elem):
                 yield self.item
+
+        self.item, self.size, self.position, self.axis = status
+
+    def iter_preceding(self):
+        status = self.item, self.size, self.position, self.axis
+
+        elem = self.item
+        if not is_etree_element(elem):
+            return
+        self.axis = 'preceding'
+        ancestors = []
+
+        while True:
+            try:
+                parent = self.parent_map[elem]
+            except KeyError:
+                break
+            else:
+                ancestors.append(parent)
+                elem = parent
+
+        elem = self.item
+        for e in self.root.iter():
+            if e is elem:
+                break
+            if e not in ancestors:
+                self.item = e
+                yield e
 
         self.item, self.size, self.position, self.axis = status
 
