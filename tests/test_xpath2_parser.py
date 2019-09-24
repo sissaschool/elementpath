@@ -185,7 +185,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             """)
 
         # Test step-by-step, testing also other basic features.
-        self.check_selector("author[1]", root[0], [root[0][1]])
+        self.check_selector("book/author[1]", root, [root[0][1], root[1][1], root[2][1]])
         self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
         self.check_tree("book/author[. = $a][1]", '(/ (book) ([ ([ (author) (= (.) ($ (a)))) (1)))')
         self.check_selector("book/author[. = $a][1]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
@@ -219,7 +219,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value("-3.5 idiv 0")
         self.wrong_value("xs:float('INF') idiv 2")
 
-    def test_comparison_operators2(self):
+    def test_comparison_operators(self):
+        super(XPath2ParserTest, self).test_comparison_operators()
         self.check_value("0.05 eq 0.05", True)
         self.check_value("19.03 ne 19.02999", True)
         self.check_value("-1.0 eq 1.0", False)
@@ -263,6 +264,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))
         self.check_value('@min le @maximum', None, context=XPathContext(root=root))
+
+        root = self.etree.XML('<root><a>1</a><a>10</a><a>30</a><a>50</a></root>')
+        self.check_selector("a = (1 to 30)", root, True)
+        self.check_selector("a = (2)", root, False)
+        self.check_selector("a[1] = (1 to 10, 30)", root, True)
+        self.check_selector("a[2] = (1 to 10, 30)", root, True)
+        self.check_selector("a[3] = (1 to 10, 30)", root, True)
+        self.check_selector("a[4] = (1 to 10, 30)", root, False)
 
     def test_number_functions2(self):
         # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions

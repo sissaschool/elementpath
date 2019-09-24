@@ -1079,12 +1079,19 @@ class XPath1ParserTest(unittest.TestCase):
             root, root[0], root[0][0], root[1], root[1][0], root[2], root[2][0]
         ])
 
-    def test_preceding_axes(self):
+    def test_preceding_axis(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
         self.check_selector('/A/B1/C2/preceding::*', root, [root[0][0]])
         self.check_selector('/A/B2/C4/preceding::*', root, [
             root[0], root[0][0], root[0][1], root[0][2], root[1][0], root[1][1], root[1][2]
         ])
+        root = self.etree.XML("<root><e><a><b/></a><a><b/></a></e><e><a/></e></root>")
+
+        self.check_tree("/root/e/preceding::b", '(/ (/ (/ (root)) (e)) (preceding (b)))')
+        self.check_selector('/root/e[2]/preceding::b', root, [root[0][0][0], root[0][1][0]])
+
+    def test_preceding_sibling_axis(self):
+        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
         self.check_selector('/A/B1/C2/preceding-sibling::*', root, [root[0][0]])
         self.check_selector('/A/B2/C4/preceding-sibling::*', root, [root[1][0], root[1][1], root[1][2]])
         self.check_selector('/A/B1/C2/preceding-sibling::C3', root, [])
@@ -1132,10 +1139,15 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("child::a[b][c]", root, [root[1]])
 
         root = self.etree.XML("<root><e><a><b/></a><a><b/></a></e><e><a/></e></root>")
-        self.check_selector("e/a[not(b)]", root, [root[1][0]])
-        self.check_selector("preceding::e/a[not(b)]", root, [])
-        self.check_selector("e/a[preceding::e/a[not(b)]]", root, [])
-        self.check_selector("not(e/a[preceding::e/a[not(b)]])", root, True)
+        self.check_tree("a[not(b)]", '([ (a) (not (b)))')
+
+        self.check_value("a[not(b)]", [], context=XPathContext(root, item=root[0]))
+        self.check_value("a[not(b)]", [root[1][0]], context=XPathContext(root, item=root[1]))
+
+        self.check_tree("preceding::a[not(b)]", '([ (preceding (a)) (not (b)))')
+
+        self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[0]))
+        self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[1]))
 
     def test_union(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')

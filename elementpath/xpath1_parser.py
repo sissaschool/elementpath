@@ -754,13 +754,10 @@ def led(self, left):
 @method('[')
 def select(self, context=None):
     if context is not None:
-        left_results = list(self[0].select(context))
-        context.size = len(left_results)
-        for context.position, context.item in enumerate(left_results):
+        for position, _ in enumerate(self[0].select(context), start=1):
             predicate = list(self[1].select(context.copy()))
-            if len(predicate) == 1 and not isinstance(predicate[0], bool) and \
-                    isinstance(predicate[0], (int, float)):
-                if context.position == predicate[0] - 1:
+            if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
+                if position == predicate[0]:
                     yield context.item
             elif self.boolean_value(predicate):
                 yield context.item
@@ -939,14 +936,9 @@ def select(self, context=None):
 @method(axis('preceding'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
-        elem = context.item
-        ancestors = set(context.iter_ancestors(axis=self.symbol))
-        for e in context.root.iter():
-            if e is elem:
-                break
-            if e not in ancestors:
-                context.item = e
-                yield e
+        for _ in context.iter_preceding():
+            for result in self[0].select(context):
+                yield result
 
 
 ###
