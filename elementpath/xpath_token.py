@@ -19,6 +19,7 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
+from __future__ import unicode_literals
 import locale
 import contextlib
 from decimal import Decimal
@@ -95,23 +96,25 @@ class XPathToken(Token):
     def source(self):
         symbol, label = self.symbol, self.label
         if label == 'axis':
-            return u'%s::%s' % (self.symbol, self[0].source)
+            return '%s::%s' % (self.symbol, self[0].source)
         elif label in ('function', 'constructor'):
-            return u'%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
+            return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
         elif symbol == ':':
-            return u'%s:%s' % (self[0].source, self[1].source)
+            return '%s:%s' % (self[0].source, self[1].source)
         elif symbol == '(':
-            return '()' if not self else u'(%s)' % self[0].source
+            return '()' if not self else '(%s)' % self[0].source
+        elif symbol == '[':
+            return '%s[%s]' % (self[0].source, self[1].source)
         elif symbol == ',':
-            return u'%s, %s' % (self[0].source, self[1].source)
+            return '%s, %s' % (self[0].source, self[1].source)
         elif symbol == '$':
-            return u'$%s' % self[0].source
+            return '$%s' % self[0].source
         elif symbol == '{':
-            return u'{%s}%s' % (self[0].value, self[1].value)
+            return '{%s}%s' % (self[0].value, self[1].value)
         elif symbol == 'instance':
-            return u'%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
+            return '%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         elif symbol == 'treat':
-            return u'%s treat as %s' % (self[0].source, ''.join(t.source for t in self[1:]))
+            return '%s treat as %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         return super(XPathToken, self).source
 
     @property
@@ -463,13 +466,13 @@ class XPathToken(Token):
         if obj is None:
             return ''
         elif is_element_node(obj):
-            return u''.join(elem_iter_strings(obj))
+            return ''.join(elem_iter_strings(obj))
         elif is_attribute_node(obj):
             return obj[1]
         elif is_text_node(obj):
             return obj
         elif is_document_node(obj):
-            return u''.join(e.text for e in obj.getroot().iter() if e.text is not None)
+            return ''.join(e.text for e in obj.getroot().iter() if e.text is not None)
         elif is_namespace_node(obj):
             return obj[1]
         elif is_comment_node(obj):

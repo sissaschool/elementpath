@@ -652,24 +652,24 @@ def select(self, context=None):
 
 ###
 # Path expressions
-@method('//', bp=80)
-@method('/', bp=80)
+@method('//', bp=75)
+@method('/', bp=75)
 def nud(self):
     next_token = self.parser.next_token
     if next_token.symbol == '(end)' and self.symbol == '/':
         return self
     elif not self.parser.next_is_path_step_token():
         next_token.wrong_syntax()
-    self[:] = self.parser.expression(80),
+    self[:] = self.parser.expression(75),
     return self
 
 
-@method('//', bp=80)
-@method('/', bp=80)
+@method('//')
+@method('/')
 def led(self, left):
     if not self.parser.next_is_path_step_token():
         self.parser.next_token.wrong_syntax()
-    self[:] = left, self.parser.expression(80)
+    self[:] = left, self.parser.expression(75)
     return self
 
 
@@ -743,7 +743,7 @@ def select(self, context=None):
 
 ###
 # Predicate filters
-@method('[', bp=75)
+@method('[', bp=80)
 def led(self, left):
     self.parser.next_token.unexpected(']')
     self[:] = left, self.parser.expression()
@@ -995,13 +995,7 @@ def evaluate(self, context=None):
 
 @method(function('count', nargs=1))
 def evaluate(self, context=None):
-    results = self[0].evaluate(context)
-    if isinstance(results, list):
-        return len(results)
-    elif results is not None:
-        return 1
-    else:
-        return 0
+    return len(list(self[0].select(context)))
 
 
 @method(function('id', nargs=1))

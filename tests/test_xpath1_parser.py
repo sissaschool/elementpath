@@ -362,7 +362,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_tree('(1 + 2) * 3', '(* (+ (1) (2)) (3))')
         self.check_tree("false() and true()", '(and (false) (true))')
         self.check_tree("false() or true()", '(or (false) (true))')
-        self.check_tree("./A/B[C][D]/E", '(/ ([ ([ (/ (/ (.) (A)) (B)) (C)) (D)) (E))')
+        self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
         self.check_tree("string(xml:lang)", '(string (: (xml) (lang)))')
 
     def test_token_source(self):
@@ -906,6 +906,11 @@ class XPath1ParserTest(unittest.TestCase):
             self.check_selector("number(/values/d)", root, 44.0)
             self.check_selector("number(/values/a)", root, TypeError)
 
+    def test_count_function(self):
+        root = self.etree.XML('<A><B><C/><C/></B><B/><B><C/><C/><C/></B></A>')
+        self.check_selector("count(B)", root, 3)
+        self.check_selector("count(.//C)", root, 5)
+
     def test_sum_function(self):
         root = self.etree.XML(XML_DATA_TEST)
         self.check_value("sum($values)", 35)
@@ -1120,6 +1125,17 @@ class XPath1ParserTest(unittest.TestCase):
         root = self.etree.XML('<A><B1>hello</B1><B2/><B3>  </B3></A>')
         self.check_selector("/A/*[' ']", root, root[:])
         self.check_selector("/A/*['']", root, [])
+
+        root = self.etree.XML("<root><a><b/></a><a><b/><c/></a><a><c/></a></root>")
+
+        self.check_tree("child::a[b][c]", '([ ([ (child (a)) (b)) (c))')
+        self.check_selector("child::a[b][c]", root, [root[1]])
+
+        root = self.etree.XML("<root><e><a><b/></a><a><b/></a></e><e><a/></e></root>")
+        self.check_selector("e/a[not(b)]", root, [root[1][0]])
+        self.check_selector("preceding::e/a[not(b)]", root, [])
+        self.check_selector("e/a[preceding::e/a[not(b)]]", root, [])
+        self.check_selector("not(e/a[preceding::e/a[not(b)]])", root, True)
 
     def test_union(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')

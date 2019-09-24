@@ -187,22 +187,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         # Test step-by-step, testing also other basic features.
         self.check_selector("author[1]", root[0], [root[0][1]])
         self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
-        self.check_tree("book/author[. = $a][1]", '([ ([ (/ (book) (author)) (= (.) ($ (a)))) (1))')
-        self.check_selector("book/author[. = $a][1]", root, [root[0][1]], variables={'a': 'Stevens'})
-        self.check_selector("book/author[. = 'Stevens'][2]", root, [root[1][1]])
+        self.check_tree("book/author[. = $a][1]", '(/ (book) ([ ([ (author) (= (.) ($ (a)))) (1)))')
+        self.check_selector("book/author[. = $a][1]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
+        self.check_selector("book/author[. = 'Stevens'][2]", root, [])
 
         self.check_selector("for $a in fn:distinct-values(book/author) return $a",
                             root, ['Stevens', 'Abiteboul', 'Buneman', 'Suciu'])
 
-        self.check_selector("for $a in fn:distinct-values(book/author) "
-                            "return book/author[. = $a]", root, [root[0][1], root[1][1]] + root[2][1:4])
+        self.check_selector("for $a in fn:distinct-values(book/author) return book/author[. = $a]",
+                            root, [root[0][1], root[1][1]] + root[2][1:4])
 
-        self.check_selector("for $a in fn:distinct-values(book/author) "
-                            "return book/author[. = $a][1]", root, [root[0][1]] + root[2][1:4])
+        self.check_selector("for $a in fn:distinct-values(book/author) return book/author[. = $a][1]",
+                            root, [root[0][1], root[1][1]] + root[2][1:4])
         self.check_selector(
-            "for $a in fn:distinct-values(book/author) "
-            "return (book/author[. = $a][1], book[author = $a]/title)", root,
-            [root[0][1], root[0][0], root[1][0], root[2][1], root[2][0], root[2][2], root[2][0],
+            "for $a in fn:distinct-values(book/author) return (book/author[. = $a][1], book[author = $a]/title)",
+            root,
+            [root[0][1], root[1][1], root[0][0], root[1][0], root[2][1], root[2][0], root[2][2], root[2][0],
              root[2][3], root[2][0]]
         )
 
@@ -1112,7 +1112,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select("node()", [], context)
 
     def test_count_function(self):
-        root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
+        super(XPath2ParserTest, self).test_count_function()
+        root = self.etree.XML('<root/>')
         self.check_selector("count(5)", root, 1)
         self.check_value("count((0, 1, 2 + 1, 3 - 1))", 4)
 
