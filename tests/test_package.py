@@ -27,7 +27,7 @@ class PackageTest(unittest.TestCase):
         cls.get_version = re.compile(r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 
     def test_missing_debug_statements(self):
-        message = "\nFound a debug missing statement at line %d or file %r: %r"
+        message = "\nFound a debug missing statement at line %d of file %r: %r"
         filename = None
         for line in fileinput.input(glob.glob(os.path.join(self.source_dir, '*.py'))):
             if fileinput.isfirstline():
@@ -38,7 +38,7 @@ class PackageTest(unittest.TestCase):
             self.assertIsNone(match, message % (lineno, filename, match.group(0) if match else None))
 
     def test_version_matching(self):
-        message = "\nFound a different version at line %d or file %r: %r (maybe %r)."
+        message = "\nFound a different version at line %d of file %r: %r (maybe %r)."
         files = [
             os.path.join(self.source_dir, '__init__.py'),
             os.path.join(self.package_dir, 'setup.py'),

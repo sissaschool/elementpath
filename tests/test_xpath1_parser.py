@@ -911,6 +911,16 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector("count(B)", root, 3)
         self.check_selector("count(.//C)", root, 5)
 
+        root = self.etree.XML('<value max="10" min="0">5</value>')
+        self.check_selector("count(@avg)", root, 0)
+        self.check_selector("count(@max)", root, 1)
+        self.check_selector("count(@min)", root, 1)
+        self.check_selector("count(@min | @max)", root, 2)
+        self.check_selector("count(@min | @avg)", root, 1)
+        self.check_selector("count(@top | @avg)", root, 0)
+        self.check_selector("count(@min | @max) = 1", root, False)
+        self.check_selector("count(@min | @max) = 2", root, True)
+
     def test_sum_function(self):
         root = self.etree.XML(XML_DATA_TEST)
         self.check_value("sum($values)", 35)

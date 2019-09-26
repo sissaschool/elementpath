@@ -244,14 +244,26 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(token[0][1].xsd_type, schema.types['rangeType'])
         self.assertEqual(token[1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
-        context = XPathContext(
-            root=self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>'))
         token = parser.parse("//b/@min lt //b/@max")
         self.assertEqual(token[0][0][0].xsd_type, schema.types['rangeType'])
         self.assertEqual(token[0][1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
         self.assertEqual(token[1][0][0].xsd_type, schema.types['rangeType'])
         self.assertEqual(token[1][1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
-        self.assertIsNone(token.evaluate(context))
+
+        root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>')
+        with self.assertRaises(TypeError):
+            token.evaluate(context=XPathContext(root))
+
+        root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19">30</b></values>')
+        self.assertIsNone(token.evaluate(context=XPathContext(root)))
+
+        root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19" max="40">30</b></values>')
+        context = XPathContext(root)
+        self.assertTrue(token.evaluate(context))
+
+        root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19" max="10">30</b></values>')
+        context = XPathContext(root)
+        self.assertFalse(token.evaluate(context))
 
     def test_instance_of_expression(self):
         element = self.etree.Element('schema')

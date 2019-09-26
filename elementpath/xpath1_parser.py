@@ -242,9 +242,12 @@ def evaluate(self, context=None):
         return
     name = self.value
     if name[0] != '{' and self.parser.default_namespace:
-        name = u'{%s}%s' % (self.parser.default_namespace, name)
+        tag = u'{%s}%s' % (self.parser.default_namespace, name)
+    else:
+        tag = name
 
     if isinstance(context, XPathSchemaContext):
+        # Bind with the XSD type
         xsd_type = self.match_xsd_type(context.item, name)
         if xsd_type is not None:
             if isinstance(context.item, AttributeNode):
@@ -254,21 +257,26 @@ def evaluate(self, context=None):
                 return context.item
 
     elif self.xsd_type is None:
+        # Untyped evaluation
         if is_attribute_node(context.item, name):
             return context.item[1]
-        elif is_element_node(context.item, name):
+        elif is_element_node(context.item, tag):
             return context.item
     else:
+        # XSD typed evaluation
         try:
             if is_attribute_node(context.item, name):
                 return self.xsd_type.decode(context.item[1])
-            elif is_element_node(context.item, name):
+            elif is_element_node(context.item, tag):
                 if self.xsd_type.is_simple():
-                    return self.xsd_type.decode(context.item)
-                else:
-                    return context.item
+                    return self.xsd_type.decode(context.item.text)
+                elif self.xsd_type.has_simple_content():
+                    self.xsd_type.decode(context.item.text)
+                return context.item
+
         except (TypeError, ValueError):
-            self.wrong_context_type("Type %r is not appropriate for the context" % (type(context.item)))
+            msg = "Type {!r} is not appropriate for the context item {!r}"
+            self.wrong_context_type(msg.format(self.xsd_type, context.item))
 
 
 @method('(name)')
@@ -277,9 +285,12 @@ def select(self, context=None):
         return
     name = self.value
     if name[0] != '{' and self.parser.default_namespace:
-        name = u'{%s}%s' % (self.parser.default_namespace, name)
+        tag = u'{%s}%s' % (self.parser.default_namespace, name)
+    else:
+        tag = name
 
     if isinstance(context, XPathSchemaContext):
+        # Bind with the XSD type
         for item in context.iter_children_or_self():
             xsd_type = self.match_xsd_type(item, name)
             if xsd_type is not None:
@@ -294,20 +305,22 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             if is_attribute_node(item, name):
                 yield item[1]
-            elif is_element_node(item, name):
+            elif is_element_node(item, tag):
                 yield item
     else:
-        # Typed selection
+        # XSD typed selection
         for item in context.iter_children_or_self():
             try:
                 if is_attribute_node(item, name):
                     yield self.xsd_type.decode(item[1])
-                elif is_element_node(item, name):
+                elif is_element_node(item, tag):
                     if self.xsd_type.is_simple():
-                        self.xsd_type.validate(item.text)
+                        yield self.xsd_type.decode(item.text)
+                    elif self.xsd_type.has_simple_content():
+                        self.xsd_type.decode(item.text)
+                        yield item
                     else:
-                        self.xsd_type.validate(item)
-                    yield item
+                        yield item
             except (TypeError, ValueError):
                 msg = "Type {!r} does not match sequence type of {!r}"
                 self.wrong_sequence_type(msg.format(self.xsd_type, item))
@@ -754,13 +767,13 @@ def led(self, left):
 @method('[')
 def select(self, context=None):
     if context is not None:
-        for position, _ in enumerate(self[0].select(context), start=1):
+        for position, item in enumerate(self[0].select(context), start=1):
             predicate = list(self[1].select(context.copy()))
             if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
                 if position == predicate[0]:
-                    yield context.item
+                    yield item
             elif self.boolean_value(predicate):
-                yield context.item
+                yield item
 
 
 ###

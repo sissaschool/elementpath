@@ -18,7 +18,7 @@ import decimal
 import math
 import operator
 
-from .compat import MutableSequence, urlparse
+from .compat import MutableSequence, urlparse, unicode_type
 from .exceptions import ElementPathError, ElementPathKeyError, \
     ElementPathTypeError, MissingContextError
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
@@ -639,9 +639,10 @@ def evaluate(self, context=None):
         else:
             self.wrong_context_type("an atomic value is required")
 
+    input_value = self.data_value(result[0])
     try:
         if namespace != XSD_NAMESPACE:
-            value = self.parser.schema.cast_as(result[0], atomic_type)
+            value = self.parser.schema.cast_as(input_value, atomic_type)
         else:
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
@@ -649,13 +650,13 @@ def evaluate(self, context=None):
                 self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
 
             if local_name in {'base64Binary', 'hexBinary'}:
-                value = token_class.cast(result[0], self[0].label == 'literal')
+                value = token_class.cast(input_value, self[0].label == 'literal')
             elif local_name in {'dateTime', 'date', 'gDay', 'gMonth', 'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
-                value = token_class.cast(result[0], tz=None if context is None else context.timezone)
+                value = token_class.cast(input_value, tz=None if context is None else context.timezone)
             elif local_name == 'QName':
-                value = token_class.cast(result[0], self.parser.namespaces)
+                value = token_class.cast(input_value, self.parser.namespaces)
             else:
-                value = token_class.cast(result[0])
+                value = token_class.cast(input_value)
 
     except ElementPathError as err:
         if self.symbol != 'cast':
@@ -668,7 +669,7 @@ def evaluate(self, context=None):
     except TypeError as err:
         if self.symbol != 'cast':
             return False
-        self.wrong_type(str(err))
+        self.wrong_type(unicode_type(err))
     except ValueError as err:
         if self.symbol != 'cast':
             return False
