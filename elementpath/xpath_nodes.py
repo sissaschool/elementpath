@@ -51,7 +51,7 @@ def elem_iter_strings(elem):
 # Element-like objects are used for representing elements and comments, ElementTree-like objects
 # for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 ###
-def is_element_node(obj, tag=None):
+def is_element_node(obj, tag=None, default_namespace=None):
     """
     Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
     Raises a ValueError if the argument tag has to be used but it's in a wrong format.

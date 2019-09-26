@@ -434,7 +434,20 @@ class XPathToken(Token):
         elif not is_xpath_node(obj):
             return obj
         elif hasattr(obj, 'type'):
-            return self.schema_node_value(obj)
+            return self.schema_node_value(obj)  # Schema context
+        elif self.xsd_type is None:
+            return UntypedAtomic(self.string_value(obj))
+
+        # XSD type bound data
+        try:
+            if is_attribute_node(obj):
+                return self.xsd_type.decode(obj[1])
+            elif is_element_node(obj):
+                return self.xsd_type.decode(obj.text)
+        except TypeError as err:
+            self.wrong_type(str(err))
+        except ValueError as err:
+            self.wrong_value(str(err))
         else:
             return UntypedAtomic(self.string_value(obj))
 

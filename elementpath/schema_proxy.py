@@ -107,9 +107,19 @@ class AbstractXsdType(AbstractXsdComponent):
         """
 
     @abstractmethod
+    def validate(self, obj, *args, **kwargs):
+        """
+        Validates an XML object node using the XSD type. The argument *obj* is an element
+        for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
+        compatible exception (a `ValueError` or a subclass of it) if the argument is not valid.
+        """
+
+    @abstractmethod
     def decode(self, obj, *args, **kwargs):
         """
-        Decodes XML data using the XSD type.
+        Decodes an XML object node using the XSD type. The argument *obj* is an element
+        for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
+        or a `TypeError` compatible exception if the argument it's not valid.
         """
 
 

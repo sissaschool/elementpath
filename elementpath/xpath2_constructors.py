@@ -214,6 +214,8 @@ def cast(value):
 def cast(value, tz=None):
     if isinstance(value, Date10):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return Date10.fromstring(str(value), tzinfo=tz)
     return Date10.fromstring(value, tzinfo=tz)
 
 
@@ -419,7 +421,7 @@ def cast_to_boolean(value, context=None):
     elif isinstance(value, (int, float, decimal.Decimal)):
         return bool(value)
     elif isinstance(value, UntypedAtomic):
-        value = string_base_type(value)
+        value = unicode_type(value)
     elif not isinstance(value, string_base_type):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
