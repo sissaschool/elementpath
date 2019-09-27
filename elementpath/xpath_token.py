@@ -24,7 +24,7 @@ import locale
 import contextlib
 from decimal import Decimal
 
-from .compat import string_base_type
+from .compat import string_base_type, unicode_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_nodes import AttributeNode, is_etree_element, is_attribute_node, \
@@ -53,8 +53,9 @@ def ordinal(n):
 class XPathToken(Token):
     """Base class for XPath tokens."""
 
-    comment = None   # for XPath 2.0+ comments
-    xsd_type = None  # fox XPath 2.0+ schema types labeling
+    is_root = False   # Flag that is set to True for root token instances
+    comment = None    # for XPath 2.0+ comments
+    xsd_type = None   # fox XPath 2.0+ schema types labeling
 
     def evaluate(self, context=None):
         """
@@ -423,33 +424,22 @@ class XPathToken(Token):
             locale.setlocale(locale.LC_ALL, default_locale)
 
     ###
-    # XPath data conversion base functions
+    # XPath data accessors base functions
     def data_value(self, obj):
         """
         The typed value, as computed by fn:data() on each item. Returns an instance of
         UntypedAtomic.
         """
+        if is_attribute_node(obj):
+            obj = obj[1]
+
         if obj is None:
             return
         elif not is_xpath_node(obj):
             return obj
         elif hasattr(obj, 'type'):
             return self.schema_node_value(obj)  # Schema context
-        elif self.xsd_type is None:
-            return UntypedAtomic(self.string_value(obj))
-
-        # XSD type bound data
-        try:
-            if is_attribute_node(obj):
-                return self.xsd_type.decode(obj[1])
-            elif is_element_node(obj):
-                return self.xsd_type.decode(obj.text)
-        except TypeError as err:
-            self.wrong_type(str(err))
-        except ValueError as err:
-            self.wrong_value(str(err))
-        else:
-            return UntypedAtomic(self.string_value(obj))
+        return UntypedAtomic(self.string_value(obj))
 
     def boolean_value(self, obj):
         """
@@ -481,7 +471,7 @@ class XPathToken(Token):
         elif is_element_node(obj):
             return ''.join(elem_iter_strings(obj))
         elif is_attribute_node(obj):
-            return obj[1]
+            return unicode_type(obj[1])
         elif is_text_node(obj):
             return obj
         elif is_document_node(obj):

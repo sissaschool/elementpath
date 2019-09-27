@@ -13,7 +13,7 @@ Helper functions for XPath nodes and basic data types.
 """
 from collections import namedtuple
 
-from .compat import PY3, urlparse
+from .compat import PY3, urlparse, unicode_type
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
 from .datatypes import ncname_validator
@@ -22,6 +22,9 @@ from .datatypes import ncname_validator
 # Node types
 AttributeNode = namedtuple('Attribute', 'name value')
 """A namedtuple-based type to represent XPath attributes."""
+
+ElementNode = namedtuple('Element', 'tag text attrib')
+"""A namedtuple-based type to represent XPath element simple and simple-content nodes."""
 
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
 """A namedtuple-based type to represent XPath namespaces."""
@@ -34,11 +37,15 @@ def is_etree_element(obj):
 
 
 def elem_iter_strings(elem):
-    for e in elem.iter():
-        if e.text is not None:
-            yield e.text
-        if e.tail is not None and e is not elem:
-            yield e.tail
+    if isinstance(elem, ElementNode):
+        if elem.text is not None:
+            yield unicode_type(elem.text)
+    else:
+        for e in elem.iter():
+            if e.text is not None:
+                yield e.text
+            if e.tail is not None and e is not elem:
+                yield e.tail
 
 
 ###
@@ -51,7 +58,7 @@ def elem_iter_strings(elem):
 # Element-like objects are used for representing elements and comments, ElementTree-like objects
 # for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 ###
-def is_element_node(obj, tag=None, default_namespace=None):
+def is_element_node(obj, tag=None):
     """
     Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
     Raises a ValueError if the argument tag has to be used but it's in a wrong format.

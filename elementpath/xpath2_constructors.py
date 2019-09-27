@@ -400,9 +400,9 @@ def select(self, context=None):
             for result in self[0].select(context):
                 yield result
     else:
-        attribute_name = self[0].evaluate(context) if self else None
+        name = self[0].evaluate(context) if self else None
         for item in context.iter_attributes():
-            if is_attribute_node(item, attribute_name):
+            if is_attribute_node(item, name):
                 yield context.item[1]
 
 

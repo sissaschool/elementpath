@@ -811,6 +811,9 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("1 and 1", True)
         self.check_value("1 and 'jupiter'", True)
         self.check_value("0 and 'mars'", False)
+
+        self.check_value("mars")
+
         self.check_value("1 and mars", False)
 
     def test_comparison_operators(self):
@@ -1160,9 +1163,11 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[1]))
 
     def test_union(self):
-        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
+        root = self.etree.XML('<A min="1" max="10"><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
         self.check_selector('/A/B2 | /A/B1', root, root[:2])
         self.check_selector('/A/B2 | /A/*', root, root[:])
+        self.check_selector('/A/B2 | /A/* | /A/B1', root, root[:])
+        self.check_selector('/A/@min | /A/@max', root, {'1', '10'})
 
     def test_default_namespace(self):
         root = self.etree.XML('<foo>bar</foo>')
