@@ -49,9 +49,21 @@ XPath tokens
     Context manipulation helpers:
 
     .. automethod:: get_argument
+    .. automethod:: atomization
+    .. automethod:: get_atomized_operand
     .. automethod:: get_comparison_data
     .. automethod:: get_results
+    .. automethod:: get_operands
     .. automethod:: adjust_datetime
+    .. automethod:: match_xsd_type
+    .. automethod:: use_locale
+
+    Data accessor helpers
+    .. automethod:: data_value
+    .. automethod:: boolean_value
+    .. automethod:: string_value
+    .. automethod:: number_value
+    .. automethod:: schema_node_value
 
     Error management helper:
 
