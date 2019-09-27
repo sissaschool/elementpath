@@ -198,6 +198,7 @@ class XPath1Parser(Parser):
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
+        root_token.is_root = True
         try:
             root_token.evaluate()  # Static context evaluation
         except MissingContextError:
@@ -233,56 +234,18 @@ literal('(string)')
 literal('(float)')
 literal('(decimal)')
 literal('(integer)')
-literal('(name)', bp=10)
 
 
-@method('(name)')
+@method(literal('(name)', bp=10))
 def evaluate(self, context=None):
-    if context is None:
-        return
-    name = self.value
-    if name[0] != '{' and self.parser.default_namespace:
-        tag = u'{%s}%s' % (self.parser.default_namespace, name)
-    else:
-        tag = name
-
-    if isinstance(context, XPathSchemaContext):
-        # Bind with the XSD type
-        xsd_type = self.match_xsd_type(context.item, name)
-        if xsd_type is not None:
-            if isinstance(context.item, AttributeNode):
-                primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-                return XSD_BUILTIN_TYPES[primitive_type.local_name].value
-            else:
-                return context.item
-
-    elif self.xsd_type is None:
-        # Untyped evaluation
-        if is_attribute_node(context.item, name):
-            return context.item[1]
-        elif is_element_node(context.item, tag):
-            return context.item
-    else:
-        # XSD typed evaluation
-        try:
-            if is_attribute_node(context.item, name):
-                return self.xsd_type.decode(context.item[1])
-            elif is_element_node(context.item, tag):
-                if self.xsd_type.is_simple():
-                    return self.xsd_type.decode(context.item.text)
-                elif self.xsd_type.has_simple_content():
-                    self.xsd_type.decode(context.item.text)
-                return context.item
-
-        except (TypeError, ValueError):
-            msg = "Type {!r} is not appropriate for the context item {!r}"
-            self.wrong_context_type(msg.format(self.xsd_type, context.item))
+    return [x for x in self.select(context)] or None
 
 
 @method('(name)')
 def select(self, context=None):
     if context is None:
         return
+
     name = self.value
     if name[0] != '{' and self.parser.default_namespace:
         tag = u'{%s}%s' % (self.parser.default_namespace, name)
@@ -304,7 +267,7 @@ def select(self, context=None):
         # Untyped selection
         for item in context.iter_children_or_self():
             if is_attribute_node(item, name):
-                yield item[1]
+                yield item
             elif is_element_node(item, tag):
                 yield item
     else:
@@ -312,7 +275,7 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             try:
                 if is_attribute_node(item, name):
-                    yield self.xsd_type.decode(item[1])
+                    yield AttributeNode(item[0], self.xsd_type.decode(item[1]))
                 elif is_element_node(item, tag):
                     if self.xsd_type.is_simple():
                         yield self.xsd_type.decode(item.text)
@@ -652,15 +615,27 @@ def evaluate(self, context=None):
 
 ###
 # Union expressions
-@method(infix('|', bp=50))
+@method('|', bp=50)
+def led(self, left):
+    self.cut_and_sort = True
+    if left.symbol in {'|', 'union'}:
+        left.cut_and_sort = False
+    self[:] = left, self.parser.expression(rbp=50)
+    return self
+
+
+@method('|')
 def select(self, context=None):
-    if context is not None:
-        results = {item for k in range(2) for item in self[k].select(context.copy())}
-        for item in context.iter():
-            if item in results:
+    if context is None:
+        return
+    elif not self.cut_and_sort:
+        for k in range(2):
+            for item in self[k].select(context.copy()):
                 yield item
-            elif is_attribute_node(item) and item[1] in results:
-                yield item[1]
+    else:
+        results = {item for k in range(2) for item in self[k].select(context.copy())}
+        for item in context.iter_results(results, self.is_root):
+            yield item
 
 
 ###
@@ -705,8 +680,8 @@ def select(self, context=None):
         left_results = list(self[0].select(context))
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
-            if not is_element_node(context.item):
-                self.wrong_type("left operand must returns element nodes: {}".format(context.item))
+            if not is_xpath_node(context.item):
+                self.wrong_type("left operand must returns XPath nodes: {}".format(context.item))
             for result in self[1].select(context):
                 if is_etree_element(result) or isinstance(result, tuple):
                     if result not in items:
@@ -878,7 +853,7 @@ def select(self, context=None):
 
     for _ in context.iter_attributes():
         for result in self[0].select(context):
-            yield result
+            yield result[1] if self.is_root else result
 
 
 @method(axis('namespace'))
