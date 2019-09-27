@@ -584,7 +584,7 @@ class Parser(object):
         """
         Register/update a token class in the symbol table.
 
-        :param symbol: The identifier symbol for the or an existent token class.
+        :param symbol: The identifier symbol for a new class or an existent token class.
         :param kwargs: Optional attributes/methods for the token class.
         :return: A token class.
         """
@@ -654,6 +654,17 @@ class Parser(object):
     def unregister(cls, symbol):
         """Unregister a token class from the symbol table."""
         del cls.symbol_table[symbol.strip()]
+
+    @classmethod
+    def duplicate(cls, symbol, new_symbol, **kwargs):
+        """Duplicate a token class with a new symbol."""
+        token_class = cls.symbol_table[symbol]
+        new_token_class = cls.register(new_symbol, **kwargs)
+        for key, value in token_class.__dict__.items():
+            if key in kwargs or key in ('symbol', 'pattern') or key.startswith('_'):
+                continue
+            setattr(new_token_class, key, value)
+        return new_token_class
 
     @classmethod
     def literal(cls, symbol, bp=0):
