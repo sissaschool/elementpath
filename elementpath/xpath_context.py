@@ -11,8 +11,8 @@
 import datetime
 
 from .exceptions import ElementPathTypeError
-from .xpath_nodes import AttributeNode, is_etree_element, is_element_node, \
-    is_document_node, is_attribute_node
+from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, is_etree_element, \
+    is_element_node, is_document_node, is_attribute_node
 
 
 class XPathContext(object):
@@ -107,6 +107,9 @@ class XPathContext(object):
         status = self.item, self.size, self.position, self.axis
         self.axis = 'attribute'
 
+        if isinstance(self.item, TypedElement):
+            self.item = self.item.elem
+
         for item in self.item.attrib.items():
             self.item = AttributeNode(*item)
             yield self.item
@@ -129,7 +132,10 @@ class XPathContext(object):
             self.item = self._root.getroot() if is_document_node(self._root) else self._root
             yield self.item
         elif is_element_node(self.item):
-            elem = self.item
+            if isinstance(self.item, TypedElement):
+                elem = self.item.elem
+            else:
+                elem = self.item
             if elem.text is not None:
                 self.item = elem.text
                 yield self.item
@@ -258,8 +264,9 @@ class XPathContext(object):
                     yield item
             elif isinstance(item, AttributeNode):
                 # Match XSD decoded attributes
-                for attr in filter(lambda x: isinstance(x, AttributeNode) and x[0] == item[0], results):
-                    yield attr[1] if is_root else attr
+                for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
+                    if attr[0] in results:
+                        yield attr[1] if is_root else attr
 
         self.item, self.size, self.position = status
 

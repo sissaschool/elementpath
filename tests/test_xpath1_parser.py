@@ -397,7 +397,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.wrong_type("contains('XPath', 'XP', 20)")
         self.wrong_type("boolean(1, 5)")
 
-    # Features tests
+    # XPath expression tests
+    def test_node_selection(self):
+        self.check_value("mars", [])
+
     def test_references(self):
         namespaces = {'tst': "http://xpath.test/ns"}
         root = self.etree.XML("""
@@ -811,9 +814,6 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("1 and 1", True)
         self.check_value("1 and 'jupiter'", True)
         self.check_value("0 and 'mars'", False)
-
-        self.check_value("mars")
-
         self.check_value("1 and mars", False)
 
     def test_comparison_operators(self):

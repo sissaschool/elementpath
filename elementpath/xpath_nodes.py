@@ -13,7 +13,7 @@ Helper functions for XPath nodes and basic data types.
 """
 from collections import namedtuple
 
-from .compat import PY3, urlparse, unicode_type
+from .compat import PY3, urlparse
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
 from .datatypes import ncname_validator
@@ -23,11 +23,14 @@ from .datatypes import ncname_validator
 AttributeNode = namedtuple('Attribute', 'name value')
 """A namedtuple-based type to represent XPath attributes."""
 
-ElementNode = namedtuple('Element', 'tag text attrib')
-"""A namedtuple-based type to represent XPath element simple and simple-content nodes."""
-
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
 """A namedtuple-based type to represent XPath namespaces."""
+
+TypedAttribute = namedtuple('TypedAttribute', 'attr value')
+"""A wrapper for processing typed-value attributes."""
+
+TypedElement = namedtuple('TypedElement', 'elem value')
+"""A wrapper for processing typed-value elements."""
 
 
 ###
@@ -37,15 +40,14 @@ def is_etree_element(obj):
 
 
 def elem_iter_strings(elem):
-    if isinstance(elem, ElementNode):
-        if elem.text is not None:
-            yield unicode_type(elem.text)
-    else:
-        for e in elem.iter():
-            if e.text is not None:
-                yield e.text
-            if e.tail is not None and e is not elem:
-                yield e.tail
+    if isinstance(elem, TypedElement):
+        elem = elem.elem
+
+    for e in elem.iter():
+        if e.text is not None:
+            yield e.text
+        if e.tail is not None and e is not elem:
+            yield e.tail
 
 
 ###
@@ -67,9 +69,12 @@ def is_element_node(obj, tag=None):
     :param tag: a fully qualified name, a local name or a wildcard. The accepted wildcard formats \
     are '*', '*:*', '*:local-name' and '{namespace}*'.
     """
-    if not is_etree_element(obj) or callable(obj.tag):
+    if isinstance(obj, TypedElement):
+        obj = obj.elem
+    elif not is_etree_element(obj) or callable(obj.tag):
         return False
-    elif tag is None:
+
+    if not tag:
         return True
     elif not obj.tag:
         return obj.tag == tag
@@ -100,10 +105,13 @@ def is_attribute_node(obj, name=None):
     are '*', '*:*', '*:local-name' and '{namespace}*'.
     """
     if name is None or name == '*' or name == '*:*':
-        return isinstance(obj, AttributeNode)
-    elif not isinstance(obj, AttributeNode):
+        return isinstance(obj, (AttributeNode, TypedAttribute))
+    elif not isinstance(obj, (AttributeNode, TypedAttribute)):
         return False
-    elif name[0] == '*':
+    elif isinstance(obj, TypedAttribute):
+        obj = obj.attr
+
+    if name[0] == '*':
         try:
             _, _name = name.split(':')
         except (ValueError, IndexError):
