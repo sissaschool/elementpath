@@ -21,8 +21,8 @@ from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
 from .xpath_token import XPathToken
-from .xpath_nodes import AttributeNode, NamespaceNode, is_etree_element, \
-    is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
+from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement,\
+    is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
     is_text_node, is_comment_node, is_processing_instruction_node, node_name
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -238,7 +238,7 @@ literal('(integer)')
 
 @method(literal('(name)', bp=10))
 def evaluate(self, context=None):
-    return [x for x in self.select(context)] or None
+    return [x for x in self.select(context)]
 
 
 @method('(name)')
@@ -257,11 +257,12 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             xsd_type = self.match_xsd_type(item, name)
             if xsd_type is not None:
-                if isinstance(context.item, AttributeNode):
-                    primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-                    yield XSD_BUILTIN_TYPES[primitive_type.local_name].value
+                primitive_type = self.parser.schema.get_primitive_type(xsd_type)
+                value = XSD_BUILTIN_TYPES[primitive_type.local_name].value
+                if isinstance(item, AttributeNode):
+                    yield TypedAttribute(item, value)
                 else:
-                    yield context.item
+                    yield TypedElement(item, value)
 
     elif self.xsd_type is None:
         # Untyped selection
@@ -275,13 +276,10 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             try:
                 if is_attribute_node(item, name):
-                    yield AttributeNode(item[0], self.xsd_type.decode(item[1]))
+                    yield TypedAttribute(item, self.xsd_type.decode(item[1]))
                 elif is_element_node(item, tag):
-                    if self.xsd_type.is_simple():
-                        yield self.xsd_type.decode(item.text)
-                    elif self.xsd_type.has_simple_content():
-                        self.xsd_type.decode(item.text)
-                        yield item
+                    if self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
+                        yield TypedElement(item, self.xsd_type.decode(item.text))
                     else:
                         yield item
             except (TypeError, ValueError):
