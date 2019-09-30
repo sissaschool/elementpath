@@ -258,27 +258,24 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter_results(self, results, is_root=False):
+    def iter_results(self, results):
         """Iterates results in document order."""
         status = self.item, self.size, self.position
         self.item = self.root
 
         for item in self._iter_context():
             if item in results:
-                if is_attribute_node(item):
-                    yield item[1] if is_root else item
-                else:
-                    yield item
+                yield item
             elif isinstance(item, AttributeNode):
                 # Match XSD decoded attributes
                 for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
                     if attr[0] == item:
-                        yield attr[1] if is_root else attr
+                        yield attr
             elif is_etree_element(item):
                 # Match XSD decoded elements
                 for elem in filter(lambda x: isinstance(x, TypedElement), results):
                     if elem[0] is item:
-                        yield elem[1] if is_root else elem
+                        yield elem
 
         self.item, self.size, self.position = status
 

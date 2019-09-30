@@ -259,7 +259,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('($a, $b) = ($c, 2.0)', True, context=context)
 
         root = self.etree.XML('<root min="10" max="7"/>')
-        self.check_value('@min', ['10'], context=XPathContext(root=root))
+        self.check_value('@min', [AttributeNode('min', '10')], context=XPathContext(root=root))
         self.check_value('@min le @max', True, context=XPathContext(root=root))
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))

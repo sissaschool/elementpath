@@ -45,7 +45,7 @@ def iter_select(root, path, namespaces=None, parser=None, **kwargs):
     parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = parser.parse(path)
     context = XPathContext(root)
-    return root_token.select(context)
+    return root_token.select_results(context)
 
 
 class Selector(object):
@@ -98,4 +98,4 @@ class Selector(object):
         :return: A generator of the XPath expression results.
         """
         context = XPathContext(root)
-        return self.root_token.select(context)
+        return self.root_token.select_results(context)
