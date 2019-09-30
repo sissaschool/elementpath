@@ -468,7 +468,8 @@ def evaluate(self, context=None):
     for results in product(*selectors):
         for i in range(len(results)):
             context.variables[self[i * 2][0].value] = results[i]
-        if self.boolean_value(list(self[-1].select(context.copy()))):
+
+        if self.boolean_value([x for x in self[-1].select(context.copy())]):
             if some:
                 return True
         elif not some:

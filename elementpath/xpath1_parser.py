@@ -257,6 +257,10 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             xsd_type = self.match_xsd_type(item, name)
             if xsd_type is not None:
+                if self.is_root:
+                    yield item
+                    continue
+
                 primitive_type = self.parser.schema.get_primitive_type(xsd_type)
                 value = XSD_BUILTIN_TYPES[primitive_type.local_name].value
                 if isinstance(item, AttributeNode):
@@ -276,10 +280,18 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             try:
                 if is_attribute_node(item, name):
-                    yield TypedAttribute(item, self.xsd_type.decode(item[1]))
+                    if self.is_root:
+                        yield self.xsd_type.decode(item[1])
+                    else:
+                        yield TypedAttribute(item, self.xsd_type.decode(item[1]))
                 elif is_element_node(item, tag):
-                    if self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
-                        yield TypedElement(item, self.xsd_type.decode(item.text))
+                    if isinstance(item, TypedElement):
+                        yield item[1] if self.is_root else item
+                    elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
+                        if self.is_root:
+                            yield self.xsd_type.decode(item.text)
+                        else:
+                            yield TypedElement(item, self.xsd_type.decode(item.text))
                     else:
                         yield item
             except (TypeError, ValueError):
@@ -672,20 +684,32 @@ def select(self, context=None):
     elif len(self) == 1:
         context.item = None
         for result in self[0].select(context):
-            yield result
+            if isinstance(result, (AttributeNode, TypedAttribute, TypedElement)):
+                yield result[1] if self.is_root else result
+            else:
+                yield result
     else:
-        items = set()
+        items = []
+        context2 = context.copy()
         left_results = list(self[0].select(context))
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
             if not is_xpath_node(context.item):
                 self.wrong_type("left operand must returns XPath nodes: {}".format(context.item))
             for result in self[1].select(context):
-                if is_etree_element(result) or isinstance(result, tuple):
-                    if result not in items:
-                        yield result
-                        items.add(result)
+                if not is_etree_element(result) and not isinstance(result, tuple):
+                    yield result
+                elif result in items:
+                    pass
+                elif isinstance(result, (TypedAttribute, TypedElement)):
+                    if result[0] not in items:
+                        items.append(result)
+                        yield result[1] if self.is_root else result
+                elif isinstance(result, AttributeNode):
+                    items.append(result)
+                    yield result[1] if self.is_root else result
                 else:
+                    items.append(result)
                     yield result
 
 
@@ -808,16 +832,21 @@ def select(self, context=None):
 @method(axis('following-sibling'))
 def select(self, context=None):
     if context is not None:
-        if is_element_node(context.item):
+        if isinstance(context.item, TypedElement):
+            item = context.item[0]
+        elif is_etree_element(context.item):
             item = context.item
-            for elem in context.iter_parent(axis=self.symbol):
-                follows = False
-                for child in context.iter_children_or_self(elem, child_axis=True):
-                    if follows:
-                        for result in self[0].select(context):
-                            yield result
-                    elif item is child:
-                        follows = True
+        else:
+            return
+
+        for elem in context.iter_parent(axis=self.symbol):
+            follows = False
+            for child in context.iter_children_or_self(elem, child_axis=True):
+                if follows:
+                    for result in self[0].select(context):
+                        yield result
+                elif item is child:
+                    follows = True
 
 
 @method(axis('following'))

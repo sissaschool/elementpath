@@ -27,7 +27,7 @@ from decimal import Decimal
 from .compat import string_base_type, unicode_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_nodes import AttributeNode, is_etree_element, is_attribute_node, \
+from .xpath_nodes import AttributeNode, TypedElement, is_etree_element, is_attribute_node, \
     elem_iter_strings, is_text_node, is_namespace_node, is_comment_node, \
     is_processing_instruction_node, is_element_node, is_document_node, \
     is_xpath_node, is_schema_node
@@ -430,7 +430,7 @@ class XPathToken(Token):
         The typed value, as computed by fn:data() on each item. Returns an instance of
         UntypedAtomic.
         """
-        if is_attribute_node(obj):
+        if is_attribute_node(obj) or isinstance(obj, TypedElement):
             obj = obj[1]
 
         if obj is None:

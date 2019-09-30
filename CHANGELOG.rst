@@ -2,8 +2,10 @@
 CHANGELOG
 *********
 
-`v1.2.2`_ (TBD)
+`v1.3.0`_ (TBD)
 ===============
+* Improve typed selection with TypedAttribute and TypedElement named tuples
+* Add iter_results to XPathContext
 * Fix descendant shortcut operator '//'
 * Fix text() function
 * Fix typed select of '(name)' token
