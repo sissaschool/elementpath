@@ -339,8 +339,6 @@ class XPath2Parser(XPath1Parser):
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
-        root_token.is_root = True
-
         if self.schema is None:
             try:
                 root_token.evaluate()  # Static context evaluation
@@ -391,7 +389,7 @@ XPath2Parser.duplicate('|', 'union')
 def select(self, context=None):
     if context is not None:
         results = set(self[0].select(context.copy())) & set(self[1].select(context.copy()))
-        for item in context.iter_results(results, self.is_root):
+        for item in context.iter_results(results):
             yield item
 
 
@@ -399,7 +397,7 @@ def select(self, context=None):
 def select(self, context=None):
     if context is not None:
         results = set(self[0].select(context.copy())) - set(self[1].select(context.copy()))
-        for item in context.iter_results(results, self.is_root):
+        for item in context.iter_results(results):
             yield item
 
 

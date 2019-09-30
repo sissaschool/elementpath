@@ -198,7 +198,6 @@ class XPath1Parser(Parser):
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
-        root_token.is_root = True
         try:
             root_token.evaluate()  # Static context evaluation
         except MissingContextError:
@@ -257,10 +256,6 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             xsd_type = self.match_xsd_type(item, name)
             if xsd_type is not None:
-                if self.is_root:
-                    yield item
-                    continue
-
                 primitive_type = self.parser.schema.get_primitive_type(xsd_type)
                 value = XSD_BUILTIN_TYPES[primitive_type.local_name].value
                 if isinstance(item, AttributeNode):
@@ -280,18 +275,12 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             try:
                 if is_attribute_node(item, name):
-                    if self.is_root:
-                        yield self.xsd_type.decode(item[1])
-                    else:
-                        yield TypedAttribute(item, self.xsd_type.decode(item[1]))
+                    yield TypedAttribute(item, self.xsd_type.decode(item[1]))
                 elif is_element_node(item, tag):
                     if isinstance(item, TypedElement):
-                        yield item[1] if self.is_root else item
+                        yield item
                     elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
-                        if self.is_root:
-                            yield self.xsd_type.decode(item.text)
-                        else:
-                            yield TypedElement(item, self.xsd_type.decode(item.text))
+                        yield TypedElement(item, self.xsd_type.decode(item.text))
                     else:
                         yield item
             except (TypeError, ValueError):
@@ -644,7 +633,7 @@ def select(self, context=None):
                 yield item
     else:
         results = {item for k in range(2) for item in self[k].select(context.copy())}
-        for item in context.iter_results(results, self.is_root):
+        for item in context.iter_results(results):
             yield item
 
 
@@ -684,10 +673,7 @@ def select(self, context=None):
     elif len(self) == 1:
         context.item = None
         for result in self[0].select(context):
-            if isinstance(result, (AttributeNode, TypedAttribute, TypedElement)):
-                yield result[1] if self.is_root else result
-            else:
-                yield result
+            yield result
     else:
         items = []
         context2 = context.copy()
@@ -704,10 +690,10 @@ def select(self, context=None):
                 elif isinstance(result, (TypedAttribute, TypedElement)):
                     if result[0] not in items:
                         items.append(result)
-                        yield result[1] if self.is_root else result
+                        yield result
                 elif isinstance(result, AttributeNode):
                     items.append(result)
-                    yield result[1] if self.is_root else result
+                    yield result
                 else:
                     items.append(result)
                     yield result
@@ -880,7 +866,7 @@ def select(self, context=None):
 
     for _ in context.iter_attributes():
         for result in self[0].select(context):
-            yield result[1] if self.is_root else result
+            yield result
 
 
 @method(axis('namespace'))
