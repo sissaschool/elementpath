@@ -125,17 +125,16 @@ class XPathContext(object):
 
         self.axis = 'child'
         if item is not None:
-            self.item = item
+            self.item = item[0] if isinstance(item, TypedElement) else item
+        elif isinstance(self.item, TypedElement):
+            self.item = self.item[0]
 
         if self.item is None:
             self.size, self.position = 1, 0
             self.item = self._root.getroot() if is_document_node(self._root) else self._root
             yield self.item
-        elif is_element_node(self.item):
-            if isinstance(self.item, TypedElement):
-                elem = self.item.elem
-            else:
-                elem = self.item
+        elif is_etree_element(self.item):
+            elem = self.item
             if elem.text is not None:
                 self.item = elem.text
                 yield self.item
@@ -148,26 +147,25 @@ class XPathContext(object):
     def iter_preceding(self):
         status = self.item, self.size, self.position, self.axis
 
-        elem = self.item
-        if not is_etree_element(elem):
+        item = e = self.item[0] if isinstance(self.item, TypedElement) else self.item
+        if not is_etree_element(item):
             return
         self.axis = 'preceding'
-        ancestors = []
 
+        ancestors = []
         while True:
             try:
-                parent = self.parent_map[elem]
+                parent = self.parent_map[e]
             except KeyError:
                 break
             else:
                 ancestors.append(parent)
-                elem = parent
+                e = parent
 
-        elem = self.item
         for e in self.root.iter():
-            if e is elem:
+            if e is item:
                 break
-            if e not in ancestors:
+            elif e not in ancestors:
                 self.item = e
                 yield e
 
@@ -176,12 +174,17 @@ class XPathContext(object):
     def iter_parent(self, axis=None):
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
+
         try:
-            self.item = self.parent_map[self.item]
+            if isinstance(self.item, TypedElement):
+                self.item = self.parent_map[self.item[0]]
+            else:
+                self.item = self.parent_map[self.item]
         except KeyError:
             pass
         else:
             yield self.item
+
         self.item, self.size, self.position, self.axis = status
 
     def iter_descendants(self, item=None, axis=None):
@@ -189,13 +192,15 @@ class XPathContext(object):
         self.axis = axis
 
         if item is not None:
-            self.item = item
+            self.item = item[0] if isinstance(item, TypedElement) else item
+        elif isinstance(self.item, TypedElement):
+            self.item = self.item[0]
 
         if self.item is None:
             self.size, self.position = 1, 0
             yield self._root
             self.item = self._root.getroot() if is_document_node(self._root) else self._root
-        elif not is_etree_element(self.item):
+        elif not is_element_node(self.item):
             return
 
         for descendant in self._iter_descendants():
@@ -220,9 +225,9 @@ class XPathContext(object):
         self.axis = axis
 
         if item is not None:
-            self.item = item
-        if not is_etree_element(self.item):
-            return
+            self.item = item[0] if isinstance(item, TypedElement) else item
+        elif isinstance(self.item, TypedElement):
+            self.item = self.item[0]
 
         while True:
             try:
@@ -243,6 +248,8 @@ class XPathContext(object):
             self.size, self.position = 1, 0
             yield self._root
             self.item = self._root.getroot() if is_document_node(self._root) else self._root
+        elif isinstance(self.item, TypedElement):
+            self.item = self.item[0]
         elif not is_etree_element(self.item):
             return
 
@@ -265,8 +272,13 @@ class XPathContext(object):
             elif isinstance(item, AttributeNode):
                 # Match XSD decoded attributes
                 for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
-                    if attr[0] in results:
+                    if attr[0] == item:
                         yield attr[1] if is_root else attr
+            elif is_etree_element(item):
+                # Match XSD decoded elements
+                for elem in filter(lambda x: isinstance(x, TypedElement), results):
+                    if elem[0] is item:
+                        yield elem[1] if is_root else elem
 
         self.item, self.size, self.position = status
 

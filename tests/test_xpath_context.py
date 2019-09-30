@@ -32,8 +32,17 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         self.assertEqual(context.parent_map, {root[0]: root, root[1]: root})
 
+        context = XPathContext(root, item=TypedElement(root, ''))
+        self.assertEqual(context.parent_map, {root[0]: root, root[1]: root})
+
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+
         context = XPathContext(root)
+        self.assertEqual(context.parent_map, {
+            root[0]: root, root[0][0]: root[0], root[1]: root,
+            root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
+        })
+        context = XPathContext(root, item=TypedElement(root, None))
         self.assertEqual(context.parent_map, {
             root[0]: root, root[0][0]: root[0], root[1]: root,
             root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
@@ -46,7 +55,11 @@ class XPathContextTest(unittest.TestCase):
             sorted(list(context.iter_attributes()), key=lambda x: x[0]),
             [AttributeNode(name='a1', value='10'), AttributeNode(name='a2', value='20')]
         )
-
+        context = XPathContext(root, item=TypedElement(root, ''))
+        self.assertListEqual(
+            sorted(list(context.iter_attributes()), key=lambda x: x[0]),
+            [AttributeNode(name='a1', value='10'), AttributeNode(name='a2', value='20')]
+        )
         context.item = None
         self.assertListEqual(list(context.iter_attributes()), [])
 
@@ -55,11 +68,30 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root, item=None)
         self.assertListEqual(list(context.iter_parent()), [])
 
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_parent()), [])
+
+        context = XPathContext(root, item=TypedElement(root, ''))
+        self.assertListEqual(list(context.iter_parent()), [])
+
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        context = XPathContext(root, item=None)
+        self.assertListEqual(list(context.iter_parent()), [])
+
+        context = XPathContext(root, item=root[2][0])
+        self.assertListEqual(list(context.iter_parent()), [root[2]])
+
+        context = XPathContext(root, item=TypedElement(root[2][0], None))
+        self.assertListEqual(list(context.iter_parent()), [root[2]])
+
     def test_iter_descendants(self):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')
         attr = AttributeNode('a1', '10')
         self.assertListEqual(list(XPathContext(root).iter_descendants()), [root, root[0], root[1]])
         self.assertListEqual(list(XPathContext(root, item=attr).iter_descendants()), [])
+
+        context = XPathContext(root, item=TypedElement(root, ''))
+        self.assertListEqual(list(context.iter_descendants()), [root, root[0], root[1]])
 
     def test_iter_ancestors(self):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')
@@ -69,14 +101,39 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(list(XPathContext(root).iter_ancestors(item=root[1])), [root])
         self.assertListEqual(list(XPathContext(root, item=attr).iter_ancestors()), [])
 
+        context = XPathContext(root, item=TypedElement(root[1], None))
+        self.assertListEqual(list(context.iter_ancestors()), [root])
+
     def test_iter(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root)
         self.assertListEqual(list(context.iter()), list(root.iter()))
+
         context.item = None
         self.assertListEqual(list(context.iter()), [root] + list(root.iter()))
+
         context.item = AttributeNode('a1', '10')
         self.assertListEqual(list(context.iter()), [])
+
+        context = XPathContext(root, item=TypedElement(root, None))
+        self.assertListEqual(list(context.iter()), list(root.iter()))
+
+    def test_iter_results(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+
+        results = [root[2], root[0][0]]
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_results(results)), [root[0][0], root[2]])
+
+        context = XPathContext(root, item=TypedElement(root, None))
+        self.assertListEqual(list(context.iter_results(results)), [root[0][0], root[2]])
+
+        results = [root[2], TypedElement(root[0][0], None)]
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_results(results)), [TypedElement(root[0][0], None), root[2]])
+
+        context = XPathContext(root, item=TypedElement(root, None))
+        self.assertListEqual(list(context.iter_results(results)), [TypedElement(root[0][0], None), root[2]])
 
 
 if __name__ == '__main__':
