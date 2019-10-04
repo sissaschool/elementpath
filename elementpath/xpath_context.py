@@ -10,6 +10,7 @@
 #
 import datetime
 
+from .compat import lru_cache
 from .exceptions import ElementPathTypeError
 from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, is_etree_element, \
     is_element_node, is_document_node, is_attribute_node
@@ -41,13 +42,12 @@ class XPathContext(object):
             raise ElementPathTypeError(
                 "invalid argument root={!r}, an Element is required.".format(root)
             )
-        self._root = root
+
+        self.root = root
         if item is not None:
             self.item = item
-        elif is_element_node(root):
-            self.item = root
         else:
-            self.item = None
+            self.item = root if hasattr(root, 'tag') else None
 
         self.position = position
         self.size = size
@@ -55,16 +55,17 @@ class XPathContext(object):
         self.variables = {} if variables is None else dict(variables)
         self.current_dt = current_dt or datetime.datetime.now()
         self.timezone = timezone
+        self._elem = item if is_element_node(item) else root
         self._parent_map = None
 
     def __repr__(self):
         return '%s(root=%r, item=%r, position=%r, size=%r, axis=%r)' % (
-            self.__class__.__name__, self._root, self.item, self.position, self.size, self.axis
+            self.__class__.__name__, self.root, self.item, self.position, self.size, self.axis
         )
 
     def copy(self, clear_axis=True):
         obj = type(self)(
-            root=self._root,
+            root=self.root,
             item=self.item,
             position=self.position,
             size=self.size,
@@ -73,19 +74,52 @@ class XPathContext(object):
             current_dt=self.current_dt,
             timezone=self.timezone,
         )
+        obj._elem = self._elem
         obj._parent_map = self._parent_map
         return obj
 
     @property
-    def root(self):
-        return self._root
-
-    @property
     def parent_map(self):
-        # TODO: try to implement a dynamic parent map to save memory ...
         if self._parent_map is None:
-            self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
+            self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
         return self._parent_map
+
+    @lru_cache(maxsize=1024)
+    def get_parent(self, elem):
+        """
+        Returns the parent element or `None` for root element and for elements
+        that are not included in the tree. Uses a LRU cache to minimize parent
+        map rebuilding for trees processed with an incremental parser.
+        """
+        if elem is self.root:
+            return
+
+        try:
+            return self._parent_map[elem]
+        except (KeyError, TypeError):
+            self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
+            try:
+                return self._parent_map[elem]
+            except KeyError:
+                return
+
+    @lru_cache(maxsize=1024)
+    def get_path(self, item):
+        """Cached path resolver for elements and attributes."""
+        path = []
+
+        if isinstance(item, (AttributeNode, TypedAttribute)):
+            path.append('@%s' % item[0])
+            item = self._elem
+        elif isinstance(item, TypedElement):
+            item = item[0]
+
+        while True:
+            parent = self.get_parent(item)
+            if parent is None:
+                return '/'.join(reversed(path))
+            path.append(item.tag)
+            item = parent
 
     def is_principal_node_kind(self):
         if self.axis == 'attribute':
@@ -103,6 +137,7 @@ class XPathContext(object):
     def iter_attributes(self):
         if not is_element_node(self.item):
             return
+        self._elem = self.item
 
         status = self.item, self.size, self.position, self.axis
         self.axis = 'attribute'
@@ -110,20 +145,19 @@ class XPathContext(object):
         if isinstance(self.item, TypedElement):
             self.item = self.item.elem
 
-        for item in self.item.attrib.items():
-            self.item = AttributeNode(*item)
+        for self.item in map(lambda x: AttributeNode(*x), self.item.attrib.items()):
             yield self.item
 
         self.item, self.size, self.position, self.axis = status
 
     def iter_children_or_self(self, item=None, child_axis=False):
-        status = self.item, self.size, self.position, self.axis
         if not child_axis and self.axis is not None:
             yield self.item
-            self.item, self.size, self.position, self.axis = status
             return
 
+        status = self.item, self.size, self.position, self.axis
         self.axis = 'child'
+
         if item is not None:
             self.item = item[0] if isinstance(item, TypedElement) else item
         elif isinstance(self.item, TypedElement):
@@ -131,7 +165,7 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            self.item = self._root.getroot() if is_document_node(self._root) else self._root
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
             yield self.item
         elif is_etree_element(self.item):
             elem = self.item
@@ -145,18 +179,17 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_preceding(self):
-        status = self.item, self.size, self.position, self.axis
-
         item = e = self.item[0] if isinstance(self.item, TypedElement) else self.item
         if not is_etree_element(item):
             return
+
+        status = self.item, self.size, self.position, self.axis
         self.axis = 'preceding'
 
         ancestors = []
         while True:
-            try:
-                parent = self.parent_map[e]
-            except KeyError:
+            parent = self.get_parent(e)
+            if parent is None:
                 break
             else:
                 ancestors.append(parent)
@@ -172,20 +205,19 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_parent(self, axis=None):
-        status = self.item, self.size, self.position, self.axis
-        self.axis = axis
-
-        try:
-            if isinstance(self.item, TypedElement):
-                self.item = self.parent_map[self.item[0]]
-            else:
-                self.item = self.parent_map[self.item]
-        except KeyError:
-            pass
+        if isinstance(self.item, TypedElement):
+            parent = self.get_parent(self.item[0])
         else:
+            parent = self.get_parent(self.item)
+
+        if parent is not None:
+            status = self.item, self.size, self.position, self.axis
+            self.axis = axis
+
+            self.item = parent
             yield self.item
 
-        self.item, self.size, self.position, self.axis = status
+            self.item, self.size, self.position, self.axis = status
 
     def iter_descendants(self, item=None, axis=None):
         status = self.item, self.size, self.position, self.axis
@@ -198,8 +230,8 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            yield self._root
-            self.item = self._root.getroot() if is_document_node(self._root) else self._root
+            yield self.root
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
         elif not is_element_node(self.item):
             return
 
@@ -209,7 +241,7 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def _iter_descendants(self):
-        elem = self.item
+        elem = self._elem = self.item
         yield elem
         if elem.text is not None:
             self.item = elem.text
@@ -230,9 +262,8 @@ class XPathContext(object):
             self.item = self.item[0]
 
         while True:
-            try:
-                parent = self.parent_map[self.item]
-            except KeyError:
+            parent = self.get_parent(self.item)
+            if parent is None:
                 break
             else:
                 self.item = parent
@@ -246,8 +277,8 @@ class XPathContext(object):
 
         if self.item is None:
             self.size, self.position = 1, 0
-            yield self._root
-            self.item = self._root.getroot() if is_document_node(self._root) else self._root
+            yield self.root
+            self.item = self.root.getroot() if is_document_node(self.root) else self.root
         elif isinstance(self.item, TypedElement):
             self.item = self.item[0]
         elif not is_etree_element(self.item):
@@ -280,7 +311,7 @@ class XPathContext(object):
         self.item, self.size, self.position = status
 
     def _iter_context(self):
-        elem = self.item
+        elem = self._elem = self.item
         yield elem
         if elem.text is not None:
             self.item = elem.text
