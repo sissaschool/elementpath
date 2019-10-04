@@ -481,14 +481,10 @@ def select(self, context=None):
     if context is None:
         self.missing_context()
     else:
-        try:
-            parent = context.parent_map[context.item]
-        except KeyError:
-            pass
-        else:
-            if is_element_node(parent):
-                context.item = parent
-                yield parent
+        parent = context.get_parent(context.item)
+        if is_element_node(parent):
+            context.item = parent
+            yield parent
 
 
 ###

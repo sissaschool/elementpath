@@ -48,6 +48,14 @@ class XPathContextTest(unittest.TestCase):
             root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
         })
 
+    def test_path(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
+
+        context = XPathContext(root)
+
+        self.assertEqual(context.get_path(root), '')
+        self.assertEqual(context.get_path(root[0]), 'B1')
+
     def test_iter_attributes(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
         context = XPathContext(root)

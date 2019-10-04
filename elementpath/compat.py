@@ -20,6 +20,7 @@ if PY3:
     unicode_type = str
     unicode_chr = chr
     from collections.abc import MutableSequence
+    from functools import lru_cache
 else:
     # noinspection PyCompatibility
     from urllib2 import URLError, quote as urllib_quote
@@ -28,6 +29,18 @@ else:
     unicode_type = unicode
     unicode_chr = unichr
     from collections import MutableSequence
+    from functools import wraps
+
+    def lru_cache(maxsize=128, typed=False):
+        """
+        A fake lru_cache decorator function for Python 2.7 compatibility until support ends.
+        """
+        def lru_cache_decorator(f):
+            @wraps(f)
+            def wrapper(*args, **kwargs):
+                return f(*args, **kwargs)
+            return wrapper
+        return lru_cache_decorator
 
 
 def add_metaclass(metaclass):
