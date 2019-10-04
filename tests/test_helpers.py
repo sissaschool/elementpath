@@ -23,7 +23,6 @@ from elementpath.xpath_nodes import AttributeNode, NamespaceNode, is_etree_eleme
     node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
     node_nilled, node_kind, node_name
 from elementpath.xpath_token import ordinal
-from elementpath.xpath_helpers import boolean_value
 from elementpath.xpath1_parser import XPath1Parser
 
 
@@ -246,20 +245,6 @@ class XPathTokenHelpersTest(unittest.TestCase):
         self.assertEqual(ordinal(11), '11th')
         self.assertEqual(ordinal(23), '23rd')
         self.assertEqual(ordinal(34), '34th')
-
-    def test_boolean_value_function(self):
-        elem = ElementTree.Element('A')
-
-        self.assertFalse(boolean_value([]))
-        self.assertTrue(boolean_value([elem]))
-        self.assertFalse(boolean_value([0]))
-        self.assertTrue(boolean_value([1]))
-        with self.assertRaises(TypeError):
-            boolean_value([1, 1])
-        with self.assertRaises(TypeError):
-            boolean_value(elem)
-        self.assertFalse(boolean_value(0))
-        self.assertTrue(boolean_value(1))
 
     def test_get_argument_method(self):
         token = self.parser.symbol_table['true'](self.parser)

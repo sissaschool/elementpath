@@ -19,6 +19,7 @@ import time
 import re
 import locale
 import unicodedata
+import xml.etree.ElementTree as ElementTree
 
 from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urllib_quote, unicode_type
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
@@ -182,11 +183,21 @@ def select(self, context=None):
         elem = self.get_argument(context)
         if not is_element_node(elem):
             raise self.error('FORG0006', 'argument %r is not a node' % elem)
-        for e in elem.iter():
-            tag_ns = get_namespace(e.tag)
-            for pfx, uri in self.parser.namespaces.items():
-                if uri == tag_ns:
-                    yield pfx
+
+        if isinstance(context, XPathSchemaContext):
+            # For schema context returns prefixes of static namespaces
+            for prefix in self.parser.namespaces:
+                yield prefix
+        elif hasattr(elem, 'nsmap'):
+            # For lxml returns Element's prefixes
+            for prefix in elem.nsmap:
+                yield prefix or ''
+        else:
+            # For ElementTree returns module registered prefixes
+            prefixes = {x for x in self.parser.namespaces}
+            prefixes.update(x for x in ElementTree._namespace_map.values())
+            for prefix in prefixes:
+                yield prefix
 
 
 @method(function('resolve-QName', nargs=2))
