@@ -552,6 +552,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         )
         self.assertIsNone(parser.parse('fn:resolve-uri(())').evaluate(context))
 
+    def test_predicate(self):
+        super(XPath2ParserTest, self).test_predicate()
+        root = self.etree.XML('<A><B1><B2/><B2/></B1><C1><C2/><C2/></C1></A>')
+        self.check_selector("/(A/*/*)[1]", root, [root[0][0]])
+        self.check_selector("/A/*/*[1]", root, [root[0][0], root[1][0]])
+
     def test_sequence_general_functions(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)
@@ -647,7 +653,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/ns/', context=context)
         self.check_selector("fn:namespace-uri-for-prefix('p3', .)", root, NameError, namespaces={'p3': ''})
 
-        self.check_selector("fn:in-scope-prefixes(.)", root, ['p2', 'p0'], namespaces={'p0': 'ns0', 'p2': 'ns2'})
+    def test_in_scope_prefixes_function(self):
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
+                              '</p1:A>')
+        if self.etree is lxml_etree:
+            prefixes = {'p0', 'p1'}
+        else:
+            prefixes = {'p0', 'p2', 'fn', 'xlink', 'err'} | {x for x in self.etree._namespace_map.values()}
+        self.check_selector("fn:in-scope-prefixes(.)", root, prefixes, namespaces={'p0': 'ns0', 'p2': 'ns2'})
 
     def test_string_constructors(self):
         self.check_value("xs:string(5.0)", '5.0')

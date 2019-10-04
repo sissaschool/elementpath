@@ -217,6 +217,17 @@ class XPath1ParserTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             token.boolean_value(elem)
 
+        self.assertFalse(token.boolean_value([]))
+        self.assertTrue(token.boolean_value([elem]))
+        self.assertFalse(token.boolean_value([0]))
+        self.assertTrue(token.boolean_value([1]))
+        with self.assertRaises(TypeError):
+            token.boolean_value([1, 1])
+        with self.assertRaises(TypeError):
+            token.boolean_value(elem)
+        self.assertFalse(token.boolean_value(0))
+        self.assertTrue(token.boolean_value(1))
+
     def test_data_value_function(self):
         token = self.parser.parse('true()')
         self.assertIsNone(token.data_value(None))

@@ -257,7 +257,11 @@ def select(self, context=None):
             xsd_type = self.match_xsd_type(item, name)
             if xsd_type is not None:
                 primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-                value = XSD_BUILTIN_TYPES[primitive_type.local_name].value
+                try:
+                    value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
+                except KeyError:
+                    value = XSD_BUILTIN_TYPES['anyType'].value
+
                 if isinstance(item, AttributeNode):
                     yield TypedAttribute(item, value)
                 else:
@@ -676,7 +680,6 @@ def select(self, context=None):
             yield result
     else:
         items = []
-        context2 = context.copy()
         left_results = list(self[0].select(context))
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
@@ -749,7 +752,10 @@ def led(self, left):
 
 @method('[')
 def select(self, context=None):
-    if context is not None:
+    if isinstance(context, XPathSchemaContext):
+        for item in self[0].select(context):
+            yield item
+    elif context is not None:
         for position, item in enumerate(self[0].select(context), start=1):
             predicate = list(self[1].select(context.copy()))
             if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
@@ -825,14 +831,20 @@ def select(self, context=None):
         else:
             return
 
-        for elem in context.iter_parent(axis=self.symbol):
-            follows = False
-            for child in context.iter_children_or_self(elem, child_axis=True):
-                if follows:
+        for parent in context.iter_parent(axis=self.symbol):
+            if isinstance(context, XPathSchemaContext):
+                for _ in context.iter_children_or_self(parent, child_axis=True):
                     for result in self[0].select(context):
                         yield result
-                elif item is child:
-                    follows = True
+
+            else:
+                follows = False
+                for child in context.iter_children_or_self(parent, child_axis=True):
+                    if follows:
+                        for result in self[0].select(context):
+                            yield result
+                    elif item is child:
+                        follows = True
 
 
 @method(axis('following'))
