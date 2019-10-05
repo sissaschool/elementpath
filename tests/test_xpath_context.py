@@ -53,8 +53,15 @@ class XPathContextTest(unittest.TestCase):
 
         context = XPathContext(root)
 
-        self.assertEqual(context.get_path(root), '')
-        self.assertEqual(context.get_path(root[0]), 'B1')
+        self.assertEqual(context.get_path(root), '/A')
+        self.assertEqual(context.get_path(root[0]), '/A/B1')
+        self.assertEqual(context.get_path(root[0][0]), '/A/B1/C1')
+        self.assertEqual(context.get_path(root[1]), '/A/B2')
+        self.assertEqual(context.get_path(root[2]), '/A/B3')
+        self.assertEqual(context.get_path(root[2][0]), '/A/B3/C1')
+        self.assertEqual(context.get_path(root[2][1]), '/A/B3/C2')
+        context._elem = root[2][1]
+        self.assertEqual(context.get_path(AttributeNode('max', '10')), '/A/B3/C2/@max')
 
     def test_iter_attributes(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')

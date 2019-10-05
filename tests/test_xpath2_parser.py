@@ -661,7 +661,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         if self.etree is lxml_etree:
             prefixes = {'p0', 'p1'}
         else:
-            prefixes = {'p0', 'p2', 'fn', 'xlink', 'err'} | {x for x in self.etree._namespace_map.values()}
+            prefixes = {'p0', 'p2', 'fn', 'xlink', 'err', 'vc', 'xslt', '', 'hfp'}
+            prefixes |= {x for x in self.etree._namespace_map.values()}
         self.check_selector("fn:in-scope-prefixes(.)", root, prefixes, namespaces={'p0': 'ns0', 'p2': 'ns2'})
 
     def test_string_constructors(self):

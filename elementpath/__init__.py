@@ -28,4 +28,4 @@ from .xpath_token import XPathToken
 from .xpath1_parser import XPath1Parser
 from .xpath2_constructors import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
-from .schema_proxy import AbstractSchemaProxy, XMLSchemaProxy
+from .schema_proxy import AbstractSchemaProxy
