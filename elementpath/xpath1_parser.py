@@ -20,6 +20,7 @@ from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
+from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement,\
     is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
@@ -246,13 +247,11 @@ def select(self, context=None):
         return
 
     name = self.value
-    if name[0] != '{' and self.parser.default_namespace:
-        tag = u'{%s}%s' % (self.parser.default_namespace, name)
-    else:
-        tag = name
-
     if isinstance(context, XPathSchemaContext):
-        # Bind with the XSD type
+        # Bind with the XSD type from a schema
+        if name[0] != '{' and self.parser.default_namespace:
+            name = '{%s}%s' % (self.parser.default_namespace, name)
+
         for item in context.iter_children_or_self():
             xsd_type = self.match_xsd_type(item, name)
             if xsd_type is not None:
@@ -266,14 +265,60 @@ def select(self, context=None):
                     yield TypedAttribute(item, value)
                 else:
                     yield TypedElement(item, value)
+        return
 
-    elif self.xsd_type is None:
+    if name[0] != '{' and self.parser.default_namespace:
+        tag = '{%s}%s' % (self.parser.default_namespace, name)
+    else:
+        tag = name
+
+    # Checks if the token is bound to an XSD type. If not try a match using
+    # the element path. If this match fails the xsd_type attribute is set
+    # with the schema object to prevent other checks until the schema change.
+    if self.xsd_type is self.parser.schema:
+
         # Untyped selection
         for item in context.iter_children_or_self():
             if is_attribute_node(item, name):
                 yield item
             elif is_element_node(item, tag):
                 yield item
+
+    elif self.xsd_type is None or isinstance(self.xsd_type, AbstractSchemaProxy):
+
+        # Try to match the type using the path
+        for item in context.iter_children_or_self():
+            try:
+                if is_attribute_node(item, name):
+                    path = context.get_path(item)
+                    xsd_attribute = self.parser.schema.find(path, self.parser.namespaces)
+
+                    if xsd_attribute is not None:
+                        self.xsd_type = xsd_attribute.type
+                        yield TypedAttribute(item, self.xsd_type.decode(item[1]))
+                    else:
+                        self.xsd_type = self.parser.schema
+                        yield item
+                elif is_element_node(item, tag):
+                    path = context.get_path(item)
+                    xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+
+                    if xsd_element is not None:
+                        self.xsd_type = xsd_element.type
+                        if isinstance(item, TypedElement):
+                            yield item
+                        elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
+                            yield TypedElement(item, self.xsd_type.decode(item.text))
+                        else:
+                            yield item
+                    else:
+                        self.xsd_type = self.parser.schema
+                        yield item
+
+            except (TypeError, ValueError):
+                msg = "Type {!r} does not match sequence type of {!r}"
+                self.wrong_sequence_type(msg.format(self.xsd_type, item))
+
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
@@ -369,7 +414,7 @@ def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():
             if is_attribute_node(item, value):
-                yield item[1]
+                yield item
             elif is_element_node(item, value):
                 yield item
 
@@ -491,12 +536,16 @@ def select(self, context=None):
 # Logical Operators
 @method(infix('or', bp=20))
 def evaluate(self, context=None):
-    return bool(self[0].evaluate(context) or self[1].evaluate(context))
+    if context is None:
+        return bool(self[0].evaluate() or self[1].evaluate())
+    return bool(self[0].evaluate(context.copy()) or self[1].evaluate(context.copy()))
 
 
 @method(infix('and', bp=25))
 def evaluate(self, context=None):
-    return bool(self[0].evaluate(context) and self[1].evaluate(context))
+    if context is None:
+        return bool(self[0].evaluate() and self[1].evaluate())
+    return bool(self[0].evaluate(context.copy()) and self[1].evaluate(context.copy()))
 
 
 @method(infix('=', bp=30))
@@ -748,10 +797,7 @@ def led(self, left):
 
 @method('[')
 def select(self, context=None):
-    if isinstance(context, XPathSchemaContext):
-        for item in self[0].select(context):
-            yield item
-    elif context is not None:
+    if context is not None:
         for position, item in enumerate(self[0].select(context), start=1):
             predicate = list(self[1].select(context.copy()))
             if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):

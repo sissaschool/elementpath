@@ -105,7 +105,7 @@ class XPathContext(object):
 
     @lru_cache(maxsize=1024)
     def get_path(self, item):
-        """Cached path resolver for elements and attributes."""
+        """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
 
         if isinstance(item, (AttributeNode, TypedAttribute)):
@@ -116,9 +116,9 @@ class XPathContext(object):
 
         while True:
             parent = self.get_parent(item)
-            if parent is None:
-                return '/'.join(reversed(path))
             path.append(item.tag)
+            if parent is None:
+                return '/{}'.format('/'.join(reversed(path)))
             item = parent
 
     def is_principal_node_kind(self):

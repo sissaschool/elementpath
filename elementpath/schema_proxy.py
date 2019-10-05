@@ -10,8 +10,7 @@
 #
 from abc import ABCMeta, abstractmethod
 from .compat import add_metaclass
-from .exceptions import ElementPathTypeError, ElementPathValueError
-from .namespaces import XSD_NAMESPACE
+from .exceptions import ElementPathTypeError
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
@@ -186,6 +185,12 @@ class AbstractSchemaProxy(object):
         :returns: an object that represents an XSD element or `None`.
         """
 
+    # TODO: can make this as @abstractmethod from release v1.3.1
+    def find(self, path, namespaces=None):
+        """
+        Find the schema component using an XPath expression.
+        """
+
     @abstractmethod
     def get_substitution_group(self, qname):
         """
@@ -234,82 +239,5 @@ class AbstractSchemaProxy(object):
         """
 
 
-class XMLSchemaProxy(AbstractSchemaProxy):
-    """
-    Schema proxy for the *xmlschema* library. It will be removed soon because
-    xmlschema v1.0.14 will includes an its own version of schema proxy that
-    uses a custom context implementation that recognizes circular references.
-    """
-    def __init__(self, schema=None, base_element=None):
-        if schema is None:
-            from xmlschema import XMLSchema
-            schema = XMLSchema.meta_schema
-        super(XMLSchemaProxy, self).__init__(schema, base_element)
-
-        if base_element is not None:
-            try:
-                if base_element.schema is not schema:
-                    raise ElementPathValueError("%r is not an element of %r" % (base_element, schema))
-            except AttributeError:
-                raise ElementPathTypeError("%r is not an XsdElement" % base_element)
-
-    def get_type(self, qname):
-        try:
-            return self._schema.maps.types[qname]
-        except KeyError:
-            return None
-
-    def get_attribute(self, qname):
-        try:
-            return self._schema.maps.attributes[qname]
-        except KeyError:
-            return None
-
-    def get_element(self, qname):
-        try:
-            return self._schema.maps.elements[qname]
-        except KeyError:
-            return None
-
-    def get_substitution_group(self, qname):
-        try:
-            return self._schema.maps.substitution_groups[qname]
-        except KeyError:
-            return None
-
-    def is_instance(self, obj, type_qname):
-        xsd_type = self._schema.maps.types[type_qname]
-        try:
-            xsd_type.encode(obj)
-        except ValueError:
-            return False
-        else:
-            return True
-
-    def cast_as(self, obj, type_qname):
-        xsd_type = self._schema.maps.types[type_qname]
-        return xsd_type.decode(obj)
-
-    def iter_atomic_types(self):
-        for xsd_type in self._schema.maps.types.values():
-            if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
-                yield xsd_type
-
-    def get_primitive_type(self, xsd_type):
-        if not xsd_type.is_simple():
-            if not xsd_type.has_simple_content():
-                return self._schema.maps.types['{%s}anyType' % XSD_NAMESPACE]
-            xsd_type = xsd_type.content_type
-
-        if not hasattr(xsd_type, 'primitive_type'):
-            if xsd_type.base_type is None:
-                return xsd_type
-            return self.get_primitive_type(xsd_type.base_type)
-        elif xsd_type.primitive_type is not xsd_type:
-            return self.get_primitive_type(xsd_type.primitive_type)
-        else:
-            return xsd_type
-
-
-__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdType', 'AbstractXsdAttribute',
-           'AbstractXsdElement', 'AbstractSchemaProxy', 'XMLSchemaProxy']
+__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdType',
+           'AbstractXsdAttribute', 'AbstractXsdElement', 'AbstractSchemaProxy']

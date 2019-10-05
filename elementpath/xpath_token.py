@@ -381,12 +381,9 @@ class XPathToken(Token):
         schema type an exception is raised.
 
         :param schema_item: an XPath item related with a schema instance.
-        :param name: a not empty string.
+        :param name: a QName in extended format for matching the item.
         :returns: the matched XSD type or `None` if there isn't a match.
         """
-        if name[0] != '{' and self.parser.default_namespace:
-            name = '{%s}%s' % (self.parser.default_namespace, name)
-
         if isinstance(schema_item, AttributeNode):
             if not schema_item[1].is_matching(name):
                 return
