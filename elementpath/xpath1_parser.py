@@ -15,7 +15,7 @@ import decimal
 from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
-    NumericTypeProxy, ArithmeticTypeProxy, XSD_BUILTIN_TYPES
+    NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
 from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
@@ -252,19 +252,9 @@ def select(self, context=None):
         if name[0] != '{' and self.parser.default_namespace:
             name = '{%s}%s' % (self.parser.default_namespace, name)
 
-        for item in context.iter_children_or_self():
-            xsd_type = self.match_xsd_type(item, name)
-            if xsd_type is not None:
-                primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-                try:
-                    value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
-                except KeyError:
-                    value = XSD_BUILTIN_TYPES['anyType'].value
-
-                if isinstance(item, AttributeNode):
-                    yield TypedAttribute(item, value)
-                else:
-                    yield TypedElement(item, value)
+        for schema_item in context.iter_children_or_self():
+            if self.match_xsd_type(schema_item, name) is not None:
+                yield self.get_typed_node(context, schema_item)
         return
 
     if name[0] != '{' and self.parser.default_namespace:
@@ -288,53 +278,22 @@ def select(self, context=None):
 
         # Try to match the type using the path
         for item in context.iter_children_or_self():
-            try:
-                if is_attribute_node(item, name):
-                    path = context.get_path(item)
-                    xsd_attribute = self.parser.schema.find(path, self.parser.namespaces)
+            if is_attribute_node(item, name) or is_element_node(item, tag):
+                path = context.get_path(item)
+                xsd_component = self.parser.schema.find(path, self.parser.namespaces)
 
-                    if xsd_attribute is not None:
-                        self.xsd_type = xsd_attribute.type
-                        yield TypedAttribute(item, self.xsd_type.decode(item[1]))
-                    else:
-                        self.xsd_type = self.parser.schema
-                        yield item
-                elif is_element_node(item, tag):
-                    path = context.get_path(item)
-                    xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                # print(path, xsd_component)
 
-                    if xsd_element is not None:
-                        self.xsd_type = xsd_element.type
-                        if isinstance(item, TypedElement):
-                            yield item
-                        elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
-                            yield TypedElement(item, self.xsd_type.decode(item.text))
-                        else:
-                            yield item
-                    else:
-                        self.xsd_type = self.parser.schema
-                        yield item
-
-            except (TypeError, ValueError):
-                msg = "Type {!r} does not match sequence type of {!r}"
-                self.wrong_sequence_type(msg.format(self.xsd_type, item))
-
+                if xsd_component is not None:
+                    self.xsd_type = xsd_component.type
+                else:
+                    self.xsd_type = self.parser.schema
+                yield self.get_typed_node(context, item)
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            try:
-                if is_attribute_node(item, name):
-                    yield TypedAttribute(item, self.xsd_type.decode(item[1]))
-                elif is_element_node(item, tag):
-                    if isinstance(item, TypedElement):
-                        yield item
-                    elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
-                        yield TypedElement(item, self.xsd_type.decode(item.text))
-                    else:
-                        yield item
-            except (TypeError, ValueError):
-                msg = "Type {!r} does not match sequence type of {!r}"
-                self.wrong_sequence_type(msg.format(self.xsd_type, item))
+            if is_attribute_node(item, name) or is_element_node(item, tag):
+                yield self.get_typed_node(context, item)
 
 
 ###
@@ -411,12 +370,36 @@ def select(self, context=None):
         else:
             value = '{%s}%s' % (namespace, self[1].value)
 
-    if context is not None:
+    if context is None:
+        return
+    elif isinstance(context, XPathSchemaContext):
+        for schema_item in context.iter_children_or_self():
+            if self.match_xsd_type(schema_item, value) is not None:
+                yield self.get_typed_node(context, schema_item)
+
+    elif self.xsd_type is self.parser.schema:
         for item in context.iter_children_or_self():
             if is_attribute_node(item, value):
                 yield item
             elif is_element_node(item, value):
                 yield item
+
+    elif self.xsd_type is None or isinstance(self.xsd_type, AbstractSchemaProxy):
+        for item in context.iter_children_or_self():
+            if is_attribute_node(item, value) or is_element_node(item, value):
+                path = context.get_path(item)
+                xsd_component = self.parser.schema.find(path, self.parser.namespaces)
+                if xsd_component is not None:
+                    self.xsd_type = xsd_component.type
+                else:
+                    self.xsd_type = self.parser.schema
+                yield self.get_typed_node(context, item)
+
+    else:
+        # XSD typed selection
+        for item in context.iter_children_or_self():
+            if is_attribute_node(item, value) or is_element_node(item, value):
+                yield self.get_typed_node(context, item)
 
 
 ###
@@ -725,7 +708,7 @@ def select(self, context=None):
             yield result
     else:
         items = []
-        left_results = list(self[0].select(context))
+        left_results = [x for x in self[0].select(context)]
         context.size = len(left_results)
         for context.position, context.item in enumerate(left_results):
             if not is_xpath_node(context.item):
@@ -745,26 +728,6 @@ def select(self, context=None):
                 else:
                     items.append(result)
                     yield result
-
-
-@method('/')
-def evaluate(self, context=None):
-    """
-    General evaluation method for path operators, that may returns the a single value or None.
-    """
-    if context is not None:
-        selector = iter(self.select(context))
-        try:
-            value = next(selector)
-        except StopIteration:
-            return
-        else:
-            try:
-                next(selector)
-            except StopIteration:
-                return self.data_value(value)
-            else:
-                self.wrong_context_type("atomized operand is a sequence of length greater than one")
 
 
 @method('//')
@@ -799,7 +762,7 @@ def led(self, left):
 def select(self, context=None):
     if context is not None:
         for position, item in enumerate(self[0].select(context), start=1):
-            predicate = list(self[1].select(context.copy()))
+            predicate = [x for x in self[1].select(context.copy())]
             if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
                 if position == predicate[0]:
                     yield item
@@ -968,7 +931,7 @@ def select(self, context=None):
 def select(self, context=None):
     if context is not None:
         item = context.item
-        for elem in reversed(list(context.iter_ancestors(axis=self.symbol))):
+        for elem in reversed([x for x in context.iter_ancestors(axis=self.symbol)]):
             context.item = elem
             yield elem
         yield item
@@ -1042,7 +1005,7 @@ def evaluate(self, context=None):
 
 @method(function('count', nargs=1))
 def evaluate(self, context=None):
-    return len(list(self[0].select(context)))
+    return len([x for x in self[0].select(context)])
 
 
 @method(function('id', nargs=1))

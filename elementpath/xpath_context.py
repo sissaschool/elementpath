@@ -103,15 +103,13 @@ class XPathContext(object):
             except KeyError:
                 return
 
-    @lru_cache(maxsize=1024)
     def get_path(self, item):
         """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
-
         if isinstance(item, (AttributeNode, TypedAttribute)):
             path.append('@%s' % item[0])
             item = self._elem
-        elif isinstance(item, TypedElement):
+        if isinstance(item, TypedElement):
             item = item[0]
 
         while True:

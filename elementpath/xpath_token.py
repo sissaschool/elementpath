@@ -27,12 +27,14 @@ from decimal import Decimal
 from .compat import string_base_type, unicode_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_nodes import AttributeNode, NamespaceNode, TypedElement, is_etree_element, \
-    is_attribute_node, elem_iter_strings, is_text_node, is_namespace_node, \
-    is_comment_node, is_processing_instruction_node, is_element_node, \
-    is_document_node, is_xpath_node, is_schema_node
+from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement, \
+    is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
+    is_namespace_node, is_comment_node, is_processing_instruction_node, \
+    is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
+from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token
+from .xpath_context import XPathSchemaContext
 
 
 def ordinal(n):
@@ -61,7 +63,7 @@ class XPathToken(Token):
 
         :param context: The XPath dynamic context.
         """
-        return list(self.select(context))
+        return [x for x in self.select(context)]
 
     def select(self, context=None):
         """
@@ -207,7 +209,7 @@ class XPathToken(Token):
         for item in self.select(context):
             value = self.data_value(item)
             if value is None:
-                raise self.error('FOTY0012', "argument node does not have a typed value: {}".format(item))
+                raise self.error('FOTY0012', "argument node {!r} does not have a typed value".format(item))
             else:
                 yield value
 
@@ -229,6 +231,8 @@ class XPathToken(Token):
             except StopIteration:
                 if isinstance(value, UntypedAtomic):
                     value = str(value)
+                if isinstance(context, XPathSchemaContext):
+                    return value
                 if self.xsd_type is not None and isinstance(value, string_base_type):
                     try:
                         value = self.xsd_type.decode(value)
@@ -250,10 +254,11 @@ class XPathToken(Token):
         :returns: a list of data couples.
         """
         if context is None:
-            operand1, operand2 = list(self[0].select()), list(self[1].select())
+            operand1 = [x for x in self[0].select()]
+            operand2 = [x for x in self[1].select()]
         else:
-            operand1 = list(self[0].select(context.copy()))
-            operand2 = list(self[1].select(context.copy()))
+            operand1 = [x for x in self[0].select(context.copy())]
+            operand2 = [x for x in self[1].select(context.copy())]
 
         if self.parser.compatibility_mode:
             # Boolean comparison if one of the results is a single boolean value (1.)
@@ -284,11 +289,9 @@ class XPathToken(Token):
         :param context: the XPath dynamic context.
         """
         for result in self.select(context):
-            if not isinstance(result, tuple):
-                yield result  # not a namedtuple-wrapped result
-            elif hasattr(result[0], 'type'):
-                yield result[0]  # an XSD schema attribute/element
-            elif not isinstance(result, NamespaceNode):
+            if isinstance(result, TypedElement):
+                yield result[0]
+            elif isinstance(result, (AttributeNode, TypedAttribute)):
                 yield result[1]
             else:
                 yield result
@@ -418,6 +421,39 @@ class XPathToken(Token):
         elif self.xsd_type is not xsd_type:
             self.wrong_context_type("Multiple XSD type matching during static analysis")
         return xsd_type
+
+    def get_typed_node(self, context, item):
+        """
+        Returns a typed node if the token is bound to an XSD type.
+
+        :param context: the XPath dynamic context.
+        :param item: an untyped XPath attribute ot element.
+        """
+        if isinstance(self.xsd_type, (type(None), AbstractSchemaProxy)):
+            return item
+
+        if isinstance(context, XPathSchemaContext):
+            primitive_type = self.parser.schema.get_primitive_type(self.xsd_type)
+            try:
+                value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
+            except KeyError:
+                value = XSD_BUILTIN_TYPES['anyType'].value
+
+            if isinstance(item, AttributeNode):
+                return TypedAttribute(item, value)
+            else:
+                return TypedElement(item, value)
+        else:
+            try:
+                if isinstance(item, AttributeNode):
+                    return TypedAttribute(item, self.xsd_type.decode(item[1]))
+                elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
+                    return TypedElement(item, self.xsd_type.decode(item.text))
+                else:
+                    return item
+            except (TypeError, ValueError):
+                msg = "Type {!r} does not match sequence type of {!r}"
+                self.wrong_sequence_type(msg.format(self.xsd_type, item))
 
     @contextlib.contextmanager
     def use_locale(self, collation):

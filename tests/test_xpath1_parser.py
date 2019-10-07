@@ -211,52 +211,6 @@ class XPath1ParserTest(unittest.TestCase):
             else:
                 self.assertTrue(expected(results))
 
-    def test_boolean_value_function(self):
-        token = self.parser.parse('true()')
-        elem = ElementTree.Element('A')
-        with self.assertRaises(TypeError):
-            token.boolean_value(elem)
-
-        self.assertFalse(token.boolean_value([]))
-        self.assertTrue(token.boolean_value([elem]))
-        self.assertFalse(token.boolean_value([0]))
-        self.assertTrue(token.boolean_value([1]))
-        with self.assertRaises(TypeError):
-            token.boolean_value([1, 1])
-        with self.assertRaises(TypeError):
-            token.boolean_value(elem)
-        self.assertFalse(token.boolean_value(0))
-        self.assertTrue(token.boolean_value(1))
-
-    def test_data_value_function(self):
-        token = self.parser.parse('true()')
-        self.assertIsNone(token.data_value(None))
-
-    def test_string_value_function(self):
-        token = self.parser.parse('true()')
-
-        document = ElementTree.parse(io.StringIO(u'<A>123<B1>456</B1><B2>789</B2></A>'))
-        element = ElementTree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
-        comment = ElementTree.Comment('nothing important')
-        pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        text = u'betelgeuse'
-        self.assertEqual(token.string_value(document), '123456789')
-        self.assertEqual(token.string_value(element), '')
-        self.assertEqual(token.string_value(attribute), '0212349350')
-        self.assertEqual(token.string_value(namespace), 'http://www.w3.org/2001/XMLSchema')
-        self.assertEqual(token.string_value(comment), 'nothing important')
-        self.assertEqual(token.string_value(pi), 'action nothing to do')
-        self.assertEqual(token.string_value(text), 'betelgeuse')
-        self.assertEqual(token.string_value(None), '')
-        self.assertEqual(token.string_value(10), '10')
-
-    def test_number_value_function(self):
-        token = self.parser.parse('true()')
-        self.assertEqual(token.number_value("19"), 19)
-        self.assertTrue(math.isnan(token.number_value("not a number")))
-
     # Wrong XPath expression checker shortcuts
     def wrong_syntax(self, path):
         self.assertRaises(SyntaxError, self.parser.parse, path)
