@@ -91,6 +91,8 @@ class XPathContext(object):
         that are not included in the tree. Uses a LRU cache to minimize parent
         map rebuilding for trees processed with an incremental parser.
         """
+        if isinstance(elem, TypedElement):
+            elem = elem[0]
         if elem is self.root:
             return
 

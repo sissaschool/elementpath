@@ -38,7 +38,7 @@ if __name__ == '__main__':
     except ImportError:
         # Python 2 fallback
         from test_exceptions import ExceptionsTest
-        from test_namespaces import NamespacessTest
+        from test_namespaces import NamespacesTest
         from test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
         from test_xpath_nodes import XPathNodesTest
         from test_xpath_token import XPathTokenTest

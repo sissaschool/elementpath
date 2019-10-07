@@ -131,11 +131,11 @@ def is_schema_node(obj):
 
 
 def is_comment_node(obj):
-    return is_etree_element(obj) and callable(obj.tag) and obj.tag.__name__ == 'Comment'
+    return hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'Comment'
 
 
 def is_processing_instruction_node(obj):
-    return is_etree_element(obj) and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
+    return hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
 
 
 def is_document_node(obj):
@@ -155,8 +155,8 @@ else:
 
 
 def is_xpath_node(obj):
-    return isinstance(obj, tuple) or is_etree_element(obj) or \
-        is_document_node(obj) or is_text_node(obj) or is_schema_node(obj)
+    return isinstance(obj, tuple) or is_etree_element(obj) or is_schema_node(obj) or \
+        is_document_node(obj) or is_text_node(obj)
 
 
 ###

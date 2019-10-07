@@ -280,14 +280,13 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             if is_attribute_node(item, name) or is_element_node(item, tag):
                 path = context.get_path(item)
+
                 xsd_component = self.parser.schema.find(path, self.parser.namespaces)
-
-                # print(path, xsd_component)
-
                 if xsd_component is not None:
                     self.xsd_type = xsd_component.type
                 else:
                     self.xsd_type = self.parser.schema
+
                 yield self.get_typed_node(context, item)
     else:
         # XSD typed selection

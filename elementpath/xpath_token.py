@@ -27,7 +27,7 @@ from decimal import Decimal
 from .compat import string_base_type, unicode_type
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement, \
+from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
     is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
@@ -291,8 +291,10 @@ class XPathToken(Token):
         for result in self.select(context):
             if isinstance(result, TypedElement):
                 yield result[0]
-            elif isinstance(result, (AttributeNode, TypedAttribute)):
+            elif isinstance(result, AttributeNode):
                 yield result[1]
+            elif isinstance(result, TypedAttribute):
+                yield result[0][1] if hasattr(result[0][1], 'type') else result[1]
             else:
                 yield result
 

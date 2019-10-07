@@ -14,6 +14,7 @@ import unittest
 import io
 import math
 import xml.etree.ElementTree as ElementTree
+from collections import namedtuple
 
 from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, TypedAttribute, TypedElement, NamespaceNode
@@ -60,6 +61,10 @@ class XPathTokenTest(unittest.TestCase):
 
         context = XPathContext(elem, item=TypedAttribute(AttributeNode('max', '30'), 30))
         self.assertListEqual(list(token.select_results(context)), [30])
+
+        attribute = namedtuple('XsdAttribute', 'name type')('max', 'xs:string')
+        context = XPathContext(elem, item=TypedAttribute(AttributeNode('max', attribute), 30))
+        self.assertListEqual(list(token.select_results(context)), [attribute])
 
         context = XPathContext(elem, item=10)
         self.assertListEqual(list(token.select_results(context)), [10])

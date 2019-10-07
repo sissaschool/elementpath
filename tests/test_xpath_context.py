@@ -13,6 +13,7 @@ import unittest
 import xml.etree.ElementTree as ElementTree
 
 from elementpath import *
+from elementpath.compat import PY3
 
 
 class XPathContextTest(unittest.TestCase):
@@ -48,7 +49,35 @@ class XPathContextTest(unittest.TestCase):
             root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
         })
 
-    def test_path(self):
+    def test_get_parent(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
+
+        context = XPathContext(root)
+
+        self.assertIsNone(context._parent_map)
+        self.assertIsNone(context.get_parent(root))
+
+        self.assertIsNone(context._parent_map)
+        self.assertEqual(context.get_parent(root[0]), root)
+        self.assertIsInstance(context._parent_map, dict)
+        parent_map_id = id(context._parent_map)
+
+        self.assertEqual(context.get_parent(root[1]), root)
+        self.assertEqual(context.get_parent(root[2]), root)
+        self.assertEqual(context.get_parent(root[2][1]), root[2])
+
+        self.assertEqual(context.get_parent(TypedElement(root[2][1], None)), root[2])
+        self.assertEqual(id(context._parent_map), parent_map_id)
+
+        self.assertIsNone(context.get_parent(AttributeNode('max', '10')))
+        self.assertNotEqual(id(context._parent_map), parent_map_id)
+
+        parent_map_id = id(context._parent_map)
+        self.assertIsNone(context.get_parent(AttributeNode('max', '10')))
+        if PY3:
+            self.assertEqual(id(context._parent_map), parent_map_id)  # LRU cache prevents parent map rebuild
+
+    def test_get_path(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
 
         context = XPathContext(root)
