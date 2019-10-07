@@ -324,7 +324,7 @@ def evaluate(self, context=None):
 # Aggregate functions
 @method(function('avg', nargs=1))
 def evaluate(self, context=None):
-    result = list(self[0].select(context))
+    result = [x for x in self[0].select(context)]
     if not result:
         return result
     elif isinstance(result[0], Duration):
@@ -436,7 +436,7 @@ def select(self, context=None):
 
 @method(function('reverse', nargs=1))
 def select(self, context=None):
-    for result in reversed(list(self[0].select(context))):
+    for result in reversed([x for x in self[0].select(context)]):
         yield result
 
 
@@ -451,7 +451,7 @@ def select(self, context=None):
 
 @method(function('unordered', nargs=1))
 def select(self, context=None):
-    for result in sorted(list(self[0].select(context)), key=lambda x: self.string_value(x)):
+    for result in sorted([x for x in self[0].select(context)], key=lambda x: self.string_value(x)):
         yield result
 
 

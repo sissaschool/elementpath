@@ -14,74 +14,14 @@ import unittest
 import io
 import xml.etree.ElementTree as ElementTree
 
-from elementpath.exceptions import ElementPathError, xpath_error
-from elementpath.namespaces import XSD_NAMESPACE, get_namespace, qname_to_prefixed, \
-    prefixed_to_qname
 from elementpath.xpath_nodes import AttributeNode, NamespaceNode, is_etree_element, \
     is_element_node, is_attribute_node, is_comment_node, is_document_node, \
     is_namespace_node, is_processing_instruction_node, is_text_node, node_attributes, \
     node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
     node_nilled, node_kind, node_name
-from elementpath.xpath_token import ordinal
-from elementpath.xpath1_parser import XPath1Parser
 
 
-class ExceptionHelpersTest(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
-
-    def test_exception_repr(self):
-        err = ElementPathError("unknown error")
-        self.assertEqual(str(err), 'unknown error')
-        err = ElementPathError("unknown error", code='XPST0001')
-        self.assertEqual(str(err), '[XPST0001] unknown error.')
-        token = self.parser.symbol_table['true'](self.parser)
-        err = ElementPathError("unknown error", code='XPST0001', token=token)
-        self.assertEqual(str(err), "'true' function: [XPST0001] unknown error.")
-
-    def test_xpath_error(self):
-        self.assertEqual(str(xpath_error('XPST0001')), '[err:XPST0001] Parser not bound to a schema.')
-        self.assertEqual(str(xpath_error('err:XPDY0002', "test message")), '[err:XPDY0002] test message.')
-        self.assertRaises(ValueError, xpath_error, '')
-        self.assertRaises(ValueError, xpath_error, 'error:XPDY0002')
-
-
-class NamespaceHelpersTest(unittest.TestCase):
-    namespaces = {
-        'xs': XSD_NAMESPACE,
-        'tst': "http://xpath.test/ns"
-    }
-
-    # namespaces.py module
-    def test_get_namespace_function(self):
-        self.assertEqual(get_namespace('A'), '')
-        self.assertEqual(get_namespace('{ns}foo'), 'ns')
-        self.assertEqual(get_namespace('{}foo'), '')
-        self.assertEqual(get_namespace('{A}B{C}'), 'A')
-
-    def test_qname_to_prefixed_function(self):
-        self.assertEqual(qname_to_prefixed('{ns}foo', {'bar': 'ns'}), 'bar:foo')
-        self.assertEqual(qname_to_prefixed('{ns}foo', {'': 'ns'}), 'foo')
-        self.assertEqual(qname_to_prefixed('foo', {'': 'ns'}), 'foo')
-
-    def test_prefixed_to_qname_function(self):
-        self.assertEqual(prefixed_to_qname('{ns}foo', {'bar': 'ns'}), '{ns}foo')
-        self.assertEqual(prefixed_to_qname('bar:foo', {'bar': 'ns'}), '{ns}foo')
-        self.assertEqual(prefixed_to_qname('foo', {'': 'ns'}), '{ns}foo')
-
-        with self.assertRaises(ValueError):
-            prefixed_to_qname('bar:foo', self.namespaces)
-        with self.assertRaises(ValueError):
-            prefixed_to_qname('bar:foo:bar', {'bar': 'ns'})
-        with self.assertRaises(ValueError):
-            prefixed_to_qname(':foo', {'': 'ns'})
-        with self.assertRaises(ValueError):
-            prefixed_to_qname('foo:', {'': 'ns'})
-
-
-class NodeHelpersTest(unittest.TestCase):
+class XPathNodesTest(unittest.TestCase):
     elem = ElementTree.XML('<node a1="10"/>')
 
     def test_is_etree_element_function(self):
@@ -229,29 +169,6 @@ class NodeHelpersTest(unittest.TestCase):
         self.assertEqual(node_name(elem), 'root')
         self.assertEqual(node_name(attr), 'a1')
         self.assertEqual(node_name(namespace), 'xs')
-
-
-class XPathTokenHelpersTest(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
-
-    def test_ordinal_function(self):
-        self.assertEqual(ordinal(1), '1st')
-        self.assertEqual(ordinal(2), '2nd')
-        self.assertEqual(ordinal(3), '3rd')
-        self.assertEqual(ordinal(4), '4th')
-        self.assertEqual(ordinal(11), '11th')
-        self.assertEqual(ordinal(23), '23rd')
-        self.assertEqual(ordinal(34), '34th')
-
-    def test_get_argument_method(self):
-        token = self.parser.symbol_table['true'](self.parser)
-
-        self.assertIsNone(token.get_argument(2))
-        with self.assertRaises(TypeError):
-            token.get_argument(1, required=True)
 
 
 if __name__ == '__main__':

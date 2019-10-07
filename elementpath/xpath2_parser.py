@@ -425,7 +425,7 @@ def evaluate(self, context=None):
 
 @method('if')
 def select(self, context=None):
-    if self.boolean_value(list(self[0].select(context))):
+    if self.boolean_value([x for x in self[0].select(context)]):
         for result in self[1].select(context):
             yield result
     else:
@@ -745,13 +745,13 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     symbol = self.symbol
 
-    left = list(self[0].select(context))
+    left = [x for x in self[0].select(context)]
     if not left:
         return
     elif len(left) > 1 or not is_xpath_node(left[0]):
         self[0].wrong_type("left operand of %r must be a single node" % symbol)
 
-    right = list(self[1].select(context))
+    right = [x for x in self[1].select(context)]
     if not right:
         return
     elif len(right) > 1 or not is_xpath_node(right[0]):
@@ -783,7 +783,7 @@ def evaluate(self, context=None):
             self.wrong_type(str(err))
         return
     else:
-        return list(range(start, stop))
+        return [x for x in range(start, stop)]
 
 
 @method('to')
