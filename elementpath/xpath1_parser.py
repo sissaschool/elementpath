@@ -519,15 +519,17 @@ def select(self, context=None):
 @method(infix('or', bp=20))
 def evaluate(self, context=None):
     if context is None:
-        return bool(self[0].evaluate() or self[1].evaluate())
-    return bool(self[0].evaluate(context.copy()) or self[1].evaluate(context.copy()))
+        return self.boolean_value(self[0].evaluate()) or self.boolean_value(self[1].evaluate())
+    return self.boolean_value(self[0].evaluate(context.copy())) or \
+        self.boolean_value(self[1].evaluate(context.copy()))
 
 
 @method(infix('and', bp=25))
 def evaluate(self, context=None):
     if context is None:
-        return bool(self[0].evaluate() and self[1].evaluate())
-    return bool(self[0].evaluate(context.copy()) and self[1].evaluate(context.copy()))
+        return self.boolean_value(self[0].evaluate()) and self.boolean_value(self[1].evaluate())
+    return self.boolean_value(self[0].evaluate(context.copy())) and \
+        self.boolean_value(self[1].evaluate(context.copy()))
 
 
 @method(infix('=', bp=30))
