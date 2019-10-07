@@ -658,12 +658,18 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                               '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
                               '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
                               '</p1:A>')
+
+        namespaces = {'p0': 'ns0', 'p2': 'ns2'}
+        prefixes = select(root, "fn:in-scope-prefixes(.)", namespaces, parser=self.parser.__class__)
+
         if self.etree is lxml_etree:
-            prefixes = {'p0', 'p1'}
+            self.assertIn('p0', prefixes)
+            self.assertIn('p1', prefixes)
+            self.assertNotIn('p2', prefixes)
         else:
-            prefixes = {'p0', 'p2', 'fn', 'xlink', 'err', 'vc', 'xslt', '', 'hfp'}
-            prefixes |= {x for x in self.etree._namespace_map.values()}
-        self.check_selector("fn:in-scope-prefixes(.)", root, prefixes, namespaces={'p0': 'ns0', 'p2': 'ns2'})
+            self.assertIn('p0', prefixes)
+            self.assertNotIn('p1', prefixes)
+            self.assertIn('p2', prefixes)
 
     def test_string_constructors(self):
         self.check_value("xs:string(5.0)", '5.0')
