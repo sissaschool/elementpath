@@ -42,7 +42,6 @@ Parser base class
 
     Parsing methods:
 
-    .. automethod:: build_tokenizer
     .. automethod:: parse
     .. automethod:: advance
     .. automethod:: raw_advance
@@ -54,10 +53,11 @@ Parser base class
     .. automethod:: is_line_start
     .. automethod:: is_spaced
 
-    Helper methods for building effective parser classes:
+    Helper methods for building new parsers:
 
     .. automethod:: register
     .. automethod:: unregister
+    .. automethod:: duplicate
     .. automethod:: literal
     .. automethod:: nullary
     .. automethod:: prefix
@@ -65,3 +65,5 @@ Parser base class
     .. automethod:: infix
     .. automethod:: infixr
     .. automethod:: method
+    .. automethod:: build
+    .. automethod:: create_tokenizer

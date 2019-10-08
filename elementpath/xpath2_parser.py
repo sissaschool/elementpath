@@ -26,8 +26,7 @@ from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     qname_to_prefixed, prefixed_to_qname, XSD_UNTYPED_ATOMIC
 from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node
-from .tdop_parser import create_tokenizer
-from .xpath1_parser import XML_NCNAME_PATTERN, XPath1Parser
+from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
 from .schema_proxy import AbstractSchemaProxy
 
@@ -167,18 +166,20 @@ class XPath2Parser(XPath1Parser):
             self.function_namespace = function_namespace
 
         if schema is None:
-            self.schema = None
+            pass
         elif not isinstance(schema, AbstractSchemaProxy):
-            raise ElementPathTypeError("schema argument must be a subclass or instance of AbstractSchemaProxy!")
+            raise ElementPathTypeError("argument 'schema' must be an instance of AbstractSchemaProxy")
         else:
-            self.schema = schema
-            self.symbol_table = self.symbol_table.copy()
-            for xsd_type in self.schema.iter_atomic_types():
-                self.schema_constructor(xsd_type.name)
-            self.tokenizer = create_tokenizer(self.symbol_table, XML_NCNAME_PATTERN)
+            schema.bind_parser(self)
 
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
         self._compatibility_mode = compatibility_mode
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('symbol_table', None)
+        state.pop('tokenizer', None)
+        return state
 
     @property
     def version(self):
@@ -336,6 +337,9 @@ class XPath2Parser(XPath1Parser):
             return XSD_BUILTIN_TYPES[local_name].validator(obj)
         except KeyError:
             raise ElementPathKeyError("unknown type %r" % type_qname)
+
+    def is_schema_bound(self):
+        return 'symbol_table' in self.__dict__
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)

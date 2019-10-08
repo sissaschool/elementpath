@@ -144,6 +144,21 @@ class AbstractSchemaProxy(object):
         self._schema = schema
         self._base_element = base_element
 
+    def bind_parser(self, parser):
+        """
+        Binds a parser instance with schema proxy adding the schema's atomic types constructors.
+        This method can be redefined in a concrete proxy to optimize schema bindings.
+
+        :param parser: a parser instance.
+        """
+        if parser.schema is not self:
+            parser.schema = self
+
+        parser.symbol_table = parser.__class__.symbol_table.copy()
+        for xsd_type in self.iter_atomic_types():
+            parser.schema_constructor(xsd_type.name)
+        parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
+
     def get_context(self):
         """
         Get a context instance for static analysis phase.
@@ -151,6 +166,15 @@ class AbstractSchemaProxy(object):
         :returns: an `XPathSchemaContext` instance.
         """
         return XPathSchemaContext(root=self._schema, item=self._base_element)
+
+    def find(self, path, namespaces=None):
+        """
+        Find a schema element or attribute using an XPath expression.
+
+        :param path: an XPath expression that selects an element or an attribute node.
+        :param namespaces: an optional mapping from namespace prefix to namespace URI.
+        :return: The first matching schema component, or ``None`` if there is no match.
+        """
 
     @abstractmethod
     def get_type(self, qname):
@@ -183,12 +207,6 @@ class AbstractSchemaProxy(object):
 
         :param qname: the fully qualified name of the element to retrieve.
         :returns: an object that represents an XSD element or `None`.
-        """
-
-    # TODO: can make this as @abstractmethod from release v1.3.1
-    def find(self, path, namespaces=None):
-        """
-        Find the schema component using an XPath expression.
         """
 
     @abstractmethod
