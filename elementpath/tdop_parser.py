@@ -20,8 +20,6 @@ from abc import ABCMeta
 from .compat import PY3, add_metaclass, MutableSequence
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 
-###
-# Regex based tokenizer
 SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
 
@@ -48,49 +46,6 @@ def symbol_to_identifier(symbol):
         return symbol[1:-1]
     else:
         return ''.join(get_id_name(c) for c in symbol)
-
-
-def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
-    """
-    Returns a regex based tokenizer built from a symbol table of token classes.
-    The returned tokenizer skips extra spaces between symbols.
-
-    A regular expression is created from the symbol table of the parser using a template.
-    The symbols are inserted in the template putting the longer symbols first. Symbols and
-    their patterns can't contain spaces.
-
-    :param symbol_table: a dictionary containing the token classes of the formal language.
-    :param name_pattern: pattern to use to match names.
-    """
-    tokenizer_pattern_template = r"""
-        ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
-        (%s|[%s]) |                                                       # Symbol's patterns
-        (%s) |                                                            # Names
-        (\S) |                                                            # Unexpected characters
-        \s+                                                               # Skip extra spaces
-    """
-    patterns = [
-        t.pattern for s, t in symbol_table.items()
-        if SPECIAL_SYMBOL_PATTERN.match(s) is None
-    ]
-    string_patterns = []
-    character_patterns = []
-
-    for p in patterns:
-        if ' ' in p:
-            raise ElementPathValueError('pattern %r contains spaces' % p)
-        length = len(p)
-        if length == 1 or length == 2 and p[0] == '\\':
-            character_patterns.append(p)
-        else:
-            string_patterns.append(p)
-
-    pattern = tokenizer_pattern_template % (
-        '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
-        ''.join(character_patterns),
-        name_pattern
-    )
-    return re.compile(pattern, re.VERBOSE)
 
 
 #
@@ -358,21 +313,9 @@ class Parser(object):
     tokenizer = None
     symbol_table = {}
 
-    @classmethod
-    def build_tokenizer(cls, name_pattern='[A-Za-z0-9_]+'):
-        """
-        Builds the parser class tokenizer using the symbol related patterns.
-
-        :param name_pattern: Pattern to use to match names.
-        """
-        if not cls.SYMBOLS.issubset(cls.symbol_table.keys()):
-            unregistered = [s for s in cls.SYMBOLS if s not in cls.symbol_table]
-            raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))
-        cls.tokenizer = create_tokenizer(cls.symbol_table, name_pattern)
-
     def __init__(self):
         if self.tokenizer is None:
-            raise ValueError("Incomplete parser class %s registration." % self.__class__.__name__)
+            raise ValueError("The parser %r is not built!" % self.__class__)
         self.token = None
         self.match = None
         self.next_token = None
@@ -730,3 +673,59 @@ class Parser(object):
             setattr(token_class, func.__name__, func)
             return func
         return bind
+
+    @classmethod
+    def build(cls):
+        """
+        Builds the parser class. Checks if all declared symbols are defined
+        and builds a the regex tokenizer using the symbol related patterns.
+        """
+        if not cls.SYMBOLS.issubset(cls.symbol_table.keys()):
+            unregistered = [s for s in cls.SYMBOLS if s not in cls.symbol_table]
+            raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))
+        cls.tokenizer = cls.create_tokenizer(cls.symbol_table)
+
+    build_tokenizer = build  # For backward compatibility
+
+    @staticmethod
+    def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
+        """
+        Returns a regex based tokenizer built from a symbol table of token classes.
+        The returned tokenizer skips extra spaces between symbols.
+
+        A regular expression is created from the symbol table of the parser using a template.
+        The symbols are inserted in the template putting the longer symbols first. Symbols and
+        their patterns can't contain spaces.
+
+        :param symbol_table: a dictionary containing the token classes of the formal language.
+        :param name_pattern: pattern to use to match names.
+        """
+        tokenizer_pattern_template = r"""
+            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
+            (%s|[%s]) |                                                       # Symbol's patterns
+            (%s) |                                                            # Names
+            (\S) |                                                            # Unexpected characters
+            \s+                                                               # Skip extra spaces
+        """
+        patterns = [
+            t.pattern for s, t in symbol_table.items()
+            if SPECIAL_SYMBOL_PATTERN.match(s) is None
+        ]
+        string_patterns = []
+        character_patterns = []
+
+        for p in patterns:
+            if ' ' in p:
+                raise ElementPathValueError('pattern %r contains spaces' % p)
+            length = len(p)
+            if length == 1 or length == 2 and p[0] == '\\':
+                character_patterns.append(p)
+            else:
+                string_patterns.append(p)
+
+        pattern = tokenizer_pattern_template % (
+            '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
+            ''.join(character_patterns),
+            name_pattern
+        )
+        return re.compile(pattern, re.VERBOSE)

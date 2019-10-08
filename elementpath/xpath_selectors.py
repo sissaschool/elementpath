@@ -8,6 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from __future__ import unicode_literals
+
 from .xpath_context import XPathContext
 from .xpath2_parser import XPath2Parser as XPath2Parser
 

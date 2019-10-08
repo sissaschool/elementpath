@@ -601,4 +601,4 @@ def evaluate(self, context=None):
         return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute, tm.second, tm.microsecond, tzinfo)
 
 
-XPath2Parser.build_tokenizer()  # XPath 2.0 definitions completed, build the tokenizer.
+XPath2Parser.build()  # XPath 2.0 definition complete, can build the parser class.

@@ -26,6 +26,7 @@ from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElem
     is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
     is_text_node, is_comment_node, is_processing_instruction_node, node_name
 
+
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
                       u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD")
 XML_NCNAME_PATTERN = u"[{0}][-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format(XML_NAME_CHARACTER)
@@ -93,9 +94,9 @@ class XPath1Parser(Parser):
         self.variables = dict(variables if variables is not None else [])
         self.strict = strict
 
-    @classmethod
-    def build_tokenizer(cls, name_pattern=XML_NCNAME_PATTERN):
-        super(XPath1Parser, cls).build_tokenizer(name_pattern)
+    @staticmethod
+    def create_tokenizer(symbol_table, name_pattern=XML_NCNAME_PATTERN):
+        return Parser.create_tokenizer(symbol_table, name_pattern)
 
     @property
     def version(self):
@@ -1282,4 +1283,4 @@ def evaluate(self, context=None):
 
 
 register('(end)')
-XPath1Parser.build_tokenizer()
+XPath1Parser.build()
