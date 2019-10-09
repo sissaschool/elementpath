@@ -2,12 +2,14 @@
 CHANGELOG
 *********
 
-`v1.3.0`_ (2019-10-07)
+`v1.3.0`_ (2019-10-11)
 ======================
+* Improved schema proxy
 * Improved XSD type matching using paths
 * Cached parent path for XPathContext (only Python 3)
-* Improve typed selection with TypedAttribute and TypedElement named tuples
+* Improve typed selection with TypedAttribute and TypedElement named-tuples
 * Add iter_results to XPathContext
+* Remove XMLSchemaProxy from package
 * Fix descendant shortcut operator '//'
 * Fix text() function
 * Fix typed select of '(name)' token

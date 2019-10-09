@@ -85,11 +85,11 @@ An :class:`XMLSchemaProxy` class is defined for interfacing schemas created with
 This class is based on an abstract class :class:`AbstractSchemaProxy`, that can be used for
 implementing concrete interfaces to other types of XML Schema processors.
 
-.. autoclass:: elementpath.XMLSchemaProxy
-
 .. autoclass:: elementpath.AbstractSchemaProxy
 
+    .. automethod:: bind_parser
     .. automethod:: get_context
+    .. automethod:: find
     .. automethod:: get_type
     .. automethod:: get_attribute
     .. automethod:: get_element
