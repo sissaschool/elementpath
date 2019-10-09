@@ -38,16 +38,23 @@ constructor = XPath2Parser.constructor
 # Constructors for string-based XSD types
 @constructor('normalizedString')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
     return str(value).replace('\t', ' ').replace('\n', ' ')
 
 
 @constructor('token')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
     return collapse_white_spaces(value)
 
 
 @constructor('language')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+
     match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise xpath_error('FOCA0002', "%r is not a language code" % value)
@@ -56,6 +63,9 @@ def cast(value):
 
 @constructor('NMTOKEN')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+
     match = NMTOKEN_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise xpath_error('FOCA0002', "%r is not an xs:NMTOKEN value" % value)
@@ -64,6 +74,9 @@ def cast(value):
 
 @constructor('Name')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+
     match = NAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise xpath_error('FOCA0002', "%r is not an xs:Name value" % value)
@@ -75,6 +88,9 @@ def cast(value):
 @constructor('IDREF')
 @constructor('ENTITY')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+
     match = NCNAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise xpath_error('FOCA0002', "invalid value %r for constructor" % value)
@@ -83,6 +99,9 @@ def cast(value):
 
 @constructor('anyURI')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+
     uri = collapse_white_spaces(value)
     try:
         urlparse(uri)
@@ -99,6 +118,8 @@ def cast(value):
 # Constructors for numeric XSD types
 @constructor('decimal')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
     try:
         return decimal.Decimal(value)
     except (ValueError, decimal.DecimalException) as err:
@@ -108,6 +129,8 @@ def cast(value):
 @constructor('double')
 @constructor('float')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
     try:
         return float(value)
     except ValueError as err:
@@ -125,6 +148,9 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
     :raise: an `ElementPathValueError` if the value is not decodable to an integer or if \
     the value is out of bounds.
     """
+    if isinstance(value, tuple):
+        value = value[-1]
+
     if isinstance(value, string_base_type):
         try:
             result = int(float(value))
@@ -212,15 +238,17 @@ def cast(value):
 # Constructors for datetime XSD types
 @constructor('date')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, Date10):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return Date10.fromstring(str(value), tzinfo=tz)
     return Date10.fromstring(value, tzinfo=tz)
 
 
 @constructor('gDay')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, XPathGregorianDay):
         return value
     return XPathGregorianDay.fromstring(value, tzinfo=tz)
@@ -228,6 +256,8 @@ def cast(value, tz=None):
 
 @constructor('gMonth')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, XPathGregorianMonth):
         return value
     return XPathGregorianMonth.fromstring(value, tzinfo=tz)
@@ -235,6 +265,8 @@ def cast(value, tz=None):
 
 @constructor('gMonthDay')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, XPathGregorianMonthDay):
         return value
     return XPathGregorianMonthDay.fromstring(value, tzinfo=tz)
@@ -242,6 +274,8 @@ def cast(value, tz=None):
 
 @constructor('gYear')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, XPathGregorianYear):
         return value
     return XPathGregorianYear.fromstring(value, tzinfo=tz)
@@ -249,6 +283,8 @@ def cast(value, tz=None):
 
 @constructor('gYearMonth')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, XPathGregorianYearMonth):
         return value
     return XPathGregorianYearMonth.fromstring(value, tzinfo=tz)
@@ -256,6 +292,8 @@ def cast(value, tz=None):
 
 @constructor('time')
 def cast(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, Time):
         return value
     return Time.fromstring(value, tzinfo=tz)
@@ -284,16 +322,28 @@ def evaluate(self, context=None):
 # Constructors for time durations XSD types
 @constructor('duration')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+    if isinstance(value, Duration):
+        return value
     return Duration.fromstring(value)
 
 
 @constructor('yearMonthDuration')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+    if isinstance(value, YearMonthDuration):
+        return value
     return YearMonthDuration.fromstring(value)
 
 
 @constructor('dayTimeDuration')
 def cast(value):
+    if isinstance(value, tuple):
+        value = value[-1]
+    if isinstance(value, DayTimeDuration):
+        return value
     return DayTimeDuration.fromstring(value)
 
 
@@ -301,6 +351,8 @@ def cast(value):
 # Constructors for binary XSD types
 @constructor('base64Binary')
 def cast(value, from_literal=False):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, UntypedAtomic):
         return codecs.encode(unicode_type(value), 'base64')
     elif not isinstance(value, (bytes, unicode_type)):
@@ -318,6 +370,8 @@ def cast(value, from_literal=False):
 
 @constructor('hexBinary')
 def cast(value, from_literal=False):
+    if isinstance(value, tuple):
+        value = value[-1]
     if isinstance(value, UntypedAtomic):
         return codecs.encode(unicode_type(value), 'hex')
     elif not isinstance(value, (bytes, unicode_type)):
