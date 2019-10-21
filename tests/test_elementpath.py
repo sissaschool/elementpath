@@ -27,6 +27,7 @@ if __name__ == '__main__':
         from tests.test_exceptions import ExceptionsTest
         from tests.test_namespaces import NamespacesTest
         from tests.test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
+        from tests.test_tdop_parser import TdopParserTest
         from tests.test_xpath_nodes import XPathNodesTest
         from tests.test_xpath_token import XPathTokenTest
         from tests.test_xpath_context import XPathContextTest
@@ -40,6 +41,7 @@ if __name__ == '__main__':
         from test_exceptions import ExceptionsTest
         from test_namespaces import NamespacesTest
         from test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
+        from test_tdop_parser import TdopParserTest
         from test_xpath_nodes import XPathNodesTest
         from test_xpath_token import XPathTokenTest
         from test_xpath_context import XPathContextTest

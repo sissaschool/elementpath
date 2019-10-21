@@ -17,7 +17,7 @@ from unicodedata import name as unicode_name
 from decimal import Decimal
 from abc import ABCMeta
 
-from .compat import PY3, add_metaclass, MutableSequence
+from .compat import PY3, add_metaclass, MutableSequence, unicode_type
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
 
 SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
@@ -31,21 +31,24 @@ def symbol_to_identifier(symbol):
     Converts a symbol string to an identifier (only alphanumeric and '_').
     """
     def get_id_name(c):
-        if c in ('_', '-', ' '):
-            return '_'
-        elif c.isalnum():
+        if c.isalnum() or c == '_':
             return c
-        elif PY3:
-            return unicode_name(c).title().replace(' ', '')
         else:
-            return unicode_name(unicode(c)).title().replace(' ', '')
+            return '%s_' % unicode_name(unicode_type(c)).title()
 
     if symbol.isalnum():
         return symbol
     elif SPECIAL_SYMBOL_PATTERN.match(symbol):
         return symbol[1:-1]
+    elif all(c in '-_' for c in symbol):
+        return '_'.join(unicode_name(unicode_type(c)).title() for c in symbol).replace(' ', '').replace('-', '')
+
+    value = symbol.replace('-', '_')
+    if PY3 and value.isidentifier() or not PY3 and value.replace('_', '').isalnum():
+        return value
     else:
-        return ''.join(get_id_name(c) for c in symbol)
+        value = ''.join(get_id_name(c) for c in symbol).replace(' ', '').replace('-', '')
+        return value[:-1] if value.endswith('_') else value
 
 
 #
@@ -708,7 +711,7 @@ class Parser(object):
             \s+                                                               # Skip extra spaces
         """
         patterns = [
-            t.pattern for s, t in symbol_table.items()
+            t.pattern.replace('#', r'\#') for s, t in symbol_table.items()
             if SPECIAL_SYMBOL_PATTERN.match(s) is None
         ]
         string_patterns = []
