@@ -25,13 +25,9 @@ from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 try:
     # noinspection PyPackageRequirements
     import xmlschema
+    from xmlschema.xpath import XMLSchemaProxy  # it works if xmlschema~=1.0.14
 except (ImportError, AttributeError):
     xmlschema = None
-else:
-    try:
-        from xmlschema.xpath import XMLSchemaProxy  # it works if xmlschema~=1.0.14
-    except ImportError:
-        from elementpath.schema_proxy import XMLSchemaProxy
 
 try:
     from tests import test_xpath2_parser
@@ -329,6 +325,19 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("() cast as xs:integer?", [])
         self.check_value('"1" cast as xs:boolean', True)
         self.check_value('"0" cast as xs:boolean', False)
+
+    def test_issue_10(self):
+        schema = xmlschema.XMLSchema('''
+            <xs:schema xmlns="http://xpath.test/ns#" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    targetNamespace="http://xpath.test/ns#">
+                <xs:element name="root" type="rootType" />
+                <xs:simpleType name="rootType">
+                    <xs:restriction base="xs:string"/>
+                </xs:simpleType>
+            </xs:schema>''')
+
+        root = schema.find('root')
+        self.assertEqual(getattr(root, 'tag', None), '{http://xpath.test/ns#}root')
 
 
 @unittest.skipIf(xmlschema is None or lxml_etree is None, "both xmlschema and lxml required")
