@@ -359,9 +359,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
         self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
-        self.check_value(u"fn:compare('Strasse', 'Straße', 'it_IT')", -1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'it_IT.UTF-8')", -1)
         self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
-        self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE')", -1)
+        self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE.UTF-8')", -1)
         self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
 
         with self.assertRaises(locale.Error):
