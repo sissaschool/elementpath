@@ -143,8 +143,8 @@ class XPath2Parser(XPath1Parser):
         'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
         'yearMonthDuration', 'base64Binary', 'hexBinary',
 
-        # TODO: Functions and Operators that Generate Sequences
-        'id', 'element-with-id',  # 'idref', 'doc', 'doc-available', 'collection',
+        # Functions and Operators that Generate Sequences
+        'id', 'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
     QUALIFIED_FUNCTIONS = {
