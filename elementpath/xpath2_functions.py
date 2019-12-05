@@ -25,8 +25,8 @@ from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urlli
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
-from .xpath_nodes import is_document_node, is_xpath_node, is_element_node, \
-    is_attribute_node, node_name, node_nilled, node_base_uri, node_document_uri
+from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, is_element_node, \
+    is_attribute_node, node_name, node_is_id, node_nilled, node_base_uri, node_document_uri
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -965,6 +965,37 @@ def evaluate(self, context=None):
         return item
     else:
         raise self.error('XPTY0004')
+
+
+###
+# Functions that generate sequences
+XPath2Parser.duplicate('id', 'element-with-id')  # To preserve backwards compatibility
+XPath2Parser.unregister('id')
+
+
+@method(function('id', nargs=(1, 2)))
+def select(self, context=None):
+    idrefs = list(self[0].select(None if context is None else context.copy()))
+    node = self.get_argument(context, index=1, default_to_context=True)
+    if context is None or node is not context.item:
+        if not is_document_node(node):
+            raise self.error('FODC0001', 'cannot retrieve document root')
+        root = node
+    else:
+        if not is_document_node(context.root):
+            raise self.error('FODC0001')
+        elif not is_xpath_node(node):
+            raise self.error('XPTY0004')
+        root = context.root
+
+    for elem in root.iter():
+        if node_is_id(elem) and any(v == elem.text for x in idrefs for v in x.split()):
+            yield elem
+            continue
+        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
+            if any(v == attr.value for x in idrefs for v in x.split()):
+                yield elem
+                break
 
 
 ###
