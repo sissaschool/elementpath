@@ -141,10 +141,10 @@ class XPath2Parser(XPath1Parser):
         'float', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
         'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time',
         'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
-        'yearMonthDuration', 'base64Binary', 'hexBinary'
+        'yearMonthDuration', 'base64Binary', 'hexBinary',
 
         # TODO: Functions and Operators that Generate Sequences
-        # 'id', 'idref', 'doc', 'doc-available', 'collection',
+        'id', 'element-with-id',  # 'idref', 'doc', 'doc-available', 'collection',
     }
 
     QUALIFIED_FUNCTIONS = {

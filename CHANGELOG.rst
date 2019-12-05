@@ -2,6 +2,16 @@
 CHANGELOG
 *********
 
+`v1.3.2`_ (2019-12-xx)
+======================
+* Add missing XPath 2.0 functions
+* Fix for issue #12
+
+`v1.3.1`_ (2019-10-21)
+======================
+* Add test module for TDOP parser
+* Fix for issue #10
+
 `v1.3.0`_ (2019-10-11)
 ======================
 * Improved schema proxy
@@ -162,3 +172,5 @@ CHANGELOG
 .. _v1.2.0: https://github.com/brunato/elementpath/compare/v1.1.9...v1.2.0
 .. _v1.2.1: https://github.com/brunato/elementpath/compare/v1.2.0...v1.2.1
 .. _v1.3.0: https://github.com/brunato/elementpath/compare/v1.2.1...v1.3.0
+.. _v1.3.1: https://github.com/brunato/elementpath/compare/v1.3.0...v1.3.1
+.. _v1.3.2: https://github.com/brunato/elementpath/compare/v1.3.1...v1.3.2

@@ -1175,6 +1175,24 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, UntypedAtomic)
 
+    def test_node_set_id_function(self):
+        # Backward compatibility with fs:id() of XPath 1
+        root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
+        self.check_selector('element-with-id("foo")', root, [root[0]])
+
+        self.check_selector('id("foo")', root, ValueError)
+
+        document = self.etree.parse(
+            io.StringIO('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
+        )
+        root = document.getroot()
+        self.check_selector('id("foo")', document, [root[0]])
+        self.check_selector('id("fox")', document, [])
+        self.check_selector('id("foo baz")', document, [root[0], root[3]])
+        self.check_selector('id(("foo", "baz"))', document, [root[0], root[3]])
+        self.check_selector('id(("foo", "baz bar"))', document, [root[0], root[2], root[3]])
+        self.check_selector('id("baz bar foo")', document, [root[0], root[2], root[3]])
+
     def test_union_intersect_except_operators(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
         self.check_selector('/A/B2 union /A/B1', root, root[:2])
