@@ -18,15 +18,18 @@ import datetime
 import time
 import re
 import locale
+import importlib
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 
-from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, urllib_quote, unicode_type
+from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, \
+    urllib_quote, unicode_type, URLError
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, is_element_node, \
-    is_attribute_node, node_name, node_is_id, node_nilled, node_base_uri, node_document_uri
+    is_attribute_node, node_name, node_is_id, node_is_idrefs, node_nilled, node_base_uri, \
+    node_document_uri
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -195,7 +198,8 @@ def select(self, context=None):
         else:
             # For ElementTree returns module registered prefixes
             prefixes = {x for x in self.parser.namespaces}
-            prefixes.update(x for x in ElementTree._namespace_map.values())
+            etree_nsmap = getattr(ElementTree, '_namespace_map', {})
+            prefixes.update(x for x in etree_nsmap.values())
             for prefix in prefixes:
                 yield prefix
 
@@ -996,6 +1000,59 @@ def select(self, context=None):
             if any(v == attr.value for x in idrefs for v in x.split()):
                 yield elem
                 break
+
+
+@method(function('idref', nargs=(1, 2)))
+def select(self, context=None):
+    ids = list(self[0].select(None if context is None else context.copy()))
+    node = self.get_argument(context, index=1, default_to_context=True)
+    if context is None or node is not context.item:
+        if not is_document_node(node):
+            raise self.error('FODC0001', 'cannot retrieve document root')
+        root = node
+    else:
+        if not is_document_node(context.root):
+            raise self.error('FODC0001')
+        elif not is_xpath_node(node):
+            raise self.error('XPTY0004')
+        root = context.root
+
+    for elem in root.iter():
+        if node_is_idrefs(elem) and any(v in elem.text.split() for x in ids for v in x.split()):
+            yield elem
+            continue
+        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
+            if any(v in attr.value.split() for x in ids for v in x.split()):
+                yield elem
+                break
+
+
+@method(function('doc', nargs=(0, 1)))
+@method(function('doc-available', nargs=(0, 1)))
+def select(self, context=None):
+    uri = self.get_argument(context)
+    if uri is not None:
+        try:
+            urlparse(uri)
+        except URLError:
+            raise self.error('FODC0005')
+
+        try:
+            xmlschema_module = importlib.import_module('xmlschema')
+        except ModuleNotFoundError:
+            raise self.error('FODC0005')  # FIXME: split XMLResource or defusedxml?
+
+        try:
+            doc = xmlschema_module.XMLResource(uri, lazy=False)
+        except xmlschema_module.XMLSchemaException:
+            raise self.error('FODC0005')
+        else:
+            return doc.document if self.label == 'doc' else True
+
+
+@method(function('collection', nargs=(1, 2)))
+def select(self, context=None):
+    return iter(())
 
 
 ###
