@@ -97,7 +97,7 @@ class XPath2Parser(XPath1Parser):
         'zero-or-one', 'one-or-more', 'exactly-one',
 
         # Comparing function for sequences
-        # TODO 'deep-equal',
+        'deep-equal',
 
         # Pattern matching functions
         'matches', 'replace', 'tokenize',
@@ -143,8 +143,8 @@ class XPath2Parser(XPath1Parser):
         'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
         'yearMonthDuration', 'base64Binary', 'hexBinary',
 
-        # Functions and Operators that Generate Sequences
-        'id', 'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
+        # Functions and Operators that Generate Sequences ('id' is already registered)
+        'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
     QUALIFIED_FUNCTIONS = {

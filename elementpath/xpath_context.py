@@ -36,8 +36,9 @@ class XPathContext(object):
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
     """
-    def __init__(self, root, item=None, position=0, size=1, axis=None, variables=None,
-                 current_dt=None, timezone=None):
+    def __init__(self, root, item=None, position=0, size=1, axis=None,
+                 variables=None, current_dt=None, timezone=None,
+                 documents=None, collections=None, default_collection=None):
         if not is_element_node(root) and not is_document_node(root):
             raise ElementPathTypeError(
                 "invalid argument root={!r}, an Element is required.".format(root)
@@ -55,6 +56,9 @@ class XPathContext(object):
         self.variables = {} if variables is None else dict(variables)
         self.current_dt = current_dt or datetime.datetime.now()
         self.timezone = timezone
+        self.documents = {} if documents is None else dict(documents)
+        self.collections = {} if collections is None else dict(collections)
+        self.default_collection = default_collection
         self._elem = item if is_element_node(item) else root
         self._parent_map = None
 
