@@ -14,7 +14,7 @@ import sys
 PY3 = sys.version_info >= (3,)
 
 if PY3:
-    from urllib.parse import urlparse, urljoin, quote as urllib_quote
+    from urllib.parse import uses_relative, urlparse, urljoin, quote as urllib_quote
     from urllib.error import URLError
     string_base_type = str
     unicode_type = str
@@ -24,7 +24,7 @@ if PY3:
 else:
     # noinspection PyCompatibility
     from urllib2 import URLError, quote as urllib_quote
-    from urlparse import urlparse, urljoin
+    from urlparse import urlparse, urljoin, uses_relative
     string_base_type = basestring
     unicode_type = unicode
     unicode_chr = unichr

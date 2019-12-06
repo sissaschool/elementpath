@@ -24,7 +24,7 @@ import locale
 import contextlib
 from decimal import Decimal
 
-from .compat import string_base_type, unicode_type
+from .compat import string_base_type, unicode_type, urljoin, urlparse, uses_relative
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
@@ -348,6 +348,21 @@ class XPathToken(Token):
             return Decimal(arg1), arg2
 
         return arg1, arg2
+
+    def get_absolute_uri(self, uri):
+        """
+        Obtains an absolute URI from the argument and the static context.
+
+        :param uri: a string representing an URI.
+        :returns: the argument if it's an absolute URI. Otherwise returns the URI
+        obtained by the join o the base_uri of the static context with the
+        argument. Returns `None` if the base_uri is `None'.
+        """
+        url_parts = urlparse(uri)
+        if url_parts.scheme not in uses_relative or url_parts.path.startswith('/'):
+            return uri
+        elif self.parser.base_uri is not None:
+            return urljoin(self.parser.base_uri, uri)
 
     def adjust_datetime(self, context, cls):
         """

@@ -18,7 +18,6 @@ import datetime
 import time
 import re
 import locale
-import importlib
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 
@@ -29,7 +28,7 @@ from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, is_element_node, \
     is_attribute_node, node_name, node_is_id, node_is_idrefs, node_nilled, node_base_uri, \
-    node_document_uri
+    node_document_uri, node_kind
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -507,6 +506,54 @@ def select(self, context=None):
             yield item
         else:
             raise self.error('FORG0005')
+
+
+###
+# Comparing sequences
+@method(function('deep-equal', nargs=(2, 3)))
+def select(self, context=None):
+
+    def etree_deep_equal(e1, e2):
+        if e1.tag != e2.tag or e1.text != e2.text \
+                or e1.tail != e2.tail \
+                or e1.attrib != e2.attrib \
+                or len(e1) != len(e2):
+            return False
+        return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
+
+    def deep_equal():
+        while True:
+            value1 = next(seq1, None)
+            value2 = next(seq2, None)
+            if (value1 is None) ^ (value2 is None):
+                return False
+            elif value1 is None:
+                return True
+            elif (is_xpath_node(value1)) ^ (is_xpath_node(value2)):
+                return False
+            elif not is_xpath_node(value1):
+                if value1 != value2:
+                    return False
+            elif node_kind(value1) != node_kind(value2):
+                return False
+            elif not is_element_node(value1):
+                if value1 != value2:
+                    return False
+            elif not etree_deep_equal(value1, value2):
+                return False
+
+    if context is None:
+        seq1 = iter(self[0].select())
+        seq2 = iter(self[1].select())
+    else:
+        seq1 = iter(self[0].select(context.copy()))
+        seq2 = iter(self[1].select(context.copy()))
+
+    if len(self) > 2:
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            return deep_equal()
+    else:
+        return deep_equal()
 
 
 ###
@@ -1027,32 +1074,55 @@ def select(self, context=None):
                 break
 
 
-@method(function('doc', nargs=(0, 1)))
-@method(function('doc-available', nargs=(0, 1)))
-def select(self, context=None):
+@method(function('doc', nargs=1))
+@method(function('doc-available', nargs=1))
+def evaluate(self, context=None):
     uri = self.get_argument(context)
     if uri is not None:
         try:
-            urlparse(uri)
+            absolute_uri = self.get_absolute_uri(uri)
         except URLError:
             raise self.error('FODC0005')
-
-        try:
-            xmlschema_module = importlib.import_module('xmlschema')
-        except ModuleNotFoundError:
-            raise self.error('FODC0005')  # FIXME: split XMLResource or defusedxml?
-
-        try:
-            doc = xmlschema_module.XMLResource(uri, lazy=False)
-        except xmlschema_module.XMLSchemaException:
-            raise self.error('FODC0005')
         else:
-            return doc.document if self.label == 'doc' else True
+            if absolute_uri is None:
+                raise self.error('FODC0005')
+
+        if context is not None:
+            try:
+                doc = context.documents[uri]
+            except KeyError:
+                if self.label == 'doc':
+                    raise self.error('FODC0005')
+                return False
+            else:
+                if not is_document_node(doc):
+                    raise self.error('FODC0005')
+                return doc if self.label == 'doc' else True
 
 
-@method(function('collection', nargs=(1, 2)))
-def select(self, context=None):
-    return iter(())
+@method(function('collection', nargs=(0, 1)))
+def evaluate(self, context=None):
+    uri = self.get_argument(context)
+    if not self or uri is None:
+        if context is None or context.default_collection is None:
+            raise self.error('FODC0002', 'no default collection has been defined')
+        return context.default_collection
+
+    if context is None:
+        raise self.error('FODC0002', 'no default collection has been defined')
+
+    try:
+        absolute_uri = self.get_absolute_uri(uri)
+    except URLError:
+        raise self.error('FODC0004')
+    else:
+        if absolute_uri is None:
+            raise self.error('FODC0004')
+
+    try:
+        return self.parser.colletions[absolute_uri]
+    except KeyError:
+        raise self.error('FODC0004', '{!r} collection not found'.format(absolute_uri))
 
 
 ###
