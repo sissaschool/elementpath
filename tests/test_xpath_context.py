@@ -39,15 +39,15 @@ class XPathContextTest(unittest.TestCase):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
 
         context = XPathContext(root)
-        self.assertEqual(context.parent_map, {
+        result = {
             root[0]: root, root[0][0]: root[0], root[1]: root,
             root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
-        })
+        }
+        self.assertEqual(context.parent_map, result)
+        self.assertEqual(context.parent_map, result)  # Test property caching
+
         context = XPathContext(root, item=TypedElement(root, None))
-        self.assertEqual(context.parent_map, {
-            root[0]: root, root[0][0]: root[0], root[1]: root,
-            root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
-        })
+        self.assertEqual(context.parent_map, result)
 
     def test_get_parent(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
@@ -91,6 +91,14 @@ class XPathContextTest(unittest.TestCase):
         self.assertEqual(context.get_path(root[2][1]), '/A/B3/C2')
         context._elem = root[2][1]
         self.assertEqual(context.get_path(AttributeNode('max', '10')), '/A/B3/C2/@max')
+
+        root = ElementTree.XML('<A><B1>10</B1><B2 min="1"/><B3/></A>')
+        context = XPathContext(root)
+        self.assertEqual(context.get_path(TypedElement(root[0], 10)), '/A/B1')
+        attr = TypedAttribute(AttributeNode('min', '1'), 1)
+        context = XPathContext(root)
+        context._elem = root[1]
+        self.assertEqual(context.get_path(attr), '/A/B2/@min')
 
     def test_iter_attributes(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
@@ -162,8 +170,27 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root, item=TypedElement(root, None))
         self.assertListEqual(list(context.iter()), list(root.iter()))
 
-    def test_iter_results(self):
+    def test_iter_preceding(self):
+        root = ElementTree.XML('<A a1="10" a2="20"/>')
+        context = XPathContext(root, item=None)
+        self.assertListEqual(list(context.iter_preceding()), [])
+
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_preceding()), [])
+
+        context = XPathContext(root, item=TypedElement(root, ''))
+        self.assertListEqual(list(context.iter_preceding()), [])
+
+        context = XPathContext(root, item='text')
+        self.assertListEqual(list(context.iter_preceding()), [])
+
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        context = XPathContext(root, item=root[2][1])
+        self.assertListEqual(list(context.iter_preceding()),
+                             [root[0], root[0][0], root[1], root[2][0]])
+
+    def test_iter_results(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
 
         results = [root[2], root[0][0]]
         context = XPathContext(root)
@@ -178,6 +205,14 @@ class XPathContextTest(unittest.TestCase):
 
         context = XPathContext(root, item=TypedElement(root, None))
         self.assertListEqual(list(context.iter_results(results)), [TypedElement(root[0][0], None), root[2]])
+
+        results = [TypedAttribute(AttributeNode('max', '10'), 10), root[0]]
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_results(results)), results[::-1])
+
+        results = [TypedAttribute(AttributeNode('max', '11'), 11), root[0]]
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_results(results)), results[1:])
 
 
 if __name__ == '__main__':

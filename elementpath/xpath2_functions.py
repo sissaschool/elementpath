@@ -28,7 +28,7 @@ from .namespaces import prefixed_to_qname, get_namespace
 from .xpath_context import XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, is_element_node, \
     is_attribute_node, node_name, node_is_id, node_is_idrefs, node_nilled, node_base_uri, \
-    node_document_uri, node_kind
+    node_document_uri, node_kind, etree_deep_equal
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -512,14 +512,6 @@ def select(self, context=None):
 # Comparing sequences
 @method(function('deep-equal', nargs=(2, 3)))
 def select(self, context=None):
-
-    def etree_deep_equal(e1, e2):
-        if e1.tag != e2.tag or e1.text != e2.text \
-                or e1.tail != e2.tail \
-                or e1.attrib != e2.attrib \
-                or len(e1) != len(e2):
-            return False
-        return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
     def deep_equal():
         while True:
