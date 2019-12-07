@@ -966,7 +966,20 @@ def evaluate(self, context=None):
 
 
 ###
-# Context functions
+# Static context functions
+@method(function('default-collation', nargs=0))
+def evaluate(self, context=None):
+    return self.parser.default_collation
+
+
+@method(function('static-base-uri', nargs=0))
+def evaluate(self, context=None):
+    if self.parser.base_uri is not None:
+        return self.parser.base_uri
+
+
+###
+# Dynamic context functions
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
@@ -991,12 +1004,6 @@ def evaluate(self, context=None):
         return context.timezone
     else:
         return Timezone(datetime.timedelta(seconds=time.timezone))
-
-
-@method(function('static-base-uri', nargs=0))
-def evaluate(self, context=None):
-    if self.parser.base_uri is not None:
-        return self.parser.base_uri
 
 
 ###

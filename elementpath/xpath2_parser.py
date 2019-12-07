@@ -15,6 +15,7 @@ from __future__ import division
 from itertools import product
 from abc import ABCMeta
 import decimal
+import locale
 import math
 import operator
 
@@ -126,8 +127,11 @@ class XPath2Parser(XPath1Parser):
         'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
         'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes', 'resolve-QName',
 
-        # Context functions (TODO: 'default-collation')
-        'current-dateTime', 'current-date', 'current-time', 'implicit-timezone', 'static-base-uri',
+        # Static context functions
+        'default-collation', 'static-base-uri',
+
+        # Dynamic context functions
+        'current-dateTime', 'current-date', 'current-time', 'implicit-timezone',
 
         # Node set functions
         'root',
@@ -143,7 +147,7 @@ class XPath2Parser(XPath1Parser):
         'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
         'yearMonthDuration', 'base64Binary', 'hexBinary',
 
-        # Functions and Operators that Generate Sequences ('id' is already registered)
+        # Functions and Operators that Generate Sequences ('id' changes but is already registered)
         'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
@@ -192,6 +196,11 @@ class XPath2Parser(XPath1Parser):
     @compatibility_mode.setter
     def compatibility_mode(self, value):
         self._compatibility_mode = value
+
+    @property
+    def default_collation(self):
+        default_locale = locale.getdefaultlocale()
+        return '.'.join(default_locale) if default_locale[1] else default_locale[0]
 
     @property
     def default_namespace(self):
