@@ -158,8 +158,9 @@ class XPath2Parser(XPath1Parser):
 
     DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
 
-    def __init__(self, namespaces=None, variables=None, strict=True, default_namespace=None,
-                 function_namespace=None, schema=None, base_uri=None, compatibility_mode=False):
+    def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
+                 default_namespace=None, function_namespace=None, schema=None, base_uri=None,
+                 default_collation=None, documents=None, collections=None, default_collection=None):
         super(XPath2Parser, self).__init__(namespaces, variables, strict)
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
@@ -178,6 +179,10 @@ class XPath2Parser(XPath1Parser):
 
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
         self._compatibility_mode = compatibility_mode
+        self._default_collation = default_collation
+        self.documents = {} if documents is None else dict(documents)
+        self.collections = {} if collections is None else dict(collections)
+        self.default_collection = default_collection
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -199,6 +204,8 @@ class XPath2Parser(XPath1Parser):
 
     @property
     def default_collation(self):
+        if self._default_collation is not None:
+            return self._default_collation
         default_locale = locale.getdefaultlocale()
         return '.'.join(default_locale) if default_locale[1] else default_locale[0]
 

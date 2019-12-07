@@ -37,6 +37,9 @@ from .tdop_parser import Token
 from .xpath_context import XPathSchemaContext
 
 
+UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+
+
 def ordinal(n):
     if n in {11, 12, 13}:
         return '%dth' % n
@@ -475,8 +478,9 @@ class XPathToken(Token):
     @contextlib.contextmanager
     def use_locale(self, collation):
         """A context manager for setting a specific collation for a code block."""
-        locale.setlocale(locale.LC_ALL, '')
-        default_locale = locale.getlocale()
+        loc = locale.getlocale()
+        if collation == UNICODE_CODEPOINT_COLLATION:
+            collation = 'en_US.UTF-8'
 
         try:
             locale.setlocale(locale.LC_ALL, collation)
@@ -485,7 +489,7 @@ class XPathToken(Token):
         else:
             yield
         finally:
-            locale.setlocale(locale.LC_ALL, default_locale)
+            locale.setlocale(locale.LC_ALL, loc)
 
     ###
     # XPath data accessors base functions
