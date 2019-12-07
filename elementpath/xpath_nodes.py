@@ -50,6 +50,15 @@ def elem_iter_strings(elem):
             yield e.tail
 
 
+def etree_deep_equal(e1, e2):
+    if e1.tag != e2.tag or e1.text != e2.text \
+            or e1.tail != e2.tail \
+            or e1.attrib != e2.attrib \
+            or len(e1) != len(e2):
+        return False
+    return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
+
+
 ###
 # XPath node test functions
 #

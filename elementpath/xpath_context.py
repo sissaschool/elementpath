@@ -112,10 +112,13 @@ class XPathContext(object):
     def get_path(self, item):
         """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
-        if isinstance(item, (AttributeNode, TypedAttribute)):
+        if isinstance(item, AttributeNode):
             path.append('@%s' % item[0])
             item = self._elem
-        if isinstance(item, TypedElement):
+        elif isinstance(item, TypedAttribute):
+            path.append('@%s' % item[0][0])
+            item = self._elem
+        elif isinstance(item, TypedElement):
             item = item[0]
 
         while True:
@@ -183,7 +186,7 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_preceding(self):
-        item = e = self.item[0] if isinstance(self.item, TypedElement) else self.item
+        item = self.item[0] if isinstance(self.item, TypedElement) else self.item
         if not is_etree_element(item):
             return
 
@@ -191,20 +194,21 @@ class XPathContext(object):
         self.axis = 'preceding'
 
         ancestors = []
+        elem = item
         while True:
-            parent = self.get_parent(e)
+            parent = self.get_parent(elem)
             if parent is None:
                 break
             else:
                 ancestors.append(parent)
-                e = parent
+                elem = parent
 
-        for e in self.root.iter():
-            if e is item:
+        for elem in self.root.iter():
+            if elem is item:
                 break
-            elif e not in ancestors:
-                self.item = e
-                yield e
+            elif elem not in ancestors:
+                self.item = elem
+                yield elem
 
         self.item, self.size, self.position, self.axis = status
 

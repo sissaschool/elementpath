@@ -1183,7 +1183,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector('id("foo")', root, ValueError)
 
         document = self.etree.parse(
-            io.StringIO('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
+            io.StringIO(u'<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
         )
         root = document.getroot()
         self.check_selector('id("foo")', document, [root[0]])
