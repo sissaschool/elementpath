@@ -648,22 +648,46 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "ht:person"))', 'ht')
         self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "person"))', [])
+        self.check_value('fn:prefix-from-QName(())', [])
+        self.check_value('fn:prefix-from-QName(7)', TypeError)
+        self.check_value('fn:prefix-from-QName("7")', ValueError)
+
         self.check_value(
             'fn:local-name-from-QName(fn:QName("http://www.example.com/ns/", "person"))', 'person'
         )
+        self.check_value('fn:local-name-from-QName(())', [])
+        self.check_value('fn:local-name-from-QName(8)', TypeError)
+        self.check_value('fn:local-name-from-QName("8")', ValueError)
+
         self.check_value(
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
         )
+        self.check_value('fn:namespace-uri-from-QName(())', [])
+        self.check_value('fn:namespace-uri-from-QName(1)', TypeError)
+        self.check_value('fn:namespace-uri-from-QName("1")', ValueError)
+        self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, KeyError)
         self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, NameError, namespaces={'p3': ''})
 
         self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
         self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2', context=context.copy())
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, NameError, namespaces={'p3': ''})
+        self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError)
+        self.check_value("fn:resolve-QName(2, .)", TypeError, context=context.copy())
+        self.check_value("fn:resolve-QName('2', .)", ValueError, context=context.copy())
+        self.check_value("fn:resolve-QName((), 4)", TypeError, context=context.copy())
 
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix(4, .)", TypeError, context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('p1', 9)", TypeError, context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/ns/', context=context)
         self.check_selector("fn:namespace-uri-for-prefix('p3', .)", root, NameError, namespaces={'p3': ''})
+
+        # Note: default namespace for XPath 2 tests is 'http://www.example.com/ns/'
+        self.check_value("fn:namespace-uri-for-prefix('', .)",
+                         'http://www.example.com/ns/', context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix((), .)",
+                         'http://www.example.com/ns/', context=context.copy())
 
     def test_in_scope_prefixes_function(self):
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
@@ -672,8 +696,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                               '</p1:A>')
 
         namespaces = {'p0': 'ns0', 'p2': 'ns2'}
-        prefixes = select(root, "fn:in-scope-prefixes(.)", namespaces, parser=self.parser.__class__)
-
+        prefixes = select(root, "fn:in-scope-prefixes(.)", namespaces, parser=type(self.parser))
         if self.etree is lxml_etree:
             self.assertIn('p0', prefixes)
             self.assertIn('p1', prefixes)
@@ -682,6 +705,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             self.assertIn('p0', prefixes)
             self.assertNotIn('p1', prefixes)
             self.assertIn('p2', prefixes)
+
+        with self.assertRaises(TypeError):
+            select(root, "fn:in-scope-prefixes('')", namespaces, parser=type(self.parser))
 
     def test_string_constructors(self):
         self.check_value("xs:string(5.0)", '5.0')
@@ -1134,7 +1160,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type('xs:base64Binary(1e2)')
         self.wrong_type('xs:base64Binary(1.1)')
 
-    def test_node_and_item_accessors(self):
+    def test_node_and_node_accessors(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
         element.attrib.update([('id', '0212349350')])
@@ -1152,11 +1178,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select("self::attribute()", ['0212349350'], context)
 
         context.item = 7
-        self.check_select("item()", [7], context)
         self.check_select("node()", [], context)
-
         context.item = 10.2
-        self.check_select("item()", [10.2], context)
         self.check_select("node()", [], context)
 
     def test_count_function(self):
@@ -1342,9 +1365,20 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context), 'http://example.com/ns/')
 
     def test_empty_sequence_type(self):
-        self.check_value("empty-sequence()")
+        self.check_value("() treat as empty-sequence()", [])
+        self.check_value("6 treat as empty-sequence()", TypeError)
+        self.check_value("empty-sequence()", ValueError)
         context = XPathContext(root=self.etree.XML('<A/>'))
-        self.check_value("empty-sequence()", expected=False, context=context)
+        self.check_value("() instance of empty-sequence()", expected=True, context=context)
+        self.check_value(". instance of empty-sequence()", expected=False, context=context)
+
+    def test_item_sequence_type(self):
+        self.check_value("4 treat as item()", [4])
+        self.check_value("() treat as item()", TypeError)
+        self.check_value("item()", ValueError)
+        context = XPathContext(root=self.etree.XML('<A/>'))
+        self.check_value(". instance of item()", expected=True, context=context)
+        self.check_value("() instance of item()", expected=False, context=context)
 
     def test_root_function(self):
         pass
