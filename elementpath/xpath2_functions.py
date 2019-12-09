@@ -38,8 +38,8 @@ WRONG_REPLACEMENT_PATTERN = re.compile(r'(?<!\\)\$([^\d]|$)|((?<=[^\\])|^)\\([^$
 
 
 ###
-# Node types
-@method(function('document-node', nargs=(0, 1)))
+# Kind tests for sequence types
+@method(function('document-node', nargs=(0, 1), label='kind test'))
 def evaluate(self, context=None):
     if context is not None:
         if context.item is None and is_document_node(context.root):
@@ -49,17 +49,22 @@ def evaluate(self, context=None):
                 return context.root
 
 
-@method(function('element', nargs=(0, 2)))
+@method(function('element', nargs=(0, 2), label='kind test'))
 def evaluate(self, context=None):
     if context is not None:
         if not self:
             if is_element_node(context.item):
                 return context.item
-        elif is_element_node(context.item, self[1].evaluate(context)):
-            return context.item
+        elif is_element_node(context.item, self[0].evaluate(context)):
+            if len(self) == 1:
+                return context.item
+            elif self.xsd_type is not None:
+                type_annotation = self[1].evaluate(context)
+                if self.xsd_type.is_matching(type_annotation, self.parser.default_namespace):
+                    return context.item
 
 
-@method(function('schema-attribute', nargs=1))
+@method(function('schema-attribute', nargs=1, label='kind test'))
 def evaluate(self, context=None):
     attribute_name = self[0].source
     qname = prefixed_to_qname(attribute_name, self.parser.namespaces)
@@ -71,7 +76,7 @@ def evaluate(self, context=None):
             return context.item
 
 
-@method(function('schema-element', nargs=1))
+@method(function('schema-element', nargs=1, label='kind test'))
 def evaluate(self, context=None):
     element_name = self[0].source
     qname = prefixed_to_qname(element_name, self.parser.namespaces)
@@ -84,7 +89,7 @@ def evaluate(self, context=None):
             return context.item
 
 
-@method(function('empty-sequence', nargs=0))
+@method(function('empty-sequence', nargs=0, label='kind test'))
 def evaluate(self, context=None):
     if context is not None:
         return isinstance(context.item, list) and not context.item

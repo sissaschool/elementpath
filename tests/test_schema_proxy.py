@@ -93,6 +93,29 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_tree("schema-attribute(xsi:schemaLocation)",
                         '(schema-attribute (: (xsi) (schemaLocation)))')
 
+    def test_bind_parser_method(self):
+        schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                            <xs:simpleType name="test_type">
+                              <xs:restriction base="xs:string"/>
+                            </xs:simpleType>
+                        </xs:schema>"""
+        schema = xmlschema.XMLSchema(schema_src)
+
+        schema_proxy = XMLSchemaProxy(schema=schema)
+        parser = XPath2Parser(namespaces=self.namespaces)
+        schema_proxy.bind_parser(parser)
+        self.assertIs(schema_proxy, parser.schema)
+        parser = XPath2Parser(namespaces=self.namespaces)
+        super(XMLSchemaProxy, schema_proxy).bind_parser(parser)
+        self.assertIs(schema_proxy, parser.schema)
+        super(XMLSchemaProxy, schema_proxy).bind_parser(parser)
+        self.assertIs(schema_proxy, parser.schema)
+
+    def test_get_context_method(self):
+        schema_proxy = XMLSchemaProxy()
+        self.assertIsInstance(schema_proxy.get_context(), XPathContext)
+        self.assertIsInstance(super(XMLSchemaProxy, schema_proxy).get_context(), XPathContext)
+
     def test_get_type_api(self):
         schema_proxy = XMLSchemaProxy()
         self.assertIsNone(schema_proxy.get_type('unknown'))

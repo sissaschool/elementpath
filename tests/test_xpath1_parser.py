@@ -339,6 +339,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_source(' eg:example ', 'eg:example')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
         self.check_source(".//eg:a | .//eg:b", '. // eg:a | . // eg:b')
+        self.check_source("/A/B[C]", '/ A / B[C]')
 
         try:
             self.parser.strict = False

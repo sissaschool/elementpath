@@ -118,6 +118,40 @@ class XPathTokenTest(unittest.TestCase):
         self.assertEqual(token.number_value("19"), 19)
         self.assertTrue(math.isnan(token.number_value("not a number")))
 
+    def test_compare_operator(self):
+        token1 = self.parser.parse('true()')
+        token2 = self.parser.parse('false()')
+        self.assertEqual(token1, token1)
+        self.assertNotEqual(token1, token2)
+        self.assertNotEqual(token2, 'false()')
+
+    def test_arity_property(self):
+        token = self.parser.parse('true()')
+        self.assertEqual(token.symbol, 'true')
+        self.assertEqual(token.label, 'function')
+        self.assertEqual(token.arity, 0)
+
+        token = self.parser.parse('2 + 5')
+        self.assertEqual(token.symbol, '+')
+        self.assertEqual(token.label, 'operator')
+        self.assertEqual(token.arity, 2)
+
+    def test_source_property(self):
+        token = self.parser.parse('last()')
+        self.assertEqual(token.symbol, 'last')
+        self.assertEqual(token.label, 'function')
+        self.assertEqual(token.source, 'last()')
+
+        token = self.parser.parse('2.0')
+        self.assertEqual(token.symbol, '(decimal)')
+        self.assertEqual(token.label, 'literal')
+        self.assertEqual(token.source, '2.0')
+
+    def test_iter_method(self):
+        token = self.parser.parse('2 + 5')
+        items = [tk for tk in token.iter()]
+        self.assertListEqual(items, [token[0], token, token[1]])
+
 
 if __name__ == '__main__':
     unittest.main()

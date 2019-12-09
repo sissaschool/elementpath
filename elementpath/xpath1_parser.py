@@ -18,8 +18,8 @@ from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
     NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser, MultiLabel
-from .namespaces import XML_ID, XML_LANG, XPATH_1_DEFAULT_NAMESPACES, \
-    XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE, qname_to_prefixed
+from .namespaces import XML_ID, XML_LANG, XPATH_FUNCTIONS_NAMESPACE, \
+    XSD_NAMESPACE, XML_NAMESPACE, qname_to_prefixed
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement,\
@@ -78,11 +78,17 @@ class XPath1Parser(Parser):
         '{', '}'
     }
 
-    DEFAULT_NAMESPACES = XPATH_1_DEFAULT_NAMESPACES
+    DEFAULT_NAMESPACES = {'xml': XML_NAMESPACE}
     """
     The default prefix-to-namespace associations of the XPath class. Those namespaces are updated
     in the instance with the ones passed with the *namespaces* argument.
     """
+
+    # Labels and symbols admitted after a path step
+    PATH_STEP_LABELS = ('axis', 'kind test')
+    PATH_STEP_SYMBOLS = {
+        '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
+    }
 
     schema = None  # To simplify the schema bind checks in compatibility with XPath2Parser
 
@@ -136,8 +142,12 @@ class XPath1Parser(Parser):
         return cls.register(symbol, pattern=pattern, label='axis', lbp=bp, rbp=bp, nud=nud_)
 
     @classmethod
-    def function(cls, symbol, nargs=None, bp=90):
-        """Registers a token class for a symbol that represents an XPath *function*."""
+    def function(cls, symbol, nargs=None, label='function', bp=90):
+        """
+        Registers a token class for a symbol that represents an XPath *callable* object.
+        For default a callable labeled as *function* is registered but a different label
+        can be provided.
+        """
         def nud_(self):
             self.value = None
             self.parser.advance('(')
@@ -190,13 +200,7 @@ class XPath1Parser(Parser):
             return self
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
-        return cls.register(symbol, pattern=pattern, label='function', lbp=bp, rbp=bp, nud=nud_)
-
-    def next_is_path_step_token(self):
-        return self.next_token.label == 'axis' or self.next_token.symbol in {
-            '(integer)', '(string)', '(float)', '(decimal)', '(name)', 'node', 'text', '*',
-            '@', '..', '.', '(', '{'
-        }
+        return cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp, nud=nud_)
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
@@ -679,8 +683,11 @@ def nud(self):
     next_token = self.parser.next_token
     if next_token.symbol == '(end)' and self.symbol == '/':
         return self
-    elif not self.parser.next_is_path_step_token():
+    elif next_token.symbol in self.parser.PATH_STEP_SYMBOLS:
+        pass
+    elif next_token.label not in self.parser.PATH_STEP_LABELS:
         next_token.wrong_syntax()
+
     self[:] = self.parser.expression(75),
     return self
 
@@ -688,8 +695,12 @@ def nud(self):
 @method('//')
 @method('/')
 def led(self, left):
-    if not self.parser.next_is_path_step_token():
-        self.parser.next_token.wrong_syntax()
+    next_token = self.parser.next_token
+    if next_token.symbol in self.parser.PATH_STEP_SYMBOLS:
+        pass
+    elif next_token.label not in self.parser.PATH_STEP_LABELS:
+        next_token.wrong_syntax()
+
     self[:] = left, self.parser.expression(75)
     return self
 
@@ -962,8 +973,8 @@ def select(self, context=None):
 
 
 ###
-# Node types
-@method(function('node', nargs=0))
+# Kind tests (for matching of node types in XPath 1.0 or sequence types in XPath 2.0)
+@method(function('node', nargs=0, label='kind test'))
 def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():
@@ -973,19 +984,19 @@ def select(self, context=None):
                 yield item
 
 
-@method(function('processing-instruction', nargs=(0, 1)))
+@method(function('processing-instruction', nargs=(0, 1), label='kind test'))
 def evaluate(self, context=None):
     if context and is_processing_instruction_node(context.item):
         return context.item
 
 
-@method(function('comment', nargs=0))
+@method(function('comment', nargs=0, label='kind test'))
 def evaluate(self, context=None):
     if context and is_comment_node(context.item):
         return context.item
 
 
-@method(function('text', nargs=0))
+@method(function('text', nargs=0, label='kind test'))
 def select(self, context=None):
     if context is not None:
         for item in context.iter_children_or_self():

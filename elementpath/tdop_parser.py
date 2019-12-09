@@ -95,6 +95,9 @@ class MultiLabel(object):
     def __unicode__(self):
         return u'_'.join(self.values)
 
+    def __hash__(self):
+        return hash(self.values)
+
     if PY3:
         __str__ = __unicode__
 
@@ -171,8 +174,11 @@ class Token(MutableSequence):
         else:
             return u'%s()' % self.__class__.__name__
 
-    def __cmp__(self, other):
-        return self.symbol == other.symbol and self.value == other.value
+    def __eq__(self, other):
+        try:
+            return self.symbol == other.symbol and self.value == other.value
+        except AttributeError:
+            return False
 
     @property
     def arity(self):
@@ -575,12 +581,13 @@ class Parser(object):
                 label = kwargs['label'] = MultiLabel(*label)
 
             token_class_name = str("_%s_%s_token" % (symbol_to_identifier(symbol), label))
+            token_class_bases = (getattr(cls, 'token_base_class', object),)
             kwargs.update({
                 '__module__': cls.__module__,
                 '__qualname__': token_class_name,
                 '__return__': None
             })
-            token_class = ABCMeta(token_class_name, (cls.token_base_class,), kwargs)
+            token_class = ABCMeta(token_class_name, token_class_bases, kwargs)
             cls.symbol_table[symbol] = token_class
             MutableSequence.register(token_class)
             setattr(sys.modules[cls.__module__], token_class_name, token_class)
