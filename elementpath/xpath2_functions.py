@@ -38,7 +38,25 @@ WRONG_REPLACEMENT_PATTERN = re.compile(r'(?<!\\)\$([^\d]|$)|((?<=[^\\])|^)\\([^$
 
 
 ###
-# Kind tests for sequence types
+# Sequence types (allowed only for type checking in treat-as/instance-of statements)
+@method(function('empty-sequence', nargs=0, label='sequence type'))
+def evaluate(self, context=None):
+    if context is not None:
+        return isinstance(context.item, list) and not context.item
+
+
+@method(function('item', nargs=0, label='sequence type'))
+def evaluate(self, context=None):
+    if context is None:
+        return
+    elif context.item is None:
+        return context.root
+    else:
+        return context.item
+
+
+###
+# Kind tests (sequence types that can appear also in XPath expressions)
 @method(function('document-node', nargs=(0, 1), label='kind test'))
 def evaluate(self, context=None):
     if context is not None:
@@ -89,17 +107,10 @@ def evaluate(self, context=None):
             return context.item
 
 
-@method(function('empty-sequence', nargs=0, label='kind test'))
-def evaluate(self, context=None):
-    if context is not None:
-        return isinstance(context.item, list) and not context.item
-
-
 @method('document-node')
 @method('element')
 @method('schema-attribute')
 @method('schema-element')
-@method('empty-sequence')
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_children_or_self():
@@ -143,9 +154,6 @@ def evaluate(self, context=None):
         return []
     elif not isinstance(qname, string_base_type):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    elif not qname:
-        return ''
-
     match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', 'argument must be an xs:QName')
@@ -211,6 +219,10 @@ def select(self, context=None):
 @method(function('resolve-QName', nargs=2))
 def evaluate(self, context=None):
     if context is not None:
+        elem = self.get_argument(context, index=1)
+        if not is_element_node(elem):
+            raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
+
         qname = self.get_argument(context.copy())
         if qname is None:
             return []
@@ -221,9 +233,6 @@ def evaluate(self, context=None):
             raise self.error('FOCA0002', '1st argument must be an xs:QName')
         prefix = match.groupdict()['prefix'] or ''
 
-        elem = self.get_argument(context, index=1)
-        if not is_element_node(elem):
-            raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
         ns_uris = {get_namespace(e.tag) for e in elem.iter()}
         for p, uri in self.parser.namespaces.items():
             if uri in ns_uris:
@@ -234,18 +243,6 @@ def evaluate(self, context=None):
 
         if not isinstance(context, XPathSchemaContext):
             raise self.error('FONS0004', 'No namespace found for prefix %r' % prefix)
-
-
-###
-# Context item
-@method(function('item', nargs=0))
-def evaluate(self, context=None):
-    if context is None:
-        return
-    elif context.item is None:
-        return context.root
-    else:
-        return context.item
 
 
 ###

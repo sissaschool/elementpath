@@ -92,6 +92,8 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     # XPath 2.0 parser error (https://www.w3.org/TR/xpath20/#id-errors)
     if code == 'XPST0001':
         return ElementPathValueError(message or 'Parser not bound to a schema', pcode, token)
+    elif code == 'XPST0003':
+        return ElementPathValueError(message or 'Invalid XPath expression', pcode, token)
     elif code == 'XPDY0002':
         return MissingContextError(message or 'Dynamic context required for evaluate', pcode, token)
     elif code == 'XPTY0004':
@@ -203,4 +205,4 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     elif code == 'FOTY0012':
         return ElementPathValueError(message or 'Argument node does not have a typed value', pcode, token)
     else:
-        raise ElementPathValueError('Unknown XPath error code %r.' % code)
+        raise ElementPathValueError(message or 'Unknown XPath error code %r.' % code, token=token)

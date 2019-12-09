@@ -352,6 +352,9 @@ class XPath2Parser(XPath1Parser):
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
+        if root_token.label == 'sequence type':
+            raise root_token.error('XPST0003', message="not allowed in XPath expression")
+
         if self.schema is None:
             try:
                 root_token.evaluate()  # Static context evaluation
@@ -527,7 +530,8 @@ def select(self, context=None):
 def led(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
     next_token = self.parser.next_token
-    if next_token.symbol not in ('(name)', ':') and next_token.label != 'kind test':
+    if next_token.symbol not in ('(name)', ':') and \
+            next_token.label not in ('kind test', 'sequence type'):
         next_token.wrong_syntax()
 
     self[:] = left, self.parser.expression(rbp=self.rbp)
@@ -546,7 +550,7 @@ def evaluate(self, context=None):
         for _ in self[0].select(context):
             return False
         return True
-    elif self[1].label in ('function', 'kind test'):
+    elif self[1].label in ('kind test', 'sequence type'):
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 return False
@@ -577,7 +581,7 @@ def evaluate(self, context=None):
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
             self.wrong_sequence_type()
-    elif self[1].label in ('function', 'kind test'):
+    elif self[1].label in ('kind test', 'sequence type'):
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 if context is not None and not isinstance(context, XPathSchemaContext):
