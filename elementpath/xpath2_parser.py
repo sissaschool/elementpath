@@ -22,9 +22,10 @@ import operator
 from .compat import MutableSequence, urlparse, unicode_type
 from .exceptions import ElementPathError, ElementPathKeyError, \
     ElementPathTypeError, MissingContextError
-from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XPATH_2_DEFAULT_NAMESPACES, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_namespace, \
-    qname_to_prefixed, prefixed_to_qname, XSD_UNTYPED_ATOMIC
+from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
+    XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
+    XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname, \
+    XSD_UNTYPED_ATOMIC
 from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node
 from .xpath1_parser import XPath1Parser
@@ -151,12 +152,15 @@ class XPath2Parser(XPath1Parser):
         'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
-    QUALIFIED_FUNCTIONS = {
-        'attribute', 'comment', 'document-node', 'element', 'empty-sequence', 'if', 'item', 'node',
-        'processing-instruction', 'schema-attribute', 'schema-element', 'text', 'typeswitch'
+    DEFAULT_NAMESPACES = {
+        'xml': XML_NAMESPACE,
+        'xs': XSD_NAMESPACE,
+        'xlink': XLINK_NAMESPACE,
+        'fn': XPATH_FUNCTIONS_NAMESPACE,
+        'err': XQT_ERRORS_NAMESPACE
     }
 
-    DEFAULT_NAMESPACES = XPATH_2_DEFAULT_NAMESPACES
+    PATH_STEP_LABELS = ('axis', 'function', 'kind test')
 
     def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
                  default_namespace=None, function_namespace=None, schema=None, base_uri=None,
@@ -330,17 +334,6 @@ class XPath2Parser(XPath1Parser):
         MutableSequence.register(token_class)
         self.symbol_table[symbol] = token_class
         return token_class
-
-    def next_is_path_step_token(self):
-        return self.next_token.label in ('axis', 'function') or self.next_token.symbol in {
-            '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
-        }
-
-    def next_is_sequence_type_token(self):
-        return self.next_token.symbol in {
-            '(name)', ':', 'empty-sequence', 'item', 'document-node', 'element', 'attribute',
-            'text', 'comment', 'processing-instruction', 'schema-attribute', 'schema-element'
-        }
 
     def is_instance(self, obj, type_qname):
         if type_qname == XSD_UNTYPED_ATOMIC:
@@ -533,8 +526,10 @@ def select(self, context=None):
 @method('treat', bp=61)
 def led(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
-    if not self.parser.next_is_sequence_type_token():
-        self.parser.next_token.wrong_syntax()
+    next_token = self.parser.next_token
+    if next_token.symbol not in ('(name)', ':') and next_token.label != 'kind test':
+        next_token.wrong_syntax()
+
     self[:] = left, self.parser.expression(rbp=self.rbp)
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
@@ -551,7 +546,7 @@ def evaluate(self, context=None):
         for _ in self[0].select(context):
             return False
         return True
-    elif self[1].label == 'function':
+    elif self[1].label in ('function', 'kind test'):
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 return False
@@ -582,7 +577,7 @@ def evaluate(self, context=None):
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
             self.wrong_sequence_type()
-    elif self[1].label == 'function':
+    elif self[1].label in ('function', 'kind test'):
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 if context is not None and not isinstance(context, XPathSchemaContext):

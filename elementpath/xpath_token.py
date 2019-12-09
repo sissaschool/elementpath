@@ -90,10 +90,8 @@ class XPathToken(Token):
             return '$%s variable reference' % (self[0].value if self else '')
         elif symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
-        elif label == 'function':
-            return '%r function' % symbol
-        elif label == 'axis':
-            return '%r axis' % symbol
+        elif label in ('function', 'kind test', 'axis'):
+            return '%r %s' % (symbol, label)
         return super(XPathToken, self).__str__()
 
     @property
@@ -101,7 +99,7 @@ class XPathToken(Token):
         symbol, label = self.symbol, self.label
         if label == 'axis':
             return '%s::%s' % (self.symbol, self[0].source)
-        elif label in ('function', 'constructor'):
+        elif label in ('function', 'kind test', 'constructor'):
             return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
         elif symbol == ':':
             return '%s:%s' % (self[0].source, self[1].source)
