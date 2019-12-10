@@ -25,6 +25,7 @@ import datetime
 import io
 import locale
 import math
+import os
 import time
 from decimal import Decimal
 
@@ -59,6 +60,18 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def setUp(self):
         self.parser = XPath2Parser(namespaces=self.namespaces, variables=self.variables)
+
+        # Make sure the tests are repeatable.
+        env_vars_to_tweak = 'LC_ALL', 'LANG'
+        self.current_env_vars = {v: os.environ.get(v) for v in env_vars_to_tweak}
+        for v in self.current_env_vars:
+            os.environ[v] = 'en_US.UTF-8'
+
+    def tearDown(self):
+        if hasattr(self, 'current_env_vars'):
+            for v in self.current_env_vars:
+                if self.current_env_vars[v] is not None:
+                    os.environ[v] = self.current_env_vars[v]
 
     def test_xpath_tokenizer2(self):
         self.check_tokenizer("(: this is a comment :)",
