@@ -1210,16 +1210,46 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_selector('id("foo")', root, ValueError)
 
-        document = self.etree.parse(
+        doc = self.etree.parse(
             io.StringIO(u'<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
         )
-        root = document.getroot()
-        self.check_selector('id("foo")', document, [root[0]])
-        self.check_selector('id("fox")', document, [])
-        self.check_selector('id("foo baz")', document, [root[0], root[3]])
-        self.check_selector('id(("foo", "baz"))', document, [root[0], root[3]])
-        self.check_selector('id(("foo", "baz bar"))', document, [root[0], root[2], root[3]])
-        self.check_selector('id("baz bar foo")', document, [root[0], root[2], root[3]])
+        root = doc.getroot()
+        self.check_selector('id("foo")', doc, [root[0]])
+        self.check_selector('id("fox")', doc, [])
+        self.check_selector('id("foo baz")', doc, [root[0], root[3]])
+        self.check_selector('id(("foo", "baz"))', doc, [root[0], root[3]])
+        self.check_selector('id(("foo", "baz bar"))', doc, [root[0], root[2], root[3]])
+        self.check_selector('id("baz bar foo")', doc, [root[0], root[2], root[3]])
+
+        # From XPath documentation
+        doc = self.etree.parse(io.StringIO(u"""
+            <employee xml:id="ID21256">
+               <empnr>E21256</empnr>
+               <first>John</first>
+               <last>Brown</last>
+            </employee>"""))
+        root = doc.getroot()
+        self.check_selector("id('ID21256')", doc, [root])
+        self.check_selector("id('E21256')", doc, [root[0]])
+
+    def test_node_set_idref_function(self):
+        doc = self.etree.parse(io.StringIO(u"""
+            <employees>
+                <employee xml:id="ID21256">
+                   <empnr>E21256</empnr>
+                   <first>John</first>
+                   <last>Brown</last>
+                </employee>
+                <employee xml:id="ID21257">
+                   <empnr>E21257</empnr>
+                   <first>John</first>
+                   <last>Doe</last>
+                </employee>
+            </employees>"""))
+
+        root = doc.getroot()
+        self.check_selector("idref('ID21256')", doc, [])
+        self.check_selector("idref('E21256')", doc, [root[0][0]])
 
     def test_union_intersect_except_operators(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
@@ -1252,7 +1282,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select('$seq1 except $seq2', [], context=context)
         self.check_select('$seq2 except $seq3', root[:1], context=context)
 
-    def test_node_comparison(self):
+    def test_deep_equal_function(self):
+        root = self.etree.XML("""
+            <attendees> 
+                <name last='Parker' first='Peter'/>
+                <name last='Barker' first='Bob'/>
+                <name last='Parker' first='Peter'/>
+            </attendees>""")
+        context = XPathContext(root, variables={'xt': root})
+
+        self.check_value('fn:deep-equal($xt, $xt)', True, context=context)
+        self.check_value('deep-equal($xt, $xt/*)', False, context=context)
+        self.check_value('deep-equal($xt/name[1], $xt/name[2])', False, context=context)
+        self.check_value('deep-equal($xt/name[1], $xt/name[3])', True, context=context)
+        self.check_value('deep-equal($xt/name[1], "Peter Parker")', False, context=context)
+
+    def test_node_comparison_operators(self):
         # Test cases from https://www.w3.org/TR/xpath20/#id-node-comparisons
         root = self.etree.XML('''
         <books>
@@ -1380,8 +1425,44 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value(". instance of item()", expected=True, context=context)
         self.check_value("() instance of item()", expected=False, context=context)
 
+    def test_doc_functions(self):
+        root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
+        doc = self.etree.parse(io.StringIO(u"<a><b1><c1/></b1><b2/><b3/></a>"))
+        context = XPathContext(root, documents={'tns0': doc})
+
+        self.check_value("fn:doc(())", context=context)
+        self.check_value("fn:doc-available(())", False, context=context)
+
+        self.check_value("fn:doc('tns0')", doc, context=context)
+        self.check_value("fn:doc-available('tns0')", True, context=context)
+
+        self.check_value("fn:doc('tns1')", ValueError, context=context)
+        self.check_value("fn:doc-available('tns1')", False, context=context)
+
+    def test_collection_function(self):
+        root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
+        doc1 = self.etree.parse(io.StringIO(u"<a><b1><c1/></b1><b2/><b3/></a>"))
+        doc2 = self.etree.parse(io.StringIO(u"<a1><b11><c11/></b11><b12/><b13/></a1>"))
+        context = XPathContext(root, collections={'tns0': [doc1, doc2]})
+
+        self.check_value("fn:collection()", ValueError, context=context)
+        self.check_value("fn:collection('tns0')", ValueError, context=context)
+        context.default_collection = context.collections['tns0']
+        self.check_value("fn:collection()", [doc1, doc2], context=context)
+        self.check_value("fn:collection('tns0')", ValueError, context=context)
+
     def test_root_function(self):
-        pass
+        root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
+        self.check_value("root()", root, context=XPathContext(root))
+        self.check_value("root()", root, context=XPathContext(root, item=root[2]))
+
+        doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
+
+        context = XPathContext(root, variables={'elem': doc[1]})
+        self.check_value("fn:root($elem)", context=context.copy())
+
+        context = XPathContext(root, variables={'elem': doc[1]}, documents={'.': doc})
+        self.check_value("root($elem)", doc, context=context)
 
     def test_error_function(self):
         self.assertRaises(ElementPathError, self.check_value, "fn:error()")
