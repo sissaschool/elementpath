@@ -24,8 +24,8 @@ import xml.etree.ElementTree as ElementTree
 from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, \
     urllib_quote, unicode_type, URLError
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
-from .namespaces import prefixed_to_qname, get_namespace
-from .xpath_context import XPathSchemaContext
+from .namespaces import prefixed_to_qname, get_namespace, XML_ID
+from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, is_element_node, \
     is_attribute_node, node_name, node_is_id, node_is_idrefs, node_nilled, node_base_uri, \
     node_document_uri, node_kind, etree_deep_equal
@@ -513,7 +513,7 @@ def select(self, context=None):
 ###
 # Comparing sequences
 @method(function('deep-equal', nargs=(2, 3)))
-def select(self, context=None):
+def evaluate(self, context=None):
 
     def deep_equal():
         while True:
@@ -1004,19 +1004,26 @@ def evaluate(self, context=None):
 # The root function (Ref: https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-root)
 @method(function('root', nargs=(0, 1)))
 def evaluate(self, context=None):
-    if self:
-        item = self.get_argument(context)
-    elif context is None:
+    if context is None:
         raise self.error('XPDY0002')
+    elif isinstance(context, XPathSchemaContext):
+        return
+    elif not self:
+        if context.item is None or is_xpath_node(context.item):
+            return context.root
+        else:
+            raise self.error('XPTY0004')
     else:
-        item = context.item
+        item = self.get_argument(context)
+        if not is_xpath_node(item):
+            raise self.error('XPTY0004')
+        elif any(item is x for x in context.iter()):
+            return context.root
 
-    if item is None:
-        return []
-    elif is_xpath_node(item):
-        return item
-    else:
-        raise self.error('XPTY0004')
+        for uri, doc in context.documents.items():
+            doc_context = XPathContext(root=doc)
+            if any(item is x for x in doc_context.iter()):
+                return doc
 
 
 ###
@@ -1027,6 +1034,7 @@ XPath2Parser.unregister('id')
 
 @method(function('id', nargs=(1, 2)))
 def select(self, context=None):
+    # TODO: PSVI bindings with also xsi:type evaluation
     idrefs = list(self[0].select(None if context is None else context.copy()))
     node = self.get_argument(context, index=1, default_to_context=True)
     if context is None or node is not context.item:
@@ -1052,6 +1060,7 @@ def select(self, context=None):
 
 @method(function('idref', nargs=(1, 2)))
 def select(self, context=None):
+    # TODO: PSVI bindings with also xsi:type evaluation
     ids = list(self[0].select(None if context is None else context.copy()))
     node = self.get_argument(context, index=1, default_to_context=True)
     if context is None or node is not context.item:
@@ -1070,7 +1079,7 @@ def select(self, context=None):
             yield elem
             continue
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
-            if any(v in attr.value.split() for x in ids for v in x.split()):
+            if attr.name != XML_ID and any(v in attr.value.split() for x in ids for v in x.split()):
                 yield elem
                 break
 
@@ -1079,51 +1088,46 @@ def select(self, context=None):
 @method(function('doc-available', nargs=1))
 def evaluate(self, context=None):
     uri = self.get_argument(context)
-    if uri is not None:
-        try:
-            absolute_uri = self.get_absolute_uri(uri)
-        except URLError:
-            raise self.error('FODC0005')
-        else:
-            if absolute_uri is None:
-                raise self.error('FODC0005')
+    if uri is None:
+        return None if self.symbol == 'doc' else False
 
-        if context is not None:
-            try:
-                doc = context.documents[uri]
-            except KeyError:
-                if self.label == 'doc':
-                    raise self.error('FODC0005')
-                return False
-            else:
-                if not is_document_node(doc):
-                    raise self.error('FODC0005')
-                return doc if self.label == 'doc' else True
+    try:
+        uri = self.get_absolute_uri(uri)
+    except URLError:
+        raise self.error('FODC0005')
+
+    if context is not None and not isinstance(context, XPathSchemaContext):
+        try:
+            doc = context.documents[uri]
+        except KeyError:
+            if self.symbol == 'doc':
+                raise self.error('FODC0005')
+            return False
+        else:
+            if not is_document_node(doc):
+                raise self.error('FODC0005')
+            return doc if self.symbol == 'doc' else True
 
 
 @method(function('collection', nargs=(0, 1)))
 def evaluate(self, context=None):
     uri = self.get_argument(context)
-    if not self or uri is None:
-        if context is None or context.default_collection is None:
+    if context is None or isinstance(context, XPathSchemaContext):
+        return
+    elif not self or uri is None:
+        if context.default_collection is None:
             raise self.error('FODC0002', 'no default collection has been defined')
         return context.default_collection
 
-    if context is None:
-        raise self.error('FODC0002', 'no default collection has been defined')
-
     try:
-        absolute_uri = self.get_absolute_uri(uri)
+        uri = self.get_absolute_uri(uri)
     except URLError:
         raise self.error('FODC0004')
-    else:
-        if absolute_uri is None:
-            raise self.error('FODC0004')
 
     try:
-        return self.parser.colletions[absolute_uri]
+        return self.parser.collections[uri]
     except KeyError:
-        raise self.error('FODC0004', '{!r} collection not found'.format(absolute_uri))
+        raise self.error('FODC0004', '{!r} collection not found'.format(uri))
 
 
 ###

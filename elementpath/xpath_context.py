@@ -77,6 +77,9 @@ class XPathContext(object):
             variables=self.variables.copy(),
             current_dt=self.current_dt,
             timezone=self.timezone,
+            documents=self.documents.copy(),
+            collections=self.collections.copy(),
+            default_collection=self.default_collection,
         )
         obj._elem = self._elem
         obj._parent_map = self._parent_map
@@ -279,28 +282,23 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter(self, axis=None):
-        status = self.item, self.size, self.position, self.axis
-        self.axis = axis
-
-        if self.item is None:
-            self.size, self.position = 1, 0
-            yield self.root
-            self.item = self.root.getroot() if is_document_node(self.root) else self.root
-        elif isinstance(self.item, TypedElement):
-            self.item = self.item[0]
-        elif not is_etree_element(self.item):
-            return
+    def iter(self):
+        """Iterates context nodes."""
+        status = self.item, self.size, self.position
+        self.item = self.root
+        if is_document_node(self.item):
+            yield self.item
+            self.item = self.item.getroot()
 
         for item in self._iter_context():
             yield item
 
-        self.item, self.size, self.position, self.axis = status
+        self.item, self.size, self.position, = status
 
     def iter_results(self, results):
         """Iterates results in document order."""
         status = self.item, self.size, self.position
-        self.item = self.root
+        self.item = self.root.getroot() if is_document_node(self.root) else self.root
 
         for item in self._iter_context():
             if item in results:

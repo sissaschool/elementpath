@@ -51,10 +51,15 @@ def elem_iter_strings(elem):
 
 
 def etree_deep_equal(e1, e2):
-    if e1.tag != e2.tag or e1.text != e2.text \
-            or e1.tail != e2.tail \
-            or e1.attrib != e2.attrib \
-            or len(e1) != len(e2):
+    if e1.tag != e2.tag:
+        return False
+    elif (e1.text or '').strip() != (e2.text or '').strip():
+        return False
+    elif (e1.tail or '').strip() != (e2.tail or '').strip():
+        return False
+    elif e1.attrib != e2.attrib:
+        return False
+    elif len(e1) != len(e2):
         return False
     return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
 

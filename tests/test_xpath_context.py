@@ -161,14 +161,9 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         self.assertListEqual(list(context.iter()), list(root.iter()))
 
-        context.item = None
-        self.assertListEqual(list(context.iter()), [root] + list(root.iter()))
-
-        context.item = AttributeNode('a1', '10')
-        self.assertListEqual(list(context.iter()), [])
-
-        context = XPathContext(root, item=TypedElement(root, None))
-        self.assertListEqual(list(context.iter()), list(root.iter()))
+        doc = ElementTree.ElementTree(root)
+        context = XPathContext(doc)
+        self.assertListEqual(list(context.iter()), [doc] + list(root.iter()))
 
     def test_iter_preceding(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
