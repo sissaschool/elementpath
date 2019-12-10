@@ -2,8 +2,9 @@
 CHANGELOG
 *********
 
-`v1.3.2`_ (2019-12-xx)
+`v1.3.2`_ (2019-12-10)
 ======================
+* Add token labels 'sequence types' and 'kind test' for callables that are not XPath functions
 * Add missing XPath 2.0 functions
 * Fix for issue #12
 
