@@ -419,7 +419,7 @@ def evaluate(self, context=None):
 # multi-value label (using a tuple of values) and a custom pattern. Finally a custom nud
 # or led method is required.
 unregister('attribute')
-register('attribute', lbp=90, rbp=90, label=('function', 'axis'),
+register('attribute', lbp=90, rbp=90, label=('kind test', 'axis'),
          pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
 
 
@@ -441,7 +441,7 @@ def nud(self):
                 self.parser.advance(',')
                 self[1:] = self.parser.expression(5),
         self.parser.advance(')')
-        self.label = 'function'
+        self.label = 'kind test'
     return self
 
 

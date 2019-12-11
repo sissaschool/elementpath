@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.3.3`_ (2019-12-xx)
+======================
+* Fix 'attribute' multi-role token (axis and kind test)
+
 `v1.3.2`_ (2019-12-10)
 ======================
 * Add token labels 'sequence types' and 'kind test' for callables that are not XPath functions
@@ -175,3 +179,4 @@ CHANGELOG
 .. _v1.3.0: https://github.com/brunato/elementpath/compare/v1.2.1...v1.3.0
 .. _v1.3.1: https://github.com/brunato/elementpath/compare/v1.3.0...v1.3.1
 .. _v1.3.2: https://github.com/brunato/elementpath/compare/v1.3.1...v1.3.2
+.. _v1.3.3: https://github.com/brunato/elementpath/compare/v1.3.2...v1.3.3
