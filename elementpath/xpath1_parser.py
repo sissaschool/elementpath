@@ -1071,12 +1071,12 @@ def evaluate(self, context=None):
                    for k in range(len(self)))
 
 
-@method(function('string-length', nargs=1))
+@method(function('string-length', nargs=(0, 1)))
 def evaluate(self, context=None):
     return len(self.get_argument(context, default_to_context=True, default='', cls=string_base_type))
 
 
-@method(function('normalize-space', nargs=1))
+@method(function('normalize-space', nargs=(0, 1)))
 def evaluate(self, context=None):
     if self.parser.version == '1.0':
         arg = self.string_value(self.get_argument(context, default_to_context=True, default=''))
