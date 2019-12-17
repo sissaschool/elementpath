@@ -121,7 +121,7 @@ class XPathContext(object):
         elif isinstance(item, TypedAttribute):
             path.append('@%s' % item[0][0])
             item = self._elem
-        elif isinstance(item, TypedElement):
+        if isinstance(item, TypedElement):
             item = item[0]
 
         while True:

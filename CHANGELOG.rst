@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.3.3`_ (2019-12-xx)
+`v1.3.3`_ (2019-12-17)
 ======================
 * Fix 'attribute' multi-role token (axis and kind test)
+* Fixes for issues #13 and #14
 
 `v1.3.2`_ (2019-12-10)
 ======================
