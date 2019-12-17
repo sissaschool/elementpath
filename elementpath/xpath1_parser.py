@@ -756,7 +756,7 @@ def select(self, context=None):
         for elem in self[0].select(context):
             if not is_element_node(elem):
                 self.wrong_type("left operand must returns element nodes: %r" % elem)
-            for _ in context.iter_descendants(item=elem, axis='descendant-or-self'):
+            for _ in context.iter_descendants(item=elem):
                 for result in self[1].select(context):
                     yield result
 

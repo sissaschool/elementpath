@@ -998,14 +998,31 @@ class XPath1ParserTest(unittest.TestCase):
 
     def test_descendant_or_self_axis(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C/><C1/></B3></A>')
+        self.check_selector('descendant-or-self::node()', root, [e for e in root.iter()])
+        self.check_selector('descendant-or-self::node()/.', root, [e for e in root.iter()])
+
+    def test_double_slash_shortcut(self):
+        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C/><C1/></B3></A>')
         self.check_selector('//.', root, [e for e in root.iter()])
         self.check_selector('/A//.', root, [e for e in root.iter()])
+        self.check_selector('/A//self::node()', root, [e for e in root.iter()])
         self.check_selector('//C1', root, [root[2][1]])
         self.check_selector('//B2', root, [root[1]])
         self.check_selector('//C', root, [root[0][0], root[2][0]])
         self.check_selector('//*', root, [e for e in root.iter()])
-        self.check_selector('descendant-or-self::node()', root, [e for e in root.iter()])
-        self.check_selector('descendant-or-self::node()/.', root, [e for e in root.iter()])
+
+        # Issue #14
+        root = self.etree.XML("""
+        <pm>
+            <content>
+                <pmEntry>
+                    <pmEntry pmEntryType="pm001">
+                    </pmEntry>
+                </pmEntry>
+            </content>
+        </pm>""")
+
+        self.check_selector('/pm/content/pmEntry/pmEntry//pmEntry[@pmEntryType]', root, [])
 
     def test_following_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C1><D1/></C1></B4></A>')
