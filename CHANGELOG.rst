@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.4.0`_ (2019-12-xx)
+======================
+* Remove Python 2 support
+* Fix for issue #15
+
 `v1.3.3`_ (2019-12-17)
 ======================
 * Fix 'attribute' multi-role token (axis and kind test)
@@ -181,3 +186,4 @@ CHANGELOG
 .. _v1.3.1: https://github.com/brunato/elementpath/compare/v1.3.0...v1.3.1
 .. _v1.3.2: https://github.com/brunato/elementpath/compare/v1.3.1...v1.3.2
 .. _v1.3.3: https://github.com/brunato/elementpath/compare/v1.3.2...v1.3.3
+.. _v1.4.0: https://github.com/brunato/elementpath/compare/v1.3.3...v1.4.0
