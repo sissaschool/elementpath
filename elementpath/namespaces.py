@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.

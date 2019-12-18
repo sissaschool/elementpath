@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -13,8 +12,9 @@ XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
 import decimal
 import codecs
+from urllib.parse import urlparse
+from urllib.error import URLError
 
-from .compat import unicode_type, urlparse, URLError, string_base_type
 from .exceptions import ElementPathError, xpath_error
 from .xpath_nodes import is_attribute_node
 from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, XPathGregorianMonth, \
@@ -151,7 +151,7 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
     if isinstance(value, tuple):
         value = value[-1]
 
-    if isinstance(value, string_base_type):
+    if isinstance(value, str):
         try:
             result = int(float(value))
         except ValueError:
@@ -354,8 +354,8 @@ def cast(value, from_literal=False):
     if isinstance(value, tuple):
         value = value[-1]
     if isinstance(value, UntypedAtomic):
-        return codecs.encode(unicode_type(value), 'base64')
-    elif not isinstance(value, (bytes, unicode_type)):
+        return codecs.encode(str(value), 'base64')
+    elif not isinstance(value, (bytes, str)):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
     elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'base64')
@@ -373,8 +373,8 @@ def cast(value, from_literal=False):
     if isinstance(value, tuple):
         value = value[-1]
     if isinstance(value, UntypedAtomic):
-        return codecs.encode(unicode_type(value), 'hex')
-    elif not isinstance(value, (bytes, unicode_type)):
+        return codecs.encode(str(value), 'hex')
+    elif not isinstance(value, (bytes, str)):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
     elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'hex')
@@ -475,8 +475,8 @@ def cast_to_boolean(value, context=None):
     elif isinstance(value, (int, float, decimal.Decimal)):
         return bool(value)
     elif isinstance(value, UntypedAtomic):
-        value = unicode_type(value)
-    elif not isinstance(value, string_base_type):
+        value = str(value)
+    elif not isinstance(value, str):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
     if value in ('true', '1'):
@@ -551,7 +551,7 @@ def evaluate(self, context=None):
 # In those cases the label at parse time is set by the nud method, in dependence of the number of args.
 #
 def cast_to_qname(value, namespaces=None):
-    if not isinstance(value, string_base_type):
+    if not isinstance(value, str):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
     match = QNAME_PATTERN.match(value)
@@ -606,11 +606,11 @@ def evaluate(self, context=None):
         uri = self.get_argument(context)
         if uri is None:
             uri = ''
-        elif not isinstance(uri, string_base_type):
+        elif not isinstance(uri, str):
             raise self.error('FORG0006', '1st argument has an invalid type %r' % type(uri))
 
         qname = self[1].evaluate(context)
-        if not isinstance(qname, string_base_type):
+        if not isinstance(qname, str):
             raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
         match = QNAME_PATTERN.match(qname)
         if match is None:

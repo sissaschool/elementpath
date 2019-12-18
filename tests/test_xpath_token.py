@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -9,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from __future__ import unicode_literals
 import unittest
 import io
 import math

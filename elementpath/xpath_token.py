@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -19,12 +18,11 @@ In XPath there are 7 kinds of nodes:
 Element-like objects are used for representing elements and comments, ElementTree-like objects
 for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
 """
-from __future__ import unicode_literals
 import locale
 import contextlib
 from decimal import Decimal
+from urllib.parse import urljoin, urlparse, uses_relative
 
-from .compat import string_base_type, unicode_type, urljoin, urlparse, uses_relative
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
@@ -175,7 +173,7 @@ class XPathToken(Token):
         # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         if cls is not None and not isinstance(item, cls):
             if self.parser.compatibility_mode:
-                if issubclass(cls, string_base_type):
+                if issubclass(cls, str):
                     return self.string_value(item)
                 elif issubclass(cls, float) or issubclass(float, cls):
                     return self.number_value(item)
@@ -186,7 +184,7 @@ class XPathToken(Token):
                     return value
                 elif isinstance(value, UntypedAtomic):
                     try:
-                        if issubclass(cls, string_base_type):
+                        if issubclass(cls, str):
                             return str(value)
                         else:
                             return cls(value)
@@ -234,7 +232,7 @@ class XPathToken(Token):
                     value = str(value)
                 if isinstance(context, XPathSchemaContext):
                     return value
-                if self.xsd_type is not None and isinstance(value, string_base_type):
+                if self.xsd_type is not None and isinstance(value, str):
                     try:
                         value = self.xsd_type.decode(value)
                     except (TypeError, ValueError):
@@ -537,7 +535,7 @@ class XPathToken(Token):
         elif is_element_node(obj):
             return ''.join(elem_iter_strings(obj))
         elif is_attribute_node(obj):
-            return unicode_type(obj[1])
+            return str(obj[1])
         elif is_text_node(obj):
             return obj
         elif is_document_node(obj):

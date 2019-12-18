@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -12,8 +11,8 @@
 Helper functions for XPath nodes and basic data types.
 """
 from collections import namedtuple
+from urllib.parse import urlparse
 
-from .compat import PY3, urlparse
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
 from .datatypes import ncname_validator
@@ -160,12 +159,8 @@ def is_namespace_node(obj):
     return isinstance(obj, NamespaceNode)
 
 
-if not PY3:
-    def is_text_node(obj):
-        return isinstance(obj, (str, unicode))
-else:
-    def is_text_node(obj):
-        return isinstance(obj, str)
+def is_text_node(obj):
+    return isinstance(obj, str)
 
 
 def is_xpath_node(obj):

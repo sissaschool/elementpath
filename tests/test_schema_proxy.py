@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -9,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from __future__ import unicode_literals
 import unittest
 import xml.etree.ElementTree as ElementTree
 import io
@@ -19,7 +17,6 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import AttributeNode, XPathContext, XPath2Parser, ElementPathTypeError
-from elementpath.compat import PY3
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 
 try:
@@ -199,13 +196,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
             </xs:schema>''')
         parser = XPath2Parser(namespaces=self.namespaces,
                               schema=XMLSchemaProxy(schema, schema.elements['range']))
-        if PY3:
-            self.assertRaises(TypeError, parser.parse, '@min le @max')
-        else:
-            # In Python 2 strings and numbers are comparable and strings are 'greater than' numbers.
-            token = parser.parse("@min le @max")
-            self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
-            self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
+        self.assertRaises(TypeError, parser.parse, '@min le @max')
 
     def test_elements_type(self):
         schema = xmlschema.XMLSchema('''

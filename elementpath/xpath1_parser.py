@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -8,11 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from __future__ import division
 import math
 import decimal
 
-from .compat import PY3, string_base_type
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
     NumericTypeProxy, ArithmeticTypeProxy
@@ -1060,8 +1057,8 @@ def evaluate(self, context=None):
 
 @method(function('contains', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=string_base_type)
-    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg2 in arg1
 
 
@@ -1073,7 +1070,7 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=(0, 1)))
 def evaluate(self, context=None):
-    return len(self.get_argument(context, default_to_context=True, default='', cls=string_base_type))
+    return len(self.get_argument(context, default_to_context=True, default='', cls=str))
 
 
 @method(function('normalize-space', nargs=(0, 1)))
@@ -1081,48 +1078,37 @@ def evaluate(self, context=None):
     if self.parser.version == '1.0':
         arg = self.string_value(self.get_argument(context, default_to_context=True, default=''))
     else:
-        arg = self.get_argument(context, default_to_context=True, default='', cls=string_base_type)
+        arg = self.get_argument(context, default_to_context=True, default='', cls=str)
     return ' '.join(arg.strip().split())
 
 
 @method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=string_base_type)
-    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg1.startswith(arg2)
 
 
 @method(function('translate', nargs=3))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, default='', cls=string_base_type)
-    map_string = self.get_argument(context, index=1, default='', cls=string_base_type)
-    trans_string = self.get_argument(context, index=2, default='', cls=string_base_type)
+    arg = self.get_argument(context, default='', cls=str)
+    map_string = self.get_argument(context, index=1, default='', cls=str)
+    trans_string = self.get_argument(context, index=2, default='', cls=str)
 
-    if not PY3:
-        import string
-        maketrans = getattr(string, 'maketrans')
-        arg = arg.encode('utf-8')
-        map_string = map_string.encode('utf-8')
-        trans_string = trans_string.encode('utf-8')
-    else:
-        maketrans = str.maketrans
+    maketrans = str.maketrans
 
     if len(map_string) == len(trans_string):
         return arg.translate(maketrans(map_string, trans_string))
     elif len(map_string) > len(trans_string):
         k = len(trans_string)
-        if PY3:
-            return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
-        for c in map_string[k:]:
-            arg = arg.replace(c, '')
-        return arg.translate(maketrans(map_string[:k], trans_string))
+        return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
     else:
         self.wrong_value("the third argument must have a length less or equal than the second")
 
 
 @method(function('substring', nargs=(2, 3)))
 def evaluate(self, context=None):
-    item = self.get_argument(context, default='', cls=string_base_type)
+    item = self.get_argument(context, default='', cls=str)
     start = self.get_argument(context, index=1)
     try:
         if math.isnan(start) or math.isinf(start):
@@ -1154,8 +1140,8 @@ def evaluate(self, context=None):
 @method(function('substring-before', nargs=2))
 @method(function('substring-after', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=string_base_type)
-    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
     if arg1 is None:
         return ''
 
@@ -1283,10 +1269,8 @@ def evaluate(self, context=None):
         number = decimal.Decimal(arg)
         if number > 0:
             return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
-        elif PY3:
-            return float(round(number))
         else:
-            return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
+            return float(round(number))
     except TypeError as err:
         self.wrong_type(str(err))
     except decimal.DecimalException as err:

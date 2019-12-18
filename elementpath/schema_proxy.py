@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -9,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from .compat import add_metaclass
 from .exceptions import ElementPathTypeError
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
@@ -24,8 +22,7 @@ from .xpath_context import XPathSchemaContext
 # the usage of these interfaces.
 #
 
-@add_metaclass(ABCMeta)
-class AbstractXsdComponent(object):
+class AbstractXsdComponent(metaclass=ABCMeta):
     """Interface for XSD components."""
 
     @property
@@ -49,8 +46,7 @@ class AbstractXsdComponent(object):
         """
 
 
-@add_metaclass(ABCMeta)
-class AbstractEtreeElement(object):
+class AbstractEtreeElement(metaclass=ABCMeta):
     """Interface for ElementTree compatible elements."""
 
     @property
@@ -126,8 +122,7 @@ class AbstractXsdType(AbstractXsdComponent):
 # Schema proxy classes
 #
 
-@add_metaclass(ABCMeta)
-class AbstractSchemaProxy(object):
+class AbstractSchemaProxy(metaclass=ABCMeta):
     """
     Abstract class for defining schema proxies.
 

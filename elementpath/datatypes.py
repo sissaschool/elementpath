@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -12,8 +11,6 @@
 XSD atomic datatypes for XPath. Includes a class for UntypedAtomic data and some
 classes for XSD datetime and duration types.
 """
-from __future__ import division, unicode_literals
-
 from abc import ABCMeta, abstractmethod
 import operator
 import re
@@ -23,7 +20,6 @@ import base64
 from collections import namedtuple
 from calendar import isleap, leapdays
 
-from .compat import PY3, string_base_type, add_metaclass
 from .exceptions import ElementPathTypeError, ElementPathValueError
 
 ###
@@ -114,7 +110,7 @@ class Timezone(datetime.tzinfo):
     def fromstring(cls, text):
         if text == 'Z':
             return cls(datetime.timedelta(0))
-        elif isinstance(text, string_base_type):
+        elif isinstance(text, str):
             try:
                 hours, minutes = text.split(':')
                 hours = int(hours)
@@ -175,8 +171,7 @@ class Timezone(datetime.tzinfo):
             raise TypeError("fromutc() argument must be a datetime.datetime instance or None")
 
 
-@add_metaclass(ABCMeta)
-class AbstractDateTime(object):
+class AbstractDateTime(metaclass=ABCMeta):
     """
     A class for representing XSD date/time objects. It uses and internal datetime.datetime
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
@@ -293,7 +288,7 @@ class AbstractDateTime(object):
         :param tzinfo: optional implicit timezone information, must be a `Timezone` instance.
         :return: an AbstractDateTime concrete subclass instance.
         """
-        if not isinstance(datetime_string, string_base_type):
+        if not isinstance(datetime_string, str):
             raise ElementPathTypeError('1st argument has an invalid type %r' % type(datetime_string))
         elif tzinfo and not isinstance(tzinfo, Timezone):
             raise ElementPathTypeError('2nd argument has an invalid type %r' % type(tzinfo))
@@ -892,10 +887,6 @@ class YearMonthDuration(Duration):
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
 
-    if not PY3:
-        def __div__(self, other):
-            return self.__truediv__(other)
-
 
 class DayTimeDuration(Duration):
 
@@ -934,10 +925,6 @@ class DayTimeDuration(Duration):
             return DayTimeDuration(seconds=int(float(self.seconds / other) + 0.5))
         else:
             raise ElementPathTypeError("wrong type %r for operand %r." % (type(other), other))
-
-    if not PY3:
-        def __div__(self, other):
-            return self.__truediv__(other)
 
 
 class UntypedAtomic(object):
@@ -1028,34 +1015,11 @@ class UntypedAtomic(object):
     def __mod__(self, other):
         return operator.mod(*self._get_operands(other))
 
-    if PY3:
-        def __str__(self):
-            return str(self.value)
+    def __str__(self):
+        return str(self.value)
 
-        def __bytes__(self):
-            return bytes(self.value, encoding='utf-8')
-
-    else:
-        def __unicode__(self):
-            return unicode(self.value)
-
-        def __str__(self):
-            try:
-                return str(self.value)
-            except UnicodeEncodeError:
-                return self.value.encode('utf-8')
-
-        def __bytes__(self):
-            return self.value.encode('utf-8')
-
-        def __div__(self, other):
-            return operator.truediv(*self._get_operands(other))
-
-        def __rdiv__(self, other):
-            return operator.truediv(*reversed(self._get_operands(other)))
-
-        def __long__(self):
-            return int(self.value)
+    def __bytes__(self):
+        return bytes(self.value, encoding='utf-8')
 
 
 ####
@@ -1065,12 +1029,11 @@ XsdBuiltin = namedtuple('XsdBuiltin', 'validator value')
 """A namedtuple-based type for describing XSD builtin types."""
 
 WHITESPACES_PATTERN = re.compile(r'\s+')
-NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$', flags=0 if PY3 else re.U)
-NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$', flags=0 if PY3 else re.U)
-NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$', flags=0 if PY3 else re.U)
+NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$')
+NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$')
+NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$')
 QNAME_PATTERN = re.compile(
     r'^(?:(?P<prefix>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*):)?(?P<local>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*)$',
-    flags=0 if PY3 else re.U
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
@@ -1106,8 +1069,7 @@ class TypeProxyMeta(type):
         raise NotImplementedError
 
 
-@add_metaclass(TypeProxyMeta)
-class NumericTypeProxy(object):
+class NumericTypeProxy(metaclass=TypeProxyMeta):
     """
     A type proxy class for xs:numeric related types (xs:float, xs:decimal and
     derived types). Builds xs:float instances.
@@ -1127,8 +1089,7 @@ class NumericTypeProxy(object):
         return float(x)
 
 
-@add_metaclass(TypeProxyMeta)
-class ArithmeticTypeProxy(object):
+class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
     """
     A type proxy class for XSD types related to arithmetic operators, including
     types related to xs:numeric and datetime or duration types. Builds xs:float
@@ -1162,7 +1123,7 @@ def integer_validator(x):
 
 
 def base64_binary_validator(x):
-    if not isinstance(x, string_base_type) or NOT_BASE64_BINARY_PATTERN.match(x) is None:
+    if not isinstance(x, str) or NOT_BASE64_BINARY_PATTERN.match(x) is None:
         return False
     try:
         base64.standard_b64decode(x)
@@ -1173,11 +1134,11 @@ def base64_binary_validator(x):
 
 
 def hex_binary_validator(x):
-    return isinstance(x, string_base_type) and not len(x) % 2 and HEX_BINARY_PATTERN.match(x) is not None
+    return isinstance(x, str) and not len(x) % 2 and HEX_BINARY_PATTERN.match(x) is not None
 
 
 def ncname_validator(x):
-    return isinstance(x, string_base_type) and NCNAME_PATTERN.match(x) is not None
+    return isinstance(x, str) and NCNAME_PATTERN.match(x) is not None
 
 
 XSD_BUILTIN_TYPES = {
@@ -1186,7 +1147,7 @@ XSD_BUILTIN_TYPES = {
         value=UntypedAtomic('1')
     ),
     'anySimpleType': XsdBuiltin(
-        lambda x: isinstance(x, (string_base_type, int, float, bool, decimal.Decimal,
+        lambda x: isinstance(x, (str, int, float, bool, decimal.Decimal,
                                  AbstractDateTime, Duration, Timezone, UntypedAtomic)),
         value=UntypedAtomic('1')
     ),
@@ -1195,7 +1156,7 @@ XSD_BUILTIN_TYPES = {
         value=None
     ),
     'string': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type),
+        lambda x: isinstance(x, str),
         value='  alpha\t'
     ),
     'decimal': XsdBuiltin(
@@ -1255,31 +1216,31 @@ XSD_BUILTIN_TYPES = {
         value=YearMonthDuration.fromstring('P1Y1M')
     ),
     'QName': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and QNAME_PATTERN.match(x) is not None,
+        lambda x: isinstance(x, str) and QNAME_PATTERN.match(x) is not None,
         value='xs:element'
     ),
     'NOTATION': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type),
+        lambda x: isinstance(x, str),
         value='alpha'
     ),
     'anyURI': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type),
+        lambda x: isinstance(x, str),
         value='https://example.com'
     ),
     'normalizedString': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and '\t' not in x and '\r' not in x,
+        lambda x: isinstance(x, str) and '\t' not in x and '\r' not in x,
         value=' alpha  ',
     ),
     'token': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and WHITESPACES_PATTERN.match(x) is None,
+        lambda x: isinstance(x, str) and WHITESPACES_PATTERN.match(x) is None,
         value='a token'
     ),
     'language': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and LANGUAGE_CODE_PATTERN.match(x) is not None,
+        lambda x: isinstance(x, str) and LANGUAGE_CODE_PATTERN.match(x) is not None,
         value='en-US'
     ),
     'Name': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and NAME_PATTERN.match(x) is not None,
+        lambda x: isinstance(x, str) and NAME_PATTERN.match(x) is not None,
         value='_a.name::'
     ),
     'NCName': XsdBuiltin(
@@ -1299,7 +1260,7 @@ XSD_BUILTIN_TYPES = {
         value='entity1'
     ),
     'NMTOKEN': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type) and NMTOKEN_PATTERN.match(x) is not None,
+        lambda x: isinstance(x, str) and NMTOKEN_PATTERN.match(x) is not None,
         value='a_token'
     ),
     'base64Binary': XsdBuiltin(
@@ -1311,7 +1272,7 @@ XSD_BUILTIN_TYPES = {
         value=b'31'
     ),
     'dateTimeStamp': XsdBuiltin(
-        lambda x: isinstance(x, string_base_type),
+        lambda x: isinstance(x, str),
         value='2000-01-01T12:00:00+01:00'
     ),
     'integer': XsdBuiltin(
