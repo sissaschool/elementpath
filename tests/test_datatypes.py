@@ -597,10 +597,7 @@ class DurationTypesTest(unittest.TestCase):
         self.assertEqual(YearMonthDuration(10).months, 10)
 
     def test_hashing(self):
-        if sys.version_info < (3, 8):
-            self.assertEqual(hash(Duration(16)), 3713063228956366931)
-        else:
-            self.assertEqual(hash(Duration(16)), 6141449309508620102)
+        self.assertIsInstance(hash(Duration(16)), int)
 
 
 class TimezoneTypeTest(unittest.TestCase):
@@ -647,10 +644,7 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertNotEqual(Timezone.fromstring('+05:00'), Timezone.fromstring('+06:00'))
 
     def test_hashing(self):
-        if sys.version_info < (3, 8):
-            self.assertEqual(hash(Timezone.fromstring('+05:00')), 1289844826723787395)
-        else:
-            self.assertEqual(hash(Timezone.fromstring('+05:00')), 7009945331308913293)
+        self.assertIsInstance(hash(Timezone.fromstring('+05:00')), int)
 
 
 class TypeProxiesTest(unittest.TestCase):
