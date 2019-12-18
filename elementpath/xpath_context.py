@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -9,8 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+from functools import lru_cache
 
-from .compat import lru_cache
 from .exceptions import ElementPathTypeError
 from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, is_etree_element, \
     is_element_node, is_document_node, is_attribute_node

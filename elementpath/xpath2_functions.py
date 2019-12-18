@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -19,10 +18,10 @@ import time
 import re
 import locale
 import unicodedata
+from urllib.parse import urlparse, urljoin, quote as urllib_quote
+from urllib.error import URLError
 import xml.etree.ElementTree as ElementTree
 
-from .compat import PY3, string_base_type, unicode_chr, urlparse, urljoin, \
-    urllib_quote, unicode_type, URLError
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import prefixed_to_qname, get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -126,7 +125,7 @@ def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
         return []
-    elif not isinstance(qname, string_base_type):
+    elif not isinstance(qname, str):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
     match = QNAME_PATTERN.match(qname)
     if match is None:
@@ -139,7 +138,7 @@ def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
         return []
-    elif not isinstance(qname, string_base_type):
+    elif not isinstance(qname, str):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
     match = QNAME_PATTERN.match(qname)
     if match is None:
@@ -152,7 +151,7 @@ def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
         return []
-    elif not isinstance(qname, string_base_type):
+    elif not isinstance(qname, str):
         raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
     match = QNAME_PATTERN.match(qname)
     if match is None:
@@ -175,7 +174,7 @@ def evaluate(self, context=None):
         prefix = self.get_argument(context.copy())
         if prefix is None:
             prefix = ''
-        if not isinstance(prefix, string_base_type):
+        if not isinstance(prefix, str):
             raise self.error('FORG0006', '1st argument has an invalid type %r' % type(prefix))
 
         elem = self.get_argument(context, index=1)
@@ -226,7 +225,7 @@ def evaluate(self, context=None):
         qname = self.get_argument(context.copy())
         if qname is None:
             return []
-        if not isinstance(qname, string_base_type):
+        if not isinstance(qname, str):
             raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
         match = QNAME_PATTERN.match(qname)
         if match is None:
@@ -297,12 +296,7 @@ def evaluate(self, context=None):
 
     try:
         precision = 0 if len(self) < 2 else self[1].evaluate(context)
-        if PY3 or precision < 0:
-            value = round(decimal.Decimal(item), precision)
-        else:
-            number = decimal.Decimal(item)
-            exp = decimal.Decimal('1' if not precision else '.%s1' % ('0' * (precision - 1)))
-            value = float(number.quantize(exp, rounding='ROUND_HALF_EVEN'))
+        value = round(decimal.Decimal(item), precision)
     except TypeError as err:
         self.wrong_type(str(err))
     except decimal.DecimalException as err:
@@ -554,11 +548,11 @@ def evaluate(self, context=None):
 # Regex
 @method(function('matches', nargs=(2, 3)))
 def evaluate(self, context=None):
-    input_string = self.get_argument(context, default='', cls=string_base_type)
-    pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
+    input_string = self.get_argument(context, default='', cls=str)
+    pattern = self.get_argument(context, 1, required=True, cls=str)
     flags = 0
     if len(self) > 2:
-        for c in self.get_argument(context, 2, required=True, cls=string_base_type):
+        for c in self.get_argument(context, 2, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
             else:
@@ -572,12 +566,12 @@ def evaluate(self, context=None):
 
 @method(function('replace', nargs=(3, 4)))
 def evaluate(self, context=None):
-    input_string = self.get_argument(context, default='', cls=string_base_type)
-    pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
-    replacement = self.get_argument(context, 2, required=True, cls=string_base_type)
+    input_string = self.get_argument(context, default='', cls=str)
+    pattern = self.get_argument(context, 1, required=True, cls=str)
+    replacement = self.get_argument(context, 2, required=True, cls=str)
     flags = 0
     if len(self) > 3:
-        for c in self.get_argument(context, 3, required=True, cls=string_base_type):
+        for c in self.get_argument(context, 3, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
             else:
@@ -611,11 +605,11 @@ def evaluate(self, context=None):
 
 @method(function('tokenize', nargs=(2, 3)))
 def select(self, context=None):
-    input_string = self.get_argument(context, cls=string_base_type)
-    pattern = self.get_argument(context, 1, required=True, cls=string_base_type)
+    input_string = self.get_argument(context, cls=str)
+    pattern = self.get_argument(context, 1, required=True, cls=str)
     flags = 0
     if len(self) > 2:
-        for c in self.get_argument(context, 2, required=True, cls=string_base_type):
+        for c in self.get_argument(context, 2, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
             else:
@@ -639,9 +633,9 @@ def select(self, context=None):
 # Functions on anyURI
 @method(function('resolve-uri', nargs=(1, 2)))
 def evaluate(self, context=None):
-    relative = self.get_argument(context, cls=string_base_type)
+    relative = self.get_argument(context, cls=str)
     if len(self) == 2:
-        base_uri = self.get_argument(context, index=1, required=True, cls=string_base_type)
+        base_uri = self.get_argument(context, index=1, required=True, cls=str)
         base_uri = urlparse(base_uri).geturl()
     elif self.parser.base_uri is None:
         raise self.error('FONS0005')
@@ -662,7 +656,7 @@ def evaluate(self, context=None):
 # String functions
 @method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
-    return ''.join(unicode_chr(cp) for cp in self[0].select(context))
+    return ''.join(chr(cp) for cp in self[0].select(context))
 
 
 @method(function('string-to-codepoints', nargs=1))
@@ -673,8 +667,8 @@ def select(self, context=None):
 
 @method(function('compare', nargs=(2, 3)))
 def evaluate(self, context=None):
-    comp1 = self.get_argument(context, 0, cls=string_base_type)
-    comp2 = self.get_argument(context, 1, cls=string_base_type)
+    comp1 = self.get_argument(context, 0, cls=str)
+    comp2 = self.get_argument(context, 1, cls=str)
     if comp1 is None or comp2 is None:
         return []
 
@@ -690,8 +684,8 @@ def evaluate(self, context=None):
 
 @method(function('codepoint-equal', nargs=2))
 def evaluate(self, context=None):
-    comp1 = self.get_argument(context, 0, cls=string_base_type)
-    comp2 = self.get_argument(context, 1, cls=string_base_type)
+    comp1 = self.get_argument(context, 0, cls=str)
+    comp2 = self.get_argument(context, 1, cls=str)
     if comp1 is None or comp2 is None:
         return []
     elif len(comp1) != len(comp2):
@@ -705,7 +699,7 @@ def evaluate(self, context=None):
     items = [self.string_value(s) if is_element_node(s) or is_attribute_node(s) else s
              for s in self[0].select(context)]
     try:
-        return self.get_argument(context, 1, cls=string_base_type).join(items)
+        return self.get_argument(context, 1, cls=str).join(items)
     except AttributeError as err:
         self.wrong_type("the separator must be a string: %s" % err)
     except TypeError as err:
@@ -714,9 +708,9 @@ def evaluate(self, context=None):
 
 @method(function('normalize-unicode', nargs=(1, 2)))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, default='', cls=string_base_type)
+    arg = self.get_argument(context, default='', cls=str)
     if len(self) > 1:
-        normalization_form = self.get_argument(context, 1, cls=string_base_type)
+        normalization_form = self.get_argument(context, 1, cls=str)
         if normalization_form is None:
             self.wrong_type("2nd argument can't be an empty sequence")
         else:
@@ -728,7 +722,7 @@ def evaluate(self, context=None):
         raise NotImplementedError("%r normalization form not supported" % normalization_form)
     if arg is None:
         return ''
-    elif not isinstance(arg, unicode_type):
+    elif not isinstance(arg, str):
         arg = arg.decode('utf-8')
 
     try:
@@ -739,7 +733,7 @@ def evaluate(self, context=None):
 
 @method(function('upper-case', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, cls=string_base_type)
+    arg = self.get_argument(context, cls=str)
     try:
         return '' if arg is None else arg.upper()
     except AttributeError:
@@ -748,7 +742,7 @@ def evaluate(self, context=None):
 
 @method(function('lower-case', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, cls=string_base_type)
+    arg = self.get_argument(context, cls=str)
     try:
         return '' if arg is None else arg.lower()
     except AttributeError:
@@ -757,7 +751,7 @@ def evaluate(self, context=None):
 
 @method(function('encode-for-uri', nargs=1))
 def evaluate(self, context=None):
-    uri_part = self.get_argument(context, cls=string_base_type)
+    uri_part = self.get_argument(context, cls=str)
     try:
         return '' if uri_part is None else urllib_quote(uri_part, safe='~')
     except TypeError:
@@ -766,7 +760,7 @@ def evaluate(self, context=None):
 
 @method(function('iri-to-uri', nargs=1))
 def evaluate(self, context=None):
-    iri = self.get_argument(context, cls=string_base_type)
+    iri = self.get_argument(context, cls=str)
     try:
         return '' if iri is None else urllib_quote(iri, safe='-_.!~*\'()#;/?:@&=+$,[]%')
     except TypeError:
@@ -775,7 +769,7 @@ def evaluate(self, context=None):
 
 @method(function('escape-html-uri', nargs=1))
 def evaluate(self, context=None):
-    uri = self.get_argument(context, cls=string_base_type)
+    uri = self.get_argument(context, cls=str)
     try:
         return '' if uri is None else urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
     except TypeError:
@@ -784,15 +778,15 @@ def evaluate(self, context=None):
 
 @method(function('starts-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=string_base_type)
-    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg1.startswith(arg2)
 
 
 @method(function('ends-with', nargs=(2, 3)))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=string_base_type)
-    arg2 = self.get_argument(context, index=1, default='', cls=string_base_type)
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg1.endswith(arg2)
 
 

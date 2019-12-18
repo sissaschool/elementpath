@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -11,17 +10,17 @@
 """
 XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 """
-from __future__ import division
 from itertools import product
 from abc import ABCMeta
 import decimal
 import locale
 import math
 import operator
+from collections.abc import MutableSequence
+from urllib.parse import urlparse
 
-from .compat import MutableSequence, urlparse, unicode_type
 from .exceptions import ElementPathError, ElementPathKeyError, \
-    ElementPathTypeError, MissingContextError
+    ElementPathTypeError, MissingContextError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname, \
@@ -296,7 +295,7 @@ class XPath2Parser(XPath1Parser):
     def schema_constructor(self, atomic_type, bp=90):
         """Registers a token class for a schema atomic type constructor function."""
         if atomic_type in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
-            raise self.error('XPST0080')
+            raise xpath_error('XPST0080')
 
         def nud_(self_):
             self_.parser.advance('(')
@@ -679,7 +678,7 @@ def evaluate(self, context=None):
     except TypeError as err:
         if self.symbol != 'cast':
             return False
-        self.wrong_type(unicode_type(err))
+        self.wrong_type(str(err))
     except ValueError as err:
         if self.symbol != 'cast':
             return False

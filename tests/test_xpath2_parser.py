@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -36,7 +35,6 @@ except ImportError:
 
 from elementpath import *
 from elementpath.namespaces import XSI_NAMESPACE
-from elementpath.compat import PY3
 from elementpath.datatypes import DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear10
 
@@ -326,10 +324,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_max_function(self):
         self.check_value("fn:max((3,4,5))", 5)
         self.check_value("fn:max((5, 5.0e0))", 5.0e0)
-        if PY3:
-            self.wrong_type("fn:max((3,4,'Zero'))")
-        else:
-            self.check_value("fn:max((3,4,'Zero'))", 'Zero')
+        self.wrong_type("fn:max((3,4,'Zero'))")
         dt = datetime.datetime.now()
         self.check_value('fn:max((fn:current-date(), xs:date("2001-01-01")))',
                          Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo))
@@ -858,7 +853,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:float(0.00001)', float)
 
     def test_datetime_function(self):
-        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))',
                          datetime.datetime(1999, 12, 31, 12, 0, tzinfo=tz0))
@@ -866,7 +861,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          datetime.datetime(1999, 12, 31, 0, 0, tzinfo=tz0))
 
     def test_datetime_constructor(self):
-        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value(
             'xs:dateTime("1969-07-20T20:18:00")', DateTime(1969, 7, 20, 20, 18, tzinfo=tz0)
@@ -882,13 +877,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0")')
 
     def test_time_constructor(self):
-        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value('xs:time("21:30:00")', datetime.datetime(2000, 1, 1, 21, 30, tzinfo=tz0))
         self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(2000, 1, 1, 11, 15, 48, tzinfo=tz1))
 
     def test_date_constructor(self):
-        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz0 = None
         tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value('xs:date("2017-01-19")', datetime.datetime(2017, 1, 19, tzinfo=tz0))
         self.check_value('xs:date("2011-11-11-14:00")', datetime.datetime(2011, 11, 11, tzinfo=tz2))
@@ -896,7 +891,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value('xs:date("11-11-11")')
 
     def test_gregorian_constructors(self):
-        tz0 = None if PY3 else Timezone(datetime.timedelta(0, 0))
+        tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         tz2 = Timezone(datetime.timedelta(hours=-14, minutes=0))
         self.check_value('xs:gDay("---30")', datetime.datetime(2000, 1, 30, tzinfo=tz0))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -16,9 +15,10 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal
 from abc import ABCMeta
+from collections.abc import MutableSequence
 
-from .compat import PY3, add_metaclass, MutableSequence, unicode_type
-from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError, ElementPathTypeError
+from .exceptions import ElementPathSyntaxError, ElementPathNameError, \
+    ElementPathValueError, ElementPathTypeError
 
 SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
 """Compiled regular expression for matching special symbols, that are names between round brackets."""
@@ -34,17 +34,17 @@ def symbol_to_identifier(symbol):
         if c.isalnum() or c == '_':
             return c
         else:
-            return '%s_' % unicode_name(unicode_type(c)).title()
+            return '%s_' % unicode_name(str(c)).title()
 
     if symbol.isalnum():
         return symbol
     elif SPECIAL_SYMBOL_PATTERN.match(symbol):
         return symbol[1:-1]
     elif all(c in '-_' for c in symbol):
-        return '_'.join(unicode_name(unicode_type(c)).title() for c in symbol).replace(' ', '').replace('-', '')
+        return '_'.join(unicode_name(str(c)).title() for c in symbol).replace(' ', '').replace('-', '')
 
     value = symbol.replace('-', '_')
-    if PY3 and value.isidentifier() or not PY3 and value.replace('_', '').isalnum():
+    if value.isidentifier():
         return value
     else:
         value = ''.join(get_id_name(c) for c in symbol).replace(' ', '').replace('-', '')
@@ -92,14 +92,8 @@ class MultiLabel(object):
     def __str__(self):
         return '_'.join(self.values)
 
-    def __unicode__(self):
-        return u'_'.join(self.values)
-
     def __hash__(self):
         return hash(self.values)
-
-    if PY3:
-        __str__ = __unicode__
 
 
 class Token(MutableSequence):
@@ -303,8 +297,7 @@ class ParserMeta(type):
         super(ParserMeta, cls).__init__(name, bases, namespace)
 
 
-@add_metaclass(ParserMeta)
-class Parser(object):
+class Parser(metaclass=ParserMeta):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
 
