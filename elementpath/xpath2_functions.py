@@ -200,8 +200,7 @@ def select(self, context=None):
 
         if isinstance(context, XPathSchemaContext):
             # For schema context returns prefixes of static namespaces
-            for prefix in self.parser.namespaces:
-                yield prefix
+            yield from self.parser.namespaces
         elif hasattr(elem, 'nsmap'):
             # For lxml returns Element's prefixes
             for prefix in elem.nsmap:
@@ -211,8 +210,7 @@ def select(self, context=None):
             prefixes = {x for x in self.parser.namespaces}
             etree_nsmap = getattr(ElementTree, '_namespace_map', {})
             prefixes.update(x for x in etree_nsmap.values())
-            for prefix in prefixes:
-                yield prefix
+            yield from prefixes
 
 
 @method(function('resolve-QName', nargs=2))
@@ -407,14 +405,12 @@ def select(self, context=None):
     inserted = False
     for pos, result in enumerate(self[0].select(context)):
         if not inserted and pos == insert_at_pos:
-            for item in self[2].select(context):
-                yield item
+            yield from self[2].select(context)
             inserted = True
         yield result
 
     if not inserted:
-        for item in self[2].select(context):
-            yield item
+        yield from self[2].select(context)
 
 
 @method(function('index-of', nargs=(1, 3)))
@@ -435,8 +431,7 @@ def select(self, context=None):
 
 @method(function('reverse', nargs=1))
 def select(self, context=None):
-    for result in reversed([x for x in self[0].select(context)]):
-        yield result
+    yield from reversed([x for x in self[0].select(context)])
 
 
 @method(function('subsequence', nargs=(2, 3)))
@@ -450,8 +445,7 @@ def select(self, context=None):
 
 @method(function('unordered', nargs=1))
 def select(self, context=None):
-    for result in sorted([x for x in self[0].select(context)], key=lambda x: self.string_value(x)):
-        yield result
+    yield from sorted([x for x in self[0].select(context)], key=lambda x: self.string_value(x))
 
 
 ###

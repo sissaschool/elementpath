@@ -75,8 +75,7 @@ class XPathToken(Token):
         item = self.evaluate(context)
         if item is not None:
             if isinstance(item, list):
-                for _item in item:
-                    yield _item
+                yield from item
             else:
                 if context is not None:
                     context.item = item

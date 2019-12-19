@@ -245,8 +245,7 @@ class XPathContext(object):
         elif not is_element_node(self.item):
             return
 
-        for descendant in self._iter_descendants():
-            yield descendant
+        yield from self._iter_descendants()
 
         self.item, self.size, self.position, self.axis = status
 
@@ -259,8 +258,7 @@ class XPathContext(object):
         if len(elem):
             self.size = len(elem)
             for self.position, self.item in enumerate(elem):
-                for item in self._iter_descendants():
-                    yield item
+                yield from self._iter_descendants()
 
     def iter_ancestors(self, item=None, axis=None):
         status = self.item, self.size, self.position, self.axis
@@ -289,8 +287,7 @@ class XPathContext(object):
             yield self.item
             self.item = self.item.getroot()
 
-        for item in self._iter_context():
-            yield item
+        yield from self._iter_context()
 
         self.item, self.size, self.position, = status
 
@@ -328,8 +325,7 @@ class XPathContext(object):
         if len(elem):
             self.size = len(elem)
             for self.position, self.item in enumerate(elem):
-                for item in self._iter_context():
-                    yield item
+                yield from self._iter_context()
 
 
 class XPathSchemaContext(XPathContext):

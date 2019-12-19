@@ -228,12 +228,10 @@ class Token(MutableSequence):
     def iter(self):
         """Returns a generator for iterating the token's tree."""
         for t in self[:1]:
-            for token in t.iter():
-                yield token
+            yield from t.iter()
         yield self
         for t in self[1:]:
-            for token in t.iter():
-                yield token
+            yield from t.iter()
 
     def expected(self, *symbols):
         if symbols and self.symbol not in symbols:
