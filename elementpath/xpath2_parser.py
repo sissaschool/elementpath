@@ -404,16 +404,14 @@ XPath2Parser.duplicate('|', 'union')
 def select(self, context=None):
     if context is not None:
         results = set(self[0].select(context.copy())) & set(self[1].select(context.copy()))
-        for item in context.iter_results(results):
-            yield item
+        yield from context.iter_results(results)
 
 
 @method(infix('except', bp=55))
 def select(self, context=None):
     if context is not None:
         results = set(self[0].select(context.copy())) - set(self[1].select(context.copy()))
-        for item in context.iter_results(results):
-            yield item
+        yield from context.iter_results(results)
 
 
 ###
@@ -441,11 +439,9 @@ def evaluate(self, context=None):
 @method('if')
 def select(self, context=None):
     if self.boolean_value([x for x in self[0].select(context)]):
-        for result in self[1].select(context):
-            yield result
+        yield from self[1].select(context)
     else:
-        for result in self[2].select(context):
-            yield result
+        yield from self[2].select(context)
 
 
 ###
@@ -518,8 +514,7 @@ def select(self, context=None):
         for results in product(*selectors):
             for i in range(len(results)):
                 context.variables[self[i * 2][0].value] = results[i]
-            for result in self[-1].select(context.copy()):
-                yield result
+            yield from self[-1].select(context.copy())
 
 
 ###
@@ -704,8 +699,7 @@ def evaluate(self, context=None):
 @method(',')
 def select(self, context=None):
     for op in self:
-        for result in op.select(context.copy() if context else None):
-            yield result
+        yield from op.select(context.copy() if context else None)
 
 
 ###
@@ -806,8 +800,7 @@ def evaluate(self, context=None):
 
 @method('to')
 def select(self, context=None):
-    for k in self.evaluate(context):
-        yield k
+    yield from self.evaluate(context)
 
 
 ###

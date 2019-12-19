@@ -356,8 +356,7 @@ def select(self, context=None):
     if self[1].label in ('function', 'constructor'):
         value = self[1].evaluate(context)
         if isinstance(value, list):
-            for result in value:
-                yield result
+            yield from value
         else:
             yield value
         return
@@ -434,8 +433,7 @@ def select(self, context=None):
     if self[1].label == 'function':
         value = self[1].evaluate(context)
         if isinstance(value, list):
-            for result in value:
-                yield result
+            yield from value
         else:
             yield value
     elif context is not None:
@@ -664,12 +662,10 @@ def select(self, context=None):
         return
     elif not self.cut_and_sort:
         for k in range(2):
-            for item in self[k].select(context.copy()):
-                yield item
+            yield from self[k].select(context.copy())
     else:
         results = {item for k in range(2) for item in self[k].select(context.copy())}
-        for item in context.iter_results(results):
-            yield item
+        yield from context.iter_results(results)
 
 
 ###
@@ -714,8 +710,7 @@ def select(self, context=None):
             yield context.root
     elif len(self) == 1:
         context.item = None
-        for result in self[0].select(context):
-            yield result
+        yield from self[0].select(context)
     else:
         items = []
         left_results = [x for x in self[0].select(context)]
@@ -747,15 +742,13 @@ def select(self, context=None):
     elif len(self) == 1:
         context.item = None
         for _ in context.iter_descendants(axis='descendant-or-self'):
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
     else:
         for elem in self[0].select(context):
             if not is_element_node(elem):
                 self.wrong_type("left operand must returns element nodes: %r" % elem)
             for _ in context.iter_descendants(item=elem):
-                for result in self[1].select(context):
-                    yield result
+                yield from self[1].select(context)
 
 
 ###
@@ -806,16 +799,14 @@ def select(self, context=None):
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_self():
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
 
 
 @method(axis('child'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_children_or_self(child_axis=True):
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
 
 
 @method(axis('descendant'))
@@ -824,16 +815,14 @@ def select(self, context=None):
         item = context.item
         for _ in context.iter_descendants(axis=self.symbol):
             if item is not context.item:
-                for result in self[0].select(context):
-                    yield result
+                yield from self[0].select(context)
 
 
 @method(axis('descendant-or-self'))
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_descendants(axis=self.symbol):
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
 
 
 @method(axis('following-sibling'))
@@ -849,15 +838,13 @@ def select(self, context=None):
         for parent in context.iter_parent(axis=self.symbol):
             if isinstance(context, XPathSchemaContext):
                 for _ in context.iter_children_or_self(parent, child_axis=True):
-                    for result in self[0].select(context):
-                        yield result
+                    yield from self[0].select(context)
 
             else:
                 follows = False
                 for child in context.iter_children_or_self(parent, child_axis=True):
                     if follows:
-                        for result in self[0].select(context):
-                            yield result
+                        yield from self[0].select(context)
                     elif item is child:
                         follows = True
 
@@ -871,8 +858,7 @@ def select(self, context=None):
         for elem in context.iter_descendants(item=context.root, axis=self.symbol):
             if follows:
                 if elem not in descendants:
-                    for result in self[0].select(context):
-                        yield result
+                    yield from self[0].select(context)
             elif item is elem:
                 follows = True
 
@@ -892,8 +878,7 @@ def select(self, context=None):
         self.missing_context()
 
     for _ in context.iter_attributes():
-        for result in self[0].select(context):
-            yield result
+        yield from self[0].select(context)
 
 
 @method(axis('namespace'))
@@ -920,8 +905,7 @@ def select(self, context=None):
 def select(self, context=None):
     if context is not None:
         for _ in context.iter_parent(axis=self.symbol):
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
 
 
 @method(axis('ancestor'))
@@ -957,16 +941,14 @@ def select(self, context=None):
                     break
                 else:
                     context.item = child
-                    for result in self[0].select(context):
-                        yield result
+                    yield from self[0].select(context)
 
 
 @method(axis('preceding'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
         for _ in context.iter_preceding():
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
 
 
 ###
@@ -1024,9 +1006,7 @@ def select(self, context=None):
         value = self[0].evaluate(context)
         item = context.item
         if is_element_node(item):
-            for elem in item.iter():
-                if elem.get(XML_ID) == value:
-                    yield elem
+            yield from filter(lambda e: e.get(XML_ID) == value, item.iter())
 
 
 @method(function('name', nargs=(0, 1)))

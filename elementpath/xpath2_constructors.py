@@ -451,8 +451,7 @@ def select(self, context=None):
         return
     elif self.label == 'axis':
         for _ in context.iter_attributes():
-            for result in self[0].select(context):
-                yield result
+            yield from self[0].select(context)
     else:
         name = self[0].evaluate(context) if self else None
         for item in context.iter_attributes():
