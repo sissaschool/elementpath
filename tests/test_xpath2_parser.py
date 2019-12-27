@@ -38,11 +38,7 @@ from elementpath.namespaces import XSI_NAMESPACE
 from elementpath.datatypes import DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear10
 
-try:
-    from tests import test_xpath1_parser
-except ImportError:
-    # Python2 fallback
-    import test_xpath1_parser
+from tests import test_xpath1_parser
 
 XML_GENERIC_TEST = test_xpath1_parser.XML_GENERIC_TEST
 
@@ -490,6 +486,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:matches("abracadabra", "^a.*a$")', True)
         self.check_value('fn:matches("abracadabra", "^bra")', False)
 
+        self.wrong_value('fn:matches("abracadabra", "bra", "k")')
+        self.wrong_value('fn:matches("abracadabra", "[bra")')
+
         poem_context = XPathContext(root=self.etree.XML(XML_POEM_TEST))
         self.check_value('fn:matches(., "Kaum.*krähen")', False, context=poem_context)
         self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=poem_context)
@@ -529,6 +528,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:replace("abracadabra", "a.*a", "*")', "*")
         self.check_value('fn:replace("abracadabra", "a.*?a", "*")', "*c*bra")
         self.check_value('fn:replace("abracadabra", "a", "")', "brcdbr")
+        self.check_value('fn:replace("abracadabra", "a", "", "i")', "brcdbr")
+        self.wrong_value('fn:replace("abracadabra", "a", "", "z")')
+        self.wrong_value('fn:replace("abracadabra", "[a", "")')
         self.wrong_type('fn:replace("abracadabra")')
 
         self.check_value('fn:replace("abracadabra", "a(.)", "a$1$1")', "abbraccaddabbra")
@@ -1304,6 +1306,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('deep-equal($xt/name[1], $xt/name[2])', False, context=context)
         self.check_value('deep-equal($xt/name[1], $xt/name[3])', True, context=context)
         self.check_value('deep-equal($xt/name[1], "Peter Parker")', False, context=context)
+
+        root = self.etree.XML("""<A xmlns="http://xpath.test/ns"><B1/><B2/><B3/></A>""")
+        context = XPathContext(root, variables={'xt': root})
+        self.check_value('deep-equal($xt, $xt)', True, context=context)
+
+        self.check_value('deep-equal((1, 2, 3), (1, 2, 3))', True)
+        self.check_value('deep-equal((1, 2, 3), (1, 2, 4))', False)
+        self.check_value("deep-equal((1, 2, 3), (1, '2', 3))", False)
+        self.check_value("deep-equal(('1', '2', '3'), ('1', '2', '3'))", True)
+        self.check_value("deep-equal(('1', '2', '3'), ('1', '4', '3'))", False)
+        self.check_value("deep-equal((1, 2, 3), (1, 2, 3), 'en_US.UTF-8')", True)
 
     def test_node_comparison_operators(self):
         # Test cases from https://www.w3.org/TR/xpath20/#id-node-comparisons

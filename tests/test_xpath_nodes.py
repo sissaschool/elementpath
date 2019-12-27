@@ -38,6 +38,12 @@ class XPathNodesTest(unittest.TestCase):
         root = ElementTree.XML('<A><B1>10</B1><B2 max="20"/>end</A>')
         self.assertTrue(etree_deep_equal(root, root))
 
+        elem = ElementTree.XML('<A><B1>11</B1><B2 max="20"/>end</A>')
+        self.assertFalse(etree_deep_equal(root, elem))
+
+        elem = ElementTree.XML('<A><B1>10</B1>30<B2 max="20"/>end</A>')
+        self.assertFalse(etree_deep_equal(root, elem))
+
         elem = ElementTree.XML('<A xmlns:ns="tns"><B1>10</B1><B2 max="20"/>end</A>')
         self.assertTrue(etree_deep_equal(root, elem))
 

@@ -10,7 +10,6 @@
 """
 XPath 2.0 implementation - part 2 (functions)
 """
-import sys
 import decimal
 import math
 import datetime
@@ -158,14 +157,10 @@ def evaluate(self, context=None):
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     prefix = match.groupdict()['prefix'] or ''
 
-    try:
-        namespace = self.parser.namespaces[prefix]
-    except KeyError as err:
-        raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
-    else:
-        if not namespace and prefix:
-            raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
-        return namespace
+    namespace = self.get_namespace(prefix)
+    if not namespace and prefix:
+        raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
+    return namespace
 
 
 @method(function('namespace-uri-for-prefix', nargs=2))
@@ -581,18 +576,9 @@ def evaluate(self, context=None):
         elif WRONG_REPLACEMENT_PATTERN.search(replacement):
             raise self.error('FORX0004', "Invalid replacement string %r" % replacement)
         else:
-            if sys.version_info >= (3, 5):
-                for g in range(pattern.groups + 1):
-                    if '$%d' % g in replacement:
-                        replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
-            else:
-                match = pattern.search(input_string)
-                for g in range(pattern.groups + 1):
-                    if '$%d' % g in replacement:
-                        if match and match.group(g) is not None:
-                            replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
-                        else:
-                            replacement = re.sub(r'(?<!\\)\$%d' % g, '', replacement)
+            for g in range(pattern.groups + 1):
+                if '$%d' % g in replacement:
+                    replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
 
         return pattern.sub(replacement, input_string)
 

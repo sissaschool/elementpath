@@ -63,6 +63,7 @@ class XPath1ParserTest(unittest.TestCase):
         'xsi': XSI_NAMESPACE,
         'fn': XPATH_FUNCTIONS_NAMESPACE,
         'eg': 'http://www.example.com/ns/',
+        'tst': "http://xpath.test/ns",
     }
     variables = {
         'values': [10, 20, 5],
@@ -366,35 +367,59 @@ class XPath1ParserTest(unittest.TestCase):
     def test_node_selection(self):
         self.check_value("mars", [])
 
-    def test_references(self):
+        root = self.etree.XML('<A><B1/><B2/><B3/><B2/></A>')
+        self.check_value("B1", [root[0]], context=XPathContext(root))
+        self.check_value("B2", [root[1], root[3]], context=XPathContext(root))
+        self.check_value("B4", [], context=XPathContext(root))
+
+    def test_prefixed_references(self):
         namespaces = {'tst': "http://xpath.test/ns"}
         root = self.etree.XML("""
         <A xmlns:tst="http://xpath.test/ns">
             <tst:B1 b1="beta1"/>
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
+            <tst:B2/>            
         </A>""")
 
         # Prefix references
         self.check_tree('eg:unknown', '(: (eg) (unknown))')
         self.check_tree('string(eg:unknown)', '(string (: (eg) (unknown)))')
 
+        # Test evaluate method
         self.check_value("fn:true()", True)
+        self.check_value("fx:true()", KeyError)
+        self.check_value("tst:B1", [root[0]], context=XPathContext(root))
+        self.check_value("tst:B2", [root[1], root[3]], context=XPathContext(root))
+
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
+        self.wrong_syntax("./tst:1")
+        self.wrong_syntax("./fn:A")
+        self.wrong_syntax("./xs:true()")
 
         # Namespace wildcard works only for XPath > 1.0
         if self.parser.version == '1.0':
             self.check_selector("./*:B2", root, Exception, namespaces=namespaces)
         else:
-            self.check_selector("./*:B2", root, [root[1]], namespaces=namespaces)
+            self.check_selector("./*:B2", root, [root[1], root[3]], namespaces=namespaces)
 
-        # QName URI references
+    def test_qname_uri_references(self):
+        root = self.etree.XML("""
+        <A xmlns:tst="http://xpath.test/ns">
+            <tst:B1 b1="beta1"/>
+            <tst:B2/>
+            <tst:B3 b2="tst:beta2" b3="beta3"/>
+            <tst:B2/>            
+        </A>""")
+
         self.parser.strict = False
         self.check_tree('{%s}string' % XSD_NAMESPACE, "({ ('http://www.w3.org/2001/XMLSchema') (string))")
         self.check_tree('string({%s}unknown)' % XSD_NAMESPACE,
                         "(string ({ ('http://www.w3.org/2001/XMLSchema') (unknown)))")
         self.wrong_syntax("{%s" % XSD_NAMESPACE)
+        self.wrong_syntax("{%s}1" % XSD_NAMESPACE)
+        self.wrong_syntax("{%s}alpha" % XPATH_FUNCTIONS_NAMESPACE)
 
         self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
         self.parser.strict = True
