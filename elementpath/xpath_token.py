@@ -21,17 +21,17 @@ for documents. Generic tuples are used for representing attributes and named-tup
 import locale
 import contextlib
 from decimal import Decimal
-from urllib.parse import urljoin, urlparse, uses_relative
+import urllib.parse
 
 from .exceptions import xpath_error
-from .namespaces import XQT_ERRORS_NAMESPACE
+from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
     is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
 from .schema_proxy import AbstractSchemaProxy
-from .tdop_parser import Token
+from .tdop_parser import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
 
 
@@ -356,11 +356,41 @@ class XPathToken(Token):
         obtained by the join o the base_uri of the static context with the
         argument. Returns the argument if the base_uri is `None'.
         """
-        url_parts = urlparse(uri)
-        if url_parts.scheme not in uses_relative or url_parts.path.startswith('/') \
+        url_parts = urllib.parse.urlparse(uri)
+        if url_parts.scheme not in urllib.parse.uses_relative \
+                or url_parts.path.startswith('/') \
                 or self.parser.base_uri is None:
             return uri
-        return urljoin(self.parser.base_uri, uri)
+        return urllib.parse.urljoin(self.parser.base_uri, uri)
+
+    def get_namespace(self, prefix):
+        """
+        Resolves a prefix to a namespace raising an error (FONS0004) if the
+        prefix is not found in the namespace map.
+        """
+        try:
+            return self.parser.namespaces[prefix]
+        except KeyError as err:
+            raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
+
+    def bind_namespace(self, namespace):
+        """
+        Bind a token with a namespace. The token has to be a name, a name wildcard,
+        a function or a constructor, otherwise a syntax error is raised. Functions
+        and constructors must be limited to its namespaces.
+        """
+        if self.symbol not in ('(name)', '*') and self.label not in ('function', 'constructor'):
+            self.wrong_syntax()
+        elif namespace == XPATH_FUNCTIONS_NAMESPACE:
+            if self.label != 'function':
+                self.wrong_syntax("An XPath function is expected.")
+            elif isinstance(self.label, MultiLabel):
+                self.label = 'function'
+        elif namespace == XSD_NAMESPACE:
+            if self.symbol not in ('(name)', '*') and self.label != 'constructor':
+                self.wrong_syntax("An XSD element or a constructor function is expected.")
+            elif isinstance(self.label, MultiLabel):
+                self.label = 'constructor'
 
     def adjust_datetime(self, context, cls):
         """

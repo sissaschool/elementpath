@@ -14,9 +14,8 @@ from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingCon
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
     NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
-from .tdop_parser import Parser, MultiLabel
-from .namespaces import XML_ID, XML_LANG, XPATH_FUNCTIONS_NAMESPACE, \
-    XSD_NAMESPACE, XML_NAMESPACE, qname_to_prefixed
+from .tdop_parser import Parser
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, qname_to_prefixed
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement,\
@@ -131,11 +130,7 @@ class XPath1Parser(Parser):
             self[:] = self.parser.expression(rbp=bp),
             return self
 
-        axis_pattern_template = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)'
-        try:
-            pattern = axis_pattern_template % symbol.strip()
-        except AttributeError:
-            pattern = axis_pattern_template % getattr(symbol, 'symbol')
+        pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % symbol
         return cls.register(symbol, pattern=pattern, label='axis', lbp=bp, rbp=bp, nud=nud_)
 
     @classmethod
@@ -308,24 +303,8 @@ def led(self, left):
 
     next_token = self.parser.next_token
     if left.symbol == '(name)':
-        try:
-            namespace = self.parser.namespaces[left.value]
-        except KeyError as err:
-            raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
-
-        if next_token.symbol not in ('(name)', '*') and next_token.label not in ('function', 'constructor'):
-            next_token.wrong_syntax()
-        elif namespace == XPATH_FUNCTIONS_NAMESPACE:
-            if next_token.label != 'function':
-                next_token.wrong_syntax("An XPath function is expected.")
-            elif isinstance(next_token.label, MultiLabel):
-                next_token.label = 'function'
-        elif namespace == XSD_NAMESPACE:
-            if next_token.symbol not in ('(name)', '*') and next_token.label != 'constructor':
-                next_token.wrong_syntax("An XSD element or a constructor function is expected.")
-            elif isinstance(next_token.label, MultiLabel):
-                next_token.label = 'constructor'
-
+        namespace = self.get_namespace(left.value)
+        next_token.bind_namespace(namespace)
     elif left.symbol == '*' and next_token.symbol != '(name)':
         next_token.wrong_syntax()
 
@@ -337,18 +316,9 @@ def led(self, left):
 
 @method(':')
 def evaluate(self, context=None):
-    if self[0].value == '*':
-        return
-    try:
-        namespace = self.parser.namespaces[self[0].value]
-    except KeyError as err:
-        raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
-
-    if namespace == XPATH_FUNCTIONS_NAMESPACE and self[1].label != 'function':
-        self[1].wrong_value("Must be a function")
-    elif namespace == XSD_NAMESPACE and self[1].symbol not in ('(name)', '*') and self[1].label != 'constructor':
-        self[1].wrong_value("An XSD element or a constructor function is expected.")
-    return self[1].evaluate(context)
+    if self[1].label in ('function', 'constructor'):
+        return self[1].evaluate(context)
+    return [x for x in self.select(context)]
 
 
 @method(':')
@@ -363,12 +333,8 @@ def select(self, context=None):
     elif self[0].value == '*':
         value = '*:%s' % self[1].value
     else:
-        try:
-            namespace = self.parser.namespaces[self[0].value]
-        except KeyError as err:
-            raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
-        else:
-            value = '{%s}%s' % (namespace, self[1].value)
+        namespace = self.get_namespace(self[0].value)
+        value = '{%s}%s' % (namespace, self[1].value)
 
     if context is None:
         return
@@ -408,14 +374,10 @@ def select(self, context=None):
 def nud(self):
     if self.parser.strict:
         self.unexpected()
+
     namespace = self.parser.next_token.value + self.parser.raw_advance('}')
     self.parser.advance()
-
-    next_token = self.parser.next_token
-    if next_token.symbol not in ('(name)', '*') and next_token.label != 'function':
-        next_token.wrong_syntax()
-    elif self.parser.next_token.label != 'function' and namespace == XPATH_FUNCTIONS_NAMESPACE:
-        self.parser.next_token.wrong_syntax()
+    self.parser.next_token.bind_namespace(namespace)
     self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), self.parser.expression(90)
     return self
 
@@ -431,11 +393,7 @@ def evaluate(self, context=None):
 @method('{')
 def select(self, context=None):
     if self[1].label == 'function':
-        value = self[1].evaluate(context)
-        if isinstance(value, list):
-            yield from value
-        else:
-            yield value
+        yield self[1].evaluate(context)
     elif context is not None:
         value = '{%s}%s' % (self[0].value, self[1].value)
         for item in context.iter_children_or_self():

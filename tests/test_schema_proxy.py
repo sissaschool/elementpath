@@ -26,11 +26,7 @@ try:
 except (ImportError, AttributeError):
     xmlschema = None
 
-try:
-    from tests import test_xpath2_parser
-except ImportError:
-    # Python2 fallback
-    import test_xpath2_parser
+from tests import test_xpath2_parser
 
 
 @unittest.skipIf(xmlschema is None, "xmlschema library required.")
@@ -43,6 +39,15 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
           <xs:element name="test_element" type="xs:string"/>
           <xs:attribute name="test_attribute" type="xs:string"/>
+          <xs:element name="A">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="B1"/>
+                <xs:element name="B2"/>
+                <xs:element name="B3"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
         </xs:schema>''')
 
     def setUp(self):
