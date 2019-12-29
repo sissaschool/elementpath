@@ -23,7 +23,7 @@ from .exceptions import ElementPathError, MissingContextError, \
 from . import datatypes
 from .tdop_parser import Token, Parser
 from .xpath_context import XPathContext, XPathSchemaContext
-from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, NamespaceNode
+from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, NamespaceNode
 from .xpath_token import XPathToken
 from .xpath1_parser import XPath1Parser
 from .xpath2_constructors import XPath2Parser

@@ -25,7 +25,7 @@ import urllib.parse
 
 from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
-from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
+from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
     is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
@@ -287,7 +287,7 @@ class XPathToken(Token):
         :param context: the XPath dynamic context.
         """
         for result in self.select(context):
-            if isinstance(result, TypedElement):
+            if isinstance(result, (TypedElement, TextNode)):
                 yield result[0]
             elif isinstance(result, AttributeNode):
                 yield result[1]
@@ -566,7 +566,7 @@ class XPathToken(Token):
         elif is_attribute_node(obj):
             return str(obj[1])
         elif is_text_node(obj):
-            return obj
+            return obj[0]
         elif is_document_node(obj):
             return ''.join(e.text for e in obj.getroot().iter() if e.text is not None)
         elif is_namespace_node(obj):

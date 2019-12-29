@@ -18,9 +18,9 @@ from .tdop_parser import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, qname_to_prefixed
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
-from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement,\
-    is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
-    is_text_node, is_comment_node, is_processing_instruction_node, node_name
+from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
+    is_xpath_node, is_element_node, is_document_node, is_attribute_node, is_text_node, \
+    is_comment_node, is_processing_instruction_node, node_name
 
 
 XML_NAME_CHARACTER = (u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -409,8 +409,8 @@ def select(self, context=None):
 def nud(self):
     self.parser.next_token.expected('(name)')
     self[:] = self.parser.expression(rbp=90),
-    if self[0].value.startswith('{'):
-        self[0].wrong_value("Variable reference requires a simple reference name")
+    if self[0].value.startswith(':'):
+        self[0].wrong_syntax("Variable reference requires a simple reference name")
     return self
 
 
@@ -523,20 +523,15 @@ def evaluate(self, context=None):
 ###
 # Numerical operators
 prefix('+')
-prefix('-', bp=90)
+prefix('-', bp=70)
 
 
 @method(infix('+', bp=40))
 def evaluate(self, context=None):
-    if not self:
-        return
-    elif len(self) == 1:
+    if len(self) == 1:
         arg = self.get_argument(context, cls=NumericTypeProxy)
         if arg is not None:
-            try:
-                return +arg
-            except TypeError:
-                raise self.wrong_type("numeric value is required: %r" % arg)
+            return +arg
     else:
         op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
         if op1 is not None:
@@ -551,10 +546,7 @@ def evaluate(self, context=None):
     if len(self) == 1:
         arg = self.get_argument(context, cls=NumericTypeProxy)
         if arg is not None:
-            try:
-                return -arg
-            except TypeError:
-                raise self.wrong_type("numeric value is required: %r" % arg)
+            return -arg
     else:
         op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
         if op1 is not None:
@@ -685,9 +677,6 @@ def select(self, context=None):
                     if result[0] not in items:
                         items.append(result)
                         yield result
-                elif isinstance(result, AttributeNode):
-                    items.append(result)
-                    yield result
                 else:
                     items.append(result)
                     yield result

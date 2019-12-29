@@ -63,7 +63,7 @@ class XPath1ParserTest(unittest.TestCase):
         'xsi': XSI_NAMESPACE,
         'fn': XPATH_FUNCTIONS_NAMESPACE,
         'eg': 'http://www.example.com/ns/',
-        'tst': "http://xpath.test/ns",
+        'tst': 'http://xpath.test/ns',
     }
     variables = {
         'values': [10, 20, 5],
@@ -151,7 +151,12 @@ class XPath1ParserTest(unittest.TestCase):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.evaluate, context)
         elif isinstance(expected, float) and math.isnan(expected):
-            self.assertTrue(math.isnan(root_token.evaluate(context)))
+            value = root_token.evaluate(context)
+            if isinstance(value, list):
+                self.assertTrue(any(math.isnan(x) for x in value))
+            else:
+                self.assertTrue(math.isnan(value))
+
         elif not callable(expected):
             self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
@@ -438,7 +443,7 @@ class XPath1ParserTest(unittest.TestCase):
         namespace = namedtuple('Namespace', 'prefix uri')('xs', 'http://www.w3.org/2001/XMLSchema')
         comment = self.etree.Comment('nothing important')
         pi = self.etree.ProcessingInstruction('action', 'nothing to do')
-        text = u'aldebaran'
+        text = TextNode('aldebaran')
         context = XPathContext(element)
         self.check_select("node()", [document.getroot()], context=XPathContext(document))
         self.check_selector("node()", element, [])
@@ -579,6 +584,10 @@ class XPath1ParserTest(unittest.TestCase):
                               '</ups-units>')
         variables = {'ups1': root[0], 'ups2': root[1], 'ups3': root[2]}
         self.check_selector('string($ups1/power)', root, '40kW', variables=variables)
+
+        self.check_value('$word', 'alpha')
+        self.wrong_syntax('$eg:word')
+        self.wrong_syntax('${http://xpath.test/ns}word')
 
     def test_substring_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
@@ -838,26 +847,56 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value(" 7+5 ", 12)
         self.check_value("8 - 5", 3)
         self.check_value("-8 - 5", -13)
-        self.check_value("5 div 2", 2.5)
         self.check_value("-3 * 7", -21)
         self.check_value("9 - 1 + 6", 14)
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
 
+    def test_div_operator(self):
+        self.check_value("5 div 2", 2.5)
+        self.check_value("0 div 2", 0.0)
+        if self.parser.version > '1.0':
+            self.check_value("() div 2")
+
     def test_numerical_add_operator(self):
         self.check_value("3 + 8", 11)
-        self.check_value("9 - 5.0", 4)
+        self.check_value("+9", 9)
+        self.wrong_syntax("+")
 
         root = self.etree.XML(XML_DATA_TEST)
         if self.parser.version == '1.0':
             self.check_value("'9' + 5.0", 14)
             self.check_selector("/values/a + 2", root, 5.4)
             self.check_value("/values/b + 2", float('nan'), context=XPathContext(root))
+            self.check_value("+'alpha'", float('nan'))
+            self.check_value("3 + 'alpha'", float('nan'))
         else:
             self.check_selector("/values/a + 2", root, TypeError)
             self.check_value("/values/b + 2", TypeError, context=XPathContext(root))
+            self.wrong_type("+'alpha'")
+            self.wrong_type("3 + 'alpha'")
 
         self.check_selector("/values/d + 3", root, 47)
+
+    def test_numerical_sub_operator(self):
+        self.check_value("9 - 5.0", 4)
+        self.check_value("-8", -8)
+        self.wrong_syntax("-")
+
+        root = self.etree.XML(XML_DATA_TEST)
+        if self.parser.version == '1.0':
+            self.check_value("'9' - 5.0", 4)
+            self.check_selector("/values/a - 2", root, 1.4)
+            self.check_value("/values/b - 1", float('nan'), context=XPathContext(root))
+            self.check_value("-'alpha'", float('nan'))
+            self.check_value("3 - 'alpha'", float('nan'))
+        else:
+            self.check_selector("/values/a - 2", root, TypeError)
+            self.check_value("/values/b - 2", TypeError, context=XPathContext(root))
+            self.wrong_type("-'alpha'")
+            self.wrong_type("3 - 'alpha'")
+
+        self.check_selector("/values/d - 3", root, 41)
 
     def test_numerical_mod_operator(self):
         self.check_value("11 mod 3", 2)
@@ -973,9 +1012,15 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_value("$id", '19273222', context=context)
         self.wrong_syntax("$id()")
 
-    def test_child_operator(self):
+    def test_path_step_operator(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        document = self.etree.ElementTree(root)
+
         self.check_selector('/', root, [])
+        if self.etree is ElementTree or self.parser.version > '1.0':
+            # Skip lxml'xpath() comparison because it doesn't include document selection
+            self.check_selector('/', document, [document])
+
         self.check_selector('/B1', root, [])
         self.check_selector('/A1', root, [])
         self.check_selector('/A', root, [root])
@@ -989,6 +1034,15 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/child::B3', root, [root[2]])
         self.check_selector('/A/child::C1', root, [])
 
+        if self.parser.version == '1.0':
+            self.wrong_syntax('/true()')
+            self.wrong_syntax('/A/true()')
+            self.wrong_syntax('/|')
+        else:
+            self.check_value('/true()', [True], context=XPathContext(root))
+            self.check_value('/A/true()', [True], context=XPathContext(root))
+            self.wrong_syntax('/|')
+
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector('.', root, [root])
@@ -997,6 +1051,10 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B1/.', root, [root[0]])
         self.check_selector('/A/B1/././.', root, [root[0]])
         self.check_selector('1/.', root, TypeError)
+
+        document = self.etree.ElementTree(root)
+        self.check_value('.', [root], context=XPathContext(root))
+        self.check_value('.', [document], context=XPathContext(root=document))
 
     def test_self_axis(self):
         root = self.etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
@@ -1035,6 +1093,8 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('//C', root, [root[0][0], root[2][0]])
         self.check_selector('//*', root, [e for e in root.iter()])
 
+        self.check_value('/1//*', TypeError, context=XPathContext(root))
+
         # Issue #14
         root = self.etree.XML("""
         <pm>
@@ -1056,10 +1116,13 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/B1/following::C1', root, [root[2][0], root[3][0]])
 
     def test_following_sibling_axis(self):
-        root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
+        root = self.etree.XML('<A><B1><C1 a="1"/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
         self.check_selector('/A/B1/C1/following-sibling::*', root, [root[0][1], root[0][2]])
         self.check_selector('/A/B2/C1/following-sibling::*', root, [root[1][1], root[1][2], root[1][3]])
         self.check_selector('/A/B1/C1/following-sibling::C3', root, [root[0][2]])
+
+        self.check_selector("/A/B1/C1/1/following-sibling::*", root, TypeError)
+        self.check_selector("/A/B1/C1/@a/following-sibling::*", root, [])
 
     def test_attribute_abbreviation_and_axis(self):
         root = self.etree.XML('<A id="1" a="alpha"><B1 b1="beta1"/><B2/><B3 b2="beta2" b3="beta3"/></A>')
@@ -1079,7 +1142,7 @@ class XPath1ParserTest(unittest.TestCase):
         namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) + [('tst', 'http://xpath.test/ns')]
         self.check_selector('/A/namespace::*', root, expected=set(namespaces), namespaces=namespaces[-1:])
 
-    def test_parent_abbreviation_and_axis(self):
+    def test_parent_shortcut_and_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
         self.check_selector('/A/*/C2/..', root, [root[2]])
         self.check_selector('/A/*/*/..', root, [root[0], root[2], root[3]])
@@ -1087,6 +1150,7 @@ class XPath1ParserTest(unittest.TestCase):
         self.check_selector('/A/*/C2/parent::node()', root, [root[2]])
         self.check_selector('/A/*/*/parent::node()', root, [root[0], root[2], root[3]])
         self.check_selector('//C2/parent::node()', root, [root[2]])
+        self.check_value('..', MissingContextError)
 
     def test_ancestor_axes(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2><C1/><D2><E1/><E2/></D2><C2/></B2><B3><C1><D1/></C1></B3></A>')
@@ -1168,6 +1232,9 @@ class XPath1ParserTest(unittest.TestCase):
 
         self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[0]))
         self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[1]))
+
+    def test_parenthesized_expression(self):
+        self.check_value('(6 + 9)', 15)
 
     def test_union(self):
         root = self.etree.XML('<A min="1" max="10"><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2><B3/></A>')
