@@ -839,7 +839,7 @@ def select(self, context=None):
             yield context.item
 
         if hasattr(elem, 'nsmap'):
-            # Maybe an lxml's Element: don't use parser namespaces for axis.
+            # Add element's namespaces for lxml (and use None for default namespace)
             for prefix_, uri in elem.nsmap.items():
                 if prefix_ not in namespaces:
                     context.item = NamespaceNode(prefix_, uri)

@@ -1136,11 +1136,20 @@ class XPath1ParserTest(unittest.TestCase):
         root = self.etree.XML('<ns:value xmlns:ns="ns" choice="int">10</ns:value>')
         self.check_selector('@choice', root, ['int'])
         self.check_selector('@choice="int"', root, True)
+        self.check_value('@choice', MissingContextError)
+        self.check_value('@1', SyntaxError, context=XPathContext(root))
 
     def test_namespace_axis(self):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
         namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) + [('tst', 'http://xpath.test/ns')]
         self.check_selector('/A/namespace::*', root, expected=set(namespaces), namespaces=namespaces[-1:])
+
+        if self.etree is lxml_etree:
+            self.check_selector('/A/namespace::*', root, expected=set(namespaces))
+
+            root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" xmlns="http://xpath.test/ns"><B1/></tst:A>')
+            namespaces = namespaces + [(None, 'http://xpath.test/ns')]
+            self.check_selector('/tst:A/namespace::*', root, set(namespaces), namespaces=namespaces[-2:-1])
 
     def test_parent_shortcut_and_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
