@@ -11,8 +11,8 @@ import datetime
 from functools import lru_cache
 
 from .exceptions import ElementPathTypeError
-from .xpath_nodes import AttributeNode, TypedAttribute, TypedElement, is_etree_element, \
-    is_element_node, is_document_node, is_attribute_node
+from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
+    is_etree_element, is_element_node, is_document_node, is_attribute_node
 
 
 class XPathContext(object):
@@ -179,7 +179,7 @@ class XPathContext(object):
         elif is_etree_element(self.item):
             elem = self.item
             if elem.text is not None:
-                self.item = elem.text
+                self.item = TextNode(elem.text)
                 yield self.item
             self.size = len(elem)
             for self.position, self.item in enumerate(elem):
@@ -253,7 +253,7 @@ class XPathContext(object):
         elem = self._elem = self.item
         yield elem
         if elem.text is not None:
-            self.item = elem.text
+            self.item = TextNode(elem.text)
             yield self.item
         if len(elem):
             self.size = len(elem)
@@ -316,7 +316,7 @@ class XPathContext(object):
         elem = self._elem = self.item
         yield elem
         if elem.text is not None:
-            self.item = elem.text
+            self.item = TextNode(elem.text)
             yield self.item
 
         for self.item in map(lambda x: AttributeNode(*x), elem.attrib.items()):

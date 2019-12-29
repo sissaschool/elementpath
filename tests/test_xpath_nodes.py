@@ -12,12 +12,12 @@ import unittest
 import io
 import xml.etree.ElementTree as ElementTree
 
-from elementpath.xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
-    NamespaceNode, is_etree_element, elem_iter_strings, etree_deep_equal, \
-    is_element_node, is_attribute_node, is_comment_node, is_document_node, \
-    is_namespace_node, is_processing_instruction_node, is_text_node, node_attributes, \
-    node_base_uri, node_document_uri, node_children, node_is_id, node_is_idrefs, \
-    node_nilled, node_kind, node_name
+from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
+    TypedElement, NamespaceNode, is_etree_element, elem_iter_strings, \
+    etree_deep_equal, is_element_node, is_attribute_node, is_comment_node, \
+    is_document_node, is_namespace_node, is_processing_instruction_node, \
+    is_text_node, node_attributes, node_base_uri, node_document_uri, \
+    node_children, node_is_id, node_is_idrefs, node_nilled, node_kind, node_name
 
 
 class XPathNodesTest(unittest.TestCase):
@@ -99,7 +99,8 @@ class XPathNodesTest(unittest.TestCase):
         self.assertFalse(is_processing_instruction_node(self.elem))
 
     def test_is_text_node_function(self):
-        self.assertTrue(is_text_node('alpha'))
+        self.assertTrue(is_text_node(TextNode('alpha')))
+        self.assertFalse(is_text_node('alpha'))
         self.assertFalse(is_text_node(self.elem))
 
     def test_node_attributes_function(self):
@@ -173,7 +174,7 @@ class XPathNodesTest(unittest.TestCase):
         namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
         comment = ElementTree.Comment('nothing important')
         pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        text = u'betelgeuse'
+        text = TextNode('betelgeuse')
         self.assertEqual(node_kind(document), 'document')
         self.assertEqual(node_kind(element), 'element')
         self.assertEqual(node_kind(attribute), 'attribute')

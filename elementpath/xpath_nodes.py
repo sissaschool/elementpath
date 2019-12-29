@@ -22,6 +22,9 @@ from .datatypes import ncname_validator
 AttributeNode = namedtuple('Attribute', 'name value')
 """A namedtuple-based type to represent XPath attributes."""
 
+TextNode = namedtuple('Text', 'value')
+"""A namedtuple-based type to represent XPath text nodes."""
+
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
 """A namedtuple-based type to represent XPath namespaces."""
 
@@ -160,7 +163,7 @@ def is_namespace_node(obj):
 
 
 def is_text_node(obj):
-    return isinstance(obj, str)
+    return isinstance(obj, TextNode)
 
 
 def is_xpath_node(obj):
