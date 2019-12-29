@@ -628,7 +628,10 @@ class Parser(object):
         def evaluate(self, *args, **kwargs):
             return self.value
 
-        return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
+        def select(self, context=None):
+            yield self.evaluate()
+
+        return cls.register(symbol, label='literal', evaluate=evaluate, lbp=bp, nud=nud, select=select)
 
     @classmethod
     def nullary(cls, symbol, bp=0):
