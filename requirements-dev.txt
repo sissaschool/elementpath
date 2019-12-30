@@ -3,6 +3,6 @@ setuptools
 tox
 coverage
 lxml
-xmlschema~=1.0.15
+xmlschema~=1.0.17
 Sphinx
 -e .

@@ -246,9 +246,6 @@ def select(self, context=None):
     name = self.value
     if isinstance(context, XPathSchemaContext):
         # Bind with the XSD type from a schema
-        if name[0] != '{' and self.parser.default_namespace:
-            name = '{%s}%s' % (self.parser.default_namespace, name)
-
         for schema_item in context.iter_children_or_self():
             if self.match_xsd_type(schema_item, name) is not None:
                 yield self.get_typed_node(context, schema_item)

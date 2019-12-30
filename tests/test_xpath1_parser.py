@@ -1108,6 +1108,21 @@ class XPath1ParserTest(unittest.TestCase):
 
         self.check_selector('/pm/content/pmEntry/pmEntry//pmEntry[@pmEntryType]', root, [])
 
+    def test_double_slash_shortcut_pr16(self):
+        # Pull-Request #16
+        root = self.etree.XML("""
+        <html>
+            <ul>
+                <li>
+                    <span class='class_a'>a</span>
+                </li>
+            </ul>
+        </html>""")
+
+        self.check_selector("//span", root, [root[0][0][0]])
+        # self.check_selector("//span[concat('', '', 'class_a')='class_a']/text()", root, ['a'])
+        self.check_selector("//span[concat('', '', @class)='class_a']/text()", root, ['a'])
+
     def test_following_axis(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C1><D1/></C1></B4></A>')
         self.check_selector('/A/B1/C1/following::*', root, [

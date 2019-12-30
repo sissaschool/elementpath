@@ -155,6 +155,9 @@ class XPathToken(Token):
                 return
         else:
             item = None
+            if context is not None:
+                context = context.copy()
+
             for k, result in enumerate(selector(context)):
                 if k == 0:
                     item = result
