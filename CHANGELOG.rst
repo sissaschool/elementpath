@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.4.0`_ (2019-12-29)
+`v1.4.0`_ (2019-12-30)
 ======================
 * Remove Python 2 support
 * Add TextNode node type

@@ -220,6 +220,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
             </xs:schema>''')
         parser = XPath2Parser(namespaces={'': "http://xpath.test/ns", 'xs': XSD_NAMESPACE},
                               schema=XMLSchemaProxy(schema))
+
         token = parser.parse("//a")
         self.assertEqual(token[0].xsd_type, schema.maps.types['{%s}string' % XSD_NAMESPACE])
         token = parser.parse("//b")
@@ -355,7 +356,9 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
                 </xs:simpleType>
             </xs:schema>''')
 
-        root = schema.find('root')
+        # TODO: test fail with xmlschema-1.0.17+, added namespaces as temporary fix for test.
+        #  A fix for xmlschema.xpath.ElementPathMixin._get_xpath_namespaces() is required.
+        root = schema.find('root', namespaces={'': 'http://xpath.test/ns#'})
         self.assertEqual(getattr(root, 'tag', None), '{http://xpath.test/ns#}root')
 
 
