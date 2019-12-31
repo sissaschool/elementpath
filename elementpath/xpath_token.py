@@ -24,7 +24,8 @@ from decimal import Decimal
 import urllib.parse
 
 from .exceptions import xpath_error
-from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
     is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
@@ -36,6 +37,8 @@ from .xpath_context import XPathSchemaContext
 
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+
+XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 
 def ordinal(n):
@@ -235,11 +238,14 @@ class XPathToken(Token):
                 if isinstance(context, XPathSchemaContext):
                     return value
                 if self.xsd_type is not None and isinstance(value, str):
-                    try:
-                        value = self.xsd_type.decode(value)
-                    except (TypeError, ValueError):
-                        msg = "Type {!r} is not appropriate for the context"
-                        self.wrong_context_type(msg.format(type(value)))
+                    if self.xsd_type.name in XSD_SPECIAL_TYPES:
+                        value = UntypedAtomic(value)
+                    else:
+                        try:
+                            value = self.xsd_type.decode(value)
+                        except (TypeError, ValueError):
+                            msg = "Type {!r} is not appropriate for the context"
+                            self.wrong_context_type(msg.format(type(value)))
                 return value
             else:
                 self.wrong_context_type("atomized operand is a sequence of length greater than one")
@@ -494,9 +500,16 @@ class XPathToken(Token):
         else:
             try:
                 if isinstance(item, AttributeNode):
-                    return TypedAttribute(item, self.xsd_type.decode(item[1]))
+                    if self.xsd_type.name in XSD_SPECIAL_TYPES:
+                        return TypedAttribute(item, UntypedAtomic(item[1]))
+                    else:
+                        return TypedAttribute(item, self.xsd_type.decode(item[1]))
+
                 elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
-                    return TypedElement(item, self.xsd_type.decode(item.text))
+                    if self.xsd_type.name in XSD_SPECIAL_TYPES:
+                        return TypedElement(item, UntypedAtomic(item.text))
+                    else:
+                        return TypedElement(item, self.xsd_type.decode(item.text))
                 else:
                     return item
             except (TypeError, ValueError):
