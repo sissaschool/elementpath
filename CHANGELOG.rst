@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.4.0`_ (2020-01-xx)
+======================
+* More tests ...
+
 `v1.4.0`_ (2019-12-31)
 ======================
 * Remove Python 2 support
@@ -188,3 +192,4 @@ CHANGELOG
 .. _v1.3.2: https://github.com/brunato/elementpath/compare/v1.3.1...v1.3.2
 .. _v1.3.3: https://github.com/brunato/elementpath/compare/v1.3.2...v1.3.3
 .. _v1.4.0: https://github.com/brunato/elementpath/compare/v1.3.3...v1.4.0
+.. _v1.4.1: https://github.com/brunato/elementpath/compare/v1.4.0...v1.4.1
