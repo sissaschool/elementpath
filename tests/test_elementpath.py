@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -19,19 +19,13 @@
 #           https://www.w3.org/Consortium/Legal/2015/doc-license
 #           https://www.w3.org/TR/charmod-norm/
 #
-import unittest
-
 if __name__ == '__main__':
-    from tests.test_exceptions import ExceptionsTest
-    from tests.test_namespaces import NamespacesTest
-    from tests.test_datatypes import UntypedAtomicTest, DateTimeTypesTest, DurationTypesTest, TimezoneTypeTest
-    from tests.test_tdop_parser import TdopParserTest
-    from tests.test_xpath_nodes import XPathNodesTest
-    from tests.test_xpath_token import XPathTokenTest
-    from tests.test_xpath_context import XPathContextTest
-    from tests.test_xpath1_parser import XPath1ParserTest, LxmlXPath1ParserTest
-    from tests.test_xpath2_parser import XPath2ParserTest, LxmlXPath2ParserTest
-    from tests.test_schema_proxy import XPath2ParserXMLSchemaTest, LxmlXPath2ParserXMLSchemaTest
-    from tests.test_selectors import XPathSelectorsTest
-    from tests.test_package import PackageTest
+    import unittest
+    import os
+
+    def load_tests(loader, tests, pattern):
+        tests_dir = os.path.dirname(__file__)
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern=pattern or 'test*.py'))
+        return tests
+
     unittest.main()
