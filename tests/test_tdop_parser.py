@@ -43,11 +43,12 @@ class TdopParserTest(unittest.TestCase):
     def test_create_tokenizer_method(self):
         pattern = Parser.create_tokenizer(create_fake_tokens(['(name)', 'call', '+']))
         self.assertEqual(pattern.pattern, r"""
-            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
-            (call|[+]) |                                                       # Symbol's patterns
-            ([A-Za-z0-9_]+) |                                                            # Names
-            (\S) |                                                            # Unexpected characters
-            \s+                                                               # Skip extra spaces
+            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)  # Literals (strings and numbers)
+            ?(?:[Ee][+-]?\d+)?) |
+            (call|[+]) |                                  # Symbol's patterns
+            ([A-Za-z0-9_]+) |                                       # Names
+            (\S) |                                       # Unexpected characters
+            \s+                                          # Skip extra spaces
         """)
 
         with self.assertRaises(ValueError):
@@ -58,7 +59,7 @@ class TdopParserTest(unittest.TestCase):
             ['(name)', 'call', '+', '{http://www.w3.org/2000/09/xmldsig#}CryptoBinary']
         ))
         self.assertTrue(
-            pattern.pattern.split('\n')[2].strip().startswith(r"({http://www.w3.org/2000/09/xmldsig\#}")
+            pattern.pattern.split('\n')[3].strip().startswith(r"({http://www.w3.org/2000/09/xmldsig\#}")
         )
 
 

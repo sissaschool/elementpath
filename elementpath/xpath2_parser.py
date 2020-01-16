@@ -47,14 +47,17 @@ class XPath2Parser(XPath1Parser):
     like the ElementPath library. Default is `True`.
     :param default_namespace: the default namespace to apply to unprefixed names. \
     For default no namespace is applied (empty namespace '').
-    :param function_namespace: the default namespace to apply to unprefixed function names. \
-    For default the namespace "http://www.w3.org/2005/xpath-functions" is used.
-    :param schema: the schema proxy class or instance to use for types, attributes and elements lookups. \
-    If an `AbstractSchemaProxy` subclass is provided then a schema proxy instance is built without the \
-    optional argument, that involves a mapping of only XSD builtin types. If it's not provided the \
-    XPath 2.0 schema's related expressions cannot be used.
-    :param base_uri: an absolute URI maybe provided, used when necessary in the resolution of relative URIs.
-    :param compatibility_mode: if set to `True` the parser instance works with XPath 1.0 compatibility rules.
+    :param function_namespace: the default namespace to apply to unprefixed function \
+    names. For default the namespace "http://www.w3.org/2005/xpath-functions" is used.
+    :param schema: the schema proxy class or instance to use for types, attributes and \
+    elements lookups. If an `AbstractSchemaProxy` subclass is provided then a schema \
+    proxy instance is built without the optional argument, that involves a mapping of \
+    only XSD builtin types. If it's not provided the XPath 2.0 schema's related \
+    expressions cannot be used.
+    :param base_uri: an absolute URI maybe provided, used when necessary in the \
+    resolution of relative URIs.
+    :param compatibility_mode: if set to `True` the parser instance works with \
+    XPath 1.0 compatibility rules.
     """
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
@@ -74,7 +77,8 @@ class XPath2Parser(XPath1Parser):
         'idiv',
 
         # Node type functions
-        'document-node', 'schema-attribute', 'element', 'schema-element', 'attribute', 'empty-sequence',
+        'document-node', 'schema-attribute', 'element', 'schema-element',
+        'attribute', 'empty-sequence',
 
         # Accessor functions
         'node-name', 'nilled', 'data', 'base-uri', 'document-uri',
@@ -125,7 +129,8 @@ class XPath2Parser(XPath1Parser):
 
         # Functions Related to QNames (QName function is also a constructor)
         'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
-        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes', 'resolve-QName',
+        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
+        'resolve-QName',
 
         # Static context functions
         'default-collation', 'static-base-uri',
@@ -139,15 +144,18 @@ class XPath2Parser(XPath1Parser):
         # Error function
         'error',
 
-        # XSD builtins constructors ('string', 'boolean' and 'QName' already registered as functions)
-        'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID', 'IDREF',
-        'NMTOKEN', 'anyURI', 'decimal', 'int', 'integer', 'long', 'short', 'byte', 'double',
-        'float', 'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
-        'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time',
-        'gDay', 'gMonth', 'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
+        # XSD builtins constructors ('string', 'boolean' and 'QName' are
+        # already registered as functions)
+        'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID',
+        'IDREF', 'NMTOKEN', 'anyURI', 'decimal', 'int', 'integer', 'long', 'short',
+        'byte', 'double', 'float', 'nonNegativeInteger', 'positiveInteger',
+        'nonPositiveInteger', 'negativeInteger', 'unsignedLong', 'unsignedInt',
+        'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time', 'gDay', 'gMonth',
+        'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
         'yearMonthDuration', 'base64Binary', 'hexBinary',
 
-        # Functions and Operators that Generate Sequences ('id' changes but is already registered)
+        # Functions and Operators that Generate Sequences ('id' changes but
+        # is already registered)
         'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
@@ -176,7 +184,8 @@ class XPath2Parser(XPath1Parser):
         if schema is None:
             pass
         elif not isinstance(schema, AbstractSchemaProxy):
-            raise ElementPathTypeError("argument 'schema' must be an instance of AbstractSchemaProxy")
+            msg = "argument 'schema' must be an instance of AbstractSchemaProxy"
+            raise ElementPathTypeError(msg)
         else:
             schema.bind_parser(self)
 
@@ -287,7 +296,8 @@ class XPath2Parser(XPath1Parser):
                                    nud=nud_, evaluate=evaluate_, cast=staticmethod(cast))
 
         def bind(func):
-            assert func.__name__ == 'cast', "The function name must be 'cast', not %r." % func.__name__
+            assert func.__name__ == 'cast', \
+                "The function name must be 'cast', not %r." % func.__name__
             setattr(token_class, func.__name__, staticmethod(func))
             return func
         return bind
@@ -559,7 +569,8 @@ def evaluate(self, context=None):
                 if not self.parser.is_instance(item, qname):
                     return False
             except KeyError:
-                self.missing_schema("atomic type %r not found in in-scope schema types" % self[1].source)
+                msg = "atomic type %r not found in in-scope schema types"
+                self.missing_schema(msg % self[1].source)
             else:
                 if position and (occurs is None or occurs == '?'):
                     return False
@@ -591,9 +602,11 @@ def evaluate(self, context=None):
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
-                    self.wrong_sequence_type("item %r is not of type %r" % (item, self[1].source))
+                    msg = "item %r is not of type %r"
+                    self.wrong_sequence_type(msg % (item, self[1].source))
             except KeyError:
-                self.missing_schema("atomic type %r not found in in-scope schema types" % self[1].source)
+                msg = "atomic type %r not found in in-scope schema types"
+                self.missing_schema(msg % self[1].source)
             else:
                 if position and (occurs is None or occurs == '?'):
                     self.wrong_sequence_type("more than one item in sequence")
@@ -651,12 +664,16 @@ def evaluate(self, context=None):
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
             if token_class is None or token_class.label != 'constructor':
-                self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
+                msg = "atomic type %r not found in the in-scope schema types"
+                self.unknown_atomic_type(msg % self[1].source)
 
             if local_name in {'base64Binary', 'hexBinary'}:
                 value = token_class.cast(input_value, self[0].label == 'literal')
-            elif local_name in {'dateTime', 'date', 'gDay', 'gMonth', 'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
-                value = token_class.cast(input_value, tz=None if context is None else context.timezone)
+            elif local_name in {'dateTime', 'date', 'gDay', 'gMonth',
+                                'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
+                value = token_class.cast(
+                    input_value, tz=None if context is None else context.timezone
+                )
             elif local_name == 'QName':
                 value = token_class.cast(input_value, self.parser.namespaces)
             else:
@@ -669,7 +686,8 @@ def evaluate(self, context=None):
             err.token = self
         raise
     except KeyError:
-        self.unknown_atomic_type("atomic type %r not found in the in-scope schema types" % self[1].source)
+        msg = "atomic type %r not found in the in-scope schema types"
+        self.unknown_atomic_type(msg % self[1].source)
     except TypeError as err:
         if self.symbol != 'cast':
             return False
@@ -743,7 +761,8 @@ def evaluate(self, context=None):
     if context is None:
         op1, op2 = self[0].get_atomized_operand(), self[1].get_atomized_operand()
     else:
-        op1, op2 = self[0].get_atomized_operand(context.copy()), self[1].get_atomized_operand(context.copy())
+        op1 = self[0].get_atomized_operand(context.copy())
+        op2 = self[1].get_atomized_operand(context.copy())
 
     if op1 is not None and op2 is not None:
         return getattr(operator, self.symbol)(op1, op2)

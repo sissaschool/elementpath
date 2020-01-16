@@ -71,10 +71,11 @@ def etree_deep_equal(e1, e2):
 #
 # XPath has there are 7 kinds of nodes:
 #
-#    element, attribute, text, namespace, processing-instruction, comment, document
+#  element, attribute, text, namespace, processing-instruction, comment, document
 #
-# Element-like objects are used for representing elements and comments, ElementTree-like objects
-# for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
+# Element-like objects are used for representing elements and comments,
+# ElementTree-like objects for documents. Generic tuples are used for
+# representing attributes and named-tuples for namespaces.
 ###
 def is_element_node(obj, tag=None):
     """
