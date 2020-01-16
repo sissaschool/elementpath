@@ -165,7 +165,9 @@ class XPathToken(Token):
                 if k == 0:
                     item = result
                 elif not self.parser.compatibility_mode:
-                    self.wrong_context_type("a sequence of more than one item is not allowed as argument")
+                    self.wrong_context_type(
+                        "a sequence of more than one item is not allowed as argument"
+                    )
                 else:
                     break
             else:
@@ -213,7 +215,8 @@ class XPathToken(Token):
         for item in self.select(context):
             value = self.data_value(item)
             if value is None:
-                raise self.error('FOTY0012', "argument node {!r} does not have a typed value".format(item))
+                msg = "argument node {!r} does not have a typed value"
+                raise self.error('FOTY0012', msg.format(item))
             else:
                 yield value
 
@@ -568,7 +571,8 @@ class XPathToken(Token):
                             "more items not starting with an XPath node.",
                 )
         elif isinstance(obj, tuple) or is_element_node(obj):
-            raise self.error('FORG0006', "Effective boolean value is not defined for {}.".format(obj))
+            msg = "Effective boolean value is not defined for {}."
+            raise self.error('FORG0006', msg.format(obj))
         return bool(obj)
 
     def string_value(self, obj):

@@ -61,6 +61,72 @@ class ElementPathLocaleError(ElementPathError, locale.Error):
     pass
 
 
+XPATH_ERROR_CODES = {
+    # XPath 2.0 parser error (https://www.w3.org/TR/xpath20/#id-errors)
+    'XPST0001': (ElementPathValueError, 'Parser not bound to a schema'),
+    'XPST0003': (ElementPathValueError, 'Invalid XPath expression'),
+    'XPDY0002': (MissingContextError, 'Dynamic context required for evaluate'),
+    'XPTY0004': (ElementPathTypeError, 'Type is not appropriate for the context'),
+    'XPST0005': (ElementPathValueError, 'A not empty sequence required'),
+    'XPST0008': (ElementPathNameError, 'Name not found'),
+    'XPST0010': (ElementPathNameError, 'Axis not found'),
+    'XPST0017': (ElementPathTypeError, 'Wrong number of arguments'),
+    'XPTY0018': (ElementPathTypeError,
+                 'Step result contains both nodes and atomic values'),
+    'XPTY0019': (ElementPathTypeError, 'Intermediate step contains an atomic value'),
+    'XPTY0020': (ElementPathTypeError, 'Context item is not a node'),
+    'XPDY0050': (ElementPathTypeError, 'Type does not match sequence type'),
+    'XPST0051': (ElementPathNameError, 'Unknown atomic type'),
+    'XPST0080': (ElementPathNameError,
+                 'Target type cannot be xs:NOTATION or xs:anyAtomicType'),
+    'XPST0081': (ElementPathNameError, 'Unknown namespace'),
+
+    # XPath data types and function errors
+    'FOER0000': (ElementPathError, 'Unidentified error'),
+    'FOAR0001': (ElementPathValueError, 'Division by zero'),
+    'FOAR0002': (ElementPathValueError, 'Numeric operation overflow/underflow'),
+    'FOCA0001': (ElementPathValueError, 'Input value too large for decimal'),
+    'FOCA0002': (ElementPathValueError, 'Invalid lexical value'),
+    'FOCA0003': (ElementPathValueError, 'Input value too large for integer'),
+    'FOCA0005': (ElementPathValueError, 'NaN supplied as float/double value'),
+    'FOCA0006': (ElementPathValueError,
+                 'String to be cast to decimal has too many digits of precision'),
+    'FOCH0001': (ElementPathValueError, 'Code point not valid'),
+    'FOCH0002': (ElementPathLocaleError, 'Unsupported collation'),
+    'FOCH0003': (ElementPathValueError, 'Unsupported normalization form'),
+    'FOCH0004': (ElementPathValueError, 'Collation does not support collation units'),
+    'FODC0001': (ElementPathValueError, 'No context document'),
+    'FODC0002': (ElementPathValueError, 'Error retrieving resource'),
+    'FODC0003': (ElementPathValueError, 'Function stability not defined'),
+    'FODC0004': (ElementPathValueError, 'Invalid argument to fn:collection'),
+    'FODC0005': (ElementPathValueError,
+                 'Invalid argument to fn:doc or fn:doc-available'),
+    'FODT0001': (ElementPathValueError, 'Overflow/underflow in date/time operation'),
+    'FODT0002': (ElementPathValueError, 'Overflow/underflow in duration operation'),
+    'FODT0003': (ElementPathValueError, 'Invalid timezone value'),
+    'FONS0004': (ElementPathKeyError, 'No namespace found for prefix'),
+    'FONS0005': (ElementPathValueError, 'Base-uri not defined in the static context'),
+    'FORG0001': (ElementPathValueError, 'Invalid value for cast/constructor'),
+    'FORG0002': (ElementPathValueError, 'Invalid argument to fn:resolve-uri()'),
+    'FORG0003': (ElementPathValueError,
+                 'fn:zero-or-one called with a sequence containing more than one item'),
+    'FORG0004': (ElementPathValueError,
+                 'fn:one-or-more called with a sequence containing no items'),
+    'FORG0005': (ElementPathValueError,
+                 'fn:exactly-one called with a sequence containing zero or more than one item'),
+    'FORG0006': (ElementPathTypeError, 'Invalid argument type'),
+    'FORG0008': (ElementPathValueError,
+                 'The two arguments to fn:dateTime have inconsistent timezones'),
+    'FORG0009': (ElementPathValueError,
+                 'Error in resolving a relative URI against a base URI in fn:resolve-uri'),
+    'FORX0001': (ElementPathValueError, 'Invalid regular expression flags'),
+    'FORX0002': (ElementPathValueError, 'Invalid regular expression'),
+    'FORX0003': (ElementPathValueError, 'Regular expression matches zero-length string'),
+    'FORX0004': (ElementPathValueError, 'Invalid replacement string'),
+    'FOTY0012': (ElementPathValueError, 'Argument node does not have a typed value'),
+}
+
+
 def xpath_error(code, message=None, token=None, prefix='err'):
     """
     Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code
@@ -80,120 +146,9 @@ def xpath_error(code, message=None, token=None, prefix='err'):
         pcode = code
         code = code[len(prefix) + 1:]
 
-    # XPath 2.0 parser error (https://www.w3.org/TR/xpath20/#id-errors)
-    if code == 'XPST0001':
-        return ElementPathValueError(message or 'Parser not bound to a schema', pcode, token)
-    elif code == 'XPST0003':
-        return ElementPathValueError(message or 'Invalid XPath expression', pcode, token)
-    elif code == 'XPDY0002':
-        return MissingContextError(message or 'Dynamic context required for evaluate', pcode, token)
-    elif code == 'XPTY0004':
-        return ElementPathTypeError(message or 'Type is not appropriate for the context', pcode, token)
-    elif code == 'XPST0005':
-        return ElementPathValueError(message or 'A not empty sequence required', pcode, token)
-    elif code == 'XPST0008':
-        return ElementPathNameError(message or 'Name not found', pcode, token)
-    elif code == 'XPST0010':
-        return ElementPathNameError(message or 'Axis not found', pcode, token)
-    elif code == 'XPST0017':
-        return ElementPathTypeError(message or 'Wrong number of arguments', pcode, token)
-    elif code == 'XPTY0018':
-        return ElementPathTypeError(message or 'Step result contains both nodes and atomic values', pcode, token)
-    elif code == 'XPTY0019':
-        return ElementPathTypeError(message or 'Intermediate step contains an atomic value', pcode, token)
-    elif code == 'XPTY0020':
-        return ElementPathTypeError(message or 'Context item is not a node', pcode, token)
-    elif code == 'XPDY0050':
-        return ElementPathTypeError(message or 'Type does not match sequence type', pcode, token)
-    elif code == 'XPST0051':
-        return ElementPathNameError(message or 'Unknown atomic type', pcode, token)
-    elif code == 'XPST0080':
-        return ElementPathNameError(message or 'Target type cannot be xs:NOTATION or xs:anyAtomicType', pcode, token)
-    elif code == 'XPST0081':
-        return ElementPathNameError(message or 'Unknown namespace', pcode, token)
-
-    # XPath data types and function errors
-    elif code == 'FOER0000':
-        return ElementPathError(message or 'Unidentified error', pcode, token)
-    elif code == 'FOAR0001':
-        return ElementPathValueError(message or 'Division by zero', pcode, token)
-    elif code == 'FOAR0002':
-        return ElementPathValueError(message or 'Numeric operation overflow/underflow', pcode, token)
-    elif code == 'FOCA0001':
-        return ElementPathValueError(message or 'Input value too large for decimal', pcode, token)
-    elif code == 'FOCA0002':
-        return ElementPathValueError(message or 'Invalid lexical value', pcode, token)
-    elif code == 'FOCA0003':
-        return ElementPathValueError(message or 'Input value too large for integer', pcode, token)
-    elif code == 'FOCA0005':
-        return ElementPathValueError(message or 'NaN supplied as float/double value', pcode, token)
-    elif code == 'FOCA0006':
-        return ElementPathValueError(
-            message or 'String to be cast to decimal has too many digits of precision', pcode, token
-        )
-    elif code == 'FOCH0001':
-        return ElementPathValueError(message or 'Code point not valid', pcode, token)
-    elif code == 'FOCH0002':
-        return ElementPathLocaleError(message or 'Unsupported collation', pcode, token)
-    elif code == 'FOCH0003':
-        return ElementPathValueError(message or 'Unsupported normalization form', pcode, token)
-    elif code == 'FOCH0004':
-        return ElementPathValueError(message or 'Collation does not support collation units', pcode, token)
-    elif code == 'FODC0001':
-        return ElementPathValueError(message or 'No context document', pcode, token)
-    elif code == 'FODC0002':
-        return ElementPathValueError(message or 'Error retrieving resource', pcode, token)
-    elif code == 'FODC0003':
-        return ElementPathValueError(message or 'Function stability not defined', pcode, token)
-    elif code == 'FODC0004':
-        return ElementPathValueError(message or 'Invalid argument to fn:collection', pcode, token)
-    elif code == 'FODC0005':
-        return ElementPathValueError(message or 'Invalid argument to fn:doc or fn:doc-available', pcode, token)
-    elif code == 'FODT0001':
-        return ElementPathValueError(message or 'Overflow/underflow in date/time operation', pcode, token)
-    elif code == 'FODT0002':
-        return ElementPathValueError(message or 'Overflow/underflow in duration operation', pcode, token)
-    elif code == 'FODT0003':
-        return ElementPathValueError(message or 'Invalid timezone value', pcode, token)
-    elif code == 'FONS0004':
-        return ElementPathKeyError(message or 'No namespace found for prefix', pcode, token)
-    elif code == 'FONS0005':
-        return ElementPathValueError(message or 'Base-uri not defined in the static context', pcode, token)
-    elif code == 'FORG0001':
-        return ElementPathValueError(message or 'Invalid value for cast/constructor', pcode, token)
-    elif code == 'FORG0002':
-        return ElementPathValueError(message or 'Invalid argument to fn:resolve-uri()', pcode, token)
-    elif code == 'FORG0003':
-        return ElementPathValueError(
-            message or 'fn:zero-or-one called with a sequence containing more than one item', pcode, token
-        )
-    elif code == 'FORG0004':
-        return ElementPathValueError(
-            message or 'fn:one-or-more called with a sequence containing no items', pcode, token
-        )
-    elif code == 'FORG0005':
-        return ElementPathValueError(
-            message or 'fn:exactly-one called with a sequence containing zero or more than one item', pcode, token
-        )
-    elif code == 'FORG0006':
-        return ElementPathTypeError(message or 'Invalid argument type', pcode, token)
-    elif code == 'FORG0008':
-        return ElementPathValueError(
-            message or 'The two arguments to fn:dateTime have inconsistent timezones', pcode, token
-        )
-    elif code == 'FORG0009':
-        return ElementPathValueError(
-            message or 'Error in resolving a relative URI against a base URI in fn:resolve-uri', pcode, token
-        )
-    elif code == 'FORX0001':
-        return ElementPathValueError(message or 'Invalid regular expression flags', pcode, token)
-    elif code == 'FORX0002':
-        return ElementPathValueError(message or 'Invalid regular expression', pcode, token)
-    elif code == 'FORX0003':
-        return ElementPathValueError(message or 'Regular expression matches zero-length string', pcode, token)
-    elif code == 'FORX0004':
-        return ElementPathValueError(message or 'Invalid replacement string', pcode, token)
-    elif code == 'FOTY0012':
-        return ElementPathValueError(message or 'Argument node does not have a typed value', pcode, token)
-    else:
+    try:
+        error_class, default_message = XPATH_ERROR_CODES[code]
+    except KeyError:
         raise ElementPathValueError(message or 'Unknown XPath error code %r.' % code, token=token)
+    else:
+        return error_class(message or default_message, pcode, token)

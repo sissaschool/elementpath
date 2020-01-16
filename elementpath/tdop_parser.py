@@ -21,7 +21,10 @@ from .exceptions import ElementPathSyntaxError, ElementPathNameError, \
     ElementPathValueError, ElementPathTypeError
 
 SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
-"""Compiled regular expression for matching special symbols, that are names between round brackets."""
+"""
+Compiled regular expression for matching special symbols,
+that are names between round brackets.
+"""
 
 SPACE_PATTERN = re.compile(r'\s')
 
@@ -41,7 +44,8 @@ def symbol_to_identifier(symbol):
     elif SPECIAL_SYMBOL_PATTERN.match(symbol):
         return symbol[1:-1]
     elif all(c in '-_' for c in symbol):
-        return '_'.join(unicode_name(str(c)).title() for c in symbol).replace(' ', '').replace('-', '')
+        value = '_'.join(unicode_name(str(c)).title() for c in symbol)
+        return value.replace(' ', '').replace('-', '')
 
     value = symbol.replace('-', '_')
     if value.isidentifier():
@@ -100,15 +104,16 @@ class Token(MutableSequence):
     """
     Token base class for defining a parser based on Pratt's method.
 
-    Each token instance is a list-like object. The number of token's items is the arity of
-    the represented operator, where token's items are the operands. Nullary operators are
-    used for symbols, names and literals. Tokens with items represent the other operators
-    (unary, binary and so on).
+    Each token instance is a list-like object. The number of token's items is
+    the arity of the represented operator, where token's items are the operands.
+    Nullary operators are used for symbols, names and literals. Tokens with items
+    represent the other operators (unary, binary and so on).
 
-    Each token class has a *symbol*, a lbp (left binding power) value and a rbp (right binding
-    power) value, that are used in the sense described by the Pratt's method. This implementation
-    of Pratt tokens includes two extra attributes, *pattern* and *label*, that can be used to
-    simplify the parsing of symbols in a concrete parser.
+    Each token class has a *symbol*, a lbp (left binding power) value and a rbp
+    (right binding power) value, that are used in the sense described by the
+    Pratt's method. This implementation of Pratt tokens includes two extra
+    attributes, *pattern* and *label*, that can be used to simplify the parsing
+    of symbols in a concrete parser.
 
     :param parser: The parser instance that creates the token instance.
     :param value: The token value. If not provided defaults to token symbol.
@@ -116,17 +121,18 @@ class Token(MutableSequence):
     :cvar symbol: the symbol of the token class.
     :cvar lbp: Pratt's left binding power, defaults to 0.
     :cvar rbp: Pratt's right binding power, defaults to 0.
-    :cvar pattern: the regex pattern used for the token class. Defaults to the escaped symbol. \
-    Can be customized to match more detailed conditions (eg. a function with its left round bracket), \
-    in order to simplify the related code.
-    :cvar label: defines the typology of the token class. Its value is used in representations of the \
-    token instance and can be used to restrict code choices without more complicated analysis. The label \
-    value can be set as needed by the parser implementation (eg. 'function', 'axis', 'constructor' are \
-    used by the XPath parsers). In the base parser class defaults to 'symbol' with 'literal' and 'operator' \
-    as possible alternatives. If set by a tuple of values the token class label is transformed to a \
-    multi-value label, that means the token class can covers multiple roles (eg. as XPath function or axis). \
-    In those cases the definitive role is defined at parse time (nud and/or led methods) after the token \
-    instance creation.
+    :cvar pattern: the regex pattern used for the token class. Defaults to the \
+    escaped symbol. Can be customized to match more detailed conditions (eg. a \
+    function with its left round bracket), in order to simplify the related code.
+    :cvar label: defines the typology of the token class. Its value is used in \
+    representations of the token instance and can be used to restrict code choices \
+    without more complicated analysis. The label value can be set as needed by the \
+    parser implementation (eg. 'function', 'axis', 'constructor' are used by the XPath \
+    parsers). In the base parser class defaults to 'symbol' with 'literal' and 'operator' \
+    as possible alternatives. If set by a tuple of values the token class label is \
+    transformed to a multi-value label, that means the token class can covers multiple \
+    roles (eg. as XPath function or axis). In those cases the definitive role is defined \
+    at parse time (nud and/or led methods) after the token instance creation.
     """
     symbol = None     # the token identifier, key in the token table.
     lbp = 0           # left binding power
@@ -242,7 +248,11 @@ class Token(MutableSequence):
             self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
-        symbol = self.value if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None else self.symbol
+        if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None:
+            symbol = self.value
+        else:
+            symbol = self.symbol
+
         line_column = 'line %d, column %d' % self.parser.position
         token = self.parser.token
         if token is not None and symbol != token.symbol:
@@ -270,7 +280,8 @@ class ParserMeta(type):
         # Avoids more parsers definitions for a single module
         for k, v in sys.modules[cls.__module__].__dict__.items():
             if isinstance(v, ParserMeta) and v.__module__ == cls.__module__:
-                raise RuntimeError("Multiple parser class definitions per module are not permitted: %r" % cls)
+                raise RuntimeError("Multiple parser class definitions per "
+                                   "module are not permitted: %r" % cls)
 
         # Checks and initializes class attributes
         if not hasattr(cls, 'token_base_class'):
@@ -405,23 +416,25 @@ class Parser(metaclass=ParserMeta):
                     self.next_token = self.symbol_table['(name)'](self, name)
                     break
                 elif unexpected is not None:
+                    position = 'line %d, column %d' % self.position
                     raise ElementPathSyntaxError(
-                        "unexpected symbol %r at %s." % (unexpected, 'line %d, column %d' % self.position)
+                        "unexpected symbol %r at %s." % (unexpected, position)
                     )
                 elif str(self.next_match.group()).strip():
-                    raise RuntimeError(
-                        "Unexpected matching %r: not compatible tokenizer." % self.next_match.group()
-                    )
+                    msg = "Unexpected matching %r: not compatible tokenizer."
+                    raise RuntimeError(msg % self.next_match.group())
         return self.next_token
 
     def raw_advance(self, *stop_symbols):
         """
-        Advances until one of the symbols is found or the end of source is reached, returning
-        the raw source string placed before. Useful for raw parsing of comments and references
-        enclosed between specific symbols. This is an extension provided by this implementation.
+        Advances until one of the symbols is found or the end of source is reached,
+        returning the raw source string placed before. Useful for raw parsing of
+        comments and references enclosed between specific symbols.
+        This is an extension provided by this implementation.
 
         :param stop_symbols: The symbols that have to be found for stopping advance.
-        :return: The source string chunk enclosed between the initial position and the first stop symbol.
+        :return: The source string chunk enclosed between the initial position \
+        and the first stop symbol.
         """
         if not stop_symbols:
             raise ElementPathValueError("at least a stop symbol required!", self.next_token)
@@ -429,7 +442,8 @@ class Parser(metaclass=ParserMeta):
             if self.token is None:
                 raise ElementPathSyntaxError("source is empty.", self.next_token)
             else:
-                raise ElementPathSyntaxError("unexpected end of source after %s." % self.token, self.next_token)
+                msg = "unexpected end of source after %s."
+                raise ElementPathSyntaxError(msg % self.token, self.next_token)
 
         self.token = self.next_token
         self.match = self.next_match
@@ -488,7 +502,8 @@ class Parser(metaclass=ParserMeta):
 
     def is_source_start(self):
         """
-        Returns `True` if the parser is positioned at the start of the source, ignoring the spaces.
+        Returns `True` if the parser is positioned at the start
+        of the source, ignoring the spaces.
         """
         if self.match is None:
             return True
@@ -496,7 +511,8 @@ class Parser(metaclass=ParserMeta):
 
     def is_line_start(self):
         """
-        Returns `True` if the parser is positioned at the start of a source line, ignoring the spaces.
+        Returns `True` if the parser is positioned at the start
+        of a source line, ignoring the spaces.
         """
         if self.match is None:
             return True
@@ -506,11 +522,13 @@ class Parser(metaclass=ParserMeta):
 
     def is_spaced(self, before=True, after=True):
         """
-        Returns `True` if the source has an extra space (whitespace, tab or newline) immediately
-        before or after the current position of the parser.
+        Returns `True` if the source has an extra space (whitespace, tab or newline)
+        immediately before or after the current position of the parser.
 
-        :param before: if `True` considers also the extra spaces before the current token symbol.
-        :param after: if `True` considers also the extra spaces after the current token symbol.
+        :param before: if `True` considers also the extra spaces before \
+        the current token symbol.
+        :param after: if `True` considers also the extra spaces after \
+        the current token symbol.
         """
         if self.match is None:
             return False
@@ -702,11 +720,12 @@ class Parser(metaclass=ParserMeta):
         :param name_pattern: pattern to use to match names.
         """
         tokenizer_pattern_template = r"""
-            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |  # Literals (string and numbers)
-            (%s|[%s]) |                                                       # Symbol's patterns
-            (%s) |                                                            # Names
-            (\S) |                                                            # Unexpected characters
-            \s+                                                               # Skip extra spaces
+            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)  # Literals (strings and numbers)
+            ?(?:[Ee][+-]?\d+)?) |
+            (%s|[%s]) |                                  # Symbol's patterns
+            (%s) |                                       # Names
+            (\S) |                                       # Unexpected characters
+            \s+                                          # Skip extra spaces
         """
         patterns = [
             t.pattern.replace('#', r'\#') for s, t in symbol_table.items()

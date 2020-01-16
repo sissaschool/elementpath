@@ -101,7 +101,8 @@ class Timezone(datetime.tzinfo):
     def __init__(self, offset):
         super(Timezone, self).__init__()
         if not isinstance(offset, datetime.timedelta):
-            raise ElementPathTypeError("offset must be a datetime.timedelta or an XSD timezone formatted string")
+            raise ElementPathTypeError("offset must be a datetime.timedelta or "
+                                       "an XSD timezone formatted string")
         if offset < self._minoffset or offset > self._maxoffset:
             raise ElementPathValueError("offset must be between -14:00 and +14:00")
         self.offset = offset
@@ -143,12 +144,14 @@ class Timezone(datetime.tzinfo):
 
     def utcoffset(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
-            raise ElementPathTypeError("utcoffset() argument must be a datetime.datetime instance or None")
+            raise ElementPathTypeError("utcoffset() argument must be a "
+                                       "datetime.datetime instance or None")
         return self.offset
 
     def tzname(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
-            raise ElementPathTypeError("tzname() argument must be a datetime.datetime instance or None")
+            raise ElementPathTypeError("tzname() argument must be a "
+                                       "datetime.datetime instance or None")
 
         if not self.offset:
             return 'Z'
@@ -162,13 +165,15 @@ class Timezone(datetime.tzinfo):
 
     def dst(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
-            raise ElementPathTypeError("dst() argument must be a datetime.datetime instance or None")
+            raise ElementPathTypeError("dst() argument must be a "
+                                       "datetime.datetime instance or None")
 
     def fromutc(self, dt):
         if isinstance(dt, datetime.datetime):
             return dt + self.offset
         elif dt is not None:
-            raise TypeError("fromutc() argument must be a datetime.datetime instance or None")
+            raise TypeError("fromutc() argument must be a "
+                            "datetime.datetime instance or None")
 
 
 class AbstractDateTime(metaclass=ABCMeta):
@@ -180,7 +185,8 @@ class AbstractDateTime(metaclass=ABCMeta):
     _pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
 
-    def __init__(self, year=2000, month=1, day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
+    def __init__(self, year=2000, month=1, day=1, hour=0, minute=0,
+                 second=0, microsecond=0, tzinfo=None):
         if hour == 24 and minute == second == 0:
             delta = datetime.timedelta(days=1)
             hour = 0
@@ -189,7 +195,8 @@ class AbstractDateTime(metaclass=ABCMeta):
 
         if 1 <= year <= 9999:
             self._year = None
-            self._dt = datetime.datetime(year, month, day, hour, minute, second, microsecond, tzinfo)
+            self._dt = datetime.datetime(year, month, day, hour, minute,
+                                         second, microsecond, tzinfo)
         elif year == 0:
             raise ElementPathValueError('0 is an illegal value for year')
         elif not isinstance(year, int):
@@ -197,9 +204,11 @@ class AbstractDateTime(metaclass=ABCMeta):
         else:
             self._year = year
             if isleap(year + bool(self.version != '1.0')):
-                self._dt = datetime.datetime(4, month, day, hour, minute, second, microsecond, tzinfo)
+                self._dt = datetime.datetime(4, month, day, hour, minute,
+                                             second, microsecond, tzinfo)
             else:
-                self._dt = datetime.datetime(6, month, day, hour, minute, second, microsecond, tzinfo)
+                self._dt = datetime.datetime(6, month, day, hour, minute,
+                                             second, microsecond, tzinfo)
 
         if delta:
             self._dt += delta
@@ -207,7 +216,8 @@ class AbstractDateTime(metaclass=ABCMeta):
     def __repr__(self):
         fields = self._pattern.groupindex.keys()
         arg_string = ', '.join(
-            str(getattr(self, k)) for k in ['year', 'month', 'day', 'hour', 'minute'] if k in fields
+            str(getattr(self, k))
+            for k in ['year', 'month', 'day', 'hour', 'minute'] if k in fields
         )
         if 'second' in fields:
             if self.microsecond:
@@ -289,13 +299,16 @@ class AbstractDateTime(metaclass=ABCMeta):
         :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(datetime_string, str):
-            raise ElementPathTypeError('1st argument has an invalid type %r' % type(datetime_string))
+            msg = '1st argument has an invalid type {!r}'
+            raise ElementPathTypeError(msg.format(type(datetime_string)))
         elif tzinfo and not isinstance(tzinfo, Timezone):
-            raise ElementPathTypeError('2nd argument has an invalid type %r' % type(tzinfo))
+            msg = '2nd argument has an invalid type {!r}'
+            raise ElementPathTypeError(msg.format(type(tzinfo)))
 
         match = cls._pattern.match(datetime_string)
         if match is None:
-            raise ElementPathValueError('Invalid datetime string %r for %r' % (datetime_string, cls))
+            msg = 'Invalid datetime string {!r} for {!r}'
+            raise ElementPathValueError(msg.format(datetime_string, cls))
 
         kwargs = {k: int(v) if k != 'tzinfo' else Timezone.fromstring(v)
                   for k, v in match.groupdict().items() if v is not None}
@@ -333,7 +346,8 @@ class AbstractDateTime(metaclass=ABCMeta):
 
     # Python can't compares offset-naive and offset-aware datetimes
     def _get_operands(self, other):
-        if isinstance(other, (self.__class__, datetime.datetime)) or isinstance(self, other.__class__):
+        if isinstance(other, (self.__class__, datetime.datetime)) or \
+                isinstance(self, other.__class__):
             dt = getattr(other, '_dt', other)
             if self._dt.tzinfo is dt.tzinfo:
                 return self._dt, dt
@@ -391,12 +405,14 @@ class OrderedDateTime(AbstractDateTime):
                     year -= 1
                     days = 365
 
-                td = datetime.timedelta(days=days, seconds=delta.seconds, microseconds=delta.microseconds)
+                td = datetime.timedelta(days=days, seconds=delta.seconds,
+                                        microseconds=delta.microseconds)
                 dt = datetime.datetime(4 if isleap(year) else 6, 1, 1) + td
 
             elif days >= -366:
                 year = -1
-                td = datetime.timedelta(days=days, seconds=delta.seconds, microseconds=delta.microseconds)
+                td = datetime.timedelta(days=days, seconds=delta.seconds,
+                                        microseconds=delta.microseconds)
                 dt = datetime.datetime(5, 1, 1) + td
 
             else:
@@ -410,7 +426,8 @@ class OrderedDateTime(AbstractDateTime):
                     year += 1
                     days = 365
 
-                td = datetime.timedelta(days=-days, seconds=delta.seconds, microseconds=delta.microseconds)
+                td = datetime.timedelta(days=-days, seconds=delta.seconds,
+                                        microseconds=delta.microseconds)
                 if not td:
                     dt = datetime.datetime(4 if isleap(year + 1) else 6, 1, 1)
                     year += 1
@@ -428,13 +445,16 @@ class OrderedDateTime(AbstractDateTime):
                     minute = dt.minute - dt.tzinfo.offset.minutes
 
                 if hour < 14 or hour == 14 and minute == 0:
-                    dt = dt.replace(tzinfo=Timezone(datetime.timedelta(hours=-hour, minutes=-minute)))
+                    tz = Timezone(datetime.timedelta(hours=-hour, minutes=-minute))
+                    dt = dt.replace(tzinfo=tz)
                 else:
-                    dt = dt.replace(tzinfo=Timezone(datetime.timedelta(hours=-dt.hour + 24, minutes=-minute)))
+                    tz = Timezone(datetime.timedelta(hours=-dt.hour + 24, minutes=-minute))
+                    dt = dt.replace(tzinfo=tz)
                     dt += datetime.timedelta(days=1)
 
             return cls(year, dt.month, dt.day, tzinfo=dt.tzinfo)
-        return cls(year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
+        return cls(year, dt.month, dt.day, dt.hour, dt.minute,
+                   dt.second, dt.microsecond, dt.tzinfo)
 
     def todelta(self):
         """Returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
@@ -529,11 +549,14 @@ class DateTime10(OrderedDateTime):
     """XSD 1.0 xs:dateTime builtin type"""
     _pattern = re.compile(
         r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
-        r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)?'
+        r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
+        r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)?'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
-        super(DateTime10, self).__init__(year, month, day, hour, minute, second, microsecond, tzinfo)
+        super(DateTime10, self).__init__(
+            year, month, day, hour, minute, second, microsecond, tzinfo
+        )
 
     def __str__(self):
         if self.microsecond:
@@ -542,7 +565,8 @@ class DateTime10(OrderedDateTime):
                 self.second, self.microsecond, str(self.tzinfo or '')
             )
         return '{}-{:02}-{:02}T{:02}:{:02}:{:02}{}'.format(
-            self.iso_year, self.month, self.day, self.hour, self.minute, self.second, str(self.tzinfo or '')
+            self.iso_year, self.month, self.day, self.hour,
+            self.minute, self.second, str(self.tzinfo or '')
         )
 
 
@@ -560,7 +584,9 @@ class Date10(OrderedDateTime):
         super(Date10, self).__init__(year, month, day, tzinfo=tzinfo)
 
     def __str__(self):
-        return '{}-{:02}-{:02}{}'.format(self.iso_year, self.month, self.day, str(self.tzinfo or ''))
+        return '{}-{:02}-{:02}{}'.format(
+            self.iso_year, self.month, self.day, str(self.tzinfo or '')
+        )
 
 
 class Date(Date10):
@@ -570,7 +596,8 @@ class Date(Date10):
 
 class XPathGregorianDay(AbstractDateTime):
     """xs:gDay datatype for XPath expressions"""
-    _pattern = re.compile(r'^---(?P<day>[0-9]{2})(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    _pattern = re.compile(r'^---(?P<day>[0-9]{2})'
+                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, day, tzinfo=None):
         super(XPathGregorianDay, self).__init__(day=day, tzinfo=tzinfo)
@@ -585,7 +612,8 @@ class GregorianDay(XPathGregorianDay, OrderedDateTime):
 
 class XPathGregorianMonth(AbstractDateTime):
     """xs:gMonth datatype for XPath expressions"""
-    _pattern = re.compile(r'^--(?P<month>[0-9]{2})(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    _pattern = re.compile(r'^--(?P<month>[0-9]{2})'
+                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, tzinfo=None):
         super(XPathGregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
@@ -659,20 +687,25 @@ class GregorianYearMonth(GregorianYearMonth10):
 class Time(AbstractDateTime):
     """XSD xs:time builtin type"""
     _pattern = re.compile(
-        r'^(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?'
+        r'^(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
+        r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
         if hour == 24 and minute == second == 0:
             hour = 0
-        super(Time, self).__init__(hour=hour, minute=minute, second=second, microsecond=microsecond, tzinfo=tzinfo)
+        super(Time, self).__init__(
+            hour=hour, minute=minute, second=second, microsecond=microsecond, tzinfo=tzinfo
+        )
 
     def __str__(self):
         if self.microsecond:
             return '{:02}:{:02}:{:02}.{:06}{}'.format(
                 self.hour, self.minute, self.second, self.microsecond, str(self.tzinfo or '')
             )
-        return '{:02}:{:02}:{:02}{}'.format(self.hour, self.minute, self.second, str(self.tzinfo or ''))
+        return '{:02}:{:02}:{:02}{}'.format(
+            self.hour, self.minute, self.second, str(self.tzinfo or '')
+        )
 
     def __lt__(self, other):
         return operator.lt(*self._get_operands(other))
@@ -711,7 +744,8 @@ class Duration(object):
     Base class for the XSD duration types.
 
     :param months: an integer value that represents years and months.
-    :param seconds: a Decimal instance that represents days, hours, minutes, seconds and fractions of seconds.
+    :param seconds: a Decimal instance that represents days, hours, minutes, \
+    seconds and fractions of seconds.
     """
     _pattern = re.compile(
         r'^(-)?P(?=(?:[0-9]|T))(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
@@ -725,13 +759,18 @@ class Duration(object):
         self.seconds = decimal.Decimal(seconds)
 
     def __repr__(self):
-        return '%s(months=%r, seconds=%s)' % (self.__class__.__name__, self.months, str(self.seconds))
+        return '{}(months={!r}, seconds={})'.format(
+            self.__class__.__name__, self.months, str(self.seconds)
+        )
 
     def __str__(self):
         m = abs(self.months)
         years, months = m // 12, m % 12
         s = abs(self.seconds)
-        days, hours, minutes, seconds = int(s // 86400), int(s // 3600 % 24), int(s // 60 % 60), s % 60
+        days = int(s // 86400)
+        hours = int(s // 3600 % 24)
+        minutes = int(s // 60 % 60)
+        seconds = s % 60
 
         value = '-P' if self.sign else 'P'
         if years or months or days:
@@ -895,10 +934,14 @@ class DayTimeDuration(Duration):
 
     @classmethod
     def fromtimedelta(cls, td):
-        return cls(seconds=decimal.Decimal('{}.{:06}'.format(td.days * 86400 + td.seconds, td.microseconds)))
+        return cls(seconds=decimal.Decimal(
+            '{}.{:06}'.format(td.days * 86400 + td.seconds, td.microseconds)
+        ))
 
     def get_timedelta(self):
-        return datetime.timedelta(seconds=int(self.seconds), microseconds=int(self.seconds % 1 * 1000000))
+        return datetime.timedelta(
+            seconds=int(self.seconds), microseconds=int(self.seconds % 1 * 1000000)
+        )
 
     def __repr__(self):
         return '%s(seconds=%s)' % (self.__class__.__name__, str(self.seconds))
@@ -1033,7 +1076,8 @@ NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$')
 NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$')
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$')
 QNAME_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*):)?(?P<local>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*)$',
+    r'^(?:(?P<prefix>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*):)?'
+    r'(?P<local>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*)$',
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
@@ -1076,13 +1120,15 @@ class NumericTypeProxy(metaclass=TypeProxyMeta):
     """
     @staticmethod
     def instance_check(other):
-        return isinstance(other, (int, float, decimal.Decimal)) and not isinstance(other, bool)
+        return isinstance(other, (int, float, decimal.Decimal)) and \
+            not isinstance(other, bool)
 
     @staticmethod
     def subclass_check(subclass):
         if issubclass(subclass, bool):
             return False
-        return issubclass(subclass, int) or issubclass(subclass, float) or issubclass(subclass, decimal.Decimal)
+        return issubclass(subclass, int) or issubclass(subclass, float) \
+            or issubclass(subclass, decimal.Decimal)
 
     @staticmethod
     def instance_build(x=0):

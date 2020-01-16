@@ -182,7 +182,8 @@ def evaluate(self, context=None):
                     if not prefix or uri:
                         return uri
                     else:
-                        raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
+                        msg = 'Prefix %r is associated to no namespace'
+                        raise self.error('XPST0081', msg % prefix)
         return []
 
 
@@ -229,7 +230,9 @@ def evaluate(self, context=None):
         for p, uri in self.parser.namespaces.items():
             if uri in ns_uris:
                 if not prefix or uri:
-                    return '{%s}%s' % (uri, match.groupdict()['local']) if uri else match.groupdict()['local']
+                    if uri:
+                        return '{%s}%s' % (uri, match.groupdict()['local'])
+                    return match.groupdict()['local']
                 else:
                     raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
 
@@ -550,7 +553,8 @@ def evaluate(self, context=None):
     try:
         return re.search(pattern, input_string, flags=flags) is not None
     except re.error:
-        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)  # TODO: full XML regex syntax
+        # TODO: full XML regex syntax
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
 
 
 @method(function('replace', nargs=(3, 4)))
@@ -569,10 +573,12 @@ def evaluate(self, context=None):
     try:
         pattern = re.compile(pattern, flags=flags)
     except re.error:
-        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)  # TODO: full XML regex syntax
+        # TODO: full XML regex syntax
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
     else:
         if pattern.search(''):
-            raise self.error('FORX0003', "Regular expression %r matches zero-length string" % pattern.pattern)
+            msg = "Regular expression %r matches zero-length string"
+            raise self.error('FORX0003', msg % pattern.pattern)
         elif WRONG_REPLACEMENT_PATTERN.search(replacement):
             raise self.error('FORX0004', "Invalid replacement string %r" % replacement)
         else:
@@ -601,7 +607,8 @@ def select(self, context=None):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
     else:
         if pattern.search(''):
-            raise self.error('FORX0003', "Regular expression %r matches zero-length string" % pattern.pattern)
+            msg = "Regular expression %r matches zero-length string"
+            raise self.error('FORX0003', msg % pattern.pattern)
 
     if input_string:
         for value in pattern.split(input_string):
@@ -750,8 +757,11 @@ def evaluate(self, context=None):
 @method(function('escape-html-uri', nargs=1))
 def evaluate(self, context=None):
     uri = self.get_argument(context, cls=str)
+    if uri is None:
+        return ''
+
     try:
-        return '' if uri is None else urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
+        return urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
     except TypeError:
         self.wrong_type("the argument must be a string: %r" % uri)
 
@@ -951,7 +961,8 @@ def evaluate(self, context=None):
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
-    return DateTime10(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
+    return DateTime10(dt.year, dt.month, dt.day, dt.hour, dt.minute,
+                      dt.second, dt.microsecond, dt.tzinfo)
 
 
 @method(function('current-date', nargs=0))

@@ -38,11 +38,12 @@ class AbstractXsdComponent(metaclass=ABCMeta):
     @abstractmethod
     def is_matching(self, name, default_namespace):
         """
-        Returns `True` if the component name is matching the name provided as argument, `False` otherwise.
+        Returns `True` if the component name is matching the name provided as argument,
+        `False` otherwise.
 
         :param name: a local or fully-qualified name.
-        :param default_namespace: used if it's not None and not empty for completing the name \
-        argument in case it's a local name.
+        :param default_namespace: used if it's not None and not empty for completing \
+        the name argument in case it's a local name.
         """
 
 
@@ -132,9 +133,13 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     """
     def __init__(self, schema, base_element=None):
         if not is_etree_element(schema):
-            raise ElementPathTypeError("argument {!r} is not a compatible schema instance".format(schema))
+            raise ElementPathTypeError(
+                "argument {!r} is not a compatible schema instance".format(schema)
+            )
         if base_element is not None and not is_etree_element(base_element):
-            raise ElementPathTypeError("argument 'base_element' is not a compatible element instance")
+            raise ElementPathTypeError(
+                "argument 'base_element' is not a compatible element instance"
+            )
 
         self._schema = schema
         self._base_element = base_element

@@ -28,3 +28,11 @@ from .xpath1_parser import XPath1Parser
 from .xpath2_constructors import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
+
+__all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
+           'ElementPathNameError', 'ElementPathKeyError', 'ElementPathTypeError',
+           'ElementPathLocaleError', 'ElementPathValueError', 'datatypes', 'Token',
+           'Parser', 'XPathContext', 'XPathSchemaContext', 'AttributeNode', 'TextNode',
+           'TypedAttribute', 'TypedElement', 'NamespaceNode', 'XPathToken',
+           'XPath1Parser', 'XPath2Parser', 'select', 'iter_select', 'Selector',
+           'AbstractSchemaProxy']

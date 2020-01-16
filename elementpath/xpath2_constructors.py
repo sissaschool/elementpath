@@ -17,10 +17,12 @@ from urllib.error import URLError
 
 from .exceptions import ElementPathError, xpath_error
 from .xpath_nodes import is_attribute_node
-from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, XPathGregorianMonth, \
-    XPathGregorianMonthDay, XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic, Duration, \
-    YearMonthDuration, DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
-    NCNAME_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
+from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
+    XPathGregorianMonth, XPathGregorianMonthDay, XPathGregorianYear, \
+    XPathGregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, \
+    DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, \
+    NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN, \
+    LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
 from .xpath2_functions import XPath2Parser
 
 
@@ -108,9 +110,11 @@ def cast(value):
     except URLError:
         raise xpath_error('FOCA0002', "%r is not an xs:anyURI value" % value)
     if uri.count('#') > 1:
-        raise xpath_error('FOCA0002', "%r is not an xs:anyURI value (too many # characters)" % value)
+        msg = "%r is not an xs:anyURI value (too many # characters)"
+        raise xpath_error('FOCA0002', msg % value)
     elif WRONG_ESCAPE_PATTERN.search(uri):
-        raise xpath_error('FOCA0002', "%r is not an xs:anyURI value (wrong escaping)" % value)
+        msg = "%r is not an xs:anyURI value (wrong escaping)"
+        raise xpath_error('FOCA0002', msg % value)
     return uri
 
 
@@ -379,7 +383,10 @@ def cast(value, from_literal=False):
     elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'hex')
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
-        return value if isinstance(value, bytes) or str is bytes else codecs.encode(value.encode('ascii'), 'hex')
+        if isinstance(value, bytes) or str is bytes:
+            return value
+        else:
+            return codecs.encode(value.encode('ascii'), 'hex')
     else:
         try:
             value = codecs.decode(value, 'base64')
@@ -544,10 +551,12 @@ def evaluate(self, context=None):
         return [] if item is None else str(item)
 
 
-# Case 4 and 5: In XPath 2.0 the XSD 'QName' and 'dateTime' types have special constructor functions so
-# the 'QName' keyword is used both for fn:QName() and xs:QName(), the same for 'dateTime' keyword.
+# Case 4 and 5: In XPath 2.0 the XSD 'QName' and 'dateTime' types have special
+# constructor functions so the 'QName' keyword is used both for fn:QName() and
+# xs:QName(), the same for 'dateTime' keyword.
 #
-# In those cases the label at parse time is set by the nud method, in dependence of the number of args.
+# In those cases the label at parse time is set by the nud method, in dependence
+# of the number of args.
 #
 def cast_to_qname(value, namespaces=None):
     if not isinstance(value, str):
@@ -618,11 +627,14 @@ def evaluate(self, context=None):
         pfx = match.groupdict()['prefix'] or ''
         if not uri:
             if pfx:
-                raise self.error('FOCA0002', 'must be a local name when the parameter URI is empty')
+                raise self.error(
+                    'FOCA0002', 'must be a local name when the parameter URI is empty'
+                )
         else:
             try:
                 if uri != self.parser.namespaces[pfx]:
-                    raise self.error('FOCA0002', 'prefix %r is already is used for another namespace' % pfx)
+                    msg = 'prefix %r is already is used for another namespace'
+                    raise self.error('FOCA0002', msg % pfx)
             except KeyError:
                 self.parser.namespaces[pfx] = uri
         return qname
@@ -651,7 +663,8 @@ def evaluate(self, context=None):
             tzinfo = tm.tzinfo
         else:
             raise self.error('FORG0008')
-        return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute, tm.second, tm.microsecond, tzinfo)
+        return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute,
+                          tm.second, tm.microsecond, tzinfo)
 
 
 XPath2Parser.build()  # XPath 2.0 definition complete, can build the parser class.
