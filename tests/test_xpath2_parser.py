@@ -25,6 +25,7 @@ import io
 import locale
 import math
 import os
+import platform
 import time
 from decimal import Decimal
 
@@ -489,12 +490,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_value('fn:matches("abracadabra", "bra", "k")')
         self.wrong_value('fn:matches("abracadabra", "[bra")')
 
-        poem_context = XPathContext(root=self.etree.XML(XML_POEM_TEST))
-        self.check_value('fn:matches(., "Kaum.*krähen")', False, context=poem_context)
-        self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=poem_context)
-        self.check_value('fn:matches(., "^Kaum.*gesehen,$", "m")', True, context=poem_context)
-        self.check_value('fn:matches(., "^Kaum.*gesehen,$")', False, context=poem_context)
-        self.check_value('fn:matches(., "kiki", "i")', True, context=poem_context)
+        if platform.python_implementation() != 'PyPy' or self.etree is not lxml_etree:
+            poem_context = XPathContext(root=self.etree.XML(XML_POEM_TEST))
+            self.check_value('fn:matches(., "Kaum.*krähen")', False, context=poem_context)
+            self.check_value('fn:matches(., "Kaum.*krähen", "s")', True, context=poem_context)
+            self.check_value('fn:matches(., "^Kaum.*gesehen,$", "m")', True, context=poem_context)
+            self.check_value('fn:matches(., "^Kaum.*gesehen,$")', False, context=poem_context)
+            self.check_value('fn:matches(., "kiki", "i")', True, context=poem_context)
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[matches(@id, '^a_id$')]", root, [root[0]])
