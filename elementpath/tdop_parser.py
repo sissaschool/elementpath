@@ -14,6 +14,7 @@ import sys
 import re
 from unicodedata import name as unicode_name
 from decimal import Decimal
+from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
 
@@ -27,6 +28,10 @@ that are names between round brackets.
 """
 
 SPACE_PATTERN = re.compile(r'\s')
+
+
+def count_leading_spaces(s):
+    return sum(1 for _ in takewhile(str.isspace, s))
 
 
 def symbol_to_identifier(symbol):
@@ -492,13 +497,16 @@ class Parser(metaclass=ParserMeta):
     def position(self):
         """Property that returns the current line and column indexes."""
         if self.match is None:
-            return 1, 0
+            return 1, 1 + count_leading_spaces(self.source)
+
         token_index = self.match.span()[0]
         line = self.source[:token_index].count('\n') + 1
         if line == 1:
-            return line, token_index + 1
+            column = token_index + 2
         else:
-            return line, token_index - self.source[:token_index].rindex('\n')
+            column = token_index - self.source[:token_index].rindex('\n') + 1
+
+        return line, column + count_leading_spaces(self.source[column - 1:])
 
     def is_source_start(self):
         """

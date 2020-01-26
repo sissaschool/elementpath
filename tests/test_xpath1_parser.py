@@ -352,6 +352,34 @@ class XPath1ParserTest(unittest.TestCase):
         finally:
             self.parser.strict = True
 
+    def test_parser_position(self):
+        self.assertEqual(self.parser.position, (1, 1))
+
+        try:
+            self.assertIsNone(self.parser.parse('false(x)'))
+        except SyntaxError as err:
+            self.assertIn('line 1, column 7', str(err))
+
+        try:
+            self.assertIsNone(self.parser.parse(' false(x)'))
+        except SyntaxError as err:
+            self.assertIn('line 1, column 8', str(err))
+
+        try:
+            self.assertIsNone(self.parser.parse(' false( x)'))
+        except SyntaxError as err:
+            self.assertIn('line 1, column 9', str(err))
+
+        try:
+            self.assertIsNone(self.parser.parse('^'))
+        except SyntaxError as err:
+            self.assertIn('line 1, column 1', str(err))
+
+        try:
+            self.assertIsNone(self.parser.parse(' ^'))
+        except SyntaxError as err:
+            self.assertIn('line 1, column 2', str(err))
+
     def test_wrong_syntax(self):
         self.wrong_syntax('')
         self.wrong_syntax("     \n     \n   )")
