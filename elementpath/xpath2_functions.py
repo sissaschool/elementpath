@@ -661,6 +661,7 @@ def evaluate(self, context=None):
 
     if len(self) < 3:
         locale.setlocale(locale.LC_ALL, '')
+        breakpoint()
         value = locale.strcoll(comp1, comp2)
     else:
         with self.use_locale(collation=self.get_argument(context, 2)):
