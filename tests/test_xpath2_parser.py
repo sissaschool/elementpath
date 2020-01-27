@@ -469,6 +469,38 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKD')",
                          '\u0041\u030A\u0301')
 
+    def test_count_function2(self):
+        super(XPath2ParserTest, self).test_count_function()
+        self.check_value("fn:count('')", 1)
+        self.check_value("count('')", 1)
+        self.check_value("fn:count('abc')", 1)
+        self.check_value("fn:count(7)", 1)
+        self.check_value("fn:count(())", 0)
+        self.check_value("fn:count((1, 2, 3))", 3)
+        self.check_value("fn:count((1, 2, ()))", 2)
+        self.check_value("fn:count((((()))))", 0)
+        self.check_value("fn:count((((), (), ()), (), (), (), ()))", 0)
+        self.check_value("count(('1', (2, ())))", 2)
+        self.check_value("count(('1', (2, '3')))", 3)
+        self.check_value("count(1 to 5)", 5)
+        self.check_value("count(reverse((1, 2, 3, 4)))", 4)
+
+        self.check_value('fn:count((xs:decimal("-999999999999999999")))', 1)
+        self.check_value('fn:count((xs:float("0")))', 1)
+        self.check_value("count(//*[@name='John Doe'])", 0)
+
+        with self.assertRaises(TypeError) as cm:
+            self.check_value("fn:count()")
+        self.assertIn('XPST0017', str(cm.exception))
+
+        with self.assertRaises(TypeError) as cm:
+            self.check_value("fn:count(1, ())")
+        self.assertIn('XPST0017', str(cm.exception))
+
+        with self.assertRaises(TypeError) as cm:
+            self.check_value("fn:count(1, 2)")
+        self.assertIn('XPST0017', str(cm.exception))
+
     def test_lower_case_function(self):
         self.check_value('lower-case("aBcDe01")', 'abcde01')
         self.check_value('lower-case(("aBcDe01"))', 'abcde01')
