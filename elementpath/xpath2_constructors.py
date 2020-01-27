@@ -667,4 +667,9 @@ def evaluate(self, context=None):
                           tm.second, tm.microsecond, tzinfo)
 
 
+@constructor('untypedAtomic')
+def cast(value):
+    return UntypedAtomic(value)
+
+
 XPath2Parser.build()  # XPath 2.0 definition complete, can build the parser class.
