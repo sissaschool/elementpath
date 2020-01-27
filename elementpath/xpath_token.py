@@ -521,19 +521,19 @@ class XPathToken(Token):
 
     @contextlib.contextmanager
     def use_locale(self, collation):
-        """A context manager for setting a specific collation for a code block."""
-        loc = locale.getlocale()
+        """A context manager for use a locale setting for string comparison in a code block."""
+        loc = locale.getlocale(locale.LC_COLLATE)
         if collation == UNICODE_CODEPOINT_COLLATION:
             collation = 'en_US.UTF-8'
 
         try:
-            locale.setlocale(locale.LC_ALL, collation)
+            locale.setlocale(locale.LC_COLLATE, collation)
         except locale.Error:
             raise self.error('FOCH0002', 'Unsupported collation %r' % collation)
         else:
             yield
         finally:
-            locale.setlocale(locale.LC_ALL, loc)
+            locale.setlocale(locale.LC_COLLATE, loc)
 
     ###
     # XPath data accessors base functions

@@ -660,14 +660,12 @@ def evaluate(self, context=None):
         return []
 
     if len(self) < 3:
-        locale.setlocale(locale.LC_ALL, '')
-        breakpoint()
         value = locale.strcoll(comp1, comp2)
     else:
         with self.use_locale(collation=self.get_argument(context, 2)):
             value = locale.strcoll(comp1, comp2)
 
-    return 1 if value > 0 else -1 if value < 0 else 0
+    return 0 if not value else 1 if value > 0 else -1
 
 
 @method(function('codepoint-equal', nargs=2))

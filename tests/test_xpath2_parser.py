@@ -79,18 +79,20 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_token_source2(self):
         self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
-        self.check_source("$myaddress treat as element(*, USAddress)", "$myaddress treat as element(*, USAddress)")
+        self.check_source("$myaddress treat as element(*, USAddress)",
+                          "$myaddress treat as element(*, USAddress)")
 
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
         self.wrong_syntax("(: this is a (: nested :) comment :)")
         self.check_tree('child (: nasty (:nested :) axis comment :) ::B1', '(child (B1))')
-        self.check_tree('child (: nasty "(: but not nested :)" axis comment :) ::B1', '(child (B1))')
+        self.check_tree('child (: nasty "(: but not nested :)" axis comment :) ::B1',
+                        '(child (B1))')
         self.check_value("5 (: before operator comment :) < 4", False)  # Before infix operator
         self.check_value("5 < (: after operator comment :) 4", False)  # After infix operator
         self.check_value("true (:# nasty function comment :) ()", True)
-        self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \nC1 (: last comment :)\t',
-                        '(/ (/ (/ (A)) (B1)) (C1))')
+        self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \n'
+                        'C1 (: last comment :)\t', '(/ (/ (/ (A)) (B1)) (C1))')
 
     def test_comma_operator(self):
         self.check_value("1, 2", [1, 2])
@@ -159,8 +161,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                             "   ($emp/bonus < 0.5 * $emp/salary)", root, True)
 
         context = XPathContext(root=self.etree.XML('<dummy/>'))
-        self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", True, context)
-        self.check_value("every $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4", False, context)
+        self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4",
+                         True, context)
+        self.check_value("every $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4",
+                         False, context)
 
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
@@ -168,7 +172,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_for_expressions(self):
         # Cases from XPath 2.0 examples
         context = XPathContext(root=self.etree.XML('<dummy/>'))
-        self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)", [11, 12, 21, 22], context)
+        self.check_value("for $i in (10, 20), $j in (1, 2) return ($i + $j)",
+                         [11, 12, 21, 22], context)
 
         root = self.etree.XML(
             """
@@ -194,9 +199,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         # Test step-by-step, testing also other basic features.
         self.check_selector("book/author[1]", root, [root[0][1], root[1][1], root[2][1]])
-        self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
+        self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]],
+                            variables={'a': 'Stevens'})
         self.check_tree("book/author[. = $a][1]", '(/ (book) ([ ([ (author) (= (.) ($ (a)))) (1)))')
-        self.check_selector("book/author[. = $a][1]", root, [root[0][1], root[1][1]], variables={'a': 'Stevens'})
+        self.check_selector("book/author[. = $a][1]", root, [root[0][1], root[1][1]],
+                            variables={'a': 'Stevens'})
         self.check_selector("book/author[. = 'Stevens'][2]", root, [])
 
         self.check_selector("for $a in fn:distinct-values(book/author) return $a",
@@ -205,19 +212,20 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("for $a in fn:distinct-values(book/author) return book/author[. = $a]",
                             root, [root[0][1], root[1][1]] + root[2][1:4])
 
-        self.check_selector("for $a in fn:distinct-values(book/author) return book/author[. = $a][1]",
+        self.check_selector("for $a in fn:distinct-values(book/author) "
+                            "return book/author[. = $a][1]",
                             root, [root[0][1], root[1][1]] + root[2][1:4])
         self.check_selector(
-            "for $a in fn:distinct-values(book/author) return (book/author[. = $a][1], book[author = $a]/title)",
-            root,
-            [root[0][1], root[1][1], root[0][0], root[1][0], root[2][1], root[2][0], root[2][2], root[2][0],
-             root[2][3], root[2][0]]
+            "for $a in fn:distinct-values(book/author) "
+            "return (book/author[. = $a][1], book[author = $a]/title)",
+            root, [root[0][1], root[1][1], root[0][0], root[1][0], root[2][1],
+                   root[2][0], root[2][2], root[2][0], root[2][3], root[2][0]]
         )
 
     def test_boolean_functions2(self):
         root = self.etree.XML('<A><B1/><B2/><B3/></A>')
         self.check_selector("boolean(/A)", root, True)
-        self.check_selector("boolean((-10, 35))", root, TypeError)  # Sequence with two numeric values
+        self.check_selector("boolean((-10, 35))", root, TypeError)  # Sequence with 2 numeric values
         self.check_selector("boolean((/A, 35))", root, True)
 
     def test_numerical_expressions2(self):
@@ -303,7 +311,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                                    'seq3': [3, 4, 5]
                                })
         self.check_value("fn:avg($seq3)", 4.0, context=context)
-        self.check_value("fn:avg(($d1, $d2))", YearMonthDuration.fromstring("P125M"), context=context)
+        self.check_value("fn:avg(($d1, $d2))", YearMonthDuration.fromstring("P125M"),
+                         context=context)
         root_token = self.parser.parse("fn:avg(($d1, $seq3))")
         self.assertRaises(TypeError, root_token.evaluate, context=context)
         self.check_value("fn:avg(())", [])
@@ -334,7 +343,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("fn:min((3,4,5))", 3)
         self.check_value("fn:min((5, 5.0e0))", 5.0e0)
         self.check_value("fn:min((xs:float(0.0E0), xs:float(-0.0E0)))", 0.0)
-        self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))', Date.fromstring("2001-01-01"))
+        self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))',
+                         Date.fromstring("2001-01-01"))
         self.check_value('fn:min(("a", "b", "c"))', 'a')
 
         root = self.etree.XML('<a><b>1</b><b>9</b></a>')
@@ -343,11 +353,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     ###
     # Functions on strings
     def test_codepoints_to_string_function(self):
-        self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", u'अशॊक')
+        self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", 'अशॊक')
 
     def test_string_to_codepoints_function(self):
-        self.check_value(u'string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
-        self.check_value(u'string-to-codepoints(())', [])
+        self.check_value('string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
+        self.check_value('string-to-codepoints(())', [])
 
     def test_codepoint_equal_function(self):
         self.check_value("fn:codepoint-equal('abc', 'abc')", True)
@@ -357,65 +367,107 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("fn:codepoint-equal('abc', ())", [])
         self.check_value("fn:codepoint-equal((), ())", [])
 
-    def test_compare_strings_function(self):
-        self.check_value("fn:compare('abc', 'abc')", 0)
-        self.check_value("fn:compare('abc', 'abcd')", -1)
-        self.check_value("fn:compare('abcd', 'abc')", 1)
+    def test_compare_function(self):
+        env_locale_setting = locale.getlocale(locale.LC_COLLATE)
 
-        self.check_value(u"fn:compare('Strasse', 'Straße')", -1)
-        self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+        locale.setlocale(locale.LC_COLLATE, 'C')
+        self.assertEqual(locale.getlocale(locale.LC_COLLATE), (None, None))
+
+        self.check_value("fn:compare('abc', 'abc')", 0)
+        self.check_value("fn:compare('abc', 'abd')", -1)
+        self.check_value("fn:compare('abc', 'abb')", 1)
+        self.check_value("fn:compare('foo bar', 'foo bar')", 0)
+        self.check_value("fn:compare('', '')", 0)
+        self.check_value("fn:compare('abc', 'abcd')", -1)
+        self.check_value("fn:compare('', ' foo bar')", -1)
+        self.check_value("fn:compare('abcd', 'abc')", 1)
+        self.check_value("fn:compare('foo bar', '')", 1)
+
+        self.check_value('fn:compare("a","A")', 1)
+        self.check_value('fn:compare("A","a")', -1)
+        self.check_value('fn:compare("+++","++")', 1)
+        self.check_value('fn:compare("1234","123")', 1)
+
+        self.check_value("fn:count(fn:compare((), ''))", 0)
+        self.check_value("fn:count(fn:compare('abc', ()))", 0)
+
+        self.check_value("compare(xs:anyURI('http://example.com/'), 'http://example.com/')", 0)
+        self.check_value(
+            "compare(xs:untypedAtomic('http://example.com/'), 'http://example.com/')", 0
+        )
+
+        self.check_value('compare("&#65537;", "&#65538;", '
+                         '"http://www.w3.org/2005/xpath-functions/collation/codepoint")', -1)
+
+        self.check_value('compare("&#65537;", "&#65520;", '
+                         '"http://www.w3.org/2005/xpath-functions/collation/codepoint")', 1)
+
+        # Issue #17
+        self.check_value("fn:compare('Strassen', 'Straße')", -1)
+
+        locale.setlocale(locale.LC_COLLATE, 'en_US.UTF-8')
+        self.check_value("fn:compare('Strasse', 'Straße')", -1)
+        self.check_value("fn:compare('Strassen', 'Straße')", 1)
 
         try:
-            self.check_value(u"fn:compare('Strasse', 'Straße', 'it_IT.UTF-8')", -1)
-            self.check_value(u"fn:compare('Strassen', 'Straße')", 1)
+            self.check_value("fn:compare('Strasse', 'Straße', 'it_IT.UTF-8')", -1)
+            self.check_value("fn:compare('Strassen', 'Straße')", 1)
         except locale.Error:
             pass  # Skip test if 'it_IT.UTF-8' is an unknown locale setting
 
         try:
-            self.check_value(u"fn:compare('Strasse', 'Straße', 'de_DE.UTF-8')", -1)
+            self.check_value("fn:compare('Strasse', 'Straße', 'de_DE.UTF-8')", -1)
         except locale.Error:
             pass  # Skip test if 'de_DE.UTF-8' is an unknown locale setting
 
         try:
-            self.check_value(u"fn:compare('Strasse', 'Straße', 'deutsch')", -1)
+            self.check_value("fn:compare('Strasse', 'Straße', 'deutsch')", -1)
         except locale.Error:
             pass  # Skip test if 'deutsch' is an unknown locale setting
 
-        with self.assertRaises(locale.Error):
-            self.check_value(u"fn:compare('Strasse', 'Straße', 'invalid_collation')")
-        self.wrong_type(u"fn:compare('Strasse', 111)")
+        with self.assertRaises(locale.Error) as cm:
+            self.check_value("fn:compare('Strasse', 'Straße', 'invalid_collation')")
+        self.assertIn('FOCH0002', str(cm.exception))
+
+        self.wrong_type("fn:compare('Strasse', 111)")
+
+        locale.setlocale(locale.LC_COLLATE, env_locale_setting)
 
     def test_normalize_unicode_function(self):
-        self.check_value('fn:normalize-unicode(())', u'')
-        self.check_value('fn:normalize-unicode("menù")', u'menù')
-        self.assertRaises(NotImplementedError, self.parser.parse, 'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
+        self.check_value('fn:normalize-unicode(())', '')
+        self.check_value('fn:normalize-unicode("menù")', 'menù')
+        self.assertRaises(NotImplementedError, self.parser.parse,
+                          'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
 
         # https://www.w3.org/TR/charmod-norm/#normalization_forms
-        self.check_value(u"fn:normalize-unicode('\u01FA')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFD')", u'\u0041\u030A\u0301')
-        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFKC')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u01FA', 'NFKD')", u'\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u01FA')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u01FA', 'NFD')", '\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u01FA', 'NFKC')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u01FA', 'NFKD')", '\u0041\u030A\u0301')
 
-        self.check_value(u"fn:normalize-unicode('\u00C5\u0301')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', 'NFD')", u'\u0041\u030A\u0301')
-        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', 'NFKC')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u00C5\u0301', ' nfkd ')", u'\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u00C5\u0301')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u00C5\u0301', 'NFD')", '\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u00C5\u0301', 'NFKC')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u00C5\u0301', ' nfkd ')", '\u0041\u030A\u0301')
 
-        self.check_value(u"fn:normalize-unicode('\u212B\u0301')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFD')", u'\u0041\u030A\u0301')
-        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFKC')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u212B\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u212B\u0301')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u212B\u0301', 'NFD')", '\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u212B\u0301', 'NFKC')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u212B\u0301', 'NFKD')", '\u0041\u030A\u0301')
 
-        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFD')", u'\u0041\u030A\u0301')
-        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFKC')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\u0041\u030A\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u0041\u030A\u0301')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u0041\u030A\u0301', 'NFD')",
+                         '\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\u0041\u030A\u0301', 'NFKC')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\u0041\u030A\u0301', 'NFKD')", '\u0041\u030A\u0301')
 
-        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301')", u'\uFF21\u030A\u0301')
-        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFD')", u'\uFF21\u030A\u0301')
-        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKC')", u'\u01FA')
-        self.check_value(u"fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKD')", u'\u0041\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\uFF21\u030A\u0301')", '\uFF21\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\uFF21\u030A\u0301', 'NFD')",
+                         '\uFF21\u030A\u0301')
+        self.check_value("fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKC')", '\u01FA')
+        self.check_value("fn:normalize-unicode('\uFF21\u030A\u0301', 'NFKD')",
+                         '\u0041\u030A\u0301')
 
     def test_lower_case_function(self):
         self.check_value('lower-case("aBcDe01")', 'abcde01')
@@ -459,8 +511,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('iri-to-uri(())', '')
 
     def test_escape_html_uri_function(self):
-        self.check_value('escape-html-uri("http://www.example.com/00/Weather/CA/Los Angeles#ocean")',
-                         'http://www.example.com/00/Weather/CA/Los Angeles#ocean')
+        self.check_value(
+            'escape-html-uri("http://www.example.com/00/Weather/CA/Los Angeles#ocean")',
+            'http://www.example.com/00/Weather/CA/Los Angeles#ocean'
+        )
         self.check_value("escape-html-uri(\"javascript:if (navigator.browserLanguage == 'fr') "
                          "window.open('http://www.example.com/~bébé');\")",
                          "javascript:if (navigator.browserLanguage == 'fr') "
@@ -469,16 +523,21 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('escape-html-uri(())', '')
 
     def test_string_join_function(self):
-        self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')", "Now is the time ...")
+        self.check_value("string-join(('Now', 'is', 'the', 'time', '...'), ' ')",
+                         "Now is the time ...")
         self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
                          'Blow, blow, thou winter wind!')
         self.check_value("string-join((), 'separator')", '')
 
         root = self.etree.XML(XML_GENERIC_TEST)
-        self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']", root, [root[0]])
-        self.check_selector("a[string-join((@id, 'foo'), ',') = 'a_id,foo']", root, [root[0]])
-        self.check_selector("//b[string-join((., 'bar'), ' ') = 'some content bar']", root, [root[0][0]])
-        self.check_selector("//b[string-join((., 'bar'), ',') = 'some content,bar']", root, [root[0][0]])
+        self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']",
+                            root, [root[0]])
+        self.check_selector("a[string-join((@id, 'foo'), ',') = 'a_id,foo']",
+                            root, [root[0]])
+        self.check_selector("//b[string-join((., 'bar'), ' ') = 'some content bar']",
+                            root, [root[0][0]])
+        self.check_selector("//b[string-join((., 'bar'), ',') = 'some content,bar']",
+                            root, [root[0][0]])
         self.check_selector("//b[string-join((., 'bar'), ',') = 'some content bar']", root, [])
         self.check_selector("//none[string-join((., 'bar'), ',') = 'some content,bar']", root, [])
 
@@ -552,7 +611,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_tokenize_function(self):
         self.check_value('fn:tokenize("abracadabra", "(ab)|(a)")', ['', 'r', 'c', 'd', 'r', ''])
-        self.check_value(r'fn:tokenize("The cat sat on the mat", "\s+")', ['The', 'cat', 'sat', 'on', 'the', 'mat'])
+        self.check_value(r'fn:tokenize("The cat sat on the mat", "\s+")',
+                         ['The', 'cat', 'sat', 'on', 'the', 'mat'])
         self.check_value(r'fn:tokenize("1, 15, 24, 50", ",\s*")', ['1', '15', '24', '50'])
         self.check_value('fn:tokenize("1,15,,24,50,", ",")', ['1', '15', '', '24', '50', ''])
         self.check_value(r'fn:tokenize("Some unparsed <br> HTML <BR> text", "\s*<br>\s*", "i")',
@@ -568,12 +628,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         context = XPathContext(root=self.etree.XML('<A/>'))
         parser = XPath2Parser(base_uri='http://www.example.com/ns/')
         self.assertEqual(
-            parser.parse('fn:resolve-uri("dir1/dir2")').evaluate(context), 'http://www.example.com/ns/dir1/dir2'
+            parser.parse('fn:resolve-uri("dir1/dir2")').evaluate(context),
+            'http://www.example.com/ns/dir1/dir2'
         )
-        self.assertEqual(parser.parse('fn:resolve-uri("/dir1/dir2")').evaluate(context), '/dir1/dir2')
-        self.assertEqual(parser.parse(
-            'fn:resolve-uri("file:text.txt")').evaluate(context), 'http://www.example.com/ns/text.txt'
-        )
+        self.assertEqual(parser.parse('fn:resolve-uri("/dir1/dir2")').evaluate(context),
+                         '/dir1/dir2')
+        self.assertEqual(parser.parse('fn:resolve-uri("file:text.txt")').evaluate(context),
+                         'http://www.example.com/ns/text.txt')
         self.assertIsNone(parser.parse('fn:resolve-uri(())').evaluate(context))
 
     def test_predicate(self):
@@ -658,8 +719,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type('fn:QName("", 2)')
         self.wrong_value('fn:QName("http://www.example.com/ns/", "xs:person")')
 
-        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "ht:person"))', 'ht')
-        self.check_value('fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "person"))', [])
+        self.check_value(
+            'fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "ht:person"))', 'ht'
+        )
+        self.check_value(
+            'fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "person"))', []
+        )
         self.check_value('fn:prefix-from-QName(())', [])
         self.check_value('fn:prefix-from-QName(7)', TypeError)
         self.check_value('fn:prefix-from-QName("7")', ValueError)
@@ -679,10 +744,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:namespace-uri-from-QName(1)', TypeError)
         self.check_value('fn:namespace-uri-from-QName("1")', ValueError)
         self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, KeyError)
-        self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, NameError, namespaces={'p3': ''})
+        self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, NameError,
+                            namespaces={'p3': ''})
 
         self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
-        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2', context=context.copy())
+        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2',
+                         context=context.copy())
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, NameError, namespaces={'p3': ''})
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError)
         self.check_value("fn:resolve-QName(2, .)", TypeError, context=context.copy())
@@ -692,8 +759,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix(4, .)", TypeError, context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('p1', 9)", TypeError, context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix('eg', .)", 'http://www.example.com/ns/', context=context)
-        self.check_selector("fn:namespace-uri-for-prefix('p3', .)", root, NameError, namespaces={'p3': ''})
+        self.check_value("fn:namespace-uri-for-prefix('eg', .)",
+                         'http://www.example.com/ns/', context=context)
+        self.check_selector("fn:namespace-uri-for-prefix('p3', .)",
+                            root, NameError, namespaces={'p3': ''})
 
         # Note: default namespace for XPath 2 tests is 'http://www.example.com/ns/'
         self.check_value("fn:namespace-uri-for-prefix('', .)",
@@ -754,7 +823,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:Name("level-alpha")', "level-alpha")
         self.check_value('xs:Name("level.alpha\t\n")', "level.alpha")
         self.check_value('xs:Name("__init__ ")', "__init__")
-        self.check_value(u'xs:Name("\u0110")', u"\u0110")
+        self.check_value('xs:Name("\u0110")', "\u0110")
         self.wrong_value('xs:Name("2_values")')
         self.wrong_value('xs:Name(" .values ")')
         self.wrong_value('xs:Name(" -values ")')
@@ -765,7 +834,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:NCName("level-alpha")', "level-alpha")
         self.check_value('xs:NCName("level.alpha\t\n")', "level.alpha")
         self.check_value('xs:NCName("__init__ ")', "__init__")
-        self.check_value(u'xs:NCName("\u0110")', u"\u0110")
+        self.check_value('xs:NCName("\u0110")', "\u0110")
         self.wrong_value('xs:NCName("2_values")')
         self.wrong_value('xs:NCName(" .values ")')
         self.wrong_value('xs:NCName(" -values ")')
@@ -784,7 +853,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:anyURI("https://example.com")', 'https://example.com')
         self.check_value('xs:anyURI("mailto:info@example.com")', 'mailto:info@example.com')
         self.check_value('xs:anyURI("urn:example:com")', 'urn:example:com')
-        self.check_value(u'xs:anyURI("../principi/libertà.html")', u'../principi/libertà.html')
+        self.check_value('xs:anyURI("../principi/libertà.html")', '../principi/libertà.html')
         self.check_value('xs:anyURI("../principi/libert%E0.html")', '../principi/libert%E0.html')
         self.check_value('xs:anyURI("../path/page.html#frag")', '../path/page.html#frag')
         self.wrong_value('xs:anyURI("../path/page.html#frag1#frag2")')
@@ -872,7 +941,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         )
         self.check_value('xs:dateTime("2000-05-10T21:30:00+05:24")',
                          datetime.datetime(2000, 5, 10, hour=21, minute=30, tzinfo=tz1))
-        self.check_value('xs:dateTime("1999-12-31T24:00:00")', datetime.datetime(2000, 1, 1, 0, 0, tzinfo=tz0))
+        self.check_value('xs:dateTime("1999-12-31T24:00:00")',
+                         datetime.datetime(2000, 1, 1, 0, 0, tzinfo=tz0))
 
         self.wrong_value('xs:dateTime("2000-05-10t21:30:00+05:24")')
         self.wrong_value('xs:dateTime("2000-5-10T21:30:00+05:24")')
@@ -884,7 +954,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
         self.check_value('xs:time("21:30:00")', datetime.datetime(2000, 1, 1, 21, 30, tzinfo=tz0))
-        self.check_value('xs:time("11:15:48+05:24")', datetime.datetime(2000, 1, 1, 11, 15, 48, tzinfo=tz1))
+        self.check_value('xs:time("11:15:48+05:24")',
+                         datetime.datetime(2000, 1, 1, 11, 15, 48, tzinfo=tz1))
 
     def test_date_constructor(self):
         tz0 = None
@@ -961,9 +1032,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:seconds-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 0)
 
     def test_timezone_from_datetime_function(self):
-        self.check_value(
-            'fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', DayTimeDuration(seconds=-18000)
-        )
+        self.check_value('fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))',
+                         DayTimeDuration(seconds=-18000))
 
     def test_year_from_date_function(self):
         self.check_value('fn:year-from-date(xs:date("1999-05-31"))', 1999)
@@ -978,15 +1048,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:day-from-date(xs:date("2000-01-01+05:00"))', 1)
 
     def test_timezone_from_date_function(self):
-        self.check_value('fn:timezone-from-date(xs:date("1999-05-31-05:00"))', DayTimeDuration.fromstring('-PT5H'))
-        self.check_value('fn:timezone-from-date(xs:date("2000-06-12Z"))', DayTimeDuration.fromstring('PT0H'))
+        self.check_value('fn:timezone-from-date(xs:date("1999-05-31-05:00"))',
+                         DayTimeDuration.fromstring('-PT5H'))
+        self.check_value('fn:timezone-from-date(xs:date("2000-06-12Z"))',
+                         DayTimeDuration.fromstring('PT0H'))
 
     def test_hours_from_time_function(self):
         self.check_value('fn:hours-from-time(xs:time("11:23:00"))', 11)
         self.check_value('fn:hours-from-time(xs:time("21:23:00"))', 21)
         self.check_value('fn:hours-from-time(xs:time("01:23:00+05:00"))', 1)
-        # self.check_value('fn:hours-from-time(fn:adjust-time-to-timezone(xs:time("01:23:00+05:00"), '
-        #                 'xs:dayTimeDuration("PT0S")))', 20)
+        self.check_value('fn:hours-from-time(fn:adjust-time-to-timezone(xs:time("01:23:00+05:00"), '
+                         'xs:dayTimeDuration("PT0S")))', 20)
         self.check_value('fn:hours-from-time(xs:time("24:00:00"))', 0)
 
     def test_minutes_from_time_function(self):
@@ -999,7 +1071,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:seconds-from-time(xs:time("03:59:59.000001"))', 59.000001)
 
     def test_timezone_from_time_function(self):
-        self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))', DayTimeDuration.fromstring('-PT5H'))
+        self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))',
+                         DayTimeDuration.fromstring('-PT5H'))
 
     def test_subtract_datetimes(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
@@ -1019,15 +1092,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          DayTimeDuration.fromstring('P5DT7H'))
 
         # BCE test cases
-        self.check_value('xs:date("0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P366D'))
-        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P0D'))
-        self.check_value('xs:date("-0001-01-01") - xs:date("0001-01-01")', DayTimeDuration.fromstring('-P366D'))
+        self.check_value('xs:date("0001-01-01") - xs:date("-0001-01-01")',
+                         DayTimeDuration.fromstring('P366D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-01")',
+                         DayTimeDuration.fromstring('P0D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("0001-01-01")',
+                         DayTimeDuration.fromstring('-P366D'))
 
-        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")', DayTimeDuration.fromstring('-P1D'))
-        self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")', DayTimeDuration.fromstring('P3D'))
+        self.check_value('xs:date("-0001-01-01") - xs:date("-0001-01-02")',
+                         DayTimeDuration.fromstring('-P1D'))
+        self.check_value('xs:date("-0001-01-04") - xs:date("-0001-01-01")',
+                         DayTimeDuration.fromstring('P3D'))
 
-        self.check_value('xs:date("0200-01-01") - xs:date("-0121-01-01")', DayTimeDuration.fromstring('P116878D'))
-        self.check_value('xs:date("-0201-01-01") - xs:date("0120-01-01")', DayTimeDuration.fromstring('-P116877D'))
+        self.check_value('xs:date("0200-01-01") - xs:date("-0121-01-01")',
+                         DayTimeDuration.fromstring('P116878D'))
+        self.check_value('xs:date("-0201-01-01") - xs:date("0120-01-01")',
+                         DayTimeDuration.fromstring('-P116877D'))
 
     def test_subtract_times(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'))
@@ -1059,24 +1139,30 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          DateTime.fromstring("2000-10-27T09:57:00"))
 
     def test_add_year_month_duration_to_date(self):
-        self.check_value('xs:date("2000-10-30") + xs:yearMonthDuration("P1Y2M")', Date.fromstring('2001-12-30'))
+        self.check_value('xs:date("2000-10-30") + xs:yearMonthDuration("P1Y2M")',
+                         Date.fromstring('2001-12-30'))
 
     def test_subtract_year_month_duration_from_date(self):
-        self.check_value('xs:date("2000-10-30") - xs:yearMonthDuration("P1Y2M")', Date.fromstring('1999-08-30'))
-        self.check_value('xs:date("2000-02-29Z") - xs:yearMonthDuration("P1Y")', Date.fromstring('1999-02-28Z'))
+        self.check_value('xs:date("2000-10-30") - xs:yearMonthDuration("P1Y2M")',
+                         Date.fromstring('1999-08-30'))
+        self.check_value('xs:date("2000-02-29Z") - xs:yearMonthDuration("P1Y")',
+                         Date.fromstring('1999-02-28Z'))
         self.check_value('xs:date("2000-10-31-05:00") - xs:yearMonthDuration("P1Y1M")',
                          Date.fromstring('1999-09-30-05:00'))
 
     def test_subtract_day_time_duration_from_date(self):
-        self.check_value('xs:date("2000-10-30") - xs:dayTimeDuration("P3DT1H15M")', Date.fromstring('2000-10-26'))
+        self.check_value('xs:date("2000-10-30") - xs:dayTimeDuration("P3DT1H15M")',
+                         Date.fromstring('2000-10-26'))
 
     def test_add_day_time_duration_to_time(self):
-        self.check_value('xs:time("11:12:00") + xs:dayTimeDuration("P3DT1H15M")', Time.fromstring('12:27:00'))
+        self.check_value('xs:time("11:12:00") + xs:dayTimeDuration("P3DT1H15M")',
+                         Time.fromstring('12:27:00'))
         self.check_value('xs:time("23:12:00+03:00") + xs:dayTimeDuration("P1DT3H15M")',
                          Time.fromstring('02:27:00+03:00'))
 
     def test_subtract_day_time_duration_to_time(self):
-        self.check_value('xs:time("11:12:00") - xs:dayTimeDuration("P3DT1H15M")', Time.fromstring('09:57:00'))
+        self.check_value('xs:time("11:12:00") - xs:dayTimeDuration("P3DT1H15M")',
+                         Time.fromstring('09:57:00'))
         self.check_value('xs:time("08:20:00-05:00") - xs:dayTimeDuration("P23DT10H10M")',
                          Time.fromstring('22:10:00-05:00'))
 
@@ -1091,7 +1177,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value('xs:yearMonthDuration("P3Y5M")', (41, 0))
         self.check_value('xs:yearMonthDuration("-P15M")', (-15, 0))
-        self.check_value('xs:yearMonthDuration("-P20Y18M")', YearMonthDuration.fromstring("-P21Y6M"))
+        self.check_value('xs:yearMonthDuration("-P20Y18M")',
+                         YearMonthDuration.fromstring("-P21Y6M"))
         self.wrong_value('xs:yearMonthDuration("-P15M1D")')
         self.wrong_value('xs:yearMonthDuration("P15MT1H")')
 
@@ -1099,7 +1186,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:dayTimeDuration("-P2DT15H")', DayTimeDuration(seconds=-226800))
         self.check_value('xs:dayTimeDuration("PT240H")', DayTimeDuration.fromstring("P10D"))
         self.check_value('xs:dayTimeDuration("P365D")', DayTimeDuration.fromstring("P365D"))
-        self.check_value('xs:dayTimeDuration("-P2DT15H0M0S")', DayTimeDuration.fromstring('-P2DT15H'))
+        self.check_value('xs:dayTimeDuration("-P2DT15H0M0S")',
+                         DayTimeDuration.fromstring('-P2DT15H'))
         self.check_value('xs:dayTimeDuration("P3DT10H")', DayTimeDuration.fromstring("P3DT10H"))
         self.check_value('xs:dayTimeDuration("PT1S")', (0, 1))
         self.check_value('xs:dayTimeDuration("PT0S")', (0, 0))
@@ -1136,25 +1224,25 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
 
     def test_year_month_duration_operators(self):
-        self.check_value(
-            'xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=74)
-        )
-        self.check_value(
-            'xs:yearMonthDuration("P2Y11M") - xs:yearMonthDuration("P3Y3M")', YearMonthDuration(months=-4)
-        )
-        self.check_value('xs:yearMonthDuration("P2Y11M") * 2.3', YearMonthDuration.fromstring('P6Y9M'))
-        self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5', YearMonthDuration.fromstring('P1Y11M'))
+        self.check_value('xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")',
+                         YearMonthDuration(months=74))
+        self.check_value('xs:yearMonthDuration("P2Y11M") - xs:yearMonthDuration("P3Y3M")',
+                         YearMonthDuration(months=-4))
+        self.check_value('xs:yearMonthDuration("P2Y11M") * 2.3',
+                         YearMonthDuration.fromstring('P6Y9M'))
+        self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5',
+                         YearMonthDuration.fromstring('P1Y11M'))
         self.check_value('xs:yearMonthDuration("P3Y4M") div xs:yearMonthDuration("-P1Y4M")', -2.5)
 
     def test_day_time_duration_operators(self):
-        self.check_value(
-            'xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")', DayTimeDuration.fromstring('P8DT5M')
-        )
-        self.check_value(
-            'xs:dayTimeDuration("P2DT12H") - xs:dayTimeDuration("P1DT10H30M")', DayTimeDuration.fromstring('P1DT1H30M')
-        )
-        self.check_value('xs:dayTimeDuration("PT2H10M") * 2.1', DayTimeDuration.fromstring('PT4H33M'))
-        self.check_value('xs:dayTimeDuration("P1DT2H30M10.5S") div 1.5', DayTimeDuration.fromstring('PT17H40M7S'))
+        self.check_value('xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")',
+                         DayTimeDuration.fromstring('P8DT5M'))
+        self.check_value('xs:dayTimeDuration("P2DT12H") - xs:dayTimeDuration("P1DT10H30M")',
+                         DayTimeDuration.fromstring('P1DT1H30M'))
+        self.check_value('xs:dayTimeDuration("PT2H10M") * 2.1',
+                         DayTimeDuration.fromstring('PT4H33M'))
+        self.check_value('xs:dayTimeDuration("P1DT2H30M10.5S") div 1.5',
+                         DayTimeDuration.fromstring('PT17H40M7S'))
         self.check_value(
             'xs:dayTimeDuration("P2DT53M11S") div xs:dayTimeDuration("P1DT10H")',
             Decimal('1.437834967320261437908496732')
@@ -1173,7 +1261,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type('xs:base64Binary(1.1)')
 
     def test_node_and_node_accessors(self):
-        document = self.etree.parse(io.StringIO(u'<A/>'))
+        document = self.etree.parse(io.StringIO('<A/>'))
         element = self.etree.Element('schema')
         element.attrib.update([('id', '0212349350')])
 
@@ -1223,7 +1311,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector('id("foo")', root, ValueError)
 
         doc = self.etree.parse(
-            io.StringIO(u'<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
+            io.StringIO('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
         )
         root = doc.getroot()
         self.check_selector('id("foo")', doc, [root[0]])
@@ -1234,7 +1322,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector('id("baz bar foo")', doc, [root[0], root[2], root[3]])
 
         # From XPath documentation
-        doc = self.etree.parse(io.StringIO(u"""
+        doc = self.etree.parse(io.StringIO("""
             <employee xml:id="ID21256">
                <empnr>E21256</empnr>
                <first>John</first>
@@ -1245,7 +1333,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("id('E21256')", doc, [root[0]])
 
     def test_node_set_idref_function(self):
-        doc = self.etree.parse(io.StringIO(u"""
+        doc = self.etree.parse(io.StringIO("""
             <employees>
                 <employee xml:id="ID21256">
                    <empnr>E21256</empnr>
@@ -1328,9 +1416,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             <book><isbn>0070512655</isbn><call>QA76.9 C3846</call></book>
             <book><isbn>0131477005</isbn><call>QA76.9 C3847</call></book>
         </books>''')
-        self.check_selector('/books/book[isbn="1558604820"] is /books/book[call="QA76.9 C3845"]', root, True)
-        self.check_selector('/books/book[isbn="0070512655"] is /books/book[call="QA76.9 C3847"]', root, False)
-        self.check_selector('/books/book[isbn="not a code"] is /books/book[call="QA76.9 C3847"]', root, [])
+        self.check_selector('/books/book[isbn="1558604820"] is /books/book[call="QA76.9 C3845"]',
+                            root, True)
+        self.check_selector('/books/book[isbn="0070512655"] is /books/book[call="QA76.9 C3847"]',
+                            root, False)
+        self.check_selector('/books/book[isbn="not a code"] is /books/book[call="QA76.9 C3847"]',
+                            root, [])
 
         root = self.etree.XML('''
         <transactions>
@@ -1344,10 +1435,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         </transactions>''')
 
         self.check_selector(
-            '/transactions/purchase[parcel="28-451"] << /transactions/sale[parcel="33-870"]', root, True
+            '/transactions/purchase[parcel="28-451"] << /transactions/sale[parcel="33-870"]',
+            root, True
         )
         self.check_selector(
-            '/transactions/purchase[parcel="15-392"] >> /transactions/sale[parcel="33-870"]', root, True
+            '/transactions/purchase[parcel="15-392"] >> /transactions/sale[parcel="33-870"]',
+            root, True
         )
         self.check_selector(
             '/transactions/purchase[parcel="10-639"] >> /transactions/sale[parcel="33-870"]',
@@ -1366,16 +1459,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          DateTime.fromstring('2002-03-07T10:00:00-05:00'), context)
         self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"), $tz)',
                          DateTime.fromstring('2002-03-07T10:00:00-10:00'), context)
-        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), $tz)',
-                         DateTime.fromstring('2002-03-07T07:00:00-10:00'), context)
+        self.check_value(
+            'fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), $tz)',
+            DateTime.fromstring('2002-03-07T07:00:00-10:00'), context
+        )
         self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), '
-                         'xs:dayTimeDuration("PT10H"))', DateTime.fromstring('2002-03-08T03:00:00+10:00'), context)
+                         'xs:dayTimeDuration("PT10H"))',
+                         DateTime.fromstring('2002-03-08T03:00:00+10:00'), context)
         self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T00:00:00+01:00"), '
-                         'xs:dayTimeDuration("-PT8H"))', DateTime.fromstring('2002-03-06T15:00:00-08:00'), context)
+                         'xs:dayTimeDuration("-PT8H"))',
+                         DateTime.fromstring('2002-03-06T15:00:00-08:00'), context)
         self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00"), ())',
                          DateTime.fromstring('2002-03-07T10:00:00'), context)
-        self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), ())',
-                         DateTime.fromstring('2002-03-07T10:00:00'), context)
+        self.check_value(
+            'fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"), ())',
+            DateTime.fromstring('2002-03-07T10:00:00'), context
+        )
 
     def test_adjust_date_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
@@ -1410,27 +1509,25 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          Time.fromstring('10:00:00'), context)
         self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), ())',
                          Time.fromstring('10:00:00'), context)
-        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), xs:dayTimeDuration("PT10H"))',
+        self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"), '
+                         'xs:dayTimeDuration("PT10H"))',
                          Time.fromstring('03:00:00+10:00'), context)
 
     def test_context_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
-        self.check_value('fn:current-dateTime()', DateTime.fromdatetime(context.current_dt), context=context)
-        self.check_value(
-            path='fn:current-date()', context=context,
-            expected=Date.fromdatetime(context.current_dt.date()),
-        )
-        self.check_value(
-            path='fn:current-time()', context=context,
-            expected=Time.fromdatetime(context.current_dt),
-        )
-        self.check_value(
-            path='fn:implicit-timezone()', context=context,
-            expected=Timezone(datetime.timedelta(seconds=time.timezone)),
-        )
+        self.check_value('fn:current-dateTime()', DateTime.fromdatetime(context.current_dt),
+                         context=context)
+        self.check_value(path='fn:current-date()', context=context,
+                         expected=Date.fromdatetime(context.current_dt.date()),)
+        self.check_value(path='fn:current-time()', context=context,
+                         expected=Time.fromdatetime(context.current_dt),)
+        self.check_value(path='fn:implicit-timezone()', context=context,
+                         expected=Timezone(datetime.timedelta(seconds=time.timezone)),)
         self.check_value('fn:static-base-uri()', context=context)
+
         parser = XPath2Parser(strict=True, base_uri='http://example.com/ns/')
-        self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context), 'http://example.com/ns/')
+        self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context),
+                         'http://example.com/ns/')
 
     def test_empty_sequence_type(self):
         self.check_value("() treat as empty-sequence()", [])
@@ -1450,7 +1547,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_doc_functions(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
-        doc = self.etree.parse(io.StringIO(u"<a><b1><c1/></b1><b2/><b3/></a>"))
+        doc = self.etree.parse(io.StringIO("<a><b1><c1/></b1><b2/><b3/></a>"))
         context = XPathContext(root, documents={'tns0': doc})
 
         self.check_value("fn:doc(())", context=context)
@@ -1464,8 +1561,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_collection_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
-        doc1 = self.etree.parse(io.StringIO(u"<a><b1><c1/></b1><b2/><b3/></a>"))
-        doc2 = self.etree.parse(io.StringIO(u"<a1><b11><c11/></b11><b12/><b13/></a1>"))
+        doc1 = self.etree.parse(io.StringIO("<a><b1><c1/></b1><b2/><b3/></a>"))
+        doc2 = self.etree.parse(io.StringIO("<a1><b11><c11/></b11><b12/><b13/></a1>"))
         context = XPathContext(root, collections={'tns0': [doc1, doc2]})
 
         self.check_value("fn:collection()", ValueError, context=context)
