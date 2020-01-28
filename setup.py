@@ -25,7 +25,7 @@ setup(
     description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     extra_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema~=1.0.17', 'Sphinx']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema~=1.1.0', 'Sphinx']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

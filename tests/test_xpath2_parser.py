@@ -39,7 +39,10 @@ from elementpath.namespaces import XSI_NAMESPACE
 from elementpath.datatypes import DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear10
 
-from tests import test_xpath1_parser
+try:
+    from tests import test_xpath1_parser
+except ImportError:
+    import test_xpath1_parser
 
 XML_GENERIC_TEST = test_xpath1_parser.XML_GENERIC_TEST
 

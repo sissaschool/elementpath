@@ -2,9 +2,12 @@
 CHANGELOG
 *********
 
-`v1.4.0`_ (2020-01-xx)
+`v1.4.0`_ (2020-01-28)
 ======================
-* More tests ...
+* Fix for node kind tests
+* Fix for issue #17
+* Update test dependencies
+* Add PyPy3 to tests
 
 `v1.4.0`_ (2019-12-31)
 ======================

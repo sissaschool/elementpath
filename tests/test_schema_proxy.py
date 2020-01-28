@@ -26,7 +26,10 @@ try:
 except (ImportError, AttributeError):
     xmlschema = None
 
-from tests import test_xpath2_parser
+try:
+    from tests import test_xpath2_parser
+except ImportError:
+    import test_xpath2_parser
 
 
 @unittest.skipIf(xmlschema is None, "xmlschema library required.")

@@ -111,14 +111,14 @@ class Timezone(datetime.tzinfo):
     def fromstring(cls, text):
         if text == 'Z':
             return cls(datetime.timedelta(0))
-        elif isinstance(text, str):
-            try:
-                hours, minutes = text.split(':')
-                hours = int(hours)
-                minutes = int(minutes) if hours >= 0 else -int(minutes)
-                return cls(datetime.timedelta(hours=hours, minutes=minutes))
-            except ValueError:
-                raise ElementPathValueError("%r: not an XSD timezone formatted string" % text)
+
+        try:
+            hours, minutes = text.split(':')
+            hours = int(hours)
+            minutes = int(minutes) if hours >= 0 else -int(minutes)
+            return cls(datetime.timedelta(hours=hours, minutes=minutes))
+        except ValueError:
+            raise ElementPathValueError("%r: not an XSD timezone formatted string" % text)
 
     @classmethod
     def fromduration(cls, duration):
