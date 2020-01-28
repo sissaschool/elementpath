@@ -455,10 +455,11 @@ def select(self, context=None):
 def select(self, context=None):
     if context is None:
         self.missing_context()
-    elif context.item is not None:
-        yield context.item
-    elif is_document_node(context.root):
-        yield context.root
+    for item in context.iter_self():
+        if item is not None:
+            yield item
+        elif is_document_node(context.root):
+            yield context.root
 
 
 @method(nullary('..'))

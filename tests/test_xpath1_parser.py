@@ -1074,6 +1074,12 @@ class XPath1ParserTest(unittest.TestCase):
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector('.', root, [root])
+        self.check_selector('./.', root, [root])
+        self.check_selector('././.', root, [root])
+        self.check_selector('./././.', root, [root])
+        self.check_selector('/', root, [])
+        self.check_selector('/.', root, [])
+        self.check_selector('/./.', root, [])
         self.check_selector('/././.', root, [])
         self.check_selector('/A/.', root, [root])
         self.check_selector('/A/B1/.', root, [root[0]])
@@ -1236,16 +1242,20 @@ class XPath1ParserTest(unittest.TestCase):
         """Tests about when child:: default axis is applied."""
         root = self.etree.XML('<root><a id="1">first<b/></a><a id="2">second</a></root>')
         self.check_selector('/root/a/*', root, [root[0][0]])
+        self.check_selector('/root/a/b', root, [root[0][0]])
         self.check_selector('/root/a/node()', root, ['first', root[0][0], 'second'])
         self.check_selector('/root/a/text()', root, ['first', 'second'])
         self.check_selector('/root/a/attribute::*', root, ['1', '2'])
         if self.parser.version > '1.0':
-            # Functions are not allowed after path step in XPath 1.0
+            self.check_selector('/root/a/true()', root, [True, True])
             self.check_selector('/root/a/attribute()', root, ['1', '2'])
             self.check_selector('/root/a/element()', root, [root[0][0]])
             self.check_selector('/root/a/name()', root, ['a', 'a'])
             self.check_selector('/root/a/last()', root, [2, 2])
             self.check_selector('/root/a/position()', root, [1, 2])
+        else:
+            # Functions are not allowed after path step in XPath 1.0
+            self.wrong_syntax('/root/a/true()')
 
     def test_unknown_axis(self):
         self.check_value('unknown::node()', NameError)
