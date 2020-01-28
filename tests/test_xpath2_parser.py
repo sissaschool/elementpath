@@ -1292,20 +1292,40 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type('xs:base64Binary(1e2)')
         self.wrong_type('xs:base64Binary(1.1)')
 
-    def test_node_and_node_accessors(self):
+    def test_document_node_accessor(self):
         document = self.etree.parse(io.StringIO('<A/>'))
+        context = XPathContext(root=document)
+        self.wrong_syntax("document-node(A)")
+        self.wrong_syntax("document-node(*)")
+        self.wrong_syntax("document-node(true())")
+        self.wrong_syntax("document-node(node())")
+        self.wrong_type("document-node(element(A), 1)")
+        self.check_select("document-node()", [], context)
+        self.check_select("self::document-node()", [document], context)
+        self.check_selector("self::document-node(element(A))", document, [document])
+        self.check_selector("self::document-node(element(B))", document, [])
+
+    def test_element_accessor(self):
+        element = self.etree.Element('schema')
+        context = XPathContext(root=element)
+        self.wrong_syntax("element('name')")
+        self.wrong_syntax("element(A, 'name')")
+        self.check_select("element()", [], context)
+        self.check_select("self::element()", [element], context)
+        self.check_select("self::element(schema)", [element], context)
+        self.check_select("self::element(schema, xs:string)", [], context)
+
+        root = self.etree.XML('<A a="10">text<B/>tail<B/></A>')
+        context = XPathContext(root)
+        self.check_select("element(*)", root[:], context)
+        self.check_select("element(B)", root[:], context)
+        self.check_select("element(A)", [], context)
+
+    def test_node_and_node_accessors(self):
         element = self.etree.Element('schema')
         element.attrib.update([('id', '0212349350')])
 
-        context = XPathContext(root=document)
-        self.check_select("document-node()", [], context)
-        self.check_select("self::document-node()", [document], context)
-        self.check_selector("self::document-node(A)", document, [document])
-
         context = XPathContext(root=element)
-        self.check_select("self::element()", [element], context)
-        self.check_select("self::element('schema')", [element], context)
-        self.check_select("self::element('schema', 'xs:string')", [], context)
         self.check_select("self::node()", [element], context)
         self.check_select("self::attribute()", ['0212349350'], context)
 
@@ -1564,7 +1584,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_empty_sequence_type(self):
         self.check_value("() treat as empty-sequence()", [])
         self.check_value("6 treat as empty-sequence()", TypeError)
-        self.check_value("empty-sequence()", ValueError)
+        self.wrong_syntax("empty-sequence()")
+
         context = XPathContext(root=self.etree.XML('<A/>'))
         self.check_value("() instance of empty-sequence()", expected=True, context=context)
         self.check_value(". instance of empty-sequence()", expected=False, context=context)
@@ -1572,8 +1593,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_item_sequence_type(self):
         self.check_value("4 treat as item()", [4])
         self.check_value("() treat as item()", TypeError)
-        self.check_value("item()", ValueError)
+        self.wrong_syntax("item()")
+
         context = XPathContext(root=self.etree.XML('<A/>'))
+        self.check_value(". instance of item()", expected=True, context=context)
+        self.check_value("() instance of item()", expected=False, context=context)
+
+        context = XPathContext(root=self.etree.parse(io.StringIO('<A/>')))
         self.check_value(". instance of item()", expected=True, context=context)
         self.check_value("() instance of item()", expected=False, context=context)
 

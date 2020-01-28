@@ -81,17 +81,20 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
             root=self.etree.XML('<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>')
         )
 
+        self.wrong_syntax("schema-element(*)")
         self.wrong_name("schema-element(nil)")
         self.wrong_name("schema-element(xs:string)")
-        self.check_value("schema-element(xs:complexType)", None)
-        self.check_value("schema-element(xs:schema)", context.item, context)
+        self.check_value("self::schema-element(xs:complexType)", [])
+        self.check_value("self::schema-element(xs:schema)", [context.item], context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
 
         context.item = AttributeNode(XML_LANG, 'en')
+        self.wrong_syntax("schema-attribute(*)")
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")
-        self.check_value("schema-attribute(xml:lang)", None)
-        self.check_value("schema-attribute(xml:lang)", context.item, context)
+        self.check_value("self::schema-attribute(xml:lang)", [])
+        self.check_select("schema-attribute(xml:lang)", [])
+        self.check_value("self::schema-attribute(xml:lang)", [context.item], context)
         self.check_tree("schema-attribute(xsi:schemaLocation)",
                         '(schema-attribute (: (xsi) (schemaLocation)))')
 
@@ -294,7 +297,6 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_instance_of_expression(self):
         element = self.etree.Element('schema')
-        context = XPathContext(element)
 
         # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
         self.check_value("5 instance of xs:integer", True)
@@ -302,7 +304,11 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         self.check_value("9.0 instance of xs:integer",
                          False if [int(n) for n in xmlschema.__version__.split('.')] >= [1, 0, 8] else True)
         self.check_value("(5, 6) instance of xs:integer+", True)
+
+        context = XPathContext(element)
         self.check_value(". instance of element()", True, context)
+        context.item = None
+        self.check_value(". instance of element()", False, context)
 
         self.check_value("(5, 6) instance of xs:integer", False)
         self.check_value("(5, 6) instance of xs:integer*", True)

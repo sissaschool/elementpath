@@ -597,7 +597,9 @@ class Parser(metaclass=ParserMeta):
             if isinstance(label, tuple):
                 label = kwargs['label'] = MultiLabel(*label)
 
-            token_class_name = str("_%s_%s_token" % (symbol_to_identifier(symbol), label))
+            token_class_name = "_{}_{}_token".format(
+                symbol_to_identifier(symbol), str(label).replace(' ', '_')
+            )
             token_class_bases = (getattr(cls, 'token_base_class', object),)
             kwargs.update({
                 '__module__': cls.__module__,

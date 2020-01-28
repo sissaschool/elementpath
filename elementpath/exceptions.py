@@ -64,7 +64,7 @@ class ElementPathLocaleError(ElementPathError, locale.Error):
 XPATH_ERROR_CODES = {
     # XPath 2.0 parser error (https://www.w3.org/TR/xpath20/#id-errors)
     'XPST0001': (ElementPathValueError, 'Parser not bound to a schema'),
-    'XPST0003': (ElementPathValueError, 'Invalid XPath expression'),
+    'XPST0003': (ElementPathSyntaxError, 'Invalid XPath expression'),
     'XPDY0002': (MissingContextError, 'Dynamic context required for evaluate'),
     'XPTY0004': (ElementPathTypeError, 'Type is not appropriate for the context'),
     'XPST0005': (ElementPathValueError, 'A not empty sequence required'),

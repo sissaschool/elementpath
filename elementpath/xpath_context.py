@@ -80,6 +80,8 @@ class XPathContext(object):
             collections=self.collections.copy(),
             default_collection=self.default_collection,
         )
+        if self.item is None:
+            obj.item = None
         obj._elem = self._elem
         obj._parent_map = self._parent_map
         return obj
