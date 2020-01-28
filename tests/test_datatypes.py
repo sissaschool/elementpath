@@ -136,8 +136,10 @@ class DateTimeTypesTest(unittest.TestCase):
 
         dt = DateTime10.fromstring('-0100-04-13T10:30:00-04:00')
         if sys.version_info >= (3, 7):
-            self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
-                                       "tzinfo=Timezone(datetime.timedelta(days=-1, seconds=72000)))")
+            self.assertEqual(
+                repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
+                          "tzinfo=Timezone(datetime.timedelta(days=-1, seconds=72000)))"
+            )
         else:
             self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
                                        "tzinfo=Timezone(datetime.timedelta(-1, 72000)))")
@@ -222,11 +224,13 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("1999-12-31T24:00:00") == mkdt("2000-01-01T00:00:00"))
         self.assertTrue(mkdt("2005-04-04T24:00:00") == mkdt("2005-04-05T00:00:00"))
 
-        self.assertTrue(mkdt("2002-04-02T12:00:00-01:00", tz) == mkdt("2002-04-02T17:00:00+04:00", tz))
+        self.assertTrue(
+            mkdt("2002-04-02T12:00:00-01:00", tz) == mkdt("2002-04-02T17:00:00+04:00", tz))
         self.assertTrue(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T23:00:00+06:00", tz))
         self.assertFalse(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T17:00:00", tz))
         self.assertTrue(mkdt("2002-04-02T12:00:00", tz) == mkdt("2002-04-02T12:00:00", tz))
-        self.assertTrue(mkdt("2002-04-02T23:00:00-04:00", tz) == mkdt("2002-04-03T02:00:00-01:00", tz))
+        self.assertTrue(
+            mkdt("2002-04-02T23:00:00-04:00", tz) == mkdt("2002-04-03T02:00:00-01:00", tz))
         self.assertTrue(mkdt("1999-12-31T24:00:00", tz) == mkdt("2000-01-01T00:00:00", tz))
 
         self.assertTrue(mkdt("2005-04-04T24:00:00", tz) == mkdt("2005-04-05T00:00:00", tz))
@@ -251,7 +255,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-12002-01-01T10:00:00") < mkdt("-12001-01-01T17:00:00Z"))
         self.assertFalse(mkdt("12002-01-01T10:00:00") < mkdt("12001-01-01T17:00:00Z"))
         self.assertTrue(mkdt("-10000-01-01T10:00:00Z") < mkdt("-10000-01-01T17:00:00Z"))
-        self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+        self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"),
+                          mkdate("2002-04-03"))
 
     def test_le_operator(self):
         mkdt = DateTime.fromstring
@@ -265,7 +270,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-2002-01-01T10:00:00") <= mkdt("-2001-01-01T17:00:00Z"))
         self.assertTrue(mkdt("-10000-01-01T10:00:00Z") <= mkdt("-10000-01-01T10:00:00Z"))
         self.assertTrue(mkdt("-190000-01-01T10:00:00Z") <= mkdt("0100-01-01T10:00:00Z"))
-        self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+        self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"),
+                          mkdate("2002-04-03"))
 
     def test_gt_operator(self):
         mkdt = DateTime.fromstring
@@ -279,7 +285,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertFalse(mkdt("-2002-01-01T10:00:00") > mkdt("-2001-01-01T17:00:00Z"))
         self.assertTrue(mkdt("13567-04-18T10:00:00Z") > datetime.datetime.now())
         self.assertFalse(mkdt("15032-11-12T23:17:59Z") > mkdt("15032-11-12T23:17:59Z"))
-        self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+        self.assertRaises(TypeError, operator.lt, mkdt("2002-04-02T18:00:00+02:00"),
+                          mkdate("2002-04-03"))
 
     def test_ge_operator(self):
         mkdt = DateTime.fromstring
@@ -294,7 +301,8 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("-3000-06-21T00:00:00Z") >= mkdt("-3000-06-21T00:00:00Z"))
         self.assertFalse(mkdt("-3000-06-21T00:00:00Z") >= mkdt("-3000-06-21T01:00:00Z"))
         self.assertTrue(mkdt("15032-11-12T23:17:59Z") >= mkdt("15032-11-12T23:17:59Z"))
-        self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"), mkdate("2002-04-03"))
+        self.assertRaises(TypeError, operator.le, mkdt("2002-04-02T18:00:00+02:00"),
+                          mkdate("2002-04-03"))
 
     def test_days_from_common_era_function(self):
         days4y = 365 * 3 + 366
@@ -333,36 +341,53 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_fromdelta(self):
         self.assertIsNotNone(Date.fromstring('10000-02-28'))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=0)), Date.fromstring("0001-01-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=31)), Date.fromstring("0001-02-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=59)), Date.fromstring("0001-03-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=151)), Date.fromstring("0001-06-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=153)), Date.fromstring("0001-06-03"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=0)),
+                         Date.fromstring("0001-01-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=31)),
+                         Date.fromstring("0001-02-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=59)),
+                         Date.fromstring("0001-03-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=151)),
+                         Date.fromstring("0001-06-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=153)),
+                         Date.fromstring("0001-06-03"))
         self.assertEqual(DateTime.fromdelta(datetime.timedelta(days=153, seconds=72000)),
                          DateTime.fromstring("0001-06-03T20:00:00"))
 
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=365)), Date.fromstring("0002-01-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=396)), Date.fromstring("0002-02-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=365)),
+                         Date.fromstring("0002-01-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=396)),
+                         Date.fromstring("0002-02-01"))
 
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-366)), Date.fromstring("-0000-01-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-1)), Date.fromstring("-0000-12-31"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-335)), Date.fromstring("-0000-02-01"))
-        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-1)), Date.fromstring("-0000-12-31"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-366)),
+                         Date.fromstring("-0000-01-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-1)),
+                         Date.fromstring("-0000-12-31"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-335)),
+                         Date.fromstring("-0000-02-01"))
+        self.assertEqual(Date.fromdelta(datetime.timedelta(days=-1)),
+                         Date.fromstring("-0000-12-31"))
 
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-366)), Date10.fromstring("-0001-01-01"))
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-326)), Date10.fromstring("-0001-02-10"))
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-1)), Date10.fromstring("-0001-12-31Z"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-366)),
+                         Date10.fromstring("-0001-01-01"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-326)),
+                         Date10.fromstring("-0001-02-10"))
+        self.assertEqual(Date10.fromdelta(datetime.timedelta(days=-1)),
+                         Date10.fromstring("-0001-12-31Z"))
 
         # With timezone adjusting
         self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-22), adjust_timezone=True),
                          Date10.fromstring("-0001-12-31-02:00"))
         self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27), adjust_timezone=True),
                          Date10.fromstring("-0001-12-31+03:00"))
-        self.assertEqual(Date10.fromdelta(datetime.timedelta(hours=-27, minutes=-12), adjust_timezone=True),
-                         Date10.fromstring("-0001-12-31+03:12"))
-
-        self.assertEqual(DateTime10.fromdelta(datetime.timedelta(hours=-27, minutes=-12, seconds=-5)),
-                         DateTime10.fromstring("-0001-12-30T20:47:55"))
+        self.assertEqual(
+            Date10.fromdelta(datetime.timedelta(hours=-27, minutes=-12), adjust_timezone=True),
+            Date10.fromstring("-0001-12-31+03:12")
+        )
+        self.assertEqual(
+            DateTime10.fromdelta(datetime.timedelta(hours=-27, minutes=-12, seconds=-5)),
+            DateTime10.fromstring("-0001-12-30T20:47:55")
+        )
 
     def test_todelta(self):
         self.assertEqual(Date.fromstring("0001-01-01").todelta(), datetime.timedelta(days=0))
@@ -383,9 +408,12 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(Date10.fromstring("-0001-01-01").todelta(), datetime.timedelta(days=-366))
         self.assertEqual(Date10.fromstring("-0001-02-10").todelta(), datetime.timedelta(days=-326))
         self.assertEqual(Date10.fromstring("-0001-12-31Z").todelta(), datetime.timedelta(days=-1))
-        self.assertEqual(Date10.fromstring("-0001-12-31-02:00").todelta(), datetime.timedelta(hours=-22))
-        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").todelta(), datetime.timedelta(hours=-27))
-        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").todelta(), datetime.timedelta(hours=-27))
+        self.assertEqual(Date10.fromstring("-0001-12-31-02:00").todelta(),
+                         datetime.timedelta(hours=-22))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").todelta(),
+                         datetime.timedelta(hours=-27))
+        self.assertEqual(Date10.fromstring("-0001-12-31+03:00").todelta(),
+                         datetime.timedelta(hours=-27))
         self.assertEqual(Date10.fromstring("-0001-12-31+03:12").todelta(),
                          datetime.timedelta(hours=-27, minutes=-12))
 
@@ -400,9 +428,11 @@ class DateTimeTypesTest(unittest.TestCase):
                     dt1 = Date10.fromstring(date_string)
                     delta1 = dt1.todelta()
                     delta2 = datetime.timedelta(days=days)
-                    self.assertEqual(delta1, delta2, msg="Failed for %r: %r != %r" % (dt1, delta1, delta2))
+                    self.assertEqual(delta1, delta2,
+                                     msg="Failed for %r: %r != %r" % (dt1, delta1, delta2))
                     dt2 = Date10.fromdelta(delta2)
-                    self.assertEqual(dt1, dt2, msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
+                    self.assertEqual(dt1, dt2,
+                                     msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
                 days += 366 if isleap(year if month <= 2 else year + 1) else 365
 
     def test_to_and_from_delta_bce(self):
@@ -416,25 +446,35 @@ class DateTimeTypesTest(unittest.TestCase):
                     dt1 = Date10.fromstring(date_string)
                     delta1 = dt1.todelta()
                     delta2 = datetime.timedelta(days=days)
-                    self.assertEqual(delta1, delta2, msg="Failed for %r: %r != %r" % (dt1, delta1, delta2))
+                    self.assertEqual(delta1, delta2,
+                                     msg="Failed for %r: %r != %r" % (dt1, delta1, delta2))
                     dt2 = Date10.fromdelta(delta2)
-                    self.assertEqual(dt1, dt2, msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
+                    self.assertEqual(dt1, dt2,
+                                     msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
                 days -= 366 if isleap(year if month <= 2 else year + 1) else 365
 
     def test_sub_operator(self):
         date = Date.fromstring
         date10 = Date10.fromstring
 
-        self.assertEqual(date("2002-04-02") - date("2002-04-01"), DayTimeDuration(seconds=86400))
-        self.assertEqual(date("-2002-04-02") - date("-2002-04-01"), DayTimeDuration(seconds=86400))
-        self.assertEqual(date("-0002-01-01") - date("-0001-12-31"), DayTimeDuration.fromstring('-P729D'))
+        self.assertEqual(date("2002-04-02") - date("2002-04-01"),
+                         DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-2002-04-02") - date("-2002-04-01"),
+                         DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-0002-01-01") - date("-0001-12-31"),
+                         DayTimeDuration.fromstring('-P729D'))
 
-        self.assertEqual(date("-0101-01-01") - date("-0100-12-31"), DayTimeDuration.fromstring('-P729D'))
-        self.assertEqual(date("15032-11-12") - date("15032-11-11"), DayTimeDuration(seconds=86400))
-        self.assertEqual(date("-9999-11-12") - date("-9999-11-11"), DayTimeDuration(seconds=86400))
-        self.assertEqual(date("-9999-11-12") - date("-9999-11-12"), DayTimeDuration(seconds=0))
+        self.assertEqual(date("-0101-01-01") - date("-0100-12-31"),
+                         DayTimeDuration.fromstring('-P729D'))
+        self.assertEqual(date("15032-11-12") - date("15032-11-11"),
+                         DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-9999-11-12") - date("-9999-11-11"),
+                         DayTimeDuration(seconds=86400))
+        self.assertEqual(date("-9999-11-12") - date("-9999-11-12"),
+                         DayTimeDuration(seconds=0))
 
-        self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"), DayTimeDuration.fromstring('P1DT2H'))
+        self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"),
+                         DayTimeDuration.fromstring('P1DT2H'))
 
     def test_hashing(self):
         dt = DateTime.fromstring("2002-04-02T12:00:00-01:00")
@@ -607,10 +647,13 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertEqual(Timezone.fromstring('+00:00').offset, datetime.timedelta(0))
         self.assertEqual(Timezone.fromstring('-00:00').offset, datetime.timedelta(0))
         self.assertEqual(Timezone.fromstring('-0:0').offset, datetime.timedelta(0))
-        self.assertEqual(Timezone.fromstring('+05:15').offset, datetime.timedelta(hours=5, minutes=15))
+        self.assertEqual(Timezone.fromstring('+05:15').offset,
+                         datetime.timedelta(hours=5, minutes=15))
         self.assertEqual(Timezone.fromstring('-11:00').offset, datetime.timedelta(hours=-11))
-        self.assertEqual(Timezone.fromstring('+13:59').offset, datetime.timedelta(hours=13, minutes=59))
-        self.assertEqual(Timezone.fromstring('-13:59').offset, datetime.timedelta(hours=-13, minutes=-59))
+        self.assertEqual(Timezone.fromstring('+13:59').offset,
+                         datetime.timedelta(hours=13, minutes=59))
+        self.assertEqual(Timezone.fromstring('-13:59').offset,
+                         datetime.timedelta(hours=-13, minutes=-59))
         self.assertEqual(Timezone.fromstring('+14:00').offset, datetime.timedelta(hours=14))
         self.assertEqual(Timezone.fromstring('-14:00').offset, datetime.timedelta(hours=-14))
 
@@ -644,6 +687,32 @@ class TimezoneTypeTest(unittest.TestCase):
 
     def test_hashing(self):
         self.assertIsInstance(hash(Timezone.fromstring('+05:00')), int)
+
+    def test_utcoffset_method(self):
+        tz = Timezone.fromstring('+05:00')
+        self.assertIs(tz.utcoffset(dt=None), tz.offset)
+        with self.assertRaises(TypeError):
+            tz.utcoffset(dt='+05:00')
+
+    def test_tzname_method(self):
+        tz = Timezone.fromstring('+05:00')
+        self.assertEqual(tz.tzname(dt=None), '+05:00')
+        with self.assertRaises(TypeError):
+            tz.tzname(dt='+05:00')
+
+    def test_dst_method(self):
+        tz = Timezone.fromstring('+05:00')
+        self.assertEqual(tz.dst(dt=None), None)
+        with self.assertRaises(TypeError):
+            tz.dst(dt='+05:00')
+
+    def test_fromutc_method(self):
+        tz = Timezone.fromstring('+05:00')
+        dt = datetime.datetime(2000, 1, 20)
+        self.assertEqual(tz.fromutc(dt=dt), datetime.datetime(2000, 1, 20, 5, 0))
+        self.assertEqual(tz.fromutc(dt=None), None)
+        with self.assertRaises(TypeError):
+            tz.fromutc(dt='+05:00')
 
 
 class TypeProxiesTest(unittest.TestCase):
