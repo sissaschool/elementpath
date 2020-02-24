@@ -59,7 +59,7 @@ def ordinal(n):
 class XPathToken(Token):
     """Base class for XPath tokens."""
     comment = None    # for XPath 2.0+ comments
-    xsd_type = None   # fox XPath 2.0+ schema types labeling
+    xsd_types = None   # fox XPath 2.0+ schema types labeling
 
     def evaluate(self, context=None):
         """
@@ -240,12 +240,15 @@ class XPathToken(Token):
                     value = str(value)
                 if isinstance(context, XPathSchemaContext):
                     return value
-                if self.xsd_type is not None and isinstance(value, str):
-                    if self.xsd_type.name in XSD_SPECIAL_TYPES:
+                if self.xsd_types and isinstance(value, str):
+                    xsd_type = self.get_xsd_type(context.item)
+                    if xsd_type is None:
+                        pass
+                    elif xsd_type.name in XSD_SPECIAL_TYPES:
                         value = UntypedAtomic(value)
                     else:
                         try:
-                            value = self.xsd_type.decode(value)
+                            value = xsd_type.decode(value)
                         except (TypeError, ValueError):
                             msg = "Type {!r} is not appropriate for the context"
                             self.wrong_context_type(msg.format(type(value)))
@@ -434,6 +437,45 @@ class XPathToken(Token):
             item.tzinfo = None
         return item
 
+    @contextlib.contextmanager
+    def use_locale(self, collation):
+        """A context manager for use a locale setting for string comparison in a code block."""
+        loc = locale.getlocale(locale.LC_COLLATE)
+        if collation == UNICODE_CODEPOINT_COLLATION:
+            collation = 'en_US.UTF-8'
+
+        try:
+            locale.setlocale(locale.LC_COLLATE, collation)
+        except locale.Error:
+            raise self.error('FOCH0002', 'Unsupported collation %r' % collation)
+        else:
+            yield
+        finally:
+            locale.setlocale(locale.LC_COLLATE, loc)
+
+    ###
+    # XSD type association helper methods
+    def add_xsd_type(self, name, xsd_type):
+        """
+        Adds an XSD type association to token.
+
+        :param name: the name to match with the XSD type.
+        :param xsd_type: the XSD type to add.
+        """
+        if self.xsd_types is None:
+            self.xsd_types = {name: xsd_type}
+            # self.xsd_type = xsd_type
+        elif name in self.xsd_types and self.xsd_types[name] is not xsd_type:
+            obj = self.xsd_types[name]
+            if isinstance(obj, list):
+                obj.append(xsd_type)
+            else:
+                self.xsd_types[name] = [obj, xsd_type]
+        else:
+            self.xsd_types[name] = xsd_type
+
+        return xsd_type
+
     def match_xsd_type(self, schema_item, name):
         """
         Match a token with a schema type, checking the matching between the provided schema
@@ -457,11 +499,14 @@ class XPathToken(Token):
                     return
 
         elif is_etree_element(schema_item):
-            if hasattr(schema_item, 'is_matching'):
+            try:
                 if not schema_item.is_matching(name, self.parser.default_namespace):
                     return
-            elif schema_item.tag != name:
-                return
+            except AttributeError:
+                if name[0] != '{' and self.parser.default_namespace:
+                    name = '{%s}%s' % (self.parser.default_namespace, name)
+                if schema_item.tag != name:
+                    return
 
             try:
                 xsd_type = schema_item.type
@@ -473,67 +518,86 @@ class XPathToken(Token):
         else:
             return
 
-        if self.xsd_type is None:
-            self.xsd_type = xsd_type
-        elif self.xsd_type is not xsd_type:
-            self.wrong_context_type("Multiple XSD type matching during static analysis")
-        return xsd_type
+        self.add_xsd_type(name, xsd_type)
 
-    def get_typed_node(self, context, item):
-        """
-        Returns a typed node if the token is bound to an XSD type.
+        primitive_type = self.parser.schema.get_primitive_type(xsd_type)
+        try:
+            value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
+        except KeyError:
+            value = XSD_BUILTIN_TYPES['anyType'].value
 
-        :param context: the XPath dynamic context.
-        :param item: an untyped XPath attribute ot element.
+        if isinstance(schema_item, AttributeNode):
+            return TypedAttribute(schema_item, value)
+        return TypedElement(schema_item, value)
+
+    def get_xsd_type(self, item):
         """
-        if isinstance(self.xsd_type, (type(None), AbstractSchemaProxy)):
+        Returns the XSD type associated with an item. Match by item's name
+        and XSD validity. Returns `None` if no XSD type is matching.
+
+        :param item: a string or an AttributeNode or an element.
+        """
+        if not self.xsd_types or isinstance(self.xsd_types, AbstractSchemaProxy):
+            return
+        elif isinstance(item, str):
+            xsd_type = self.xsd_types.get(item)
+        elif isinstance(item, AttributeNode):
+            xsd_type = self.xsd_types.get(item[0])
+        else:
+            xsd_type = self.xsd_types.get(item.tag)
+
+        if not xsd_type:
+            return
+        elif not isinstance(xsd_type, list):
+            return xsd_type
+        elif isinstance(item, AttributeNode):
+            for x in xsd_type:
+                if x.is_valid(item[1]):
+                    return x
+        elif not isinstance(item, str):
+            for x in xsd_type:
+                if x.is_simple():
+                    if x.is_valid(item.text):
+                        return x
+                elif x.is_valid(item):
+                    return x
+
+        return xsd_type[0]
+
+    def get_typed_node(self, item):
+        """
+        Returns a typed node if the item is matching an XSD type.
+
+        Ref:
+          https://www.w3.org/TR/xpath20/#id-processing-model
+          https://www.w3.org/TR/xpath20/#id-static-analysis
+          https://www.w3.org/TR/xquery-semantics/
+
+        :param item: an untyped attribute ot element.
+        :return: a TypedAttribute or a TypedElement, or the argument \
+        if it's not matching any associated XSD type.
+        """
+        xsd_type = self.get_xsd_type(item)
+        if not xsd_type:
             return item
 
-        if isinstance(context, XPathSchemaContext):
-            primitive_type = self.parser.schema.get_primitive_type(self.xsd_type)
-            try:
-                value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
-            except KeyError:
-                value = XSD_BUILTIN_TYPES['anyType'].value
-
-            if isinstance(item, AttributeNode):
-                return TypedAttribute(item, value)
-            else:
-                return TypedElement(item, value)
-        else:
-            try:
-                if isinstance(item, AttributeNode):
-                    if self.xsd_type.name in XSD_SPECIAL_TYPES:
-                        return TypedAttribute(item, UntypedAtomic(item[1]))
-                    else:
-                        return TypedAttribute(item, self.xsd_type.decode(item[1]))
-
-                elif self.xsd_type.is_simple() or self.xsd_type.has_simple_content():
-                    if self.xsd_type.name in XSD_SPECIAL_TYPES:
-                        return TypedElement(item, UntypedAtomic(item.text))
-                    else:
-                        return TypedElement(item, self.xsd_type.decode(item.text))
-                else:
-                    return item
-            except (TypeError, ValueError):
-                msg = "Type {!r} does not match sequence type of {!r}"
-                self.wrong_sequence_type(msg.format(self.xsd_type, item))
-
-    @contextlib.contextmanager
-    def use_locale(self, collation):
-        """A context manager for use a locale setting for string comparison in a code block."""
-        loc = locale.getlocale(locale.LC_COLLATE)
-        if collation == UNICODE_CODEPOINT_COLLATION:
-            collation = 'en_US.UTF-8'
-
         try:
-            locale.setlocale(locale.LC_COLLATE, collation)
-        except locale.Error:
-            raise self.error('FOCH0002', 'Unsupported collation %r' % collation)
-        else:
-            yield
-        finally:
-            locale.setlocale(locale.LC_COLLATE, loc)
+            if isinstance(item, AttributeNode):
+                if xsd_type.name in XSD_SPECIAL_TYPES:
+                    return TypedAttribute(item, UntypedAtomic(item[1]))
+                else:
+                    return TypedAttribute(item, xsd_type.decode(item[1]))
+
+            elif xsd_type.is_simple() or xsd_type.has_simple_content():
+                if xsd_type.name in XSD_SPECIAL_TYPES:
+                    return TypedElement(item, UntypedAtomic(item.text))
+                else:
+                    return TypedElement(item, xsd_type.decode(item.text))
+            else:
+                return item
+        except (TypeError, ValueError):
+            msg = "Type {!r} does not match sequence type of {!r}"
+            self.wrong_sequence_type(msg.format(xsd_type, item))
 
     ###
     # XPath data accessors base functions

@@ -370,8 +370,10 @@ class XPath2Parser(XPath1Parser):
             except MissingContextError:
                 pass
         else:
+            context = self.schema.get_context()
+            # breakpoint()
             # Static context evaluation with a dynamic schema context
-            for _ in root_token.select(context=self.schema.get_context()):
+            for _ in root_token.select(context):
                 pass
 
         return root_token

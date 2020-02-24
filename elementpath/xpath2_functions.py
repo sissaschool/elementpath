@@ -96,9 +96,9 @@ def select(self, context=None):
         for item in self[0].select(context):
             if len(self) == 1:
                 yield item
-            elif self.xsd_type is not None:
+            elif self.xsd_types:
                 type_annotation = self[1].evaluate(context)
-                if self.xsd_type.is_matching(type_annotation, self.parser.default_namespace):
+                if self.xsd_types.is_matching(type_annotation, self.parser.default_namespace):
                     yield context.item
 
 

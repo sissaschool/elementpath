@@ -83,8 +83,8 @@ def is_element_node(obj, tag=None):
     Raises a ValueError if the argument tag has to be used but it's in a wrong format.
 
     :param obj: the node to be tested.
-    :param tag: a fully qualified name, a local name or a wildcard. The accepted wildcard formats \
-    are '*', '*:*', '*:local-name' and '{namespace}*'.
+    :param tag: a fully qualified name, a local name or a wildcard. The accepted
+    wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
     """
     if isinstance(obj, TypedElement):
         obj = obj.elem

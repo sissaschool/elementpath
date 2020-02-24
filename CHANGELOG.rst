@@ -2,7 +2,11 @@
 CHANGELOG
 *********
 
-`v1.4.0`_ (2020-01-28)
+`v1.4.2`_ (2020-02-xx)
+======================
+* Multiple XSD type associations on a token
+
+`v1.4.1`_ (2020-01-28)
 ======================
 * Fix for node kind tests
 * Fix for issue #17
@@ -196,3 +200,4 @@ CHANGELOG
 .. _v1.3.3: https://github.com/brunato/elementpath/compare/v1.3.2...v1.3.3
 .. _v1.4.0: https://github.com/brunato/elementpath/compare/v1.3.3...v1.4.0
 .. _v1.4.1: https://github.com/brunato/elementpath/compare/v1.4.0...v1.4.1
+.. _v1.4.2: https://github.com/brunato/elementpath/compare/v1.4.1...v1.4.2
