@@ -246,31 +246,30 @@ def select(self, context=None):
         return
 
     name = self.value
+
     if isinstance(context, XPathSchemaContext):
         # Bind with the XSD type from a schema
-        for schema_item in context.iter_children_or_self():
-            if self.match_xsd_type(schema_item, name) is not None:
-                yield self.get_typed_node(context, schema_item)
+        for item in map(lambda x: self.match_xsd_type(x, name), context.iter_children_or_self()):
+            if item:
+                yield item
         return
 
-    if name[0] != '{' and self.parser.default_namespace:
-        tag = '{%s}%s' % (self.parser.default_namespace, name)
-    else:
+    if name[0] == '{' or not self.parser.default_namespace:
         tag = name
+    else:
+        tag = '{%s}%s' % (self.parser.default_namespace, name)
 
-    # Checks if the token is bound to an XSD type. If not try a match using
-    # the element path. If this match fails the xsd_type attribute is set
-    # with the schema object to prevent other checks until the schema change.
-    if self.xsd_type is self.parser.schema:
+    # With an ElementTree context checks if the token is bound to an XSD type. If not
+    # try a match using the element path. If this match fails the xsd_type attribute
+    # is set with the schema object to prevent other checks until the schema change.
+    if self.xsd_types is self.parser.schema:
 
         # Untyped selection
         for item in context.iter_children_or_self():
-            if is_attribute_node(item, name):
-                yield item
-            elif is_element_node(item, tag):
+            if is_attribute_node(item, name) or is_element_node(item, tag):
                 yield item
 
-    elif self.xsd_type is None or isinstance(self.xsd_type, AbstractSchemaProxy):
+    elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
 
         # Try to match the type using the path
         for item in context.iter_children_or_self():
@@ -279,16 +278,16 @@ def select(self, context=None):
 
                 xsd_component = self.parser.schema.find(path, self.parser.namespaces)
                 if xsd_component is not None:
-                    self.xsd_type = xsd_component.type
+                    self.xsd_types = {tag: xsd_component.type}
                 else:
-                    self.xsd_type = self.parser.schema
+                    self.xsd_types = self.parser.schema
 
-                yield self.get_typed_node(context, item)
+                yield self.get_typed_node(item)
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
             if is_attribute_node(item, name) or is_element_node(item, tag):
-                yield self.get_typed_node(context, item)
+                yield self.get_typed_node(item)
 
 
 ###
@@ -329,42 +328,41 @@ def select(self, context=None):
         else:
             yield value
         return
-    elif self[0].value == '*':
-        value = '*:%s' % self[1].value
+
+    if self[0].value == '*':
+        name = '*:%s' % self[1].value
     else:
         namespace = self.get_namespace(self[0].value)
-        value = '{%s}%s' % (namespace, self[1].value)
+        name = '{%s}%s' % (namespace, self[1].value)
 
     if context is None:
         return
     elif isinstance(context, XPathSchemaContext):
-        for schema_item in context.iter_children_or_self():
-            if self.match_xsd_type(schema_item, value) is not None:
-                yield self.get_typed_node(context, schema_item)
-
-    elif self.xsd_type is self.parser.schema:
-        for item in context.iter_children_or_self():
-            if is_attribute_node(item, value):
-                yield item
-            elif is_element_node(item, value):
+        for item in map(lambda x: self.match_xsd_type(x, name), context.iter_children_or_self()):
+            if item:
                 yield item
 
-    elif self.xsd_type is None or isinstance(self.xsd_type, AbstractSchemaProxy):
+    elif self.xsd_types is self.parser.schema:
         for item in context.iter_children_or_self():
-            if is_attribute_node(item, value) or is_element_node(item, value):
+            if is_attribute_node(item, name) or is_element_node(item, name):
+                yield item
+
+    elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
+        for item in context.iter_children_or_self():
+            if is_attribute_node(item, name) or is_element_node(item, name):
                 path = context.get_path(item)
                 xsd_component = self.parser.schema.find(path, self.parser.namespaces)
                 if xsd_component is not None:
-                    self.xsd_type = xsd_component.type
+                    self.add_xsd_type(xsd_component.name, xsd_component.type)
                 else:
-                    self.xsd_type = self.parser.schema
-                yield self.get_typed_node(context, item)
+                    self.xsd_types = self.parser.schema
+                yield self.get_typed_node(item)
 
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if is_attribute_node(item, value) or is_element_node(item, value):
-                yield self.get_typed_node(context, item)
+            if is_attribute_node(item, name) or is_element_node(item, name):
+                yield self.get_typed_node(item)
 
 
 ###
@@ -681,6 +679,11 @@ def select(self, context=None):
                 else:
                     items.append(result)
                     yield result
+                    if isinstance(context, XPathSchemaContext):
+                        if isinstance(result, tuple):
+                            self[1].add_xsd_type(result[0], result[1].type)
+                        elif hasattr(result, 'type'):
+                            self[1].add_xsd_type(result.tag, result.type)
 
 
 @method('//')

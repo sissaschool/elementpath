@@ -39,7 +39,8 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
     def setUpClass(cls):
         cls.schema = xmlschema.XMLSchema('''
         <!-- Dummy schema for testing proxy API -->
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://xpath.test/ns">
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+              targetNamespace="http://xpath.test/ns">
           <xs:element name="test_element" type="xs:string"/>
           <xs:attribute name="test_attribute" type="xs:string"/>
           <xs:element name="A">
@@ -154,10 +155,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
                         </xs:schema>"""
         schema = xmlschema.XMLSchema(schema_src)
         schema_proxy = XMLSchemaProxy(schema=schema)
-        if xmlschema.__version__ == '1.0.14':
-            self.assertIsNone(schema_proxy.find('/test_element'))  # Not implemented!
-        else:
-            self.assertEqual(schema_proxy.find('/test_element'), schema.elements['test_element'])
+        self.assertEqual(schema_proxy.find('/test_element'), schema.elements['test_element'])
 
     def test_is_instance_api(self):
         self.assertFalse(self.schema_proxy.is_instance(True, '{%s}integer' % XSD_NAMESPACE))
@@ -178,8 +176,12 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
     def test_attributes_type(self):
         parser = XPath2Parser(namespaces=self.namespaces)
         token = parser.parse("@min le @max")
-        self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
-        self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
+
+        context = XPathContext(self.etree.XML('<root min="10" max="20" />'))
+        self.assertTrue(token.evaluate(context))
+
+        context = XPathContext(self.etree.XML('<root min="10" max="2" />'))
+        self.assertTrue(token.evaluate(context))
 
         schema = xmlschema.XMLSchema('''
             <xs:schema xmlns="http://xpath.test/ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -193,8 +195,11 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         parser = XPath2Parser(namespaces=self.namespaces,
                               schema=XMLSchemaProxy(schema, schema.elements['range']))
         token = parser.parse("@min le @max")
-        self.assertTrue(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="20" />'))))
-        self.assertFalse(token.evaluate(context=XPathContext(self.etree.XML('<root min="10" max="2" />'))))
+
+        context = XPathContext(self.etree.XML('<root min="10" max="20" />'))
+        self.assertTrue(token.evaluate(context))
+        context = XPathContext(self.etree.XML('<root min="10" max="2" />'))
+        self.assertFalse(token.evaluate(context))
 
         schema = xmlschema.XMLSchema('''
             <xs:schema xmlns="http://xpath.test/ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -228,16 +233,27 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
                               schema=XMLSchemaProxy(schema))
 
         token = parser.parse("//a")
-        self.assertEqual(token[0].xsd_type, schema.maps.types['{%s}string' % XSD_NAMESPACE])
+        self.assertEqual(token[0].xsd_types['a'], schema.maps.types['{%s}string' % XSD_NAMESPACE])
         token = parser.parse("//b")
-        self.assertEqual(token[0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
+        self.assertEqual(token[0].xsd_types['b'], schema.maps.types['{%s}integer' % XSD_NAMESPACE])
         token = parser.parse("//values/c")
-        self.assertEqual(token[0][0].xsd_type, schema.elements['values'].type)
-        self.assertEqual(token[1].xsd_type, schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
-        token = parser.parse("values/c")
-        self.assertEqual(token[0].xsd_type, schema.elements['values'].type)
-        self.assertEqual(token[1].xsd_type, schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
 
+        self.assertEqual(token[0][0].xsd_types["values"], schema.elements['values'].type)
+        self.assertEqual(token[1].xsd_types['c'], schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
+
+        token = parser.parse("values/c")
+        self.assertEqual(token[0].xsd_types['values'], schema.elements['values'].type)
+        self.assertEqual(token[1].xsd_types['c'], schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
+
+        token = parser.parse("values/*")
+        self.assertEqual(token[1].xsd_types, {
+            'a': schema.maps.types['{%s}string' % XSD_NAMESPACE],
+            'b': schema.maps.types['{%s}integer' % XSD_NAMESPACE],
+            'c': schema.maps.types['{%s}boolean' % XSD_NAMESPACE],
+            'd': schema.maps.types['{%s}float' % XSD_NAMESPACE],
+        })
+
+    def test_elements_and_attributes_type(self):
         schema = xmlschema.XMLSchema('''
             <xs:schema xmlns="http://xpath.test/ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     targetNamespace="http://xpath.test/ns">
@@ -263,38 +279,46 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         parser = XPath2Parser(namespaces={'': "http://xpath.test/ns", 'xs': XSD_NAMESPACE},
                               schema=XMLSchemaProxy(schema))
         token = parser.parse("//a")
-        self.assertEqual(token[0].xsd_type, schema.maps.types['{%s}string' % XSD_NAMESPACE])
+        self.assertEqual(token[0].xsd_types['a'], schema.maps.types['{%s}string' % XSD_NAMESPACE])
         token = parser.parse("//b")
-        self.assertEqual(token[0].xsd_type, schema.types['rangeType'])
+        self.assertEqual(token[0].xsd_types['b'], schema.types['rangeType'])
         token = parser.parse("values/c")
-        self.assertEqual(token[0].xsd_type, schema.elements['values'].type)
-        self.assertEqual(token[1].xsd_type, schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
+
+        self.assertEqual(token[0].xsd_types['values'], schema.elements['values'].type)
+        self.assertEqual(token[1].xsd_types['c'], schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
         token = parser.parse("//b/@min")
-        self.assertEqual(token[0][0].xsd_type, schema.types['rangeType'])
-        self.assertEqual(token[1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
+        self.assertEqual(token[0][0].xsd_types['b'], schema.types['rangeType'])
+
+        self.assertEqual(token[1][0].xsd_types['min'],
+                         schema.maps.types['{%s}integer' % XSD_NAMESPACE])
+
         token = parser.parse("values/b/@min")
-        self.assertEqual(token[0][0].xsd_type, schema.elements['values'].type)
-        self.assertEqual(token[0][1].xsd_type, schema.types['rangeType'])
-        self.assertEqual(token[1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
+        self.assertEqual(token[0][0].xsd_types['values'], schema.elements['values'].type)
+        self.assertEqual(token[0][1].xsd_types['b'], schema.types['rangeType'])
+        self.assertEqual(token[1][0].xsd_types['min'],
+                         schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
         token = parser.parse("//b/@min lt //b/@max")
-        self.assertEqual(token[0][0][0].xsd_type, schema.types['rangeType'])
-        self.assertEqual(token[0][1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
-        self.assertEqual(token[1][0][0].xsd_type, schema.types['rangeType'])
-        self.assertEqual(token[1][1][0].xsd_type, schema.maps.types['{%s}integer' % XSD_NAMESPACE])
+        self.assertEqual(token[0][0][0].xsd_types['b'], schema.types['rangeType'])
+        self.assertEqual(token[0][1][0].xsd_types['min'],
+                         schema.maps.types['{%s}integer' % XSD_NAMESPACE])
+        self.assertEqual(token[1][0][0].xsd_types['b'], schema.types['rangeType'])
+        self.assertEqual(token[1][1][0].xsd_types['max'],
+                         schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>')
-        with self.assertRaises(TypeError):
-            token.evaluate(context=XPathContext(root))
+        self.assertIsNone(token.evaluate(context=XPathContext(root)))
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19">30</b></values>')
         self.assertIsNone(token.evaluate(context=XPathContext(root)))
 
-        root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19" max="40">30</b></values>')
+        root = self.etree.XML(
+            '<values xmlns="http://xpath.test/ns"><b min="19" max="40">30</b></values>')
         context = XPathContext(root)
         self.assertTrue(token.evaluate(context))
 
-        root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19" max="10">30</b></values>')
+        root = self.etree.XML(
+            '<values xmlns="http://xpath.test/ns"><b min="19" max="10">30</b></values>')
         context = XPathContext(root)
         self.assertFalse(token.evaluate(context))
 
@@ -304,8 +328,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
         self.check_value("5 instance of xs:integer", True)
         self.check_value("5 instance of xs:decimal", True)
-        self.check_value("9.0 instance of xs:integer",
-                         False if [int(n) for n in xmlschema.__version__.split('.')] >= [1, 0, 8] else True)
+        self.check_value("9.0 instance of xs:integer", False)
         self.check_value("(5, 6) instance of xs:integer+", True)
 
         context = XPathContext(element)
@@ -325,7 +348,7 @@ class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
         context = XPathContext(element)
 
         self.check_value("5 treat as xs:integer", [5])
-        # self.check_value("5 treat as xs:string", ElementPathTypeError)   # FIXME: a bug of xmlschema!
+        self.check_value("5 treat as xs:string", ElementPathTypeError)
         self.check_value("5 treat as xs:decimal", [5])
         self.check_value("(5, 6) treat as xs:integer+", [5, 6])
         self.check_value(". treat as element()", [element], context)
