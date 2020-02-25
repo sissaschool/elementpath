@@ -1,3 +1,7 @@
 [run]
 branch = True
 source = elementpath/
+
+[report]
+exclude_lines =
+    raise NotImplementedError()
