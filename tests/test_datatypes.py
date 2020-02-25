@@ -115,15 +115,63 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertRaises(TypeError, AbstractDateTime)
         self.assertRaises(TypeError, OrderedDateTime)
 
-    def test_datetime_init_fromstring(self):
+    def test_datetime_init(self):
+        with self.assertRaises(ValueError) as err:
+            DateTime(year=0, month=1, day=1)
+        self.assertIn("0 is an illegal value for year", str(err.exception))
+
+        with self.assertRaises(TypeError) as err:
+            DateTime(year=-1999.0, month=1, day=1)
+        self.assertIn("wrong type <class 'float'> for year", str(err.exception))
+
+    def test_datetime_fromstring(self):
         self.assertIsInstance(DateTime.fromstring('2000-10-07T00:00:00'), DateTime)
         self.assertIsInstance(DateTime.fromstring('-2000-10-07T00:00:00'), DateTime)
-        self.assertRaises(ValueError, DateTime.fromstring, '00-10-07')
 
-    def test_date_init_fromstring(self):
+        with self.assertRaises(TypeError) as err:
+            DateTime.fromstring(b'00-10-07')
+        self.assertIn("1st argument has an invalid type <class 'bytes'>", str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            DateTime.fromstring('00-10-07')
+        self.assertIn("Invalid datetime string", str(err.exception))
+
+        with self.assertRaises(TypeError) as err:
+            DateTime.fromstring('2010-10-07', tzinfo='Z')
+        self.assertIn("2nd argument has an invalid type <class 'str'>", str(err.exception))
+
+    def test_date_fromstring(self):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('0000-02-29'), Date)
+
+        dt = Date.fromstring("-0003-01-01")
+        self.assertEqual(dt._year, -4)
+        self.assertEqual(dt._dt.year, 6)
+        self.assertEqual(dt._dt.month, 1)
+        self.assertEqual(dt._dt.day, 1)
+
+    def test_fromdatetime(self):
+        dt = datetime.datetime(2000, 1, 20)
+        self.assertEqual(str(DateTime.fromdatetime(dt)), '2000-01-20T00:00:00')
+
+        with self.assertRaises(TypeError) as err:
+            DateTime.fromdatetime('2000-10-07')
+        self.assertEqual("1st argument has an invalid type <class 'str'>", str(err.exception))
+
+        with self.assertRaises(TypeError) as err:
+            DateTime.fromdatetime(dt, year='0001')
+        self.assertEqual("2nd argument has an invalid type <class 'str'>", str(err.exception))
+
+        self.assertEqual(str(DateTime.fromdatetime(dt, year=1)), '0001-01-20T00:00:00')
+
+    def test_iso_year_property(self):
+        self.assertEqual(DateTime(2000, 10, 7).iso_year, '2000')
+        self.assertEqual(DateTime(20001, 10, 7).iso_year, '20001')
+        self.assertEqual(DateTime(-9999, 10, 7).iso_year, '-9998')
+        self.assertEqual(DateTime10(-9999, 10, 7).iso_year, '-9999')
+        self.assertEqual(DateTime(-1, 10, 7).iso_year, '0000')
+        self.assertEqual(DateTime10(-1, 10, 7).iso_year, '-0001')
 
     def test_datetime_repr(self):
         dt = DateTime.fromstring('2000-10-07')
@@ -144,6 +192,9 @@ class DateTimeTypesTest(unittest.TestCase):
             self.assertEqual(repr(dt), "DateTime10(-100, 4, 13, 10, 30, 0, "
                                        "tzinfo=Timezone(datetime.timedelta(-1, 72000)))")
         self.assertEqual(str(dt), '-0100-04-13T10:30:00-04:00')
+
+        dt = DateTime(2001, 1, 1, microsecond=10)
+        self.assertEqual(repr(dt), 'DateTime(2001, 1, 1, 0, 0, 0.000010)')
 
     def test_24_hour_datetime(self):
         dt = DateTime.fromstring('0000-09-19T24:00:00Z')
@@ -240,6 +291,9 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(DateTime.fromstring("-10000-01-01") == DateTime.fromstring("-10000-01-01"))
         self.assertFalse(DateTime.fromstring("20000-01-01") != DateTime.fromstring("20000-01-01"))
         self.assertFalse(DateTime.fromstring("-10000-01-02") == DateTime.fromstring("-10000-01-01"))
+
+        self.assertFalse(DateTime.fromstring("-10000-01-02") == (1, 2, 3))  # Wrong type
+        self.assertTrue(DateTime.fromstring("-10000-01-02") != (1, 2, 3))  # Wrong type
 
     def test_lt_operator(self):
         mkdt = DateTime.fromstring
@@ -453,6 +507,21 @@ class DateTimeTypesTest(unittest.TestCase):
                                      msg="Failed for year %d: %r != %r" % (year, dt1, dt2))
                 days -= 366 if isleap(year if month <= 2 else year + 1) else 365
 
+    def test_add_operator(self):
+        date = Date.fromstring
+
+        self.assertEqual(date("0001-01-01") + DayTimeDuration(seconds=86400 * 2),
+                         Date(1, 1, 3))
+        self.assertEqual(date("0001-01-01") + DayTimeDuration(seconds=-86400 * 2),
+                         Date(-1, 12, 30))
+        self.assertEqual(date("0001-01-01") + YearMonthDuration(months=12), Date(2, 1, 1))
+        # self.assertEqual(date("-0003-01-01") + YearMonthDuration(months=12), Date(2, 1, 1))
+        self.assertEqual(date("0001-01-05") + YearMonthDuration(months=25), Date(3, 2, 5))
+
+        with self.assertRaises(TypeError) as err:
+            date("0001-01-05") + 10
+        self.assertEqual(str(err.exception), "wrong type <class 'int'> for operand 10")
+
     def test_sub_operator(self):
         date = Date.fromstring
         date10 = Date10.fromstring
@@ -472,6 +541,11 @@ class DateTimeTypesTest(unittest.TestCase):
                          DayTimeDuration(seconds=86400))
         self.assertEqual(date("-9999-11-12") - date("-9999-11-12"),
                          DayTimeDuration(seconds=0))
+        self.assertEqual(date("-9999-11-11") - date("-9999-11-12"),
+                         DayTimeDuration(seconds=-86400))
+
+        with self.assertRaises(OverflowError) as err:
+            date("0001-01-01") - DayTimeDuration(seconds=86400 * 100)
 
         self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"),
                          DayTimeDuration.fromstring('P1DT2H'))
