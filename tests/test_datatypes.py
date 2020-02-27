@@ -12,6 +12,7 @@ import unittest
 import sys
 import datetime
 import operator
+import pickle
 import random
 from decimal import Decimal
 from calendar import isleap
@@ -195,6 +196,7 @@ class DateTimeTypesTest(unittest.TestCase):
 
         dt = DateTime(2001, 1, 1, microsecond=10)
         self.assertEqual(repr(dt), 'DateTime(2001, 1, 1, 0, 0, 0.000010)')
+        self.assertEqual(str(dt), '2001-01-01T00:00:00.000010')
 
     def test_24_hour_datetime(self):
         dt = DateTime.fromstring('0000-09-19T24:00:00Z')
@@ -270,6 +272,10 @@ class DateTimeTypesTest(unittest.TestCase):
         dt = Time.fromstring('24:00:00')
         self.assertEqual(repr(dt), "Time(0, 0, 0)")
         self.assertEqual(str(dt), '00:00:00')
+
+        dt = Time.fromstring('15:34:29.000037')
+        self.assertEqual(repr(dt), "Time(15, 34, 29.000037)")
+        self.assertEqual(str(dt), '15:34:29.000037')
 
     def test_eq_operator(self):
         tz = Timezone.fromstring('-05:00')
@@ -544,15 +550,29 @@ class DateTimeTypesTest(unittest.TestCase):
 
         self.assertEqual(date("0001-01-01") + YearMonthDuration(months=12), Date(2, 1, 1))
         self.assertEqual(date("-0003-01-01") + YearMonthDuration(months=12), Date(-3, 1, 1))
+        self.assertEqual(date("-0004-01-01") + YearMonthDuration(months=13), Date(-4, 2, 1))
         self.assertEqual(date("0001-01-05") + YearMonthDuration(months=25), Date(3, 2, 5))
+
+        with self.assertRaises(TypeError) as err:
+            date("0001-01-05") + date("0001-01-01")
+        self.assertEqual(str(err.exception), "wrong type <class 'elementpath.datatypes.Date'> "
+                                             "for operand Date(1, 1, 1)")
 
         with self.assertRaises(TypeError) as err:
             date("0001-01-05") + 10
         self.assertEqual(str(err.exception), "wrong type <class 'int'> for operand 10")
 
+        self.assertEqual(Time(13, 30, 00) + daytime_duration('PT3M21S'), Time(13, 33, 21))
+        self.assertEqual(Time(21, 00, 00) + datetime.timedelta(seconds=105), Time(21, 1, 45))
+
+        with self.assertRaises(TypeError) as err:
+            Time(21, 00, 00) + 105
+        self.assertEqual(str(err.exception), "wrong type <class 'int'> for operand 105")
+
     def test_sub_operator(self):
         date = Date.fromstring
         date10 = Date10.fromstring
+        daytime_duration = DayTimeDuration.fromstring
 
         self.assertEqual(date("2002-04-02") - date("2002-04-01"),
                          DayTimeDuration(seconds=86400))
@@ -574,6 +594,15 @@ class DateTimeTypesTest(unittest.TestCase):
 
         self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"),
                          DayTimeDuration.fromstring('P1DT2H'))
+
+        self.assertEqual(Time(13, 30, 00) - Time(13, 00, 00), daytime_duration('PT30M'))
+        self.assertEqual(Time(13, 30, 00) - Time(13, 59, 59), daytime_duration('-PT29M59S'))
+        self.assertEqual(Time(13, 30, 00) - daytime_duration('PT3M21S'), Time(13, 26, 39))
+        self.assertEqual(Time(21, 00, 00) - datetime.timedelta(seconds=105), Time(20, 58, 15))
+
+        with self.assertRaises(TypeError) as err:
+            Time(21, 00, 00) - 105
+        self.assertEqual(str(err.exception), "wrong type <class 'int'> for operand 105")
 
     def test_hashing(self):
         dt = DateTime.fromstring("2002-04-02T12:00:00-01:00")
@@ -646,6 +675,16 @@ class DurationTypesTest(unittest.TestCase):
         self.assertEqual(months2days(2000, 2, -12), -365)
         self.assertEqual(months2days(2000, 3, -12), -366)
 
+    def test_init(self):
+        self.assertIsInstance(Duration(months=1, seconds=37000), Duration)
+
+        with self.assertRaises(ValueError) as err:
+            Duration(months=-1, seconds=1)
+        self.assertEqual(str(err.exception), "signs differ: (months=-1, seconds=1)")
+
+        self.assertEqual(DayTimeDuration(300).seconds, 300)
+        self.assertEqual(YearMonthDuration(10).months, 10)
+
     def test_init_fromstring(self):
         self.assertIsInstance(Duration.fromstring('P1Y'), Duration)
         self.assertIsInstance(Duration.fromstring('P1M'), Duration)
@@ -662,12 +701,38 @@ class DurationTypesTest(unittest.TestCase):
         self.assertRaises(ValueError, Duration.fromstring, 'PT1.1H')
         self.assertRaises(ValueError, Duration.fromstring, 'P1.0DT5H3M23.9S')
 
+        self.assertIsInstance(DayTimeDuration.fromstring('PT0.0S'), DayTimeDuration)
+
+        with self.assertRaises(ValueError) as err:
+            DayTimeDuration.fromstring('P1MT0.0S')
+        self.assertEqual(str(err.exception), "months must be 0 for 'DayTimeDuration'")
+
+        self.assertIsInstance(YearMonthDuration.fromstring('P1Y'), YearMonthDuration)
+
+        with self.assertRaises(ValueError) as err:
+            YearMonthDuration.fromstring('P1YT10S')
+        self.assertEqual(str(err.exception), "seconds must be 0 for 'YearMonthDuration'")
+
+
+    def test_repr(self):
+        self.assertEqual(repr(Duration(months=1, seconds=86400)),
+                         'Duration(months=1, seconds=86400)')
+        self.assertEqual(repr(Duration.fromstring('P3Y1D')),
+                         'Duration(months=36, seconds=86400)')
+        self.assertEqual(repr(YearMonthDuration.fromstring('P3Y6M')),
+                         'YearMonthDuration(months=42)')
+        self.assertEqual(repr(DayTimeDuration.fromstring('P1DT6H')),
+                         'DayTimeDuration(seconds=108000)')
+
     def test_as_string(self):
         self.assertEqual(str(Duration.fromstring('P3Y1D')), 'P3Y1D')
         self.assertEqual(str(Duration.fromstring('PT2M10.4S')), 'PT2M10.4S')
         self.assertEqual(str(Duration.fromstring('PT2400H')), 'P100D')
         self.assertEqual(str(Duration.fromstring('-P15M')), '-P1Y3M')
         self.assertEqual(str(Duration.fromstring('-P809YT3H5M5S')), '-P809YT3H5M5S')
+        self.assertEqual(str(Duration.fromstring('-PT1H8S')), '-PT1H8S')
+        self.assertEqual(str(Duration.fromstring('PT2H5M')), 'PT2H5M')
+        self.assertEqual(str(Duration.fromstring('P0Y')), 'PT0S')
 
     def test_eq(self):
         self.assertEqual(Duration.fromstring('PT147.5S'), (0, 147.5))
@@ -694,6 +759,8 @@ class DurationTypesTest(unittest.TestCase):
         self.assertNotEqual(Duration.fromstring('P3Y1D'), (36, 3600 * 2))
         self.assertNotEqual(Duration.fromstring('P3Y1D'), (36, 3600 * 24, 0))
         self.assertNotEqual(Duration.fromstring('P3Y1D'), None)
+        self.assertNotEqual(Duration.fromstring('P3Y1D'), Duration.fromstring('P3Y2D'))
+        self.assertNotEqual(Duration.fromstring('P3Y1D'), YearMonthDuration.fromstring('P3Y'))
 
     def test_lt(self):
         self.assertTrue(Duration(months=15) < Duration(months=16))
@@ -704,6 +771,13 @@ class DurationTypesTest(unittest.TestCase):
         self.assertTrue(Duration(months=16) < Duration.fromstring('P16MT1S'))
         self.assertFalse(Duration(months=16) < Duration.fromstring('P16MT0S'))
 
+        self.assertTrue(Time(20, 15, 0) < Time(21, 0, 0))
+        self.assertFalse(Time(21, 15, 0) < Time(21, 0, 0))
+
+        with self.assertRaises(TypeError) as err:
+            _ = Duration(months=16) < 16
+        self.assertEqual(str(err.exception), "wrong type <class 'int'> for operand 16")
+
     def test_le(self):
         self.assertTrue(Duration(months=15) <= Duration(months=16))
         self.assertTrue(Duration(months=16) <= Duration(16))
@@ -712,15 +786,21 @@ class DurationTypesTest(unittest.TestCase):
         self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT1M'))
         self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT1S'))
         self.assertTrue(Duration(months=16) <= Duration.fromstring('P16MT0S'))
+        self.assertTrue(Time(11, 10, 35) <= Time(11, 10, 35))
+        self.assertFalse(Time(11, 10, 35) <= Time(11, 10, 34))
 
     def test_gt(self):
         self.assertTrue(Duration(months=16) > Duration(15))
         self.assertFalse(Duration(months=16) > Duration(16))
+        self.assertFalse(Time(23, 59, 59) > Time(23, 59, 59))
+        self.assertTrue(Time(9, 0, 0) > Time(8, 59, 59))
 
     def test_ge(self):
         self.assertTrue(Duration(16) >= Duration(15))
         self.assertTrue(Duration(16) >= Duration(16))
         self.assertTrue(Duration.fromstring('P1Y1DT1S') >= Duration.fromstring('P1Y1D'))
+        self.assertTrue(Time(23, 59, 59) >= Time(23, 59, 59))
+        self.assertFalse(Time(23, 59, 58) >= Time(23, 59, 59))
 
     def test_incomparable_values(self):
         self.assertFalse(Duration(1) < Duration.fromstring('P30D'))
@@ -728,11 +808,29 @@ class DurationTypesTest(unittest.TestCase):
         self.assertFalse(Duration(1) > Duration.fromstring('P30D'))
         self.assertFalse(Duration(1) >= Duration.fromstring('P30D'))
 
-    def test_day_time_duration(self):
-        self.assertEqual(DayTimeDuration(300).seconds, 300)
+    def test_sub_operator(self):
+        daytime_duration = DayTimeDuration.fromstring
+        year_month_duration = YearMonthDuration.fromstring
 
-    def test_year_month_duration(self):
-        self.assertEqual(YearMonthDuration(10).months, 10)
+        self.assertEqual(daytime_duration('P2D') - daytime_duration('P1D'),
+                         DayTimeDuration(seconds=86400))
+
+        self.assertEqual(year_month_duration('P2Y') - year_month_duration('P1Y'),
+                         YearMonthDuration(months=12))
+
+        with self.assertRaises(TypeError) as err:
+            _ = year_month_duration('P2Y') - daytime_duration('P1D')
+        self.assertIn("wrong type <class 'elementpath.datatypes.DayTimeDuration'",
+                      str(err.exception))
+
+    def test_mul_operator(self):
+        daytime_duration = DayTimeDuration.fromstring
+        year_month_duration = YearMonthDuration.fromstring
+
+        self.assertEqual(daytime_duration('P1D') * 2, DayTimeDuration(seconds=86400 * 2))
+
+        with self.assertRaises(TypeError) as err:
+            _ = daytime_duration('P1D') * '2'
 
     def test_hashing(self):
         self.assertIsInstance(hash(Duration(16)), int)
@@ -812,6 +910,13 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertEqual(tz.fromutc(dt=None), None)
         with self.assertRaises(TypeError):
             tz.fromutc(dt='+05:00')
+
+    def test_serialization(self):
+        for protocol in range(pickle.HIGHEST_PROTOCOL):
+            tz = Timezone.fromstring('+11:00')
+            obj = pickle.dumps(tz)
+            self.assertEqual(pickle.loads(obj), tz,
+                             msg="Pickle load fails for protocol %d" % protocol)
 
 
 class TypeProxiesTest(unittest.TestCase):
