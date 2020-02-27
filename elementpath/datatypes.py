@@ -187,6 +187,7 @@ class AbstractDateTime(metaclass=ABCMeta):
     version = '1.0'
     _pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
+    _year = None
 
     def __init__(self, year=2000, month=1, day=1, hour=0, minute=0,
                  second=0, microsecond=0, tzinfo=None):
@@ -197,7 +198,6 @@ class AbstractDateTime(metaclass=ABCMeta):
             delta = 0
 
         if 1 <= year <= 9999:
-            self._year = None
             self._dt = datetime.datetime(year, month, day, hour, minute,
                                          second, microsecond, tzinfo)
         elif year == 0:
@@ -437,7 +437,7 @@ class OrderedDateTime(AbstractDateTime):
             year = dt.year
 
         if issubclass(cls, Date10):
-            if adjust_timezone and dt.hour or dt.minute:
+            if adjust_timezone and (dt.hour or dt.minute):
                 assert dt.tzinfo is None
                 hour, minute = dt.hour, dt.minute
 
@@ -456,7 +456,7 @@ class OrderedDateTime(AbstractDateTime):
     def todelta(self):
         """Returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
         if self._year is None:
-            return self._dt - datetime.datetime(1, 1, 1)
+            return operator.sub(*self._get_operands(datetime.datetime(1, 1, 1)))
 
         year, dt = self.year, self._dt
         tzinfo = None if dt.tzinfo is None else self._utc_timezone
@@ -478,39 +478,33 @@ class OrderedDateTime(AbstractDateTime):
                 return DayTimeDuration.fromtimedelta(dt1 - dt2)
             return DayTimeDuration.fromtimedelta(self.todelta() - other.todelta())
 
-        elif isinstance(other, (DayTimeDuration, datetime.timedelta)):
-            delta = other.get_timedelta() if isinstance(other, DayTimeDuration) else other
-            try:
-                dt = op(self._dt, delta)
-            except OverflowError:
-                seconds = delta.total_seconds()
-                if self.bce ^ (seconds > 0):
-                    raise
-                dt_seconds = seconds - (self._dt - datetime.datetime(1, 1, 1)).total_seconds()
-                return type(self).fromdelta(datetime.timedelta(seconds=dt_seconds))
-            else:
-                bce = self.bce
+        elif isinstance(other, datetime.timedelta):
+            delta = op(self.todelta(), other)
+            return type(self).fromdelta(delta, adjust_timezone=True)
 
-            if 'hour' not in self._pattern.groupindex.keys():
-                dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif isinstance(other, DayTimeDuration):
+            delta = op(self.todelta(), other.get_timedelta())
+            return type(self).fromdelta(delta)
 
         elif isinstance(other, YearMonthDuration):
             month = op(self._dt.month - 1, other.months) % 12 + 1
-            year = op(self._dt.year, ((self._dt.month - 1) + other.months) // 12)
+            year = op(self.year, ((self._dt.month - 1) + other.months) // 12)
+            day = adjust_day(year, month, self._dt.day)
+
             if year > 0:
-                bce = self.bce
+                dt = self._dt.replace(year=year, month=month, day=day)
+            elif isleap(year):
+                dt = self._dt.replace(year=4, month=month, day=day)
             else:
-                bce = not self.bce
-                year = abs(year) + 1
-            dt = self._dt.replace(year=year, month=month, day=adjust_day(year, month, self._dt.day))
+                dt = self._dt.replace(year=6, month=month, day=day)
+
+            kwargs = {k: getattr(dt, k) for k in self._pattern.groupindex.keys()}
+            if year <= 0:
+                kwargs['year'] = year
+            return type(self)(**kwargs)
 
         else:
             raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
-
-        kwargs = {k: getattr(dt, k) for k in self._pattern.groupindex.keys()}
-        if bce:
-            kwargs['year'] = -kwargs['year']
-        return type(self)(**kwargs)
 
     def __lt__(self, other):
         dt1, dt2 = self._get_operands(other)

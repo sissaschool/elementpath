@@ -191,7 +191,7 @@ class XPathContext(object):
 
     def iter_preceding(self):
         item = self.item[0] if isinstance(self.item, TypedElement) else self.item
-        if not is_etree_element(item):
+        if not is_etree_element(item) or item is self.root:
             return
 
         status = self.item, self.size, self.position, self.axis
