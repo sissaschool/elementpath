@@ -30,7 +30,8 @@ from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, 
     is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
-from .datatypes import UntypedAtomic, Timezone, DayTimeDuration, XSD_BUILTIN_TYPES
+from .datatypes import UntypedAtomic, Timezone, DateTime10, Date10, \
+    DayTimeDuration, XSD_BUILTIN_TYPES
 from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -428,7 +429,13 @@ class XPathToken(Token):
                 timezone = Timezone.fromduration(timezone)
 
         if item.tzinfo is not None and timezone is not None:
-            item += timezone.offset - item.tzinfo.offset
+            if isinstance(item, DateTime10):
+                item += timezone.offset
+            elif not isinstance(item, Date10):
+                item += timezone.offset - item.tzinfo.offset
+            elif timezone.offset < item.tzinfo.offset:
+                item -= timezone.offset - item.tzinfo.offset
+                item -= DayTimeDuration.fromstring('P1D')
             item.tzinfo = timezone
         elif item.tzinfo is None:
             if timezone is not None:

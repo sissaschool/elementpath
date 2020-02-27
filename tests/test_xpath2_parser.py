@@ -1186,6 +1186,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          Date.fromstring('1999-09-30-05:00'))
 
     def test_subtract_day_time_duration_from_date(self):
+        self.check_value('xs:date("0001-01-05") - xs:dayTimeDuration("P3DT1H15M")',
+                         Date.fromstring('0001-01-01'))
         self.check_value('xs:date("2000-10-30") - xs:dayTimeDuration("P3DT1H15M")',
                          Date.fromstring('2000-10-26'))
 

@@ -213,6 +213,14 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "Date10(-100, 4, 13)")
         self.assertEqual(str(dt), '-0100-04-13')
 
+        dt = Date.fromstring("-0003-01-01")
+        self.assertEqual(repr(dt), "Date(-4, 1, 1)")
+        self.assertEqual(str(dt), '-0003-01-01')
+
+        dt = Date10.fromstring("-0003-01-01")
+        self.assertEqual(repr(dt), "Date10(-3, 1, 1)")
+        self.assertEqual(str(dt), '-0003-01-01')
+
     def test_gregorian_year_repr(self):
         dt = GregorianYear.fromstring('1991')
         self.assertEqual(repr(dt), "GregorianYear(1991)")
@@ -452,6 +460,21 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(DateTime.fromstring("0001-06-03T20:00:00").todelta(),
                          datetime.timedelta(days=153, seconds=72000))
 
+        self.assertEqual(Date.fromstring("0001-01-01-01:00").todelta(),
+                         datetime.timedelta(seconds=3600))
+        self.assertEqual(Date.fromstring("0001-01-01-07:00").todelta(),
+                         datetime.timedelta(seconds=3600 * 7))
+        self.assertEqual(Date.fromstring("0001-01-01+10:00").todelta(),
+                         datetime.timedelta(seconds=-3600 * 10))
+        self.assertEqual(Date.fromstring("0001-01-02+10:00").todelta(),
+                         DayTimeDuration.fromstring("PT14H").get_timedelta())
+        self.assertEqual(Date.fromstring("-0000-12-31-01:00").todelta(),
+                         DayTimeDuration.fromstring("-PT23H").get_timedelta())
+        self.assertEqual(Date10.fromstring("-0001-12-31-01:00").todelta(),
+                         DayTimeDuration.fromstring("-PT23H").get_timedelta())
+        self.assertEqual(Date.fromstring("-0000-12-31+01:00").todelta(),
+                         DayTimeDuration.fromstring("-P1DT1H").get_timedelta())
+
         self.assertEqual(Date.fromstring("0002-01-01").todelta(), datetime.timedelta(days=365))
         self.assertEqual(Date.fromstring("0002-02-01").todelta(), datetime.timedelta(days=396))
 
@@ -509,13 +532,18 @@ class DateTimeTypesTest(unittest.TestCase):
 
     def test_add_operator(self):
         date = Date.fromstring
+        date10 = Date10.fromstring
+        daytime_duration = DayTimeDuration.fromstring
 
-        self.assertEqual(date("0001-01-01") + DayTimeDuration(seconds=86400 * 2),
-                         Date(1, 1, 3))
-        self.assertEqual(date("0001-01-01") + DayTimeDuration(seconds=-86400 * 2),
-                         Date(-1, 12, 30))
+        self.assertEqual(date("0001-01-01") + daytime_duration('P2D'), date("0001-01-03"))
+        self.assertEqual(date("0001-01-01") + daytime_duration('-P2D'), date("0000-12-30"))
+        self.assertEqual(date("-0001-01-01") + daytime_duration('P2D'), date("-0001-01-03"))
+        self.assertEqual(date("-0001-12-01") + daytime_duration('P30D'), date("-0001-12-31"))
+        self.assertEqual(date("-0001-12-01") + daytime_duration('P31D'), date("0000-01-01"))
+        self.assertEqual(date10("-0001-12-01") + daytime_duration('P31D'), date10("0001-01-01"))
+
         self.assertEqual(date("0001-01-01") + YearMonthDuration(months=12), Date(2, 1, 1))
-        # self.assertEqual(date("-0003-01-01") + YearMonthDuration(months=12), Date(2, 1, 1))
+        self.assertEqual(date("-0003-01-01") + YearMonthDuration(months=12), Date(-3, 1, 1))
         self.assertEqual(date("0001-01-05") + YearMonthDuration(months=25), Date(3, 2, 5))
 
         with self.assertRaises(TypeError) as err:
@@ -543,9 +571,6 @@ class DateTimeTypesTest(unittest.TestCase):
                          DayTimeDuration(seconds=0))
         self.assertEqual(date("-9999-11-11") - date("-9999-11-12"),
                          DayTimeDuration(seconds=-86400))
-
-        with self.assertRaises(OverflowError) as err:
-            date("0001-01-01") - DayTimeDuration(seconds=86400 * 100)
 
         self.assertEqual(date10("-2001-04-02-02:00") - date10("-2001-04-01"),
                          DayTimeDuration.fromstring('P1DT2H'))
