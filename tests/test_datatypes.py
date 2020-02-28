@@ -20,10 +20,15 @@ from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_
     months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
     GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
-    GregorianDay, AbstractDateTime, OrderedDateTime, NumericTypeProxy, ArithmeticTypeProxy
+    GregorianDay, AbstractDateTime, OrderedDateTime, NumericTypeProxy, ArithmeticTypeProxy, \
+    decimal_validator, integer_validator, base64_binary_validator, hex_binary_validator, \
+    ncname_validator, XSD_BUILTIN_TYPES, XsdBuiltin
 
 
 class UntypedAtomicTest(unittest.TestCase):
+
+    def test_repr(self):
+        self.assertEqual(repr(UntypedAtomic(7)), 'UntypedAtomic(value=7)')
 
     def test_eq(self):
         self.assertTrue(UntypedAtomic(-10) == UntypedAtomic(-10))
@@ -74,6 +79,12 @@ class UntypedAtomicTest(unittest.TestCase):
     def test_ge(self):
         self.assertTrue(UntypedAtomic(25) >= UntypedAtomic(25))
         self.assertFalse(25 >= UntypedAtomic(25.1))
+
+    def test_add(self):
+        self.assertEqual(UntypedAtomic(20) + UntypedAtomic(3), UntypedAtomic(23))
+        self.assertEqual(UntypedAtomic(-2) + UntypedAtomic(3), UntypedAtomic(1))
+        self.assertEqual(UntypedAtomic(17) + UntypedAtomic(5.1), UntypedAtomic(22.1))
+        self.assertEqual(UntypedAtomic('1') + UntypedAtomic('2.7'), UntypedAtomic(3.7))
 
     def test_conversion(self):
         self.assertEqual(str(UntypedAtomic(25.1)), '25.1')
@@ -713,7 +724,6 @@ class DurationTypesTest(unittest.TestCase):
             YearMonthDuration.fromstring('P1YT10S')
         self.assertEqual(str(err.exception), "seconds must be 0 for 'YearMonthDuration'")
 
-
     def test_repr(self):
         self.assertEqual(repr(Duration(months=1, seconds=86400)),
                          'Duration(months=1, seconds=86400)')
@@ -808,6 +818,26 @@ class DurationTypesTest(unittest.TestCase):
         self.assertFalse(Duration(1) > Duration.fromstring('P30D'))
         self.assertFalse(Duration(1) >= Duration.fromstring('P30D'))
 
+    def test_add_operator(self):
+        daytime_duration = DayTimeDuration.fromstring
+        year_month_duration = YearMonthDuration.fromstring
+
+        self.assertEqual(daytime_duration('P2D') + daytime_duration('P1D'),
+                         DayTimeDuration(seconds=86400 * 3))
+
+        self.assertEqual(year_month_duration('P2Y') + year_month_duration('P1Y'),
+                         YearMonthDuration(months=36))
+
+        with self.assertRaises(TypeError) as err:
+            _ = year_month_duration('P2Y') + daytime_duration('P1D')
+        self.assertIn("wrong type <class 'elementpath.datatypes.DayTimeDuration'",
+                      str(err.exception))
+
+        with self.assertRaises(TypeError) as err:
+            _ = daytime_duration('P1D') + year_month_duration('P2Y')
+        self.assertIn("wrong type <class 'elementpath.datatypes.YearMonthDuration'",
+                      str(err.exception))
+
     def test_sub_operator(self):
         daytime_duration = DayTimeDuration.fromstring
         year_month_duration = YearMonthDuration.fromstring
@@ -823,6 +853,11 @@ class DurationTypesTest(unittest.TestCase):
         self.assertIn("wrong type <class 'elementpath.datatypes.DayTimeDuration'",
                       str(err.exception))
 
+        with self.assertRaises(TypeError) as err:
+            _ = daytime_duration('P1D') - year_month_duration('P2Y')
+        self.assertIn("wrong type <class 'elementpath.datatypes.YearMonthDuration'",
+                      str(err.exception))
+
     def test_mul_operator(self):
         daytime_duration = DayTimeDuration.fromstring
         year_month_duration = YearMonthDuration.fromstring
@@ -831,6 +866,29 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') * '2'
+        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+
+        self.assertEqual(year_month_duration('P1Y2M') * 2, YearMonthDuration(months=14 * 2))
+
+        with self.assertRaises(TypeError) as err:
+            _ = year_month_duration('P1Y2M') * '2'
+        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+
+    def test_div_operator(self):
+        daytime_duration = DayTimeDuration.fromstring
+        year_month_duration = YearMonthDuration.fromstring
+
+        self.assertEqual(daytime_duration('P4D') / 2, DayTimeDuration(seconds=86400 * 2))
+
+        with self.assertRaises(TypeError) as err:
+            _ = daytime_duration('P2D') / '2'
+        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+
+        self.assertEqual(year_month_duration('P1Y2M') / 2, YearMonthDuration(months=14 / 2))
+
+        with self.assertRaises(TypeError) as err:
+            _ = year_month_duration('P1Y2M') / '2'
+        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
 
     def test_hashing(self):
         self.assertIsInstance(hash(Duration(16)), int)
@@ -921,15 +979,69 @@ class TimezoneTypeTest(unittest.TestCase):
 
 class TypeProxiesTest(unittest.TestCase):
 
-    def test_numeric_type_proxy(self):
+    def test_instance_check(self):
         self.assertIsInstance(10, NumericTypeProxy)
         self.assertIsInstance(17.8, NumericTypeProxy)
         self.assertIsInstance(Decimal('18.12'), NumericTypeProxy)
         self.assertNotIsInstance(True, NumericTypeProxy)
         self.assertNotIsInstance(Duration.fromstring('P1Y'), NumericTypeProxy)
 
-    def test_arithmetic_type_proxy(self):
         self.assertIsInstance(10, ArithmeticTypeProxy)
+
+    def test_subclass_check(self):
+        self.assertFalse(issubclass(bool, NumericTypeProxy))
+        self.assertFalse(issubclass(str, NumericTypeProxy))
+        self.assertTrue(issubclass(int, NumericTypeProxy))
+        self.assertTrue(issubclass(float, NumericTypeProxy))
+        self.assertTrue(issubclass(Decimal, NumericTypeProxy))
+        self.assertFalse(issubclass(DateTime10, NumericTypeProxy))
+
+        self.assertFalse(issubclass(bool, ArithmeticTypeProxy))
+        self.assertFalse(issubclass(str, ArithmeticTypeProxy))
+        self.assertTrue(issubclass(int, ArithmeticTypeProxy))
+        self.assertTrue(issubclass(float, ArithmeticTypeProxy))
+        self.assertTrue(issubclass(Decimal, ArithmeticTypeProxy))
+
+    # noinspection PyArgumentList
+    def test_instance_build(self):
+        self.assertEqual(NumericTypeProxy(), 0.0)
+        self.assertEqual(NumericTypeProxy(9), 9.0)
+        self.assertEqual(NumericTypeProxy('49'), 49.0)
+        self.assertEqual(ArithmeticTypeProxy(), 0.0)
+        self.assertEqual(ArithmeticTypeProxy(8.0), 8.0)
+        self.assertEqual(ArithmeticTypeProxy('81.0'), 81.0)
+
+
+class XsdBuiltinTypesTest(unittest.TestCase):
+
+    def test_decimal_validator(self):
+        self.assertTrue(decimal_validator(Decimal('10.9')))
+        self.assertFalse(decimal_validator(10.9))
+
+    def test_integer_validator(self):
+        self.assertTrue(integer_validator(10))
+        self.assertFalse(integer_validator(10.0))
+        self.assertFalse(integer_validator(Decimal('10.0')))
+
+    def test_base64_binary_validator(self):
+        self.assertTrue(base64_binary_validator('YWxwaGE='))
+        self.assertTrue(base64_binary_validator(b'YWxwaGE='))
+        self.assertFalse(base64_binary_validator('YWxwaGE!='))
+        self.assertFalse(base64_binary_validator('XYZ'))
+        self.assertFalse(base64_binary_validator('=59A'))
+
+    def test_hex_binary_validator(self):
+        self.assertTrue(hex_binary_validator('F3'))
+        self.assertFalse(hex_binary_validator('G3'))
+
+    def test_ncname_validator(self):
+        self.assertTrue(ncname_validator('myElement'))
+        self.assertFalse(ncname_validator('tns:myElement'))
+
+    def test_types(self):
+        self.assertEqual(len(XSD_BUILTIN_TYPES), 47)
+        for name in XSD_BUILTIN_TYPES:
+            self.assertIsInstance(XSD_BUILTIN_TYPES[name], XsdBuiltin)
 
 
 if __name__ == '__main__':
