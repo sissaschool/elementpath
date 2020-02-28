@@ -6,3 +6,4 @@ source = elementpath/
 exclude_lines =
     raise NotImplementedError()
     for elem in self.root.iter()
+    XSD_BUILTIN_TYPES = {

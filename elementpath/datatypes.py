@@ -1150,7 +1150,9 @@ def integer_validator(x):
 
 
 def base64_binary_validator(x):
-    if not isinstance(x, str) or NOT_BASE64_BINARY_PATTERN.match(x) is None:
+    if isinstance(x, bytes):
+        x = x.decode()
+    if not isinstance(x, str) or NOT_BASE64_BINARY_PATTERN.search(x) is not None:
         return False
     try:
         base64.standard_b64decode(x)
