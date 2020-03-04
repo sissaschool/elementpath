@@ -31,8 +31,10 @@ class ExceptionsTest(unittest.TestCase):
         self.assertEqual(str(err), "'true' function: [XPST0001] unknown error.")
 
     def test_xpath_error(self):
-        self.assertEqual(str(xpath_error('XPST0001')), '[err:XPST0001] Parser not bound to a schema.')
-        self.assertEqual(str(xpath_error('err:XPDY0002', "test message")), '[err:XPDY0002] test message.')
+        self.assertEqual(str(xpath_error('XPST0001')),
+                         '[err:XPST0001] Parser not bound to a schema.')
+        self.assertEqual(str(xpath_error('err:XPDY0002', "test message")),
+                         '[err:XPDY0002] test message.')
         self.assertRaises(ValueError, xpath_error, '')
         self.assertRaises(ValueError, xpath_error, 'error:XPDY0002')
 

@@ -29,6 +29,13 @@ try:
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+else:
+    xmlschema.XMLSchema.meta_schema.build()
+
 from elementpath import *
 from elementpath.datatypes import DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic
@@ -424,6 +431,36 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select("element(*)", root[:], context)
         self.check_select("element(B)", root[:], context)
         self.check_select("element(A)", [], context)
+
+    def test_attribute_accessor(self):
+        root = self.etree.XML('<A a="10" b="20">text<B/>tail<B/></A>')
+        context = XPathContext(root)
+        self.check_select("attribute()", {'10', '20'}, context)
+        self.check_select("attribute(*)", {'10', '20'}, context)
+        self.check_select("attribute(a)", ['10'], context)
+
+        if self.parser.schema is not None:
+            self.check_select("attribute(a, xs:int)", [], context)
+            return
+        else:
+            self.check_select("attribute(a, xs:int)", ['10'], context)
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="A" type="AType"/>
+                  <xs:complexType name="AType">
+                    <xs:attribute name="a" type="xs:int"/>
+                    <xs:attribute name="b" type="xs:int"/>
+                  </xs:complexType>
+                </xs:schema>""")
+
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['A'])
+            self.check_select("attribute(a, xs:int)", ['10'], context)
+            self.check_select("attribute(*, xs:int)", {'10', '20'}, context)
+            self.check_select("attribute(a, xs:string)", [], context)
+            self.check_select("attribute(*, xs:string)", [], context)
+            self.parser.schema = None
 
     def test_node_and_node_accessors(self):
         element = self.etree.Element('schema')

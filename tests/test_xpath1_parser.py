@@ -468,8 +468,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('string($ups1/power)', root, '40kW', variables=variables)
 
         self.check_value('$word', 'alpha')
-        self.wrong_syntax('$eg:word')
-        self.wrong_syntax('${http://xpath.test/ns}word')
+        self.wrong_syntax('$eg:word', 'variable reference requires a simple reference name')
+        self.wrong_syntax('${http://xpath.test/ns}word',
+                          "unexpected symbol '{' after $ variable reference")
 
     def test_substring_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
