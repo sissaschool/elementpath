@@ -1170,7 +1170,7 @@ def ncname_validator(x):
     return isinstance(x, str) and NCNAME_PATTERN.match(x) is not None
 
 
-XSD_BUILTIN_TYPES = {
+XSD_BUILTIN_TYPES = {           # pragma: no cover
     'anyType': XsdBuiltin(
         lambda x: True,
         value=UntypedAtomic('1')

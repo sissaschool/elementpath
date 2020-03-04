@@ -207,7 +207,7 @@ class XPathContext(object):
                 ancestors.append(parent)
                 elem = parent
 
-        for elem in self.root.iter():
+        for elem in self.root.iter():  # pragma: no cover
             if elem is item:
                 break
             elif elem not in ancestors:

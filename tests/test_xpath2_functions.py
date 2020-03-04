@@ -526,20 +526,19 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('fn:exactly-one(())')
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
-    def test_qname_functions(self):
-        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
-                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
-                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
-                              '</p1:A>')
-        context = XPathContext(root=root)
-
+    def test_qname_function(self):
         self.check_value('fn:QName("", "person")', 'person')
         self.check_value('fn:QName((), "person")', 'person')
         self.check_value('fn:QName("http://www.example.com/ns/", "person")', 'person')
         self.check_value('fn:QName("http://www.example.com/ns/", "ht:person")', 'ht:person')
-        self.wrong_type('fn:QName("", 2)')
-        self.wrong_value('fn:QName("http://www.example.com/ns/", "xs:person")')
 
+        self.wrong_type('fn:QName(1.0, "person")', 'FORG0006', '1st argument has an invalid type')
+        self.wrong_type('fn:QName("", 2)', 'FORG0006', '2nd argument has an invalid type')
+        self.wrong_value('fn:QName("", "3")', 'FOCA0002', '2nd argument must be an xs:QName')
+        self.wrong_value('fn:QName("http://www.example.com/ns/", "xs:person")')
+        self.wrong_value('fn:QName("", "xs:int")', 'FOCA0002', 'must be a local name')
+
+    def test_prefix_from_qname_function(self):
         self.check_value(
             'fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "ht:person"))', 'ht'
         )
@@ -550,6 +549,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:prefix-from-QName(7)', TypeError)
         self.check_value('fn:prefix-from-QName("7")', ValueError)
 
+    def test_local_name_from_qname_function(self):
         self.check_value(
             'fn:local-name-from-QName(fn:QName("http://www.example.com/ns/", "person"))', 'person'
         )
@@ -557,6 +557,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:local-name-from-QName(8)', TypeError)
         self.check_value('fn:local-name-from-QName("8")', ValueError)
 
+    def test_namespace_uri_from_qname_function(self):
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
+                              '</p1:A>')
         self.check_value(
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
@@ -568,6 +573,13 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, NameError,
                             namespaces={'p3': ''})
 
+    def test_resolve_qname_function(self):
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
+                              '</p1:A>')
+        context = XPathContext(root=root)
+
         self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
         self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2',
                          context=context.copy())
@@ -576,6 +588,14 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:resolve-QName(2, .)", TypeError, context=context.copy())
         self.check_value("fn:resolve-QName('2', .)", ValueError, context=context.copy())
         self.check_value("fn:resolve-QName((), 4)", TypeError, context=context.copy())
+
+    def test_namespace_uri_for_prefix_function(self):
+
+        root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
+                              '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
+                              '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
+                              '</p1:A>')
+        context = XPathContext(root=root)
 
         self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix(4, .)", TypeError, context=context.copy())
@@ -586,6 +606,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                             root, NameError, namespaces={'p3': ''})
 
         # Note: default namespace for XPath 2 tests is 'http://www.example.com/ns/'
+        self.check_value("fn:namespace-uri-for-prefix('', .)", [], context=context.copy())
+        self.check_value(
+            'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
+            'http://www.example.com/ns/'
+        )
         self.check_value("fn:namespace-uri-for-prefix('', .)",
                          'http://www.example.com/ns/', context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix((), .)",
@@ -614,10 +639,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_datetime_function(self):
         tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+
+        self.check_value('fn:dateTime((), xs:time("24:00:00"))')
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), ())')
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))',
                          datetime.datetime(1999, 12, 31, 12, 0, tzinfo=tz0))
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("24:00:00"))',
                          datetime.datetime(1999, 12, 31, 0, 0, tzinfo=tz0))
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("13:00:00+05:24"))',
+                         datetime.datetime(1999, 12, 31, 13, 0, tzinfo=tz1))
+        self.wrong_value('fn:dateTime(xs:date("1999-12-31+03:00"), xs:time("13:00:00+05:24"))',
+                         'FORG0008', 'inconsistent timezones')
 
     def test_year_from_datetime_function(self):
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 1999)
