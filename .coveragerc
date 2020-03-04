@@ -4,6 +4,5 @@ source = elementpath/
 
 [report]
 exclude_lines =
+    pragma: no cover
     raise NotImplementedError()
-    for elem in self.root.iter()
-    XSD_BUILTIN_TYPES = {

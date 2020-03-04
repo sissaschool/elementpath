@@ -21,6 +21,7 @@ from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, \
     NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN, \
     LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
+from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
 
 
@@ -417,6 +418,7 @@ def evaluate(self, context=None):
 # Case 1: In XPath 2.0 the 'boolean' keyword is used both for boolean() function and
 # for boolean() constructor.
 def cast_to_boolean(value, context=None):
+    assert context is None or isinstance(context, XPathContext)
     if isinstance(value, bool):
         return value
     elif isinstance(value, (int, float, decimal.Decimal)):
@@ -470,8 +472,9 @@ def evaluate(self, context=None):
 
 # Case 2: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
 unregister('string')
-register('string', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(lambda v, c=None: str(v)))
+register('string', lbp=90, rbp=90, label=('function', 'constructor'),  # pragma: no cover
+         pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()',
+         cast=staticmethod(lambda v, c=None: str(v)))
 
 
 @method('string')
@@ -548,8 +551,7 @@ def evaluate(self, context=None):
         try:
             return self.cast(item, self.parser.namespaces)
         except ElementPathError as err:
-            if err.token is None:
-                err.token = self
+            err.token = self
             raise
     else:
         uri = self.get_argument(context)

@@ -11,7 +11,6 @@
 import unittest
 import datetime
 import platform
-import sys
 from decimal import Decimal
 
 try:
@@ -125,8 +124,11 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:ENTITY("xyz")', 'xyz')
 
     def test_qname_constructor(self):
+        self.check_value('xs:QName(())', [])
         self.check_value('xs:QName("xs:element")', 'xs:element')
         self.assertRaises(KeyError, self.parser.parse, 'xs:QName("xsd:element")')
+        self.wrong_type('xs:QName(5)', 'FORG0006', "the argument has an invalid type")
+        self.wrong_value('xs:QName("1")', 'FOCA0002', "the argument must be an xs:QName")
 
     def test_any_uri_constructor(self):
         self.check_value('xs:anyURI("")', '')
@@ -159,6 +161,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:boolean(())', [])
         self.check_value('xs:boolean(1)', True)
         self.check_value('xs:boolean(0)', False)
+        self.check_value('xs:boolean(xs:boolean(0))', False)
+        self.check_value('xs:boolean(xs:untypedAtomic(0))', False)
+        self.wrong_type('xs:boolean(xs:hexBinary("FF"))', 'FORG0006', "<class 'bytes'>")
+        self.wrong_value('xs:boolean("2")', 'FOCA0002', "not a boolean value")
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")', 'FORG0001')
@@ -245,6 +251,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
     def test_datetime_constructor(self):
         tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+        self.check_value('xs:dateTime(())', [])
         self.check_value(
             'xs:dateTime("1969-07-20T20:18:00")', DateTime(1969, 7, 20, 20, 18, tzinfo=tz0)
         )
@@ -258,6 +265,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('xs:dateTime("2000-05-10T21:3:00+05:24")')
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0+05:24")')
         self.wrong_value('xs:dateTime("2000-05-10T21:13:0")')
+        self.wrong_type('xs:dateTime(50)', 'FORG0006', '1st argument has an invalid type')
 
     def test_time_constructor(self):
         tz0 = None
