@@ -131,6 +131,10 @@ class XPathTestCase(unittest.TestCase):
             else:
                 self.assertTrue(math.isnan(value))
 
+        elif isinstance(expected, list):
+            self.assertListEqual(root_token.evaluate(context), expected)
+        elif isinstance(expected, set):
+            self.assertEqual(set(root_token.evaluate(context)), expected)
         elif not callable(expected):
             self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
@@ -158,6 +162,10 @@ class XPathTestCase(unittest.TestCase):
         root_token = self.parser.parse(path)
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.select, context)
+        elif isinstance(expected, list):
+            self.assertListEqual(list(root_token.select(context)), expected)
+        elif isinstance(expected, set):
+            self.assertEqual(set(root_token.select(context)), expected)
         elif not callable(expected):
             self.assertEqual(list(root_token.select(context)), expected)
         else:
@@ -181,7 +189,9 @@ class XPathTestCase(unittest.TestCase):
                               self.parser.__class__, **kwargs)
         else:
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
-            if isinstance(expected, set):
+            if isinstance(expected, list):
+                self.assertListEqual(results, expected)
+            elif isinstance(expected, set):
                 self.assertEqual(set(results), expected)
             elif isinstance(expected, float) and math.isnan(expected):
                 self.assertTrue(math.isnan(results))
@@ -193,17 +203,33 @@ class XPathTestCase(unittest.TestCase):
                 self.assertTrue(expected(results))
 
     # Wrong XPath expression checker shortcuts
-    def wrong_syntax(self, path):
-        self.assertRaises(SyntaxError, self.parser.parse, path)
+    def wrong_syntax(self, path, *message_parts):
+        with self.assertRaises(SyntaxError) as err:
+            self.parser.parse(path)
 
-    def wrong_value(self, path):
-        self.assertRaises(ValueError, self.parser.parse, path)
+        for part in message_parts:
+            self.assertIn(part, str(err.exception))
 
-    def wrong_type(self, path):
-        self.assertRaises(TypeError, self.parser.parse, path)
+    def wrong_value(self, path, *message_parts):
+        with self.assertRaises(ValueError) as err:
+            self.parser.parse(path)
 
-    def wrong_name(self, path):
-        self.assertRaises(NameError, self.parser.parse, path)
+        for part in message_parts:
+            self.assertIn(part, str(err.exception))
+
+    def wrong_type(self, path, *message_parts):
+        with self.assertRaises(TypeError) as err:
+            self.parser.parse(path)
+
+        for part in message_parts:
+            self.assertIn(part, str(err.exception))
+
+    def wrong_name(self, path, *message_parts):
+        with self.assertRaises(NameError) as err:
+            self.parser.parse(path)
+
+        for part in message_parts:
+            self.assertIn(part, str(err.exception))
 
 
 if __name__ == '__main__':

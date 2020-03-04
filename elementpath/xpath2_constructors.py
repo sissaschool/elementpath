@@ -13,10 +13,8 @@ XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 import decimal
 import codecs
 from urllib.parse import urlparse
-from urllib.error import URLError
 
 from .exceptions import ElementPathError, xpath_error
-from .xpath_nodes import is_attribute_node
 from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     XPathGregorianMonth, XPathGregorianMonthDay, XPathGregorianYear, \
     XPathGregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, \
@@ -106,9 +104,12 @@ def cast(value):
 
     uri = collapse_white_spaces(value)
     try:
-        urlparse(uri)
-    except URLError:
-        raise xpath_error('FOCA0002', "%r is not an xs:anyURI value" % value)
+        url_parts = urlparse(uri)
+        _ = url_parts.port
+    except ValueError as err:
+        msg = "%r is not an xs:anyURI value (%s)"
+        raise xpath_error('FOCA0002', msg % (value, str(err)))
+
     if uri.count('#') > 1:
         msg = "%r is not an xs:anyURI value (too many # characters)"
         raise xpath_error('FOCA0002', msg % value)
@@ -155,7 +156,7 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
     if isinstance(value, tuple):
         value = value[-1]
 
-    if isinstance(value, str):
+    if isinstance(value, (str, bytes)):
         try:
             result = int(float(value))
         except ValueError:
@@ -357,8 +358,9 @@ def cast(value):
 def cast(value, from_literal=False):
     if isinstance(value, tuple):
         value = value[-1]
+
     if isinstance(value, UntypedAtomic):
-        return codecs.encode(str(value), 'base64')
+        return codecs.encode(str(value).encode('ascii'), 'base64')
     elif not isinstance(value, (bytes, str)):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
     elif not isinstance(value, bytes) or from_literal:
@@ -366,7 +368,7 @@ def cast(value, from_literal=False):
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
         value = codecs.decode(value, 'hex') if str is not bytes else value
         return codecs.encode(value, 'base64')
-    elif NOT_BASE64_BINARY_PATTERN.search(value.decode('utf-8')):
+    elif NOT_BASE64_BINARY_PATTERN.search(value.decode('utf-8')) or len(value.strip()) % 4:
         return codecs.encode(value, 'base64')
     else:
         return value
@@ -376,17 +378,15 @@ def cast(value, from_literal=False):
 def cast(value, from_literal=False):
     if isinstance(value, tuple):
         value = value[-1]
+
     if isinstance(value, UntypedAtomic):
-        return codecs.encode(str(value), 'hex')
+        return codecs.encode(str(value).encode('ascii'), 'hex')
     elif not isinstance(value, (bytes, str)):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
     elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'hex')
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
-        if isinstance(value, bytes) or str is bytes:
-            return value
-        else:
-            return codecs.encode(value.encode('ascii'), 'hex')
+        return value
     else:
         try:
             value = codecs.decode(value, 'base64')
@@ -402,78 +402,19 @@ def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
         return []
+
     try:
         return self.cast(item, self[0].label == 'literal')
     except ElementPathError as err:
-        if err.token is None:
-            err.token = self
+        err.token = self
         raise
-    except ValueError as err:
-        raise self.error('FOCA0002', str(err))
-    except TypeError as err:
-        raise self.error('FORG0006', str(err))
 
 
 ###
-# Multi role-tokens cases
+# Multi role-tokens constructors
 #
 
-# Case 1: In XPath 2.0 the 'attribute' keyword is used both for attribute:: axis and
-# attribute() node type function.
-#
-# First the XPath1 token class has to be removed from the XPath2 symbol table. Then the
-# symbol has to be registered usually with the same binding power (bp --> lbp, rbp), a
-# multi-value label (using a tuple of values) and a custom pattern. Finally a custom nud
-# or led method is required.
-unregister('attribute')
-register('attribute', lbp=90, rbp=90, label=('kind test', 'axis'),
-         pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
-
-
-@method('attribute')
-def nud(self):
-    if self.parser.next_token.symbol == '::':
-        self.parser.advance('::')
-        self.parser.next_token.expected(
-            '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
-            'attribute', 'schema-attribute', 'element', 'schema-element'
-        )
-        self[:] = self.parser.expression(rbp=90),
-        self.label = 'axis'
-    else:
-        self.parser.advance('(')
-        if self.parser.next_token.symbol != ')':
-            self[:] = self.parser.expression(5),
-            if self.parser.next_token.symbol == ',':
-                self.parser.advance(',')
-                self[1:] = self.parser.expression(5),
-        self.parser.advance(')')
-        self.label = 'kind test'
-    return self
-
-
-@method('attribute')
-def select(self, context=None):
-    if context is None:
-        return
-    elif self.label == 'axis':
-        for _ in context.iter_attributes():
-            yield from self[0].select(context)
-    else:
-        name = self[0].evaluate(context) if self else None
-        for item in context.iter_attributes():
-            if is_attribute_node(item, name):
-                yield context.item[1]
-
-
-@method('attribute')
-def evaluate(self, context=None):
-    if context is not None:
-        if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
-            return context.item[1]
-
-
-# Case 2: In XPath 2.0 the 'boolean' keyword is used both for boolean() function and
+# Case 1: In XPath 2.0 the 'boolean' keyword is used both for boolean() function and
 # for boolean() constructor.
 def cast_to_boolean(value, context=None):
     if isinstance(value, bool):
@@ -527,7 +468,7 @@ def evaluate(self, context=None):
         raise
 
 
-# Case 3: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
+# Case 2: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
 unregister('string')
 register('string', lbp=90, rbp=90, label=('function', 'constructor'),
          pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(lambda v, c=None: str(v)))
@@ -551,7 +492,7 @@ def evaluate(self, context=None):
         return [] if item is None else str(item)
 
 
-# Case 4 and 5: In XPath 2.0 the XSD 'QName' and 'dateTime' types have special
+# Case 3 and 4: In XPath 2.0 the XSD 'QName' and 'dateTime' types have special
 # constructor functions so the 'QName' keyword is used both for fn:QName() and
 # xs:QName(), the same for 'dateTime' keyword.
 #

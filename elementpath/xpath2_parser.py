@@ -26,7 +26,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname, \
     XSD_UNTYPED_ATOMIC
 from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES
-from .xpath_nodes import is_xpath_node
+from .xpath_nodes import is_xpath_node, is_attribute_node
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
 from .schema_proxy import AbstractSchemaProxy
@@ -370,9 +370,8 @@ class XPath2Parser(XPath1Parser):
             except MissingContextError:
                 pass
         else:
-            context = self.schema.get_context()
-            # breakpoint()
             # Static context evaluation with a dynamic schema context
+            context = self.schema.get_context()
             for _ in root_token.select(context):
                 pass
 
@@ -837,5 +836,78 @@ def evaluate(self, context=None):
         return arg1 // arg2
     except decimal.DivisionByZero:
         raise self.error('FOAR0001')
+
+
+###
+# Multi role-tokens definition: in XPath 2.0 the 'attribute' keyword is used both for
+# attribute:: axis and attribute() node type function.
+#
+# First the XPath1 token class has to be removed from the XPath2 symbol table. Then the
+# symbol has to be registered usually with the same binding power (bp --> lbp, rbp), a
+# multi-value label (using a tuple of values) and a custom pattern. Finally a custom nud
+# or led method is required.
+unregister('attribute')
+register('attribute', lbp=90, rbp=90, label=('kind test', 'axis'),
+         pattern=r'\battribute(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:|\s*\(|\s*\(\:.*\:\)\()')
+
+
+@method('attribute')
+def nud(self):
+    if self.parser.next_token.symbol == '::':
+        self.parser.advance('::')
+        self.parser.next_token.expected(
+            '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
+            'attribute', 'schema-attribute', 'element', 'schema-element'
+        )
+        self[:] = self.parser.expression(rbp=90),
+        self.label = 'axis'
+    else:
+        self.parser.advance('(')
+        if self.parser.next_token.symbol != ')':
+            self[:] = self.parser.expression(5),
+            if self.parser.next_token.symbol == ',':
+                self.parser.advance(',')
+                self[1:] = self.parser.expression(5),
+        self.parser.advance(')')
+        self.label = 'kind test'
+    return self
+
+
+@method('attribute')
+def select(self, context=None):
+    if context is None:
+        return
+    elif self.label == 'axis':
+        for _ in context.iter_attributes():
+            yield from self[0].select(context)
+    elif not self:
+        for item in context.iter_attributes():
+            if is_attribute_node(item):
+                yield context.item[1]
+    else:
+        name = self[0].value
+        if self.parser.schema is not None and len(self) == 2:
+            type_name = prefixed_to_qname(self[1].value, namespaces=self.parser.namespaces)
+        else:
+            type_name = None
+
+        for item in context.iter_attributes():
+            if is_attribute_node(item, name):
+                if isinstance(context, XPathSchemaContext):
+                    self.add_xsd_type(item[0], item[1].type)
+                elif not type_name:
+                    yield context.item[1]
+                else:
+                    xsd_type = self.get_xsd_type(item)
+                    if xsd_type is not None and xsd_type.name == type_name:
+                        yield context.item[1]
+
+
+@method('attribute')
+def evaluate(self, context=None):
+    if context is not None:
+        if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
+            return context.item[1]
+
 
 # XPath 2.0 definitions continue into module xpath2_functions

@@ -309,6 +309,7 @@ def led(self, left):
     if self.parser.is_spaced():
         self.wrong_syntax("a QName cannot contains spaces before or after ':'")
     self[:] = left, self.parser.expression(90)
+    self.value = '{}:{}'.format(self[0].value, self[1].value)
     return self
 
 
@@ -407,8 +408,8 @@ def select(self, context=None):
 def nud(self):
     self.parser.next_token.expected('(name)')
     self[:] = self.parser.expression(rbp=90),
-    if self[0].value.startswith(':'):
-        self[0].wrong_syntax("Variable reference requires a simple reference name")
+    if ':' in self[0].value:
+        self[0].wrong_syntax("variable reference requires a simple reference name")
     return self
 
 
