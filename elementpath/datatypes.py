@@ -959,6 +959,8 @@ class UntypedAtomic(object):
     :param value: the untyped value, usually a string.
     """
     def __init__(self, value):
+        if not isinstance(value, (str, bytes, int, float, decimal.Decimal, bool)):
+            raise ElementPathTypeError("{!r} is not an atomic value".format(value))
         self.value = value
 
     def __repr__(self):
