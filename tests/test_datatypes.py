@@ -27,6 +27,16 @@ from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_
 
 class UntypedAtomicTest(unittest.TestCase):
 
+    def test_init(self):
+        self.assertEqual(UntypedAtomic(1).value, 1)
+        self.assertEqual(UntypedAtomic(-3.9).value, -3.9)
+        self.assertEqual(UntypedAtomic('alpha').value, 'alpha')
+        self.assertTrue(UntypedAtomic(True).value)
+
+        with self.assertRaises(TypeError) as err:
+            UntypedAtomic(None)
+        self.assertEqual(str(err.exception), "None is not an atomic value")
+
     def test_repr(self):
         self.assertEqual(repr(UntypedAtomic(7)), 'UntypedAtomic(value=7)')
 
