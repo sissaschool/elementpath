@@ -420,7 +420,7 @@ class XPathToken(Token):
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
             if item is None:
-                return []
+                return
             timezone = getattr(context, 'timezone', None)
         else:
             item = self.get_argument(context=None, cls=cls)  # don't use implicit timezone
@@ -436,12 +436,8 @@ class XPathToken(Token):
             elif timezone.offset < item.tzinfo.offset:
                 item -= timezone.offset - item.tzinfo.offset
                 item -= DayTimeDuration.fromstring('P1D')
-            item.tzinfo = timezone
-        elif item.tzinfo is None:
-            if timezone is not None:
-                item.tzinfo = timezone
-        elif timezone is None:
-            item.tzinfo = None
+
+        item.tzinfo = timezone
         return item
 
     @contextlib.contextmanager
@@ -471,15 +467,15 @@ class XPathToken(Token):
         """
         if self.xsd_types is None:
             self.xsd_types = {name: xsd_type}
-            # self.xsd_type = xsd_type
-        elif name in self.xsd_types and self.xsd_types[name] is not xsd_type:
-            obj = self.xsd_types[name]
-            if isinstance(obj, list):
-                obj.append(xsd_type)
-            else:
-                self.xsd_types[name] = [obj, xsd_type]
         else:
-            self.xsd_types[name] = xsd_type
+            obj = self.xsd_types.get(name)
+            if obj is None:
+                self.xsd_types[name] = xsd_type
+            elif not isinstance(obj, list):
+                if obj is not xsd_type:
+                    self.xsd_types[name] = [obj, xsd_type]
+            elif xsd_type not in obj:
+                obj.append(xsd_type)
 
         return xsd_type
 
@@ -493,45 +489,22 @@ class XPathToken(Token):
         :param name: a QName in extended format for matching the item.
         :returns: the matched XSD type or `None` if there isn't a match.
         """
-        if isinstance(schema_item, AttributeNode):
-            if not schema_item[1].is_matching(name):
-                return
-
-            try:
+        try:
+            if isinstance(schema_item, AttributeNode):
+                if not schema_item[1].is_matching(name):
+                    return
                 xsd_type = schema_item[1].type
-            except AttributeError:
-                try:
-                    xsd_type = self.parser.schema.get_attribute(name).type
-                except AttributeError:
-                    return
-
-        elif is_etree_element(schema_item):
-            try:
-                if not schema_item.is_matching(name, self.parser.default_namespace):
-                    return
-            except AttributeError:
-                if name[0] != '{' and self.parser.default_namespace:
-                    name = '{%s}%s' % (self.parser.default_namespace, name)
-                if schema_item.tag != name:
-                    return
-
-            try:
+            elif not schema_item.is_matching(name, self.parser.default_namespace):
+                return
+            else:
                 xsd_type = schema_item.type
-            except AttributeError:
-                try:
-                    xsd_type = self.parser.schema.get_element(name).type
-                except AttributeError:
-                    return
-        else:
+        except AttributeError:
             return
 
         self.add_xsd_type(name, xsd_type)
 
         primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-        try:
-            value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
-        except KeyError:
-            value = XSD_BUILTIN_TYPES['anyType'].value
+        value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
 
         if isinstance(schema_item, AttributeNode):
             return TypedAttribute(schema_item, value)

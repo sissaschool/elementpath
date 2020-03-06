@@ -710,6 +710,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("0 = false()", True)
         self.check_value("2 * 2 = 4", True)
 
+    def test_comparison_of_sequences(self):
         root = self.etree.XML('<table>'
                               '    <unit id="1"><cost>50</cost></unit>'
                               '    <unit id="2"><cost>30</cost></unit>'

@@ -444,6 +444,8 @@ def select(self, context=None):
         # Wildcard literal
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
+                if hasattr(item, 'type'):
+                    self.add_xsd_type(item.name, item.type)
                 if is_attribute_node(item):
                     yield item[1]
                 else:
@@ -454,8 +456,11 @@ def select(self, context=None):
 def select(self, context=None):
     if context is None:
         self.missing_context()
+
     for item in context.iter_self():
         if item is not None:
+            if hasattr(item, 'type') and isinstance(context, XPathSchemaContext):
+                self.add_xsd_type(item.name, item.type)
             yield item
         elif is_document_node(context.root):
             yield context.root

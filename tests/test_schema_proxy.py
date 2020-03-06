@@ -22,18 +22,18 @@ from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 try:
     # noinspection PyPackageRequirements
     import xmlschema
-    from xmlschema.xpath import XMLSchemaProxy  # it works if xmlschema~=1.0.14
+    from xmlschema.xpath import XMLSchemaProxy
 except (ImportError, AttributeError):
     xmlschema = None
 
 try:
-    from tests import test_xpath2_parser
+    from tests import xpath_test_class
 except ImportError:
-    import test_xpath2_parser
+    import xpath_test_class
 
 
 @unittest.skipIf(xmlschema is None, "xmlschema library required.")
-class XPath2ParserXMLSchemaTest(test_xpath2_parser.XPath2ParserTest):
+class XPath2ParserXMLSchemaTest(xpath_test_class.XPathTestCase):
 
     @classmethod
     def setUpClass(cls):

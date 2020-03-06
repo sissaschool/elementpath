@@ -217,7 +217,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                    root[2][0], root[2][2], root[2][0], root[2][3], root[2][0]]
         )
 
-    def test_numerical_expressions2(self):
+    def test_numerical_add_operator(self):
+        super(XPath2ParserTest, self).test_numerical_add_operator()
+        self.check_value("() + 81")
+        self.check_value("72 + ()")
+
+    def test_idiv_operator(self):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
@@ -242,6 +247,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("4 gt ()")
         self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
 
+    def test_comparison_of_sequences(self):
+        super(XPath2ParserTest, self).test_comparison_of_sequences()
+
+        self.parser.compatibility_mode = True
+        self.check_value("(false(), false()) = 1", False)
+        self.check_value("(false(), false()) = (false(), false())", True)
+        self.check_value("(false(), false()) = (false(), false(), false())", True)
+        self.check_value("(false(), false()) = (false(), true())", True)
+        self.check_value("(false(), false()) = (true(), false())", True)
+        self.check_value("(false(), false()) = (true(), true())", False)
+        self.check_value("(false(), false()) = (true(), true(), false())", True)
+        self.parser.compatibility_mode = False
+
         # From XPath 2.0 examples
         root = self.etree.XML('<collection>'
                               '   <book><author>Kafka</author></book>'
@@ -263,12 +281,54 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('($a, $b) = ($c, 3.0)', False, context=context)
         self.check_value('($a, $b) = ($c, 2.0)', True, context=context)
 
+        self.wrong_type("(1, 2) le (2, 3)", 'XPTY0004', 'sequence of length greater than one')
+
         root = self.etree.XML('<root min="10" max="7"/>')
         self.check_value('@min', [AttributeNode('min', '10')], context=XPathContext(root=root))
         self.check_value('@min le @max', True, context=XPathContext(root=root))
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))
         self.check_value('@min le @maximum', None, context=XPathContext(root=root))
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="root" type="xs:int"/>
+                  <xs:complexType name="rootType">
+                    <xs:attribute name="min" type="xs:int"/>
+                    <xs:attribute name="max" type="xs:int"/>
+                  </xs:complexType>
+                </xs:schema>""")
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['root'])
+
+            root = self.etree.XML('<root>11</root>')
+            self.check_value('. le 10', False, context=XPathContext(root))
+            self.check_value('. le 20', True, context=XPathContext(root))
+
+            root = self.etree.XML('<root>eleven</root>')
+            with self.assertRaises(TypeError) as err:
+                self.check_value('. le 10', context=XPathContext(root))
+            self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
+
+            root = self.etree.XML('<value>12</value>')
+            with self.assertRaises(TypeError) as err:
+                self.check_value('. le "11"', context=XPathContext(root))
+            self.assertIn('XPTY0004', str(err.exception))  # Static schema context error
+
+            with self.assertRaises(TypeError) as err:
+                self.check_value('. le 10', context=XPathContext(root))
+            self.assertIn('FORG0006', str(err.exception))  # Dynamic context error
+
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="root" type="xs:anyType"/>
+                </xs:schema>""")
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['root'])
+
+            root = self.etree.XML('<root>15</root>')
+            self.check_value('. le "11"', False, context=XPathContext(root))
+
+            self.parser.schema = None
 
         root = self.etree.XML('<root><a>1</a><a>10</a><a>30</a><a>50</a></root>')
         self.check_selector("a = (1 to 30)", root, True)
@@ -438,12 +498,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select("attribute()", {'10', '20'}, context)
         self.check_select("attribute(*)", {'10', '20'}, context)
         self.check_select("attribute(a)", ['10'], context)
-
-        if self.parser.schema is not None:
-            self.check_select("attribute(a, xs:int)", [], context)
-            return
-        else:
-            self.check_select("attribute(a, xs:int)", ['10'], context)
+        self.check_select("attribute(a, xs:int)", ['10'], context)
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
