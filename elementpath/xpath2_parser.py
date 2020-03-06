@@ -26,7 +26,8 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname, \
     XSD_UNTYPED_ATOMIC
 from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES
-from .xpath_nodes import is_xpath_node, is_attribute_node
+from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
+    is_document_node
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
 from .schema_proxy import AbstractSchemaProxy
@@ -387,6 +388,7 @@ prefix = XPath2Parser.prefix
 infix = XPath2Parser.infix
 infixr = XPath2Parser.infixr
 method = XPath2Parser.method
+function = XPath2Parser.function
 
 ##
 # Remove symbols that have to be redefined for XPath 2.0.
@@ -766,7 +768,12 @@ def evaluate(self, context=None):
         op2 = self[1].get_atomized_operand(context.copy())
 
     if op1 is not None and op2 is not None:
-        return getattr(operator, self.symbol)(op1, op2)
+        try:
+            return getattr(operator, self.symbol)(op1, op2)
+        except TypeError as err:
+            if isinstance(context, XPathSchemaContext):
+                self.wrong_context_type(str(err))
+            self.wrong_type(str(err))
 
 
 ###
@@ -836,6 +843,115 @@ def evaluate(self, context=None):
         return arg1 // arg2
     except decimal.DivisionByZero:
         raise self.error('FOAR0001')
+
+
+###
+# Kind tests (sequence types that can appear also in XPath expressions)
+@method(function('document-node', nargs=(0, 1), label='kind test'))
+def select(self, context=None):
+    if context is None:
+        self.missing_context()
+    elif not is_document_node(context.root) or context.item is not None:
+        return
+    elif not self:
+        for item in context.iter_children_or_self():
+            if item is None:
+                yield context.root
+    else:
+        context.item = context.root.getroot()
+        elements = [e for e in self[0].select(context) if is_element_node(e)]
+        if len(elements) == 1:
+            yield context.root
+        context.item = None
+
+
+@method('document-node')
+def nud(self):
+    self.parser.advance('(')
+    if self.parser.next_token.symbol == 'element':
+        self[0:] = self.parser.expression(5),
+        if self.parser.next_token.symbol == ',':
+            self.wrong_nargs('Too many arguments: expected at most 1 argument')
+    elif self.parser.next_token.symbol != ')':
+        self.parser.next_token.wrong_syntax('element() kind test expected')
+    self.parser.advance(')')
+    self.value = None
+    return self
+
+
+@method(function('element', nargs=(0, 2), label='kind test'))
+def select(self, context=None):
+    if context is None:
+        self.missing_context()
+    elif not self:
+        for item in context.iter_children_or_self():
+            if is_element_node(item):
+                yield item
+    else:
+        for item in self[0].select(context):
+            if len(self) == 1:
+                yield item
+            elif self.xsd_types:
+                type_annotation = self[1].evaluate(context)
+                if self.xsd_types.is_matching(type_annotation, self.parser.default_namespace):
+                    yield context.item
+
+
+@method('element')
+def nud(self):
+    self.parser.advance('(')
+    if self.parser.next_token.symbol != ')':
+        if self.parser.next_token.symbol not in {'(name)', ':', '*'}:
+            self.parser.next_token.wrong_syntax('a QName or a wildcard expected')
+        self[0:] = self.parser.expression(5),
+        if self.parser.next_token.symbol == ',':
+            self.parser.advance(',')
+            if self.parser.next_token.symbol not in {'(name)', ':'}:
+
+                self.parser.next_token.wrong_syntax('a QName expected')
+            self[1:] = self.parser.expression(5),
+    self.parser.advance(')')
+    self.value = None
+    return self
+
+
+@method(function('schema-attribute', nargs=1, label='kind test'))
+def select(self, context=None):
+    if context is not None:
+        for _ in context.iter_children_or_self():
+            attribute_name = self[0].source
+            qname = prefixed_to_qname(attribute_name, self.parser.namespaces)
+            if self.parser.schema.get_attribute(qname) is None:
+                self.missing_name("attribute %r not found in schema" % attribute_name)
+
+            if is_attribute_node(context.item, qname):
+                yield context.item
+
+
+@method(function('schema-element', nargs=1, label='kind test'))
+def select(self, context=None):
+    if context is not None:
+        for _ in context.iter_children_or_self():
+            element_name = self[0].source
+            qname = prefixed_to_qname(element_name, self.parser.namespaces)
+            if self.parser.schema.get_element(qname) is None \
+                    and self.parser.schema.get_substitution_group(qname) is None:
+                self.missing_name("element %r not found in schema" % element_name)
+
+            if is_element_node(context.item) and context.item.tag == qname:
+                yield context.item
+
+
+@method('schema-attribute')
+@method('schema-element')
+def nud(self):
+    self.parser.advance('(')
+    if self.parser.next_token.symbol not in ('(name)', ':'):
+        self.parser.next_token.wrong_syntax('a name expected')
+    self[0:] = self.parser.expression(5),
+    self.parser.advance(')')
+    self.value = None
+    return self
 
 
 ###

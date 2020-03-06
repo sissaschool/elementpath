@@ -896,6 +896,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
                                variables={'tz': DayTimeDuration.fromstring("-PT10H")})
 
+        self.check_value('fn:adjust-time-to-timezone(())')
+
         self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"))',
                          Time.fromstring('10:00:00-05:00'), context)
         self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00-07:00"))',
@@ -941,6 +943,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_value("fn:doc('tns1')", ValueError, context=context)
         self.check_value("fn:doc-available('tns1')", False, context=context)
+
+        self.parser.base_uri = "/path1"
+        self.check_value("fn:doc('http://foo.test')", ValueError, context=context)
+        self.check_value("fn:doc-available('http://foo.test')", False, context=context)
+        self.parser.base_uri = None
 
     def test_collection_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
