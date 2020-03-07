@@ -503,8 +503,14 @@ class XPathToken(Token):
 
         self.add_xsd_type(name, xsd_type)
 
-        primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-        value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
+        try:
+            value = XSD_BUILTIN_TYPES[xsd_type.local_name].value
+        except KeyError:
+            primitive_type = self.parser.schema.get_primitive_type(xsd_type)
+            try:
+                value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
+            except KeyError:
+                value = XSD_BUILTIN_TYPES['anyType'].value
 
         if isinstance(schema_item, AttributeNode):
             return TypedAttribute(schema_item, value)
@@ -575,6 +581,7 @@ class XPathToken(Token):
                     return TypedElement(item, xsd_type.decode(item.text))
             else:
                 return item
+
         except (TypeError, ValueError):
             msg = "Type {!r} does not match sequence type of {!r}"
             self.wrong_sequence_type(msg.format(xsd_type, item))
@@ -625,6 +632,8 @@ class XPathToken(Token):
         """
         if obj is None:
             return ''
+        elif is_schema_node(obj):
+            return str(self.schema_node_value(obj))
         elif is_element_node(obj):
             return ''.join(elem_iter_strings(obj))
         elif is_attribute_node(obj):
@@ -639,8 +648,6 @@ class XPathToken(Token):
             return obj.text
         elif is_processing_instruction_node(obj):
             return obj.text
-        elif is_schema_node(obj):
-            return str(self.schema_node_value(obj))
         else:
             return str(obj)
 
@@ -659,17 +666,26 @@ class XPathToken(Token):
         of the node. Used for schema-based dynamic evaluation of XPath expressions.
         """
         try:
+            try:
+                return XSD_BUILTIN_TYPES[obj.type.local_name].value
+            except KeyError:
+                pass
+
             if obj.type.is_simple() or obj.type.has_simple_content():
                 # In case of schema element or attribute use a the sample value
                 # of the primitive type
                 primitive_type = self.parser.schema.get_primitive_type(obj.type)
-                return XSD_BUILTIN_TYPES[primitive_type.local_name].value
-            elif obj.type.local_name == 'anyType':
-                return XSD_BUILTIN_TYPES['anyType'].value
+                try:
+                    return XSD_BUILTIN_TYPES[primitive_type.local_name].value
+                except KeyError:
+                    return XSD_BUILTIN_TYPES['anyType'].value
             else:
                 return UntypedAtomic('')
+
         except AttributeError:
-            raise self.wrong_type("the argument %r is not a node of an XSD schema" % obj)
+            if self.parser.schema is None:
+                self.missing_schema()
+            self.wrong_type("the argument {!r} is not a node of an XSD schema".format(obj))
 
     ###
     # Error handling helpers
