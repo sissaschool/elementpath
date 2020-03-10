@@ -130,7 +130,7 @@ XPATH_ERROR_CODES = {
 def xpath_error(code, message=None, token=None, prefix='err'):
     """
     Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code
-    (ref: https://www.w3.org/2005/xqt-errors/) is an alphanumeric token starting with four
+    (ref: http://www.w3.org/2005/xqt-errors) is an alphanumeric token starting with four
     uppercase letters and ending with four digits.
 
     :param code: the error code.
@@ -138,7 +138,16 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     :param token: an optional token instance.
     :param prefix: the namespace prefix to apply to the error code, defaults to 'err'.
     """
-    if ':' not in code:
+    if code.startswith('{'):
+        try:
+            namespace, code = code[1:].split('}')
+        except ValueError:
+            raise ElementPathValueError('{!r} is not an xs:QName'.format(code))
+        else:
+            if namespace != 'http://www.w3.org/2005/xqt-errors':
+                raise ElementPathValueError('Invalid namespace {!r}'.format(namespace))
+            pcode = '%s:%s' % (prefix, code) if prefix else code
+    elif ':' not in code:
         pcode = '%s:%s' % (prefix, code) if prefix else code
     elif not prefix or not code.startswith(prefix + ':'):
         raise ElementPathValueError('%r is not an XPath error code' % code)

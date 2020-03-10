@@ -18,9 +18,9 @@ import re
 import locale
 import unicodedata
 from urllib.parse import urlparse, urljoin, quote as urllib_quote
-from urllib.error import URLError
 import xml.etree.ElementTree as ElementTree
 
+from .exceptions import ElementPathTypeError, xpath_error
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
 from .namespaces import get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -160,11 +160,11 @@ def evaluate(self, context=None):
         prefix = match.groupdict()['prefix'] or ''
 
         ns_uris = {get_namespace(e.tag) for e in elem.iter()}
-        for p, uri in self.parser.namespaces.items():
-            if uri in ns_uris:
-                if not prefix or uri:
-                    if uri:
-                        return '{%s}%s' % (uri, match.groupdict()['local'])
+        for pfx, uri in self.parser.namespaces.items():
+            if pfx == prefix and uri in ns_uris:
+                if uri:
+                    return '{%s}%s' % (uri, match.groupdict()['local'])
+                elif not prefix:
                     return match.groupdict()['local']
                 else:
                     raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
@@ -191,26 +191,27 @@ def select(self, context=None):
     for item in self[0].select(context):
         value = self.data_value(item)
         if value is None:
-            raise self.error('FOTY0012', "argument node does not have a typed value: %r" % item)
+            raise self.error('FOTY0012', "argument node does not have a typed value")
         else:
             yield value
 
 
 @method(function('base-uri', nargs=(0, 1)))
 def evaluate(self, context=None):
-    item = self.get_argument(context)
+    item = self.get_argument(context, default_to_context=True)
     if item is None:
         self.missing_context("context item is undefined")
     elif not is_xpath_node(item):
         self.wrong_context_type("context item is not a node")
     else:
-        return node_base_uri
+        return node_base_uri(item)
 
 
 @method(function('document-uri', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context)
-    return [] if arg is None else node_document_uri(arg)
+    if context is not None:
+        arg = self.get_argument(context)
+        return [] if arg is None else node_document_uri(arg)
 
 
 ###
@@ -222,16 +223,11 @@ def evaluate(self, context=None):
         return []
     elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
         return item
+    elif not isinstance(item, (float, int, decimal.Decimal)):
+        self.wrong_type("Invalid argument type {!r}".format(type(item)))
 
-    try:
-        precision = 0 if len(self) < 2 else self[1].evaluate(context)
-        value = round(decimal.Decimal(item), precision)
-    except TypeError as err:
-        self.wrong_type(str(err))
-    except decimal.DecimalException as err:
-        self.wrong_value(str(err))
-    else:
-        return float(value)
+    precision = 0 if len(self) < 2 else self[1].evaluate(context)
+    return float(round(decimal.Decimal(item), precision))
 
 
 @method(function('abs', nargs=1))
@@ -241,11 +237,16 @@ def evaluate(self, context=None):
         return []
     elif isinstance(item, float) and math.isnan(item):
         return item
-
-    try:
-        return abs(self.string_value(item) if is_xpath_node(item) else item)
-    except TypeError as err:
-        self.wrong_type(str(err))
+    elif is_xpath_node(item):
+        value = self.string_value(item)
+        try:
+            return abs(decimal.Decimal(value))
+        except decimal.DecimalException:
+            self.wrong_value("Invalid string value {!r} for {!r}".format(value, item))
+    elif not isinstance(item, (float, int, decimal.Decimal)):
+        self.wrong_type("Invalid argument type {!r}".format(type(item)))
+    else:
+        return abs(item)
 
 
 ###
@@ -556,7 +557,10 @@ def evaluate(self, context=None):
     relative = self.get_argument(context, cls=str)
     if len(self) == 2:
         base_uri = self.get_argument(context, index=1, required=True, cls=str)
-        base_uri = urlparse(base_uri).geturl()
+        url_parts = urlparse(base_uri)
+        if not url_parts.path.startswith('/'):
+            raise self.error('FORG0002', '2nd argument is not an absolute URI')
+        base_uri = url_parts.geturl()
     elif self.parser.base_uri is None:
         raise self.error('FONS0005')
     else:
@@ -619,8 +623,8 @@ def evaluate(self, context=None):
              for s in self[0].select(context)]
     try:
         return self.get_argument(context, 1, cls=str).join(items)
-    except AttributeError as err:
-        self.wrong_type("the separator must be a string: %s" % err)
+    except ElementPathTypeError:
+        raise
     except TypeError as err:
         self.wrong_type("the values must be strings: %s" % err)
 
@@ -639,10 +643,8 @@ def evaluate(self, context=None):
 
     if normalization_form == 'FULLY-NORMALIZED':
         raise NotImplementedError("%r normalization form not supported" % normalization_form)
-    if arg is None:
+    if not arg:
         return ''
-    elif not isinstance(arg, str):
-        arg = arg.decode('utf-8')
 
     try:
         return unicodedata.normalize(normalization_form, arg)
@@ -652,38 +654,24 @@ def evaluate(self, context=None):
 
 @method(function('upper-case', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, cls=str)
-    try:
-        return '' if arg is None else arg.upper()
-    except AttributeError:
-        self.wrong_type("the argument must be a string: %r" % arg)
+    return self.get_argument(context, default='', cls=str).upper()
 
 
 @method(function('lower-case', nargs=1))
 def evaluate(self, context=None):
-    arg = self.get_argument(context, cls=str)
-    try:
-        return '' if arg is None else arg.lower()
-    except AttributeError:
-        self.wrong_type("the argument must be a string: %r" % arg)
+    return self.get_argument(context, default='', cls=str).lower()
 
 
 @method(function('encode-for-uri', nargs=1))
 def evaluate(self, context=None):
     uri_part = self.get_argument(context, cls=str)
-    try:
-        return '' if uri_part is None else urllib_quote(uri_part, safe='~')
-    except TypeError:
-        self.wrong_type("the argument must be a string: %r" % uri_part)
+    return '' if uri_part is None else urllib_quote(uri_part, safe='~')
 
 
 @method(function('iri-to-uri', nargs=1))
 def evaluate(self, context=None):
     iri = self.get_argument(context, cls=str)
-    try:
-        return '' if iri is None else urllib_quote(iri, safe='-_.!~*\'()#;/?:@&=+$,[]%')
-    except TypeError:
-        self.wrong_type("the argument must be a string: %r" % iri)
+    return '' if iri is None else urllib_quote(iri, safe='-_.!~*\'()#;/?:@&=+$,[]%')
 
 
 @method(function('escape-html-uri', nargs=1))
@@ -691,11 +679,7 @@ def evaluate(self, context=None):
     uri = self.get_argument(context, cls=str)
     if uri is None:
         return ''
-
-    try:
-        return urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
-    except TypeError:
-        self.wrong_type("the argument must be a string: %r" % uri)
+    return urllib_quote(uri, safe=''.join(chr(cp) for cp in range(32, 127)))
 
 
 @method(function('starts-with', nargs=(2, 3)))
@@ -954,7 +938,9 @@ def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
     idrefs = list(self[0].select(None if context is None else context.copy()))
     node = self.get_argument(context, index=1, default_to_context=True)
-    if context is None or node is not context.item:
+    if context is None:
+        return
+    elif node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
@@ -980,7 +966,9 @@ def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
     ids = list(self[0].select(None if context is None else context.copy()))
     node = self.get_argument(context, index=1, default_to_context=True)
-    if context is None or node is not context.item:
+    if context is None:
+        return
+    elif node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
@@ -1007,11 +995,7 @@ def evaluate(self, context=None):
     uri = self.get_argument(context)
     if uri is None:
         return None if self.symbol == 'doc' else False
-
-    try:
-        uri = self.get_absolute_uri(uri)
-    except URLError:
-        raise self.error('FODC0005')
+    uri = self.get_absolute_uri(uri)
 
     if context is not None and not isinstance(context, XPathSchemaContext):
         try:
@@ -1036,11 +1020,7 @@ def evaluate(self, context=None):
             raise self.error('FODC0002', 'no default collection has been defined')
         return context.default_collection
 
-    try:
-        uri = self.get_absolute_uri(uri)
-    except URLError:
-        raise self.error('FODC0004')
-
+    uri = self.get_absolute_uri(uri)
     try:
         return self.parser.collections[uri]
     except KeyError:
@@ -1052,10 +1032,14 @@ def evaluate(self, context=None):
 @method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
     if not self:
-        raise self.error('FOER0000')
+        raise xpath_error('FOER0000')
     elif len(self) == 1:
-        item = self.get_argument(context)
-        raise self.error(item or 'FOER0000')
+        error = self.get_argument(context, cls=str)
+        raise xpath_error(error or 'FOER0000')
+    else:
+        error = self.get_argument(context, cls=str)
+        description = self.get_argument(context, index=1, cls=str)
+        raise xpath_error(error or 'FOER0000', message=description)
 
 
 # XPath 2.0 definitions continue into module xpath2_constructors
