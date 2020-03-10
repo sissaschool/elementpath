@@ -198,7 +198,7 @@ class XPathTestCase(unittest.TestCase):
             elif not callable(expected):
                 self.assertEqual(results, expected)
             elif isinstance(expected, type):
-                self.assertTrue(isinstance(results, expected))
+                self.assertIsInstance(results, expected)
             else:
                 self.assertTrue(expected(results))
 

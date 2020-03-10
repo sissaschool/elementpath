@@ -35,8 +35,22 @@ class ExceptionsTest(unittest.TestCase):
                          '[err:XPST0001] Parser not bound to a schema.')
         self.assertEqual(str(xpath_error('err:XPDY0002', "test message")),
                          '[err:XPDY0002] test message.')
+
         self.assertRaises(ValueError, xpath_error, '')
         self.assertRaises(ValueError, xpath_error, 'error:XPDY0002')
+
+        self.assertEqual(str(xpath_error('{http://www.w3.org/2005/xqt-errors}XPST0001')),
+                         '[err:XPST0001] Parser not bound to a schema.')
+
+        with self.assertRaises(ValueError) as err:
+            xpath_error('{http://www.w3.org/2005/xpath-functions}XPST0001')
+        self.assertEqual("Invalid namespace 'http://www.w3.org/2005/xpath-functions'",
+                         str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            xpath_error('{http://www.w3.org/2005/xpath-functions}}XPST0001')
+        self.assertEqual("'{http://www.w3.org/2005/xpath-functions}}XPST0001' is not an xs:QName",
+                         str(err.exception))
 
 
 if __name__ == '__main__':

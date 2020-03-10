@@ -33,6 +33,13 @@ try:
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+else:
+    xmlschema.XMLSchema.meta_schema.build()
+
 from elementpath import *
 from elementpath.namespaces import XSI_NAMESPACE
 from elementpath.datatypes import DateTime, Date, Time, Timezone, \
@@ -81,16 +88,41 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("boolean((-10, 35))", root, TypeError)  # Sequence with 2 numeric values
         self.check_selector("boolean((/A, 35))", root, True)
 
-    def test_number_functions(self):
+    def test_abs_function(self):
         # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
         self.check_value("abs(10.5)", 10.5)
         self.check_value("abs(-10.5)", 10.5)
+        self.check_value("abs(())", [])
+
+        root = self.etree.XML('<root>-10</root>')
+        context = XPathContext(root, item=float('nan'))
+        self.check_value("abs(.)", float('nan'), context=context)
+
+        context = XPathContext(root)
+        self.check_value("abs(.)", 10, context=context)
+        context = XPathContext(root=self.etree.XML('<root>foo</root>'))
+
+        self.wrong_type('abs("10")', 'FORG0006', 'Invalid argument type')
+
+        with self.assertRaises(ValueError) as err:
+            self.check_value("abs(.)", 10, context=context)
+        self.assertIn('FOCA0002', str(err.exception))
+        self.assertIn('Invalid string value', str(err.exception))
+
+    def test_round_half_to_even_function(self):
+        self.check_value("round-half-to-even(())", [])
         self.check_value("round-half-to-even(0.5)", 0)
         self.check_value("round-half-to-even(1.5)", 2)
         self.check_value("round-half-to-even(2.5)", 2)
         self.check_value("round-half-to-even(3.567812E+3, 2)", 3567.81E0)
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root, item=float('nan'))
+        self.check_value("round-half-to-even(.)", float('nan'), context=context)
+
+        self.wrong_type('round-half-to-even("wrong")', 'FORG0006', 'Invalid argument type')
 
     def test_sum_function(self):
         self.check_value("sum((10, 15, 6, -2))", 29)
@@ -108,6 +140,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         root_token = self.parser.parse("fn:avg(($d1, $seq3))")
         self.assertRaises(TypeError, root_token.evaluate, context=context)
         self.check_value("fn:avg(())", [])
+        self.wrong_type("fn:avg('10')", 'FORG0006')
         self.check_value("fn:avg($seq3)", 4.0, context=context)
 
         root_token = self.parser.parse("fn:avg((xs:float('INF'), xs:float('-INF')))")
@@ -121,6 +154,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_max_function(self):
         self.check_value("fn:max((3,4,5))", 5)
+        self.check_value("fn:max((3,4,5), 'en_US.UTF-8')", 5)
         self.check_value("fn:max((5, 5.0e0))", 5.0e0)
         self.wrong_type("fn:max((3,4,'Zero'))")
         dt = datetime.datetime.now()
@@ -228,9 +262,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_normalize_unicode_function(self):
         self.check_value('fn:normalize-unicode(())', '')
         self.check_value('fn:normalize-unicode("menù")', 'menù')
+        self.wrong_type('fn:normalize-unicode(xs:hexBinary("84"))', 'XPTY0004')
+
         self.assertRaises(NotImplementedError, self.parser.parse,
                           'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
+        self.wrong_type('fn:normalize-unicode("à", ())', 'FORG0006', "can't be an empty sequence")
 
         # https://www.w3.org/TR/charmod-norm/#normalization_forms
         self.check_value("fn:normalize-unicode('\u01FA')", '\u01FA')
@@ -313,7 +350,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('upper-case("aBcDe01")', 'ABCDE01')
         self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
         self.check_value('upper-case(())', '')
-        self.wrong_type('upper-case((10))')
+        self.wrong_type('upper-case((10))', 'XPTY0004', 'the 1st argument 10 is not an instance')
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[upper-case(@id) = 'A_ID']", root, [root[0]])
@@ -355,6 +392,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("string-join(('Blow, ', 'blow, ', 'thou ', 'winter ', 'wind!'), '')",
                          'Blow, blow, thou winter wind!')
         self.check_value("string-join((), 'separator')", '')
+
+        self.check_value("string-join(('a', 'b', 'c'), ', ')", 'a, b, c')
+        self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004', '8 is not an instance')
+        self.wrong_type("string-join(('a', 4, 'c'), ', ')", 'FORG0006', 'values must be strings')
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']",
@@ -422,6 +463,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_type('fn:replace("abracadabra")')
 
         self.check_value('fn:replace("abracadabra", "a(.)", "a$1$1")', "abbraccaddabbra")
+        self.wrong_value('replace("abc", "a(.)", "$x")', 'FORX0004', 'Invalid replacement string')
         self.wrong_value('fn:replace("abracadabra", ".*?", "$1")')
         self.check_value('fn:replace("AAAA", "A+", "b")', "b")
         self.check_value('fn:replace("AAAA", "A+?", "b")', "bbbb")
@@ -444,13 +486,18 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:tokenize("1,15,,24,50,", ",")', ['1', '15', '', '24', '50', ''])
         self.check_value(r'fn:tokenize("Some unparsed <br> HTML <BR> text", "\s*<br>\s*", "i")',
                          ['Some unparsed', 'HTML', 'text'])
+        self.check_value('fn:tokenize("", "(ab)|(a)")', [])
 
+        self.wrong_value('fn:tokenize("abc", "[a")', 'FORX0002', 'Invalid regular expression')
+        self.wrong_value('fn:tokenize("abc", ".*?")', 'FORX0003', 'matches zero-length string')
         self.wrong_value('fn:tokenize("abba", ".?")')
         self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", "sxf")')
         self.wrong_value('fn:tokenize("abracadabra", ())')
         self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", ())')
 
     def test_resolve_uri_function(self):
+        self.check_value('fn:resolve-uri("dir1/dir2", "file:///home/")', 'file:///home/dir1/dir2')
+        self.wrong_value('fn:resolve-uri("dir1/dir2", "home/")', '')
         self.wrong_value('fn:resolve-uri("dir1/dir2")')
         context = XPathContext(root=self.etree.XML('<A/>'))
         parser = XPath2Parser(base_uri='http://www.example.com/ns/')
@@ -464,43 +511,63 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          'http://www.example.com/ns/text.txt')
         self.assertIsNone(parser.parse('fn:resolve-uri(())').evaluate(context))
 
-    def test_sequence_general_functions(self):
+    def test_empty_function(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
         self.check_value('fn:empty(("hello", "world"))', False)
-        self.check_value('fn:exists(("hello", "world"))', True)
         self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
         self.check_value('fn:empty(())', True)
-        self.check_value('fn:exists(())', False)
         self.check_value('fn:empty(fn:remove(("hello"), 1))', True)
+
+    def test_exists_function(self):
+        self.check_value('fn:exists(("hello", "world"))', True)
+        self.check_value('fn:exists(())', False)
         self.check_value('fn:exists(fn:remove(("hello"), 1))', False)
 
+    def test_distinct_values_function(self):
         self.check_value('fn:distinct-values((1, 2.0, 3, 2))', [1, 2.0, 3])
         context = XPathContext(
-            root=self.etree.XML('<dummy/>'),
-            variables={'x': [UntypedAtomic("cherry"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
+            root=self.etree.XML('<root/>'),
+            variables={'x': [UntypedAtomic("foo"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
         )
-        self.check_value('fn:distinct-values($x)', ['cherry', 'bar'], context)
+        self.check_value('fn:distinct-values($x)', ['foo', 'bar'], context)
 
+        context = XPathContext(
+            root=self.etree.XML('<root/>'),
+            variables={'x': [UntypedAtomic("foo"), float('nan'), UntypedAtomic("bar")]}
+        )
+        token = self.parser.parse('fn:distinct-values($x)')
+        results = token.evaluate(context)
+        self.assertEqual(results[0], 'foo')
+        self.assertTrue(math.isnan(results[1]))
+        self.assertEqual(results[2], 'bar')
+
+    def test_index_of_function(self):
         self.check_value('fn:index-of ((10, 20, 30, 40), 35)', [])
         self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
 
-        context = XPathContext(root=self.etree.XML('<dummy/>'), variables={'x': ['a', 'b', 'c']})
+    def test_insert_before_function(self):
+        context = XPathContext(root=self.etree.XML('<root/>'), variables={'x': ['a', 'b', 'c']})
         self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 3, "z")', ['a', 'b', 'z', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context.copy())
 
+    def test_remove_function(self):
+        context = XPathContext(root=self.etree.XML('<root/>'), variables={'x': ['a', 'b', 'c']})
         self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
         self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove((), 3)', [])
 
+    def test_reverse_function(self):
+        context = XPathContext(root=self.etree.XML('<root/>'), variables={'x': ['a', 'b', 'c']})
         self.check_value('reverse($x)', ['c', 'b', 'a'], context)
         self.check_value('fn:reverse(("hello"))', ['hello'], context)
         self.check_value('fn:reverse(())', [])
 
+    def test_subsequence_function(self):
         self.check_value('fn:subsequence((), 5)', [])
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 1)', [1, 2, 3, 4, 5, 6, 7])
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 0)', [1, 2, 3, 4, 5, 6, 7])
@@ -510,6 +577,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4, 2)', [4, 5])
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 3, 10)', [3, 4, 5, 6, 7])
 
+    def test_unordered_function(self):
         self.check_value('fn:unordered(())', [])
         self.check_value('fn:unordered(("z", 2, "3", "Z", "b", "a"))', [2, '3', 'Z', 'a', 'b', 'z'])
 
@@ -589,6 +657,23 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:resolve-QName('2', .)", ValueError, context=context.copy())
         self.check_value("fn:resolve-QName((), 4)", TypeError, context=context.copy())
 
+        root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
+        self.check_selector("fn:resolve-QName('C3', .)", root, ['C3'], namespaces={'': ''})
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:tns="http://foo.test">
+                  <xs:element name="root"/>
+                </xs:schema>""")
+
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+            context = self.parser.schema.get_context()
+            try:
+                self.check_value("fn:resolve-QName('p3:C3', .)", None, context)
+            finally:
+                self.parser.schema = None
+
     def test_namespace_uri_for_prefix_function(self):
 
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
@@ -635,6 +720,21 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         with self.assertRaises(TypeError):
             select(root, "fn:in-scope-prefixes('')", namespaces, parser=type(self.parser))
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:tns="http://foo.test">
+                  <xs:element name="root"/>
+                </xs:schema>""")
+
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+            context = self.parser.schema.get_context()
+            prefixes = {'xml', 'xs', 'xlink', 'fn', 'err', 'xsi', 'eg', 'tst'}
+            try:
+                self.check_value("fn:in-scope-prefixes(.)", prefixes, context)
+            finally:
+                self.parser.schema = None
 
     def test_datetime_function(self):
         tz0 = None
@@ -734,26 +834,31 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:years-from-duration(xs:dayTimeDuration("-P2DT15H"))', 0)
 
     def test_months_from_duration_function(self):
+        self.check_value('fn:months-from-duration(())', [])
         self.check_value('fn:months-from-duration(xs:yearMonthDuration("P20Y15M"))', 3)
         self.check_value('fn:months-from-duration(xs:yearMonthDuration("-P20Y18M"))', -6)
         self.check_value('fn:months-from-duration(xs:dayTimeDuration("-P2DT15H0M0S"))', 0)
 
     def test_days_from_duration_function(self):
+        self.check_value('fn:days-from-duration(())', [])
         self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT10H"))', 3)
         self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT55H"))', 5)
         self.check_value('fn:days-from-duration(xs:yearMonthDuration("P3Y5M"))', 0)
 
     def test_hours_from_duration_function(self):
+        self.check_value('fn:hours-from-duration(())', [])
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT10H"))', 10)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT12H32M12S"))', 12)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("PT123H"))', 3)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("-P3DT10H"))', -10)
 
     def test_minutes_from_duration_function(self):
+        self.check_value('fn:minutes-from-duration(())', [])
         self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("P3DT10H"))', 0)
         self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("-P5DT12H30M"))', -30)
 
     def test_seconds_from_duration_function(self):
+        self.check_value('fn:seconds-from-duration(())', [])
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("P3DT10H12.5S"))', 12.5)
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
 
@@ -766,11 +871,20 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("nilled(./B1/C1)", root, False)
         self.check_selector("nilled(./B1/C2)", root, True)
 
+    def test_string_and_data_functions(self):
         root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
                               '<B2 /><B3>an ending text </B3></A>')
+
         self.check_selector("string(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, UntypedAtomic)
+
+        context = XPathContext(root=self.etree.XML('<A/>'))
+        parser = XPath2Parser(base_uri='http://www.example.com/ns/')
+        with self.assertRaises(ValueError) as err:
+            parser.parse('data(fn:resolve-uri(()))').evaluate(context)
+        self.assertIn('FOTY0012', str(err.exception))
+        self.assertIn('argument node does not have a typed value', str(err.exception))
 
     def test_node_set_id_function(self):
         # Backward compatibility with fs:id() of XPath 1
@@ -801,6 +915,23 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("id('ID21256')", doc, [root])
         self.check_selector("id('E21256')", doc, [root[0]])
 
+        with self.assertRaises(ValueError) as err:
+            self.check_selector("id('ID21256')", root, [root])
+        self.assertIn('FODC0001', str(err.exception))
+
+        context = XPathContext(doc, variables={'x': 11})
+        with self.assertRaises(ValueError) as err:
+            self.check_value("id('ID21256', $x)", context=context)
+        self.assertIn('FODC0001', str(err.exception))
+
+        context = XPathContext(doc, item=11, variables={'x': 11})
+        with self.assertRaises(TypeError) as err:
+            self.check_value("id('ID21256', $x)", context=context)
+        self.assertIn('XPTY0004', str(err.exception))
+
+        context = XPathContext(doc, item=root, variables={'x': root})
+        self.check_value("id('ID21256', $x)", [root], context=context)
+
     def test_node_set_idref_function(self):
         doc = self.etree.parse(io.StringIO("""
             <employees>
@@ -817,8 +948,26 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             </employees>"""))
 
         root = doc.getroot()
+        self.check_value("idref('ID21256')", MissingContextError)
         self.check_selector("idref('ID21256')", doc, [])
         self.check_selector("idref('E21256')", doc, [root[0][0]])
+
+        with self.assertRaises(ValueError) as err:
+            self.check_selector("idref('ID21256')", root, [root])
+        self.assertIn('FODC0001', str(err.exception))
+
+        context = XPathContext(doc, variables={'x': 11})
+        with self.assertRaises(ValueError) as err:
+            self.check_value("idref('ID21256', $x)", context=context)
+        self.assertIn('FODC0001', str(err.exception))
+
+        context = XPathContext(doc, item=11, variables={'x': 11})
+        with self.assertRaises(TypeError) as err:
+            self.check_value("idref('ID21256', $x)", context=context)
+        self.assertIn('XPTY0004', str(err.exception))
+
+        context = XPathContext(doc, item=root, variables={'x': root})
+        self.check_value("idref('ID21256', $x)", [], context=context)
 
     def test_deep_equal_function(self):
         root = self.etree.XML("""
@@ -833,6 +982,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal($xt, $xt/*)', False, context=context)
         self.check_value('deep-equal($xt/name[1], $xt/name[2])', False, context=context)
         self.check_value('deep-equal($xt/name[1], $xt/name[3])', True, context=context)
+        self.check_value('deep-equal($xt/name[1], $xt/name[3]/@last)', False, context=context)
+        self.check_value('deep-equal($xt/name[1]/@last, $xt/name[3]/@last)', True, context=context)
+        self.check_value('deep-equal($xt/name[1]/@last, $xt/name[2]/@last)', False, context=context)
         self.check_value('deep-equal($xt/name[1], "Peter Parker")', False, context=context)
 
         root = self.etree.XML("""<A xmlns="http://xpath.test/ns"><B1/><B2/><B3/></A>""")
@@ -914,8 +1066,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          'xs:dayTimeDuration("PT10H"))',
                          Time.fromstring('03:00:00+10:00'), context)
 
+    def test_default_collation_function(self):
+        self.check_value('fn:default-collation()', 'en_US.UTF-8')
+
     def test_context_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
+
         self.check_value('fn:current-dateTime()', DateTime.fromdatetime(context.current_dt),
                          context=context)
         self.check_value(path='fn:current-date()', context=context,
@@ -924,11 +1080,38 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          expected=Time.fromdatetime(context.current_dt),)
         self.check_value(path='fn:implicit-timezone()', context=context,
                          expected=Timezone(datetime.timedelta(seconds=time.timezone)),)
+        context.timezone = Timezone.fromstring('-05:00')
+        self.check_value(path='fn:implicit-timezone()', context=context,
+                         expected=Timezone.fromstring('-05:00'))
+
+    def test_static_base_uri_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'))
         self.check_value('fn:static-base-uri()', context=context)
 
         parser = XPath2Parser(strict=True, base_uri='http://example.com/ns/')
         self.assertEqual(parser.parse('fn:static-base-uri()').evaluate(context),
                          'http://example.com/ns/')
+
+    def test_base_uri_function(self):
+        context = XPathContext(root=self.etree.XML('<A/>'))
+        with self.assertRaises(MissingContextError) as err:
+            self.check_value('fn:base-uri(())')
+        self.assertIn('XPDY0002', str(err.exception))
+        self.assertIn('context item is undefined', str(err.exception))
+
+        self.wrong_type('fn:base-uri(9)', 'XPTY0004', 'context item is not a node')
+        self.check_value('fn:base-uri()', context=context)
+
+        context = XPathContext(root=self.etree.XML('<A xml:base="/base_path/"/>'))
+        self.check_value('fn:base-uri()', '/base_path/', context=context)
+
+    def test_document_uri_function(self):
+        context = XPathContext(root=self.etree.parse(io.StringIO('<A/>')))
+        self.check_value('fn:document-uri(())', [], context=context)
+        self.check_value('fn:document-uri(.)', context=context)
+
+        context = XPathContext(root=self.etree.parse(io.StringIO('<A xml:base="/base_path/"/>')))
+        self.check_value('fn:document-uri(.)', '/base_path/', context=context)
 
     def test_doc_functions(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
@@ -949,6 +1132,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:doc-available('http://foo.test')", False, context=context)
         self.parser.base_uri = None
 
+        doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
+        context = XPathContext(root, documents={'tns0': doc})
+
+        with self.assertRaises(ValueError) as err:
+            self.check_value("fn:doc('tns0')", context=context)
+        self.assertIn('FODC0005', str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            self.check_value("fn:doc-available('tns0')", context=context)
+        self.assertIn('FODC0005', str(err.exception))
+
     def test_collection_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
         doc1 = self.etree.parse(io.StringIO("<a><b1><c1/></b1><b2/><b3/></a>"))
@@ -966,6 +1160,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("root()", root, context=XPathContext(root))
         self.check_value("root()", root, context=XPathContext(root, item=root[2]))
 
+        with self.assertRaises(TypeError) as err:
+            self.check_value("root()", root, context=XPathContext(root, item=10))
+        self.assertIn('XPTY0004', str(err.exception))
+
+        with self.assertRaises(TypeError) as err:
+            self.check_value("root(7)", root, context=XPathContext(root))
+        self.assertIn('XPTY0004', str(err.exception))
+
+        context = XPathContext(root, variables={'elem': root[1]})
+        self.check_value("fn:root($elem)", root, context=context.copy())
+
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
 
         context = XPathContext(root, variables={'elem': doc[1]})
@@ -974,8 +1179,38 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, variables={'elem': doc[1]}, documents={'.': doc})
         self.check_value("root($elem)", doc, context=context)
 
+        doc2 = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
+
+        context = XPathContext(root, variables={'elem': doc2[1]},
+                               documents={'.': doc, 'doc2': doc2})
+        self.check_value("root($elem)", doc2, context=context)
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:tns="http://foo.test">
+                  <xs:element name="root"/>
+                </xs:schema>""")
+
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+            context = self.parser.schema.get_context()
+            try:
+                self.check_value("fn:root()", None, context)
+            finally:
+                self.parser.schema = None
+
     def test_error_function(self):
-        self.assertRaises(ElementPathError, self.check_value, "fn:error()")
+        with self.assertRaises(ElementPathError) as err:
+            self.check_value('fn:error()')
+        self.assertEqual(str(err.exception), '[err:FOER0000] Unidentified error.')
+
+        with self.assertRaises(ElementPathError) as err:
+            self.check_value('fn:error("err:XPST0001")')
+        self.assertEqual(str(err.exception), '[err:XPST0001] Parser not bound to a schema.')
+
+        with self.assertRaises(ElementPathError) as err:
+            self.check_value('fn:error("err:XPST0001", "Missing schema")')
+        self.assertEqual(str(err.exception), '[err:XPST0001] Missing schema.')
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
