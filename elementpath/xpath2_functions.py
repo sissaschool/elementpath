@@ -17,6 +17,7 @@ import time
 import re
 import locale
 import unicodedata
+from copy import copy
 from urllib.parse import urlparse, urljoin, quote as urllib_quote
 import xml.etree.ElementTree as ElementTree
 
@@ -99,7 +100,7 @@ def evaluate(self, context=None):
 @method(function('namespace-uri-for-prefix', nargs=2))
 def evaluate(self, context=None):
     if context is not None:
-        prefix = self.get_argument(context.copy())
+        prefix = self.get_argument(context=copy(context))
         if prefix is None:
             prefix = ''
         if not isinstance(prefix, str):
@@ -149,7 +150,7 @@ def evaluate(self, context=None):
         if not is_element_node(elem):
             raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
 
-        qname = self.get_argument(context.copy())
+        qname = self.get_argument(context=copy(context))
         if qname is None:
             return []
         if not isinstance(qname, str):
@@ -456,12 +457,8 @@ def evaluate(self, context=None):
             elif not etree_deep_equal(value1, value2):
                 return False
 
-    if context is None:
-        seq1 = iter(self[0].select())
-        seq2 = iter(self[1].select())
-    else:
-        seq1 = iter(self[0].select(context.copy()))
-        seq2 = iter(self[1].select(context.copy()))
+    seq1 = iter(self[0].select(copy(context)))
+    seq2 = iter(self[1].select(copy(context)))
 
     if len(self) > 2:
         with self.use_locale(collation=self.get_argument(context, 2)):
@@ -936,7 +933,7 @@ XPath2Parser.unregister('id')
 @method(function('id', nargs=(1, 2)))
 def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
-    idrefs = list(self[0].select(None if context is None else context.copy()))
+    idrefs = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
     if context is None:
         return
@@ -964,7 +961,7 @@ def select(self, context=None):
 @method(function('idref', nargs=(1, 2)))
 def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
-    ids = list(self[0].select(None if context is None else context.copy()))
+    ids = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
     if context is None:
         return

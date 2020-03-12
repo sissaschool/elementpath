@@ -927,6 +927,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value('/A/true()', [True], context=XPathContext(root))
             self.wrong_syntax('/|')
 
+        root = self.etree.XML("<A><B><C><D><E/></D></C></B></A>")
+        context = XPathContext(root)
+        self.check_value('/A', [root], context=context)
+
+        context = XPathContext(root, item=root[0][0])
+        self.check_value('/A', [], context=context)
+
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector('.', root, [root])
@@ -999,6 +1006,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         </pm>""")
 
         self.check_selector('/pm/content/pmEntry/pmEntry//pmEntry[@pmEntryType]', root, [])
+
+        root = self.etree.XML("<A><B><C><D><E/></D></C></B></A>")
+        context = XPathContext(root)
+        self.check_value('//*', list(root.iter()), context=context)
+
+        context = XPathContext(root, item=root[0][0])
+        self.check_value('//*', [], context=context)
 
     def test_double_slash_shortcut_pr16(self):
         # Pull-Request #16
