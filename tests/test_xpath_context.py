@@ -26,6 +26,16 @@ class XPathContextTest(unittest.TestCase):
             "XPathContext(root={0}, item={0}, position=0, size=1, axis=None)".format(self.root)
         )
 
+    def test_copy(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        context = XPathContext(root)
+        self.assertIsInstance(context.copy(), XPathContext)
+        self.assertIsNot(context.copy(), context)
+
+        context = XPathContext(root, axis='children')
+        self.assertIsNone(context.copy().axis)
+        self.assertEqual(context.copy(clear_axis=False).axis, 'children')
+
     def test_parent_map(self):
         root = ElementTree.XML('<A><B1/><B2/></A>')
         context = XPathContext(root)

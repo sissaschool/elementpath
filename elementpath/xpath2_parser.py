@@ -17,6 +17,7 @@ import locale
 import math
 import operator
 from collections.abc import MutableSequence
+from copy import copy
 from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathKeyError, \
@@ -416,14 +417,14 @@ XPath2Parser.duplicate('|', 'union')
 @method(infix('intersect', bp=55))
 def select(self, context=None):
     if context is not None:
-        results = set(self[0].select(context.copy())) & set(self[1].select(context.copy()))
+        results = set(self[0].select(copy(context))) & set(self[1].select(copy(context)))
         yield from context.iter_results(results)
 
 
 @method(infix('except', bp=55))
 def select(self, context=None):
     if context is not None:
-        results = set(self[0].select(context.copy())) - set(self[1].select(context.copy()))
+        results = set(self[0].select(copy(context))) - set(self[1].select(copy(context)))
         yield from context.iter_results(results)
 
 
@@ -443,7 +444,7 @@ def nud(self):
 
 @method('if')
 def evaluate(self, context=None):
-    if self.boolean_value(self[0].evaluate(context)):
+    if self.boolean_value(self[0].evaluate(copy(context))):
         return self[1].evaluate(context)
     else:
         return self[2].evaluate(context)
@@ -451,7 +452,7 @@ def evaluate(self, context=None):
 
 @method('if')
 def select(self, context=None):
-    if self.boolean_value([x for x in self[0].select(context)]):
+    if self.boolean_value([x for x in self[0].select(copy(context))]):
         yield from self[1].select(context)
     else:
         yield from self[2].select(context)
@@ -485,13 +486,13 @@ def evaluate(self, context=None):
         return
 
     some = self.symbol == 'some'
-    selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
+    selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
 
     for results in product(*selectors):
         for i in range(len(results)):
             context.variables[self[i * 2][0].value] = results[i]
 
-        if self.boolean_value([x for x in self[-1].select(context.copy())]):
+        if self.boolean_value([x for x in self[-1].select(copy(context))]):
             if some:
                 return True
         elif not some:
@@ -523,11 +524,11 @@ def nud(self):
 @method('for')
 def select(self, context=None):
     if context is not None:
-        selectors = tuple(self[k].select(context.copy()) for k in range(1, len(self) - 1, 2))
+        selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
         for results in product(*selectors):
             for i in range(len(results)):
                 context.variables[self[i * 2][0].value] = results[i]
-            yield from self[-1].select(context.copy())
+            yield from self[-1].select(copy(context))
 
 
 ###
@@ -720,7 +721,7 @@ def evaluate(self, context=None):
 @method(',')
 def select(self, context=None):
     for op in self:
-        yield from op.select(context.copy() if context else None)
+        yield from op.select(context=copy(context))
 
 
 ###
@@ -761,11 +762,8 @@ def select(self, context=None):
 @method(infix('le', bp=30))
 @method(infix('ge', bp=30))
 def evaluate(self, context=None):
-    if context is None:
-        op1, op2 = self[0].get_atomized_operand(), self[1].get_atomized_operand()
-    else:
-        op1 = self[0].get_atomized_operand(context.copy())
-        op2 = self[1].get_atomized_operand(context.copy())
+    op1 = self[0].get_atomized_operand(context=copy(context))
+    op2 = self[1].get_atomized_operand(context=copy(context))
 
     if op1 is not None and op2 is not None:
         try:

@@ -664,8 +664,9 @@ def select(self, context=None):
         if is_document_node(context.root):
             yield context.root
     elif len(self) == 1:
-        context.item = None
-        yield from self[0].select(context)
+        if is_document_node(context.root) or context.item is context.root:
+            context.item = None
+            yield from self[0].select(context)
     else:
         items = []
         left_results = [x for x in self[0].select(context)]
@@ -697,9 +698,10 @@ def select(self, context=None):
     if context is None:
         return
     elif len(self) == 1:
-        context.item = None
-        for _ in context.iter_descendants(axis='descendant-or-self'):
-            yield from self[0].select(context)
+        if is_document_node(context.root) or context.item is context.root:
+            context.item = None
+            for _ in context.iter_descendants(axis='descendant-or-self'):
+                yield from self[0].select(context)
     else:
         for elem in self[0].select(context):
             if not is_element_node(elem):

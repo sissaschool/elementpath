@@ -66,13 +66,13 @@ class XPathContext(object):
             self.__class__.__name__, self.root, self.item, self.position, self.size, self.axis
         )
 
-    def copy(self, clear_axis=True):
+    def __copy__(self):
         obj = type(self)(
             root=self.root,
             item=self.item,
             position=self.position,
             size=self.size,
-            axis=None if clear_axis else self.axis,
+            axis=None,
             variables=self.variables.copy(),
             current_dt=self.current_dt,
             timezone=self.timezone,
@@ -85,6 +85,14 @@ class XPathContext(object):
         obj._elem = self._elem
         obj._parent_map = self._parent_map
         return obj
+
+    def copy(self, clear_axis=True):
+        if clear_axis:
+            return self.__copy__()
+        else:
+            obj = self.__copy__()
+            obj.axis = self.axis
+            return obj
 
     @property
     def parent_map(self):
