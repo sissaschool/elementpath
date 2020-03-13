@@ -298,22 +298,22 @@ def evaluate(self, context=None):
 
 @method('empty')
 def select(self, context=None):
-    try:
-        next(iter(self[0].select(context)))
-    except StopIteration:
-        yield True
+    for k, value in enumerate(self[0].select(context)):
+        if k or value:
+            yield False
+            break
     else:
-        yield False
+        yield True
 
 
 @method('exists')
 def select(self, context=None):
-    try:
-        next(iter(self[0].select(context)))
-    except StopIteration:
-        yield False
+    for k, value in enumerate(self[0].select(context)):
+        if k or not value:
+            yield True
+            break
     else:
-        yield True
+        yield False
 
 
 @method(function('distinct-values', nargs=(1, 2)))
