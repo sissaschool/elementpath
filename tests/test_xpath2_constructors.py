@@ -159,10 +159,6 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
             self.wrong_value('xs:anyURI("https://example.com:65536")',
                              'FOCA0002', 'Port out of range 0-65535')
 
-        if platform.python_implementation() != 'PyPy':
-            self.wrong_value('xs:anyURI("https://example\u2100.com/index.html")',
-                             'FOCA0002', 'invalid characters under NFKC normalization')
-
         root = self.etree.XML('<root a=" https://example.com "/>')
         context = XPathContext(root)
         self.check_value('xs:anyURI(@a)', 'https://example.com', context=context)

@@ -2,6 +2,22 @@
 elementpath
 ***********
 
+.. image:: https://img.shields.io/pypi/v/elementpath.svg
+   :target: https://pypi.python.org/pypi/elementpath/
+.. image:: https://img.shields.io/pypi/pyversions/elementpath.svg
+   :target: https://pypi.python.org/pypi/elementpath/
+.. image:: https://img.shields.io/pypi/implementation/elementpath.svg
+   :target: https://pypi.python.org/pypi/elementpath/
+.. image:: https://img.shields.io/badge/License-MIT-blue.svg
+   :alt: MIT License
+   :target: https://lbesson.mit-license.org/
+.. image:: https://travis-ci.org/sissaschool/elementpath.svg?branch=master
+   :target: https://travis-ci.org/sissaschool/elementpath
+.. image:: https://img.shields.io/pypi/dm/elementpath.svg
+   :target: https://pypi.python.org/pypi/elementpath/
+.. image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg
+   :target: https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity
+
 .. elementpath-introduction
 
 The proposal of this package is to provide XPath 1.0 and 2.0 selectors for Python's ElementTree XML
