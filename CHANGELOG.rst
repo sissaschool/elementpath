@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v1.4.2`_ (2020-02-xx)
+`v1.4.2`_ (2020-03-13)
 ======================
 * Multiple XSD type associations on a token
+* Extend xs:untypedAtomic type usage
+* Increase the tests coverage to 95%
 
 `v1.4.1`_ (2020-01-28)
 ======================
