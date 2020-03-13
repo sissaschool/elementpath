@@ -48,6 +48,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return collapse_white_spaces(value)
 
 
@@ -55,6 +57,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
 
     match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
     if match is None:
@@ -66,6 +70,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
 
     match = NMTOKEN_PATTERN.match(collapse_white_spaces(value))
     if match is None:
@@ -77,6 +83,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
 
     match = NAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
@@ -91,6 +99,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
 
     match = NCNAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
@@ -102,6 +112,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
 
     uri = collapse_white_spaces(value)
     try:
@@ -126,6 +138,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, tuple):
         value = value[-1]
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     try:
         return decimal.Decimal(value)
     except (ValueError, decimal.DecimalException) as err:
@@ -157,7 +171,7 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
     if isinstance(value, tuple):
         value = value[-1]
 
-    if isinstance(value, (str, bytes)):
+    if isinstance(value, (str, bytes, UntypedAtomic)):
         try:
             result = int(float(value))
         except ValueError:
@@ -248,6 +262,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, Date10):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return Date10.fromstring(value, tzinfo=tz)
 
 
@@ -257,6 +273,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, XPathGregorianDay):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return XPathGregorianDay.fromstring(value, tzinfo=tz)
 
 
@@ -266,6 +284,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, XPathGregorianMonth):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return XPathGregorianMonth.fromstring(value, tzinfo=tz)
 
 
@@ -275,6 +295,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, XPathGregorianMonthDay):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return XPathGregorianMonthDay.fromstring(value, tzinfo=tz)
 
 
@@ -284,6 +306,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, XPathGregorianYear):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return XPathGregorianYear.fromstring(value, tzinfo=tz)
 
 
@@ -293,6 +317,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, XPathGregorianYearMonth):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return XPathGregorianYearMonth.fromstring(value, tzinfo=tz)
 
 
@@ -302,6 +328,8 @@ def cast(value, tz=None):
         value = value[-1]
     if isinstance(value, Time):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return Time.fromstring(value, tzinfo=tz)
 
 
@@ -332,6 +360,8 @@ def cast(value):
         value = value[-1]
     if isinstance(value, Duration):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return Duration.fromstring(value)
 
 
@@ -341,6 +371,8 @@ def cast(value):
         value = value[-1]
     if isinstance(value, YearMonthDuration):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return YearMonthDuration.fromstring(value)
 
 
@@ -350,6 +382,8 @@ def cast(value):
         value = value[-1]
     if isinstance(value, DayTimeDuration):
         return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return DayTimeDuration.fromstring(value)
 
 
@@ -503,7 +537,9 @@ def evaluate(self, context=None):
 # of the number of args.
 #
 def cast_to_qname(value, namespaces=None):
-    if not isinstance(value, str):
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
+    elif not isinstance(value, str):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
     match = QNAME_PATTERN.match(value)
@@ -517,6 +553,12 @@ def cast_to_qname(value, namespaces=None):
 
 
 def cast_to_datetime(value, tz=None):
+    if isinstance(value, tuple):
+        value = value[-1]
+    if isinstance(value, DateTime10):
+        return value
+    if isinstance(value, UntypedAtomic):
+        value = str(value)
     return DateTime10.fromstring(value, tzinfo=tz)
 
 
