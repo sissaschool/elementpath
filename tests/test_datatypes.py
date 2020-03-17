@@ -147,20 +147,34 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIn("wrong type <class 'float'> for year", str(err.exception))
 
     def test_datetime_fromstring(self):
-        self.assertIsInstance(DateTime.fromstring('2000-10-07T00:00:00'), DateTime)
-        self.assertIsInstance(DateTime.fromstring('-2000-10-07T00:00:00'), DateTime)
+        dt = DateTime.fromstring('2000-10-07T00:00:00')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7))
+
+        dt = DateTime.fromstring('-2000-10-07T00:00:00')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(4, 10, 7))
+        self.assertEqual(dt._year, -2001)
+
+        dt = DateTime.fromstring('2020-03-05T23:04:10.047')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2020, 3, 5, 23, 4, 10, 47000))
 
         with self.assertRaises(TypeError) as err:
             DateTime.fromstring(b'00-10-07')
         self.assertIn("1st argument has an invalid type <class 'bytes'>", str(err.exception))
 
+        with self.assertRaises(TypeError) as err:
+            DateTime.fromstring('2010-10-07', tzinfo='Z')
+        self.assertIn("2nd argument has an invalid type <class 'str'>", str(err.exception))
+
         with self.assertRaises(ValueError) as err:
             DateTime.fromstring('00-10-07')
         self.assertIn("Invalid datetime string", str(err.exception))
 
-        with self.assertRaises(TypeError) as err:
-            DateTime.fromstring('2010-10-07', tzinfo='Z')
-        self.assertIn("2nd argument has an invalid type <class 'str'>", str(err.exception))
+        with self.assertRaises(ValueError) as err:
+            DateTime.fromstring('2020-03-05 23:04:10.047')
+        self.assertIn("Invalid datetime string", str(err.exception))
 
     def test_date_fromstring(self):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)

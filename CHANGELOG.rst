@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.4.2`_ (2020-03-17)
+======================
+* Fix PyPy 3 tests on xs:base64Binary and xs:hexBinary
+
 `v1.4.2`_ (2020-03-13)
 ======================
 * Multiple XSD type associations on a token
@@ -203,3 +207,4 @@ CHANGELOG
 .. _v1.4.0: https://github.com/brunato/elementpath/compare/v1.3.3...v1.4.0
 .. _v1.4.1: https://github.com/brunato/elementpath/compare/v1.4.0...v1.4.1
 .. _v1.4.2: https://github.com/brunato/elementpath/compare/v1.4.1...v1.4.2
+.. _v1.4.3: https://github.com/brunato/elementpath/compare/v1.4.2...v1.4.3
