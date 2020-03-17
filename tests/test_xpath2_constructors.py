@@ -492,10 +492,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         context.item = b'ODQ='
         if platform.python_implementation() != 'PyPy':
+            # Skip for PyPy because PyPy 7.1.1-beta0 has a bug on codecs.decode()
             self.check_value('xs:hexBinary(.)', b'3834', context=context)
-        else:
-            # PyPy 7.1.1-beta0 bug on codecs.decode() implementation
-            self.check_value('xs:hexBinary(.)', TypeError, context=context)
 
     def test_base64_binary_constructor(self):
         self.check_value('xs:base64Binary(())', [])
@@ -514,10 +512,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         context.item = b'FF'
         if platform.python_implementation() != 'PyPy':
+            # Skip for PyPy because PyPy 7.1.1-beta0 has a bug on codecs.decode()
             self.check_value('xs:base64Binary(.)', b'/w==\n', context=context)
-        else:
-            # PyPy 7.1.1-beta0 bug on codecs.decode() implementation
-            self.check_value('xs:base64Binary(.)', TypeError, context=context)
 
         context.item = b'abcefghi'  # Don't change, it can be an encoded value.
         self.check_value('xs:base64Binary(.)', b'abcefghi', context=context)
