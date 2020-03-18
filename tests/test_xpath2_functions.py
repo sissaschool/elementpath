@@ -197,67 +197,72 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         env_locale_setting = locale.getlocale(locale.LC_COLLATE)
 
         locale.setlocale(locale.LC_COLLATE, 'C')
-        self.assertEqual(locale.getlocale(locale.LC_COLLATE), (None, None))
-
-        self.check_value("fn:compare('abc', 'abc')", 0)
-        self.check_value("fn:compare('abc', 'abd')", -1)
-        self.check_value("fn:compare('abc', 'abb')", 1)
-        self.check_value("fn:compare('foo bar', 'foo bar')", 0)
-        self.check_value("fn:compare('', '')", 0)
-        self.check_value("fn:compare('abc', 'abcd')", -1)
-        self.check_value("fn:compare('', ' foo bar')", -1)
-        self.check_value("fn:compare('abcd', 'abc')", 1)
-        self.check_value("fn:compare('foo bar', '')", 1)
-
-        self.check_value('fn:compare("a","A")', 1)
-        self.check_value('fn:compare("A","a")', -1)
-        self.check_value('fn:compare("+++","++")', 1)
-        self.check_value('fn:compare("1234","123")', 1)
-
-        self.check_value("fn:count(fn:compare((), ''))", 0)
-        self.check_value("fn:count(fn:compare('abc', ()))", 0)
-
-        self.check_value("compare(xs:anyURI('http://example.com/'), 'http://example.com/')", 0)
-        self.check_value(
-            "compare(xs:untypedAtomic('http://example.com/'), 'http://example.com/')", 0
-        )
-
-        self.check_value('compare("&#65537;", "&#65538;", '
-                         '"http://www.w3.org/2005/xpath-functions/collation/codepoint")', -1)
-
-        self.check_value('compare("&#65537;", "&#65520;", '
-                         '"http://www.w3.org/2005/xpath-functions/collation/codepoint")', 1)
-
-        # Issue #17
-        self.check_value("fn:compare('Strassen', 'Straße')", -1)
-
-        locale.setlocale(locale.LC_COLLATE, 'en_US.UTF-8')
-        self.check_value("fn:compare('Strasse', 'Straße')", -1)
-        self.check_value("fn:compare('Strassen', 'Straße')", 1)
-
         try:
-            self.check_value("fn:compare('Strasse', 'Straße', 'it_IT.UTF-8')", -1)
+            self.assertEqual(locale.getlocale(locale.LC_COLLATE), (None, None))
+
+            self.check_value("fn:compare('abc', 'abc')", 0)
+            self.check_value("fn:compare('abc', 'abd')", -1)
+            self.check_value("fn:compare('abc', 'abb')", 1)
+            self.check_value("fn:compare('foo bar', 'foo bar')", 0)
+            self.check_value("fn:compare('', '')", 0)
+            self.check_value("fn:compare('abc', 'abcd')", -1)
+            self.check_value("fn:compare('', ' foo bar')", -1)
+            self.check_value("fn:compare('abcd', 'abc')", 1)
+            self.check_value("fn:compare('foo bar', '')", 1)
+
+            self.check_value('fn:compare("a","A")', 1)
+            self.check_value('fn:compare("A","a")', -1)
+            self.check_value('fn:compare("+++","++")', 1)
+            self.check_value('fn:compare("1234","123")', 1)
+
+            self.check_value("fn:count(fn:compare((), ''))", 0)
+            self.check_value("fn:count(fn:compare('abc', ()))", 0)
+
+            self.check_value("compare(xs:anyURI('http://example.com/'), 'http://example.com/')", 0)
+            self.check_value(
+                "compare(xs:untypedAtomic('http://example.com/'), 'http://example.com/')", 0
+            )
+
+            self.check_value('compare("&#65537;", "&#65538;", '
+                             '"http://www.w3.org/2005/xpath-functions/collation/codepoint")', -1)
+
+            self.check_value('compare("&#65537;", "&#65520;", '
+                             '"http://www.w3.org/2005/xpath-functions/collation/codepoint")', 1)
+
+            # Issue #17
+            self.check_value("fn:compare('Strassen', 'Straße')", -1)
+
+            if platform.system() != 'Linux':
+                return
+
+            locale.setlocale(locale.LC_COLLATE, 'en_US.UTF-8')
+            self.check_value("fn:compare('Strasse', 'Straße')", -1)
             self.check_value("fn:compare('Strassen', 'Straße')", 1)
-        except locale.Error:
-            pass  # Skip test if 'it_IT.UTF-8' is an unknown locale setting
 
-        try:
-            self.check_value("fn:compare('Strasse', 'Straße', 'de_DE.UTF-8')", -1)
-        except locale.Error:
-            pass  # Skip test if 'de_DE.UTF-8' is an unknown locale setting
+            try:
+                self.check_value("fn:compare('Strasse', 'Straße', 'it_IT.UTF-8')", -1)
+                self.check_value("fn:compare('Strassen', 'Straße')", 1)
+            except locale.Error:
+                pass  # Skip test if 'it_IT.UTF-8' is an unknown locale setting
 
-        try:
-            self.check_value("fn:compare('Strasse', 'Straße', 'deutsch')", -1)
-        except locale.Error:
-            pass  # Skip test if 'deutsch' is an unknown locale setting
+            try:
+                self.check_value("fn:compare('Strasse', 'Straße', 'de_DE.UTF-8')", -1)
+            except locale.Error:
+                pass  # Skip test if 'de_DE.UTF-8' is an unknown locale setting
 
-        with self.assertRaises(locale.Error) as cm:
-            self.check_value("fn:compare('Strasse', 'Straße', 'invalid_collation')")
-        self.assertIn('FOCH0002', str(cm.exception))
+            try:
+                self.check_value("fn:compare('Strasse', 'Straße', 'deutsch')", -1)
+            except locale.Error:
+                pass  # Skip test if 'deutsch' is an unknown locale setting
 
-        self.wrong_type("fn:compare('Strasse', 111)")
+            with self.assertRaises(locale.Error) as cm:
+                self.check_value("fn:compare('Strasse', 'Straße', 'invalid_collation')")
+            self.assertIn('FOCH0002', str(cm.exception))
 
-        locale.setlocale(locale.LC_COLLATE, env_locale_setting)
+            self.wrong_type("fn:compare('Strasse', 111)")
+
+        finally:
+            locale.setlocale(locale.LC_COLLATE, env_locale_setting)
 
     def test_normalize_unicode_function(self):
         self.check_value('fn:normalize-unicode(())', '')
@@ -1061,7 +1066,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          Time.fromstring('03:00:00+10:00'), context)
 
     def test_default_collation_function(self):
-        self.check_value('fn:default-collation()', 'en_US.UTF-8')
+        default_locale = locale.getdefaultlocale()
+        default_locale = '.'.join(default_locale) if default_locale[1] else default_locale[0]
+        self.check_value('fn:default-collation()', default_locale)
 
     def test_context_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
