@@ -299,36 +299,34 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                     <xs:attribute name="max" type="xs:int"/>
                   </xs:complexType>
                 </xs:schema>""")
-            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['root'])
 
-            root = self.etree.XML('<root>11</root>')
-            self.check_value('. le 10', False, context=XPathContext(root))
-            self.check_value('. le 20', True, context=XPathContext(root))
+            with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
+                root = self.etree.XML('<root>11</root>')
+                self.check_value('. le 10', False, context=XPathContext(root))
+                self.check_value('. le 20', True, context=XPathContext(root))
 
-            root = self.etree.XML('<root>eleven</root>')
-            with self.assertRaises(TypeError) as err:
-                self.check_value('. le 10', context=XPathContext(root))
-            self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
+                root = self.etree.XML('<root>eleven</root>')
+                with self.assertRaises(TypeError) as err:
+                    self.check_value('. le 10', context=XPathContext(root))
+                self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
 
-            root = self.etree.XML('<value>12</value>')
-            with self.assertRaises(TypeError) as err:
-                self.check_value('. le "11"', context=XPathContext(root))
-            self.assertIn('XPTY0004', str(err.exception))  # Static schema context error
+                root = self.etree.XML('<value>12</value>')
+                with self.assertRaises(TypeError) as err:
+                    self.check_value('. le "11"', context=XPathContext(root))
+                self.assertIn('XPTY0004', str(err.exception))  # Static schema context error
 
-            with self.assertRaises(TypeError) as err:
-                self.check_value('. le 10', context=XPathContext(root))
-            self.assertIn('FORG0006', str(err.exception))  # Dynamic context error
+                with self.assertRaises(TypeError) as err:
+                    self.check_value('. le 10', context=XPathContext(root))
+                self.assertIn('FORG0006', str(err.exception))  # Dynamic context error
 
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                   <xs:element name="root" type="xs:anyType"/>
                 </xs:schema>""")
-            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['root'])
 
-            root = self.etree.XML('<root>15</root>')
-            self.check_value('. le "11"', False, context=XPathContext(root))
-
-            self.parser.schema = None
+            with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
+                root = self.etree.XML('<root>15</root>')
+                self.check_value('. le "11"', False, context=XPathContext(root))
 
         root = self.etree.XML('<root><a>1</a><a>10</a><a>30</a><a>50</a></root>')
         self.check_selector("a = (1 to 30)", root, True)
@@ -510,12 +508,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                   </xs:complexType>
                 </xs:schema>""")
 
-            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['A'])
-            self.check_select("attribute(a, xs:int)", ['10'], context)
-            self.check_select("attribute(*, xs:int)", {'10', '20'}, context)
-            self.check_select("attribute(a, xs:string)", [], context)
-            self.check_select("attribute(*, xs:string)", [], context)
-            self.parser.schema = None
+            with self.schema_bound_parser(schema.elements['A'].xpath_proxy):
+                self.check_select("attribute(a, xs:int)", ['10'], context)
+                self.check_select("attribute(*, xs:int)", {'10', '20'}, context)
+                self.check_select("attribute(a, xs:string)", [], context)
+                self.check_select("attribute(*, xs:string)", [], context)
 
     def test_node_and_node_accessors(self):
         element = self.etree.Element('schema')
@@ -626,6 +623,95 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('fn:concat($word, fn:lower-case(" BETA"))', 'alpha beta')
         self.check_value('fn:concat($word, fn:lower-case(10))', TypeError)
         self.check_value('fn:concat($unknown, fn:lower-case(10))', TypeError)
+
+    def test_instance_of_expression(self):
+        element = self.etree.Element('schema')
+
+        # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
+        self.check_value("5 instance of xs:integer", True)
+        self.check_value("5 instance of xs:decimal", True)
+        self.check_value("9.0 instance of xs:integer", False)
+        self.check_value("(5, 6) instance of xs:integer+", True)
+
+        context = XPathContext(element)
+        self.check_value(". instance of element()", True, context)
+        context.item = None
+        self.check_value(". instance of element()", False, context)
+
+        self.check_value("(5, 6) instance of xs:integer", False)
+        self.check_value("(5, 6) instance of xs:integer*", True)
+        self.check_value("(5, 6) instance of xs:integer?", False)
+
+        self.check_value("5 instance of empty-sequence()", False)
+        self.check_value("() instance of empty-sequence()", True)
+
+    def test_treat_as_expression(self):
+        element = self.etree.Element('schema')
+        context = XPathContext(element)
+
+        self.check_value("5 treat as xs:integer", [5])
+        self.check_value("5 treat as xs:string", ElementPathTypeError)
+        self.check_value("5 treat as xs:decimal", [5])
+        self.check_value("(5, 6) treat as xs:integer+", [5, 6])
+        self.check_value(". treat as element()", [element], context)
+
+        self.check_value("(5, 6) treat as xs:integer", ElementPathTypeError)
+        self.check_value("(5, 6) treat as xs:integer*", [5, 6])
+        self.check_value("(5, 6) treat as xs:integer?", ElementPathTypeError)
+
+        self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
+        self.check_value("() treat as empty-sequence()", [])
+
+    def test_castable_expression(self):
+        self.check_value("5 castable as xs:integer", True)
+        self.check_value("'5' castable as xs:integer", True)
+        self.check_value("'hello' castable as xs:integer", False)
+        self.check_value("('5', '6') castable as xs:integer", False)
+        self.check_value("() castable as xs:integer", False)
+        self.check_value("() castable as xs:integer?", True)
+
+        self.check_value("'NaN' castable as xs:double", True)
+        self.check_value("'None' castable as xs:double", False)
+        self.check_value("'NaN' castable as xs:float", True)
+        self.check_value("'NaN' castable as xs:integer", False)
+
+    def test_cast_expression(self):
+        self.check_value("5 cast as xs:integer", 5)
+        self.check_value("'5' cast as xs:integer", 5)
+        self.check_value("'hello' cast as xs:integer", ValueError)
+        self.check_value("('5', '6') cast as xs:integer", TypeError)
+        self.check_value("() cast as xs:integer", TypeError)
+        self.check_value("() cast as xs:integer?", [])
+        self.check_value('"1" cast as xs:boolean', True)
+        self.check_value('"0" cast as xs:boolean', False)
+
+    def test_logical_expressions_(self):
+        super(XPath2ParserTest, self).test_logical_expressions()
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="root">
+                    <xs:complexType>
+                      <xs:sequence/>
+                      <xs:attribute name="a" type="xs:integer"/>      
+                      <xs:attribute name="b" type="xs:integer"/>
+                    </xs:complexType>
+                  </xs:element>
+                </xs:schema>""")
+
+            with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
+                root_token = self.parser.parse("(@a and not(@b)) or (not(@a) and @b)")
+                context = XPathContext(self.etree.XML('<root a="10" b="0"/>'))
+                self.assertTrue(root_token.evaluate(context=context) is True)
+                context = XPathContext(self.etree.XML('<root a="10" b="1"/>'))
+                self.assertTrue(root_token.evaluate(context=context) is False)
+                context = XPathContext(self.etree.XML('<root a="10"/>'))
+                self.assertTrue(root_token.evaluate(context=context) is True)
+                context = XPathContext(self.etree.XML('<root a="0" b="10"/>'))
+                self.assertTrue(root_token.evaluate(context=context) is True)
+                context = XPathContext(self.etree.XML('<root b="0"/>'))
+                self.assertTrue(root_token.evaluate(context=context) is True)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

@@ -21,6 +21,7 @@
 #
 import unittest
 import math
+from contextlib import contextmanager
 from xml.etree import ElementTree
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, select
@@ -201,6 +202,15 @@ class XPathTestCase(unittest.TestCase):
                 self.assertIsInstance(results, expected)
             else:
                 self.assertTrue(expected(results))
+
+    @contextmanager
+    def schema_bound_parser(self, schema_proxy):
+        # Code to acquire resource, e.g.:
+        self.parser.schema = schema_proxy
+        try:
+            yield self.parser
+        finally:
+            self.parser.schema = None
 
     # Wrong XPath expression checker shortcuts
     def wrong_syntax(self, path, *message_parts):
