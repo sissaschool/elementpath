@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.4.2`_ (2020-03-17)
+`v1.4.3`_ (2020-03-18)
 ======================
 * Fix PyPy 3 tests on xs:base64Binary and xs:hexBinary
+* Separated the tests of schema proxy API and other schemas based tests
 
 `v1.4.2`_ (2020-03-13)
 ======================

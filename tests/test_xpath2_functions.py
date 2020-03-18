@@ -667,12 +667,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                   <xs:element name="root"/>
                 </xs:schema>""")
 
-            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
-            context = self.parser.schema.get_context()
-            try:
+            with self.schema_bound_parser(schema.xpath_proxy):
+                context = self.parser.schema.get_context()
                 self.check_value("fn:resolve-QName('p3:C3', .)", None, context)
-            finally:
-                self.parser.schema = None
 
     def test_namespace_uri_for_prefix_function(self):
 
@@ -728,13 +725,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                   <xs:element name="root"/>
                 </xs:schema>""")
 
-            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
-            context = self.parser.schema.get_context()
-            prefixes = {'xml', 'xs', 'xlink', 'fn', 'err', 'xsi', 'eg', 'tst'}
-            try:
+            with self.schema_bound_parser(schema.xpath_proxy):
+                context = self.parser.schema.get_context()
+                prefixes = {'xml', 'xs', 'xlink', 'fn', 'err', 'xsi', 'eg', 'tst'}
                 self.check_value("fn:in-scope-prefixes(.)", prefixes, context)
-            finally:
-                self.parser.schema = None
 
     def test_datetime_function(self):
         tz0 = None
@@ -1192,12 +1186,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                   <xs:element name="root"/>
                 </xs:schema>""")
 
-            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
-            context = self.parser.schema.get_context()
-            try:
+            with self.schema_bound_parser(schema.xpath_proxy):
+                context = self.parser.schema.get_context()
                 self.check_value("fn:root()", None, context)
-            finally:
-                self.parser.schema = None
 
     def test_error_function(self):
         with self.assertRaises(ElementPathError) as err:

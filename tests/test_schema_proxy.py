@@ -16,7 +16,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import AttributeNode, XPathContext, XPath2Parser, ElementPathTypeError
+from elementpath import AttributeNode, XPathContext, XPath2Parser
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 
 try:
@@ -33,7 +33,7 @@ except ImportError:
 
 
 @unittest.skipIf(xmlschema is None, "xmlschema library required.")
-class XPath2ParserXMLSchemaTest(xpath_test_class.XPathTestCase):
+class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -322,62 +322,6 @@ class XPath2ParserXMLSchemaTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.assertFalse(token.evaluate(context))
 
-    def test_instance_of_expression(self):
-        element = self.etree.Element('schema')
-
-        # Test cases from https://www.w3.org/TR/xpath20/#id-instance-of
-        self.check_value("5 instance of xs:integer", True)
-        self.check_value("5 instance of xs:decimal", True)
-        self.check_value("9.0 instance of xs:integer", False)
-        self.check_value("(5, 6) instance of xs:integer+", True)
-
-        context = XPathContext(element)
-        self.check_value(". instance of element()", True, context)
-        context.item = None
-        self.check_value(". instance of element()", False, context)
-
-        self.check_value("(5, 6) instance of xs:integer", False)
-        self.check_value("(5, 6) instance of xs:integer*", True)
-        self.check_value("(5, 6) instance of xs:integer?", False)
-
-        self.check_value("5 instance of empty-sequence()", False)
-        self.check_value("() instance of empty-sequence()", True)
-
-    def test_treat_as_expression(self):
-        element = self.etree.Element('schema')
-        context = XPathContext(element)
-
-        self.check_value("5 treat as xs:integer", [5])
-        self.check_value("5 treat as xs:string", ElementPathTypeError)
-        self.check_value("5 treat as xs:decimal", [5])
-        self.check_value("(5, 6) treat as xs:integer+", [5, 6])
-        self.check_value(". treat as element()", [element], context)
-
-        self.check_value("(5, 6) treat as xs:integer", ElementPathTypeError)
-        self.check_value("(5, 6) treat as xs:integer*", [5, 6])
-        self.check_value("(5, 6) treat as xs:integer?", ElementPathTypeError)
-
-        self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
-        self.check_value("() treat as empty-sequence()", [])
-
-    def test_castable_expression(self):
-        self.check_value("5 castable as xs:integer", True)
-        self.check_value("'5' castable as xs:integer", True)
-        self.check_value("'hello' castable as xs:integer", False)
-        self.check_value("('5', '6') castable as xs:integer", False)
-        self.check_value("() castable as xs:integer", False)
-        self.check_value("() castable as xs:integer?", True)
-
-    def test_cast_expression(self):
-        self.check_value("5 cast as xs:integer", 5)
-        self.check_value("'5' cast as xs:integer", 5)
-        self.check_value("'hello' cast as xs:integer", ValueError)
-        self.check_value("('5', '6') cast as xs:integer", TypeError)
-        self.check_value("() cast as xs:integer", TypeError)
-        self.check_value("() cast as xs:integer?", [])
-        self.check_value('"1" cast as xs:boolean', True)
-        self.check_value('"0" cast as xs:boolean', False)
-
     def test_issue_10(self):
         schema = xmlschema.XMLSchema('''
             <xs:schema xmlns="http://xpath.test/ns#" xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -395,7 +339,7 @@ class XPath2ParserXMLSchemaTest(xpath_test_class.XPathTestCase):
 
 
 @unittest.skipIf(xmlschema is None or lxml_etree is None, "both xmlschema and lxml required")
-class LxmlXPath2ParserXMLSchemaTest(XPath2ParserXMLSchemaTest):
+class LxmlXMLSchemaProxyTest(XMLSchemaProxyTest):
     etree = lxml_etree
 
 

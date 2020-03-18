@@ -2,6 +2,7 @@
 *.pyo
 *~
 *.so
+*.swp
 *.egg-info
 .idea/
 .project
