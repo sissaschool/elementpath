@@ -687,16 +687,33 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('lang("en")', self.etree.XML('<para xml:lang="en-us"/>'), True)
         self.check_selector('lang("en")', self.etree.XML('<para xml:lang="it"/>'), False)
 
-    def test_logical_expressions(self):
+    def test_logical_and_operator(self):
         self.check_value("false() and true()", False)
-        self.check_value("false() or true()", True)
-        self.check_value("true() or false()", True)
         self.check_value("true() and true()", True)
         self.check_value("1 and 0", False)
         self.check_value("1 and 1", True)
         self.check_value("1 and 'jupiter'", True)
         self.check_value("0 and 'mars'", False)
         self.check_value("1 and mars", False)
+
+    def test_logical_or_operator(self):
+        self.check_value("false() or true()", True)
+        self.check_value("true() or false()", True)
+
+    def test_logical_expressions(self):
+        root_token = self.parser.parse("(@abc and not(@def)) or (not(@abc) and @def)")
+        context = XPathContext(self.etree.XML('<root abc="10" def="0"/>'))
+        self.assertTrue(root_token.evaluate(context=context) is False)
+        context = XPathContext(self.etree.XML('<root abc="10" def="1"/>'))
+        self.assertTrue(root_token.evaluate(context=context) is False)
+        context = XPathContext(self.etree.XML('<root abc="10"/>'))
+        self.assertTrue(root_token.evaluate(context=context) is True)
+        context = XPathContext(self.etree.XML('<root abc="0"/>'))
+        self.assertTrue(root_token.evaluate(context=context) is True)
+        context = XPathContext(self.etree.XML('<root def="0"/>'))
+        self.assertTrue(root_token.evaluate(context=context) is True)
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.assertTrue(root_token.evaluate(context=context) is False)
 
     def test_comparison_operators(self):
         self.check_value("0.05 = 0.05", True)
