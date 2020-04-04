@@ -713,6 +713,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 context = XPathContext(self.etree.XML('<root b="0"/>'))
                 self.assertTrue(root_token.evaluate(context=context) is True)
 
+    def test_element_decimal_cast(self):
+        root = self.etree.XML('''
+        <books>
+            <book><isbn>1558604820</isbn><price>12.50</price></book>
+            <book><isbn>1558604820</isbn><price>13.50</price></book>
+            <book><isbn>1558604820</isbn><price>-0.1</price></book>
+        </books>''')
+        expected_values = [ Decimal('12.5'), Decimal('13.5'), Decimal('-0.1') ]
+        self.assertEqual(3, len(select(root, "//book")))
+        for book in iter_select(root, "//book"):
+            context = XPathContext(root=root, item=book)
+            root_token = self.parser.parse("xs:decimal(price)")
+            self.assertEqual(expected_values.pop(0), root_token.evaluate(context))
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):
