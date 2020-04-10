@@ -247,6 +247,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("4 gt ()")
         self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
 
+    def test_comparison_in_expression(self):
+        expr = "/*[1 = 1] = (. = 'false')"
+        root_token = self.parser.parse(expr)
+        context = XPathContext(self.etree.XML('<value>false</value>'))
+        self.assertTrue(root_token.evaluate(context=context), expr)
+
     def test_comparison_of_sequences(self):
         super(XPath2ParserTest, self).test_comparison_of_sequences()
 
