@@ -980,6 +980,10 @@ class UntypedAtomic(object):
                 return float(self.value), float(other.value)
             else:
                 return self.value, other.value
+        # isinstance(boolean_variable, int) returns true, since boolean is
+        # a subclass of int; it is therefore necessary to check for bool first
+        elif isinstance(other, bool):
+            return bool(self.value), other
         elif isinstance(other, int):
             return float(self.value), other
         else:
