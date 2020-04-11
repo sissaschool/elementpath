@@ -1092,6 +1092,8 @@ def evaluate(self, context=None):
     except TypeError:
         self.wrong_type("the second argument must be a string")
 
+    if index < 0:
+        return ''
     if self.symbol == 'substring-before':
         return arg1[:index]
     else:
