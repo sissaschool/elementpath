@@ -679,6 +679,18 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.check_value("boolean(())", False)
 
+    def test_boolean_context_nonempty_elements(self):
+        root = self.etree.XML("""<a> <b>text</b> </a>""")
+        context = XPathContext(root=root)
+
+        root_token = self.parser.parse("boolean(node())")
+        self.assertEqual(True, root_token.evaluate(context))
+
+        root_token = self.parser.parse("not(node())")
+        self.assertEqual(False, root_token.evaluate(context))
+        root_token = self.parser.parse("not(not(node()))")
+        self.assertEqual(True, root_token.evaluate(context))
+
     def test_lang_function(self):
         # From https://www.w3.org/TR/1999/REC-xpath-19991116/#section-Boolean-Functions
         self.check_selector('lang("en")', self.etree.XML('<para xml:lang="en"/>'), True)
