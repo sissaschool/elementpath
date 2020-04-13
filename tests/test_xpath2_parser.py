@@ -248,10 +248,41 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
 
     def test_comparison_in_expression(self):
-        expr = "/*[1 = 1] = (. = 'false')"
-        root_token = self.parser.parse(expr)
         context = XPathContext(self.etree.XML('<value>false</value>'))
-        self.assertTrue(root_token.evaluate(context=context), expr)
+        self.check_value("(. = 'false') = (. = 'false')", True, context)
+        self.check_value("(. = 'asdf') != (. = 'false')", True, context)
+
+    def test_boolean_evaluation_in_selector(self):
+        context = XPathContext(self.etree.XML("""
+<collection>
+    <book>
+        <available>true</available>
+        <price>10.0</price>
+    </book>
+    <book>
+        <available>1</available>
+        <price>10.0</price>
+    </book>
+    <book>
+        <available>false</available>
+        <price>5.0</price>
+    </book>
+    <book>
+        <available>0</available>
+        <price>5.0</price>
+    </book>
+</collection>
+        """))
+        expr = "sum(//price)"
+        self.check_value("sum(//price)", 30, context)
+        self.check_value("sum(//price[../available = 'true'])", 10, context)
+        self.check_value("sum(//price[../available = 'false'])", 5, context)
+        self.check_value("sum(//price[../available = '1'])", 10, context)
+        self.check_value("sum(//price[../available = '0'])", 5, context)
+        self.check_value("sum(//price[../available = true()])", 20, context)
+        self.check_value("sum(//price[../available = false()])", 10, context)
+
+
 
     def test_comparison_of_sequences(self):
         super(XPath2ParserTest, self).test_comparison_of_sequences()
