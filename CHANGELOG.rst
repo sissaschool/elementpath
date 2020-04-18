@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.4.4`_ (2020-04-18)
+======================
+* Integrate pull requests and bugfix
+
 `v1.4.3`_ (2020-03-18)
 ======================
 * Fix PyPy 3 tests on xs:base64Binary and xs:hexBinary
@@ -209,3 +213,4 @@ CHANGELOG
 .. _v1.4.1: https://github.com/brunato/elementpath/compare/v1.4.0...v1.4.1
 .. _v1.4.2: https://github.com/brunato/elementpath/compare/v1.4.1...v1.4.2
 .. _v1.4.3: https://github.com/brunato/elementpath/compare/v1.4.2...v1.4.3
+.. _v1.4.4: https://github.com/brunato/elementpath/compare/v1.4.3...v1.4.4
