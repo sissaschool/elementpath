@@ -280,7 +280,10 @@ class XPath2Parser(XPath1Parser):
             if item is None:
                 return []
             try:
-                return self.cast(item)
+                if is_element_node(item):
+                    return self.cast(item.text)
+                else:
+                    return self.cast(item)
             except ElementPathError as err:
                 if err.token is None:
                     err.token = self
