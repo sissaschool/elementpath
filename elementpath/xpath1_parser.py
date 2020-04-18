@@ -1207,9 +1207,9 @@ def evaluate(self, context=None):
     try:
         number = decimal.Decimal(arg)
         if number > 0:
-            return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
+            return number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP')
         else:
-            return float(round(number))
+            return round(number)
     except TypeError as err:
         self.wrong_type(str(err))
     except decimal.DecimalException as err:

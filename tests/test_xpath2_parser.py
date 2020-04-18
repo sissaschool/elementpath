@@ -727,6 +727,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root_token = self.parser.parse("xs:decimal(price)")
             self.assertEqual(expected_values.pop(0), root_token.evaluate(context))
 
+    def test_element_decimal_comparison_after_round(self):
+        self.check_value('xs:decimal(0.36) = round(0.36*100) div 100', True)
+
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):
     etree = lxml_etree
