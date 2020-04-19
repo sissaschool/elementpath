@@ -570,6 +570,9 @@ def evaluate(self, context=None):
                 return op1 * op2
             except TypeError as err:
                 raise self.wrong_type(str(err))
+    else:
+        # This is not a multiplication operator but a wildcard select statement
+        return [x for x in self.select(context)]
 
 
 @method(infix('div', bp=45))
