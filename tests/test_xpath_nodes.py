@@ -17,7 +17,7 @@ from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     etree_deep_equal, is_element_node, is_attribute_node, is_comment_node, \
     is_document_node, is_namespace_node, is_processing_instruction_node, \
     is_text_node, node_attributes, node_base_uri, node_document_uri, \
-    node_children, node_is_id, node_is_idrefs, node_nilled, node_kind, node_name
+    node_children, node_nilled, node_kind, node_name
 
 
 class XPathNodesTest(unittest.TestCase):
@@ -141,24 +141,6 @@ class XPathNodesTest(unittest.TestCase):
         document = ElementTree.parse(io.StringIO("<A><B1/><B2/></A>"))
         self.assertListEqual(list(node_children(document)), [document.getroot()])
         self.assertIsNone(node_children('a text node'))
-
-    def test_node_is_id_function(self):
-        self.assertTrue(node_is_id(ElementTree.XML('<A>xyz</A>')))
-        self.assertFalse(node_is_id(ElementTree.XML('<A>xyz abc</A>')))
-        self.assertFalse(node_is_id(ElementTree.XML('<A>12345</A>')))
-        self.assertTrue(node_is_id(AttributeNode('id', 'alpha')))
-        self.assertFalse(node_is_id(AttributeNode('id', 'alpha beta')))
-        self.assertFalse(node_is_id(AttributeNode('id', '12345')))
-        self.assertIsNone(node_is_id('a text node'))
-
-    def test_node_is_idref_function(self):
-        self.assertTrue(node_is_idrefs(ElementTree.XML('<A>xyz</A>')))
-        self.assertTrue(node_is_idrefs(ElementTree.XML('<A>xyz abc</A>')))
-        self.assertFalse(node_is_idrefs(ElementTree.XML('<A>12345</A>')))
-        self.assertTrue(node_is_idrefs(AttributeNode('id', 'alpha')))
-        self.assertTrue(node_is_idrefs(AttributeNode('id', 'alpha beta')))
-        self.assertFalse(node_is_idrefs(AttributeNode('id', '12345')))
-        self.assertIsNone(node_is_idrefs('a text node'))
 
     def test_node_nilled_function(self):
         xml_test = '<A xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true" />'

@@ -959,12 +959,19 @@ class UntypedAtomic(object):
     :param value: the untyped value, usually a string.
     """
     def __init__(self, value):
-        if not isinstance(value, (str, bytes, int, float, decimal.Decimal, bool)):
+        if not isinstance(value, (str, bytes, int, float, decimal.Decimal)):
             raise ElementPathTypeError("{!r} is not an atomic value".format(value))
-        self.value = value
+        elif isinstance(value, str):
+            self.value = value
+        elif isinstance(value, bytes):
+            self.value = value.decode('utf-8')
+        elif isinstance(value, bool):
+            self.value = 'true' if value else 'false'
+        else:
+            self.value = str(value)
 
     def __repr__(self):
-        return '%s(value=%r)' % (self.__class__.__name__, self.value)
+        return '%s(%r)' % (self.__class__.__name__, self.value)
 
     def _get_operands(self, other, force_float=True):
         """
@@ -978,8 +985,9 @@ class UntypedAtomic(object):
         if isinstance(other, UntypedAtomic):
             if force_float:
                 return float(self.value), float(other.value)
-            else:
-                return self.value, other.value
+            return self.value, other.value
+        elif isinstance(other, bool):
+            return bool(self), other
         elif isinstance(other, int):
             return float(self.value), other
         else:
@@ -1033,16 +1041,19 @@ class UntypedAtomic(object):
         return float(self.value)
 
     def __bool__(self):
-        return bool(self.value)
+        value = self.value.strip()
+        if value not in {'0', '1', 'true', 'false'}:
+            raise ElementPathValueError("{!r} cannot be cast to boolean".format(self.value))
+        return value in ('1', 'true')
 
     def __abs__(self):
-        return abs(self.value)
+        return abs(decimal.Decimal(self.value))
 
     def __mod__(self, other):
         return operator.mod(*self._get_operands(other))
 
     def __str__(self):
-        return str(self.value)
+        return self.value
 
     def __bytes__(self):
         return bytes(self.value, encoding='utf-8')
@@ -1170,6 +1181,14 @@ def hex_binary_validator(x):
 
 def ncname_validator(x):
     return isinstance(x, str) and NCNAME_PATTERN.match(x) is not None
+
+
+def is_id(obj):
+    return isinstance(obj, str) and ncname_validator(obj)
+
+
+def is_idrefs(obj):
+    return isinstance(obj, str) and all(ncname_validator(x) for x in obj.split())
 
 
 XSD_BUILTIN_TYPES = {           # pragma: no cover

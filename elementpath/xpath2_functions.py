@@ -22,12 +22,13 @@ from urllib.parse import urlparse, urljoin, quote as urllib_quote
 import xml.etree.ElementTree as ElementTree
 
 from .exceptions import ElementPathTypeError, xpath_error
-from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, Duration, DayTimeDuration
+from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, \
+    Duration, DayTimeDuration, is_id, is_idrefs
 from .namespaces import get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
-from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, is_element_node, \
-    is_attribute_node, node_name, node_is_id, node_is_idrefs, node_nilled, node_base_uri, \
-    node_document_uri, node_kind, etree_deep_equal
+from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, \
+    is_element_node, is_attribute_node, node_name, node_nilled, \
+    node_base_uri, node_document_uri, node_kind, etree_deep_equal
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -275,13 +276,15 @@ def evaluate(self, context=None):
 @method(function('max', nargs=(1, 2)))
 @method(function('min', nargs=(1, 2)))
 def evaluate(self, context=None):
-    arg = self[0].select(context)
     func = max if self.symbol == 'max' else min
     try:
+        values = [x for x in self[0].select(context)]
+        if any(isinstance(x, float) and math.isnan(x) for x in values):
+            return float('nan')
         if len(self) > 1:
             with self.use_locale(collation=self.get_argument(context, 1)):
-                return func(arg)
-        return func(arg)
+                return func(values)
+        return func(values)
     except TypeError as err:
         self.wrong_type(str(err))
     except ValueError:
@@ -949,7 +952,7 @@ def select(self, context=None):
         root = context.root
 
     for elem in root.iter():
-        if node_is_id(elem) and any(v == elem.text for x in idrefs for v in x.split()):
+        if is_id(elem.text) and any(v == elem.text for x in idrefs for v in x.split()):
             yield elem
             continue
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
@@ -977,7 +980,7 @@ def select(self, context=None):
         root = context.root
 
     for elem in root.iter():
-        if node_is_idrefs(elem) and any(v in elem.text.split() for x in ids for v in x.split()):
+        if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
             yield elem
             continue
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):

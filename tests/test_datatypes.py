@@ -16,29 +16,49 @@ import pickle
 import random
 from decimal import Decimal
 from calendar import isleap
+from xml.etree import ElementTree
 from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_era, \
     months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
     GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
     GregorianDay, AbstractDateTime, OrderedDateTime, NumericTypeProxy, ArithmeticTypeProxy, \
     decimal_validator, integer_validator, base64_binary_validator, hex_binary_validator, \
-    ncname_validator, XSD_BUILTIN_TYPES, XsdBuiltin
+    ncname_validator, XSD_BUILTIN_TYPES, XsdBuiltin, is_id, is_idrefs
+
+
+class DatatypesHelpersTest(unittest.TestCase):
+
+    def test_is_id_function(self):
+        self.assertTrue(is_id(ElementTree.XML('<A>xyz</A>').text))
+        self.assertFalse(is_id(ElementTree.XML('<A>xyz abc</A>').text))
+        self.assertFalse(is_id(ElementTree.XML('<A>12345</A>').text))
+        self.assertTrue(is_id('alpha'))
+        self.assertFalse(is_id('alpha beta'))
+        self.assertFalse(is_id('12345'))
+
+    def test_node_is_idref_function(self):
+        self.assertTrue(is_idrefs(ElementTree.XML('<A>xyz</A>').text))
+        self.assertTrue(is_idrefs(ElementTree.XML('<A>xyz abc</A>').text))
+        self.assertFalse(is_idrefs(ElementTree.XML('<A>12345</A>').text))
+        self.assertTrue(is_idrefs('alpha'))
+        self.assertTrue(is_idrefs('alpha beta'))
+        self.assertFalse(is_idrefs('12345'))
 
 
 class UntypedAtomicTest(unittest.TestCase):
 
     def test_init(self):
-        self.assertEqual(UntypedAtomic(1).value, 1)
-        self.assertEqual(UntypedAtomic(-3.9).value, -3.9)
+        self.assertEqual(UntypedAtomic(1).value, '1')
+        self.assertEqual(UntypedAtomic(-3.9).value, '-3.9')
         self.assertEqual(UntypedAtomic('alpha').value, 'alpha')
-        self.assertTrue(UntypedAtomic(True).value)
+        self.assertEqual(UntypedAtomic(True).value, 'true')
 
         with self.assertRaises(TypeError) as err:
             UntypedAtomic(None)
         self.assertEqual(str(err.exception), "None is not an atomic value")
 
     def test_repr(self):
-        self.assertEqual(repr(UntypedAtomic(7)), 'UntypedAtomic(value=7)')
+        self.assertEqual(repr(UntypedAtomic(7)), "UntypedAtomic('7')")
 
     def test_eq(self):
         self.assertTrue(UntypedAtomic(-10) == UntypedAtomic(-10))
@@ -50,11 +70,16 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertTrue(UntypedAtomic(-10) == -10)
         self.assertTrue(-10 == UntypedAtomic(-10))
         self.assertTrue('-10' == UntypedAtomic(-10))
+        self.assertTrue(UntypedAtomic(False) == bool(False))
         self.assertTrue(bool(False) == UntypedAtomic(False))
         self.assertTrue(Decimal('8.91') == UntypedAtomic(Decimal('8.91')))
         self.assertTrue(UntypedAtomic(Decimal('8.91')) == Decimal('8.91'))
 
-        self.assertFalse(bool(False) == UntypedAtomic(10))
+        self.assertTrue(bool(True) == UntypedAtomic(1))
+        with self.assertRaises(ValueError) as ctx:
+            _ = bool(True) == UntypedAtomic(10)
+        self.assertEqual(str(ctx.exception), "'10' cannot be cast to boolean")
+
         self.assertFalse(-10.9 == UntypedAtomic(-10))
         self.assertFalse(UntypedAtomic(-10) == -11)
 
@@ -98,7 +123,9 @@ class UntypedAtomicTest(unittest.TestCase):
 
     def test_conversion(self):
         self.assertEqual(str(UntypedAtomic(25.1)), '25.1')
-        self.assertEqual(int(UntypedAtomic(25.1)), 25)
+        self.assertEqual(int(UntypedAtomic(25)), 25)
+        with self.assertRaises(ValueError):
+            int(UntypedAtomic(25.1))
         self.assertEqual(float(UntypedAtomic(25.1)), 25.1)
         self.assertEqual(bool(UntypedAtomic(True)), True)
         if sys.version_info >= (3,):
@@ -127,7 +154,7 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('1') % 2, 1.0)
 
     def test_hashing(self):
-        self.assertEqual(hash(UntypedAtomic(12345)), 12345)
+        self.assertEqual(hash(UntypedAtomic(12345)), hash('12345'))
         self.assertIsInstance(hash(UntypedAtomic('alpha')), int)
 
 
