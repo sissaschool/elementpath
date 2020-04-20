@@ -491,7 +491,7 @@ def nud(self):
 @method('boolean')
 def evaluate(self, context=None):
     if self.label == 'function':
-        return self.boolean_value(self[0].get_results(context))
+        return self.boolean_value([x for x in self[0].select(context)])
 
     # xs:boolean constructor
     item = self.get_argument(context)
