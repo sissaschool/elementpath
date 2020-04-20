@@ -570,6 +570,9 @@ def evaluate(self, context=None):
                 return op1 * op2
             except TypeError as err:
                 raise self.wrong_type(str(err))
+    else:
+        # This is not a multiplication operator but a wildcard select statement
+        return [x for x in self.select(context)]
 
 
 @method(infix('div', bp=45))
@@ -1092,6 +1095,8 @@ def evaluate(self, context=None):
     except TypeError:
         self.wrong_type("the second argument must be a string")
 
+    if index < 0:
+        return ''
     if self.symbol == 'substring-before':
         return arg1[:index]
     else:
@@ -1207,9 +1212,9 @@ def evaluate(self, context=None):
     try:
         number = decimal.Decimal(arg)
         if number > 0:
-            return float(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
+            return number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP')
         else:
-            return float(round(number))
+            return round(number)
     except TypeError as err:
         self.wrong_type(str(err))
     except decimal.DecimalException as err:
