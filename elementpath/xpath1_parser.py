@@ -9,6 +9,7 @@
 #
 import math
 import decimal
+from copy import copy
 
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
@@ -481,18 +482,14 @@ def select(self, context=None):
 # Logical Operators
 @method(infix('or', bp=20))
 def evaluate(self, context=None):
-    if context is None:
-        return self.boolean_value(self[0].evaluate()) or self.boolean_value(self[1].evaluate())
-    return self.boolean_value(self[0].evaluate(context.copy())) or \
-        self.boolean_value(self[1].evaluate(context.copy()))
+    return self.boolean_value(self[0].evaluate(copy(context))) or \
+        self.boolean_value(self[1].evaluate(copy(context)))
 
 
 @method(infix('and', bp=25))
 def evaluate(self, context=None):
-    if context is None:
-        return self.boolean_value(self[0].evaluate()) and self.boolean_value(self[1].evaluate())
-    return self.boolean_value(self[0].evaluate(context.copy())) and \
-        self.boolean_value(self[1].evaluate(context.copy()))
+    return self.boolean_value(self[0].evaluate(copy(context))) and \
+        self.boolean_value(self[1].evaluate(copy(context)))
 
 
 @method(infix('=', bp=30))
@@ -1107,12 +1104,13 @@ def evaluate(self, context=None):
 # Boolean functions
 @method(function('boolean', nargs=1))
 def evaluate(self, context=None):
-    return self.boolean_value(self[0].get_results(context))
+    return self.boolean_value([x for x in self[0].select(context)])
 
 
 @method(function('not', nargs=1))
 def evaluate(self, context=None):
-    return not self.boolean_value(self[0].get_results(context))
+    obj = [x for x in self[0].select(context)]
+    return not self.boolean_value(obj)
 
 
 @method(function('true', nargs=0))
