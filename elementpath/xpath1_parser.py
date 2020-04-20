@@ -1107,12 +1107,12 @@ def evaluate(self, context=None):
 # Boolean functions
 @method(function('boolean', nargs=1))
 def evaluate(self, context=None):
-    return self.boolean_value(self[0].get_results(context))
+    return self.boolean_value([x for x in self[0].select(context)])
 
 
 @method(function('not', nargs=1))
 def evaluate(self, context=None):
-    return not self.boolean_value(self[0].get_results(context))
+    return not self.boolean_value([x for x in self[0].select(context)])
 
 
 @method(function('true', nargs=0))
