@@ -711,7 +711,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 context = XPathContext(self.etree.XML('<root a="0" b="10"/>'))
                 self.assertTrue(root_token.evaluate(context=context) is True)
                 context = XPathContext(self.etree.XML('<root b="0"/>'))
-                self.assertTrue(root_token.evaluate(context=context) is True)
+                self.assertTrue(root_token.evaluate(context=context) is False)
 
     def test_element_decimal_cast(self):
         root = self.etree.XML('''

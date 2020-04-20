@@ -611,7 +611,12 @@ class XPathToken(Token):
         if isinstance(obj, list):
             if not obj:
                 return False
-            elif isinstance(obj[0], tuple) or is_element_node(obj[0]):
+            elif isinstance(obj[0], tuple):
+                value = obj[0][1]
+                if isinstance(value, str):
+                    return True
+                return bool(obj[0][1])
+            elif is_element_node(obj[0]):
                 return True
             elif len(obj) == 1:
                 return bool(obj[0])
