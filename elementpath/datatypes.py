@@ -980,6 +980,15 @@ class UntypedAtomic(object):
                 return float(self.value), float(other.value)
             else:
                 return self.value, other.value
+        # isinstance(boolean_variable, int) returns true, since boolean is
+        # a subclass of int; it is therefore necessary to check for bool first
+        elif isinstance(other, bool):
+            # Extra check: We may have an Untyped here which need to be considered an
+            # xs:boolean; check if that is the case by checking its value
+            if isinstance(self, UntypedAtomic) and self.value in ['0', '1', 'true', 'false']:
+                return self.value in ['1', 'true'], other
+            else:
+                return bool(self.value), other
         elif isinstance(other, int):
             return float(self.value), other
         else:
