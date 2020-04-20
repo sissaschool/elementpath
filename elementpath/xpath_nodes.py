@@ -15,7 +15,6 @@ from urllib.parse import urlparse
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
-from .datatypes import ncname_validator
 
 ###
 # Node types
@@ -207,20 +206,6 @@ def node_children(obj):
         return (child for child in obj)
     elif is_document_node(obj):
         return (child for child in [obj.getroot()])
-
-
-def node_is_id(obj):
-    if is_element_node(obj):
-        return ncname_validator(obj.text)
-    elif is_attribute_node(obj):
-        return ncname_validator(obj[1])
-
-
-def node_is_idrefs(obj):
-    if is_element_node(obj):
-        return obj.text is not None and all(ncname_validator(x) for x in obj.text.split())
-    elif is_attribute_node(obj):
-        return all(ncname_validator(x) for x in obj[1].split())
 
 
 def node_nilled(obj):
