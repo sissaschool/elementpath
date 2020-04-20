@@ -638,6 +638,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Amadeus ')", 'Mozart')
         self.check_value("substring-after('Wolfgang Amadeus Mozart', 'Mozart')", '')
         self.check_value("substring-after('', '')", '')
+        self.check_value("substring-after('Mozart', 'B')", '')
+        self.check_value("substring-after('Mozart', 'Bach')", '')
+        self.check_value("substring-after('Mozart', 'Amadeus')", '')
         self.check_value("substring-after('Mozart', '')", 'Mozart')
         self.check_value('substring-after("1999/04/01","/")', '04/01')
         self.check_value('substring-after("1999/04/01","19")', '99/04/01')
@@ -690,6 +693,20 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.assertEqual(False, root_token.evaluate(context))
         root_token = self.parser.parse("not(not(node()))")
         self.assertEqual(True, root_token.evaluate(context))
+
+    def test_nonempty_elements(self):
+        root = self.etree.XML("""<a> <b>text</b> </a>""")
+        context = XPathContext(root=root)
+
+        root_token = self.parser.parse("normalize-space(text()) = ''")
+        self.assertEqual(True, root_token.evaluate(context))
+
+        elements = select(root, "//*")
+        for element in elements:
+            context = XPathContext(root=root, item=element)
+
+            root_token = self.parser.parse("* or normalize-space(text()) != ''")
+            self.assertEqual(True, root_token.evaluate(context), element)
 
     def test_lang_function(self):
         # From https://www.w3.org/TR/1999/REC-xpath-19991116/#section-Boolean-Functions

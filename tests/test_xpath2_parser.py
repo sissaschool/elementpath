@@ -247,6 +247,43 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("4 gt ()")
         self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
 
+    def test_comparison_in_expression(self):
+        context = XPathContext(self.etree.XML('<value>false</value>'))
+        self.check_value("(. = 'false') = (. = 'false')", True, context)
+        self.check_value("(. = 'asdf') != (. = 'false')", True, context)
+
+    def test_boolean_evaluation_in_selector(self):
+        context = XPathContext(self.etree.XML("""
+<collection>
+    <book>
+        <available>true</available>
+        <price>10.0</price>
+    </book>
+    <book>
+        <available>1</available>
+        <price>10.0</price>
+    </book>
+    <book>
+        <available>false</available>
+        <price>5.0</price>
+    </book>
+    <book>
+        <available>0</available>
+        <price>5.0</price>
+    </book>
+</collection>
+        """))
+        expr = "sum(//price)"
+        self.check_value("sum(//price)", 30, context)
+        self.check_value("sum(//price[../available = 'true'])", 10, context)
+        self.check_value("sum(//price[../available = 'false'])", 5, context)
+        self.check_value("sum(//price[../available = '1'])", 10, context)
+        self.check_value("sum(//price[../available = '0'])", 5, context)
+        self.check_value("sum(//price[../available = true()])", 20, context)
+        self.check_value("sum(//price[../available = false()])", 10, context)
+
+
+
     def test_comparison_of_sequences(self):
         super(XPath2ParserTest, self).test_comparison_of_sequences()
 
@@ -713,6 +750,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 context = XPathContext(self.etree.XML('<root b="0"/>'))
                 self.assertTrue(root_token.evaluate(context=context) is True)
 
+    def test_element_decimal_cast(self):
+        root = self.etree.XML('''
+        <books>
+            <book><isbn>1558604820</isbn><price>12.50</price></book>
+            <book><isbn>1558604820</isbn><price>13.50</price></book>
+            <book><isbn>1558604820</isbn><price>-0.1</price></book>
+        </books>''')
+        expected_values = [ Decimal('12.5'), Decimal('13.5'), Decimal('-0.1') ]
+        self.assertEqual(3, len(select(root, "//book")))
+        for book in iter_select(root, "//book"):
+            context = XPathContext(root=root, item=book)
+            root_token = self.parser.parse("xs:decimal(price)")
+            self.assertEqual(expected_values.pop(0), root_token.evaluate(context))
+
+    def test_element_decimal_comparison_after_round(self):
+        self.check_value('xs:decimal(0.36) = round(0.36*100) div 100', True)
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):
