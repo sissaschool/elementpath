@@ -18,7 +18,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import XPathContext, AttributeNode
+from elementpath import XPathContext, AttributeNode, TypedAttribute
 from elementpath.datatypes import Timezone, DateTime, GregorianYear10, \
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, \
     XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
@@ -282,11 +282,11 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('xs:dateTime(@a)', DateTime(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode('a', DateTime(1969, 7, 20, 20, 18))
+        context.item = AttributeNode('a', str(DateTime(1969, 7, 20, 20, 18)))
         self.check_value('xs:dateTime(.)', DateTime(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode('a', True)
-        self.check_value('xs:dateTime(.)', TypeError, context=context)
+        context.item = AttributeNode('a', 'true')
+        self.check_value('xs:dateTime(.)', ValueError, context=context)
 
     def test_time_constructor(self):
         tz0 = None
@@ -323,11 +323,23 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('xs:date(@a)', Date10(2017, 1, 19), context=context)
 
-        context.item = AttributeNode('a', Date10(2017, 1, 19))
+        context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)
 
+        context.item = AttributeNode('a', 'true')
+        self.check_value('xs:date(.)', ValueError, context=context)
         context.item = AttributeNode('a', True)
+        self.check_value('xs:date(.)', ValueError, context=context)
+        context.item = TypedAttribute(AttributeNode('a', 'true'), True)
         self.check_value('xs:date(.)', TypeError, context=context)
+
+        root = self.etree.XML("<root>2017-10-02</root>")
+        context = XPathContext(root)
+        self.check_value('xs:date(.)', Date10(2017, 10, 2), context=context)
+
+        root = self.etree.XML("<root>2017<a>-10-02</a></root>")
+        context = XPathContext(root)
+        self.check_value('xs:date(.)', Date10(2017, 10, 2), context=context)
 
     def test_gregorian_day_constructor(self):
         tz0 = None
@@ -431,6 +443,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         context.item = Duration(months=12, seconds=86400)
         self.check_value('xs:duration(.)', Duration(12, 86400), context=context)
+
+        root = self.etree.XML('<root><a>P1Y5M</a></root>')
+        context = XPathContext(root)
+        self.check_value('xs:duration(.)', Duration(months=17), context=context)
 
     def test_year_month_duration_constructor(self):
         self.check_value('xs:yearMonthDuration("P3Y5M")', (41, 0))
