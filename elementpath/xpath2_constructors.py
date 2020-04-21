@@ -660,9 +660,7 @@ def cast(value):
 @method('untypedAtomic')
 def evaluate(self, context=None):
     item = self.get_argument(context)
-    if item is None:
-        return []
-    return UntypedAtomic(self.string_value(item))
+    return [] if item is None else self.cast(self.string_value(item))
 
 
 XPath2Parser.build()  # XPath 2.0 definition complete, can build the parser class.

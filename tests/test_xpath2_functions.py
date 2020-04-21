@@ -154,6 +154,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_max_function(self):
         self.check_value("fn:max((3,4,5))", 5)
+        self.check_value("fn:max((3, 4, xs:float('NaN')))", float('nan'))
         self.check_value("fn:max((3,4,5), 'en_US.UTF-8')", 5)
         self.check_value("fn:max((5, 5.0e0))", 5.0e0)
         self.wrong_type("fn:max((3,4,'Zero'))")
@@ -167,6 +168,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_min_function(self):
         self.check_value("fn:min((3,4,5))", 3)
+        self.check_value("fn:min((3, 4, xs:float('NaN')))", float('nan'))
         self.check_value("fn:min((5, 5.0e0))", 5.0e0)
         self.check_value("fn:min((xs:float(0.0E0), xs:float(-0.0E0)))", 0.0)
         self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))',
