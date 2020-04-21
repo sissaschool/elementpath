@@ -612,10 +612,11 @@ class XPathToken(Token):
             if not obj:
                 return False
             elif isinstance(obj[0], tuple):
-                value = obj[0][1]
-                if isinstance(value, str):
-                    return True
-                return bool(obj[0][1])
+                try:
+                    value = obj[0][1]
+                except IndexError:
+                    value = obj[0][0]
+                return True if isinstance(value, str) else bool(value)
             elif is_element_node(obj[0]):
                 return True
             elif len(obj) == 1:

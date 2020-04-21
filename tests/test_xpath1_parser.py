@@ -682,6 +682,18 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.check_value("boolean(())", False)
 
+    def test_boolean_context_nonempty_elements(self):
+        root = self.etree.XML("""<a> <b>text</b> </a>""")
+        context = XPathContext(root=root)
+
+        root_token = self.parser.parse("boolean(node())")
+        self.assertEqual(True, root_token.evaluate(context))
+
+        root_token = self.parser.parse("not(node())")
+        self.assertEqual(False, root_token.evaluate(context))
+        root_token = self.parser.parse("not(not(node()))")
+        self.assertEqual(True, root_token.evaluate(context))
+
     def test_nonempty_elements(self):
         root = self.etree.XML("""<a> <b>text</b> </a>""")
         context = XPathContext(root=root)

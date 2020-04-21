@@ -1109,8 +1109,7 @@ def evaluate(self, context=None):
 
 @method(function('not', nargs=1))
 def evaluate(self, context=None):
-    obj = [x for x in self[0].select(context)]
-    return not self.boolean_value(obj)
+    return not self.boolean_value([x for x in self[0].select(context)])
 
 
 @method(function('true', nargs=0))

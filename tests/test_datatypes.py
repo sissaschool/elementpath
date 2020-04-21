@@ -51,6 +51,7 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic(1).value, '1')
         self.assertEqual(UntypedAtomic(-3.9).value, '-3.9')
         self.assertEqual(UntypedAtomic('alpha').value, 'alpha')
+        self.assertEqual(UntypedAtomic(b'beta').value, 'beta')
         self.assertEqual(UntypedAtomic(True).value, 'true')
 
         with self.assertRaises(TypeError) as err:
