@@ -428,13 +428,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         if self.parser.version == '1.0':
             self.wrong_syntax('fn:normalize-space(())')
             self.check_value("normalize-space(1000)", '1000')
-            self.check_value("normalize-space(true())", 'True')
+            self.check_value("normalize-space(true())", 'true')
         else:
             self.check_value('fn:normalize-space(())', '')
             self.wrong_type("normalize-space(true())")
             self.wrong_type("normalize-space(('\ta  b c  ', 'other'))")
             self.parser.compatibility_mode = True
-            self.check_value("normalize-space(true())", 'True')
+            self.check_value("normalize-space(true())", 'true')
             self.check_value("normalize-space(('\ta  b\tc  ', 'other'))", 'a b c')
             self.parser.compatibility_mode = False
 

@@ -590,19 +590,25 @@ class XPathToken(Token):
     # XPath data accessors base functions
     def data_value(self, obj):
         """
-        The typed value, as computed by fn:data() on each item. Returns an instance of
-        UntypedAtomic.
+        The typed value, as computed by fn:data() on each item.
+        Returns an instance of UntypedAtomic for untyped data.
         """
-        if is_attribute_node(obj) or isinstance(obj, TypedElement):
-            obj = obj[1]
-
         if obj is None:
             return
-        elif not is_xpath_node(obj):
-            return obj
         elif hasattr(obj, 'type'):
             return self.schema_node_value(obj)  # Schema context
-        return UntypedAtomic(self.string_value(obj))
+        elif isinstance(obj, (TypedElement, TypedAttribute)):
+            return obj[-1]
+        elif isinstance(obj, tuple):
+            return UntypedAtomic(obj[-1])
+        elif is_etree_element(obj):
+            value = ''.join(elem_iter_strings(obj))
+            return UntypedAtomic(value)
+        elif is_document_node(obj):
+            value = ''.join(elem_iter_strings(obj.getroot()))
+            return UntypedAtomic(value)
+        else:
+            return obj
 
     def boolean_value(self, obj):
         """
@@ -654,6 +660,8 @@ class XPathToken(Token):
             return obj.text
         elif is_processing_instruction_node(obj):
             return obj.text
+        elif isinstance(obj, bool):
+            return 'true' if obj else 'false'
         else:
             return str(obj)
 

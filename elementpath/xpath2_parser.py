@@ -276,14 +276,14 @@ class XPath2Parser(XPath1Parser):
             return self
 
         def evaluate_(self, context=None):
-            item = self.get_argument(context)
-            if item is None:
+            arg = self.data_value(self.get_argument(context))
+            if arg is None:
                 return []
+
             try:
-                if is_element_node(item):
-                    return self.cast(item.text)
-                else:
-                    return self.cast(item)
+                if isinstance(arg, UntypedAtomic):
+                    return self.cast(arg.value)
+                return self.cast(arg)
             except ElementPathError as err:
                 if err.token is None:
                     err.token = self
@@ -293,7 +293,7 @@ class XPath2Parser(XPath1Parser):
             except TypeError as err:
                 raise self.error('FORG0006', str(err))
 
-        def cast(_value):
+        def cast(value):
             raise NotImplementedError
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
@@ -663,10 +663,13 @@ def evaluate(self, context=None):
         else:
             self.wrong_context_type("an atomic value is required")
 
-    input_value = self.data_value(result[0])
+    arg = self.data_value(result[0])
+    if isinstance(arg, UntypedAtomic):
+        arg = arg.value
+
     try:
         if namespace != XSD_NAMESPACE:
-            value = self.parser.schema.cast_as(input_value, atomic_type)
+            value = self.parser.schema.cast_as(arg, atomic_type)
         else:
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
@@ -675,16 +678,16 @@ def evaluate(self, context=None):
                 self.unknown_atomic_type(msg % self[1].source)
 
             if local_name in {'base64Binary', 'hexBinary'}:
-                value = token_class.cast(input_value, self[0].label == 'literal')
+                value = token_class.cast(arg, self[0].label == 'literal')
             elif local_name in {'dateTime', 'date', 'gDay', 'gMonth',
                                 'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
                 value = token_class.cast(
-                    input_value, tz=None if context is None else context.timezone
+                    arg, tz=None if context is None else context.timezone
                 )
             elif local_name == 'QName':
-                value = token_class.cast(input_value, self.parser.namespaces)
+                value = token_class.cast(arg, self.parser.namespaces)
             else:
-                value = token_class.cast(input_value)
+                value = token_class.cast(arg)
 
     except ElementPathError as err:
         if self.symbol != 'cast':

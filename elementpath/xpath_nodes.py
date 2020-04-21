@@ -167,8 +167,8 @@ def is_text_node(obj):
 
 
 def is_xpath_node(obj):
-    return isinstance(obj, tuple) or is_etree_element(obj) or is_schema_node(obj) or \
-        is_document_node(obj) or is_text_node(obj)
+    return isinstance(obj, tuple) or is_etree_element(obj) or \
+        is_schema_node(obj) or is_document_node(obj)
 
 
 ###
