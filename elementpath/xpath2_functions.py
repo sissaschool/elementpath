@@ -299,17 +299,16 @@ def evaluate(self, context=None):
 @method('empty')
 def select(self, context=None):
     for k, value in enumerate(self[0].select(context)):
-        if k or value:
+        if value is not None:
             yield False
             break
     else:
         yield True
 
-
 @method('exists')
 def select(self, context=None):
     for k, value in enumerate(self[0].select(context)):
-        if k or not value:
+        if value is not None:
             yield True
             break
     else:
