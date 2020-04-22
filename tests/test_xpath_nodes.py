@@ -13,7 +13,7 @@ import io
 import xml.etree.ElementTree as ElementTree
 
 from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
-    TypedElement, NamespaceNode, is_etree_element, elem_iter_strings, \
+    TypedElement, NamespaceNode, is_etree_element, etree_iter_strings, \
     etree_deep_equal, is_element_node, is_attribute_node, is_comment_node, \
     is_document_node, is_namespace_node, is_processing_instruction_node, \
     is_text_node, node_attributes, node_base_uri, node_document_uri, \
@@ -31,8 +31,8 @@ class XPathNodesTest(unittest.TestCase):
     def test_elem_iter_strings_function(self):
         root = ElementTree.XML('<A>text1\n<B1>text2</B1>tail1<B2/><B3><C1>text3</C1></B3>tail2</A>')
         result = ['text1\n', 'text2', 'tail1', 'tail2', 'text3']
-        self.assertListEqual(list(elem_iter_strings(root)), result)
-        self.assertListEqual(list(elem_iter_strings(TypedElement(root, 'text1'))), result)
+        self.assertListEqual(list(etree_iter_strings(root)), result)
+        self.assertListEqual(list(etree_iter_strings(TypedElement(root, 'text1'))), result)
 
     def test_etree_deep_equal_function(self):
         root = ElementTree.XML('<A><B1>10</B1><B2 max="20"/>end</A>')

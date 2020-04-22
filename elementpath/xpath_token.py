@@ -27,7 +27,7 @@ from .exceptions import xpath_error
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
-    is_etree_element, is_attribute_node, elem_iter_strings, is_text_node, \
+    is_etree_element, is_attribute_node, etree_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import UntypedAtomic, Timezone, DateTime10, Date10, \
@@ -602,10 +602,10 @@ class XPathToken(Token):
         elif isinstance(obj, tuple):
             return UntypedAtomic(obj[-1])
         elif is_etree_element(obj):
-            value = ''.join(elem_iter_strings(obj))
+            value = ''.join(etree_iter_strings(obj))
             return UntypedAtomic(value)
         elif is_document_node(obj):
-            value = ''.join(elem_iter_strings(obj.getroot()))
+            value = ''.join(etree_iter_strings(obj.getroot()))
             return UntypedAtomic(value)
         else:
             return obj
@@ -647,7 +647,7 @@ class XPathToken(Token):
         elif is_schema_node(obj):
             return str(self.schema_node_value(obj))
         elif is_element_node(obj):
-            return ''.join(elem_iter_strings(obj))
+            return ''.join(etree_iter_strings(obj))
         elif is_attribute_node(obj):
             return str(obj[1])
         elif is_text_node(obj):
