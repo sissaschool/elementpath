@@ -35,7 +35,7 @@ class XPathContext(object):
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
     """
-    def __init__(self, root, item=None, position=0, size=1, axis=None,
+    def __init__(self, root, item=None, position=1, size=1, axis=None,
                  variables=None, current_dt=None, timezone=None,
                  documents=None, collections=None, default_collection=None):
         if not is_element_node(root) and not is_document_node(root):
@@ -183,7 +183,7 @@ class XPathContext(object):
             self.item = self.item[0]
 
         if self.item is None:
-            self.size, self.position = 1, 0
+            self.size = self.position = 1
             self.item = self.root.getroot() if is_document_node(self.root) else self.root
             yield self.item
         elif is_etree_element(self.item):
@@ -192,7 +192,7 @@ class XPathContext(object):
                 self.item = TextNode(elem.text)
                 yield self.item
             self.size = len(elem)
-            for self.position, self.item in enumerate(elem):
+            for self.position, self.item in enumerate(elem, start=1):
                 yield self.item
 
         self.item, self.size, self.position, self.axis = status
@@ -239,6 +239,40 @@ class XPathContext(object):
 
             self.item, self.size, self.position, self.axis = status
 
+    def iter_selector(self, selector, axis=None):
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis
+
+        results = [x for x in selector(self.copy())]
+        self.size = len(results)
+        for self.position, self.item in enumerate(results, start=1):
+            yield self.item
+
+        self.item, self.size, self.position, self.axis = status
+
+    def iter_preceding_sibling(self, axis=None):
+        if isinstance(self.item, TypedElement):
+            parent = self.get_parent(self.item[0])
+        else:
+            parent = self.get_parent(self.item)
+
+        if parent is not None:
+            status = self.item, self.size, self.position, self.axis
+            self.axis = axis
+
+            siblings = []
+            for child in parent:
+                if child is self.item:
+                    break
+                siblings.append(child)
+
+            self.size = self.position = len(siblings)
+            for self.item in siblings:
+                yield self.item
+                self.position -= 1
+
+            self.item, self.size, self.position, self.axis = status
+
     def iter_descendants(self, item=None, axis=None):
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
@@ -249,7 +283,7 @@ class XPathContext(object):
             self.item = self.item[0]
 
         if self.item is None:
-            self.size, self.position = 1, 0
+            self.size = self.position = 1
             yield self.root
             self.item = self.root.getroot() if is_document_node(self.root) else self.root
         elif not is_element_node(self.item):
@@ -267,7 +301,7 @@ class XPathContext(object):
             yield self.item
         if len(elem):
             self.size = len(elem)
-            for self.position, self.item in enumerate(elem):
+            for self.position, self.item in enumerate(elem, start=1):
                 yield from self._iter_descendants()
 
     def iter_ancestors(self, item=None, axis=None):
@@ -334,7 +368,7 @@ class XPathContext(object):
 
         if len(elem):
             self.size = len(elem)
-            for self.position, self.item in enumerate(elem):
+            for self.position, self.item in enumerate(elem, start=1):
                 yield from self._iter_context()
 
 

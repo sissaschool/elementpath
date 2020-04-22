@@ -170,6 +170,9 @@ class XPath2Parser(XPath1Parser):
     }
 
     PATH_STEP_LABELS = ('axis', 'function', 'kind test')
+    PATH_STEP_SYMBOLS = {
+        '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
+    }
 
     def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
                  default_namespace=None, function_namespace=None, schema=None, base_uri=None,

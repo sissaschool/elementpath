@@ -617,12 +617,14 @@ def evaluate(self, context=None):
         return all(ord(c1) == ord(c2) for c1, c2 in zip(comp1, comp2))
 
 
-@method(function('string-join', nargs=2))
+@method(function('string-join', nargs=(1, 2)))
 def evaluate(self, context=None):
     items = [self.string_value(s) if is_element_node(s) or is_attribute_node(s) else s
              for s in self[0].select(context)]
     try:
-        return self.get_argument(context, 1, cls=str).join(items)
+        return self.get_argument(context, 1, default='', cls=str).join(items)
+    except AttributeError:
+        return ''.join(items)
     except ElementPathTypeError:
         raise
     except TypeError as err:
