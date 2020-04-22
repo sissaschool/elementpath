@@ -12,7 +12,8 @@ from functools import lru_cache
 
 from .exceptions import ElementPathTypeError
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
-    is_etree_element, is_element_node, is_document_node, is_attribute_node
+    etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
+    is_attribute_node
 
 
 class XPathContext(object):
@@ -146,17 +147,71 @@ class XPathContext(object):
         else:
             return is_element_node(self.item)
 
-    # Context item iterators
+    def iter(self):
+        """Iterates context nodes, including text and attribute nodes."""
+        root = self.root
+        if is_document_node(root):
+            yield root
+            root = root.getroot()
+        yield from etree_iter_nodes(root, include_attributes=True)
+
+    def iter_results(self, results):
+        """
+        Iterates results in document order.
+
+        :param results: list containing selection results.
+        """
+        status = self.item, self.size, self.position
+        root = self.root.getroot() if is_document_node(self.root) else self.root
+
+        self.size = len(results)
+        for self.position, self.item in \
+                enumerate(etree_iter_nodes(root, include_attributes=True), start=1):
+            if self.item in results:
+                yield self.item
+            elif isinstance(self.item, AttributeNode):
+                # Match XSD decoded attributes
+                for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
+                    if attr[0] == self.item:
+                        yield attr
+            elif is_etree_element(self.item):
+                # Match XSD decoded elements
+                for elem in filter(lambda x: isinstance(x, TypedElement), results):
+                    if elem[0] is self.item:
+                        yield elem
+
+        self.item, self.size, self.position = status
+
+    def iter_selector(self, selector):
+        """
+        Iterator for generic selector.
+
+        :param selector: a selector generator function.
+        """
+        status = self.item, self.size, self.position
+
+        results = [x for x in selector(self.copy())]
+        self.size = len(results)
+        for self.position, self.item in enumerate(results, start=1):
+            yield self.item
+
+        self.item, self.size, self.position = status
+
+    ##
+    # Context item iterators for axis
+
     def iter_self(self):
-        status = self.item, self.size, self.position, self.axis
+        """Iterator for 'self' axis and '.' shortcut."""
+        status = self.size, self.position, self.axis
+        self.size = self.position = 1
         self.axis = 'self'
         yield self.item
-        self.item, self.size, self.position, self.axis = status
+        self.size, self.position, self.axis = status
 
     def iter_attributes(self):
+        """Iterator for 'attribute' axis and '@' shortcut."""
         if not is_element_node(self.item):
             return
-        self._elem = self.item
 
         status = self.item, self.size, self.position, self.axis
         self.axis = 'attribute'
@@ -164,12 +219,16 @@ class XPathContext(object):
         if isinstance(self.item, TypedElement):
             self.item = self.item.elem
 
-        for self.item in map(lambda x: AttributeNode(*x), self.item.attrib.items()):
+        attributes = [AttributeNode(*x) for x in self.item.attrib.items()]
+
+        self.size = len(attributes)
+        for self.position, self.item in enumerate(attributes, start=1):
             yield self.item
 
         self.item, self.size, self.position, self.axis = status
 
     def iter_children_or_self(self, item=None, child_axis=False):
+        """Iterator for 'child' axis and '/' step."""
         if not child_axis and self.axis is not None:
             yield self.item
             return
@@ -197,34 +256,8 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter_preceding(self):
-        item = self.item[0] if isinstance(self.item, TypedElement) else self.item
-        if not is_etree_element(item) or item is self.root:
-            return
-
-        status = self.item, self.size, self.position, self.axis
-        self.axis = 'preceding'
-
-        ancestors = []
-        elem = item
-        while True:
-            parent = self.get_parent(elem)
-            if parent is None:
-                break
-            else:
-                ancestors.append(parent)
-                elem = parent
-
-        for elem in self.root.iter():  # pragma: no cover
-            if elem is item:
-                break
-            elif elem not in ancestors:
-                self.item = elem
-                yield elem
-
-        self.item, self.size, self.position, self.axis = status
-
     def iter_parent(self, axis=None):
+        """Iterator for 'parent' axis and '..' shortcut."""
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item[0])
         else:
@@ -235,22 +268,13 @@ class XPathContext(object):
             self.axis = axis
 
             self.item = parent
+            self.size = self.position = 1
             yield self.item
 
             self.item, self.size, self.position, self.axis = status
 
-    def iter_selector(self, selector, axis=None):
-        status = self.item, self.size, self.position, self.axis
-        self.axis = axis
-
-        results = [x for x in selector(self.copy())]
-        self.size = len(results)
-        for self.position, self.item in enumerate(results, start=1):
-            yield self.item
-
-        self.item, self.size, self.position, self.axis = status
-
-    def iter_preceding_sibling(self, axis=None):
+    def iter_siblings(self, axis=None):
+        """Iterator for 'preceding-sibling' and 'following-sibling' axes."""
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item[0])
         else:
@@ -274,6 +298,7 @@ class XPathContext(object):
             self.item, self.size, self.position, self.axis = status
 
     def iter_descendants(self, item=None, axis=None):
+        """Iterator for 'descendant' and 'descendant-or-self' axes and '//' shortcut."""
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
 
@@ -289,22 +314,15 @@ class XPathContext(object):
         elif not is_element_node(self.item):
             return
 
-        yield from self._iter_descendants()
+        descendants = [x for x in etree_iter_nodes(self.item)]
+        self.size = len(descendants)
+        for self.position, self.item in enumerate(descendants, start=1):
+            yield self.item
 
         self.item, self.size, self.position, self.axis = status
 
-    def _iter_descendants(self):
-        elem = self._elem = self.item
-        yield elem
-        if elem.text is not None:
-            self.item = TextNode(elem.text)
-            yield self.item
-        if len(elem):
-            self.size = len(elem)
-            for self.position, self.item in enumerate(elem, start=1):
-                yield from self._iter_descendants()
-
     def iter_ancestors(self, item=None, axis=None):
+        """Iterator for 'ancestor-or-self' and 'ancestor' axes."""
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
 
@@ -313,63 +331,49 @@ class XPathContext(object):
         elif isinstance(self.item, TypedElement):
             self.item = self.item[0]
 
-        while True:
-            parent = self.get_parent(self.item)
-            if parent is None:
-                break
-            else:
-                self.item = parent
-                yield parent
+        ancestors = []
+        parent = self.get_parent(self.item)
+        while parent is not None:
+            ancestors.append(parent)
+            parent = self.get_parent(parent)
+
+        self.size = len(ancestors)
+        for self.position, self.item in enumerate(ancestors, start=1):
+            yield self.item
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter(self):
-        """Iterates context nodes."""
-        status = self.item, self.size, self.position
-        self.item = self.root
-        if is_document_node(self.item):
-            yield self.item
-            self.item = self.item.getroot()
+    def iter_preceding(self):
+        """Iterator for 'preceding' axis."""
+        item = self.item[0] if isinstance(self.item, TypedElement) else self.item
+        if not is_etree_element(item) or item is self.root:
+            return
 
-        yield from self._iter_context()
+        status = self.item, self.size, self.position, self.axis
+        self.axis = 'preceding'
 
-        self.item, self.size, self.position, = status
+        ancestors = []
+        elem = item
+        while True:
+            parent = self.get_parent(elem)
+            if parent is None:
+                break
+            else:
+                ancestors.append(parent)
+                elem = parent
 
-    def iter_results(self, results):
-        """Iterates results in document order."""
-        status = self.item, self.size, self.position
-        self.item = self.root.getroot() if is_document_node(self.root) else self.root
+        preceding = []
+        for elem in self.root.iter():  # pragma: no cover
+            if elem is item:
+                break
+            elif elem not in ancestors:
+                preceding.append(elem)
 
-        for item in self._iter_context():
-            if item in results:
-                yield item
-            elif isinstance(item, AttributeNode):
-                # Match XSD decoded attributes
-                for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
-                    if attr[0] == item:
-                        yield attr
-            elif is_etree_element(item):
-                # Match XSD decoded elements
-                for elem in filter(lambda x: isinstance(x, TypedElement), results):
-                    if elem[0] is item:
-                        yield elem
-
-        self.item, self.size, self.position = status
-
-    def _iter_context(self):
-        elem = self._elem = self.item
-        yield elem
-        if elem.text is not None:
-            self.item = TextNode(elem.text)
+        self.size = len(preceding)
+        for self.position, self.item in enumerate(preceding, start=1):
             yield self.item
 
-        for self.item in map(lambda x: AttributeNode(*x), elem.attrib.items()):
-            yield self.item
-
-        if len(elem):
-            self.size = len(elem)
-            for self.position, self.item in enumerate(elem, start=1):
-                yield from self._iter_context()
+        self.item, self.size, self.position, self.axis = status
 
 
 class XPathSchemaContext(XPathContext):

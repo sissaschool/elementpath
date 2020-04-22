@@ -724,7 +724,7 @@ def select(self, context=None):
         if self[0].label == 'axis':
             selector = self[0].select(context)
         else:
-            selector = context.iter_selector(self[0].select, context.axis)
+            selector = context.iter_selector(self[0].select)
 
         for _ in selector:
             predicate = [x for x in self[1].select(context.copy())]
@@ -897,7 +897,7 @@ def select(self, context=None):
 @method(axis('preceding-sibling'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
-        for _ in context.iter_preceding_sibling(axis=self.symbol):
+        for _ in context.iter_siblings(axis=self.symbol):
             yield from self[0].select(context)
 
 

@@ -40,7 +40,19 @@ def is_etree_element(obj):
     return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
-def elem_iter_strings(elem):
+def etree_iter_nodes(elem, include_attributes=False):
+    if isinstance(elem, TypedElement):
+        elem = elem.elem
+
+    for e in elem.iter():
+        yield e
+        if e.text is not None:
+            yield TextNode(e.text)
+        if e.attrib and include_attributes:
+            yield from map(lambda x: AttributeNode(*x), e.attrib.items())
+
+
+def etree_iter_strings(elem):
     if isinstance(elem, TypedElement):
         elem = elem.elem
 
