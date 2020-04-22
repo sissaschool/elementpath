@@ -86,7 +86,7 @@ class XPath1Parser(Parser):
     # Labels and symbols admitted after a path step
     PATH_STEP_LABELS = ('axis', 'kind test')
     PATH_STEP_SYMBOLS = {
-        '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
+        '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '{'
     }
 
     schema = None  # To simplify the schema bind checks in compatibility with XPath2Parser
@@ -669,9 +669,7 @@ def select(self, context=None):
             yield from self[0].select(context)
     else:
         items = []
-        left_results = [x for x in self[0].select(context)]
-        context.size = len(left_results)
-        for context.position, context.item in enumerate(left_results):
+        for _ in context.iter_selector(self[0].select):
             if not is_xpath_node(context.item):
                 self.wrong_type("left operand must returns XPath nodes: {}".format(context.item))
             for result in self[1].select(context):
@@ -723,13 +721,18 @@ def led(self, left):
 @method('[')
 def select(self, context=None):
     if context is not None:
-        for position, item in enumerate(self[0].select(context), start=1):
+        if self[0].label == 'axis':
+            selector = self[0].select(context)
+        else:
+            selector = context.iter_selector(self[0].select, context.axis)
+
+        for _ in selector:
             predicate = [x for x in self[1].select(context.copy())]
             if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
-                if position == predicate[0]:
-                    yield item
+                if context.position == predicate[0]:
+                    yield context.item
             elif self.boolean_value(predicate):
-                yield item
+                yield context.item
 
 
 ###
@@ -739,7 +742,7 @@ def nud(self):
     self.parser.next_token.unexpected(')')
     self[:] = self.parser.expression(),
     self.parser.advance(')')
-    return self  # Skip self!! (remove a redundant level from selection/evaluation)
+    return self
 
 
 @method('(')
@@ -852,6 +855,7 @@ def select(self, context=None):
 
         if hasattr(elem, 'nsmap'):
             # Add element's namespaces for lxml (and use None for default namespace)
+            # noinspection PyUnresolvedReferences
             for prefix_, uri in elem.nsmap.items():
                 if prefix_ not in namespaces:
                     context.item = NamespaceNode(prefix_, uri)
@@ -893,14 +897,8 @@ def select(self, context=None):
 @method(axis('preceding-sibling'))
 def select(self, context=None):
     if context is not None and is_element_node(context.item):
-        item = context.item
-        for parent in context.iter_parent(axis=self.symbol):
-            for child in parent:
-                if child is item:
-                    break
-                else:
-                    context.item = child
-                    yield from self[0].select(context)
+        for _ in context.iter_preceding_sibling(axis=self.symbol):
+            yield from self[0].select(context)
 
 
 @method(axis('preceding'))
@@ -951,7 +949,7 @@ def evaluate(self, context=None):
 
 @method(function('position', nargs=0))
 def evaluate(self, context=None):
-    return context.position + 1 if context is not None else 0
+    return context.position if context is not None else 0
 
 
 @method(function('count', nargs=1))

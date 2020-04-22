@@ -23,7 +23,7 @@ class XPathContextTest(unittest.TestCase):
     def test_repr(self):
         self.assertEqual(
             repr(XPathContext(self.root)),
-            "XPathContext(root={0}, item={0}, position=0, size=1, axis=None)".format(self.root)
+            "XPathContext(root={0}, item={0}, position=1, size=1, axis=None)".format(self.root)
         )
 
     def test_copy(self):

@@ -63,16 +63,21 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 if self.current_env_vars[v] is not None:
                     os.environ[v] = self.current_env_vars[v]
 
-    def test_xpath_tokenizer2(self):
+    def test_xpath_tokenizer(self):
+        super(XPath2ParserTest, self).test_xpath_tokenizer()
         self.check_tokenizer("(: this is a comment :)",
                              ['(:', '', 'this', '', 'is', '', 'a', '', 'comment', '', ':)'])
         self.check_tokenizer("last (:", ['last', '', '(:'])
 
-    def test_token_tree2(self):
+    def test_token_tree(self):
+        super(XPath2ParserTest, self).test_token_tree()
         self.check_tree('(1 + 6, 2, 10 - 4)', '(, (, (+ (1) (6)) (2)) (- (10) (4)))')
         self.check_tree('/A/B2 union /A/B1', '(union (/ (/ (A)) (B2)) (/ (/ (A)) (B1)))')
+        self.check_tree("//text/(preceding-sibling::text)[1]",
+                        '(/ (// (text)) ([ (preceding-sibling (text)) (1)))')
 
-    def test_token_source2(self):
+    def test_token_source(self):
+        super(XPath2ParserTest, self).test_token_source()
         self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
         self.check_source("$myaddress treat as element(*, USAddress)",
                           "$myaddress treat as element(*, USAddress)")
@@ -281,8 +286,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("sum(//price[../available = '0'])", 5, context)
         self.check_value("sum(//price[../available = true()])", 20, context)
         self.check_value("sum(//price[../available = false()])", 10, context)
-
-
 
     def test_comparison_of_sequences(self):
         super(XPath2ParserTest, self).test_comparison_of_sequences()
@@ -757,7 +760,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             <book><isbn>1558604820</isbn><price>13.50</price></book>
             <book><isbn>1558604820</isbn><price>-0.1</price></book>
         </books>''')
-        expected_values = [ Decimal('12.5'), Decimal('13.5'), Decimal('-0.1') ]
+        expected_values = [Decimal('12.5'), Decimal('13.5'), Decimal('-0.1')]
         self.assertEqual(3, len(select(root, "//book")))
         for book in iter_select(root, "//book"):
             context = XPathContext(root=root, item=book)
@@ -766,6 +769,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_element_decimal_comparison_after_round(self):
         self.check_value('xs:decimal(0.36) = round(0.36*100) div 100', True)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):

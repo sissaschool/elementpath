@@ -180,6 +180,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_tree("false() or true()", '(or (false) (true))')
         self.check_tree("./A/B[C][D]/E", '(/ (/ (/ (.) (A)) ([ ([ (B) (C)) (D))) (E))')
         self.check_tree("string(xml:lang)", '(string (: (xml) (lang)))')
+        self.check_tree("//text/preceding-sibling::text[1]",
+                        '(/ (// (text)) ([ (preceding-sibling (text)) (1)))')
 
     def test_token_source(self):
         self.check_source(' child ::B1', 'child::B1')
@@ -357,11 +359,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         context = XPathContext(root, item=root[1], size=3, position=3)
         self.check_value("position()", 0)
-        self.check_value("position()", 4, context=context)
+        self.check_value("position()", 3, context=context)
         self.check_value("position()<=2", True)
         self.check_value("position()<=2", False, context=context)
-        self.check_value("position()=4", True, context=context)
-        self.check_value("position()=3", False, context=context)
+        self.check_value("position()=3", True, context=context)
+        self.check_value("position()=2", False, context=context)
         self.check_value("last()", 0)
         self.check_value("last()", 3, context=context)
         self.check_value("last()-1", 2, context=context)
@@ -781,6 +783,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("9 - 1 + 6", 14)
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
+        self.check_value('(2 + 4) * 5', 30)
+        self.check_value('2 + 4 * 5', 22)
 
     def test_div_operator(self):
         self.check_value("5 div 2", 2.5)
@@ -1261,6 +1265,45 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             # XPath 1.0 ignores the default namespace declarations
             self.check_selector("name(B1)", root, '', namespaces={'': "http://xpath.test/ns"})
+
+    def test_issue_25_with_count_function(self):
+        root = lxml_etree.fromstring("""
+            <line>
+                <text size="12.482">C</text>
+                <text size="12.333">A</text>
+                <text size="12.333">P</text>
+                <text size="12.333">I</text>
+                <text size="12.482">T</text>
+                <text size="12.482">O</text>
+                <text size="12.482">L</text>
+                <text size="12.482">O</text>
+                <text></text>
+                <text size="12.482">I</text>
+                <text size="12.482">I</text>
+                <text size="12.482">I</text>
+                <text></text>
+            </line>""")
+
+        path = '//text/preceding-sibling::text'
+        self.check_selector(path, root, root[:-1])
+
+        self.check_tree('//text[7]/preceding-sibling::text[1]',
+                        '(/ (// ([ (text) (7))) ([ (preceding-sibling (text)) (1)))')
+
+        if self.parser.version != '1.0':
+            self.check_tree('//text[7]/(preceding-sibling::text)[1]',
+                            '(/ (// ([ (text) (7))) ([ (preceding-sibling (text)) (1)))')
+            path = '//text[7]/(preceding-sibling::text)[2]'
+            self.check_selector(path, root, [root[1]])
+
+        path = '//text[7]/preceding-sibling::text[2]'
+        self.check_selector(path, root, [root[4]])
+
+        path = 'count(//text[@size="12.482"][not(preceding-sibling::text[1][@size="12.482"])])'
+        self.check_selector(path, root, 3)
+
+        path = '//text[@size="12.482"][not(preceding-sibling::text[1][@size="12.482"])]'
+        self.check_selector(path, root, [root[0], root[4], root[9]])
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
