@@ -58,11 +58,10 @@ def etree_iter_nodes(elem, with_root=True, with_attributes=False):
 def etree_iter_strings(elem):
     if isinstance(elem, TypedElement):
         elem = elem.elem
-    elif callable(elem.tag):
-        yield elem.text
-        return
 
     for e in elem.iter():
+        if callable(e.tag):
+            continue
         if e.text is not None:
             yield e.text
         if e.tail is not None and e is not elem:

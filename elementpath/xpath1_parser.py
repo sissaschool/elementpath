@@ -811,7 +811,7 @@ def select(self, context=None):
 @method(axis('parent'))
 def select(self, context=None):
     if context is not None:
-        for _ in context.iter_parent(axis=self.symbol):
+        for _ in context.iter_parent():
             yield from self[0].select(context)
 
 

@@ -10,6 +10,9 @@
 """
 XSD atomic datatypes for XPath. Includes a class for UntypedAtomic data and some
 classes for XSD datetime and duration types.
+
+TODO for v1.5: Create special wrapper classes for xs:double and other numerical
+    types for the properly working of 'instance of' tests.
 """
 from abc import ABCMeta, abstractmethod
 import operator

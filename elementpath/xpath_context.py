@@ -227,8 +227,12 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter_children_or_self(self, item=None, child_axis=False):
-        """Iterator for 'child' forward axis and '/' step."""
+    def iter_children_or_self(self, child_axis=False):
+        """
+        Iterator for 'child' forward axis and '/' step.
+
+        :param child_axis: if set to `True` use the child axis anyway.
+        """
         if not child_axis and self.axis is not None:
             yield self.item
             return
@@ -236,9 +240,7 @@ class XPathContext(object):
         status = self.item, self.size, self.position, self.axis
         self.axis = 'child'
 
-        if item is not None:
-            self.item = item[0] if isinstance(item, TypedElement) else item
-        elif isinstance(self.item, TypedElement):
+        if isinstance(self.item, TypedElement):
             self.item = self.item[0]
 
         if self.item is None:
@@ -256,7 +258,7 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter_parent(self, axis=None):
+    def iter_parent(self):
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item[0])
@@ -265,7 +267,7 @@ class XPathContext(object):
 
         if parent is not None:
             status = self.item, self.size, self.position, self.axis
-            self.axis = axis
+            self.axis = 'parent'
 
             self.item = parent
             self.size = self.position = 1
@@ -276,24 +278,27 @@ class XPathContext(object):
     def iter_siblings(self, axis=None):
         """
         Iterator for 'following-sibling' forward axis and 'preceding-sibling' reverse axis.
+
+        :param axis: the context axis, default is 'following-sibling'.
         """
         if isinstance(self.item, TypedElement):
-            parent = self.get_parent(self.item[0])
+            item = self.item[0]
         elif not is_etree_element(self.item) or callable(self.item.tag):
             return
         else:
-            parent = self.get_parent(self.item)
+            item = self.item
 
+        parent = self.get_parent(item)
         if parent is None:
             return
 
         status = self.item, self.size, self.position, self.axis
-        self.axis = axis
+        self.axis = axis or 'following-sibling'
 
         siblings = []
         if axis == 'preceding-sibling':
-            for child in parent:
-                if child is self.item:
+            for child in parent:  # pragma: no cover
+                if child is item:
                     break
                 siblings.append(child)
 
@@ -306,7 +311,7 @@ class XPathContext(object):
             for child in parent:
                 if follows:
                     siblings.append(child)
-                elif self.item is child:
+                elif child is item:
                     follows = True
 
             self.size = len(siblings)
@@ -318,6 +323,9 @@ class XPathContext(object):
     def iter_descendants(self, item=None, axis=None):
         """
         Iterator for 'descendant' and 'descendant-or-self' forward axes and '//' shortcut.
+
+        :param item: use another item instead of the context's item.
+        :param axis: the context axis, for default has no explicit axis.
         """
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
@@ -334,7 +342,7 @@ class XPathContext(object):
         elif not is_element_node(self.item):
             return
 
-        if axis in ('descendant', 'following'):
+        if axis == 'descendant':
             descendants = [x for x in etree_iter_nodes(self.item, with_root=False)]
         else:
             descendants = [x for x in etree_iter_nodes(self.item)]
@@ -345,14 +353,16 @@ class XPathContext(object):
 
         self.item, self.size, self.position, self.axis = status
 
-    def iter_ancestors(self, item=None, axis=None):
-        """Iterator for 'ancestor-or-self' and 'ancestor' reverse axes."""
-        status = self.item, self.size, self.position, self.axis
-        self.axis = axis
+    def iter_ancestors(self, axis=None):
+        """
+        Iterator for 'ancestor-or-self' and 'ancestor' reverse axes.
 
-        if item is not None:
-            self.item = item[0] if isinstance(item, TypedElement) else item
-        elif isinstance(self.item, TypedElement):
+        :param axis: the context axis, default is 'ancestor-or-self'.
+        """
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis or 'ancestor-or-self'
+
+        if isinstance(self.item, TypedElement):
             self.item = self.item[0]
 
         ancestors = [self.item] if axis == 'ancestor-or-self' else []
@@ -361,7 +371,7 @@ class XPathContext(object):
             ancestors.append(parent)
             parent = self.get_parent(parent)
 
-        self.size = self.position = len(ancestors)
+        self.size = self.position = len(ancestors) or 1
         for self.item in reversed(ancestors):
             yield self.item
             self.position -= 1
@@ -371,7 +381,7 @@ class XPathContext(object):
     def iter_preceding(self):
         """Iterator for 'preceding' reverse axis."""
         item = self.item[0] if isinstance(self.item, TypedElement) else self.item
-        if not is_etree_element(item) or item is self.root:
+        if not is_etree_element(item) or item is self.root or callable(item.tag):
             return
 
         status = self.item, self.size, self.position, self.axis

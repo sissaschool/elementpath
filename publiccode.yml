@@ -46,7 +46,7 @@ description:
       Python library that provides XPath 1.0/2.0 parsers and selectors for
       ElementTree and lxml
     longDescription: |
-      This is a library for Python 2.7/3.5+ that provides XPath 1.0 and 2.0
+      This is a library for Python 3.5+ that provides XPath 1.0 and 2.0
       selectors for Python's ElementTree XML data structures, both for the
       standard **ElementTree** library and for the **lxml** library. For lxml
       this package can be useful for providing XPath 2.0 selectors, because lxml
@@ -55,8 +55,7 @@ description:
 
       ## Installation and usage
 
-      You can install the package with _pip_ in a Python 2.7 or Python 3.5+
-      environment:
+      You can install the package with _pip_ in a Python 3.5+ environment:
 
       ~~~~  
 

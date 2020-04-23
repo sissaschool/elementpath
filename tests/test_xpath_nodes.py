@@ -17,7 +17,7 @@ from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     etree_deep_equal, is_element_node, is_attribute_node, is_comment_node, \
     is_document_node, is_namespace_node, is_processing_instruction_node, \
     is_text_node, node_attributes, node_base_uri, node_document_uri, \
-    node_children, node_nilled, node_kind, node_name
+    node_children, node_nilled, node_kind, node_name, etree_iter_nodes
 
 
 class XPathNodesTest(unittest.TestCase):
@@ -28,11 +28,32 @@ class XPathNodesTest(unittest.TestCase):
         self.assertFalse(is_etree_element('text'))
         self.assertFalse(is_etree_element(None))
 
+    def test_elem_iter_nodes_function(self):
+        root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')
+
+        result = [root, TextNode('text1\n'), root[0], TextNode('text2'),
+                  root[1], root[2], root[2][0], TextNode('text3')]
+
+        self.assertListEqual(list(etree_iter_nodes(root)), result)
+        self.assertListEqual(list(etree_iter_nodes(root, with_root=False)), result[1:])
+        self.assertListEqual(list(etree_iter_nodes(TypedElement(root, 'text1'))), result)
+
+        result = result[:4] + [AttributeNode('a', '10')] + result[4:]
+        self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
+
+        comment = ElementTree.Comment('foo')
+        root[1].append(comment)
+        self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
+
     def test_elem_iter_strings_function(self):
         root = ElementTree.XML('<A>text1\n<B1>text2</B1>tail1<B2/><B3><C1>text3</C1></B3>tail2</A>')
         result = ['text1\n', 'text2', 'tail1', 'tail2', 'text3']
         self.assertListEqual(list(etree_iter_strings(root)), result)
         self.assertListEqual(list(etree_iter_strings(TypedElement(root, 'text1'))), result)
+
+        comment = ElementTree.Comment('foo')
+        root[1].append(comment)
+        self.assertListEqual(list(etree_iter_strings(root)), result)
 
     def test_etree_deep_equal_function(self):
         root = ElementTree.XML('<A><B1>10</B1><B2 max="20"/>end</A>')
@@ -122,7 +143,8 @@ class XPathNodesTest(unittest.TestCase):
         document = ElementTree.parse(io.StringIO(xml_test))
         self.assertEqual(node_document_uri(document), '/root')
 
-        xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="http://xpath.test" />'
+        xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" ' \
+                   'xml:base="http://xpath.test" />'
         document = ElementTree.parse(io.StringIO(xml_test))
         self.assertEqual(node_document_uri(document), 'http://xpath.test')
 
@@ -130,7 +152,8 @@ class XPathNodesTest(unittest.TestCase):
         document = ElementTree.parse(io.StringIO(xml_test))
         self.assertIsNone(node_document_uri(document))
 
-        xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="http://[xpath.test" />'
+        xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" ' \
+                   'xml:base="http://[xpath.test" />'
         document = ElementTree.parse(io.StringIO(xml_test))
         self.assertIsNone(node_document_uri(document))
 

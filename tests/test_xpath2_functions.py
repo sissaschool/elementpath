@@ -526,7 +526,6 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:empty(fn:remove(("hello"), 1))', True)
         self.check_value('fn:empty((xs:double("0")))', False)
 
-
     def test_exists_function(self):
         self.check_value('fn:exists(("hello", "world"))', True)
         self.check_value('fn:exists(())', False)
