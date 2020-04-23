@@ -524,11 +524,14 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
         self.check_value('fn:empty(())', True)
         self.check_value('fn:empty(fn:remove(("hello"), 1))', True)
+        self.check_value('fn:empty((xs:double("0")))', False)
+
 
     def test_exists_function(self):
         self.check_value('fn:exists(("hello", "world"))', True)
         self.check_value('fn:exists(())', False)
         self.check_value('fn:exists(fn:remove(("hello"), 1))', False)
+        self.check_value('fn:exists((xs:int("-1873914410")))', True)
 
     def test_distinct_values_function(self):
         self.check_value('fn:distinct-values((1, 2.0, 3, 2))', [1, 2.0, 3])
