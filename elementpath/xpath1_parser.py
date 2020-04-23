@@ -756,75 +756,7 @@ def select(self, context=None):
 
 
 ###
-# Forward Axes
-@method(axis('self'))
-def select(self, context=None):
-    if context is not None:
-        for _ in context.iter_self():
-            yield from self[0].select(context)
-
-
-@method(axis('child'))
-def select(self, context=None):
-    if context is not None:
-        for _ in context.iter_children_or_self(child_axis=True):
-            yield from self[0].select(context)
-
-
-@method(axis('descendant'))
-def select(self, context=None):
-    if context is not None:
-        item = context.item
-        for _ in context.iter_descendants(axis=self.symbol):
-            if item is not context.item:
-                yield from self[0].select(context)
-
-
-@method(axis('descendant-or-self'))
-def select(self, context=None):
-    if context is not None:
-        for _ in context.iter_descendants(axis=self.symbol):
-            yield from self[0].select(context)
-
-
-@method(axis('following-sibling'))
-def select(self, context=None):
-    if context is not None:
-        if isinstance(context.item, TypedElement):
-            item = context.item[0]
-        elif is_etree_element(context.item):
-            item = context.item
-        else:
-            return
-
-        for parent in context.iter_parent(axis=self.symbol):
-            if isinstance(context, XPathSchemaContext):
-                for _ in context.iter_children_or_self(parent, child_axis=True):
-                    yield from self[0].select(context)
-
-            else:
-                follows = False
-                for child in context.iter_children_or_self(parent, child_axis=True):
-                    if follows:
-                        yield from self[0].select(context)
-                    elif item is child:
-                        follows = True
-
-
-@method(axis('following'))
-def select(self, context=None):
-    if context is not None:
-        descendants = set(context.iter_descendants(axis=self.symbol))
-        item = context.item
-        follows = False
-        for elem in context.iter_descendants(item=context.root, axis=self.symbol):
-            if follows:
-                if elem not in descendants:
-                    yield from self[0].select(context)
-            elif item is elem:
-                follows = True
-
-
+# Axes
 @method('@', bp=80)
 def nud(self):
     self[:] = self.parser.expression(rbp=80),
@@ -862,8 +794,20 @@ def select(self, context=None):
                     yield context.item
 
 
-###
-# Reverse Axes
+@method(axis('self'))
+def select(self, context=None):
+    if context is not None:
+        for _ in context.iter_self():
+            yield from self[0].select(context)
+
+
+@method(axis('child'))
+def select(self, context=None):
+    if context is not None:
+        for _ in context.iter_children_or_self(child_axis=True):
+            yield from self[0].select(context)
+
+
 @method(axis('parent'))
 def select(self, context=None):
     if context is not None:
@@ -871,33 +815,34 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('ancestor'))
+@method(axis('following-sibling'))
+@method(axis('preceding-sibling'))
 def select(self, context=None):
     if context is not None:
-        results = [
-            item
-            for _ in context.iter_ancestors(axis=self.symbol)
-            for item in self[0].select(context)
-        ]
-        for result in reversed(results):
-            context.item = result
-            yield result
+        for _ in context.iter_siblings(axis=self.symbol):
+            yield from self[0].select(context)
 
 
+@method(axis('ancestor'))
 @method(axis('ancestor-or-self'))
 def select(self, context=None):
     if context is not None:
-        item = context.item
-        for elem in reversed([x for x in context.iter_ancestors(axis=self.symbol)]):
-            context.item = elem
-            yield elem
-        yield item
+        for _ in context.iter_ancestors(axis=self.symbol):
+            yield from self[0].select(context)
 
 
-@method(axis('preceding-sibling'))
+@method(axis('descendant'))
+@method(axis('descendant-or-self'))
 def select(self, context=None):
-    if context is not None and is_element_node(context.item):
-        for _ in context.iter_siblings(axis=self.symbol):
+    if context is not None:
+        for _ in context.iter_descendants(axis=self.symbol):
+            yield from self[0].select(context)
+
+
+@method(axis('following'))
+def select(self, context=None):
+    if context is not None:
+        for _ in context.iter_followings():
             yield from self[0].select(context)
 
 

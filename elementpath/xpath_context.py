@@ -153,7 +153,7 @@ class XPathContext(object):
         if is_document_node(root):
             yield root
             root = root.getroot()
-        yield from etree_iter_nodes(root, include_attributes=True)
+        yield from etree_iter_nodes(root, with_attributes=True)
 
     def iter_results(self, results):
         """
@@ -166,7 +166,7 @@ class XPathContext(object):
 
         self.size = len(results)
         for self.position, self.item in \
-                enumerate(etree_iter_nodes(root, include_attributes=True), start=1):
+                enumerate(etree_iter_nodes(root, with_attributes=True), start=1):
             if self.item in results:
                 yield self.item
             elif isinstance(self.item, AttributeNode):
@@ -228,7 +228,7 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_children_or_self(self, item=None, child_axis=False):
-        """Iterator for 'child' axis and '/' step."""
+        """Iterator for 'child' forward axis and '/' step."""
         if not child_axis and self.axis is not None:
             yield self.item
             return
@@ -257,7 +257,7 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_parent(self, axis=None):
-        """Iterator for 'parent' axis and '..' shortcut."""
+        """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item[0])
         else:
@@ -274,17 +274,24 @@ class XPathContext(object):
             self.item, self.size, self.position, self.axis = status
 
     def iter_siblings(self, axis=None):
-        """Iterator for 'preceding-sibling' and 'following-sibling' axes."""
+        """
+        Iterator for 'following-sibling' forward axis and 'preceding-sibling' reverse axis.
+        """
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item[0])
+        elif not is_etree_element(self.item) or callable(self.item.tag):
+            return
         else:
             parent = self.get_parent(self.item)
 
-        if parent is not None:
-            status = self.item, self.size, self.position, self.axis
-            self.axis = axis
+        if parent is None:
+            return
 
-            siblings = []
+        status = self.item, self.size, self.position, self.axis
+        self.axis = axis
+
+        siblings = []
+        if axis == 'preceding-sibling':
             for child in parent:
                 if child is self.item:
                     break
@@ -294,11 +301,24 @@ class XPathContext(object):
             for self.item in siblings:
                 yield self.item
                 self.position -= 1
+        else:
+            follows = False
+            for child in parent:
+                if follows:
+                    siblings.append(child)
+                elif self.item is child:
+                    follows = True
 
-            self.item, self.size, self.position, self.axis = status
+            self.size = len(siblings)
+            for self.position, self.item in enumerate(siblings, start=1):
+                yield self.item
+
+        self.item, self.size, self.position, self.axis = status
 
     def iter_descendants(self, item=None, axis=None):
-        """Iterator for 'descendant' and 'descendant-or-self' axes and '//' shortcut."""
+        """
+        Iterator for 'descendant' and 'descendant-or-self' forward axes and '//' shortcut.
+        """
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
 
@@ -314,7 +334,11 @@ class XPathContext(object):
         elif not is_element_node(self.item):
             return
 
-        descendants = [x for x in etree_iter_nodes(self.item)]
+        if axis in ('descendant', 'following'):
+            descendants = [x for x in etree_iter_nodes(self.item, with_root=False)]
+        else:
+            descendants = [x for x in etree_iter_nodes(self.item)]
+
         self.size = len(descendants)
         for self.position, self.item in enumerate(descendants, start=1):
             yield self.item
@@ -322,7 +346,7 @@ class XPathContext(object):
         self.item, self.size, self.position, self.axis = status
 
     def iter_ancestors(self, item=None, axis=None):
-        """Iterator for 'ancestor-or-self' and 'ancestor' axes."""
+        """Iterator for 'ancestor-or-self' and 'ancestor' reverse axes."""
         status = self.item, self.size, self.position, self.axis
         self.axis = axis
 
@@ -331,20 +355,21 @@ class XPathContext(object):
         elif isinstance(self.item, TypedElement):
             self.item = self.item[0]
 
-        ancestors = []
+        ancestors = [self.item] if axis == 'ancestor-or-self' else []
         parent = self.get_parent(self.item)
         while parent is not None:
             ancestors.append(parent)
             parent = self.get_parent(parent)
 
-        self.size = len(ancestors)
-        for self.position, self.item in enumerate(ancestors, start=1):
+        self.size = self.position = len(ancestors)
+        for self.item in reversed(ancestors):
             yield self.item
+            self.position -= 1
 
         self.item, self.size, self.position, self.axis = status
 
     def iter_preceding(self):
-        """Iterator for 'preceding' axis."""
+        """Iterator for 'preceding' reverse axis."""
         item = self.item[0] if isinstance(self.item, TypedElement) else self.item
         if not is_etree_element(item) or item is self.root:
             return
@@ -371,6 +396,34 @@ class XPathContext(object):
 
         self.size = len(preceding)
         for self.position, self.item in enumerate(preceding, start=1):
+            yield self.item
+
+        self.item, self.size, self.position, self.axis = status
+
+    def iter_followings(self):
+        """Iterator for 'following' forward axis."""
+        status = self.item, self.size, self.position, self.axis
+        self.axis = 'following'
+
+        if self.item is None or self.item is self.root:
+            return
+        elif isinstance(self.item, TypedElement):
+            self.item = self.item[0]
+        elif not is_etree_element(self.item) or callable(self.item.tag):
+            return
+
+        descendants = set(etree_iter_nodes(self.item))
+        followings = []
+        follows = False
+        for elem in etree_iter_nodes(self.root):
+            if follows:
+                if elem not in descendants:
+                    followings.append(elem)
+            elif self.item is elem:
+                follows = True
+
+        self.size = len(followings)
+        for self.position, self.item in enumerate(followings, start=1):
             yield self.item
 
         self.item, self.size, self.position, self.axis = status

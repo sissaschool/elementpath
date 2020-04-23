@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.4.4`_ (2020-04-18)
+`v1.4.4`_ (2020-04-23)
 ======================
-* Integrate pull requests and bugfix
+* Improve XPath context and axes processing
+* Integrate pull requests and fix bug on predicate selector
 
 `v1.4.3`_ (2020-03-18)
 ======================
