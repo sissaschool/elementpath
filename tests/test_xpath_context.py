@@ -143,6 +143,24 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root, item=TypedElement(root[2][0], None))
         self.assertListEqual(list(context.iter_parent()), [root[2]])
 
+    def test_iter_siblings(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/></B3><B4/><B5/></A>')
+
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_siblings()), [])
+
+        context = XPathContext(root, item=root[2])
+        self.assertListEqual(list(context.iter_siblings()), list(root[3:]))
+
+        context = XPathContext(root, item=TypedElement(root[2], None))
+        self.assertListEqual(list(context.iter_siblings()), list(root[3:]))
+
+        context = XPathContext(root, item=root[2])
+        self.assertListEqual(list(context.iter_siblings('preceding-sibling')), list(root[:2]))
+
+        context = XPathContext(root, item=TypedElement(root[2], None))
+        self.assertListEqual(list(context.iter_siblings('preceding-sibling')), list(root[:2]))
+
     def test_iter_descendants(self):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')
         attr = AttributeNode('a1', '10')
@@ -157,7 +175,6 @@ class XPathContextTest(unittest.TestCase):
         attr = AttributeNode('a1', '10')
         self.assertListEqual(list(XPathContext(root).iter_ancestors()), [])
         self.assertListEqual(list(XPathContext(root, item=root[1]).iter_ancestors()), [root])
-        self.assertListEqual(list(XPathContext(root).iter_ancestors(item=root[1])), [root])
         self.assertListEqual(list(XPathContext(root, item=attr).iter_ancestors()), [])
 
         context = XPathContext(root, item=TypedElement(root[1], None))
@@ -190,6 +207,25 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root, item=root[2][1])
         self.assertListEqual(list(context.iter_preceding()),
                              [root[0], root[0][0], root[1], root[2][0]])
+
+    def test_iter_following(self):
+        root = ElementTree.XML('<A a="1"><B1><C1/></B1><B2/><B3><C1/></B3><B4/><B5/></A>')
+
+        context = XPathContext(root)
+        self.assertListEqual(list(context.iter_followings()), [])
+
+        context = XPathContext(root, item=AttributeNode('a', '1'))
+        self.assertListEqual(list(context.iter_followings()), [])
+
+        context = XPathContext(root, item=root[2])
+        self.assertListEqual(list(context.iter_followings()), list(root[3:]))
+
+        context = XPathContext(root, item=root[1])
+        result = [root[2], root[2][0], root[3], root[4]]
+        self.assertListEqual(list(context.iter_followings()), result)
+
+        context = XPathContext(root, item=TypedElement(root[1], None))
+        self.assertListEqual(list(context.iter_followings()), result)
 
     def test_iter_results(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')

@@ -288,6 +288,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context.item = AttributeNode('a', 'true')
         self.check_value('xs:dateTime(.)', ValueError, context=context)
 
+        context.item = DateTime(1969, 7, 20, 20, 18)
+        self.check_value('xs:dateTime(.)', DateTime(1969, 7, 20, 20, 18), context=context)
+
     def test_time_constructor(self):
         tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
@@ -339,6 +342,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML("<root>2017<a>-10-02</a></root>")
         context = XPathContext(root)
+        self.check_value('xs:date(.)', Date10(2017, 10, 2), context=context)
+
+        context = XPathContext(root, item=Date10(2017, 10, 2))
         self.check_value('xs:date(.)', Date10(2017, 10, 2), context=context)
 
     def test_gregorian_day_constructor(self):
@@ -536,6 +542,16 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         context.item = b'abcefghij'
         self.check_value('xs:base64Binary(.)', b'YWJjZWZnaGlq\n', context=context)
+
+    def test_untyped_atomic_constructor(self):
+        self.check_value('xs:untypedAtomic(())', [])
+
+        root = self.etree.XML('<root>1999</root>')
+        context = XPathContext(root)
+        self.check_value('xs:untypedAtomic(.)', UntypedAtomic(1999), context=context)
+
+        context.item = UntypedAtomic('true')
+        self.check_value('xs:untypedAtomic(.)', UntypedAtomic(True), context=context)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
