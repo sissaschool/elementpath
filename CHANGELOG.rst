@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.4.5`_ (2020-05-22)
+======================
+* Fix tokenizer and parsers for ambiguities between symbols and names
+
 `v1.4.4`_ (2020-04-23)
 ======================
 * Improve XPath context and axes processing
@@ -182,36 +186,37 @@ CHANGELOG
 * First stable version.
 
 
-.. _v1.0.0: https://github.com/brunato/elementpath/commit/b28da83
-.. _v1.0.1: https://github.com/brunato/elementpath/compare/v1.0.0...v1.0.1
-.. _v1.0.2: https://github.com/brunato/elementpath/compare/v1.0.1...v1.0.2
-.. _v1.0.3: https://github.com/brunato/elementpath/compare/v1.0.2...v1.0.3
-.. _v1.0.4: https://github.com/brunato/elementpath/compare/v1.0.3...v1.0.4
-.. _v1.0.5: https://github.com/brunato/elementpath/compare/v1.0.4...v1.0.5
-.. _v1.0.6: https://github.com/brunato/elementpath/compare/v1.0.5...v1.0.6
-.. _v1.0.7: https://github.com/brunato/elementpath/compare/v1.0.6...v1.0.7
-.. _v1.0.8: https://github.com/brunato/elementpath/compare/v1.0.7...v1.0.8
-.. _v1.0.10: https://github.com/brunato/elementpath/compare/v1.0.8...v1.0.10
-.. _v1.0.11: https://github.com/brunato/elementpath/compare/v1.0.10...v1.0.11
-.. _v1.0.12: https://github.com/brunato/elementpath/compare/v1.0.11...v1.0.12
-.. _v1.1.0: https://github.com/brunato/elementpath/compare/v1.0.12...v1.1.0
-.. _v1.1.1: https://github.com/brunato/elementpath/compare/v1.1.0...v1.1.1
-.. _v1.1.2: https://github.com/brunato/elementpath/compare/v1.1.1...v1.1.2
-.. _v1.1.3: https://github.com/brunato/elementpath/compare/v1.1.2...v1.1.3
-.. _v1.1.4: https://github.com/brunato/elementpath/compare/v1.1.3...v1.1.4
-.. _v1.1.5: https://github.com/brunato/elementpath/compare/v1.1.4...v1.1.5
-.. _v1.1.6: https://github.com/brunato/elementpath/compare/v1.1.5...v1.1.6
-.. _v1.1.7: https://github.com/brunato/elementpath/compare/v1.1.6...v1.1.7
-.. _v1.1.8: https://github.com/brunato/elementpath/compare/v1.1.7...v1.1.8
-.. _v1.1.9: https://github.com/brunato/elementpath/compare/v1.1.8...v1.1.9
-.. _v1.2.0: https://github.com/brunato/elementpath/compare/v1.1.9...v1.2.0
-.. _v1.2.1: https://github.com/brunato/elementpath/compare/v1.2.0...v1.2.1
-.. _v1.3.0: https://github.com/brunato/elementpath/compare/v1.2.1...v1.3.0
-.. _v1.3.1: https://github.com/brunato/elementpath/compare/v1.3.0...v1.3.1
-.. _v1.3.2: https://github.com/brunato/elementpath/compare/v1.3.1...v1.3.2
-.. _v1.3.3: https://github.com/brunato/elementpath/compare/v1.3.2...v1.3.3
-.. _v1.4.0: https://github.com/brunato/elementpath/compare/v1.3.3...v1.4.0
-.. _v1.4.1: https://github.com/brunato/elementpath/compare/v1.4.0...v1.4.1
-.. _v1.4.2: https://github.com/brunato/elementpath/compare/v1.4.1...v1.4.2
-.. _v1.4.3: https://github.com/brunato/elementpath/compare/v1.4.2...v1.4.3
-.. _v1.4.4: https://github.com/brunato/elementpath/compare/v1.4.3...v1.4.4
+.. _v1.0.0: https://github.com/sissaschool/elementpath/commit/b28da83
+.. _v1.0.1: https://github.com/sissaschool/elementpath/compare/v1.0.0...v1.0.1
+.. _v1.0.2: https://github.com/sissaschool/elementpath/compare/v1.0.1...v1.0.2
+.. _v1.0.3: https://github.com/sissaschool/elementpath/compare/v1.0.2...v1.0.3
+.. _v1.0.4: https://github.com/sissaschool/elementpath/compare/v1.0.3...v1.0.4
+.. _v1.0.5: https://github.com/sissaschool/elementpath/compare/v1.0.4...v1.0.5
+.. _v1.0.6: https://github.com/sissaschool/elementpath/compare/v1.0.5...v1.0.6
+.. _v1.0.7: https://github.com/sissaschool/elementpath/compare/v1.0.6...v1.0.7
+.. _v1.0.8: https://github.com/sissaschool/elementpath/compare/v1.0.7...v1.0.8
+.. _v1.0.10: https://github.com/sissaschool/elementpath/compare/v1.0.8...v1.0.10
+.. _v1.0.11: https://github.com/sissaschool/elementpath/compare/v1.0.10...v1.0.11
+.. _v1.0.12: https://github.com/sissaschool/elementpath/compare/v1.0.11...v1.0.12
+.. _v1.1.0: https://github.com/sissaschool/elementpath/compare/v1.0.12...v1.1.0
+.. _v1.1.1: https://github.com/sissaschool/elementpath/compare/v1.1.0...v1.1.1
+.. _v1.1.2: https://github.com/sissaschool/elementpath/compare/v1.1.1...v1.1.2
+.. _v1.1.3: https://github.com/sissaschool/elementpath/compare/v1.1.2...v1.1.3
+.. _v1.1.4: https://github.com/sissaschool/elementpath/compare/v1.1.3...v1.1.4
+.. _v1.1.5: https://github.com/sissaschool/elementpath/compare/v1.1.4...v1.1.5
+.. _v1.1.6: https://github.com/sissaschool/elementpath/compare/v1.1.5...v1.1.6
+.. _v1.1.7: https://github.com/sissaschool/elementpath/compare/v1.1.6...v1.1.7
+.. _v1.1.8: https://github.com/sissaschool/elementpath/compare/v1.1.7...v1.1.8
+.. _v1.1.9: https://github.com/sissaschool/elementpath/compare/v1.1.8...v1.1.9
+.. _v1.2.0: https://github.com/sissaschool/elementpath/compare/v1.1.9...v1.2.0
+.. _v1.2.1: https://github.com/sissaschool/elementpath/compare/v1.2.0...v1.2.1
+.. _v1.3.0: https://github.com/sissaschool/elementpath/compare/v1.2.1...v1.3.0
+.. _v1.3.1: https://github.com/sissaschool/elementpath/compare/v1.3.0...v1.3.1
+.. _v1.3.2: https://github.com/sissaschool/elementpath/compare/v1.3.1...v1.3.2
+.. _v1.3.3: https://github.com/sissaschool/elementpath/compare/v1.3.2...v1.3.3
+.. _v1.4.0: https://github.com/sissaschool/elementpath/compare/v1.3.3...v1.4.0
+.. _v1.4.1: https://github.com/sissaschool/elementpath/compare/v1.4.0...v1.4.1
+.. _v1.4.2: https://github.com/sissaschool/elementpath/compare/v1.4.1...v1.4.2
+.. _v1.4.3: https://github.com/sissaschool/elementpath/compare/v1.4.2...v1.4.3
+.. _v1.4.4: https://github.com/sissaschool/elementpath/compare/v1.4.3...v1.4.4
+.. _v1.4.5: https://github.com/sissaschool/elementpath/compare/v1.4.4...v1.4.5

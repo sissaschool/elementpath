@@ -543,10 +543,8 @@ def select(self, context=None):
 @method('treat', bp=61)
 def led(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
-    next_token = self.parser.next_token
-    if next_token.symbol not in ('(name)', ':') and \
-            next_token.label not in ('kind test', 'sequence type'):
-        next_token.wrong_syntax()
+    if self.parser.next_token.label not in ('kind test', 'sequence type'):
+        self.parser.expected_next('(name)', ':')
 
     self[:] = left, self.parser.expression(rbp=self.rbp)
     next_symbol = self.parser.next_token.symbol
@@ -908,14 +906,11 @@ def select(self, context=None):
 def nud(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol != ')':
-        if self.parser.next_token.symbol not in {'(name)', ':', '*'}:
-            self.parser.next_token.wrong_syntax('a QName or a wildcard expected')
+        self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
         self[0:] = self.parser.expression(5),
         if self.parser.next_token.symbol == ',':
             self.parser.advance(',')
-            if self.parser.next_token.symbol not in {'(name)', ':'}:
-
-                self.parser.next_token.wrong_syntax('a QName expected')
+            self.parser.expected_next('(name)', ':', message='a QName expected')
             self[1:] = self.parser.expression(5),
     self.parser.advance(')')
     self.value = None
@@ -953,8 +948,7 @@ def select(self, context=None):
 @method('schema-element')
 def nud(self):
     self.parser.advance('(')
-    if self.parser.next_token.symbol not in ('(name)', ':'):
-        self.parser.next_token.wrong_syntax('a name expected')
+    self.parser.expected_next('(name)', ':', message='a QName expected')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
     self.value = None
@@ -978,7 +972,7 @@ register('attribute', lbp=90, rbp=90, label=('kind test', 'axis'),
 def nud(self):
     if self.parser.next_token.symbol == '::':
         self.parser.advance('::')
-        self.parser.next_token.expected(
+        self.parser.expected_next(
             '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
             'attribute', 'schema-attribute', 'element', 'schema-element'
         )

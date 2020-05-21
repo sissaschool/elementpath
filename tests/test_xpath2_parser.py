@@ -770,6 +770,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_element_decimal_comparison_after_round(self):
         self.check_value('xs:decimal(0.36) = round(0.36*100) div 100', True)
 
+    def test_tokenizer_ambiguity(self):
+        # From issue #27
+        self.check_tokenizer("sch:pattern[@is-a]", ['sch', ':', 'pattern', '[', '@', 'is-a', ']'])
+        self.check_tokenizer("/is-a", ['/', 'is-a'])
+        self.check_tokenizer("/-is-a", ['/', '-', 'is-a'])
+
+    def test_token_ambiguity(self):
+        # Related to issue #27
+        self.check_tokenizer("/is", ['/', 'is'])
+        self.check_value('/is', [])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):

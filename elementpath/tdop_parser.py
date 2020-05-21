@@ -286,11 +286,13 @@ class ParserMeta(type):
         for k, v in sys.modules[cls.__module__].__dict__.items():
             if isinstance(v, ParserMeta) and v.__module__ == cls.__module__:
                 raise RuntimeError("Multiple parser class definitions per "
-                                   "module are not permitted: %r" % cls)
+                                   "module is not permitted: %r" % cls)
 
         # Checks and initializes class attributes
         if not hasattr(cls, 'token_base_class'):
             cls.token_base_class = Token
+        if not hasattr(cls, 'name_pattern'):
+            cls.name_pattern = re.compile(r'[A-Za-z0-9_]+')
         if 'tokenizer' not in namespace:
             cls.tokenizer = None
         if 'SYMBOLS' not in namespace:
@@ -325,6 +327,7 @@ class Parser(metaclass=ParserMeta):
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
     SYMBOLS = frozenset(('(string)', '(float)', '(decimal)', '(integer)', '(name)', '(end)'))
+    name_pattern = re.compile(r'[A-Za-z0-9_]+')
     token_base_class = Token
     tokenizer = None
     symbol_table = {}
@@ -548,6 +551,22 @@ class Parser(metaclass=ParserMeta):
         except IndexError:
             return False
 
+    def expected_next(self, *symbols, message=None):
+        """
+        Checks the next_token symbol with a list of symbols. Replaces with a
+        '(name)' token if check fails, '(name)' is an expected symbol and the
+        next_token's symbol is a also a name. Otherwise raises a syntax error.
+
+        :param symbols: a sequence of symbols.
+        :param message: optional error message.
+        """
+        if self.next_token.symbol in symbols:
+            return
+        elif '(name)' in symbols and self.name_pattern.match(self.next_token.symbol) is not None:
+            self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
+        else:
+            self.next_token.wrong_syntax(message)
+
     @classmethod
     def register(cls, symbol, **kwargs):
         """
@@ -562,7 +581,7 @@ class Parser(metaclass=ParserMeta):
             s.replace(r'\ ', r'\s+')
 
             if s.isalpha():
-                s = r'\b%s\b' % s
+                s = r'\b%s\b(?![\-\.])' % s
             elif s[-2:] == r'\(':
                 s = r'%s\s*%s' % (s[:-2], s[-2:])
             elif s[-4:] == r'\:\:':
@@ -716,8 +735,8 @@ class Parser(metaclass=ParserMeta):
 
     build_tokenizer = build  # For backward compatibility
 
-    @staticmethod
-    def create_tokenizer(symbol_table, name_pattern='[A-Za-z0-9_]+'):
+    @classmethod
+    def create_tokenizer(cls, symbol_table):
         """
         Returns a regex based tokenizer built from a symbol table of token classes.
         The returned tokenizer skips extra spaces between symbols.
@@ -727,7 +746,6 @@ class Parser(metaclass=ParserMeta):
         their patterns can't contain spaces.
 
         :param symbol_table: a dictionary containing the token classes of the formal language.
-        :param name_pattern: pattern to use to match names.
         """
         tokenizer_pattern_template = r"""
             ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)  # Literals (strings and numbers)
@@ -756,6 +774,6 @@ class Parser(metaclass=ParserMeta):
         pattern = tokenizer_pattern_template % (
             '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
             ''.join(character_patterns),
-            name_pattern
+            cls.name_pattern.pattern
         )
         return re.compile(pattern, re.VERBOSE)

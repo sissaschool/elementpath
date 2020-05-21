@@ -1069,12 +1069,12 @@ XsdBuiltin = namedtuple('XsdBuiltin', 'validator value')
 """A namedtuple-based type for describing XSD builtin types."""
 
 WHITESPACES_PATTERN = re.compile(r'\s+')
-NMTOKEN_PATTERN = re.compile(r'^[\w.\-:]+$')
-NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$')
-NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$')
+NMTOKEN_PATTERN = re.compile(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
+NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]*$')
+NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
 QNAME_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*):)?'
-    r'(?P<local>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*)$',
+    r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
+    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
