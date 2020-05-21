@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='1.4.4',
+    version='1.4.5',
     packages=['elementpath'],
     author='Davide Brunato',
     author_email='brunato@sissa.it',
@@ -35,13 +35,16 @@ setup(
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
-        'Topic :: Software Development :: Libraries'
+        'Topic :: Software Development :: Libraries',
+        'Topic :: Text Processing :: Markup :: XML',
     ]
 )

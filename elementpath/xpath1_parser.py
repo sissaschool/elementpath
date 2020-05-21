@@ -7,11 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import re
 import math
 import decimal
 from copy import copy
 
-from .exceptions import ElementPathSyntaxError, ElementPathNameError, MissingContextError
+from .exceptions import ElementPathNameError, MissingContextError
 from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
     NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
@@ -22,13 +23,6 @@ from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
     is_xpath_node, is_element_node, is_document_node, is_attribute_node, is_text_node, \
     is_comment_node, is_processing_instruction_node, node_name
-
-
-XML_NAME_CHARACTER = (
-    u"A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-    u"\u200C\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-)
-XML_NCNAME_PATTERN = u"[{0}][-.0-9\u00B7\u0300-\u036F\u203F-\u2040{0}]*".format(XML_NAME_CHARACTER)
 
 
 class XPath1Parser(Parser):
@@ -45,6 +39,7 @@ class XPath1Parser(Parser):
     in extended format, like the Python's ElementPath library. Default is `True`.
     """
     token_base_class = XPathToken
+    name_pattern = re.compile(r'[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*')
 
     SYMBOLS = Parser.SYMBOLS | {
         # Axes
@@ -98,10 +93,6 @@ class XPath1Parser(Parser):
             self.namespaces.update(namespaces)
         self.variables = dict(variables if variables is not None else [])
         self.strict = strict
-
-    @staticmethod
-    def create_tokenizer(symbol_table, name_pattern=XML_NCNAME_PATTERN):
-        return Parser.create_tokenizer(symbol_table, name_pattern)
 
     @property
     def version(self):
@@ -300,12 +291,13 @@ def led(self, left):
     else:
         left.expected('(name)', '*')
 
-    next_token = self.parser.next_token
+    if self.parser.next_token.label not in ('function', 'constructor'):
+        self.parser.expected_next('(name)', '*')
     if left.symbol == '(name)':
         namespace = self.get_namespace(left.value)
-        next_token.bind_namespace(namespace)
-    elif left.symbol == '*' and next_token.symbol != '(name)':
-        next_token.wrong_syntax()
+        self.parser.next_token.bind_namespace(namespace)
+    elif left.symbol == '*' and self.parser.next_token.symbol != '(name)':
+        self.parser.next_token.wrong_syntax()
 
     if self.parser.is_spaced():
         self.wrong_syntax("a QName cannot contains spaces before or after ':'")
@@ -376,7 +368,10 @@ def nud(self):
 
     namespace = self.parser.next_token.value + self.parser.raw_advance('}')
     self.parser.advance()
+    if self.parser.next_token.label not in ('function', 'constructor'):
+        self.parser.expected_next('(name)', '*')
     self.parser.next_token.bind_namespace(namespace)
+
     self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), \
         self.parser.expression(90)
     return self
@@ -407,7 +402,7 @@ def select(self, context=None):
 # Variables
 @method('$', bp=90)
 def nud(self):
-    self.parser.next_token.expected('(name)')
+    self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
     if ':' in self[0].value:
         self[0].wrong_syntax("variable reference requires a simple reference name")
@@ -628,13 +623,10 @@ def select(self, context=None):
 @method('//', bp=75)
 @method('/', bp=75)
 def nud(self):
-    next_token = self.parser.next_token
-    if next_token.symbol == '(end)' and self.symbol == '/':
+    if self.parser.next_token.symbol == '(end)' and self.symbol == '/':
         return self
-    elif next_token.symbol in self.parser.PATH_STEP_SYMBOLS:
-        pass
-    elif next_token.label not in self.parser.PATH_STEP_LABELS:
-        next_token.wrong_syntax()
+    elif self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
+        self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
 
     self[:] = self.parser.expression(75),
     return self
@@ -643,11 +635,8 @@ def nud(self):
 @method('//')
 @method('/')
 def led(self, left):
-    next_token = self.parser.next_token
-    if next_token.symbol in self.parser.PATH_STEP_SYMBOLS:
-        pass
-    elif next_token.label not in self.parser.PATH_STEP_LABELS:
-        next_token.wrong_syntax()
+    if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
+        self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
 
     self[:] = left, self.parser.expression(75)
     return self
@@ -759,9 +748,8 @@ def select(self, context=None):
 # Axes
 @method('@', bp=80)
 def nud(self):
+    self.parser.expected_next('*', '(name)', ':', message="invalid attribute specification")
     self[:] = self.parser.expression(rbp=80),
-    if self[0].symbol not in ('*', '(name)', ':'):
-        raise ElementPathSyntaxError("invalid attribute specification for XPath.")
     return self
 
 
