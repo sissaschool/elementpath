@@ -9,9 +9,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import re
 from collections import namedtuple
 
-from elementpath.tdop_parser import symbol_to_identifier, Parser
+from elementpath.tdop_parser import symbol_to_identifier, Parser, MultiLabel
 
 
 FakeToken = namedtuple('Token', 'symbol pattern')
@@ -21,7 +22,41 @@ def create_fake_tokens(symbols):
     return {s: FakeToken(s, s) for s in symbols}
 
 
+class ExpressionParser(Parser):
+    SYMBOLS = {'(integer)', '+', '-', '(name)', '(end)'}
+
+    @classmethod
+    def create_tokenizer(cls, symbol_table):
+        return re.compile(r'(\d+)| ([+\-]) | (\w+) | (\S) | \s+')
+
+
+ExpressionParser.literal('(integer)')
+ExpressionParser.register('(name)')
+ExpressionParser.register('(end)')
+
+
+@ExpressionParser.method(ExpressionParser.infix('+', bp=40))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) + self[1].evaluate(context)
+
+
+@ExpressionParser.method(ExpressionParser.infix('-', bp=40))
+def evaluate(self, context=None):
+    return self[0].evaluate(context) - self[1].evaluate(context)
+
+
+ExpressionParser.build()
+
+
 class TdopParserTest(unittest.TestCase):
+
+    def test_multi_label_class(self):
+        label = MultiLabel('function', 'constructor')
+        self.assertEqual(label, 'function')
+        self.assertEqual(label, 'constructor')
+        self.assertNotEqual(label, 'operator')
+        self.assertEqual(str(label), 'function_constructor')
+        self.assertEqual(hash(label), hash(('function', 'constructor')))
 
     def test_symbol_to_identifier_function(self):
         self.assertEqual(symbol_to_identifier('_cat10'), '_cat10')
@@ -63,6 +98,11 @@ class TdopParserTest(unittest.TestCase):
                 r"({http://www.w3.org/2000/09/xmldsig\#}"
             )
         )
+
+    def test_expression(self):
+        parser = ExpressionParser()
+        token = parser.parse('10 + 6')
+        self.assertEqual(token.evaluate(), 16)
 
 
 if __name__ == '__main__':
