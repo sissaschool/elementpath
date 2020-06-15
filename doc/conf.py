@@ -31,7 +31,7 @@ author = 'Davide Brunato'
 # The short X.Y version
 version = '1.4'
 # The full version, including alpha/beta/rc tags
-release = '1.4.5'
+release = '1.4.6'
 
 
 # -- General configuration ---------------------------------------------------
@@ -47,6 +47,9 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
 ]
+
+# Option for autodoc: do not add module name as prefix to classes or functions.
+add_module_names = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

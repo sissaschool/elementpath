@@ -36,6 +36,8 @@ class XPathContext(object):
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
     """
+    _iter_nodes = staticmethod(etree_iter_nodes)
+
     def __init__(self, root, item=None, position=1, size=1, axis=None,
                  variables=None, current_dt=None, timezone=None,
                  documents=None, collections=None, default_collection=None):
@@ -153,7 +155,7 @@ class XPathContext(object):
         if is_document_node(root):
             yield root
             root = root.getroot()
-        yield from etree_iter_nodes(root, with_attributes=True)
+        yield from self._iter_nodes(root, with_attributes=True)
 
     def iter_results(self, results):
         """
@@ -166,7 +168,7 @@ class XPathContext(object):
 
         self.size = len(results)
         for self.position, self.item in \
-                enumerate(etree_iter_nodes(root, with_attributes=True), start=1):
+                enumerate(self._iter_nodes(root, with_attributes=True), start=1):
             if self.item in results:
                 yield self.item
             elif isinstance(self.item, AttributeNode):
@@ -343,9 +345,9 @@ class XPathContext(object):
             return
 
         if axis == 'descendant':
-            descendants = [x for x in etree_iter_nodes(self.item, with_root=False)]
+            descendants = [x for x in self._iter_nodes(self.item, with_root=False)]
         else:
-            descendants = [x for x in etree_iter_nodes(self.item)]
+            descendants = [x for x in self._iter_nodes(self.item)]
 
         self.size = len(descendants)
         for self.position, self.item in enumerate(descendants, start=1):
@@ -422,10 +424,10 @@ class XPathContext(object):
         elif not is_etree_element(self.item) or callable(self.item.tag):
             return
 
-        descendants = set(etree_iter_nodes(self.item))
+        descendants = set(self._iter_nodes(self.item))
         followings = []
         follows = False
-        for elem in etree_iter_nodes(self.root):
+        for elem in self._iter_nodes(self.root):
             if follows:
                 if elem not in descendants:
                     followings.append(elem)

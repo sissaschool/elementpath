@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.4.6`_ (2020-06-15)
+======================
+* Fix XPathContext to let the subclasses replace the XPath nodes iterator function
+
 `v1.4.5`_ (2020-05-22)
 ======================
 * Fix tokenizer and parsers for ambiguities between symbols and names
@@ -220,3 +224,4 @@ CHANGELOG
 .. _v1.4.3: https://github.com/sissaschool/elementpath/compare/v1.4.2...v1.4.3
 .. _v1.4.4: https://github.com/sissaschool/elementpath/compare/v1.4.3...v1.4.4
 .. _v1.4.5: https://github.com/sissaschool/elementpath/compare/v1.4.4...v1.4.5
+.. _v1.4.6: https://github.com/sissaschool/elementpath/compare/v1.4.5...v1.4.6
