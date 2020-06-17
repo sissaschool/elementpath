@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.0.0`_ (2020-06-18)
+======================
+* Fix xs:dateTime datatype
+
 `v1.4.6`_ (2020-06-15)
 ======================
 * Fix XPathContext to let the subclasses replace the XPath nodes iterator function
@@ -225,3 +229,4 @@ CHANGELOG
 .. _v1.4.4: https://github.com/sissaschool/elementpath/compare/v1.4.3...v1.4.4
 .. _v1.4.5: https://github.com/sissaschool/elementpath/compare/v1.4.4...v1.4.5
 .. _v1.4.6: https://github.com/sissaschool/elementpath/compare/v1.4.5...v1.4.6
+.. _v2.0.0: https://github.com/sissaschool/elementpath/compare/v1.4.6...v2.0.0

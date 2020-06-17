@@ -540,7 +540,7 @@ class DateTime10(OrderedDateTime):
     _pattern = re.compile(
         r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
-        r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)?'
+        r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
