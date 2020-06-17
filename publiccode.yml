@@ -7,7 +7,7 @@ name: elementpath
 url: 'https://github.com/sissaschool/elementpath'
 landingURL: 'https://github.com/sissaschool/elementpath'
 releaseDate: '2020-06-15'
-softwareVersion: v1.4.6
+softwareVersion: v2.0.0
 developmentStatus: stable
 platforms:
   - linux

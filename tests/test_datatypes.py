@@ -197,7 +197,11 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIn("2nd argument has an invalid type <class 'str'>", str(err.exception))
 
         with self.assertRaises(ValueError) as err:
-            DateTime.fromstring('00-10-07')
+            DateTime.fromstring('2000-10-07')
+        self.assertIn("Invalid datetime string", str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            DateTime.fromstring('00-10-07T00:00:00')
         self.assertIn("Invalid datetime string", str(err.exception))
 
         with self.assertRaises(ValueError) as err:
@@ -238,7 +242,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(DateTime10(-1, 10, 7).iso_year, '-0001')
 
     def test_datetime_repr(self):
-        dt = DateTime.fromstring('2000-10-07')
+        dt = DateTime.fromstring('2000-10-07T00:00:00')
         self.assertEqual(repr(dt), "DateTime(2000, 10, 7, 0, 0, 0)")
         self.assertEqual(str(dt), '2000-10-07T00:00:00')
 
@@ -364,13 +368,13 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertTrue(mkdt("2005-04-04T24:00:00", tz) == mkdt("2005-04-05T00:00:00", tz))
         self.assertFalse(mkdt("2005-04-04T24:00:00", tz) != mkdt("2005-04-05T00:00:00", tz))
 
-        self.assertTrue(DateTime.fromstring("-1000-01-01") == DateTime.fromstring("-1000-01-01"))
-        self.assertTrue(DateTime.fromstring("-10000-01-01") == DateTime.fromstring("-10000-01-01"))
-        self.assertFalse(DateTime.fromstring("20000-01-01") != DateTime.fromstring("20000-01-01"))
-        self.assertFalse(DateTime.fromstring("-10000-01-02") == DateTime.fromstring("-10000-01-01"))
+        self.assertTrue(Date.fromstring("-1000-01-01") == Date.fromstring("-1000-01-01"))
+        self.assertTrue(Date.fromstring("-10000-01-01") == Date.fromstring("-10000-01-01"))
+        self.assertFalse(Date.fromstring("20000-01-01") != Date.fromstring("20000-01-01"))
+        self.assertFalse(Date.fromstring("-10000-01-02") == Date.fromstring("-10000-01-01"))
 
-        self.assertFalse(DateTime.fromstring("-10000-01-02") == (1, 2, 3))  # Wrong type
-        self.assertTrue(DateTime.fromstring("-10000-01-02") != (1, 2, 3))  # Wrong type
+        self.assertFalse(Date.fromstring("-10000-01-02") == (1, 2, 3))  # Wrong type
+        self.assertTrue(Date.fromstring("-10000-01-02") != (1, 2, 3))  # Wrong type
 
     def test_lt_operator(self):
         mkdt = DateTime.fromstring
