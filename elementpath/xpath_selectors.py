@@ -15,12 +15,12 @@ def select(root, path, namespaces=None, parser=None, **kwargs):
     """
     XPath selector function that apply a *path* expression on *root* Element.
 
-    :param root: An Element or ElementTree instance.
-    :param path: The XPath expression.
-    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
-    :param parser: The parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: Other optional parameters for the XPath parser instance.
-    :return: A list with XPath nodes or a basic type for expressions based \
+    :param root: an Element or ElementTree instance.
+    :param path: the XPath expression.
+    :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
+    :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
+    :param kwargs: other optional parameters for the XPath parser instance.
+    :return: a list with XPath nodes or a basic type for expressions based \
     on a function or literal.
     """
     parser = (parser or XPath2Parser)(namespaces, **kwargs)
@@ -34,12 +34,12 @@ def iter_select(root, path, namespaces=None, parser=None, **kwargs):
     A function that creates an XPath selector generator for apply a *path* expression
     on *root* Element.
 
-    :param root: An Element or ElementTree instance.
-    :param path: The XPath expression.
-    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
-    :param parser: The parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: Other optional parameters for the XPath parser instance.
-    :return: A generator of the XPath expression results.
+    :param root: an Element or ElementTree instance.
+    :param path: the XPath expression.
+    :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
+    :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
+    :param kwargs: other optional parameters for the XPath parser instance.
+    :return: a generator of the XPath expression results.
     """
     parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = parser.parse(path)
@@ -52,16 +52,16 @@ class Selector(object):
     XPath selector class. Create an instance of this class if you want to apply an XPath
     selector to several target data.
 
-    :param path: The XPath expression.
-    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
-    :param parser: The parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: Other optional parameters for the XPath parser instance.
+    :param path: the XPath expression.
+    :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
+    :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
+    :param kwargs: other optional parameters for the XPath parser instance.
 
-    :ivar path: The XPath expression.
+    :ivar path: the XPath expression.
     :vartype path: str
-    :ivar parser: The parser instance.
+    :ivar parser: the parser instance.
     :vartype parser: XPath1Parser or XPath2Parser
-    :ivar root_token: The root of tokens tree compiled from path.
+    :ivar root_token: the root of tokens tree compiled from path.
     :vartype root_token: XPathToken
     """
     def __init__(self, path, namespaces=None, parser=None, **kwargs):
@@ -79,24 +79,26 @@ class Selector(object):
         """A dictionary with mapping from namespace prefixes into URIs."""
         return self.parser.namespaces
 
-    def select(self, root):
+    def select(self, root, **kwargs):
         """
         Applies the instance's XPath expression on *root* Element.
 
-        :param root: An Element or ElementTree instance.
-        :return: A list with XPath nodes or a basic type for expressions based on \
+        :param root: an Element or ElementTree instance.
+        :param kwargs: other optional parameters for the XPath dynamic context.
+        :return: a list with XPath nodes or a basic type for expressions based on \
         a function or literal.
         """
-        context = XPathContext(root)
+        context = XPathContext(root, **kwargs)
         return self.root_token.get_results(context)
 
-    def iter_select(self, root):
+    def iter_select(self, root, **kwargs):
         """
         Creates an XPath selector generator for apply the instance's XPath expression
         on *root* Element.
 
-        :param root: An Element or ElementTree instance.
-        :return: A generator of the XPath expression results.
+        :param root: an Element or ElementTree instance.
+        :param kwargs: other optional parameters for the XPath dynamic context.
+        :return: a generator of the XPath expression results.
         """
-        context = XPathContext(root)
+        context = XPathContext(root, **kwargs)
         return self.root_token.select_results(context)
