@@ -962,16 +962,18 @@ class UntypedAtomic(object):
     :param value: the untyped value, usually a string.
     """
     def __init__(self, value):
-        if not isinstance(value, (str, bytes, int, float, decimal.Decimal)):
-            raise ElementPathTypeError("{!r} is not an atomic value".format(value))
-        elif isinstance(value, str):
+        if isinstance(value, str):
             self.value = value
         elif isinstance(value, bytes):
             self.value = value.decode('utf-8')
         elif isinstance(value, bool):
             self.value = 'true' if value else 'false'
-        else:
+        elif isinstance(value, UntypedAtomic):
+            self.value = value.value
+        elif isinstance(value, (AbstractDateTime, int, float, decimal.Decimal)):
             self.value = str(value)
+        else:
+            raise ElementPathTypeError("{!r} is not an atomic value".format(value))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
