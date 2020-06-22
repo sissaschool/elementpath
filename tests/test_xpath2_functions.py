@@ -129,7 +129,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_avg_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'),
-                               variables={
+                               variable_values={
                                    'd1': YearMonthDuration.fromstring("P20Y"),
                                    'd2': YearMonthDuration.fromstring("P10M"),
                                    'seq3': [3, 4, 5]
@@ -536,13 +536,13 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:distinct-values((1, 2.0, 3, 2))', [1, 2.0, 3])
         context = XPathContext(
             root=self.etree.XML('<root/>'),
-            variables={'x': [UntypedAtomic("foo"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
+            variable_values={'x': [UntypedAtomic("foo"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
         )
         self.check_value('fn:distinct-values($x)', ['foo', 'bar'], context)
 
         context = XPathContext(
             root=self.etree.XML('<root/>'),
-            variables={'x': [UntypedAtomic("foo"), float('nan'), UntypedAtomic("bar")]}
+            variable_values={'x': [UntypedAtomic("foo"), float('nan'), UntypedAtomic("bar")]}
         )
         token = self.parser.parse('fn:distinct-values($x)')
         results = token.evaluate(context)
@@ -556,7 +556,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
 
     def test_insert_before_function(self):
-        context = XPathContext(root=self.etree.XML('<root/>'), variables={'x': ['a', 'b', 'c']})
+        context = XPathContext(root=self.etree.XML('<root/>'), variable_values={'x': ['a', 'b', 'c']})
         self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
@@ -564,14 +564,14 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context.copy())
 
     def test_remove_function(self):
-        context = XPathContext(root=self.etree.XML('<root/>'), variables={'x': ['a', 'b', 'c']})
+        context = XPathContext(root=self.etree.XML('<root/>'), variable_values={'x': ['a', 'b', 'c']})
         self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
         self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove((), 3)', [])
 
     def test_reverse_function(self):
-        context = XPathContext(root=self.etree.XML('<root/>'), variables={'x': ['a', 'b', 'c']})
+        context = XPathContext(root=self.etree.XML('<root/>'), variable_values={'x': ['a', 'b', 'c']})
         self.check_value('reverse($x)', ['c', 'b', 'a'], context)
         self.check_value('fn:reverse(("hello"))', ['hello'], context)
         self.check_value('fn:reverse(())', [])
@@ -922,17 +922,21 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             self.check_selector("id('ID21256')", root, [root])
         self.assertIn('FODC0001', str(err.exception))
 
-        context = XPathContext(doc, variables={'x': 11})
+        with self.assertRaises(MissingContextError) as err:
+            self.check_value("id('ID21256')")
+        self.assertIn('XPDY0002', str(err.exception))
+
+        context = XPathContext(doc, variable_values={'x': 11})
         with self.assertRaises(ValueError) as err:
             self.check_value("id('ID21256', $x)", context=context)
         self.assertIn('FODC0001', str(err.exception))
 
-        context = XPathContext(doc, item=11, variables={'x': 11})
+        context = XPathContext(doc, item=11, variable_values={'x': 11})
         with self.assertRaises(TypeError) as err:
             self.check_value("id('ID21256', $x)", context=context)
         self.assertIn('XPTY0004', str(err.exception))
 
-        context = XPathContext(doc, item=root, variables={'x': root})
+        context = XPathContext(doc, item=root, variable_values={'x': root})
         self.check_value("id('ID21256', $x)", [root], context=context)
 
     def test_node_set_idref_function(self):
@@ -959,17 +963,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             self.check_selector("idref('ID21256')", root, [root])
         self.assertIn('FODC0001', str(err.exception))
 
-        context = XPathContext(doc, variables={'x': 11})
+        context = XPathContext(doc, variable_values={'x': 11})
         with self.assertRaises(ValueError) as err:
             self.check_value("idref('ID21256', $x)", context=context)
         self.assertIn('FODC0001', str(err.exception))
 
-        context = XPathContext(doc, item=11, variables={'x': 11})
+        context = XPathContext(doc, item=11, variable_values={'x': 11})
         with self.assertRaises(TypeError) as err:
             self.check_value("idref('ID21256', $x)", context=context)
         self.assertIn('XPTY0004', str(err.exception))
 
-        context = XPathContext(doc, item=root, variables={'x': root})
+        context = XPathContext(doc, item=root, variable_values={'x': root})
         self.check_value("idref('ID21256', $x)", [], context=context)
 
     def test_deep_equal_function(self):
@@ -979,7 +983,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                 <name last='Barker' first='Bob'/>
                 <name last='Parker' first='Peter'/>
             </attendees>""")
-        context = XPathContext(root, variables={'xt': root})
+        context = XPathContext(root, variable_values={'xt': root})
 
         self.check_value('fn:deep-equal($xt, $xt)', True, context=context)
         self.check_value('deep-equal($xt, $xt/*)', False, context=context)
@@ -991,7 +995,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal($xt/name[1], "Peter Parker")', False, context=context)
 
         root = self.etree.XML("""<A xmlns="http://xpath.test/ns"><B1/><B2/><B3/></A>""")
-        context = XPathContext(root, variables={'xt': root})
+        context = XPathContext(root, variable_values={'xt': root})
         self.check_value('deep-equal($xt, $xt)', True, context=context)
 
         self.check_value('deep-equal((1, 2, 3), (1, 2, 3))', True)
@@ -1003,7 +1007,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_adjust_datetime_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
-                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+                               variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
 
         self.check_value('fn:adjust-dateTime-to-timezone(xs:dateTime("2002-03-07T10:00:00-07:00"))',
                          DateTime.fromstring('2002-03-07T12:00:00-05:00'), context)
@@ -1032,7 +1036,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_adjust_date_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
-                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+                               variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
 
         self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07"))',
                          Date.fromstring('2002-03-07-05:00'), context)
@@ -1049,7 +1053,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_adjust_time_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
-                               variables={'tz': DayTimeDuration.fromstring("-PT10H")})
+                               variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
 
         self.check_value('fn:adjust-time-to-timezone(())')
 
@@ -1173,20 +1177,20 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             self.check_value("root(7)", root, context=XPathContext(root))
         self.assertIn('XPTY0004', str(err.exception))
 
-        context = XPathContext(root, variables={'elem': root[1]})
+        context = XPathContext(root, variable_values={'elem': root[1]})
         self.check_value("fn:root($elem)", root, context=context.copy())
 
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
 
-        context = XPathContext(root, variables={'elem': doc[1]})
+        context = XPathContext(root, variable_values={'elem': doc[1]})
         self.check_value("fn:root($elem)", context=context.copy())
 
-        context = XPathContext(root, variables={'elem': doc[1]}, documents={'.': doc})
+        context = XPathContext(root, variable_values={'elem': doc[1]}, documents={'.': doc})
         self.check_value("root($elem)", doc, context=context)
 
         doc2 = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
 
-        context = XPathContext(root, variables={'elem': doc2[1]},
+        context = XPathContext(root, variable_values={'elem': doc2[1]},
                                documents={'.': doc, 'doc2': doc2})
         self.check_value("root($elem)", doc2, context=context)
 

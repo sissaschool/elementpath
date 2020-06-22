@@ -19,9 +19,16 @@ class XPathSelectorsTest(unittest.TestCase):
 
     def test_select_function(self):
         self.assertListEqual(select(self.root, 'text()'), ['Dickens'])
+        self.assertEqual(select(self.root, '$a', variables={'a': 1}), 1)
+        self.assertEqual(select(self.root, '$a', variable_values={'a': 1}), 1)
+
+        self.assertEqual(
+            select(self.root, '$a', variable_values={'a': 1}, variables={'a': 'xs:decimal'}), 1
+        )
 
     def test_iter_select_function(self):
         self.assertListEqual(list(iter_select(self.root, 'text()')), ['Dickens'])
+        self.assertListEqual(list(iter_select(self.root, '$a', variables={'a': True})), [True])
 
     def test_selector_class(self):
         selector = Selector('/A')
@@ -31,6 +38,10 @@ class XPathSelectorsTest(unittest.TestCase):
         selector = Selector('text()')
         self.assertListEqual(selector.select(self.root), ['Dickens'])
         self.assertListEqual(list(selector.iter_select(self.root)), ['Dickens'])
+
+        selector = Selector('$a', variables={'a': 1})
+        self.assertEqual(selector.select(self.root), 1)
+        self.assertListEqual(list(selector.iter_select(self.root)), [1])
 
     def test_issue_001(self):
         selector = Selector("//FullPath[ends-with(., 'Temp')]")

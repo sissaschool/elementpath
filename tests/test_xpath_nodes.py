@@ -180,7 +180,7 @@ class XPathNodesTest(unittest.TestCase):
         comment = ElementTree.Comment('nothing important')
         pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
         text = TextNode('betelgeuse')
-        self.assertEqual(node_kind(document), 'document')
+        self.assertEqual(node_kind(document), 'document-node')
         self.assertEqual(node_kind(element), 'element')
         self.assertEqual(node_kind(attribute), 'attribute')
         self.assertEqual(node_kind(namespace), 'namespace')

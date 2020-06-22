@@ -27,17 +27,17 @@ from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_e
 
 class XPath1Parser(Parser):
     """
-    XPath 1.0 expression parser class. A parser instance represents also the XPath static context.
-    With *variables* you can pass a dictionary with the static context's in-scope variables.
-    Provide a *namespaces* dictionary argument for mapping namespace prefixes to URI inside
-    expressions. If *strict* is set to `False` the parser enables also the parsing of QNames,
-    like the ElementPath library.
+    XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
+    mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`
+    the parser enables also the parsing of QNames, like the ElementPath library.
 
-    :param namespaces: A dictionary with mapping from namespace prefixes into URIs.
-    :param variables: A dictionary with the static context's in-scope variables.
-    :param strict: If strict mode is `False` the parser enables parsing of QNames \
+    :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
+    :param strict: a strict mode is `False` the parser enables parsing of QNames \
     in extended format, like the Python's ElementPath library. Default is `True`.
     """
+    version = '1.0'
+    """The XPath version string."""
+
     token_base_class = XPathToken
     name_pattern = re.compile(r'[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*')
 
@@ -84,20 +84,15 @@ class XPath1Parser(Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '{'
     }
 
-    schema = None  # To simplify the schema bind checks in compatibility with XPath2Parser
+    variables = None  # XPath 1.0 doesn't have static context's in-scope variables
+    schema = None     # XPath 1.0 doesn't have schema bindings
 
-    def __init__(self, namespaces=None, variables=None, strict=True, *args, **kwargs):
+    def __init__(self, namespaces=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
-        self.variables = dict(variables if variables is not None else [])
         self.strict = strict
-
-    @property
-    def version(self):
-        """The XPath version string."""
-        return '1.0'
 
     @property
     def compatibility_mode(self):
@@ -411,13 +406,12 @@ def nud(self):
 
 @method('$')
 def evaluate(self, context=None):
+    if context is None:
+        self.missing_context()
+
     varname = self[0].value
-    if varname in self.parser.variables:
-        return self.parser.variables[varname]
-    elif context is None:
-        return
-    elif varname in context.variables:
-        return context.variables[varname]
+    if varname in context.variable_values:
+        return context.variable_values[varname]
     elif isinstance(context, XPathSchemaContext):
         return
     else:

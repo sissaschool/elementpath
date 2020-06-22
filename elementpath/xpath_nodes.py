@@ -238,7 +238,7 @@ def node_kind(obj):
     elif is_text_node(obj):
         return 'text'
     elif is_document_node(obj):
-        return 'document'
+        return 'document-node'
     elif is_namespace_node(obj):
         return 'namespace'
     elif is_comment_node(obj):
