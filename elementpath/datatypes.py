@@ -185,7 +185,7 @@ class AbstractDateTime(metaclass=ABCMeta):
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
     """
     version = '1.0'
-    _pattern = re.compile(r'^$')
+    pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
     _year = None
 
@@ -217,7 +217,7 @@ class AbstractDateTime(metaclass=ABCMeta):
             self._dt += delta
 
     def __repr__(self):
-        fields = self._pattern.groupindex.keys()
+        fields = self.pattern.groupindex.keys()
         arg_string = ', '.join(
             str(getattr(self, k))
             for k in ['year', 'month', 'day', 'hour', 'minute'] if k in fields
@@ -305,7 +305,7 @@ class AbstractDateTime(metaclass=ABCMeta):
             msg = '2nd argument has an invalid type {!r}'
             raise ElementPathTypeError(msg.format(type(tzinfo)))
 
-        match = cls._pattern.match(datetime_string)
+        match = cls.pattern.match(datetime_string)
         if match is None:
             msg = 'Invalid datetime string {!r} for {!r}'
             raise ElementPathValueError(msg.format(datetime_string, cls))
@@ -339,7 +339,7 @@ class AbstractDateTime(metaclass=ABCMeta):
         elif year is not None and not isinstance(year, int):
             raise ElementPathTypeError('2nd argument has an invalid type %r' % type(year))
 
-        kwargs = {k: getattr(dt, k) for k in cls._pattern.groupindex.keys() if hasattr(dt, k)}
+        kwargs = {k: getattr(dt, k) for k in cls.pattern.groupindex.keys() if hasattr(dt, k)}
         if year is not None:
             kwargs['year'] = year
         return cls(**kwargs)
@@ -498,7 +498,7 @@ class OrderedDateTime(AbstractDateTime):
             else:
                 dt = self._dt.replace(year=6, month=month, day=day)
 
-            kwargs = {k: getattr(dt, k) for k in self._pattern.groupindex.keys()}
+            kwargs = {k: getattr(dt, k) for k in self.pattern.groupindex.keys()}
             if year <= 0:
                 kwargs['year'] = year
             return type(self)(**kwargs)
@@ -537,7 +537,7 @@ class OrderedDateTime(AbstractDateTime):
 
 class DateTime10(OrderedDateTime):
     """XSD 1.0 xs:dateTime builtin type"""
-    _pattern = re.compile(
+    pattern = re.compile(
         r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
@@ -567,8 +567,8 @@ class DateTime(DateTime10):
 
 class Date10(OrderedDateTime):
     """XSD 1.0 xs:date builtin type"""
-    _pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
-                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, day, tzinfo=None):
         super(Date10, self).__init__(year, month, day, tzinfo=tzinfo)
@@ -586,8 +586,8 @@ class Date(Date10):
 
 class XPathGregorianDay(AbstractDateTime):
     """xs:gDay datatype for XPath expressions"""
-    _pattern = re.compile(r'^---(?P<day>[0-9]{2})'
-                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = re.compile(r'^---(?P<day>[0-9]{2})'
+                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, day, tzinfo=None):
         super(XPathGregorianDay, self).__init__(day=day, tzinfo=tzinfo)
@@ -602,8 +602,8 @@ class GregorianDay(XPathGregorianDay, OrderedDateTime):
 
 class XPathGregorianMonth(AbstractDateTime):
     """xs:gMonth datatype for XPath expressions"""
-    _pattern = re.compile(r'^--(?P<month>[0-9]{2})'
-                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = re.compile(r'^--(?P<month>[0-9]{2})'
+                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, tzinfo=None):
         super(XPathGregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
@@ -618,8 +618,8 @@ class GregorianMonth(XPathGregorianMonth, OrderedDateTime):
 
 class XPathGregorianMonthDay(AbstractDateTime):
     """xs:gMonthDay datatype for XPath expressions"""
-    _pattern = re.compile(r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
-                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = re.compile(r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, day, tzinfo=None):
         super(XPathGregorianMonthDay, self).__init__(month=month, day=day, tzinfo=tzinfo)
@@ -634,8 +634,8 @@ class GregorianMonthDay(XPathGregorianMonthDay, OrderedDateTime):
 
 class XPathGregorianYear(AbstractDateTime):
     """xs:gYear datatype for XPath expressions"""
-    _pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})'
-                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})'
+                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, tzinfo=None):
         super(XPathGregorianYear, self).__init__(year, tzinfo=tzinfo)
@@ -655,8 +655,8 @@ class GregorianYear(GregorianYear10):
 
 class XPathGregorianYearMonth(AbstractDateTime):
     """xs:gYearMonth datatype for XPath expressions"""
-    _pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
-                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
+    pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
+                         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, tzinfo=None):
         super(XPathGregorianYearMonth, self).__init__(year, month, tzinfo=tzinfo)
@@ -676,7 +676,7 @@ class GregorianYearMonth(GregorianYearMonth10):
 
 class Time(AbstractDateTime):
     """XSD xs:time builtin type"""
-    _pattern = re.compile(
+    pattern = re.compile(
         r'^(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
@@ -1184,6 +1184,10 @@ def hex_binary_validator(x):
     return isinstance(x, str) and not len(x) % 2 and HEX_BINARY_PATTERN.match(x) is not None
 
 
+def datetime_stamp_validator(x):
+    return isinstance(x, str) and DateTime.pattern.match(x) is not None
+
+
 def ncname_validator(x):
     return isinstance(x, str) and NCNAME_PATTERN.match(x) is not None
 
@@ -1327,7 +1331,7 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=b'31'
     ),
     'dateTimeStamp': XsdBuiltin(
-        lambda x: isinstance(x, str),
+        datetime_stamp_validator,
         value='2000-01-01T12:00:00+01:00'
     ),
     'integer': XsdBuiltin(

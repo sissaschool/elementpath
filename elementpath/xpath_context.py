@@ -21,7 +21,7 @@ class XPathContext(object):
     The XPath dynamic context. The static context is provided by the parser.
 
     Usually the dynamic context instances are created providing only the root element.
-    Variables argument is needed if the XPath expression refers to predefined variables.
+    Variable values argument is needed if the XPath expression refers to in-scope variables.
     The other optional arguments are needed only if a specific position on the context is
     required, but have to be used with the knowledge of what is their meaning.
 
@@ -31,7 +31,7 @@ class XPathContext(object):
     :param position: the current position of the node within the input sequence.
     :param size: the number of items in the input sequence.
     :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
-    :param variables: dictionary of context variables that maps a QName to a value.
+    :param variable_values: dictionary of context variable values that maps a QName to a value.
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
@@ -39,7 +39,7 @@ class XPathContext(object):
     _iter_nodes = staticmethod(etree_iter_nodes)
 
     def __init__(self, root, item=None, position=1, size=1, axis=None,
-                 variables=None, current_dt=None, timezone=None,
+                 variable_values=None, current_dt=None, timezone=None,
                  documents=None, collections=None, default_collection=None):
         if not is_element_node(root) and not is_document_node(root):
             raise ElementPathTypeError(
@@ -55,7 +55,7 @@ class XPathContext(object):
         self.position = position
         self.size = size
         self.axis = axis
-        self.variables = {} if variables is None else dict(variables)
+        self.variable_values = {} if variable_values is None else dict(variable_values)
         self.current_dt = current_dt or datetime.datetime.now()
         self.timezone = timezone
         self.documents = {} if documents is None else dict(documents)
@@ -76,7 +76,7 @@ class XPathContext(object):
             position=self.position,
             size=self.size,
             axis=None,
-            variables=self.variables.copy(),
+            variable_values=self.variable_values.copy(),
             current_dt=self.current_dt,
             timezone=self.timezone,
             documents=self.documents.copy(),

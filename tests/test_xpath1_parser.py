@@ -64,8 +64,7 @@ XML_DATA_TEST = """
 class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def setUp(self):
-        self.parser = XPath1Parser(self.namespaces, self.variables, strict=True)
-        # self.token = XPath1Parser.symbol_table['(name)'](self.parser, 'test')
+        self.parser = XPath1Parser(self.namespaces, strict=True)
 
     #
     # Test methods
@@ -467,9 +466,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                               '  <unit><power>30kW</power><model>XYZ</model></unit>'
                               '</ups-units>')
         variables = {'ups1': root[0], 'ups2': root[1], 'ups3': root[2]}
-        self.check_selector('string($ups1/power)', root, '40kW', variables=variables)
+        self.check_selector('string($ups1/power)', root, '40kW', variable_values=variables)
 
-        self.check_value('$word', 'alpha')
+        context = XPathContext(root, variable_values=self.variables)
+        self.check_value('$word', 'alpha', context)
         self.wrong_syntax('$eg:word', 'variable reference requires a simple reference name')
         self.wrong_syntax('${http://xpath.test/ns}word',
                           "unexpected symbol '{' after $ variable reference")
@@ -889,7 +889,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_sum_function(self):
         root = self.etree.XML(XML_DATA_TEST)
-        self.check_value("sum($values)", 35)
+        context = XPathContext(root, variable_values=self.variables)
+        self.check_value("sum($values)", 35, context)
         if self.parser.version == '1.0':
             self.wrong_syntax("sum(())")
         else:
@@ -939,8 +940,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        context = XPathContext(root, variables={'alpha': 10, 'id': '19273222'})
-        self.check_value("$alpha", None)  # Do not raise if the dynamic context is None
+        context = XPathContext(root, variable_values={'alpha': 10, 'id': '19273222'})
+        self.check_value("$alpha", MissingContextError)
         self.check_value("$alpha", 10, context=context)
         self.check_value("$beta", NameError, context=context)
         self.check_value("$id", '19273222', context=context)
@@ -1317,7 +1318,7 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
                               self.parser.__class__, **kwargs)
         else:
             results = select(root, path, namespaces, self.parser.__class__, **kwargs)
-            variables = kwargs.get('variables', {})
+            variables = kwargs.get('variable_values', {})
             if namespaces and '' in namespaces:
                 namespaces = {k: v for k, v in namespaces.items() if k}
 

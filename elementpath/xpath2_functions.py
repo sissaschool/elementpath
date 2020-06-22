@@ -623,8 +623,6 @@ def evaluate(self, context=None):
              for s in self[0].select(context)]
     try:
         return self.get_argument(context, 1, default='', cls=str).join(items)
-    except AttributeError:
-        return ''.join(items)
     except ElementPathTypeError:
         raise
     except TypeError as err:
@@ -940,9 +938,8 @@ def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
     idrefs = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
-    if context is None:
-        return
-    elif node is not context.item:
+
+    if node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
@@ -968,9 +965,8 @@ def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
     ids = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
-    if context is None:
-        return
-    elif node is not context.item:
+
+    if node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
@@ -985,7 +981,7 @@ def select(self, context=None):
         if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
             yield elem
             continue
-        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
+        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):  # pragma: no cover
             if attr.name != XML_ID and any(v in attr.value.split() for x in ids for v in x.split()):
                 yield elem
                 break

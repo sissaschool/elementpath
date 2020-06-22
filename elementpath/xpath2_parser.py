@@ -28,7 +28,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XSD_UNTYPED_ATOMIC
 from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
-    is_document_node
+    is_document_node, node_kind
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
 from .schema_proxy import AbstractSchemaProxy
@@ -44,7 +44,9 @@ class XPath2Parser(XPath1Parser):
     like the ElementPath library. There are some additional XPath 2.0 related arguments.
 
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
-    :param variables: a dictionary with the static context's in-scope variables.
+    :param variables: a dictionary with the static context's in-scope variables. \
+    It defines the associations between variables and static types. For backward \
+    compatibility the variable types are detected if values are provided.
     :param strict: if strict mode is `False` the parser enables parsing of QNames, \
     like the ElementPath library. Default is `True`.
     :param default_namespace: the default namespace to apply to unprefixed names. \
@@ -61,6 +63,8 @@ class XPath2Parser(XPath1Parser):
     :param compatibility_mode: if set to `True` the parser instance works with \
     XPath 1.0 compatibility rules.
     """
+    version = '2.0'
+
     SYMBOLS = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
         'some', 'every', 'in', 'satisfies', 'item', 'satisfies', 'cast', 'treat',
@@ -177,7 +181,7 @@ class XPath2Parser(XPath1Parser):
     def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
                  default_namespace=None, function_namespace=None, schema=None, base_uri=None,
                  default_collation=None, documents=None, collections=None, default_collection=None):
-        super(XPath2Parser, self).__init__(namespaces, variables, strict)
+        super(XPath2Parser, self).__init__(namespaces, strict)
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
 
@@ -194,6 +198,15 @@ class XPath2Parser(XPath1Parser):
         else:
             schema.bind_parser(self)
 
+        if not variables:
+            self.variables = {}
+        elif all(self.is_sequence_type(v) for v in variables.values()):
+            self.variables = variables.copy()
+        elif any(self.is_sequence_type(v) for v in variables.values()):
+            raise ElementPathTypeError('ambiguous sequence types in variables')
+        else:
+            self.variables = {k: self.get_sequence_type(v) for k, v in variables.items()}
+
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
         self._compatibility_mode = compatibility_mode
         self._default_collation = default_collation
@@ -206,10 +219,6 @@ class XPath2Parser(XPath1Parser):
         state.pop('symbol_table', None)
         state.pop('tokenizer', None)
         return state
-
-    @property
-    def version(self):
-        return '2.0'
 
     @property
     def compatibility_mode(self):
@@ -229,6 +238,17 @@ class XPath2Parser(XPath1Parser):
     @property
     def default_namespace(self):
         return self.namespaces.get('')
+
+    @property
+    def xsd_prefix(self):
+        if self.namespaces.get('xs') == XSD_NAMESPACE:
+            return 'xs'
+
+        for pfx, uri in self.namespaces.items():
+            if uri == XSD_NAMESPACE:
+                return pfx
+
+        raise xpath_error('XPST0081', 'Missing XSD namespace registration')
 
     def advance(self, *symbols):
         super(XPath2Parser, self).advance(*symbols)
@@ -352,18 +372,6 @@ class XPath2Parser(XPath1Parser):
         self.symbol_table[symbol] = token_class
         return token_class
 
-    def is_instance(self, obj, type_qname):
-        if type_qname == XSD_UNTYPED_ATOMIC:
-            return isinstance(obj, UntypedAtomic)
-        elif self.schema is not None:
-            return self.schema.is_instance(obj, type_qname)
-
-        local_name = type_qname.split('}')[1]
-        try:
-            return XSD_BUILTIN_TYPES[local_name].validator(obj)
-        except KeyError:
-            raise ElementPathKeyError("unknown type %r" % type_qname)
-
     def is_schema_bound(self):
         return 'symbol_table' in self.__dict__
 
@@ -384,6 +392,119 @@ class XPath2Parser(XPath1Parser):
                 pass
 
         return root_token
+
+    ###
+    # Type checking
+    def is_instance(self, obj, type_qname):
+        if type_qname == XSD_UNTYPED_ATOMIC:
+            return isinstance(obj, UntypedAtomic)
+        elif self.schema is not None:
+            return self.schema.is_instance(obj, type_qname)
+
+        local_name = type_qname.split('}')[1] if type_qname.startswith('{') else type_qname
+        try:
+            return XSD_BUILTIN_TYPES[local_name].validator(obj)
+        except KeyError:
+            raise ElementPathKeyError("unknown type %r" % type_qname)
+
+    def is_sequence_type(self, value):
+        if not isinstance(value, str):
+            return False
+
+        text = value.strip()
+        if text == 'empty-sequence()':
+            return True
+        elif text[-1] in ('?', '+', '*'):
+            text = text[:-1]
+
+        if text in {'attribute()', 'element()', 'text()', 'document-node()',
+                    'comment()', 'processing-instruction()', 'item()'}:
+            return True
+        elif not XSD_BUILTIN_TYPES['QName'].validator(text):
+            return False
+
+        try:
+            type_qname = prefixed_to_qname(text, self.namespaces)
+            self.is_instance(None, type_qname)
+        except (KeyError, ValueError):
+            return False
+        else:
+            return True
+
+    def get_sequence_type(self, value):
+        if value is None or value == []:
+            return 'empty-sequence()'
+        elif isinstance(value, list):
+            if value[0] is not None and not isinstance(value[0], list):
+                sequence_type = self.get_sequence_type(value[0])
+                if all(self.get_sequence_type(x) == sequence_type for x in value[1:]):
+                    return '{}+'.format(sequence_type)
+        else:
+            value_kind = node_kind(value)
+            if value_kind is not None:
+                return '{}()'.format(value_kind)
+            elif isinstance(value, UntypedAtomic):
+                return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
+
+            if XSD_BUILTIN_TYPES['QName'].validator(value) and ':' in value:
+                return '{}:QName'.format(self.xsd_prefix)
+
+            for type_name in ['date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'gYear',
+                              'gYearMonth', 'time', 'duration', 'dayTimeDuration',
+                              'yearMonthDuration', 'dateTimeStamp', 'base64Binary',
+                              'hexBinary', 'string', 'boolean', 'decimal', 'float']:
+                if XSD_BUILTIN_TYPES[type_name].validator(value):
+                    return '{}:{}'.format(self.xsd_prefix, type_name)
+
+        raise ElementPathTypeError("Inconsistent sequence type for {!r}".format(value))
+
+    def match_sequence_type(self, value, sequence_type, occurrence=None):
+        if value is None or value == []:
+            return sequence_type == 'empty-sequence()' or occurrence in {'?', '*'}
+        elif sequence_type == 'empty-sequence()':
+            return False
+        elif isinstance(value, list):
+            if len(value) == 1:
+                return self.match_sequence_type(value[0], sequence_type)
+            elif occurrence is None or occurrence == '?':
+                return False
+            else:
+                return all(self.match_sequence_type(x, sequence_type) for x in value)
+        else:
+            value_kind = node_kind(value)
+            if value_kind is not None:
+                return '()' in sequence_type and sequence_type.startswith(value_kind)
+            elif isinstance(value, UntypedAtomic):
+                return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
+
+            try:
+                type_qname = prefixed_to_qname(sequence_type, self.namespaces)
+                return self.is_instance(value, type_qname)
+            except (KeyError, ValueError):
+                return False
+
+    def check_variables(self, values):
+        """Check variables values of the XPath dynamic context."""
+        for varname, xsd_type in self.variables.items():
+            if varname not in values:
+                raise xpath_error('XPST0008', "Missing variable {!r}".format(varname))
+
+        for varname, value in values.items():
+            try:
+                sequence_type = self.variables[varname]
+            except KeyError:
+                message = "Undeclared variable {!r}".format(varname)
+                raise xpath_error('XPST0008', message) from None
+            else:
+                if sequence_type[-1] in ('?', '+', '*'):
+                    if self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1]):
+                        continue
+                else:
+                    if self.match_sequence_type(value, sequence_type):
+                        continue
+
+                message = "Unmatched sequence type for variable {!r}".format(varname)
+                raise xpath_error('XPDY0050', message)
 
 
 ##
@@ -492,12 +613,11 @@ def evaluate(self, context=None):
         return
 
     some = self.symbol == 'some'
+    varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
     selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
 
     for results in product(*selectors):
-        for i in range(len(results)):
-            context.variables[self[i * 2][0].value] = results[i]
-
+        context.variable_values.update(x for x in zip(varnames, results))
         if self.boolean_value([x for x in self[-1].select(copy(context))]):
             if some:
                 return True
@@ -530,10 +650,10 @@ def nud(self):
 @method('for')
 def select(self, context=None):
     if context is not None:
+        varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
         selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
         for results in product(*selectors):
-            for i in range(len(results)):
-                context.variables[self[i * 2][0].value] = results[i]
+            context.variable_values.update(x for x in zip(varnames, results))
             yield from self[-1].select(copy(context))
 
 

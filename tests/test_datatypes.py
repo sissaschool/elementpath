@@ -53,6 +53,8 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(UntypedAtomic('alpha').value, 'alpha')
         self.assertEqual(UntypedAtomic(b'beta').value, 'beta')
         self.assertEqual(UntypedAtomic(True).value, 'true')
+        self.assertEqual(UntypedAtomic(UntypedAtomic(2)).value, '2')
+        self.assertEqual(UntypedAtomic(Date.fromstring('2000-02-01')).value, '2000-02-01')
 
         with self.assertRaises(TypeError) as err:
             UntypedAtomic(None)
