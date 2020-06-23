@@ -17,7 +17,7 @@ from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
     NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
-from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, qname_to_prefixed
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_qname
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
@@ -409,13 +409,10 @@ def evaluate(self, context=None):
     if context is None:
         self.missing_context()
 
-    varname = self[0].value
-    if varname in context.variable_values:
-        return context.variable_values[varname]
-    elif isinstance(context, XPathSchemaContext):
-        return
-    else:
-        raise ElementPathNameError('unknown variable', token=self)
+    try:
+        return context.variable_values[self[0].value]
+    except KeyError as err:
+        raise ElementPathNameError('unknown variable %r' % str(err), token=self) from None
 
 
 ###
@@ -903,7 +900,7 @@ def evaluate(self, context=None):
 
     symbol = self.symbol
     if symbol == 'name':
-        return qname_to_prefixed(name, self.parser.namespaces)
+        return get_prefixed_qname(name, self.parser.namespaces)
     elif not name or name[0] != '{':
         return name if symbol == 'local-name' else ''
     elif symbol == 'local-name':

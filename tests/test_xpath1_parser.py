@@ -470,9 +470,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root, variable_values=self.variables)
         self.check_value('$word', 'alpha', context)
-        self.wrong_syntax('$eg:word', 'variable reference requires a simple reference name')
         self.wrong_syntax('${http://xpath.test/ns}word',
                           "unexpected symbol '{' after $ variable reference")
+
+        if self.parser.version == '1.0':
+            self.wrong_syntax('$eg:word', 'variable reference requires a simple reference name')
+        else:
+            context = XPathContext(root, variable_values={'eg:color': 'purple'})
+            self.check_value('$eg:color', 'purple', context)
 
     def test_substring_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
