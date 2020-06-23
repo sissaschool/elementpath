@@ -54,53 +54,61 @@ def get_namespace(name):
         return ''
 
 
-def qname_to_prefixed(name, namespaces):
+def get_prefixed_qname(qname, namespaces):
     """
-    Get the prefixed form of a name, using a namespace map.
+    Get the prefixed form of a QName, using a namespace map.
 
-    :param name: A fully qualified name or a local name.
-    :param namespaces: A dictionary with the map from prefixes to namespace URIs.
-    :return: String with a prefixed or local name.
+    :param qname: an extended QName or a local name or a prefixed QName.
+    :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     """
-    qname_uri = get_namespace(name)
+    try:
+        if qname[0] != '{':
+            return qname
+        ns_uri, local_name = qname[1:].split('}')
+    except IndexError:
+        return qname
+    except (ValueError, TypeError):
+        raise ElementPathValueError("{!r} is not a QName".format(qname))
+
     for prefix, uri in sorted(namespaces.items(), reverse=True):
-        if uri != qname_uri:
-            continue
-        if prefix:
-            return name.replace(u'{%s}' % uri, u'%s:' % prefix)
-        else:
-            return name.replace(u'{%s}' % uri, '')
-    return name
+        if uri == ns_uri:
+            return '%s:%s' % (prefix, local_name) if prefix else local_name
+    else:
+        return qname
 
 
-def prefixed_to_qname(name, namespaces):
+def get_extended_qname(qname, namespaces):
     """
-    Get the fully qualified form of a name, using a namespace map.
+    Get the extended form of a QName, using a namespace map.
+    Local names are mapped to the default namespace.
 
-    :param name: A local name or a prefixed name or a fully qualified name.
-    :param namespaces: A dictionary with the map from prefixes to namespace URIs.
-    :return: String with a fully qualified or local name.
+    :param qname: a prefixed QName or a local name or an extended QName.
+    :param namespaces: a dictionary with a map from prefixes to namespace URIs.
+    :return: a QName in extended format or a local name.
     """
-    if name and name[0] == '{':
-        return name
+    try:
+        if qname[0] == '{':
+            return qname
+    except IndexError:
+        return qname
 
     try:
-        prefix, name = name.split(':')
+        prefix, local_name = qname.split(':')
     except ValueError:
-        if ':' in name:
-            raise ElementPathValueError("wrong format for reference name %r" % name)
+        if ':' in qname:
+            raise ElementPathValueError("wrong format for prefixed QName %r" % qname)
         try:
             uri = namespaces['']
         except KeyError:
-            return name
+            return qname
         else:
-            return u'{%s}%s' % (uri, name) if uri else name
+            return u'{%s}%s' % (uri, qname) if uri else qname
     else:
-        if not prefix or not name:
-            raise ElementPathValueError("wrong format for reference name %r" % name)
+        if not prefix or not qname:
+            raise ElementPathValueError("wrong format for reference name %r" % qname)
         try:
             uri = namespaces[prefix]
         except KeyError:
             raise ElementPathValueError("prefix %r not found in namespace map" % prefix)
         else:
-            return u'{%s}%s' % (uri, name) if uri else name
+            return u'{%s}%s' % (uri, local_name) if uri else local_name

@@ -20,11 +20,11 @@ from collections.abc import MutableSequence
 from copy import copy
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, ElementPathKeyError, \
-    ElementPathTypeError, MissingContextError, xpath_error
+from .exceptions import ElementPathError, ElementPathKeyError, ElementPathTypeError, \
+    MissingContextError, ElementPathNameError, ElementPathValueError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
-    XSD_ANY_ATOMIC_TYPE, get_namespace, qname_to_prefixed, prefixed_to_qname, \
+    XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_qname, get_extended_qname, \
     XSD_UNTYPED_ATOMIC
 from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
@@ -353,7 +353,7 @@ class XPath2Parser(XPath1Parser):
             else:
                 return self_.parser.schema.cast_as(self_[0].evaluate(context), atomic_type)
 
-        symbol = qname_to_prefixed(atomic_type, self.namespaces)
+        symbol = get_prefixed_qname(atomic_type, self.namespaces)
         token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
         kwargs = {
             'symbol': symbol,
@@ -401,11 +401,15 @@ class XPath2Parser(XPath1Parser):
         elif self.schema is not None:
             return self.schema.is_instance(obj, type_qname)
 
-        local_name = type_qname.split('}')[1] if type_qname.startswith('{') else type_qname
-        try:
-            return XSD_BUILTIN_TYPES[local_name].validator(obj)
-        except KeyError:
-            raise ElementPathKeyError("unknown type %r" % type_qname)
+        if get_namespace(type_qname) == XSD_NAMESPACE:
+            try:
+                return XSD_BUILTIN_TYPES[type_qname.split('}')[1]].validator(obj)
+            except ValueError:
+                raise ElementPathValueError("%r is not extended QName" % type_qname)
+            except KeyError:
+                pass
+
+        raise ElementPathKeyError("unknown type %r" % type_qname)
 
     def is_sequence_type(self, value):
         if not isinstance(value, str):
@@ -424,7 +428,7 @@ class XPath2Parser(XPath1Parser):
             return False
 
         try:
-            type_qname = prefixed_to_qname(text, self.namespaces)
+            type_qname = get_extended_qname(text, self.namespaces)
             self.is_instance(None, type_qname)
         except (KeyError, ValueError):
             return False
@@ -458,6 +462,27 @@ class XPath2Parser(XPath1Parser):
 
         raise ElementPathTypeError("Inconsistent sequence type for {!r}".format(value))
 
+    def get_variable_value(self, varname):
+        sequence_type = self.variables[varname]
+        if sequence_type[-1] in {'?', '+', '*'}:
+            sequence_type = sequence_type[:-1]
+
+        if XSD_BUILTIN_TYPES['QName'].validator(sequence_type):
+            type_qname = get_extended_qname(sequence_type, self.namespaces)
+            if type_qname == XSD_UNTYPED_ATOMIC:
+                return UntypedAtomic('1')
+            elif self.schema is not None:
+                xsd_type = self.schema.get_type(type_qname)
+                if xsd_type is not None:
+                    primitive_type = self.schema.get_primitive_type(xsd_type)
+                    return XSD_BUILTIN_TYPES[primitive_type.local_name].value
+
+            elif get_namespace(type_qname) == XSD_NAMESPACE:
+                try:
+                    return XSD_BUILTIN_TYPES[type_qname.split('}')[1]].value
+                except KeyError:
+                    pass
+
     def match_sequence_type(self, value, sequence_type, occurrence=None):
         if value is None or value == []:
             return sequence_type == 'empty-sequence()' or occurrence in {'?', '*'}
@@ -478,7 +503,7 @@ class XPath2Parser(XPath1Parser):
                 return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
 
             try:
-                type_qname = prefixed_to_qname(sequence_type, self.namespaces)
+                type_qname = get_extended_qname(sequence_type, self.namespaces)
                 return self.is_instance(value, type_qname)
             except (KeyError, ValueError):
                 return False
@@ -522,6 +547,7 @@ function = XPath2Parser.function
 # Remove symbols that have to be redefined for XPath 2.0.
 unregister(',')
 unregister('(')
+unregister('$')
 
 ###
 # Symbols
@@ -535,6 +561,45 @@ register('of')
 register('?')
 register('(:')
 register(':)')
+
+
+###
+# Variables
+@method('$', bp=90)
+def nud(self):
+    self.parser.expected_next('(name)')
+    self[:] = self.parser.expression(rbp=90),
+    return self
+
+
+@method('$')
+def evaluate(self, context=None):
+    varname = self[0].value
+    if context is None:
+        try:
+            value = self.parser.get_variable_value(varname)
+        except KeyError:
+            pass
+        else:
+            if value is not None:
+                return value
+
+        self.missing_context()
+
+    try:
+        return context.variable_values[varname]
+    except KeyError:
+        if isinstance(context, XPathSchemaContext):
+            try:
+                value = self.parser.get_variable_value(varname)
+            except KeyError:
+                pass
+            else:
+                if value is not None:
+                    return value
+
+    raise ElementPathNameError('unknown variable', token=self) from None
+
 
 ###
 # Node sequence composition
@@ -691,7 +756,7 @@ def evaluate(self, context=None):
         else:
             return position is not None or occurs in ('*', '?')
     else:
-        qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
+        qname = get_extended_qname(self[1].source, self.parser.namespaces)
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
@@ -726,7 +791,7 @@ def evaluate(self, context=None):
             if position is None and occurs not in ('*', '?'):
                 self.wrong_sequence_type("the sequence cannot be empty")
     else:
-        qname = prefixed_to_qname(self[1].source, self.parser.namespaces)
+        qname = get_extended_qname(self[1].source, self.parser.namespaces)
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
@@ -762,7 +827,7 @@ def led(self, left):
 @method('castable')
 @method('cast')
 def evaluate(self, context=None):
-    atomic_type = prefixed_to_qname(self[1].source, namespaces=self.parser.namespaces)
+    atomic_type = get_extended_qname(self[1].source, namespaces=self.parser.namespaces)
     if atomic_type in (XSD_NOTATION, XSD_ANY_ATOMIC_TYPE):
         raise self.error('XPST0080')
 
@@ -1042,7 +1107,7 @@ def select(self, context=None):
     if context is not None:
         for _ in context.iter_children_or_self():
             attribute_name = self[0].source
-            qname = prefixed_to_qname(attribute_name, self.parser.namespaces)
+            qname = get_extended_qname(attribute_name, self.parser.namespaces)
             if self.parser.schema.get_attribute(qname) is None:
                 self.missing_name("attribute %r not found in schema" % attribute_name)
 
@@ -1055,7 +1120,7 @@ def select(self, context=None):
     if context is not None:
         for _ in context.iter_children_or_self():
             element_name = self[0].source
-            qname = prefixed_to_qname(element_name, self.parser.namespaces)
+            qname = get_extended_qname(element_name, self.parser.namespaces)
             if self.parser.schema.get_element(qname) is None \
                     and self.parser.schema.get_substitution_group(qname) is None:
                 self.missing_name("element %r not found in schema" % element_name)
@@ -1124,7 +1189,7 @@ def select(self, context=None):
     else:
         name = self[0].value
         if self.parser.schema is not None and len(self) == 2:
-            type_name = prefixed_to_qname(self[1].value, namespaces=self.parser.namespaces)
+            type_name = get_extended_qname(self[1].value, namespaces=self.parser.namespaces)
         else:
             type_name = None
 
