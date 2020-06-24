@@ -23,8 +23,9 @@ else:
 
 from elementpath.exceptions import MissingContextError
 from elementpath.datatypes import UntypedAtomic
-from elementpath.namespaces import XSD_NAMESPACE
-from elementpath.xpath_nodes import AttributeNode, TypedAttribute, TypedElement, NamespaceNode
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.xpath_nodes import AttributeNode, TypedAttribute, \
+    TypedElement, NamespaceNode, TextNode
 from elementpath.xpath_token import ordinal
 from elementpath.xpath_context import XPathContext
 from elementpath.xpath1_parser import XPath1Parser
@@ -99,7 +100,35 @@ class XPath1TokenTest(unittest.TestCase):
 
     def test_data_value_function(self):
         token = self.parser.parse('true()')
+
+        obj = TypedElement(ElementTree.XML('<age>19</age>'), 19)
+        self.assertEqual(token.data_value(obj), 19)
+
+        obj = AttributeNode('age', '19')
+        self.assertEqual(token.data_value(obj), UntypedAtomic('19'))
+
+        obj = NamespaceNode('tns', 'http://xpath.test/ns')
+        self.assertEqual(token.data_value(obj), 'http://xpath.test/ns')
+
+        obj = TextNode('19')
+        self.assertEqual(token.data_value(obj), UntypedAtomic('19'))
+
+        obj = ElementTree.XML('<root>a<e1>b</e1>c<e2>d</e2>e</root>')
+        self.assertEqual(token.data_value(obj), UntypedAtomic('abcde'))
+
+        obj = ElementTree.parse(io.StringIO('<root>a<e1>b</e1>c<e2>d</e2>e</root>'))
+        self.assertEqual(token.data_value(obj), UntypedAtomic('abcde'))
+
+        obj = ElementTree.Comment("foo bar")
+        self.assertEqual(token.data_value(obj), 'foo bar')
+
+        obj = ElementTree.ProcessingInstruction('action', 'nothing to do')
+        self.assertEqual(token.data_value(obj), 'action nothing to do')
+
         self.assertIsNone(token.data_value(None))
+        self.assertEqual(token.data_value(19), 19)
+        self.assertEqual(token.data_value('19'), '19')
+        self.assertFalse(token.data_value(False))
 
     def test_string_value_function(self):
         token = self.parser.parse('true()')
@@ -233,6 +262,23 @@ class XPath2TokenTest(XPath1TokenTest):
     @classmethod
     def setUpClass(cls):
         cls.parser = XPath2Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
+
+    def test_bind_namespace_method(self):
+        token = self.parser.parse('true()')
+        self.assertIsNone(token.bind_namespace(XPATH_FUNCTIONS_NAMESPACE))
+        with self.assertRaises(SyntaxError) as ctx:
+            token.bind_namespace(XSD_NAMESPACE)
+        self.assertIn("an XSD element or a constructor", str(ctx.exception))
+
+        token = self.parser.parse("xs:string(10.1)")
+        with self.assertRaises(SyntaxError) as ctx:
+            token.bind_namespace(XSD_NAMESPACE)
+        self.assertIn("unexpected symbol ':' at line 1", str(ctx.exception))
+
+        self.assertIsNone(token[1].bind_namespace(XSD_NAMESPACE))
+        with self.assertRaises(SyntaxError) as ctx:
+            token[1].bind_namespace(XPATH_FUNCTIONS_NAMESPACE)
+        self.assertIn("a function expected", str(ctx.exception))
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_add_xsd_type(self):
