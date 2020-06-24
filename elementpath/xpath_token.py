@@ -411,12 +411,12 @@ class XPathToken(Token):
             self.wrong_syntax()
         elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                self.wrong_syntax("An XPath function is expected.")
+                self.wrong_syntax("a function expected.")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
             if self.symbol not in ('(name)', '*') and self.label != 'constructor':
-                self.wrong_syntax("An XSD element or a constructor function is expected.")
+                self.wrong_syntax("an XSD element or a constructor function expected.")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
 
@@ -520,9 +520,9 @@ class XPathToken(Token):
         except KeyError:
             primitive_type = self.parser.schema.get_primitive_type(xsd_type)
             try:
-                value = XSD_BUILTIN_TYPES[primitive_type.local_name or 'anyType'].value
+                value = XSD_BUILTIN_TYPES[primitive_type.local_name].value
             except KeyError:
-                value = XSD_BUILTIN_TYPES['anyType'].value
+                value = UntypedAtomic('1')
 
         if isinstance(schema_item, AttributeNode):
             return TypedAttribute(schema_item, value)
@@ -604,6 +604,8 @@ class XPathToken(Token):
         """
         The typed value, as computed by fn:data() on each item.
         Returns an instance of UntypedAtomic for untyped data.
+
+        https://www.w3.org/TR/xpath20/#dt-typed-value
         """
         if obj is None:
             return
@@ -611,6 +613,12 @@ class XPathToken(Token):
             return self.schema_node_value(obj)  # Schema context
         elif isinstance(obj, (TypedElement, TypedAttribute)):
             return obj[-1]
+        elif is_namespace_node(obj):
+            return obj[1]
+        elif is_comment_node(obj):
+            return obj.text
+        elif is_processing_instruction_node(obj):
+            return obj.text
         elif isinstance(obj, tuple):
             return UntypedAtomic(obj[-1])
         elif is_etree_element(obj):
