@@ -13,8 +13,8 @@ import decimal
 from copy import copy
 
 from .exceptions import ElementPathNameError, MissingContextError
-from .datatypes import UntypedAtomic, DayTimeDuration, YearMonthDuration, \
-    NumericTypeProxy, ArithmeticTypeProxy
+from .datatypes import UntypedAtomic, AbstractDateTime, Duration, DayTimeDuration, \
+    YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_qname
@@ -527,6 +527,13 @@ def evaluate(self, context=None):
                 return op1 + op2
             except TypeError as err:
                 raise self.wrong_type(str(err))
+            except OverflowError as err:
+                if isinstance(op1, AbstractDateTime):
+                    raise self.error('FODT0001', str(err))
+                elif isinstance(op1, Duration):
+                    raise self.error('FODT0002', str(err))
+                else:
+                    raise self.error('FOAR0002', str(err))
 
 
 @method(infix('-', bp=40))
@@ -542,6 +549,13 @@ def evaluate(self, context=None):
                 return op1 - op2
             except TypeError as err:
                 raise self.wrong_type(str(err))
+            except OverflowError as err:
+                if isinstance(op1, AbstractDateTime):
+                    raise self.error('FODT0001', str(err))
+                elif isinstance(op1, Duration):
+                    raise self.error('FODT0002', str(err))
+                else:
+                    raise self.error('FOAR0002', str(err))
 
 
 @method(infix('*', bp=45))
@@ -553,6 +567,13 @@ def evaluate(self, context=None):
                 return op1 * op2
             except TypeError as err:
                 raise self.wrong_type(str(err))
+            except OverflowError as err:
+                if isinstance(op1, AbstractDateTime):
+                    raise self.error('FODT0001', str(err))
+                elif isinstance(op1, Duration):
+                    raise self.error('FODT0002', str(err))
+                else:
+                    raise self.error('FOAR0002', str(err))
     else:
         # This is not a multiplication operator but a wildcard select statement
         return [x for x in self.select(context)]
@@ -568,6 +589,8 @@ def evaluate(self, context=None):
             return dividend / divisor
         except TypeError as err:
             raise self.wrong_type(str(err))
+        except OverflowError as err:
+            raise self.error('FOAR0002', str(err))
     elif dividend == 0:
         return float('nan')
     elif dividend > 0:

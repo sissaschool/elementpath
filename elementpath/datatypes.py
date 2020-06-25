@@ -1231,11 +1231,11 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=1.0
     ),
     'date': XsdBuiltin(
-        lambda x: isinstance(x, Date),
+        lambda x: isinstance(x, Date10),
         value=Date.fromstring('2000-01-01')
     ),
     'dateTime': XsdBuiltin(
-        lambda x: isinstance(x, DateTime),
+        lambda x: isinstance(x, DateTime10),
         value=DateTime.fromstring('2000-01-01T12:00:00')
     ),
     'gDay': XsdBuiltin(
