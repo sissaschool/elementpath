@@ -136,11 +136,15 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
             result = int(float(value))
         except ValueError:
             raise xpath_error('FORG0001', 'could not convert %r to integer' % value)
+        except OverflowError as err:
+            raise xpath_error('FOAR0002', str(err))
     else:
         try:
             result = int(value)
         except ValueError as err:
             raise xpath_error('FORG0001', str(err))
+        except OverflowError as err:
+            raise xpath_error('FOAR0002', str(err))
 
     if lower_bound is not None and result < lower_bound:
         raise xpath_error('FORG0001', "value %d is too low" % result)

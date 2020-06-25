@@ -439,15 +439,20 @@ class XPathToken(Token):
             timezone = self.get_argument(context, 1, cls=DayTimeDuration)
             if timezone is not None:
                 timezone = Timezone.fromduration(timezone)
+            if item is None:
+                return
 
-        if item.tzinfo is not None and timezone is not None:
-            if isinstance(item, DateTime10):
-                item += timezone.offset
-            elif not isinstance(item, Date10):
-                item += timezone.offset - item.tzinfo.offset
-            elif timezone.offset < item.tzinfo.offset:
-                item -= timezone.offset - item.tzinfo.offset
-                item -= DayTimeDuration.fromstring('P1D')
+        try:
+            if item.tzinfo is not None and timezone is not None:
+                if isinstance(item, DateTime10):
+                    item += timezone.offset
+                elif not isinstance(item, Date10):
+                    item += timezone.offset - item.tzinfo.offset
+                elif timezone.offset < item.tzinfo.offset:
+                    item -= timezone.offset - item.tzinfo.offset
+                    item -= DayTimeDuration.fromstring('P1D')
+        except OverflowError as err:
+            raise self.error('FOAR0002', str(err))
 
         item.tzinfo = timezone
         return item

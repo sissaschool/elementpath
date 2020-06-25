@@ -416,7 +416,9 @@ class XPath2Parser(XPath1Parser):
             return False
 
         text = value.strip()
-        if text == 'empty-sequence()':
+        if not text:
+            return False
+        elif text == 'empty-sequence()':
             return True
         elif text[-1] in ('?', '+', '*'):
             text = text[:-1]
@@ -443,6 +445,8 @@ class XPath2Parser(XPath1Parser):
                 sequence_type = self.get_sequence_type(value[0])
                 if all(self.get_sequence_type(x) == sequence_type for x in value[1:]):
                     return '{}+'.format(sequence_type)
+                else:
+                    return 'node()+'
         else:
             value_kind = node_kind(value)
             if value_kind is not None:
@@ -498,7 +502,8 @@ class XPath2Parser(XPath1Parser):
         else:
             value_kind = node_kind(value)
             if value_kind is not None:
-                return '()' in sequence_type and sequence_type.startswith(value_kind)
+                return sequence_type == 'node()' or \
+                    '()' in sequence_type and sequence_type.startswith(value_kind)
             elif isinstance(value, UntypedAtomic):
                 return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
 
@@ -576,14 +581,6 @@ def nud(self):
 def evaluate(self, context=None):
     varname = self[0].value
     if context is None:
-        try:
-            value = self.parser.get_variable_value(varname)
-        except KeyError:
-            pass
-        else:
-            if value is not None:
-                return value
-
         self.missing_context()
 
     try:
@@ -625,12 +622,12 @@ def select(self, context=None):
 @method('if', bp=20)
 def nud(self):
     self.parser.advance('(')
-    self[:] = self.parser.expression(),
+    self[:] = self.parser.expression(5),
     self.parser.advance(')')
     self.parser.advance('then')
-    self[1:] = self.parser.expression(),
+    self[1:] = self.parser.expression(5),
     self.parser.advance('else')
-    self[2:] = self.parser.expression(),
+    self[2:] = self.parser.expression(5),
     return self
 
 

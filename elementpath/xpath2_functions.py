@@ -489,6 +489,8 @@ def evaluate(self, context=None):
     except re.error:
         # TODO: full XML regex syntax
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
+    except OverflowError as err:
+        raise self.error('FOAR0002', str(err))
 
 
 @method(function('replace', nargs=(3, 4)))
@@ -791,7 +793,9 @@ def evaluate(self, context=None):
 @method(function('timezone-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
+    if item is None or item.tzinfo is None:
+        return []
+    return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('year-from-date', nargs=1))
@@ -815,7 +819,9 @@ def evaluate(self, context=None):
 @method(function('timezone-from-date', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Date10)
-    return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
+    if item is None or item.tzinfo is None:
+        return []
+    return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('hours-from-time', nargs=1))
@@ -839,7 +845,9 @@ def evaluate(self, context=None):
 @method(function('timezone-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
-    return [] if item is None else DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
+    if item is None or item.tzinfo is None:
+        return []
+    return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 ###
@@ -939,7 +947,7 @@ def select(self, context=None):
     idrefs = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
 
-    if node is not context.item:
+    if context is None or node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
@@ -966,7 +974,7 @@ def select(self, context=None):
     ids = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
 
-    if node is not context.item:
+    if context is None or node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
@@ -993,8 +1001,12 @@ def evaluate(self, context=None):
     uri = self.get_argument(context)
     if uri is None:
         return None if self.symbol == 'doc' else False
-    uri = self.get_absolute_uri(uri)
+    elif context is None:
+        self.missing_context()
+    elif not isinstance(uri, str):
+        raise self.error('FODC0005')
 
+    uri = self.get_absolute_uri(uri)
     if context is not None and not isinstance(context, XPathSchemaContext):
         try:
             doc = context.documents[uri]

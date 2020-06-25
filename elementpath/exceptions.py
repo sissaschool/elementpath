@@ -37,11 +37,15 @@ class MissingContextError(ElementPathError):
     """Raised when the dynamic context is required for evaluate the XPath expression."""
 
 
+class ElementPathKeyError(ElementPathError, KeyError):
+    pass
+
+
 class ElementPathNameError(ElementPathError, NameError):
     pass
 
 
-class ElementPathKeyError(ElementPathError, KeyError):
+class ElementPathOverflowError(ElementPathError, OverflowError):
     pass
 
 
@@ -84,7 +88,7 @@ XPATH_ERROR_CODES = {
     # XPath data types and function errors
     'FOER0000': (ElementPathError, 'Unidentified error'),
     'FOAR0001': (ElementPathValueError, 'Division by zero'),
-    'FOAR0002': (ElementPathValueError, 'Numeric operation overflow/underflow'),
+    'FOAR0002': (ElementPathOverflowError, 'Numeric operation overflow/underflow'),
     'FOCA0001': (ElementPathValueError, 'Input value too large for decimal'),
     'FOCA0002': (ElementPathValueError, 'Invalid lexical value'),
     'FOCA0003': (ElementPathValueError, 'Input value too large for integer'),
@@ -101,8 +105,8 @@ XPATH_ERROR_CODES = {
     'FODC0004': (ElementPathValueError, 'Invalid argument to fn:collection'),
     'FODC0005': (ElementPathValueError,
                  'Invalid argument to fn:doc or fn:doc-available'),
-    'FODT0001': (ElementPathValueError, 'Overflow/underflow in date/time operation'),
-    'FODT0002': (ElementPathValueError, 'Overflow/underflow in duration operation'),
+    'FODT0001': (ElementPathOverflowError, 'Overflow/underflow in date/time operation'),
+    'FODT0002': (ElementPathOverflowError, 'Overflow/underflow in duration operation'),
     'FODT0003': (ElementPathValueError, 'Invalid timezone value'),
     'FONS0004': (ElementPathKeyError, 'No namespace found for prefix'),
     'FONS0005': (ElementPathValueError, 'Base-uri not defined in the static context'),

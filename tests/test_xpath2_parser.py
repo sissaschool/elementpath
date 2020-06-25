@@ -93,10 +93,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             self.parser.get_sequence_type([[1]])
         self.assertEqual('Inconsistent sequence type for [[1]]', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as ctx:
-            self.parser.get_sequence_type([1, 2.0])
-        self.assertEqual('Inconsistent sequence type for [1, 2.0]', str(ctx.exception))
-
+        self.assertEqual(self.parser.get_sequence_type([1, 2.0]), 'node()+')
         self.assertEqual(self.parser.get_sequence_type(UntypedAtomic(1)), 'xs:untypedAtomic')
 
         root = self.etree.XML('<root><e1/><e2/><e3/></root>')
@@ -143,7 +140,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         with self.assertRaises(NameError) as ctx:
             self.parser.check_variables({'values': 1})
-        self.assertEqual("[err:XPST0008] Missing variable 'myaddress'.", str(ctx.exception))
+        self.assertIn("[err:XPST0008] Missing variable", str(ctx.exception))
 
         with self.assertRaises(NameError) as ctx:
             self.parser.check_variables(
@@ -335,7 +332,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
         self.wrong_value("-3.5 idiv 0")
-        self.wrong_value("xs:float('INF') idiv 2")
+        self.check_value("xs:float('INF') idiv 2", OverflowError)
 
     def test_comparison_operators(self):
         super(XPath2ParserTest, self).test_comparison_operators()
