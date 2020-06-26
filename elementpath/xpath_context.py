@@ -26,6 +26,10 @@ class XPathContext(object):
     required, but have to be used with the knowledge of what is their meaning.
 
     :param root: the root of the XML document, can be a ElementTree instance or an Element.
+    :param namespaces: a dictionary with mapping from namespace prefixes into URIs, \
+    used when namespace information is not available within document and element nodes. \
+    This can be useful when the dynamic context has additional namespaces and root \
+    is an Element or an ElementTree instance of the standard library.
     :param item: the context item. A `None` value means that the context is positioned on \
     the document node.
     :param position: the current position of the node within the input sequence.
@@ -35,52 +39,67 @@ class XPathContext(object):
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
+    :param documents: available documents. This is a dictionary from absolute URIs \
+    onto document nodes. Used by the function fn:doc.
+    :param collections: available collections. This is a dictionary from absolute \
+    URIs onto sequences of nodes. Used by the function fn:collection.
+    :param default_collection: this is the sequence of nodes used when fn:collection \
+    is called with no arguments.
     """
     _iter_nodes = staticmethod(etree_iter_nodes)
+    _parent_map = None
+    _elem = None
 
-    def __init__(self, root, item=None, position=1, size=1, axis=None,
-                 variable_values=None, current_dt=None, timezone=None,
-                 documents=None, collections=None, default_collection=None):
-        if not is_element_node(root) and not is_document_node(root):
-            raise ElementPathTypeError(
-                "invalid argument root={!r}, an Element is required.".format(root)
-            )
-
+    def __init__(self, root, namespaces=None, item=None, position=1, size=1, axis=None,
+                 variable_values=None, current_dt=None, timezone=None, documents=None,
+                 collections=None, default_collection=None):
         self.root = root
-        if item is not None:
-            self.item = item
+        self.namespaces = namespaces
+
+        if is_etree_element(root) and not callable(root.tag):
+            if item is None:
+                self.item = self._elem = root
+            elif is_etree_element(item) and not callable(root.tag):
+                self.item = self._elem = item
+            else:
+                self.item, self._elem = item, root
+        elif is_document_node(root):
+            self.item = None if item is None else item
         else:
-            self.item = root if hasattr(root, 'tag') else None
+            msg = "invalid root {!r}, an Element or an ElementTree instance required"
+            raise ElementPathTypeError(msg.format(root))
 
         self.position = position
         self.size = size
         self.axis = axis
-        self.variable_values = {} if variable_values is None else dict(variable_values)
+
+        if variable_values is None:
+            self.variable_values = {}
+        else:
+            self.variable_values = {k: v for k, v in variable_values.items()}
+
         self.current_dt = current_dt or datetime.datetime.now()
         self.timezone = timezone
-        self.documents = {} if documents is None else dict(documents)
-        self.collections = {} if collections is None else dict(collections)
+        self.documents = documents
+        self.collections = collections
         self.default_collection = default_collection
-        self._elem = item if is_element_node(item) else root
-        self._parent_map = None
 
     def __repr__(self):
-        return '%s(root=%r, item=%r, position=%r, size=%r, axis=%r)' % (
-            self.__class__.__name__, self.root, self.item, self.position, self.size, self.axis
-        )
+        return '%s(root=%r, item=%r)' % (self.__class__.__name__, self.root, self.item)
 
     def __copy__(self):
         obj = type(self)(
             root=self.root,
+            namespaces=self.namespaces,
             item=self.item,
             position=self.position,
             size=self.size,
             axis=None,
-            variable_values=self.variable_values.copy(),
+            variable_values=self.variable_values,
             current_dt=self.current_dt,
             timezone=self.timezone,
-            documents=self.documents.copy(),
-            collections=self.collections.copy(),
+            documents=self.documents,
+            collections=self.collections,
             default_collection=self.default_collection,
         )
         if self.item is None:

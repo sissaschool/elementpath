@@ -536,7 +536,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:distinct-values((1, 2.0, 3, 2))', [1, 2.0, 3])
         context = XPathContext(
             root=self.etree.XML('<root/>'),
-            variable_values={'x': [UntypedAtomic("foo"), UntypedAtomic("bar"), UntypedAtomic("bar")]}
+            variable_values={
+                'x': [UntypedAtomic("foo"), UntypedAtomic("bar"), UntypedAtomic("bar")]
+            }
         )
         self.check_value('fn:distinct-values($x)', ['foo', 'bar'], context)
 
@@ -556,7 +558,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
 
     def test_insert_before_function(self):
-        context = XPathContext(root=self.etree.XML('<root/>'), variable_values={'x': ['a', 'b', 'c']})
+        context = XPathContext(root=self.etree.XML('<root/>'),
+                               variable_values={'x': ['a', 'b', 'c']})
         self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
         self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
@@ -564,14 +567,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context.copy())
 
     def test_remove_function(self):
-        context = XPathContext(root=self.etree.XML('<root/>'), variable_values={'x': ['a', 'b', 'c']})
+        context = XPathContext(root=self.etree.XML('<root/>'),
+                               variable_values={'x': ['a', 'b', 'c']})
         self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
         self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove((), 3)', [])
 
     def test_reverse_function(self):
-        context = XPathContext(root=self.etree.XML('<root/>'), variable_values={'x': ['a', 'b', 'c']})
+        context = XPathContext(root=self.etree.XML('<root/>'),
+                               variable_values={'x': ['a', 'b', 'c']})
         self.check_value('reverse($x)', ['c', 'b', 'a'], context)
         self.check_value('fn:reverse(("hello"))', ['hello'], context)
         self.check_value('fn:reverse(())', [])
@@ -1151,13 +1156,13 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
         context = XPathContext(root, documents={'tns0': doc})
 
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(TypeError) as err:
             self.check_value("fn:doc('tns0')", context=context)
-        self.assertIn('FODC0005', str(err.exception))
+        self.assertIn('XPDY0050', str(err.exception))
 
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(TypeError) as err:
             self.check_value("fn:doc-available('tns0')", context=context)
-        self.assertIn('FODC0005', str(err.exception))
+        self.assertIn('XPDY0050', str(err.exception))
 
     def test_collection_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
@@ -1165,11 +1170,19 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         doc2 = self.etree.parse(io.StringIO("<a1><b11><c11/></b11><b12/><b13/></a1>"))
         context = XPathContext(root, collections={'tns0': [doc1, doc2]})
 
+        self.check_value("fn:collection('tns0')", [doc1, doc2], context=context)
+
+        self.parser.collection_types = {'tns0': 'node()*'}
+        self.check_value("fn:collection('tns0')", [doc1, doc2], context=context)
+        self.parser.collection_types = {'tns0': 'node()'}
+        self.check_value("fn:collection('tns0')", TypeError, context=context)
+
         self.check_value("fn:collection()", ValueError, context=context)
-        self.check_value("fn:collection('tns0')", ValueError, context=context)
         context.default_collection = context.collections['tns0']
         self.check_value("fn:collection()", [doc1, doc2], context=context)
-        self.check_value("fn:collection('tns0')", ValueError, context=context)
+        self.parser.default_collection_type = 'node()'
+        self.check_value("fn:collection()", TypeError, context=context)
+        self.parser.default_collection_type = 'node()*'
 
     def test_root_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")

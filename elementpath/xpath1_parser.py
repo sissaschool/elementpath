@@ -731,7 +731,7 @@ def select(self, context=None):
         else:
             selector = context.iter_selector(self[0].select)
 
-        for _ in selector:
+        for context.item in selector:
             predicate = [x for x in self[1].select(context.copy())]
             if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
                 if context.position == predicate[0]:
