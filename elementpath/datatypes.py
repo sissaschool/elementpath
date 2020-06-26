@@ -318,10 +318,16 @@ class AbstractDateTime(metaclass=ABCMeta):
         if 'microsecond' in kwargs:
             pow10 = 6 - len(match.groupdict()['microsecond'])
             kwargs['microsecond'] = 0 if pow10 < 0 else kwargs['microsecond'] * 10**pow10
+        if 'year' in kwargs:
+            year_digits = match.groupdict()['year'].lstrip('-')
+            if year_digits.startswith('0') and len(year_digits) > 4:
+                msg = "Invalid datetime string {!r} for {!r} (when year " \
+                      "exceeds 4 digits leading zeroes are not allowed)"
+                raise ElementPathValueError(msg.format(datetime_string, cls))
 
-        year = kwargs.get('year')
-        if year is not None and year <= 0 and cls.version != '1.0':
-            kwargs['year'] -= 1
+            if kwargs['year'] <= 0 and cls.version != '1.0':
+                kwargs['year'] -= 1
+
         return cls(**kwargs)
 
     @classmethod

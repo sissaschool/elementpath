@@ -1034,6 +1034,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             DateTime.fromstring('2002-03-07T10:00:00'), context
         )
 
+        self.check_value('fn:adjust-dateTime-to-timezone((), ())')
+
     def test_adjust_date_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
                                variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
@@ -1051,11 +1053,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), $tz)',
                          Date.fromstring('2002-03-06-10:00'), context)
 
+        self.check_value('fn:adjust-date-to-timezone((), ())')
+        self.check_value('adjust-date-to-timezone(xs:date("-25252734927766555-06-07+02:00"), '
+                         'xs:dayTimeDuration("PT0S"))', OverflowError)
+
     def test_adjust_time_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
                                variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
 
         self.check_value('fn:adjust-time-to-timezone(())')
+        self.check_value('fn:adjust-time-to-timezone((), ())')
 
         self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"))',
                          Time.fromstring('10:00:00-05:00'), context)

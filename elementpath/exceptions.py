@@ -41,6 +41,10 @@ class ElementPathKeyError(ElementPathError, KeyError):
     pass
 
 
+class ElementPathZeroDivisionError(ElementPathError, ZeroDivisionError):
+    pass
+
+
 class ElementPathNameError(ElementPathError, NameError):
     pass
 
@@ -87,7 +91,7 @@ XPATH_ERROR_CODES = {
 
     # XPath data types and function errors
     'FOER0000': (ElementPathError, 'Unidentified error'),
-    'FOAR0001': (ElementPathValueError, 'Division by zero'),
+    'FOAR0001': (ElementPathZeroDivisionError, 'Division by zero'),
     'FOAR0002': (ElementPathOverflowError, 'Numeric operation overflow/underflow'),
     'FOCA0001': (ElementPathValueError, 'Input value too large for decimal'),
     'FOCA0002': (ElementPathValueError, 'Invalid lexical value'),

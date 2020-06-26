@@ -331,7 +331,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
-        self.wrong_value("-3.5 idiv 0")
+        self.check_value("-3.5 idiv 0", ZeroDivisionError)
         self.check_value("xs:float('INF') idiv 2", OverflowError)
 
     def test_comparison_operators(self):

@@ -745,7 +745,7 @@ def evaluate(self, context=None):
             return False
         return True
     elif self[1].label in ('kind test', 'sequence type'):
-        for position, item in enumerate(self[0].select(context)):
+        for position, context.item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 return False
             elif position and (occurs is None or occurs == '?'):
@@ -1200,13 +1200,5 @@ def select(self, context=None):
                     xsd_type = self.get_xsd_type(item)
                     if xsd_type is not None and xsd_type.name == type_name:
                         yield context.item[1]
-
-
-@method('attribute')
-def evaluate(self, context=None):
-    if context is not None:
-        if is_attribute_node(context.item, self[0].evaluate(context) if self else None):
-            return context.item[1]
-
 
 # XPath 2.0 definitions continue into module xpath2_functions
