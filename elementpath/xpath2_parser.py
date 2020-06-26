@@ -49,6 +49,8 @@ class XPath2Parser(XPath1Parser):
     compatibility the variable types are detected if values are provided.
     :param strict: if strict mode is `False` the parser enables parsing of QNames, \
     like the ElementPath library. Default is `True`.
+    :param compatibility_mode: if set to `True` the parser instance works with \
+    XPath 1.0 compatibility rules.
     :param default_namespace: the default namespace to apply to unprefixed names. \
     For default no namespace is applied (empty namespace '').
     :param function_namespace: the default namespace to apply to unprefixed function \
@@ -60,8 +62,17 @@ class XPath2Parser(XPath1Parser):
     expressions cannot be used.
     :param base_uri: an absolute URI maybe provided, used when necessary in the \
     resolution of relative URIs.
-    :param compatibility_mode: if set to `True` the parser instance works with \
-    XPath 1.0 compatibility rules.
+    :param default_collation: the default string collation to use. If not set the \
+    environment's default locale setting is used.
+    :param document_types: statically known documents, that is a dictionary from \
+    absolute URIs onto types. Used for type check when calling the *fn:doc* function \
+    with a sequence of URIs. The default type of a document is 'document-node()'.
+    :param collection_types: statically known collections, that is a dictionary from \
+    absolute URIs onto types. Used for type check when calling the *fn:collection* \
+    function with a sequence of URIs. The default type of a collection is 'node()*'.
+    :param default_collection_type: this is the type of the sequence of nodes that \
+    would result from calling the *fn:collection* function with no arguments. \
+    Default is 'node()*'.
     """
     version = '2.0'
 
@@ -180,7 +191,8 @@ class XPath2Parser(XPath1Parser):
 
     def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
                  default_namespace=None, function_namespace=None, schema=None, base_uri=None,
-                 default_collation=None, documents=None, collections=None, default_collection=None):
+                 default_collation=None,
+                 document_types=None, collection_types=None, default_collection_type='node()*'):
         super(XPath2Parser, self).__init__(namespaces, strict)
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
@@ -210,9 +222,20 @@ class XPath2Parser(XPath1Parser):
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
         self._compatibility_mode = compatibility_mode
         self._default_collation = default_collation
-        self.documents = {} if documents is None else dict(documents)
-        self.collections = {} if collections is None else dict(collections)
-        self.default_collection = default_collection
+
+        if document_types:
+            if any(not self.is_sequence_type(v) for v in document_types.values()):
+                raise ElementPathTypeError('invalid document_types')
+        self.document_types = document_types
+
+        if collection_types:
+            if any(not self.is_sequence_type(v) for v in collection_types.values()):
+                raise ElementPathTypeError('invalid collection_types')
+        self.collection_types = collection_types
+
+        if not self.is_sequence_type(default_collection_type):
+            raise ElementPathTypeError('invalid default_collection_type')
+        self.default_collection_type = default_collection_type
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -424,7 +447,7 @@ class XPath2Parser(XPath1Parser):
             text = text[:-1]
 
         if text in {'attribute()', 'element()', 'text()', 'document-node()',
-                    'comment()', 'processing-instruction()', 'item()'}:
+                    'comment()', 'processing-instruction()', 'item()', 'node()'}:
             return True
         elif not XSD_BUILTIN_TYPES['QName'].validator(text):
             return False
@@ -488,7 +511,9 @@ class XPath2Parser(XPath1Parser):
                     pass
 
     def match_sequence_type(self, value, sequence_type, occurrence=None):
-        if value is None or value == []:
+        if sequence_type[-1] in {'?', '+', '*'}:
+            return self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1])
+        elif value is None or value == []:
             return sequence_type == 'empty-sequence()' or occurrence in {'?', '*'}
         elif sequence_type == 'empty-sequence()':
             return False

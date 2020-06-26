@@ -19,7 +19,6 @@ import locale
 import unicodedata
 from copy import copy
 from urllib.parse import urlparse, urljoin, quote as urllib_quote
-import xml.etree.ElementTree as ElementTree
 
 from .exceptions import ElementPathTypeError, xpath_error
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, \
@@ -137,10 +136,11 @@ def select(self, context=None):
             for prefix in elem.nsmap:
                 yield prefix or ''
         else:
+            yield from self.parser.namespaces
             # For ElementTree returns module registered prefixes
             prefixes = {x for x in self.parser.namespaces}
-            etree_nsmap = getattr(ElementTree, '_namespace_map', {})
-            prefixes.update(x for x in etree_nsmap.values())
+            if context.namespaces:
+                prefixes.update(x for x in context.namespaces)
             yield from prefixes
 
 
@@ -929,10 +929,13 @@ def evaluate(self, context=None):
         elif any(item is x for x in context.iter()):
             return context.root
 
-        for uri, doc in context.documents.items():
-            doc_context = XPathContext(root=doc)
-            if any(item is x for x in doc_context.iter()):
-                return doc
+        try:
+            for uri, doc in context.documents.items():
+                doc_context = XPathContext(root=doc)
+                if any(item is x for x in doc_context.iter()):
+                    return doc
+        except AttributeError:
+            pass
 
 
 ###
@@ -1010,14 +1013,21 @@ def evaluate(self, context=None):
     if context is not None and not isinstance(context, XPathSchemaContext):
         try:
             doc = context.documents[uri]
-        except KeyError:
+        except (KeyError, TypeError):
             if self.symbol == 'doc':
                 raise self.error('FODC0005')
             return False
-        else:
-            if not is_document_node(doc):
-                raise self.error('FODC0005')
-            return doc if self.symbol == 'doc' else True
+
+        try:
+            sequence_type = self.parser.document_types[uri]
+        except (KeyError, TypeError):
+            sequence_type = 'document-node()'
+
+        if not self.parser.match_sequence_type(doc, sequence_type):
+            msg = "Type does not match sequence type {!r}"
+            self.wrong_sequence_type(msg.format(sequence_type))
+
+        return doc if self.symbol == 'doc' else True
 
 
 @method(function('collection', nargs=(0, 1)))
@@ -1028,13 +1038,26 @@ def evaluate(self, context=None):
     elif not self or uri is None:
         if context.default_collection is None:
             raise self.error('FODC0002', 'no default collection has been defined')
-        return context.default_collection
 
-    uri = self.get_absolute_uri(uri)
-    try:
-        return self.parser.collections[uri]
-    except KeyError:
-        raise self.error('FODC0004', '{!r} collection not found'.format(uri))
+        collection = context.default_collection
+        sequence_type = self.parser.default_collection_type
+    else:
+        uri = self.get_absolute_uri(uri)
+        try:
+            collection = context.collections[uri]
+        except (KeyError, TypeError):
+            raise self.error('FODC0004', '{!r} collection not found'.format(uri)) from None
+
+        try:
+            sequence_type = self.parser.collection_types[uri]
+        except (KeyError, TypeError):
+            return collection
+
+    if not self.parser.match_sequence_type(collection, sequence_type):
+        msg = "Type does not match sequence type {!r}"
+        self.wrong_sequence_type(msg.format(sequence_type))
+
+    return collection
 
 
 ###
