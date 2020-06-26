@@ -215,6 +215,11 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('0000-02-29'), Date)
 
+        with self.assertRaises(ValueError) as ctx:
+            Date.fromstring('01000-02-29')
+
+        self.assertIn("when year exceeds 4 digits leading zeroes are not allowed", str(ctx.exception))
+
         dt = Date.fromstring("-0003-01-01")
         self.assertEqual(dt._year, -4)
         self.assertEqual(dt._dt.year, 6)

@@ -512,16 +512,20 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value('fn:substring("12345", 0 div 0E0, 3)', '')
             self.check_value('fn:substring("12345", 1, 0 div 0E0)', '')
             self.check_value('fn:substring((), 1, 3)', '')
-            self.check_value('fn:substring("12345", -42, 1 div 0E0)', '12345')
-            self.check_value('fn:substring("12345", -1 div 0E0, 1 div 0E0)', '')
+
+            self.check_value('fn:substring("12345", -42, 1 div 0E0)', ZeroDivisionError)
+            self.check_value('fn:substring("12345", -1 div 0E0, 1 div 0E0)', ZeroDivisionError)
 
             self.check_value('fn:substring(("alpha"), 1, 3)', 'alp')
             self.check_value('fn:substring(("alpha"), (1), 3)', 'alp')
             self.check_value('fn:substring(("alpha"), 1, (3))', 'alp')
             self.wrong_type('fn:substring(("alpha"), (1, 2), 3)')
             self.wrong_type('fn:substring(("alpha", "beta"), 1, 3)')
+
             self.parser.compatibility_mode = True
             self.check_value('fn:substring(("alpha", "beta"), 1, 3)', 'alp')
+            self.check_value('fn:substring("12345", -42, 1 div 0E0)', '12345')
+            self.check_value('fn:substring("12345", -1 div 0E0, 1 div 0E0)', '')
             self.parser.compatibility_mode = False
 
     def test_starts_with_function(self):

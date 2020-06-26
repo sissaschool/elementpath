@@ -177,6 +177,11 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:integer("19")', 19)
         self.check_value('xs:integer(xs:untypedAtomic("19"))', 19)
         self.check_value("xs:integer('-5')", -5)
+        self.check_value("xs:integer('INF')", OverflowError)
+        self.check_value("xs:integer('inf')", ValueError)
+        self.check_value("xs:integer('NaN')", ValueError)
+        self.check_value("xs:integer(xs:float('-INF'))", OverflowError)
+        self.check_value("xs:integer(xs:double('NaN'))", ValueError)
 
         root = self.etree.XML('<root a="19"/>')
         context = XPathContext(root)
@@ -248,10 +253,14 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
     def test_float_constructor(self):
         self.wrong_value('xs:float("..")')
+        self.wrong_value('xs:float("ab")')
         self.check_value('xs:float(25.05)', 25.05)
         self.check_value('xs:float(xs:untypedAtomic(25.05))', 25.05)
         self.check_value('xs:float(-0.00001)', -0.00001)
         self.check_value('xs:float(0.00001)', float)
+        self.check_value('xs:float("INF")', float('inf'))
+        self.check_value('xs:float("-INF")', float('-inf'))
+        self.wrong_value('xs:float("inf")')
 
         root = self.etree.XML('<root a="10.3"/>')
         context = XPathContext(root, item=AttributeNode('a', 10.3))

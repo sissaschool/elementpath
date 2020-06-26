@@ -114,10 +114,14 @@ def cast(value):
 @constructor('double')
 @constructor('float')
 def cast(value):
+    if isinstance(value, (str, bytes)) and value.lower() in {'nan', 'inf', '-inf'} \
+            and value not in {'NaN', 'INF', '-INF'}:
+        raise xpath_error('FORG0001', "could not convert string to float: %r" % value)
+
     try:
         return float(value)
     except ValueError as err:
-        raise xpath_error('FORG0001', str(err))
+        raise xpath_error('FORG0001', str(err)) from None
 
 
 def cast_to_integer(value, lower_bound=None, higher_bound=None):
@@ -133,18 +137,20 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
     """
     if isinstance(value, (str, bytes)):
         try:
+            if value.strip().lower() in {'inf', '-inf'} and value.strip() not in {'INF', '-INF'}:
+                raise ValueError()
             result = int(float(value))
         except ValueError:
-            raise xpath_error('FORG0001', 'could not convert %r to integer' % value)
+            raise xpath_error('FORG0001', 'could not convert %r to integer' % value) from None
         except OverflowError as err:
-            raise xpath_error('FOAR0002', str(err))
+            raise xpath_error('FOAR0002', str(err)) from None
     else:
         try:
             result = int(value)
         except ValueError as err:
-            raise xpath_error('FORG0001', str(err))
+            raise xpath_error('FORG0001', str(err)) from None
         except OverflowError as err:
-            raise xpath_error('FOAR0002', str(err))
+            raise xpath_error('FOAR0002', str(err)) from None
 
     if lower_bound is not None and result < lower_bound:
         raise xpath_error('FORG0001', "value %d is too low" % result)

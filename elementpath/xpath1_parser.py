@@ -593,6 +593,8 @@ def evaluate(self, context=None):
             raise self.error('FOAR0002', str(err))
     elif dividend == 0:
         return float('nan')
+    elif not self.parser.compatibility_mode:
+        raise self.error('FOAR0001')
     elif dividend > 0:
         return float('inf')
     else:
