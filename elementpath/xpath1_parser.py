@@ -1104,15 +1104,16 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [self.number_value(x) if isinstance(x, UntypedAtomic) else x
-              for x in self[0].select(context)]
+    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero
     elif any(isinstance(x, float) and math.isnan(x) for x in values):
         return float('nan')
 
-    if any(isinstance(x, DayTimeDuration) for x in values) or \
+    if all(isinstance(x, (decimal.Decimal, int)) for x in values) or \
+            all(isinstance(x, DayTimeDuration) for x in values) or \
             all(isinstance(x, YearMonthDuration) for x in values):
         return sum(values)
 
