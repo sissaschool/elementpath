@@ -255,20 +255,21 @@ def evaluate(self, context=None):
 # Aggregate functions
 @method(function('avg', nargs=1))
 def evaluate(self, context=None):
-    result = [x for x in self[0].select(context)]
-    if not result:
-        return result
-    elif isinstance(result[0], Duration):
-        value = result[0]
+    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+
+    if not values:
+        return values
+    elif isinstance(values[0], Duration):
+        value = values[0]
         try:
-            for item in result[1:]:
+            for item in values[1:]:
                 value = value + item
-            return value / len(result)
+            return value / len(values)
         except TypeError as err:
             self.wrong_type(str(err))
     else:
         try:
-            return sum(result) / len(result)
+            return sum(values) / len(values)
         except TypeError as err:
             self.wrong_type(str(err))
 
@@ -276,15 +277,15 @@ def evaluate(self, context=None):
 @method(function('max', nargs=(1, 2)))
 @method(function('min', nargs=(1, 2)))
 def evaluate(self, context=None):
-    func = max if self.symbol == 'max' else min
+    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+    if any(isinstance(x, float) and math.isnan(x) for x in values):
+        return float('nan')
+
     try:
-        values = [x for x in self[0].select(context)]
-        if any(isinstance(x, float) and math.isnan(x) for x in values):
-            return float('nan')
         if len(self) > 1:
             with self.use_locale(collation=self.get_argument(context, 1)):
-                return func(values)
-        return func(values)
+                return max(values) if self.symbol == 'max' else min(values)
+        return max(values) if self.symbol == 'max' else min(values)
     except TypeError as err:
         self.wrong_type(str(err))
     except ValueError:
