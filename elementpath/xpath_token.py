@@ -126,16 +126,33 @@ class XPathToken(Token):
             )
         return super(XPathToken, self).source
 
-    @property
-    def error_prefix(self):
-        for prefix, ns in self.parser.namespaces.items():
-            if ns == XQT_ERRORS_NAMESPACE:
-                return prefix
+    ###
+    # Tokens tree analysis methods
+    def iter_leaf_elements(self):
+        """
+        Iterates through the leaf elements of the token tree if there are any,
+        returning QNames in prefixed format. A leaf element is an element
+        positioned at last path step. Does not consider kind tests and wildcards.
+        """
+        if self.symbol in {'(name)', ':'}:
+            yield self.value
+        elif self.symbol in ('//', '/'):
+            if self[-1].symbol in {
+                '(name)', '*', ':', '..', '.', '[', 'self', 'child',
+                'parent', 'following-sibling', 'preceding-sibling',
+                'ancestor', 'ancestor-or-self', 'descendant',
+                'descendant-or-self', 'following', 'preceding'
+            }:
+                yield from self[-1].iter_leaf_elements()
+
+        elif self.symbol in ('[',):
+            yield from self[0].iter_leaf_elements()
         else:
-            return 'err'
+            for tk in self:
+                yield from tk.iter_leaf_elements()
 
     ###
-    # Helper methods
+    # Dynamic context methods
     def get_argument(self, context, index=0, required=False, default_to_context=False,
                      default=None, cls=None):
         """
@@ -474,7 +491,7 @@ class XPathToken(Token):
             locale.setlocale(locale.LC_COLLATE, loc)
 
     ###
-    # XSD type association helper methods
+    # Schema context methods
     def add_xsd_type(self, name, xsd_type):
         """
         Adds an XSD type association to token.
@@ -736,7 +753,13 @@ class XPathToken(Token):
         :param code: the error code.
         :param message: an optional custom additional message.
         """
-        return xpath_error(code, message, self, self.error_prefix)
+        for error_prefix, ns in self.parser.namespaces.items():
+            if ns == XQT_ERRORS_NAMESPACE:
+                break
+        else:
+            error_prefix = 'err'
+
+        return xpath_error(code, message, self, error_prefix)
 
     # Shortcuts for XPath errors
     def wrong_syntax(self, message=None):

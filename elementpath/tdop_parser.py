@@ -236,13 +236,21 @@ class Token(MutableSequence):
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
 
-    def iter(self):
+    def iter(self, *symbols):
         """Returns a generator for iterating the token's tree."""
-        for t in self[:1]:
-            yield from t.iter()
-        yield self
-        for t in self[1:]:
-            yield from t.iter()
+        if not self:
+            if not symbols or self.symbol in symbols:
+                yield self
+        elif len(self) == 1:
+            if not symbols or self.symbol in symbols:
+                yield self
+            yield from self[0].iter(*symbols)
+        else:
+            yield from self[0].iter(*symbols)
+            if not symbols or self.symbol in symbols:
+                yield self
+            for t in self[1:]:
+                yield from t.iter(*symbols)
 
     def expected(self, *symbols):
         if symbols and self.symbol not in symbols:
