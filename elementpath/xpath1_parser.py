@@ -13,7 +13,7 @@ import decimal
 from copy import copy
 
 from .exceptions import ElementPathNameError, MissingContextError
-from .datatypes import UntypedAtomic, AbstractDateTime, Duration, DayTimeDuration, \
+from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
@@ -74,8 +74,8 @@ class XPath1Parser(Parser):
 
     DEFAULT_NAMESPACES = {'xml': XML_NAMESPACE}
     """
-    The default prefix-to-namespace associations of the XPath class. Those namespaces are updated
-    in the instance with the ones passed with the *namespaces* argument.
+    The default prefix-to-namespace associations of the XPath class. These namespaces
+    are updated in the instance with the ones passed with the *namespaces* argument.
     """
 
     # Labels and symbols admitted after a path step
