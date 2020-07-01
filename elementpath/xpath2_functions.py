@@ -202,9 +202,9 @@ def select(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, default_to_context=True)
     if item is None:
-        self.missing_context("context item is undefined")
+        raise self.missing_context("context item is undefined")
     elif not is_xpath_node(item):
-        self.wrong_context_type("context item is not a node")
+        raise self.wrong_context_type("context item is not a node")
     else:
         return node_base_uri(item)
 
@@ -226,7 +226,7 @@ def evaluate(self, context=None):
     elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
         return item
     elif not isinstance(item, (float, int, decimal.Decimal)):
-        self.wrong_type("Invalid argument type {!r}".format(type(item)))
+        raise self.wrong_type("Invalid argument type {!r}".format(type(item)))
 
     precision = 0 if len(self) < 2 else self[1].evaluate(context)
     return float(round(decimal.Decimal(item), precision))
@@ -244,9 +244,9 @@ def evaluate(self, context=None):
         try:
             return abs(decimal.Decimal(value))
         except decimal.DecimalException:
-            self.wrong_value("Invalid string value {!r} for {!r}".format(value, item))
+            raise self.wrong_value("Invalid string value {!r} for {!r}".format(value, item))
     elif not isinstance(item, (float, int, decimal.Decimal)):
-        self.wrong_type("Invalid argument type {!r}".format(type(item)))
+        raise self.wrong_type("Invalid argument type {!r}".format(type(item)))
     else:
         return abs(item)
 
@@ -266,12 +266,12 @@ def evaluate(self, context=None):
                 value = value + item
             return value / len(values)
         except TypeError as err:
-            self.wrong_type(str(err))
+            raise self.wrong_type(str(err))
     else:
         try:
             return sum(values) / len(values)
         except TypeError as err:
-            self.wrong_type(str(err))
+            raise self.wrong_type(str(err))
 
 
 @method(function('max', nargs=(1, 2)))
@@ -287,7 +287,7 @@ def evaluate(self, context=None):
                 return max(values) if self.symbol == 'max' else min(values)
         return max(values) if self.symbol == 'max' else min(values)
     except TypeError as err:
-        self.wrong_type(str(err))
+        raise self.wrong_type(str(err))
     except ValueError:
         return []
 
@@ -629,7 +629,7 @@ def evaluate(self, context=None):
     except ElementPathTypeError:
         raise
     except TypeError as err:
-        self.wrong_type("the values must be strings: %s" % err)
+        raise self.wrong_type("the values must be strings: %s" % err)
 
 
 @method(function('normalize-unicode', nargs=(1, 2)))
@@ -638,7 +638,7 @@ def evaluate(self, context=None):
     if len(self) > 1:
         normalization_form = self.get_argument(context, 1, cls=str)
         if normalization_form is None:
-            self.wrong_type("2nd argument can't be an empty sequence")
+            raise self.wrong_type("2nd argument can't be an empty sequence")
         else:
             normalization_form = normalization_form.strip().upper()
     else:
@@ -1006,7 +1006,7 @@ def evaluate(self, context=None):
     if uri is None:
         return None if self.symbol == 'doc' else False
     elif context is None:
-        self.missing_context()
+        raise self.missing_context()
     elif not isinstance(uri, str):
         raise self.error('FODC0005')
 
@@ -1026,7 +1026,7 @@ def evaluate(self, context=None):
 
         if not self.parser.match_sequence_type(doc, sequence_type):
             msg = "Type does not match sequence type {!r}"
-            self.wrong_sequence_type(msg.format(sequence_type))
+            raise self.wrong_sequence_type(msg.format(sequence_type))
 
         return doc if self.symbol == 'doc' else True
 
@@ -1056,7 +1056,7 @@ def evaluate(self, context=None):
 
     if not self.parser.match_sequence_type(collection, sequence_type):
         msg = "Type does not match sequence type {!r}"
-        self.wrong_sequence_type(msg.format(sequence_type))
+        raise self.wrong_sequence_type(msg.format(sequence_type))
 
     return collection
 

@@ -227,11 +227,11 @@ class Token(MutableSequence):
 
     def nud(self):
         """Pratt's null denotation method"""
-        self.wrong_syntax()
+        raise self.wrong_syntax()
 
     def led(self, left):
         """Pratt's left denotation method"""
-        self.wrong_syntax()
+        raise self.wrong_syntax()
 
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
@@ -254,11 +254,11 @@ class Token(MutableSequence):
 
     def expected(self, *symbols):
         if symbols and self.symbol not in symbols:
-            self.wrong_syntax()
+            raise self.wrong_syntax()
 
     def unexpected(self, *symbols):
         if not symbols or self.symbol in symbols:
-            self.wrong_syntax()
+            raise self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
         if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None:
@@ -274,15 +274,15 @@ class Token(MutableSequence):
             msg = "symbol %r at %s" % (symbol, line_column)
 
         if message:
-            raise ElementPathSyntaxError('%s: %s' % (msg, message), self)
+            return ElementPathSyntaxError('%s: %s' % (msg, message), self)
         else:
-            raise ElementPathSyntaxError('unexpected %s.' % msg, self)
+            return ElementPathSyntaxError('unexpected %s.' % msg, self)
 
     def wrong_value(self, message='unknown error'):
-        raise ElementPathValueError(message, self)
+        return ElementPathValueError(message, self)
 
     def wrong_type(self, message='unknown error'):
-        raise ElementPathTypeError(message, self)
+        return ElementPathTypeError(message, self)
 
 
 class ParserMeta(type):
@@ -573,7 +573,7 @@ class Parser(metaclass=ParserMeta):
         elif '(name)' in symbols and self.name_pattern.match(self.next_token.symbol) is not None:
             self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
         else:
-            self.next_token.wrong_syntax(message)
+            raise self.next_token.wrong_syntax(message)
 
     @classmethod
     def register(cls, symbol, **kwargs):

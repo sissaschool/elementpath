@@ -316,7 +316,7 @@ class XPath2Parser(XPath1Parser):
             self.parser.advance('(')
             self[0:] = self.parser.expression(5),
             if self.parser.next_token.symbol == ',':
-                self.wrong_nargs('Too many arguments: expected at most 1 argument')
+                raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
             self.parser.advance(')')
             self.value = None
             return self
@@ -606,7 +606,7 @@ def nud(self):
 def evaluate(self, context=None):
     varname = self[0].value
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
 
     try:
         return context.variable_values[varname]
@@ -785,7 +785,7 @@ def evaluate(self, context=None):
                     return False
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
-                self.missing_schema(msg % self[1].source)
+                raise self.missing_schema(msg % self[1].source)
             else:
                 if position and (occurs is None or occurs == '?'):
                     return False
@@ -800,35 +800,35 @@ def evaluate(self, context=None):
     castable_expr = []
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
-            self.wrong_sequence_type()
+            raise self.wrong_sequence_type()
     elif self[1].label in ('kind test', 'sequence type'):
         for position, item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 if context is not None and not isinstance(context, XPathSchemaContext):
-                    self.wrong_sequence_type()
+                    raise self.wrong_sequence_type()
             elif position and (occurs is None or occurs == '?'):
-                self.wrong_sequence_type("more than one item in sequence")
+                raise self.wrong_sequence_type("more than one item in sequence")
             castable_expr.append(item)
         else:
             if position is None and occurs not in ('*', '?'):
-                self.wrong_sequence_type("the sequence cannot be empty")
+                raise self.wrong_sequence_type("the sequence cannot be empty")
     else:
         qname = get_extended_qname(self[1].source, self.parser.namespaces)
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
                     msg = "item %r is not of type %r"
-                    self.wrong_sequence_type(msg % (item, self[1].source))
+                    raise self.wrong_sequence_type(msg % (item, self[1].source))
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
-                self.missing_schema(msg % self[1].source)
+                raise self.missing_schema(msg % self[1].source)
             else:
                 if position and (occurs is None or occurs == '?'):
-                    self.wrong_sequence_type("more than one item in sequence")
+                    raise self.wrong_sequence_type("more than one item in sequence")
                 castable_expr.append(item)
         else:
             if position is None and occurs not in ('*', '?'):
-                self.wrong_sequence_type("the sequence cannot be empty")
+                raise self.wrong_sequence_type("the sequence cannot be empty")
 
     return castable_expr
 
@@ -856,20 +856,20 @@ def evaluate(self, context=None):
     namespace = get_namespace(atomic_type)
     if namespace != XSD_NAMESPACE and \
             (self.parser.schema is None or self.parser.schema.get_type(atomic_type) is None):
-        self.missing_schema("type %r not found in schema" % atomic_type)
+        raise self.missing_schema("type %r not found in schema" % atomic_type)
 
     result = [res for res in self[0].select(context)]
     if len(result) > 1:
         if self.symbol != 'cast':
             return False
-        self.wrong_context_type("more than one value in expression")
+        raise self.wrong_context_type("more than one value in expression")
     elif not result:
         if len(self) == 3:
             return [] if self.symbol == 'cast' else True
         elif self.symbol != 'cast':
             return False
         else:
-            self.wrong_context_type("an atomic value is required")
+            raise self.wrong_context_type("an atomic value is required")
 
     arg = self.data_value(result[0])
     if isinstance(arg, UntypedAtomic):
@@ -909,11 +909,11 @@ def evaluate(self, context=None):
     except TypeError as err:
         if self.symbol != 'cast':
             return False
-        self.wrong_type(str(err))
+        raise self.wrong_type(str(err))
     except ValueError as err:
         if self.symbol != 'cast':
             return False
-        self.wrong_value(str(err))
+        raise self.wrong_value(str(err))
     else:
         return value if self.symbol == 'cast' else True
 
@@ -984,8 +984,8 @@ def evaluate(self, context=None):
             return getattr(operator, self.symbol)(op1, op2)
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
-                self.wrong_context_type(str(err))
-            self.wrong_type(str(err))
+                raise self.wrong_context_type(str(err))
+            raise self.wrong_type(str(err))
 
 
 ###
@@ -1000,13 +1000,13 @@ def evaluate(self, context=None):
     if not left:
         return
     elif len(left) > 1 or not is_xpath_node(left[0]):
-        self[0].wrong_type("left operand of %r must be a single node" % symbol)
+        raise self[0].wrong_type("left operand of %r must be a single node" % symbol)
 
     right = [x for x in self[1].select(context)]
     if not right:
         return
     elif len(right) > 1 or not is_xpath_node(right[0]):
-        self[0].wrong_type("right operand of %r must be a single node" % symbol)
+        raise self[0].wrong_type("right operand of %r must be a single node" % symbol)
 
     if symbol == 'is':
         return left[0] is right[0]
@@ -1019,7 +1019,7 @@ def evaluate(self, context=None):
             elif right[0] is item:
                 return False if symbol == '<<' else True
         else:
-            self.wrong_value("operands are not nodes of the XML tree!")
+            raise self.wrong_value("operands are not nodes of the XML tree!")
 
 
 ###
@@ -1031,7 +1031,7 @@ def evaluate(self, context=None):
         stop = self[1].evaluate(context) + 1
     except TypeError as err:
         if context is not None:
-            self.wrong_type(str(err))
+            raise self.wrong_type(str(err))
         return
     else:
         return [x for x in range(start, stop)]
@@ -1062,7 +1062,7 @@ def evaluate(self, context=None):
 @method(function('document-node', nargs=(0, 1), label='kind test'))
 def select(self, context=None):
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
     elif not is_document_node(context.root) or context.item is not None:
         return
     elif not self:
@@ -1083,9 +1083,9 @@ def nud(self):
     if self.parser.next_token.symbol == 'element':
         self[0:] = self.parser.expression(5),
         if self.parser.next_token.symbol == ',':
-            self.wrong_nargs('Too many arguments: expected at most 1 argument')
+            raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
     elif self.parser.next_token.symbol != ')':
-        self.parser.next_token.wrong_syntax('element() kind test expected')
+        raise self.parser.next_token.wrong_syntax('element() kind test expected')
     self.parser.advance(')')
     self.value = None
     return self
@@ -1094,7 +1094,7 @@ def nud(self):
 @method(function('element', nargs=(0, 2), label='kind test'))
 def select(self, context=None):
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
     elif not self:
         for item in context.iter_children_or_self():
             if is_element_node(item):
@@ -1131,7 +1131,7 @@ def select(self, context=None):
             attribute_name = self[0].source
             qname = get_extended_qname(attribute_name, self.parser.namespaces)
             if self.parser.schema.get_attribute(qname) is None:
-                self.missing_name("attribute %r not found in schema" % attribute_name)
+                raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
             if is_attribute_node(context.item, qname):
                 yield context.item
@@ -1145,7 +1145,7 @@ def select(self, context=None):
             qname = get_extended_qname(element_name, self.parser.namespaces)
             if self.parser.schema.get_element(qname) is None \
                     and self.parser.schema.get_substitution_group(qname) is None:
-                self.missing_name("element %r not found in schema" % element_name)
+                raise self.missing_name("element %r not found in schema" % element_name)
 
             if is_element_node(context.item) and context.item.tag == qname:
                 yield context.item
