@@ -217,67 +217,67 @@ class XPath1TokenTest(unittest.TestCase):
         token = self.parser.parse('.')
 
         with self.assertRaises(ValueError) as err:
-            token.wrong_value()
+            raise token.wrong_value()
         self.assertIn('FOCA0002', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_type()
+            raise token.wrong_type()
         self.assertIn('FORG0006', str(err.exception))
 
         with self.assertRaises(ValueError) as err:
-            token.missing_schema()
+            raise token.missing_schema()
         self.assertIn('XPST0001', str(err.exception))
 
         with self.assertRaises(MissingContextError) as err:
-            token.missing_context()
+            raise token.missing_context()
         self.assertIn('XPDY0002', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_context_type()
+            raise token.wrong_context_type()
         self.assertIn('XPTY0004', str(err.exception))
 
         with self.assertRaises(ValueError) as err:
-            token.missing_sequence()
+            raise token.missing_sequence()
         self.assertIn('XPST0005', str(err.exception))
 
         with self.assertRaises(NameError) as err:
-            token.missing_name()
+            raise token.missing_name()
         self.assertIn('XPST0008', str(err.exception))
 
         with self.assertRaises(NameError) as err:
-            token.missing_axis()
+            raise token.missing_axis()
         self.assertIn('XPST0010', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_nargs()
+            raise token.wrong_nargs()
         self.assertIn('XPST0017', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_step_result()
+            raise token.wrong_step_result()
         self.assertIn('XPTY0018', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_intermediate_step_result()
+            raise token.wrong_intermediate_step_result()
         self.assertIn('XPTY0019', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_axis_argument()
+            raise token.wrong_axis_argument()
         self.assertIn('XPTY0020', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
-            token.wrong_sequence_type()
+            raise token.wrong_sequence_type()
         self.assertIn('XPDY0050', str(err.exception))
 
         with self.assertRaises(NameError) as err:
-            token.unknown_atomic_type()
+            raise token.unknown_atomic_type()
         self.assertIn('XPST0051', str(err.exception))
 
         with self.assertRaises(NameError) as err:
-            token.wrong_target_type()
+            raise token.wrong_target_type()
         self.assertIn('XPST0080', str(err.exception))
 
         with self.assertRaises(NameError) as err:
-            token.unknown_namespace()
+            raise token.unknown_namespace()
         self.assertIn('XPST0081', str(err.exception))
 
 

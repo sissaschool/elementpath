@@ -153,14 +153,14 @@ class XPath1Parser(Parser):
             while k < min_args:
                 if self.parser.next_token.symbol == ')':
                     msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
 
                 self[k:] = self.parser.expression(5),
                 k += 1
                 if k < min_args:
                     if self.parser.next_token.symbol == ')':
                         msg = 'Too few arguments: expected at least %s arguments' % min_args
-                        self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+                        raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
                     self.parser.advance(',')
 
             while k < max_args:
@@ -175,7 +175,7 @@ class XPath1Parser(Parser):
 
             if self.parser.next_token.symbol == ',':
                 msg = 'Too many arguments: expected at most %s arguments' % max_args
-                self.wrong_nargs(msg if max_args > 1 else msg[:-1])
+                raise self.wrong_nargs(msg if max_args > 1 else msg[:-1])
 
             self.parser.advance(')')
             return self
@@ -292,10 +292,10 @@ def led(self, left):
         namespace = self.get_namespace(left.value)
         self.parser.next_token.bind_namespace(namespace)
     elif left.symbol == '*' and self.parser.next_token.symbol != '(name)':
-        self.parser.next_token.wrong_syntax()
+        raise self.parser.next_token.wrong_syntax()
 
     if self.parser.is_spaced():
-        self.wrong_syntax("a QName cannot contains spaces before or after ':'")
+        raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
     self[:] = left, self.parser.expression(90)
     self.value = '{}:{}'.format(self[0].value, self[1].value)
     return self
@@ -400,14 +400,14 @@ def nud(self):
     self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
     if ':' in self[0].value:
-        self[0].wrong_syntax("variable reference requires a simple reference name")
+        raise self[0].wrong_syntax("variable reference requires a simple reference name")
     return self
 
 
 @method('$')
 def evaluate(self, context=None):
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
 
     try:
         return context.variable_values[self[0].value]
@@ -426,7 +426,7 @@ def select(self, context=None):
             context.item = item
         yield item
     elif context is None:
-        self.missing_context()
+        raise self.missing_context()
     else:
         # Wildcard literal
         for item in context.iter_children_or_self():
@@ -442,7 +442,7 @@ def select(self, context=None):
 @method(nullary('.'))
 def select(self, context=None):
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
 
     for item in context.iter_self():
         if item is not None:
@@ -456,7 +456,7 @@ def select(self, context=None):
 @method(nullary('..'))
 def select(self, context=None):
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
     else:
         parent = context.get_parent(context.item)
         if is_element_node(parent):
@@ -680,7 +680,8 @@ def select(self, context=None):
         items = []
         for _ in context.iter_selector(self[0].select):
             if not is_xpath_node(context.item):
-                self.wrong_type("left operand must returns XPath nodes: {}".format(context.item))
+                msg = "left operand must returns XPath nodes: {}"
+                raise self.wrong_type(msg.format(context.item))
             for result in self[1].select(context):
                 if not is_etree_element(result) and not isinstance(result, tuple):
                     yield result
@@ -712,7 +713,7 @@ def select(self, context=None):
     else:
         for elem in self[0].select(context):
             if not is_element_node(elem):
-                self.wrong_type("left operand must returns element nodes: %r" % elem)
+                raise self.wrong_type("left operand must returns element nodes: %r" % elem)
             for _ in context.iter_descendants(item=elem):
                 yield from self[1].select(context)
 
@@ -777,7 +778,7 @@ def nud(self):
 @method(axis('attribute'))
 def select(self, context=None):
     if context is None:
-        self.missing_context()
+        raise self.missing_context()
 
     for _ in context.iter_attributes():
         yield from self[0].select(context)
@@ -993,7 +994,7 @@ def evaluate(self, context=None):
         k = len(trans_string)
         return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
     else:
-        self.wrong_value("the third argument must have a length less or equal than the second")
+        raise self.wrong_value("the 3rd argument must have a length less or equal than the 2nd")
 
 
 @method(function('substring', nargs=(2, 3)))
@@ -1004,7 +1005,7 @@ def evaluate(self, context=None):
         if math.isnan(start) or math.isinf(start):
             return ''
     except TypeError:
-        self.wrong_type("the second argument must be xs:numeric")
+        raise self.wrong_type("the second argument must be xs:numeric")
     else:
         start = int(round(start)) - 1
 
@@ -1016,7 +1017,7 @@ def evaluate(self, context=None):
             if math.isnan(length) or length <= 0:
                 return ''
         except TypeError:
-            self.wrong_type("the third argument must be xs:numeric")
+            raise self.wrong_type("the third argument must be xs:numeric")
 
         if item is None:
             return ''
@@ -1035,13 +1036,12 @@ def evaluate(self, context=None):
     if arg1 is None:
         return ''
 
-    index = 0
     try:
         index = arg1.find(arg2)
     except AttributeError:
-        self.wrong_type("the first argument must be a string")
+        raise self.wrong_type("the first argument must be a string")
     except TypeError:
-        self.wrong_type("the second argument must be a string")
+        raise self.wrong_type("the second argument must be a string")
 
     if index < 0:
         return ''
@@ -1144,7 +1144,7 @@ def evaluate(self, context=None):
     try:
         return math.floor(arg) if self.symbol == 'floor' else math.ceil(arg)
     except TypeError as err:
-        self.wrong_type(str(err))
+        raise self.wrong_type(str(err))
 
 
 @method(function('round', nargs=1))
@@ -1165,9 +1165,9 @@ def evaluate(self, context=None):
         else:
             return round(number)
     except TypeError as err:
-        self.wrong_type(str(err))
+        raise self.wrong_type(str(err))
     except decimal.DecimalException as err:
-        self.wrong_value(str(err))
+        raise self.wrong_value(str(err))
 
 
 register('(end)')

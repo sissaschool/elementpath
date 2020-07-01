@@ -174,7 +174,7 @@ class XPathToken(Token):
         except IndexError:
             if default_to_context:
                 if context is None:
-                    self.missing_context()
+                    raise self.missing_context()
                 item = context.item if context.item is not None else context.root
             elif required:
                 raise self.error('XPST0017', "Missing %s argument" % ordinal(index + 1))
@@ -189,7 +189,7 @@ class XPathToken(Token):
                 if k == 0:
                     item = result
                 elif not self.parser.compatibility_mode:
-                    self.wrong_context_type(
+                    raise self.wrong_context_type(
                         "a sequence of more than one item is not allowed as argument"
                     )
                 else:
@@ -199,7 +199,8 @@ class XPathToken(Token):
                     if not required:
                         return default
                     ord_arg = ordinal(index + 1)
-                    self.missing_sequence("A not empty sequence required for %s argument" % ord_arg)
+                    msg = "A not empty sequence required for {} argument"
+                    raise self.missing_sequence(msg.format(ord_arg))
 
         # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         if cls is not None and not isinstance(item, cls):
@@ -275,10 +276,11 @@ class XPathToken(Token):
                             value = xsd_type.decode(value)
                         except (TypeError, ValueError):
                             msg = "Type {!r} is not appropriate for the context"
-                            self.wrong_context_type(msg.format(type(value)))
+                            raise self.wrong_context_type(msg.format(type(value)))
                 return value
             else:
-                self.wrong_context_type("atomized operand is a sequence of length greater than one")
+                msg = "atomized operand is a sequence of length greater than one"
+                raise self.wrong_context_type(msg)
 
     def get_comparison_data(self, context):
         """
@@ -425,15 +427,15 @@ class XPathToken(Token):
         and constructors must be limited to its namespaces.
         """
         if self.symbol not in ('(name)', '*') and self.label not in ('function', 'constructor'):
-            self.wrong_syntax()
+            raise self.wrong_syntax()
         elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                self.wrong_syntax("a function expected.")
+                raise self.wrong_syntax("a function expected.")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
             if self.symbol not in ('(name)', '*') and self.label != 'constructor':
-                self.wrong_syntax("an XSD element or a constructor function expected.")
+                raise self.wrong_syntax("an XSD element or a constructor function expected.")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
 
@@ -618,7 +620,7 @@ class XPathToken(Token):
 
         except (TypeError, ValueError):
             msg = "Type {!r} does not match sequence type of {!r}"
-            self.wrong_sequence_type(msg.format(xsd_type, item))
+            raise self.wrong_sequence_type(msg.format(xsd_type, item))
 
     ###
     # XPath data accessors base functions
@@ -740,8 +742,8 @@ class XPathToken(Token):
 
         except AttributeError:
             if self.parser.schema is None:
-                self.missing_schema()
-            self.wrong_type("the argument {!r} is not a node of an XSD schema".format(obj))
+                raise self.missing_schema()
+            raise self.wrong_type("the argument {!r} is not a node of an XSD schema".format(obj))
 
     ###
     # Error handling helpers
@@ -764,53 +766,53 @@ class XPathToken(Token):
     # Shortcuts for XPath errors
     def wrong_syntax(self, message=None):
         if self.symbol == '::' and self.parser.token.symbol == '(name)':
-            self.missing_axis(message or "Axis '%s::' not found" % self.parser.token.value)
-        super(XPathToken, self).wrong_syntax(message)
+            return self.missing_axis(message or "Axis '%s::' not found" % self.parser.token.value)
+        return super(XPathToken, self).wrong_syntax(message)
 
     def wrong_value(self, message=None):
-        raise self.error('FOCA0002', message)
+        return self.error('FOCA0002', message)
 
     def wrong_type(self, message=None):
-        raise self.error('FORG0006', message)
+        return self.error('FORG0006', message)
 
     def missing_schema(self, message=None):
-        raise self.error('XPST0001', message)
+        return self.error('XPST0001', message)
 
     def missing_context(self, message=None):
-        raise self.error('XPDY0002', message)
+        return self.error('XPDY0002', message)
 
     def wrong_context_type(self, message=None):
-        raise self.error('XPTY0004', message)
+        return self.error('XPTY0004', message)
 
     def missing_sequence(self, message=None):
-        raise self.error('XPST0005', message)
+        return self.error('XPST0005', message)
 
     def missing_name(self, message=None):
-        raise self.error('XPST0008', message)
+        return self.error('XPST0008', message)
 
     def missing_axis(self, message=None):
-        raise self.error('XPST0010', message)
+        return self.error('XPST0010', message)
 
     def wrong_nargs(self, message=None):
-        raise self.error('XPST0017', message)
+        return self.error('XPST0017', message)
 
     def wrong_step_result(self, message=None):
-        raise self.error('XPTY0018', message)
+        return self.error('XPTY0018', message)
 
     def wrong_intermediate_step_result(self, message=None):
-        raise self.error('XPTY0019', message)
+        return self.error('XPTY0019', message)
 
     def wrong_axis_argument(self, message=None):
-        raise self.error('XPTY0020', message)
+        return self.error('XPTY0020', message)
 
     def wrong_sequence_type(self, message=None):
-        raise self.error('XPDY0050', message)
+        return self.error('XPDY0050', message)
 
     def unknown_atomic_type(self, message=None):
-        raise self.error('XPST0051', message)
+        return self.error('XPST0051', message)
 
     def wrong_target_type(self, message=None):
-        raise self.error('XPST0080', message)
+        return self.error('XPST0080', message)
 
     def unknown_namespace(self, message=None):
-        raise self.error('XPST0081', message)
+        return self.error('XPST0081', message)
