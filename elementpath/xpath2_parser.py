@@ -1026,15 +1026,13 @@ def evaluate(self, context=None):
 # Range expression
 @method(infix('to', bp=35))
 def evaluate(self, context=None):
+    start, stop = self.get_operands(context, cls=int)
     try:
-        start = self[0].evaluate(context)
-        stop = self[1].evaluate(context) + 1
+        return [x for x in range(start, stop + 1)]
     except TypeError as err:
-        if context is not None:
-            raise self.wrong_type(str(err))
-        return
-    else:
-        return [x for x in range(start, stop)]
+        if context is None or start is None or stop is None:
+            return []
+        raise self.wrong_type(str(err))
 
 
 @method('to')
@@ -1046,13 +1044,15 @@ def select(self, context=None):
 # Numerical operators
 @method(infix('idiv', bp=45))
 def evaluate(self, context=None):
-    arg1 = self[0].evaluate(context)
-    arg2 = self[1].evaluate(context)
-    if math.isinf(arg1) or math.isnan(arg1) or math.isnan(arg2):
-        raise self.error('FOAR0002')
+    op1, op2 = self.get_operands(context)
+    try:
+        if math.isinf(op1) or math.isnan(op1) or math.isnan(op2):
+            raise self.error('FOAR0002')
+    except TypeError as err:
+        raise self.wrong_type(str(err))
 
     try:
-        return arg1 // arg2
+        return op1 // op2
     except (ZeroDivisionError, decimal.DivisionByZero):
         raise self.error('FOAR0001')
 

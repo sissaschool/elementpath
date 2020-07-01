@@ -315,6 +315,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:count((1, 2, ()))", 2)
         self.check_value("fn:count((((()))))", 0)
         self.check_value("fn:count((((), (), ()), (), (), (), ()))", 0)
+        self.check_value('fn:count((1, 2 to ()))', 1)
         self.check_value("count(('1', (2, ())))", 2)
         self.check_value("count(('1', (2, '3')))", 3)
         self.check_value("count(1 to 5)", 5)
@@ -1228,15 +1229,15 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_error_function(self):
         with self.assertRaises(ElementPathError) as err:
             self.check_value('fn:error()')
-        self.assertEqual(str(err.exception), '[err:FOER0000] Unidentified error.')
+        self.assertEqual(str(err.exception), '[err:FOER0000] Unidentified error')
 
         with self.assertRaises(ElementPathError) as err:
             self.check_value('fn:error("err:XPST0001")')
-        self.assertEqual(str(err.exception), '[err:XPST0001] Parser not bound to a schema.')
+        self.assertEqual(str(err.exception), '[err:XPST0001] Parser not bound to a schema')
 
         with self.assertRaises(ElementPathError) as err:
             self.check_value('fn:error("err:XPST0001", "Missing schema")')
-        self.assertEqual(str(err.exception), '[err:XPST0001] Missing schema.')
+        self.assertEqual(str(err.exception), '[err:XPST0001] Missing schema')
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

@@ -23,7 +23,7 @@ import base64
 from collections import namedtuple
 from calendar import isleap, leapdays
 
-from .exceptions import ElementPathTypeError, ElementPathValueError
+from .exceptions import ElementPathTypeError, ElementPathValueError, xpath_error
 
 ###
 # Date/Time helpers
@@ -993,16 +993,21 @@ class UntypedAtomic(object):
         :param force_float: Force a conversion to float if *other* is an UntypedAtomic instance.
         :return: A couple of values.
         """
-        if isinstance(other, UntypedAtomic):
-            if force_float:
-                return float(self.value), float(other.value)
-            return self.value, other.value
-        elif isinstance(other, bool):
-            return bool(self), other
-        elif isinstance(other, int):
-            return float(self.value), other
-        else:
-            return type(other)(self.value), other
+        try:
+            if isinstance(other, UntypedAtomic):
+                if force_float:
+                    return float(self.value), float(other.value)
+                return self.value, other.value
+            elif isinstance(other, bool):
+                return bool(self), other
+            elif isinstance(other, int):
+                return float(self.value), other
+            elif isinstance(other, (AbstractDateTime, Duration)):
+                return type(other).fromstring(self.value), other
+            else:
+                return type(other)(self.value), other
+        except ValueError as err:
+            raise xpath_error('FORG0001', message=str(err))
 
     def __hash__(self):
         return hash(self.value)
