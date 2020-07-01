@@ -26,11 +26,11 @@ class ElementPathError(Exception):
 
     def __str__(self):
         if self.code is None:
-            return self.message if self.token is None else '%s: %s.' % (self.token, self.message)
+            return self.message if self.token is None else '%s: %s' % (self.token, self.message)
         elif self.token is None:
-            return '[%s] %s.' % (self.code, self.message)
+            return '[%s] %s' % (self.code, self.message)
         else:
-            return '%s: [%s] %s.' % (self.token, self.code, self.message)
+            return '%s: [%s] %s' % (self.token, self.code, self.message)
 
 
 class MissingContextError(ElementPathError):
@@ -165,6 +165,6 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     try:
         error_class, default_message = XPATH_ERROR_CODES[code]
     except KeyError:
-        raise ElementPathValueError(message or 'Unknown XPath error code %r.' % code, token=token)
+        raise ElementPathValueError(message or 'Unknown XPath error code %r' % code, token=token)
     else:
         return error_class(message or default_message, pcode, token)

@@ -146,20 +146,20 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             self.parser.check_variables(
                 {'values': 1, 'myaddress': 'info@example.com', 'word': '', 'unknown': 1}
             )
-        self.assertEqual("[err:XPST0008] Undeclared variable 'unknown'.", str(ctx.exception))
+        self.assertEqual("[err:XPST0008] Undeclared variable 'unknown'", str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             self.parser.check_variables(
                 {'values': 1.0, 'myaddress': 'info@example.com', 'word': ''}
             )
-        self.assertEqual("[err:XPDY0050] Unmatched sequence type for variable 'values'.",
+        self.assertEqual("[err:XPDY0050] Unmatched sequence type for variable 'values'",
                          str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             self.parser.check_variables(
                 {'values': 1, 'myaddress': 'info@example.com', 'word': True}
             )
-        self.assertEqual("[err:XPDY0050] Unmatched sequence type for variable 'word'.",
+        self.assertEqual("[err:XPDY0050] Unmatched sequence type for variable 'word'",
                          str(ctx.exception))
 
     def test_xpath_tokenizer(self):

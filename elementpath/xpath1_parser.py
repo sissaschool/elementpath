@@ -1116,10 +1116,11 @@ def evaluate(self, context=None):
     elif any(isinstance(x, float) and math.isnan(x) for x in values):
         return float('nan')
 
-    if all(isinstance(x, (decimal.Decimal, int)) for x in values) or \
-            all(isinstance(x, DayTimeDuration) for x in values) or \
-            all(isinstance(x, YearMonthDuration) for x in values):
+    if all(isinstance(x, (decimal.Decimal, int)) for x in values):
         return sum(values)
+    elif all(isinstance(x, DayTimeDuration) for x in values) or \
+            all(isinstance(x, YearMonthDuration) for x in values):
+        return sum(values[1:], start=values[0])
 
     try:
         return sum(self.number_value(x) for x in values)

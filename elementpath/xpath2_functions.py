@@ -583,7 +583,10 @@ def evaluate(self, context=None):
 # String functions
 @method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
-    return ''.join(chr(cp) for cp in self[0].select(context))
+    try:
+        return ''.join(chr(cp) for cp in self[0].select(context))
+    except TypeError as err:
+        raise self.wrong_type(str(err)) from None
 
 
 @method(function('string-to-codepoints', nargs=1))
