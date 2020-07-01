@@ -1053,7 +1053,7 @@ def evaluate(self, context=None):
 
     try:
         return arg1 // arg2
-    except decimal.DivisionByZero:
+    except (ZeroDivisionError, decimal.DivisionByZero):
         raise self.error('FOAR0001')
 
 

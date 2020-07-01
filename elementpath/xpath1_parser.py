@@ -591,6 +591,8 @@ def evaluate(self, context=None):
             raise self.wrong_type(str(err))
         except OverflowError as err:
             raise self.error('FOAR0002', str(err))
+        except (ZeroDivisionError, decimal.DivisionByZero):
+            raise self.error('FOAR0001')
     elif dividend == 0:
         return float('nan')
     elif not self.parser.compatibility_mode:
@@ -609,6 +611,8 @@ def evaluate(self, context=None):
             return op1 % op2
         except TypeError as err:
             raise self.wrong_type(str(err))
+        except ZeroDivisionError:
+            raise self.error('FOAR0001')
 
 
 ###
