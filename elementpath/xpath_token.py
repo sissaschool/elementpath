@@ -430,12 +430,14 @@ class XPathToken(Token):
             raise self.wrong_syntax()
         elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                raise self.wrong_syntax("a function expected.")
+                raise self.wrong_syntax(message="a function expected.")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
             if self.symbol not in ('(name)', '*') and self.label != 'constructor':
-                raise self.wrong_syntax("an XSD element or a constructor function expected.")
+                raise self.wrong_syntax(
+                    message="an XSD element or a constructor function expected."
+                )
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
 
@@ -747,6 +749,15 @@ class XPathToken(Token):
 
     ###
     # Error handling helpers
+
+    @property
+    def error_prefix(self):
+        for error_prefix, ns in self.parser.namespaces.items():
+            if ns == XQT_ERRORS_NAMESPACE:
+                return error_prefix
+        else:
+            return 'err'
+
     def error(self, code, message=None):
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
@@ -755,13 +766,7 @@ class XPathToken(Token):
         :param code: the error code.
         :param message: an optional custom additional message.
         """
-        for error_prefix, ns in self.parser.namespaces.items():
-            if ns == XQT_ERRORS_NAMESPACE:
-                break
-        else:
-            error_prefix = 'err'
-
-        return xpath_error(code, message, self, error_prefix)
+        return xpath_error(code, message, self, self.error_prefix)
 
     # Shortcuts for XPath errors
     def wrong_syntax(self, message=None):

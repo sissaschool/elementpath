@@ -107,7 +107,7 @@ class Timezone(datetime.tzinfo):
             raise ElementPathTypeError("offset must be a datetime.timedelta or "
                                        "an XSD timezone formatted string")
         if offset < self._minoffset or offset > self._maxoffset:
-            raise ElementPathValueError("offset must be between -14:00 and +14:00")
+            raise xpath_error('FODT0003', "offset must be between -14:00 and +14:00")
         self.offset = offset
 
     @classmethod
@@ -308,7 +308,7 @@ class AbstractDateTime(metaclass=ABCMeta):
         match = cls.pattern.match(datetime_string)
         if match is None:
             msg = 'Invalid datetime string {!r} for {!r}'
-            raise ElementPathValueError(msg.format(datetime_string, cls))
+            raise ValueError(msg.format(datetime_string, cls))
 
         kwargs = {k: int(v) if k != 'tzinfo' else Timezone.fromstring(v)
                   for k, v in match.groupdict().items() if v is not None}
