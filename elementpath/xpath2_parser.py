@@ -20,8 +20,8 @@ from collections.abc import MutableSequence
 from copy import copy
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, ElementPathKeyError, ElementPathTypeError, \
-    MissingContextError, ElementPathNameError, ElementPathValueError, xpath_error
+from .exceptions import ElementPathError, ElementPathSyntaxError, ElementPathKeyError, \
+    ElementPathTypeError, MissingContextError, ElementPathValueError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_qname, get_extended_qname, \
@@ -272,6 +272,9 @@ class XPath2Parser(XPath1Parser):
                 return pfx
 
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
+
+    def syntax_error(self, message=None, code='XPST0003', token=None):
+        return super(XPath1Parser, self).syntax_error(message, code, token)
 
     def advance(self, *symbols):
         super(XPath2Parser, self).advance(*symbols)
@@ -620,7 +623,7 @@ def evaluate(self, context=None):
                 if value is not None:
                     return value
 
-    raise ElementPathNameError('unknown variable', token=self) from None
+    raise self.missing_name('unknown variable %r' % str(varname))
 
 
 ###
@@ -896,7 +899,6 @@ def evaluate(self, context=None):
                 value = token_class.cast(arg, self.parser.namespaces)
             else:
                 value = token_class.cast(arg)
-
     except ElementPathError as err:
         if self.symbol != 'cast':
             return False
@@ -913,7 +915,7 @@ def evaluate(self, context=None):
     except ValueError as err:
         if self.symbol != 'cast':
             return False
-        raise self.wrong_value(str(err))
+        raise self.error('XPTY0004', str(err))
     else:
         return value if self.symbol == 'cast' else True
 
@@ -1085,7 +1087,7 @@ def nud(self):
         if self.parser.next_token.symbol == ',':
             raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
     elif self.parser.next_token.symbol != ')':
-        raise self.parser.next_token.wrong_syntax('element() kind test expected')
+        raise self.parser.syntax_error('element() kind test expected', code='XPST0081')
     self.parser.advance(')')
     self.value = None
     return self

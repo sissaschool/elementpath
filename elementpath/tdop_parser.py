@@ -13,13 +13,12 @@ This module contains classes and helper functions for defining Pratt parsers.
 import sys
 import re
 from unicodedata import name as unicode_name
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
 
-from .exceptions import ElementPathSyntaxError, ElementPathNameError, \
-    ElementPathValueError, ElementPathTypeError
+from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError
 
 SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
 """
@@ -227,11 +226,11 @@ class Token(MutableSequence):
 
     def nud(self):
         """Pratt's null denotation method"""
-        raise self.wrong_syntax()
+        raise self.parser.syntax_error()
 
     def led(self, left):
         """Pratt's left denotation method"""
-        raise self.wrong_syntax()
+        raise self.parser.syntax_error()
 
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
@@ -261,28 +260,7 @@ class Token(MutableSequence):
             raise self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
-        if SPECIAL_SYMBOL_PATTERN.match(self.symbol) is not None:
-            symbol = self.value
-        else:
-            symbol = self.symbol
-
-        line_column = 'line %d, column %d' % self.parser.position
-        token = self.parser.token
-        if token is not None and symbol != token.symbol:
-            msg = "symbol %r after %s at %s" % (symbol, token, line_column)
-        else:
-            msg = "symbol %r at %s" % (symbol, line_column)
-
-        if message:
-            return ElementPathSyntaxError('%s: %s' % (msg, message), self)
-        else:
-            return ElementPathSyntaxError('unexpected %s.' % msg, self)
-
-    def wrong_value(self, message='unknown error'):
-        return ElementPathValueError(message, self)
-
-    def wrong_type(self, message='unknown error'):
-        return ElementPathTypeError(message, self)
+        return self.parser.syntax_error(message, token=self)
 
 
 class ParserMeta(type):
@@ -394,10 +372,7 @@ class Parser(metaclass=ParserMeta):
         """
         if self.next_token is not None:
             if self.next_token.symbol == '(end)':
-                if self.token is None:
-                    raise ElementPathSyntaxError("source is empty.")
-                else:
-                    raise ElementPathSyntaxError("unexpected end of source after %s." % self.token)
+                raise self.syntax_error()
             elif symbols:
                 self.next_token.expected(*symbols)
 
@@ -416,15 +391,25 @@ class Parser(metaclass=ParserMeta):
                     try:
                         self.next_token = self.symbol_table[symbol](self)
                     except KeyError:
-                        raise ElementPathSyntaxError("unknown symbol %r." % symbol)
+                        raise self.syntax_error("unknown symbol %r." % symbol)
                     break
                 elif literal is not None:
                     if literal[0] in '\'"':
                         self.next_token = self.symbol_table['(string)'](self, literal.strip("'\""))
                     elif 'e' in literal or 'E' in literal:
-                        self.next_token = self.symbol_table['(float)'](self, float(literal))
+                        try:
+                            value = float(literal)
+                        except ValueError as err:
+                            raise self.syntax_error(message=str(err))
+                        else:
+                            self.next_token = self.symbol_table['(float)'](self, value)
                     elif '.' in literal:
-                        self.next_token = self.symbol_table['(decimal)'](self, Decimal(literal))
+                        try:
+                            value = Decimal(literal)
+                        except DecimalException as err:
+                            raise self.syntax_error(message=str(err))
+                        else:
+                            self.next_token = self.symbol_table['(decimal)'](self, value)
                     else:
                         self.next_token = self.symbol_table['(integer)'](self, int(literal))
                     break
@@ -432,10 +417,7 @@ class Parser(metaclass=ParserMeta):
                     self.next_token = self.symbol_table['(name)'](self, name)
                     break
                 elif unexpected is not None:
-                    position = 'line %d, column %d' % self.position
-                    raise ElementPathSyntaxError(
-                        "unexpected symbol %r at %s." % (unexpected, position)
-                    )
+                    raise self.syntax_error()
                 elif str(self.next_match.group()).strip():
                     msg = "Unexpected matching %r: not compatible tokenizer."
                     raise RuntimeError(msg % self.next_match.group())
@@ -453,13 +435,9 @@ class Parser(metaclass=ParserMeta):
         and the first stop symbol.
         """
         if not stop_symbols:
-            raise ElementPathValueError("at least a stop symbol required!", self.next_token)
+            raise ElementPathValueError("at least a stop symbol required!", token=self.next_token)
         elif getattr(self.next_token, 'symbol', None) == '(end)':
-            if self.token is None:
-                raise ElementPathSyntaxError("source is empty.", self.next_token)
-            else:
-                msg = "unexpected end of source after %s."
-                raise ElementPathSyntaxError(msg % self.token, self.next_token)
+            raise self.syntax_error()
 
         self.token = self.next_token
         self.match = self.next_match
@@ -480,7 +458,7 @@ class Parser(metaclass=ParserMeta):
                         try:
                             self.next_token = self.symbol_table[symbol](self)
                         except KeyError:
-                            raise ElementPathSyntaxError("unknown symbol %r." % symbol)
+                            raise self.syntax_error("unknown symbol %r." % symbol)
                         break
                 else:
                     source_chunk.append(self.next_match.group())
@@ -518,6 +496,39 @@ class Parser(metaclass=ParserMeta):
             column = token_index - self.source[:token_index].rindex('\n') + 1
 
         return line, column + count_leading_spaces(self.source[column - 1:])
+
+    def syntax_error(self, message=None, code=None, token=None):
+        if token is None:
+            try:
+                if self.next_token.symbol == '(end)':
+                    if self.token is None:
+                        return ElementPathSyntaxError("source is empty")
+                    else:
+                        msg = "unexpected end of source after %s."
+                        return ElementPathSyntaxError(msg % self.token, token=self.next_token)
+            except AttributeError:
+                pass
+
+            try:
+                symbol = self.next_match.group(0)
+            except AttributeError:
+                raise RuntimeError("Parser not started!")
+
+        elif SPECIAL_SYMBOL_PATTERN.match(token.symbol) is not None:
+            symbol = token.value
+        else:
+            symbol = token.symbol
+
+        line_column = 'line %d, column %d' % self.position
+        if self.token is not None and symbol != self.token.symbol:
+            msg = "symbol %r after %s at %s" % (symbol, self.token, line_column)
+        else:
+            msg = "symbol %r at %s" % (symbol, line_column)
+
+        if message:
+            return ElementPathSyntaxError('%s: %s' % (msg, message), code, token)
+        else:
+            return ElementPathSyntaxError('unexpected %s.' % msg, code, token)
 
     def is_source_start(self):
         """
@@ -573,7 +584,7 @@ class Parser(metaclass=ParserMeta):
         elif '(name)' in symbols and self.name_pattern.match(self.next_token.symbol) is not None:
             self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
         else:
-            raise self.next_token.wrong_syntax(message)
+            raise self.syntax_error(message)
 
     @classmethod
     def register(cls, symbol, **kwargs):

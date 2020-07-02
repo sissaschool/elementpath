@@ -12,7 +12,7 @@ import math
 import decimal
 from copy import copy
 
-from .exceptions import ElementPathNameError, MissingContextError
+from .exceptions import MissingContextError
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
@@ -292,7 +292,7 @@ def led(self, left):
         namespace = self.get_namespace(left.value)
         self.parser.next_token.bind_namespace(namespace)
     elif left.symbol == '*' and self.parser.next_token.symbol != '(name)':
-        raise self.parser.next_token.wrong_syntax()
+        raise self.parser.syntax_error()
 
     if self.parser.is_spaced():
         raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
@@ -412,7 +412,7 @@ def evaluate(self, context=None):
     try:
         return context.variable_values[self[0].value]
     except KeyError as err:
-        raise ElementPathNameError('unknown variable %r' % str(err), token=self) from None
+        raise self.missing_name('unknown variable %r' % str(err)) from None
 
 
 ###
