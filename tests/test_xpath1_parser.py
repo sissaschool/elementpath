@@ -202,30 +202,29 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_parser_position(self):
         self.assertEqual(self.parser.position, (1, 1))
 
-        try:
-            self.assertIsNone(self.parser.parse('false(x)'))
-        except SyntaxError as err:
-            self.assertIn('line 1, column 7', str(err))
+        with self.assertRaises(SyntaxError) as ctx:
+            self.parser.parse('child::node())')
+        self.assertIn('line 1, column 14', str(ctx.exception))
 
-        try:
-            self.assertIsNone(self.parser.parse(' false(x)'))
-        except SyntaxError as err:
-            self.assertIn('line 1, column 8', str(err))
+        with self.assertRaises(SyntaxError) as ctx:
+            self.parser.parse(' child::node())')
+        self.assertIn('line 1, column 15', str(ctx.exception))
 
-        try:
-            self.assertIsNone(self.parser.parse(' false( x)'))
-        except SyntaxError as err:
-            self.assertIn('line 1, column 9', str(err))
+        with self.assertRaises(SyntaxError) as ctx:
+            self.parser.parse(' child::node( ))')
+        self.assertIn('line 1, column 16', str(ctx.exception))
 
-        try:
-            self.assertIsNone(self.parser.parse('^'))
-        except SyntaxError as err:
-            self.assertIn('line 1, column 1', str(err))
+        with self.assertRaises(SyntaxError) as ctx:
+            self.parser.parse(' child::node() )')
+        self.assertIn('line 1, column 16', str(ctx.exception))
 
-        try:
-            self.assertIsNone(self.parser.parse(' ^'))
-        except SyntaxError as err:
-            self.assertIn('line 1, column 2', str(err))
+        with self.assertRaises(SyntaxError) as ctx:
+            self.parser.parse('^)')
+        self.assertIn('line 1, column 1', str(ctx.exception))
+
+        with self.assertRaises(SyntaxError) as ctx:
+            self.parser.parse(' ^)')
+        self.assertIn('line 1, column 2', str(ctx.exception))
 
     def test_wrong_syntax(self):
         self.wrong_syntax('')
@@ -389,7 +388,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_string_function(self):
         self.check_value("string(10.0)", '10.0')
         if self.parser.version == '1.0':
-            self.wrong_syntax("string(())")
+            self.wrong_type("string(())", 'err:XPST0017')
         else:
             self.check_value("string(())", '')
 
@@ -406,7 +405,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:string-length("Harp not on that string, madam; that is past.")', 45)
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("string-length(())")
+            self.wrong_type("string-length(())", 'err:XPST0017')
             self.check_value("string-length(12345)", 5)
         else:
             self.check_value("string-length(())", 0)
@@ -427,7 +426,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:normalize-space(" The  wealthy curled darlings of   our  nation. ")',
                          'The wealthy curled darlings of our nation.')
         if self.parser.version == '1.0':
-            self.wrong_syntax('fn:normalize-space(())')
+            self.wrong_type('fn:normalize-space(())', 'err:XPST0017')
             self.check_value("normalize-space(1000)", '1000')
             self.check_value("normalize-space(true())", 'true')
         else:
@@ -553,7 +552,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:starts-with("abracadabra", "bra")', False)
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("starts-with((), ())")
+            self.wrong_type("starts-with((), ())", 'err:XPST0017')
             self.check_value("starts-with('1999', 19)", True)
         else:
             self.check_value('fn:starts-with("tattoo", "tat")', True)
@@ -579,11 +578,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("//b[concat(., '_foo') = 'some content_foo']", root, [root[0][0]])
         self.check_selector("//b[concat(., '_fo') = 'some content_foo']", root, [])
         self.check_selector("//none[concat(., '_fo') = 'some content_foo']", root, [])
-        self.wrong_syntax("concat()")
+        self.wrong_type("concat()", 'err:XPST0017')
 
-        self.wrong_syntax("concat()")
         if self.parser.version == '1.0':
-            self.wrong_syntax("concat((), (), ())")
+            self.wrong_type("concat((), (), ())", 'err:XPST0017')
         else:
             self.check_value("concat((), (), ())", '')
             self.check_value("concat(('a'), (), ('c'))", 'ac')
@@ -606,7 +604,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("//none[contains(., ' -con')]", root, [])
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("contains((), ())")
+            self.wrong_type("contains((), ())", 'err:XPST0017')
             self.check_value("contains('XPath', 20)", False)
         else:
             self.check_value('fn:contains ( "tattoo", "t")', True)
@@ -633,7 +631,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         if self.parser.version == '1.0':
             self.check_value("substring-before('2017-10-27', 10)", '2017-')
-            self.wrong_syntax("fn:substring-before((), ())")
+            self.wrong_type("fn:substring-before((), ())", 'err:XPST0017')
         else:
             self.check_value('fn:substring-before ( "tattoo", "attoo")', 't')
             self.check_value('fn:substring-before ( "tattoo", "tatto")', '')
@@ -666,7 +664,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("//none[substring-after(., 'con') = 'content']", root, [])
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("fn:substring-after((), ())")
+            self.wrong_type("fn:substring-after((), ())", 'err:XPST0017')
         else:
             self.check_value('fn:substring-after("tattoo", "tat")', 'too')
             self.check_value('fn:substring-after("tattoo", "tattoo")', '')
@@ -689,7 +687,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("boolean('')", False)
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("boolean(())")
+            self.wrong_type("boolean(())", 'err:XPST0017')
         else:
             self.check_value("boolean(())", False)
 
@@ -869,7 +867,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("number(9)", root, 9.0)
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("number(())")
+            self.wrong_type("number(())", 'err:XPST0017')
         else:
             self.check_value("number(())", float('nan'), context=XPathContext(root))
 
@@ -901,7 +899,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, variable_values=self.variables)
         self.check_value("sum($values)", 35, context)
         if self.parser.version == '1.0':
-            self.wrong_syntax("sum(())")
+            self.wrong_type("sum(())", 'err:XPST0017')
         else:
             self.check_value("sum(())", 0)
             self.check_value("sum((), ())", [])
@@ -915,7 +913,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("//a[ceiling(.) = 10]", root, [])
         self.check_selector("//a[ceiling(.) = -10]", root, [root[2]])
         if self.parser.version == '1.0':
-            self.wrong_syntax("ceiling(())")
+            self.wrong_type("ceiling(())", 'err:XPST0017')
         else:
             self.check_value("ceiling(())", [])
             self.check_value("ceiling((10.5))", 11)
@@ -929,7 +927,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("//a[floor(.) = 20]", root, [root[1]])
 
         if self.parser.version == '1.0':
-            self.wrong_syntax("floor(())")
+            self.wrong_type("floor(())", 'err:XPST0017')
             self.check_selector("//ab[floor(.) = 10]", root, [])
         else:
             self.check_value("floor(())", [])
@@ -941,7 +939,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("round(2.4999)", 2)
         self.check_value("round(-2.5)", -2)
         if self.parser.version == '1.0':
-            self.wrong_syntax("round(())")
+            self.wrong_type("round(())", 'err:XPST0017')
         else:
             self.check_value("round(())", [])
             self.check_value("round((10.5))", 11)

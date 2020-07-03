@@ -373,8 +373,8 @@ class Parser(metaclass=ParserMeta):
         if self.next_token is not None:
             if self.next_token.symbol == '(end)':
                 raise self.syntax_error()
-            elif symbols:
-                self.next_token.expected(*symbols)
+            elif symbols and self.next_token.symbol not in symbols:
+                raise self.syntax_error()
 
         self.token = self.next_token
         self.match = self.next_match
@@ -502,10 +502,11 @@ class Parser(metaclass=ParserMeta):
             try:
                 if self.next_token.symbol == '(end)':
                     if self.token is None:
-                        return ElementPathSyntaxError("source is empty")
+                        return ElementPathSyntaxError("source is empty", code)
                     else:
-                        msg = "unexpected end of source after %s."
-                        return ElementPathSyntaxError(msg % self.token, token=self.next_token)
+                        line_column = 'line %d, column %d' % self.position
+                        msg = "unexpected end of source after {} at {}"
+                        return ElementPathSyntaxError(msg.format(self.token, line_column), code)
             except AttributeError:
                 pass
 
