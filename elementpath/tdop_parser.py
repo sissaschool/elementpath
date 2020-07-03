@@ -20,11 +20,9 @@ from collections.abc import MutableSequence
 
 from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError
 
-SPECIAL_SYMBOL_PATTERN = re.compile(r'\(\w+\)')
-"""
-Compiled regular expression for matching special symbols,
-that are names between round brackets.
-"""
+SPECIAL_SYMBOLS = frozenset(
+    ('(string)', '(float)', '(decimal)', '(integer)', '(name)', '(unknown)', '(end)')
+)
 
 SPACE_PATTERN = re.compile(r'\s')
 
@@ -45,7 +43,7 @@ def symbol_to_identifier(symbol):
 
     if symbol.isalnum():
         return symbol
-    elif SPECIAL_SYMBOL_PATTERN.match(symbol):
+    elif symbol in SPECIAL_SYMBOLS:
         return symbol[1:-1]
     elif all(c in '-_' for c in symbol):
         value = '_'.join(unicode_name(str(c)).title() for c in symbol)
@@ -145,31 +143,37 @@ class Token(MutableSequence):
     label = 'symbol'  # optional label
 
     def __init__(self, parser, value=None):
+        self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol
-        self._operands = []
+        self._source = parser.source
+        try:
+            self.span = parser.match.span()
+        except AttributeError:
+            # If the token is created outside the parsing phase and then
+            # the source string is the empty string and match is None
+            self.span = (0, 0)
 
     def __getitem__(self, i):
-        return self._operands[i]
+        return self._items[i]
 
     def __setitem__(self, i, item):
-        self._operands[i] = item
+        self._items[i] = item
 
     def __delitem__(self, i):
-        del self._operands[i]
+        del self._items[i]
 
     def __len__(self):
-        return len(self._operands)
+        return len(self._items)
 
     def insert(self, i, item):
-        self._operands.insert(i, item)
+        self._items.insert(i, item)
 
     def __str__(self):
-        symbol = self.symbol
-        if SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
-            return '%r %s' % (self.value, symbol[1:-1])
+        if self.symbol in SPECIAL_SYMBOLS:
+            return '%r %s' % (self.value, self.symbol[1:-1])
         else:
-            return '%r %s' % (symbol, self.label)
+            return '%r %s' % (self.symbol, self.label)
 
     def __repr__(self):
         symbol, value = self.symbol, self.value
@@ -194,7 +198,7 @@ class Token(MutableSequence):
         symbol, length = self.symbol, len(self)
         if symbol == '(name)':
             return u'(%s)' % self.value
-        elif SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
+        elif symbol in SPECIAL_SYMBOLS:
             return u'(%r)' % self.value
         elif symbol == '(':
             return '()' if not self else self[0].tree
@@ -211,7 +215,7 @@ class Token(MutableSequence):
             return self.value
         elif symbol == '(decimal)':
             return str(self.value)
-        elif SPECIAL_SYMBOL_PATTERN.match(symbol) is not None:
+        elif symbol in SPECIAL_SYMBOLS:
             return repr(self.value)
         else:
             length = len(self)
@@ -223,6 +227,18 @@ class Token(MutableSequence):
                 return u'%s %s %s' % (self[0].source, symbol, self[1].source)
             else:
                 return u'%s %s' % (symbol, ' '.join(item.source for item in self))
+
+    @property
+    def position(self):
+        """A tuple with the position of the token in terms of line and column."""
+        token_index = self.span[0]
+        line = self._source[:token_index].count('\n') + 1
+        if line == 1:
+            column = token_index + 2
+        else:
+            column = token_index - self._source[:token_index].rindex('\n') + 1
+
+        return line, column + count_leading_spaces(self._source[column - 1:])
 
     def nud(self):
         """Pratt's null denotation method"""
@@ -248,7 +264,7 @@ class Token(MutableSequence):
             yield from self[0].iter(*symbols)
             if not symbols or self.symbol in symbols:
                 yield self
-            for t in self[1:]:
+            for t in self._items[1:]:
                 yield from t.iter(*symbols)
 
     def expected(self, *symbols):
@@ -312,7 +328,7 @@ class Parser(metaclass=ParserMeta):
     :type token_base_class: Token
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
-    SYMBOLS = frozenset(('(string)', '(float)', '(decimal)', '(integer)', '(name)', '(end)'))
+    SYMBOLS = SPECIAL_SYMBOLS
     name_pattern = re.compile(r'[A-Za-z0-9_]+')
     token_base_class = Token
     tokenizer = None
@@ -321,12 +337,11 @@ class Parser(metaclass=ParserMeta):
     def __init__(self):
         if self.tokenizer is None:
             raise ValueError("The parser %r is not built!" % self.__class__)
-        self.token = None
-        self.match = None
-        self.next_token = None
-        self.next_match = None
-        self.tokens = iter(())
         self.source = ''
+        self.tokens = iter(())
+        self.match = None
+        self.token = None
+        self.next_token = None
 
     def __eq__(self, other):
         if self.token_base_class != other.token_base_class:
@@ -356,10 +371,9 @@ class Parser(metaclass=ParserMeta):
             return root_token
         finally:
             self.tokens = iter(())
-            self.token = None
             self.match = None
+            self.token = None
             self.next_token = None
-            self.next_match = None
 
     def advance(self, *symbols):
         """
@@ -377,15 +391,14 @@ class Parser(metaclass=ParserMeta):
                 raise self.syntax_error()
 
         self.token = self.next_token
-        self.match = self.next_match
         while True:
             try:
-                self.next_match = next(self.tokens)
+                self.match = next(self.tokens)
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, symbol, name, unexpected = self.next_match.groups()
+                literal, symbol, name, unknown = self.match.groups()
                 if symbol is not None:
                     symbol = symbol.strip()
                     try:
@@ -416,11 +429,12 @@ class Parser(metaclass=ParserMeta):
                 elif name is not None:
                     self.next_token = self.symbol_table['(name)'](self, name)
                     break
-                elif unexpected is not None:
+                elif unknown is not None:
+                    self.next_token = self.symbol_table['(unknown)'](self, unknown)
                     raise self.syntax_error()
-                elif str(self.next_match.group()).strip():
+                elif str(self.match.group()).strip():
                     msg = "Unexpected matching %r: not compatible tokenizer."
-                    raise RuntimeError(msg % self.next_match.group())
+                    raise RuntimeError(msg % self.match.group())
         return self.next_token
 
     def raw_advance(self, *stop_symbols):
@@ -440,16 +454,15 @@ class Parser(metaclass=ParserMeta):
             raise self.syntax_error()
 
         self.token = self.next_token
-        self.match = self.next_match
         source_chunk = []
         while True:
             try:
-                self.next_match = next(self.tokens)
+                self.match = next(self.tokens)
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                symbol = self.next_match.group(2)
+                symbol = self.match.group(2)
                 if symbol is not None:
                     symbol = symbol.strip()
                     if symbol not in stop_symbols:
@@ -461,7 +474,7 @@ class Parser(metaclass=ParserMeta):
                             raise self.syntax_error("unknown symbol %r." % symbol)
                         break
                 else:
-                    source_chunk.append(self.next_match.group())
+                    source_chunk.append(self.match.group())
         return ''.join(source_chunk)
 
     def expression(self, rbp=0):
@@ -485,19 +498,12 @@ class Parser(metaclass=ParserMeta):
     @property
     def position(self):
         """Property that returns the current line and column indexes."""
-        if self.match is None:
+        if self.token is None:
             return 1, 1 + count_leading_spaces(self.source)
-
-        token_index = self.match.span()[0]
-        line = self.source[:token_index].count('\n') + 1
-        if line == 1:
-            column = token_index + 2
-        else:
-            column = token_index - self.source[:token_index].rindex('\n') + 1
-
-        return line, column + count_leading_spaces(self.source[column - 1:])
+        return self.token.position
 
     def syntax_error(self, message=None, code=None, token=None):
+        """Get an ElementPa"""
         if token is None:
             try:
                 if self.next_token.symbol == '(end)':
@@ -511,11 +517,11 @@ class Parser(metaclass=ParserMeta):
                 pass
 
             try:
-                symbol = self.next_match.group(0)
+                symbol = self.match.group(0)
             except AttributeError:
                 raise RuntimeError("Parser not started!")
 
-        elif SPECIAL_SYMBOL_PATTERN.match(token.symbol) is not None:
+        elif token.symbol in SPECIAL_SYMBOLS:
             symbol = token.value
         else:
             symbol = token.symbol
@@ -536,18 +542,18 @@ class Parser(metaclass=ParserMeta):
         Returns `True` if the parser is positioned at the start
         of the source, ignoring the spaces.
         """
-        if self.match is None:
+        if self.token is None:
             return True
-        return not bool(self.source[0:self.match.span()[0]].strip())
+        return not bool(self.source[0:self.token.span[0]].strip())
 
     def is_line_start(self):
         """
         Returns `True` if the parser is positioned at the start
         of a source line, ignoring the spaces.
         """
-        if self.match is None:
+        if self.token is None:
             return True
-        token_index = self.match.span()[0]
+        token_index = self.token.span[0]
         line_start = self.source[0:token_index].rindex('\n') + 1
         return not bool(self.source[line_start:token_index].strip())
 
@@ -561,9 +567,9 @@ class Parser(metaclass=ParserMeta):
         :param after: if `True` considers also the extra spaces after \
         the current token symbol.
         """
-        if self.match is None:
+        if self.token is None:
             return False
-        start, end = self.match.span()
+        start, end = self.token.span
         if before and start > 0 and self.source[start - 1] in ' \t\n':
             return True
         try:
@@ -772,12 +778,12 @@ class Parser(metaclass=ParserMeta):
             ?(?:[Ee][+-]?\d+)?) |
             (%s|[%s]) |                                  # Symbol's patterns
             (%s) |                                       # Names
-            (\S) |                                       # Unexpected characters
+            (\S) |                                       # Unknown symbols
             \s+                                          # Skip extra spaces
         """
         patterns = [
             t.pattern.replace('#', r'\#') for s, t in symbol_table.items()
-            if SPECIAL_SYMBOL_PATTERN.match(s) is None
+            if s not in SPECIAL_SYMBOLS
         ]
         string_patterns = []
         character_patterns = []

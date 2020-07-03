@@ -88,7 +88,7 @@ class XPathToken(Token):
     def __str__(self):
         symbol, label = self.symbol, self.label
         if symbol == '$':
-            return '$%s variable reference' % (self[0].value if self else '')
+            return '$%s variable reference' % (self[0].value if self._items else '')
         elif symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
         elif label in ('axis', 'function', 'sequence type', 'kind test', 'constructor'):
@@ -137,18 +137,18 @@ class XPathToken(Token):
         if self.symbol in {'(name)', ':'}:
             yield self.value
         elif self.symbol in ('//', '/'):
-            if self[-1].symbol in {
+            if self._items[-1].symbol in {
                 '(name)', '*', ':', '..', '.', '[', 'self', 'child',
                 'parent', 'following-sibling', 'preceding-sibling',
                 'ancestor', 'ancestor-or-self', 'descendant',
                 'descendant-or-self', 'following', 'preceding'
             }:
-                yield from self[-1].iter_leaf_elements()
+                yield from self._items[-1].iter_leaf_elements()
 
         elif self.symbol in ('[',):
-            yield from self[0].iter_leaf_elements()
+            yield from self._items[0].iter_leaf_elements()
         else:
-            for tk in self:
+            for tk in self._items:
                 yield from tk.iter_leaf_elements()
 
     ###
@@ -170,7 +170,7 @@ class XPathToken(Token):
         :param cls: if a type is provided performs a type checking on item.
         """
         try:
-            selector = self[index].select
+            selector = self._items[index].select
         except IndexError:
             if default_to_context:
                 if context is None:
@@ -293,11 +293,11 @@ class XPathToken(Token):
         :returns: a list of data couples.
         """
         if context is None:
-            operand1 = [x for x in self[0].select()]
-            operand2 = [x for x in self[1].select()]
+            operand1 = [x for x in self._items[0].select()]
+            operand2 = [x for x in self._items[1].select()]
         else:
-            operand1 = [x for x in self[0].select(context.copy())]
-            operand2 = [x for x in self[1].select(context.copy())]
+            operand1 = [x for x in self._items[0].select(context.copy())]
+            operand2 = [x for x in self._items[1].select(context.copy())]
 
         if self.parser.compatibility_mode:
             # Boolean comparison if one of the results is a single boolean value (1.)
