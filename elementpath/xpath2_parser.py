@@ -169,7 +169,7 @@ class XPath2Parser(XPath1Parser):
         'nonPositiveInteger', 'negativeInteger', 'unsignedLong', 'unsignedInt',
         'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time', 'gDay', 'gMonth',
         'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
-        'yearMonthDuration', 'base64Binary', 'hexBinary', 'untypedAtomic',
+        'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary', 'untypedAtomic',
 
         # Functions and Operators that Generate Sequences ('id' changes but
         # is already registered)

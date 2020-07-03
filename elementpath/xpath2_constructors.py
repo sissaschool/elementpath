@@ -20,7 +20,7 @@ from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     XPathGregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, \
     DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, \
     NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN, \
-    LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN
+    LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
 
@@ -318,6 +318,29 @@ def cast(value):
     if isinstance(value, DayTimeDuration):
         return value
     return DayTimeDuration.fromstring(value)
+
+
+@constructor('dateTimeStamp')
+def cast(value):
+    if not XSD_BUILTIN_TYPES['dateTimeStamp'].validator(value):
+        raise ValueError("{} is not castable to an xs:dateTimeStamp".format(value))
+    return value
+
+
+@method('dateTimeStamp')
+def evaluate(self, context=None):
+    arg = self.data_value(self.get_argument(context))
+    if arg is None:
+        return []
+
+    try:
+        if isinstance(arg, UntypedAtomic):
+            return self.cast(arg.value)
+        return self.cast(str(arg))
+    except ValueError as err:
+        raise self.error('FOCA0002', str(err))
+    except TypeError as err:
+        raise self.error('FORG0006', str(err))
 
 
 ###

@@ -132,52 +132,56 @@ class XPath1Parser(Parser):
         def nud_(self):
             self.value = None
             self.parser.advance('(')
-            if nargs is None:
-                del self[:]
-                while True:
-                    self.append(self.parser.expression(5))
-                    if self.parser.next_token.symbol != ',':
-                        break
-                    self.parser.advance(',')
-                self.parser.advance(')')
-                return self
-            elif nargs == 0:
-                self.parser.advance(')')
-                return self
-            elif isinstance(nargs, (tuple, list)):
-                min_args, max_args = nargs
-            else:
-                min_args = max_args = nargs
+            try:
+                if nargs is None:
+                    del self[:]
+                    while True:
+                        self.append(self.parser.expression(5))
+                        if self.parser.next_token.symbol != ',':
+                            break
+                        self.parser.advance(',')
+                    self.parser.advance(')')
+                    return self
+                elif nargs == 0:
+                    self.parser.advance(')')
+                    return self
+                elif isinstance(nargs, (tuple, list)):
+                    min_args, max_args = nargs
+                else:
+                    min_args = max_args = nargs
 
-            k = 0
-            while k < min_args:
-                if self.parser.next_token.symbol == ')':
-                    msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
-
-                self[k:] = self.parser.expression(5),
-                k += 1
-                if k < min_args:
+                k = 0
+                while k < min_args:
                     if self.parser.next_token.symbol == ')':
                         msg = 'Too few arguments: expected at least %s arguments' % min_args
                         raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
-                    self.parser.advance(',')
 
-            while k < max_args:
+                    self[k:] = self.parser.expression(5),
+                    k += 1
+                    if k < min_args:
+                        if self.parser.next_token.symbol == ')':
+                            msg = 'Too few arguments: expected at least %s arguments' % min_args
+                            raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+                        self.parser.advance(',')
+
+                while k < max_args:
+                    if self.parser.next_token.symbol == ',':
+                        self.parser.advance(',')
+                        self[k:] = self.parser.expression(5),
+                    elif k == 0 and self.parser.next_token.symbol != ')':
+                        self[k:] = self.parser.expression(5),
+                    else:
+                        break
+                    k += 1
+
                 if self.parser.next_token.symbol == ',':
-                    self.parser.advance(',')
-                    self[k:] = self.parser.expression(5),
-                elif k == 0 and self.parser.next_token.symbol != ')':
-                    self[k:] = self.parser.expression(5),
-                else:
-                    break
-                k += 1
+                    msg = 'Too many arguments: expected at most %s arguments' % max_args
+                    raise self.wrong_nargs(msg if max_args > 1 else msg[:-1])
 
-            if self.parser.next_token.symbol == ',':
-                msg = 'Too many arguments: expected at most %s arguments' % max_args
-                raise self.wrong_nargs(msg if max_args > 1 else msg[:-1])
+                self.parser.advance(')')
+            except SyntaxError as err:
+                raise self.wrong_nargs() from None
 
-            self.parser.advance(')')
             return self
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
@@ -611,7 +615,7 @@ def evaluate(self, context=None):
             return op1 % op2
         except TypeError as err:
             raise self.wrong_type(str(err))
-        except ZeroDivisionError:
+        except (ZeroDivisionError, decimal.InvalidOperation):
             raise self.error('FOAR0001')
 
 
