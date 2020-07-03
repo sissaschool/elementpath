@@ -179,7 +179,7 @@ class XPath1Parser(Parser):
                     raise self.wrong_nargs(msg if max_args > 1 else msg[:-1])
 
                 self.parser.advance(')')
-            except SyntaxError as err:
+            except SyntaxError:
                 raise self.wrong_nargs() from None
 
             return self
@@ -224,6 +224,7 @@ literal('(string)')
 literal('(float)')
 literal('(decimal)')
 literal('(integer)')
+literal('(unknown)')
 
 
 @method(literal('(name)', bp=10))

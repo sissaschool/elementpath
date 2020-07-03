@@ -82,7 +82,7 @@ class TdopParserTest(unittest.TestCase):
             ?(?:[Ee][+-]?\d+)?) |
             (call|[+]) |                                  # Symbol's patterns
             ([A-Za-z0-9_]+) |                                       # Names
-            (\S) |                                       # Unexpected characters
+            (\S) |                                       # Unknown symbols
             \s+                                          # Skip extra spaces
         """)
 
