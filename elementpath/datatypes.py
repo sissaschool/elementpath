@@ -8,11 +8,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-XSD atomic datatypes for XPath. Includes a class for UntypedAtomic data and some
-classes for XSD datetime and duration types.
+XSD atomic datatypes for XPath. Includes a class for UntypedAtomic data and
+some classes for XSD datetime and duration types. This module raises only
+built-in exceptions.
 
-TODO for v1.5: Create special wrapper classes for xs:double and other numerical
-    types for the properly working of 'instance of' tests.
+TODO: Create special wrapper classes for xs:double and other numerical
+      types for the properly working of 'instance of' tests.
 """
 from abc import ABCMeta, abstractmethod
 import operator
@@ -23,7 +24,6 @@ import base64
 from collections import namedtuple
 from calendar import isleap, leapdays
 
-from .exceptions import ElementPathTypeError, ElementPathValueError, xpath_error
 
 ###
 # Date/Time helpers
@@ -104,10 +104,10 @@ class Timezone(datetime.tzinfo):
     def __init__(self, offset):
         super(Timezone, self).__init__()
         if not isinstance(offset, datetime.timedelta):
-            raise ElementPathTypeError("offset must be a datetime.timedelta or "
-                                       "an XSD timezone formatted string")
+            raise TypeError("offset must be a datetime.timedelta or "
+                            "an XSD timezone formatted string")
         if offset < self._minoffset or offset > self._maxoffset:
-            raise xpath_error('FODT0003', "offset must be between -14:00 and +14:00")
+            raise ValueError("offset must be between -14:00 and +14:00")
         self.offset = offset
 
     @classmethod
@@ -121,7 +121,7 @@ class Timezone(datetime.tzinfo):
             minutes = int(minutes) if hours >= 0 else -int(minutes)
             return cls(datetime.timedelta(hours=hours, minutes=minutes))
         except ValueError:
-            raise ElementPathValueError("%r: not an XSD timezone formatted string" % text)
+            raise ValueError("%r: not an XSD timezone formatted string" % text)
 
     @classmethod
     def fromduration(cls, duration):
@@ -147,14 +147,14 @@ class Timezone(datetime.tzinfo):
 
     def utcoffset(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
-            raise ElementPathTypeError("utcoffset() argument must be a "
-                                       "datetime.datetime instance or None")
+            raise TypeError("utcoffset() argument must be a "
+                            "datetime.datetime instance or None")
         return self.offset
 
     def tzname(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
-            raise ElementPathTypeError("tzname() argument must be a "
-                                       "datetime.datetime instance or None")
+            raise TypeError("tzname() argument must be a "
+                            "datetime.datetime instance or None")
 
         if not self.offset:
             return 'Z'
@@ -168,8 +168,8 @@ class Timezone(datetime.tzinfo):
 
     def dst(self, dt):
         if not isinstance(dt, datetime.datetime) and dt is not None:
-            raise ElementPathTypeError("dst() argument must be a "
-                                       "datetime.datetime instance or None")
+            raise TypeError("dst() argument must be a "
+                            "datetime.datetime instance or None")
 
     def fromutc(self, dt):
         if isinstance(dt, datetime.datetime):
@@ -201,9 +201,9 @@ class AbstractDateTime(metaclass=ABCMeta):
             self._dt = datetime.datetime(year, month, day, hour, minute,
                                          second, microsecond, tzinfo)
         elif year == 0:
-            raise ElementPathValueError('0 is an illegal value for year')
+            raise ValueError('0 is an illegal value for year')
         elif not isinstance(year, int):
-            raise ElementPathTypeError("wrong type %r for year" % type(year))
+            raise TypeError("wrong type %r for year" % type(year))
         else:
             self._year = year
             if isleap(year + bool(self.version != '1.0')):
@@ -300,10 +300,10 @@ class AbstractDateTime(metaclass=ABCMeta):
         """
         if not isinstance(datetime_string, str):
             msg = '1st argument has an invalid type {!r}'
-            raise ElementPathTypeError(msg.format(type(datetime_string)))
+            raise TypeError(msg.format(type(datetime_string)))
         elif tzinfo and not isinstance(tzinfo, Timezone):
             msg = '2nd argument has an invalid type {!r}'
-            raise ElementPathTypeError(msg.format(type(tzinfo)))
+            raise TypeError(msg.format(type(tzinfo)))
 
         match = cls.pattern.match(datetime_string)
         if match is None:
@@ -323,7 +323,7 @@ class AbstractDateTime(metaclass=ABCMeta):
             if year_digits.startswith('0') and len(year_digits) > 4:
                 msg = "Invalid datetime string {!r} for {!r} (when year " \
                       "exceeds 4 digits leading zeroes are not allowed)"
-                raise ElementPathValueError(msg.format(datetime_string, cls))
+                raise ValueError(msg.format(datetime_string, cls))
 
             if kwargs['year'] <= 0 and cls.version != '1.0':
                 kwargs['year'] -= 1
@@ -341,9 +341,9 @@ class AbstractDateTime(metaclass=ABCMeta):
         :return: an AbstractDateTime concrete subclass instance.
         """
         if not isinstance(dt, (datetime.datetime, datetime.date, datetime.time)):
-            raise ElementPathTypeError('1st argument has an invalid type %r' % type(dt))
+            raise TypeError('1st argument has an invalid type %r' % type(dt))
         elif year is not None and not isinstance(year, int):
-            raise ElementPathTypeError('2nd argument has an invalid type %r' % type(year))
+            raise TypeError('2nd argument has an invalid type %r' % type(year))
 
         kwargs = {k: getattr(dt, k) for k in cls.pattern.groupindex.keys() if hasattr(dt, k)}
         if year is not None:
@@ -364,7 +364,7 @@ class AbstractDateTime(metaclass=ABCMeta):
             else:
                 return self._dt, dt
         else:
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
     def __hash__(self):
         return hash((self._dt, self._year))
@@ -510,7 +510,7 @@ class OrderedDateTime(AbstractDateTime):
             return type(self)(**kwargs)
 
         else:
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
     def __lt__(self, other):
         dt1, dt2 = self._get_operands(other)
@@ -534,7 +534,7 @@ class OrderedDateTime(AbstractDateTime):
 
     def __add__(self, other):
         if isinstance(other, OrderedDateTime):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return self._date_operator(operator.add, other)
 
     def __sub__(self, other):
@@ -721,7 +721,7 @@ class Time(AbstractDateTime):
         elif isinstance(other, datetime.timedelta):
             dt = self._dt + other
         else:
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return Time(dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
     def __sub__(self, other):
@@ -735,7 +735,7 @@ class Time(AbstractDateTime):
             dt = self._dt - other
             return Time(dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
         else:
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
 
 class Duration(object):
@@ -753,7 +753,7 @@ class Duration(object):
 
     def __init__(self, months=0, seconds=0):
         if seconds < 0 < months or months < 0 < seconds:
-            raise ElementPathValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
+            raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         self.months = months
         self.seconds = decimal.Decimal(seconds)
 
@@ -802,7 +802,7 @@ class Duration(object):
         """
         match = cls._pattern.match(text)
         if match is None:
-            raise ElementPathValueError('%r is not an xs:duration value' % text)
+            raise ValueError('%r is not an xs:duration value' % text)
 
         sign, years, months, days, hours, minutes, seconds = match.groups()
         seconds = decimal.Decimal(seconds or 0)
@@ -822,11 +822,11 @@ class Duration(object):
 
         if cls is DayTimeDuration:
             if months:
-                raise ElementPathValueError('months must be 0 for %r' % cls.__name__)
+                raise ValueError('months must be 0 for %r' % cls.__name__)
             return cls(seconds=seconds)
         elif cls is YearMonthDuration:
             if seconds:
-                raise ElementPathValueError('seconds must be 0 for %r' % cls.__name__)
+                raise ValueError('seconds must be 0 for %r' % cls.__name__)
             return cls(months=months)
         return cls(months=months, seconds=seconds)
 
@@ -841,7 +841,7 @@ class Duration(object):
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-2-20120405/#duration
         """
         if not isinstance(other, self.__class__):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
         m1, s1 = self.months, int(self.seconds)
         m2, s2 = other.months, int(other.seconds)
@@ -895,17 +895,17 @@ class YearMonthDuration(Duration):
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return YearMonthDuration(months=self.months + other.months)
 
     def __sub__(self, other):
         if not isinstance(other, self.__class__):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return YearMonthDuration(months=self.months - other.months)
 
     def __mul__(self, other):
         if not isinstance(other, (float, int, decimal.Decimal)):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return YearMonthDuration(months=int(float(self.months * other) + 0.5))
 
     def __truediv__(self, other):
@@ -914,7 +914,7 @@ class YearMonthDuration(Duration):
         elif isinstance(other, (float, int, decimal.Decimal)):
             return YearMonthDuration(months=int(float(self.months / other) + 0.5))
         else:
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
 
 class DayTimeDuration(Duration):
@@ -938,17 +938,17 @@ class DayTimeDuration(Duration):
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return DayTimeDuration(seconds=self.seconds + other.seconds)
 
     def __sub__(self, other):
         if not isinstance(other, self.__class__):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return DayTimeDuration(seconds=self.seconds - other.seconds)
 
     def __mul__(self, other):
         if not isinstance(other, (float, int, decimal.Decimal)):
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return DayTimeDuration(seconds=int(float(self.seconds * other) + 0.5))
 
     def __truediv__(self, other):
@@ -957,7 +957,7 @@ class DayTimeDuration(Duration):
         elif isinstance(other, (float, int, decimal.Decimal)):
             return DayTimeDuration(seconds=int(float(self.seconds / other) + 0.5))
         else:
-            raise ElementPathTypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
 
 class UntypedAtomic(object):
@@ -979,7 +979,7 @@ class UntypedAtomic(object):
         elif isinstance(value, (AbstractDateTime, int, float, decimal.Decimal)):
             self.value = str(value)
         else:
-            raise ElementPathTypeError("{!r} is not an atomic value".format(value))
+            raise TypeError("{!r} is not an atomic value".format(value))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
@@ -993,21 +993,18 @@ class UntypedAtomic(object):
         :param force_float: Force a conversion to float if *other* is an UntypedAtomic instance.
         :return: A couple of values.
         """
-        try:
-            if isinstance(other, UntypedAtomic):
-                if force_float:
-                    return float(self.value), float(other.value)
-                return self.value, other.value
-            elif isinstance(other, bool):
-                return bool(self), other
-            elif isinstance(other, int):
-                return float(self.value), other
-            elif isinstance(other, (AbstractDateTime, Duration)):
-                return type(other).fromstring(self.value), other
-            else:
-                return type(other)(self.value), other
-        except ValueError as err:
-            raise xpath_error('FORG0001', message=str(err))
+        if isinstance(other, UntypedAtomic):
+            if force_float:
+                return float(self.value), float(other.value)
+            return self.value, other.value
+        elif isinstance(other, bool):
+            return bool(self), other
+        elif isinstance(other, int):
+            return float(self.value), other
+        elif isinstance(other, (AbstractDateTime, Duration)):
+            return type(other).fromstring(self.value), other
+        else:
+            return type(other)(self.value), other
 
     def __hash__(self):
         return hash(self.value)
@@ -1059,7 +1056,7 @@ class UntypedAtomic(object):
     def __bool__(self):
         value = self.value.strip()
         if value not in {'0', '1', 'true', 'false'}:
-            raise ElementPathValueError("{!r} cannot be cast to boolean".format(self.value))
+            raise ValueError("{!r} cannot be cast to boolean".format(self.value))
         return value in ('1', 'true')
 
     def __abs__(self):
