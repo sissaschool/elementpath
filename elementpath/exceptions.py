@@ -25,12 +25,17 @@ class ElementPathError(Exception):
         self.token = token
 
     def __str__(self):
-        if self.code is None:
-            return self.message if self.token is None else '%s: %s' % (self.token, self.message)
-        elif self.token is None:
-            return '[%s] %s' % (self.code, self.message)
-        else:
-            return '%s: [%s] %s' % (self.token, self.code, self.message)
+        if self.token is None:
+            if not self.code:
+                return self.message
+            return '[{}] {}'.format(self.code, self.message)
+        elif not self.code:
+            return '{1} at line {2}, column {3}: {0}'.format(
+                self.message, self.token, *self.token.position
+            )
+        return '{2} at line {3}, column {4}: [{1}] {0}'.format(
+            self.message, self.code, self.token, *self.token.position
+        )
 
 
 class MissingContextError(ElementPathError):

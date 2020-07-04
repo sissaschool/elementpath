@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes and helper functions for defining Pratt parsers.
+This module contains base classes and helper functions for defining Pratt parsers.
 """
 import sys
 import re
@@ -18,13 +18,36 @@ from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
 
-from .exceptions import ElementPathSyntaxError, ElementPathNameError, ElementPathValueError
+#
+# Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
+#
+# References:
+#
+#   https://tdop.github.io/  (Vaughan R. Pratt's "Top Down Operator Precedence" - 1973)
+#   http://crockford.com/javascript/tdop/tdop.html  (Douglas Crockford - 2007)
+#   http://effbot.org/zone/simple-top-down-parsing.htm (Fredrik Lundh - 2008)
+#
+# This implementation is based on a base class for tokens and a base class for parsers.
+# A real parser is built with a derivation of the base parser class followed by the
+# registrations of token classes for the symbols of the language.
+#
+# A parser can be extended by derivation, copying the reusable token classes and
+# defining the additional ones. See the files xpath1_parser.py and xpath2_parser.py
+# for a fully implementation example of a real parser.
+#
 
-SPECIAL_SYMBOLS = frozenset(
-    ('(string)', '(float)', '(decimal)', '(integer)', '(name)', '(unknown)', '(end)')
-)
+# Parser special symbols set, that includes the TDOP's special symbols plus two
+# additional special symbols for managing invalid literals and unknown symbols.
+SPECIAL_SYMBOLS = frozenset((
+    '(string)', '(float)', '(decimal)', '(integer)',
+    '(name)', '(end)', '(invalid)', '(unknown)'
+))
 
 SPACE_PATTERN = re.compile(r'\s')
+
+
+class TdopSyntaxError(SyntaxError):
+    """Syntax error class for the TDOP parsing."""
 
 
 def count_leading_spaces(s):
@@ -56,24 +79,6 @@ def symbol_to_identifier(symbol):
         value = ''.join(get_id_name(c) for c in symbol).replace(' ', '').replace('-', '')
         return value[:-1] if value.endswith('_') else value
 
-
-#
-# Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
-#
-# References:
-#
-#   https://tdop.github.io/  (Vaughan R. Pratt's "Top Down Operator Precedence" - 1973)
-#   http://crockford.com/javascript/tdop/tdop.html  (Douglas Crockford - 2007)
-#   http://effbot.org/zone/simple-top-down-parsing.htm (Fredrik Lundh - 2008)
-#
-# This implementation is based on a base class for tokens and a base class for parsers.
-# A real parser is built with a derivation of the base parser class followed by the
-# registrations of token classes for the symbols of the language.
-#
-# A parser can be extended by derivation, copying the reusable token classes and
-# defining the additional ones. See the files xpath1_parser.py and xpath2_parser.py
-# for a fully implementation example of a real parser.
-#
 
 class MultiLabel(object):
     """
@@ -242,11 +247,11 @@ class Token(MutableSequence):
 
     def nud(self):
         """Pratt's null denotation method"""
-        raise self.parser.syntax_error()
+        raise self.wrong_syntax()
 
     def led(self, left):
         """Pratt's left denotation method"""
-        raise self.parser.syntax_error()
+        raise self.wrong_syntax()
 
     def evaluate(self, *args, **kwargs):
         """Evaluation method"""
@@ -276,7 +281,28 @@ class Token(MutableSequence):
             raise self.wrong_syntax()
 
     def wrong_syntax(self, message=None):
-        return self.parser.syntax_error(message, token=self)
+        if message:
+            return TdopSyntaxError(message)
+        elif self.symbol not in SPECIAL_SYMBOLS:
+            return TdopSyntaxError('unexpected symbol %r' % self.symbol)
+        elif self.symbol == '(invalid)':
+            return TdopSyntaxError('invalid literal %r' % self.value)
+        elif self.symbol == '(unknown)':
+            return TdopSyntaxError('unknown symbol %r' % self.value)
+        elif self.symbol == '(name)':
+            return TdopSyntaxError('unexpected name %r' % self.value)
+        elif self.symbol != '(end)':
+            return TdopSyntaxError('unexpected literal %r' % self.value)
+        elif self.parser.token is None:
+            return TdopSyntaxError('source is empty')
+        else:
+            return TdopSyntaxError('unexpected end of source')
+
+    def wrong_type(self, message='invalid type'):
+        return TypeError(message)
+
+    def wrong_value(self, message='invalid value'):
+        return ValueError(message)
 
 
 class ParserMeta(type):
@@ -385,10 +411,9 @@ class Parser(metaclass=ParserMeta):
         :return: The next token instance.
         """
         if self.next_token is not None:
-            if self.next_token.symbol == '(end)':
-                raise self.syntax_error()
-            elif symbols and self.next_token.symbol not in symbols:
-                raise self.syntax_error()
+            if self.next_token.symbol == '(end)' or \
+                    symbols and self.next_token.symbol not in symbols:
+                raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
         while True:
@@ -404,7 +429,8 @@ class Parser(metaclass=ParserMeta):
                     try:
                         self.next_token = self.symbol_table[symbol](self)
                     except KeyError:
-                        raise self.syntax_error("unknown symbol %r." % symbol)
+                        self.next_token = self.symbol_table['(unknown)'](self, symbol)
+                        raise self.next_token.wrong_syntax()
                     break
                 elif literal is not None:
                     if literal[0] in '\'"':
@@ -413,14 +439,16 @@ class Parser(metaclass=ParserMeta):
                         try:
                             value = float(literal)
                         except ValueError as err:
-                            raise self.syntax_error(message=str(err))
+                            self.next_token = self.symbol_table['(invalid)'](self, literal)
+                            raise self.next_token.wrong_syntax(message=str(err))
                         else:
                             self.next_token = self.symbol_table['(float)'](self, value)
                     elif '.' in literal:
                         try:
                             value = Decimal(literal)
                         except DecimalException as err:
-                            raise self.syntax_error(message=str(err))
+                            self.next_token = self.symbol_table['(invalid)'](self, literal)
+                            raise self.next_token.wrong_syntax(message=str(err))
                         else:
                             self.next_token = self.symbol_table['(decimal)'](self, value)
                     else:
@@ -431,7 +459,7 @@ class Parser(metaclass=ParserMeta):
                     break
                 elif unknown is not None:
                     self.next_token = self.symbol_table['(unknown)'](self, unknown)
-                    raise self.syntax_error()
+                    raise self.next_token.wrong_syntax()
                 elif str(self.match.group()).strip():
                     msg = "Unexpected matching %r: not compatible tokenizer."
                     raise RuntimeError(msg % self.match.group())
@@ -449,9 +477,9 @@ class Parser(metaclass=ParserMeta):
         and the first stop symbol.
         """
         if not stop_symbols:
-            raise ElementPathValueError("at least a stop symbol required!", token=self.next_token)
-        elif getattr(self.next_token, 'symbol', None) == '(end)':
-            raise self.syntax_error()
+            raise self.next_token.wrong_type("at least a stop symbol required!")
+        elif self.next_token.symbol == '(end)':
+            raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
         source_chunk = []
@@ -471,7 +499,8 @@ class Parser(metaclass=ParserMeta):
                         try:
                             self.next_token = self.symbol_table[symbol](self)
                         except KeyError:
-                            raise self.syntax_error("unknown symbol %r." % symbol)
+                            self.next_token = self.symbol_table['(unknown)'](self)
+                            raise self.next_token.wrong_syntax()
                         break
                 else:
                     source_chunk.append(self.match.group())
@@ -501,41 +530,6 @@ class Parser(metaclass=ParserMeta):
         if self.token is None:
             return 1, 1 + count_leading_spaces(self.source)
         return self.token.position
-
-    def syntax_error(self, message=None, code=None, token=None):
-        """Get an ElementPa"""
-        if token is None:
-            try:
-                if self.next_token.symbol == '(end)':
-                    if self.token is None:
-                        return ElementPathSyntaxError("source is empty", code)
-                    else:
-                        line_column = 'line %d, column %d' % self.position
-                        msg = "unexpected end of source after {} at {}"
-                        return ElementPathSyntaxError(msg.format(self.token, line_column), code)
-            except AttributeError:
-                pass
-
-            try:
-                symbol = self.match.group(0)
-            except AttributeError:
-                raise RuntimeError("Parser not started!")
-
-        elif token.symbol in SPECIAL_SYMBOLS:
-            symbol = token.value
-        else:
-            symbol = token.symbol
-
-        line_column = 'line %d, column %d' % self.position
-        if self.token is not None and symbol != self.token.symbol:
-            msg = "symbol %r after %s at %s" % (symbol, self.token, line_column)
-        else:
-            msg = "symbol %r at %s" % (symbol, line_column)
-
-        if message:
-            return ElementPathSyntaxError('%s: %s' % (msg, message), code, token)
-        else:
-            return ElementPathSyntaxError('unexpected %s.' % msg, code, token)
 
     def is_source_start(self):
         """
@@ -591,7 +585,7 @@ class Parser(metaclass=ParserMeta):
         elif '(name)' in symbols and self.name_pattern.match(self.next_token.symbol) is not None:
             self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
         else:
-            raise self.syntax_error(message)
+            raise self.next_token.wrong_syntax(message)
 
     @classmethod
     def register(cls, symbol, **kwargs):
@@ -617,7 +611,7 @@ class Parser(metaclass=ParserMeta):
         try:
             try:
                 if ' ' in symbol:
-                    raise ElementPathValueError("%r: a symbol can't contains whitespaces." % symbol)
+                    raise ValueError("%r: a symbol can't contains whitespaces." % symbol)
             except TypeError:
                 assert isinstance(symbol, type) and issubclass(symbol, Token), \
                     "A %r subclass requested, not %r." % (Token, symbol)
@@ -631,7 +625,7 @@ class Parser(metaclass=ParserMeta):
             # Register a new symbol and create a new custom class. The new class
             # name is registered at parser class's module level.
             if symbol not in cls.SYMBOLS:
-                raise ElementPathNameError('%r is not a symbol of the parser %r.' % (symbol, cls))
+                raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
             kwargs['symbol'] = symbol
             if 'pattern' not in kwargs:
@@ -790,7 +784,7 @@ class Parser(metaclass=ParserMeta):
 
         for p in patterns:
             if ' ' in p:
-                raise ElementPathValueError('pattern %r contains spaces' % p)
+                raise ValueError('pattern %r contains spaces' % p)
             length = len(p)
             if length == 1 or length == 2 and p[0] == '\\':
                 character_patterns.append(p)

@@ -768,11 +768,17 @@ class XPathToken(Token):
         """
         return xpath_error(code, message, self, self.error_prefix)
 
-    # Shortcuts for XPath errors
-    def wrong_syntax(self, message=None):
+    # Shortcuts for XPath errors, only the wrong_syntax
+    def wrong_syntax(self, message=None, code='XPST0003'):
+
         if self.symbol == '::' and self.parser.token.symbol == '(name)':
             return self.missing_axis(message or "Axis '%s::' not found" % self.parser.token.value)
-        return super(XPathToken, self).wrong_syntax(message)
+
+        if message:
+            return self.error(code, message)
+        else:
+            error = super(XPathToken, self).wrong_syntax(message)
+            return self.error(code, str(error))
 
     def wrong_value(self, message=None):
         return self.error('FOCA0002', message)

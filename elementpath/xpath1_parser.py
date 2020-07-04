@@ -224,6 +224,7 @@ literal('(string)')
 literal('(float)')
 literal('(decimal)')
 literal('(integer)')
+literal('(invalid)')
 literal('(unknown)')
 
 
@@ -297,7 +298,7 @@ def led(self, left):
         namespace = self.get_namespace(left.value)
         self.parser.next_token.bind_namespace(namespace)
     elif left.symbol == '*' and self.parser.next_token.symbol != '(name)':
-        raise self.parser.syntax_error()
+        raise self.wrong_syntax()
 
     if self.parser.is_spaced():
         raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
