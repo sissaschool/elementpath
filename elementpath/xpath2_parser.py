@@ -273,9 +273,6 @@ class XPath2Parser(XPath1Parser):
 
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
 
-    def syntax_error(self, message=None, code='XPST0003', token=None):
-        return super(XPath1Parser, self).syntax_error(message, code, token)
-
     def advance(self, *symbols):
         super(XPath2Parser, self).advance(*symbols)
         if self.next_token.symbol == '(:':
@@ -1087,7 +1084,7 @@ def nud(self):
         if self.parser.next_token.symbol == ',':
             raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
     elif self.parser.next_token.symbol != ')':
-        raise self.parser.syntax_error('element() kind test expected', code='XPST0081')
+        raise self.wrong_syntax('element() kind test expected', code='XPST0081')
     self.parser.advance(')')
     self.value = None
     return self
