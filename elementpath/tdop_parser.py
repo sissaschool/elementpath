@@ -236,6 +236,9 @@ class Token(MutableSequence):
     @property
     def position(self):
         """A tuple with the position of the token in terms of line and column."""
+        if not isinstance(self._source, (str, bytes)):
+            return None, None
+
         token_index = self.span[0]
         line = self._source[:token_index].count('\n') + 1
         if line == 1:
@@ -388,8 +391,13 @@ class Parser(metaclass=ParserMeta):
         :return: The root of the token's tree that parse the source.
         """
         try:
-            self.source = source
-            self.tokens = iter(self.tokenizer.finditer(source))
+            try:
+                self.source = source
+                self.tokens = iter(self.tokenizer.finditer(source))
+            except TypeError as err:
+                token = self.symbol_table['(invalid)'](self, type(source))
+                raise token.wrong_syntax('invalid source type, {}'.format(err))
+
             self.advance()
             root_token = self.expression()
             if self.next_token.symbol != '(end)':

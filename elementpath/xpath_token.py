@@ -174,10 +174,11 @@ class XPathToken(Token):
         except IndexError:
             if default_to_context:
                 if context is None:
-                    raise self.missing_context()
+                    raise self.missing_context() from None
                 item = context.item if context.item is not None else context.root
             elif required:
-                raise self.error('XPST0017', "Missing %s argument" % ordinal(index + 1))
+                msg = "missing %s argument" % ordinal(index + 1)
+                raise self.error('XPST0017', msg) from None
             else:
                 return
         else:
@@ -418,7 +419,8 @@ class XPathToken(Token):
         try:
             return self.parser.namespaces[prefix]
         except KeyError as err:
-            raise self.error('FONS0004', 'No namespace found for prefix %s' % str(err))
+            msg = 'No namespace found for prefix %s' % str(err)
+            raise self.error('FONS0004', msg) from None
 
     def bind_namespace(self, namespace):
         """
@@ -459,7 +461,10 @@ class XPathToken(Token):
             item = self.get_argument(context=None, cls=cls)  # don't use implicit timezone
             timezone = self.get_argument(context, 1, cls=DayTimeDuration)
             if timezone is not None:
-                timezone = Timezone.fromduration(timezone)
+                try:
+                    timezone = Timezone.fromduration(timezone)
+                except ValueError as err:
+                    raise self.error('FODT0003', str(err)) from None
             if item is None:
                 return
 
@@ -473,7 +478,7 @@ class XPathToken(Token):
                     item -= timezone.offset - item.tzinfo.offset
                     item -= DayTimeDuration.fromstring('P1D')
         except OverflowError as err:
-            raise self.error('FOAR0002', str(err))
+            raise self.error('FOAR0002', str(err)) from None
 
         item.tzinfo = timezone
         return item
@@ -488,7 +493,7 @@ class XPathToken(Token):
         try:
             locale.setlocale(locale.LC_COLLATE, collation)
         except locale.Error:
-            raise self.error('FOCH0002', 'Unsupported collation %r' % collation)
+            raise self.error('FOCH0002', 'Unsupported collation %r' % collation) from None
         else:
             yield
         finally:
@@ -622,7 +627,7 @@ class XPathToken(Token):
 
         except (TypeError, ValueError):
             msg = "Type {!r} does not match sequence type of {!r}"
-            raise self.wrong_sequence_type(msg.format(xsd_type, item))
+            raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
 
     ###
     # XPath data accessors base functions
@@ -678,7 +683,7 @@ class XPathToken(Token):
                     code='FORG0006',
                     message="Effective boolean value is not defined for a sequence of two or "
                             "more items not starting with an XPath node.",
-                )
+                ) from None
         elif isinstance(obj, tuple) or is_element_node(obj):
             msg = "Effective boolean value is not defined for {}."
             raise self.error('FORG0006', msg.format(obj))
@@ -744,8 +749,9 @@ class XPathToken(Token):
 
         except AttributeError:
             if self.parser.schema is None:
-                raise self.missing_schema()
-            raise self.wrong_type("the argument {!r} is not a node of an XSD schema".format(obj))
+                raise self.missing_schema() from None
+            msg = "the argument {!r} is not a node of an XSD schema".format(obj)
+            raise self.wrong_type(msg) from None
 
     ###
     # Error handling helpers

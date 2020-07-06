@@ -20,7 +20,7 @@ import unicodedata
 from copy import copy
 from urllib.parse import urlparse, urljoin, quote as urllib_quote
 
-from .exceptions import ElementPathTypeError, xpath_error
+from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, \
     Duration, DayTimeDuration, is_id, is_idrefs
 from .namespaces import get_namespace, XML_ID
@@ -229,7 +229,13 @@ def evaluate(self, context=None):
         raise self.wrong_type("Invalid argument type {!r}".format(type(item)))
 
     precision = 0 if len(self) < 2 else self[1].evaluate(context)
-    return float(round(decimal.Decimal(item), precision))
+    try:
+        round(decimal.Decimal(item), precision)
+        return float(round(decimal.Decimal(item), precision))
+    except TypeError as err:
+        raise self.error('XPTY0004', str(err))
+    except decimal.DecimalException as err:
+        raise self.error('FOCA0001', str(err))
 
 
 @method(function('abs', nargs=1))
@@ -338,7 +344,11 @@ def select(self, context=None):
 
 @method(function('insert-before', nargs=3))
 def select(self, context=None):
-    insert_at_pos = max(0, self[1].value - 1)
+    try:
+        insert_at_pos = max(0, self[1].value - 1)
+    except TypeError:
+        raise self.error('XPTY0004', '2nd argument must be an xs:integer') from None
+
     inserted = False
     for pos, result in enumerate(self[0].select(context)):
         if not inserted and pos == insert_at_pos:
@@ -350,19 +360,22 @@ def select(self, context=None):
         yield from self[2].select(context)
 
 
-@method(function('index-of', nargs=(1, 3)))
+@method(function('index-of', nargs=(2, 3)))
 def select(self, context=None):
     value = self[1].evaluate(context)
-    for pos, result in enumerate(self[0].select(context)):
+    for pos, result in enumerate(self[0].select(context), start=1):
         if result == value:
-            yield pos + 1
+            yield pos
 
 
 @method(function('remove', nargs=2))
 def select(self, context=None):
-    target = self[1].evaluate(context) - 1
-    for pos, result in enumerate(self[0].select(context)):
-        if pos != target:
+    position = self[1].evaluate(context)
+    if not isinstance(position, int):
+        raise self.error('XPTY0004', 'an xs:integer required')
+
+    for pos, result in enumerate(self[0].select(context), start=1):
+        if pos != position:
             yield result
 
 
@@ -376,8 +389,11 @@ def select(self, context=None):
     starting_loc = self[1].evaluate(context) - 1
     length = self[2].evaluate(context) if len(self) >= 3 else 0
     for pos, result in enumerate(self[0].select(context)):
-        if starting_loc <= pos and (not length or pos < starting_loc + length):
-            yield result
+        try:
+            if starting_loc <= pos and (not length or pos < starting_loc + length):
+                yield result
+        except TypeError as err:
+            raise self.error('XPTY0004', str(err)) from None
 
 
 @method(function('unordered', nargs=1))
@@ -409,7 +425,7 @@ def select(self, context=None):
     try:
         item = next(results)
     except StopIteration:
-        raise self.error('FORG0004')
+        raise self.error('FORG0004') from None
     else:
         yield item
         while True:
@@ -425,7 +441,7 @@ def select(self, context=None):
     try:
         item = next(results)
     except StopIteration:
-        raise self.error('FORG0005')
+        raise self.error('FORG0005') from None
     else:
         try:
             next(results)
@@ -489,9 +505,9 @@ def evaluate(self, context=None):
         return re.search(pattern, input_string, flags=flags) is not None
     except re.error:
         # TODO: full XML regex syntax
-        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
     except OverflowError as err:
-        raise self.error('FOAR0002', str(err))
+        raise self.error('FOAR0002', str(err)) from None
 
 
 @method(function('replace', nargs=(3, 4)))
@@ -541,7 +557,7 @@ def select(self, context=None):
     try:
         pattern = re.compile(pattern, flags=flags)
     except re.error:
-        raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
+        raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
     else:
         if pattern.search(''):
             msg = "Regular expression %r matches zero-length string"
@@ -587,12 +603,16 @@ def evaluate(self, context=None):
         return ''.join(chr(cp) for cp in self[0].select(context))
     except TypeError as err:
         raise self.wrong_type(str(err)) from None
+    except ValueError:
+        raise self.error('FOCH0001') from None  # Code point not valid
 
 
 @method(function('string-to-codepoints', nargs=1))
 def select(self, context=None):
-    for char in self[0].evaluate(context):
-        yield ord(char)
+    try:
+        yield from (ord(c) for c in self[0].evaluate(context))
+    except TypeError:
+        raise self.error('XPTY0004', 'an xs:string required') from None
 
 
 @method(function('compare', nargs=(2, 3)))
@@ -632,7 +652,7 @@ def evaluate(self, context=None):
     except ElementPathTypeError:
         raise
     except TypeError as err:
-        raise self.wrong_type("the values must be strings: %s" % err)
+        raise self.wrong_type("the values must be strings: %s" % err) from None
 
 
 @method(function('normalize-unicode', nargs=(1, 2)))
@@ -648,14 +668,16 @@ def evaluate(self, context=None):
         normalization_form = 'NFC'
 
     if normalization_form == 'FULLY-NORMALIZED':
-        raise NotImplementedError("%r normalization form not supported" % normalization_form)
+        msg = "%r normalization form not supported" % normalization_form
+        raise self.error('FOCH0003', msg)
     if not arg:
         return ''
 
     try:
         return unicodedata.normalize(normalization_form, arg)
     except ValueError:
-        raise self.error('FOCH0003', "unsupported normalization form %r" % normalization_form)
+        msg = "unsupported normalization form %r" % normalization_form
+        raise self.error('FOCH0003', msg) from None
 
 
 @method(function('upper-case', nargs=1))
@@ -1069,14 +1091,14 @@ def evaluate(self, context=None):
 @method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
     if not self:
-        raise xpath_error('FOER0000')
+        raise self.error('FOER0000')
     elif len(self) == 1:
         error = self.get_argument(context, cls=str)
-        raise xpath_error(error or 'FOER0000')
+        raise self.error(error or 'FOER0000')
     else:
         error = self.get_argument(context, cls=str)
         description = self.get_argument(context, index=1, cls=str)
-        raise xpath_error(error or 'FOER0000', message=description)
+        raise self.error(error or 'FOER0000', message=description)
 
 
 # XPath 2.0 definitions continue into module xpath2_constructors

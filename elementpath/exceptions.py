@@ -25,7 +25,7 @@ class ElementPathError(Exception):
         self.token = token
 
     def __str__(self):
-        if self.token is None:
+        if self.token is None or not isinstance(self.token.value, (str, bytes)):
             if not self.code:
                 return self.message
             return '[{}] {}'.format(self.code, self.message)
@@ -154,15 +154,18 @@ def xpath_error(code, message=None, token=None, prefix='err'):
         try:
             namespace, code = code[1:].split('}')
         except ValueError:
-            raise ElementPathValueError('{!r} is not an xs:QName'.format(code))
+            message = '{!r} is not an xs:QName'.format(code)
+            raise ElementPathValueError(message, 'err:XPTY0004', token)
         else:
             if namespace != 'http://www.w3.org/2005/xqt-errors':
-                raise ElementPathValueError('Invalid namespace {!r}'.format(namespace))
+                message = 'invalid namespace {!r}'.format(namespace)
+                raise ElementPathValueError(message, 'err:XPTY0004', token)
             pcode = '%s:%s' % (prefix, code) if prefix else code
     elif ':' not in code:
         pcode = '%s:%s' % (prefix, code) if prefix else code
     elif not prefix or not code.startswith(prefix + ':'):
-        raise ElementPathValueError('%r is not an XPath error code' % code)
+        message = '%r is not an XPath error code' % code
+        raise ElementPathValueError(message, 'err:XPTY0004', token)
     else:
         pcode = code
         code = code[len(prefix) + 1:]
@@ -170,6 +173,8 @@ def xpath_error(code, message=None, token=None, prefix='err'):
     try:
         error_class, default_message = XPATH_ERROR_CODES[code]
     except KeyError:
-        raise ElementPathValueError(message or 'Unknown XPath error code %r' % code, token=token)
+        raise ElementPathValueError(
+            message or 'unknown XPath error code %r' % code, 'err:XPTY0004', token
+        )
     else:
         return error_class(message or default_message, pcode, token)
