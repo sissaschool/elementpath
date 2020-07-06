@@ -10,6 +10,7 @@
 import re
 import math
 import decimal
+import operator
 from copy import copy
 
 from .exceptions import MissingContextError
@@ -23,6 +24,15 @@ from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
     is_xpath_node, is_element_node, is_document_node, is_attribute_node, is_text_node, \
     is_comment_node, is_processing_instruction_node, node_name
+
+OPERATORS_MAP = {
+    '=': operator.eq,
+    '!=': operator.ne,
+    '>': operator.gt,
+    '>=': operator.ge,
+    '<': operator.lt,
+    '<=': operator.le,
+}
 
 
 class XPath1Parser(Parser):
@@ -484,34 +494,22 @@ def evaluate(self, context=None):
         self.boolean_value(self[1].evaluate(copy(context)))
 
 
+###
+# Comparison operators
 @method(infix('=', bp=30))
-def evaluate(self, context=None):
-    return any(op1 == op2 for op1, op2 in self.get_comparison_data(context))
-
-
 @method(infix('!=', bp=30))
-def evaluate(self, context=None):
-    return any(op1 != op2 for op1, op2 in self.get_comparison_data(context))
-
-
 @method(infix('<', bp=30))
-def evaluate(self, context=None):
-    return any(op1 < op2 for op1, op2 in self.get_comparison_data(context))
-
-
 @method(infix('>', bp=30))
-def evaluate(self, context=None):
-    return any(op1 > op2 for op1, op2 in self.get_comparison_data(context))
-
-
 @method(infix('<=', bp=30))
-def evaluate(self, context=None):
-    return any(op1 <= op2 for op1, op2 in self.get_comparison_data(context))
-
-
 @method(infix('>=', bp=30))
 def evaluate(self, context=None):
-    return any(op1 >= op2 for op1, op2 in self.get_comparison_data(context))
+    op = OPERATORS_MAP[self.symbol]
+    try:
+        return any(op(x1, x2) for x1, x2 in self.get_comparison_data(context))
+    except TypeError as err:
+        raise self.error('XPTY0004', str(err))
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 ###
@@ -572,14 +570,16 @@ def evaluate(self, context=None):
             try:
                 return op1 * op2
             except TypeError as err:
-                raise self.wrong_type(str(err))
+                raise self.wrong_type(str(err)) from None
+            except ValueError as err:
+                raise self.error('FOCA0005', str(err)) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', str(err))
+                    raise self.error('FODT0001', str(err)) from None
                 elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', str(err))
+                    raise self.error('FODT0002', str(err)) from None
                 else:
-                    raise self.error('FOAR0002', str(err))
+                    raise self.error('FOAR0002', str(err)) from None
     else:
         # This is not a multiplication operator but a wildcard select statement
         return [x for x in self.select(context)]
@@ -594,11 +594,13 @@ def evaluate(self, context=None):
         try:
             return dividend / divisor
         except TypeError as err:
-            raise self.wrong_type(str(err))
+            raise self.wrong_type(str(err)) from None
+        except ValueError as err:
+            raise self.error('FOCA0005', str(err)) from None
         except OverflowError as err:
-            raise self.error('FOAR0002', str(err))
+            raise self.error('FOAR0002', str(err)) from None
         except (ZeroDivisionError, decimal.DivisionByZero):
-            raise self.error('FOAR0001')
+            raise self.error('FOAR0001') from None
     elif dividend == 0:
         return float('nan')
     elif not self.parser.compatibility_mode:
@@ -616,9 +618,9 @@ def evaluate(self, context=None):
         try:
             return op1 % op2
         except TypeError as err:
-            raise self.wrong_type(str(err))
+            raise self.wrong_type(str(err)) from None
         except (ZeroDivisionError, decimal.InvalidOperation):
-            raise self.error('FOAR0001')
+            raise self.error('FOAR0001') from None
 
 
 ###
@@ -1011,7 +1013,7 @@ def evaluate(self, context=None):
         if math.isnan(start) or math.isinf(start):
             return ''
     except TypeError:
-        raise self.wrong_type("the second argument must be xs:numeric")
+        raise self.wrong_type("the second argument must be xs:numeric") from None
     else:
         start = int(round(start)) - 1
 
@@ -1023,7 +1025,7 @@ def evaluate(self, context=None):
             if math.isnan(length) or length <= 0:
                 return ''
         except TypeError:
-            raise self.wrong_type("the third argument must be xs:numeric")
+            raise self.wrong_type("the third argument must be xs:numeric") from None
 
         if item is None:
             return ''
@@ -1045,9 +1047,9 @@ def evaluate(self, context=None):
     try:
         index = arg1.find(arg2)
     except AttributeError:
-        raise self.wrong_type("the first argument must be a string")
+        raise self.wrong_type("the first argument must be a string") from None
     except TypeError:
-        raise self.wrong_type("the second argument must be a string")
+        raise self.wrong_type("the second argument must be a string") from None
 
     if index < 0:
         return ''
@@ -1133,7 +1135,7 @@ def evaluate(self, context=None):
     except TypeError:
         if self.parser.version == '1.0':
             return float('nan')
-        raise self.error('FORG0006')
+        raise self.error('FORG0006') from None
 
 
 @method(function('ceiling', nargs=1))
@@ -1151,7 +1153,7 @@ def evaluate(self, context=None):
     try:
         return math.floor(arg) if self.symbol == 'floor' else math.ceil(arg)
     except TypeError as err:
-        raise self.wrong_type(str(err))
+        raise self.wrong_type(str(err)) from None
 
 
 @method(function('round', nargs=1))
@@ -1172,9 +1174,9 @@ def evaluate(self, context=None):
         else:
             return round(number)
     except TypeError as err:
-        raise self.wrong_type(str(err))
+        raise self.wrong_type(str(err)) from None
     except decimal.DecimalException as err:
-        raise self.wrong_value(str(err))
+        raise self.wrong_value(str(err)) from None
 
 
 register('(end)')

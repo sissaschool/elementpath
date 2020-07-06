@@ -292,9 +292,9 @@ def evaluate(self, context=None):
             return self.cast(arg.value, tz=None if context is None else context.timezone)
         return self.cast(arg, tz=None if context is None else context.timezone)
     except ValueError as err:
-        raise self.error('FOCA0002', str(err))
+        raise self.error('FOCA0002', str(err)) from None
     except TypeError as err:
-        raise self.error('FORG0006', str(err))
+        raise self.error('FORG0006', str(err)) from None
 
 
 ###
@@ -338,9 +338,9 @@ def evaluate(self, context=None):
             return self.cast(arg.value)
         return self.cast(str(arg))
     except ValueError as err:
-        raise self.error('FOCA0002', str(err))
+        raise self.error('FOCA0002', str(err)) from None
     except TypeError as err:
-        raise self.error('FORG0006', str(err))
+        raise self.error('FORG0006', str(err)) from None
 
 
 ###
@@ -391,6 +391,8 @@ def evaluate(self, context=None):
     except ElementPathError as err:
         err.token = self
         raise
+    except UnicodeEncodeError as err:
+        raise self.error('FORG0001', str(err)) from None
 
 
 ###
@@ -558,9 +560,8 @@ def evaluate(self, context=None):
         pfx = match.groupdict()['prefix'] or ''
         if not uri:
             if pfx:
-                raise self.error(
-                    'FOCA0002', 'must be a local name when the parameter URI is empty'
-                )
+                msg = 'must be a local name when the parameter URI is empty'
+                raise self.error('FOCA0002', msg)
         else:
             try:
                 if uri != self.parser.namespaces[pfx]:
@@ -583,9 +584,9 @@ def evaluate(self, context=None):
                 return self.cast(arg.value, tz=None if context is None else context.timezone)
             return self.cast(arg, tz=None if context is None else context.timezone)
         except ValueError as err:
-            raise self.error('FOCA0002', str(err))
+            raise self.error('FOCA0002', str(err)) from None
         except TypeError as err:
-            raise self.error('FORG0006', str(err))
+            raise self.error('FORG0006', str(err)) from None
     else:
         dt = self.get_argument(context, cls=Date10)
         tm = self.get_argument(context, 1, cls=Time)

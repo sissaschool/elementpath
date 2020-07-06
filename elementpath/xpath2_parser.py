@@ -335,9 +335,9 @@ class XPath2Parser(XPath1Parser):
                     err.token = self
                 raise
             except ValueError as err:
-                raise self.error('FOCA0002', str(err))
+                raise self.error('FOCA0002', str(err)) from None
             except TypeError as err:
-                raise self.error('FORG0006', str(err))
+                raise self.error('FORG0006', str(err)) from None
 
         def cast(value):
             raise NotImplementedError
@@ -785,7 +785,7 @@ def evaluate(self, context=None):
                     return False
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
-                raise self.missing_schema(msg % self[1].source)
+                raise self.missing_schema(msg % self[1].source) from None
             else:
                 if position and (occurs is None or occurs == '?'):
                     return False
@@ -821,7 +821,7 @@ def evaluate(self, context=None):
                     raise self.wrong_sequence_type(msg % (item, self[1].source))
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
-                raise self.missing_schema(msg % self[1].source)
+                raise self.missing_schema(msg % self[1].source) from None
             else:
                 if position and (occurs is None or occurs == '?'):
                     raise self.wrong_sequence_type("more than one item in sequence")
@@ -908,11 +908,11 @@ def evaluate(self, context=None):
     except TypeError as err:
         if self.symbol != 'cast':
             return False
-        raise self.wrong_type(str(err))
+        raise self.error('XPTY0004', str(err)) from None
     except ValueError as err:
         if self.symbol != 'cast':
             return False
-        raise self.error('XPTY0004', str(err))
+        raise self.error('XPTY0004', str(err)) from None
     else:
         return value if self.symbol == 'cast' else True
 
@@ -983,8 +983,8 @@ def evaluate(self, context=None):
             return getattr(operator, self.symbol)(op1, op2)
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
-                raise self.wrong_context_type(str(err))
-            raise self.wrong_type(str(err))
+                raise self.wrong_context_type(str(err)) from None
+            raise self.wrong_type(str(err)) from None
 
 
 ###
@@ -1031,7 +1031,7 @@ def evaluate(self, context=None):
     except TypeError as err:
         if context is None or start is None or stop is None:
             return []
-        raise self.wrong_type(str(err))
+        raise self.wrong_type(str(err)) from None
 
 
 @method('to')
@@ -1048,12 +1048,14 @@ def evaluate(self, context=None):
         if math.isinf(op1) or math.isnan(op1) or math.isnan(op2):
             raise self.error('FOAR0002')
     except TypeError as err:
-        raise self.wrong_type(str(err))
+        raise self.wrong_type(str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err)) from None
 
     try:
         return op1 // op2
     except (ZeroDivisionError, decimal.DivisionByZero):
-        raise self.error('FOAR0001')
+        raise self.error('FOAR0001') from None
 
 
 ###
