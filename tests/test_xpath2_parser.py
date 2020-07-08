@@ -456,7 +456,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
                 with self.assertRaises(TypeError) as err:
                     self.check_value('. le 10', context=XPathContext(root))
-                self.assertIn('FORG0006', str(err.exception))  # Dynamic context error
+                self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
 
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -603,10 +603,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_document_node_accessor(self):
         document = self.etree.parse(io.StringIO('<A/>'))
         context = XPathContext(root=document)
-        self.wrong_syntax("document-node(A)")
-        self.wrong_syntax("document-node(*)")
-        self.wrong_syntax("document-node(true())")
-        self.wrong_syntax("document-node(node())")
+        self.wrong_name("document-node(A)")
+        self.wrong_name("document-node(*)")
+        self.wrong_name("document-node(true())")
+        self.wrong_name("document-node(node())")
         self.wrong_type("document-node(element(A), 1)")
         self.check_select("document-node()", [], context)
         self.check_select("self::document-node()", [document], context)

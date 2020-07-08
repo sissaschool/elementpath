@@ -28,7 +28,7 @@ class ExceptionsTest(unittest.TestCase):
         self.assertEqual(str(err), '[XPST0001] unknown error')
         token = self.parser.symbol_table['true'](self.parser)
         err = ElementPathError("unknown error", code='XPST0001', token=token)
-        self.assertEqual(str(err), "'true' function: [XPST0001] unknown error")
+        self.assertEqual(str(err), "'true' function at line 1, column 1: [XPST0001] unknown error")
 
     def test_xpath_error(self):
         self.assertEqual(str(xpath_error('XPST0001')),
@@ -44,13 +44,13 @@ class ExceptionsTest(unittest.TestCase):
 
         with self.assertRaises(ValueError) as err:
             xpath_error('{http://www.w3.org/2005/xpath-functions}XPST0001')
-        self.assertEqual("Invalid namespace 'http://www.w3.org/2005/xpath-functions'",
-                         str(err.exception))
+        self.assertEqual(str(err.exception), "[err:XPTY0004] invalid namespace "
+                                             "'http://www.w3.org/2005/xpath-functions'")
 
         with self.assertRaises(ValueError) as err:
             xpath_error('{http://www.w3.org/2005/xpath-functions}}XPST0001')
-        self.assertEqual("'{http://www.w3.org/2005/xpath-functions}}XPST0001' is not an xs:QName",
-                         str(err.exception))
+        self.assertEqual(str(err.exception), "[err:XPTY0004] '{http://www.w3.org/2005/xpath-"
+                                             "functions}}XPST0001' is not an xs:QName",)
 
 
 if __name__ == '__main__':

@@ -297,7 +297,8 @@ class XPath2TokenTest(XPath1TokenTest):
         token = self.parser.parse("xs:string(10.1)")
         with self.assertRaises(SyntaxError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
-        self.assertIn("unexpected symbol ':' at line 1", str(ctx.exception))
+        self.assertIn('XPST0003', str(ctx.exception))
+        self.assertIn("unexpected symbol", str(ctx.exception))
 
         self.assertIsNone(token[1].bind_namespace(XSD_NAMESPACE))
         with self.assertRaises(SyntaxError) as ctx:

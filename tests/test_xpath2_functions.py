@@ -271,7 +271,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:normalize-unicode("menù")', 'menù')
         self.wrong_type('fn:normalize-unicode(xs:hexBinary("84"))', 'XPTY0004')
 
-        self.assertRaises(NotImplementedError, self.parser.parse,
+        self.assertRaises(ElementPathValueError, self.parser.parse,
                           'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
         self.wrong_type('fn:normalize-unicode("à", ())', 'FORG0006', "can't be an empty sequence")

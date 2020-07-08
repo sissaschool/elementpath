@@ -14,7 +14,8 @@ import decimal
 import codecs
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, xpath_error
+from .exceptions import ElementPathError, ElementPathSyntaxError, xpath_error
+from .namespaces import XQT_ERRORS_NAMESPACE
 from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     XPathGregorianMonth, XPathGregorianMonthDay, XPathGregorianYear, \
     XPathGregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, \
@@ -51,7 +52,7 @@ def cast(value):
 def cast(value):
     match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FOCA0002', "%r is not a language code" % value)
+        raise xpath_error('FORG0001', "%r is not a language code" % value)
     return match.group()
 
 
@@ -59,7 +60,7 @@ def cast(value):
 def cast(value):
     match = NMTOKEN_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FOCA0002', "%r is not an xs:NMTOKEN value" % value)
+        raise xpath_error('FORG0001', "%r is not an xs:NMTOKEN value" % value)
     return match.group()
 
 
@@ -67,7 +68,7 @@ def cast(value):
 def cast(value):
     match = NAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FOCA0002', "%r is not an xs:Name value" % value)
+        raise xpath_error('FORG0001', "%r is not an xs:Name value" % value)
     return match.group()
 
 
@@ -78,7 +79,7 @@ def cast(value):
 def cast(value):
     match = NCNAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FOCA0002', "invalid value %r for constructor" % value)
+        raise xpath_error('FORG0001', "invalid value %r for constructor" % value)
     return match.group()
 
 
@@ -90,14 +91,14 @@ def cast(value):
         _ = url_parts.port
     except ValueError as err:
         msg = "%r is not an xs:anyURI value (%s)"
-        raise xpath_error('FOCA0002', msg % (value, str(err)))
+        raise xpath_error('FORG0001', msg % (value, str(err)))
 
     if uri.count('#') > 1:
         msg = "%r is not an xs:anyURI value (too many # characters)"
-        raise xpath_error('FOCA0002', msg % value)
+        raise xpath_error('FORG0001', msg % value)
     elif WRONG_ESCAPE_PATTERN.search(uri):
         msg = "%r is not an xs:anyURI value (wrong escaping)"
-        raise xpath_error('FOCA0002', msg % value)
+        raise xpath_error('FORG0001', msg % value)
     return uri
 
 
@@ -106,6 +107,8 @@ def cast(value):
 @constructor('decimal')
 def cast(value):
     try:
+        if isinstance(value, UntypedAtomic):
+            return decimal.Decimal(value.value)
         return decimal.Decimal(value)
     except (ValueError, decimal.DecimalException) as err:
         raise xpath_error('FORG0001', str(err))
@@ -143,14 +146,14 @@ def cast_to_integer(value, lower_bound=None, higher_bound=None):
         except ValueError:
             raise xpath_error('FORG0001', 'could not convert %r to integer' % value) from None
         except OverflowError as err:
-            raise xpath_error('FOAR0002', str(err)) from None
+            raise xpath_error('FORG0001', str(err)) from None
     else:
         try:
             result = int(value)
         except ValueError as err:
-            raise xpath_error('FORG0001', str(err)) from None
+            raise xpath_error('FOCA0002', str(err)) from None
         except OverflowError as err:
-            raise xpath_error('FOAR0002', str(err)) from None
+            raise xpath_error('FOCA0002', str(err)) from None
 
     if lower_bound is not None and result < lower_bound:
         raise xpath_error('FORG0001', "value %d is too low" % result)
@@ -292,7 +295,7 @@ def evaluate(self, context=None):
             return self.cast(arg.value, tz=None if context is None else context.timezone)
         return self.cast(arg, tz=None if context is None else context.timezone)
     except ValueError as err:
-        raise self.error('FOCA0002', str(err)) from None
+        raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
         raise self.error('FORG0006', str(err)) from None
 
@@ -415,7 +418,7 @@ def cast_to_boolean(value, context=None):
     elif value in ('false', '0'):
         return False
     else:
-        raise xpath_error('FOCA0002', "%r: not a boolean value" % value)
+        raise xpath_error('FORG0001', "%r: not a boolean value" % value)
 
 
 unregister('boolean')
@@ -464,9 +467,14 @@ register('string', lbp=90, rbp=90, label=('function', 'constructor'),  # pragma:
 
 @method('string')
 def nud(self):
-    self.parser.advance('(')
-    self[0:] = self.parser.expression(5),
-    self.parser.advance(')')
+    try:
+        self.parser.advance('(')
+        self[0:] = self.parser.expression(5),
+        self.parser.advance(')')
+    except ElementPathSyntaxError as err:
+        err.code = self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPST0017')
+        raise
+
     self.value = None
     return self
 
@@ -493,7 +501,7 @@ def cast_to_qname(value, namespaces=None):
 
     match = QNAME_PATTERN.match(value)
     if match is None:
-        raise xpath_error('FOCA0002', 'the argument must be an xs:QName')
+        raise xpath_error('FORG0001', 'the argument must be an xs:QName')
 
     pfx = match.groupdict()['prefix'] or ''
     if pfx and (not namespaces or pfx not in namespaces):
@@ -516,15 +524,18 @@ register('dateTime', lbp=90, rbp=90, label=('function', 'constructor'),
 @method('QName')
 @method('dateTime')
 def nud(self):
-    self.parser.advance('(')
-    self[0:] = self.parser.expression(5),
-    if self.parser.next_token.symbol == ',':
-        self.label = 'function'
-        self.parser.advance(',')
-        self[1:] = self.parser.expression(5),
-    else:
-        self.label = 'constructor'
-    self.parser.advance(')')
+    try:
+        self.parser.advance('(')
+        self[0:] = self.parser.expression(5),
+        if self.parser.next_token.symbol == ',':
+            self.label = 'function'
+            self.parser.advance(',')
+            self[1:] = self.parser.expression(5),
+        else:
+            self.label = 'constructor'
+        self.parser.advance(')')
+    except SyntaxError:
+        raise self.error('XPST0017') from None
     self.value = None
     return self
 
@@ -584,7 +595,7 @@ def evaluate(self, context=None):
                 return self.cast(arg.value, tz=None if context is None else context.timezone)
             return self.cast(arg, tz=None if context is None else context.timezone)
         except ValueError as err:
-            raise self.error('FOCA0002', str(err)) from None
+            raise self.error('FORG0001', str(err)) from None
         except TypeError as err:
             raise self.error('FORG0006', str(err)) from None
     else:

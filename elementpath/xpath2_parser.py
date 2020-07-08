@@ -20,8 +20,8 @@ from collections.abc import MutableSequence
 from copy import copy
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, ElementPathSyntaxError, ElementPathKeyError, \
-    ElementPathTypeError, MissingContextError, ElementPathValueError, xpath_error
+from .exceptions import ElementPathError, ElementPathKeyError, ElementPathTypeError, \
+    MissingContextError, ElementPathValueError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_qname, get_extended_qname, \
@@ -313,12 +313,15 @@ class XPath2Parser(XPath1Parser):
     def constructor(cls, symbol, bp=0):
         """Creates a constructor token class."""
         def nud_(self):
-            self.parser.advance('(')
-            self[0:] = self.parser.expression(5),
-            if self.parser.next_token.symbol == ',':
-                raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
-            self.parser.advance(')')
-            self.value = None
+            try:
+                self.parser.advance('(')
+                self[0:] = self.parser.expression(5),
+                if self.parser.next_token.symbol == ',':
+                    raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
+                self.parser.advance(')')
+                self.value = None
+            except SyntaxError:
+                raise self.error('XPST0017') from None
             return self
 
         def evaluate_(self, context=None):
@@ -335,9 +338,9 @@ class XPath2Parser(XPath1Parser):
                     err.token = self
                 raise
             except ValueError as err:
-                raise self.error('FOCA0002', str(err)) from None
+                raise self.error('FORG0001', str(err)) from None
             except TypeError as err:
-                raise self.error('FORG0006', str(err)) from None
+                raise self.error('FORG0001', str(err)) from None
 
         def cast(value):
             raise NotImplementedError
@@ -758,6 +761,8 @@ def led(self, left):
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
         self[2:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
         self.parser.advance()
+    elif next_symbol in {'('}:
+        raise self.error('XPST0051')
     return self
 
 
@@ -785,7 +790,7 @@ def evaluate(self, context=None):
                     return False
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
-                raise self.missing_schema(msg % self[1].source) from None
+                raise self.error('XPST0051', msg % self[1].source) from None
             else:
                 if position and (occurs is None or occurs == '?'):
                     return False
@@ -821,7 +826,7 @@ def evaluate(self, context=None):
                     raise self.wrong_sequence_type(msg % (item, self[1].source))
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
-                raise self.missing_schema(msg % self[1].source) from None
+                raise self.error('XPST0051', msg % self[1].source) from None
             else:
                 if position and (occurs is None or occurs == '?'):
                     raise self.wrong_sequence_type("more than one item in sequence")
@@ -872,9 +877,6 @@ def evaluate(self, context=None):
             raise self.wrong_context_type("an atomic value is required")
 
     arg = self.data_value(result[0])
-    if isinstance(arg, UntypedAtomic):
-        arg = arg.value
-
     try:
         if namespace != XSD_NAMESPACE:
             value = self.parser.schema.cast_as(arg, atomic_type)
@@ -901,6 +903,10 @@ def evaluate(self, context=None):
             return False
         elif err.token is None:
             err.token = self
+        if isinstance(arg, UntypedAtomic):
+            err.code = 'err:FORG0001'
+        else:
+            err.code = 'err:XPTY0004'
         raise
     except KeyError:
         msg = "atomic type %r not found in the in-scope schema types"
@@ -908,6 +914,8 @@ def evaluate(self, context=None):
     except TypeError as err:
         if self.symbol != 'cast':
             return False
+        elif isinstance(arg, UntypedAtomic):
+            raise self.error('FORG0001', str(err)) from None
         raise self.error('XPTY0004', str(err)) from None
     except ValueError as err:
         if self.symbol != 'cast':
@@ -984,7 +992,7 @@ def evaluate(self, context=None):
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
                 raise self.wrong_context_type(str(err)) from None
-            raise self.wrong_type(str(err)) from None
+            raise self.error('XPTY0004', str(err)) from None
 
 
 ###
@@ -999,13 +1007,13 @@ def evaluate(self, context=None):
     if not left:
         return
     elif len(left) > 1 or not is_xpath_node(left[0]):
-        raise self[0].wrong_type("left operand of %r must be a single node" % symbol)
+        raise self[0].error('XPTY0004', "left operand of %r must be a single node" % symbol)
 
     right = [x for x in self[1].select(context)]
     if not right:
         return
     elif len(right) > 1 or not is_xpath_node(right[0]):
-        raise self[0].wrong_type("right operand of %r must be a single node" % symbol)
+        raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 
     if symbol == 'is':
         return left[0] is right[0]
@@ -1044,11 +1052,14 @@ def select(self, context=None):
 @method(infix('idiv', bp=45))
 def evaluate(self, context=None):
     op1, op2 = self.get_operands(context)
+    if op1 is None or op2 is None:
+        raise self.error('XPST0005')
+
     try:
         if math.isinf(op1) or math.isnan(op1) or math.isnan(op2):
             raise self.error('FOAR0002')
     except TypeError as err:
-        raise self.wrong_type(str(err)) from None
+        raise self.error('XPTY0004', str(err)) from None
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
 

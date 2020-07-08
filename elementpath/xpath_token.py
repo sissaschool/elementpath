@@ -23,7 +23,7 @@ import contextlib
 from decimal import Decimal
 import urllib.parse
 
-from .exceptions import xpath_error
+from .exceptions import ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
@@ -224,9 +224,8 @@ class XPathToken(Token):
                     except (TypeError, ValueError):
                         pass
 
-            code = 'XPTY0004' if self.label == 'function' else 'FORG0006'
             message = "the %s argument %r is not an instance of %r"
-            raise self.error(code, message % (ordinal(index + 1), item, cls))
+            raise self.error('XPTY0004', message % (ordinal(index + 1), item, cls))
 
         return item
 
@@ -755,15 +754,6 @@ class XPathToken(Token):
 
     ###
     # Error handling helpers
-
-    @property
-    def error_prefix(self):
-        for error_prefix, ns in self.parser.namespaces.items():
-            if ns == XQT_ERRORS_NAMESPACE:
-                return error_prefix
-        else:
-            return 'err'
-
     def error(self, code, message=None):
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
@@ -772,13 +762,52 @@ class XPathToken(Token):
         :param code: the error code.
         :param message: an optional custom additional message.
         """
-        return xpath_error(code, message, self, self.error_prefix)
+        if ':' in code:
+            try:
+                prefix, code = code.split(':')
+            except ValueError:
+                raise ElementPathValueError(
+                    message='%r is not a QName' % code,
+                    code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPTY0004'),
+                    token=self,
+                )
+            else:
+                if self.parser.namespaces.get(prefix) != XQT_ERRORS_NAMESPACE:
+                    raise ElementPathValueError(
+                        message='{} namespace required for code' % XQT_ERRORS_NAMESPACE,
+                        code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPTY0004'),
+                        token=self,
+                    )
+
+        try:
+            error_class, default_message = XPATH_ERROR_CODES[code]
+        except KeyError:
+            raise ElementPathValueError(
+                message='unknown XPath error code %r' % code,
+                code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPTY0004'),
+                token=self,
+            )
+        else:
+            return error_class(
+                message=message or default_message,
+                code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, code),
+                token=self,
+            )
 
     # Shortcuts for XPath errors, only the wrong_syntax
     def wrong_syntax(self, message=None, code='XPST0003'):
-
         if self.symbol == '::' and self.parser.token.symbol == '(name)':
             return self.missing_axis(message or "Axis '%s::' not found" % self.parser.token.value)
+        elif self.symbol == '(' and getattr(self.parser.token, 'symbol', None) == '(name)':
+            if self.parser.token.label == 'literal':
+                msg = 'name {!r} cannot have arguments'
+                return self.error('XPST0017', msg.format(self.parser.token.value))
+        elif self.symbol == 'is' and self.label == 'operator' and \
+                getattr(self.parser.next_token, 'symbol', None) == '(':
+            msg = '{} cannot have arguments'
+            return self.error('XPST0017', msg.format(self))
+        elif self.symbol in {'as', 'of'}:
+            return self.error('XPDY0002')  # Dynamic context required
 
         if message:
             return self.error(code, message)
