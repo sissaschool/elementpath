@@ -13,12 +13,13 @@ import decimal
 import operator
 from copy import copy
 
-from .exceptions import MissingContextError
+from .exceptions import MissingContextError, ElementPathKeyError
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
-from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_qname
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, \
+    XQT_ERRORS_NAMESPACE, get_prefixed_qname
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
@@ -117,6 +118,18 @@ class XPath1Parser(Parser):
         """
         return
 
+    def get_qname(self, namespace, local_name):
+        if ':' in local_name:
+            return local_name
+
+        for prefix, uri in self.namespaces.items():
+            if uri == namespace:
+                if prefix:
+                    return '%s:%s' % (prefix, local_name)
+                return local_name
+        else:
+            return local_name
+
     @classmethod
     def axis(cls, symbol, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
@@ -190,7 +203,10 @@ class XPath1Parser(Parser):
 
                 self.parser.advance(')')
             except SyntaxError:
-                raise self.wrong_nargs() from None
+                if self.label == 'function':
+                    raise self.error('XPST0017') from None
+                else:
+                    raise self.error('XPST0003') from None
 
             return self
 
@@ -304,14 +320,19 @@ def led(self, left):
 
     if self.parser.next_token.label not in ('function', 'constructor'):
         self.parser.expected_next('(name)', '*')
+    if self.parser.is_spaced():
+        raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
+
     if left.symbol == '(name)':
-        namespace = self.get_namespace(left.value)
+        try:
+            namespace = self.get_namespace(left.value)
+        except ElementPathKeyError as err:
+            err.code = self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPST0081')
+            raise
         self.parser.next_token.bind_namespace(namespace)
     elif left.symbol == '*' and self.parser.next_token.symbol != '(name)':
         raise self.wrong_syntax()
 
-    if self.parser.is_spaced():
-        raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
     self[:] = left, self.parser.expression(90)
     self.value = '{}:{}'.format(self[0].value, self[1].value)
     return self
@@ -530,7 +551,7 @@ def evaluate(self, context=None):
             try:
                 return op1 + op2
             except TypeError as err:
-                raise self.wrong_type(str(err))
+                raise self.error('XPTY0004', str(err)) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
                     raise self.error('FODT0001', str(err))
@@ -552,7 +573,7 @@ def evaluate(self, context=None):
             try:
                 return op1 - op2
             except TypeError as err:
-                raise self.wrong_type(str(err))
+                raise self.error('XPTY0004', str(err)) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
                     raise self.error('FODT0001', str(err))
@@ -570,7 +591,7 @@ def evaluate(self, context=None):
             try:
                 return op1 * op2
             except TypeError as err:
-                raise self.wrong_type(str(err)) from None
+                raise self.error('XPTY0004', str(err)) from None
             except ValueError as err:
                 raise self.error('FOCA0005', str(err)) from None
             except OverflowError as err:
@@ -594,7 +615,7 @@ def evaluate(self, context=None):
         try:
             return dividend / divisor
         except TypeError as err:
-            raise self.wrong_type(str(err)) from None
+            raise self.error('XPTY0004', str(err)) from None
         except ValueError as err:
             raise self.error('FOCA0005', str(err)) from None
         except OverflowError as err:

@@ -137,7 +137,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:QName(xs:untypedAtomic("xs:element"))', 'xs:element')
         self.assertRaises(KeyError, self.parser.parse, 'xs:QName("xsd:element")')
         self.wrong_type('xs:QName(5)', 'FORG0006', "the argument has an invalid type")
-        self.wrong_value('xs:QName("1")', 'FOCA0002', "the argument must be an xs:QName")
+        self.wrong_value('xs:QName("1")', 'FORG0001', "the argument must be an xs:QName")
 
     def test_any_uri_constructor(self):
         self.check_value('xs:anyURI("")', '')
@@ -157,7 +157,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         if platform.python_version_tuple() >= ('3', '6') and \
                 platform.python_implementation() != 'PyPy':
             self.wrong_value('xs:anyURI("https://example.com:65536")',
-                             'FOCA0002', 'Port out of range 0-65535')
+                             'FORG0001', 'Port out of range 0-65535')
 
         root = self.etree.XML('<root a=" https://example.com "/>')
         context = XPathContext(root)
@@ -170,17 +170,17 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:boolean(xs:boolean(0))', False)
         self.check_value('xs:boolean(xs:untypedAtomic(0))', False)
         self.wrong_type('xs:boolean(xs:hexBinary("FF"))', 'FORG0006', "<class 'bytes'>")
-        self.wrong_value('xs:boolean("2")', 'FOCA0002', "not a boolean value")
+        self.wrong_value('xs:boolean("2")', 'FORG0001', "not a boolean value")
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")', 'FORG0001')
         self.check_value('xs:integer("19")', 19)
         self.check_value('xs:integer(xs:untypedAtomic("19"))', 19)
         self.check_value("xs:integer('-5')", -5)
-        self.check_value("xs:integer('INF')", OverflowError)
+        self.wrong_value("xs:integer('INF')", 'FORG0001')
         self.check_value("xs:integer('inf')", ValueError)
-        self.check_value("xs:integer('NaN')", ValueError)
-        self.check_value("xs:integer(xs:float('-INF'))", OverflowError)
+        self.wrong_value("xs:integer('NaN')", 'FORG0001')
+        self.wrong_value("xs:integer(xs:float('-INF'))", 'FOCA0002')
         self.check_value("xs:integer(xs:double('NaN'))", ValueError)
 
         root = self.etree.XML('<root a="19"/>')
@@ -450,7 +450,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:duration("P3Y5M1DT1H")', (41, 90000))
         self.check_value('xs:duration("P3Y5M1DT1H3M2.01S")', (41, Decimal('90182.01')))
         self.wrong_value('xs:duration("P3Y5M1X")')
-        self.assertRaises(TypeError, self.parser.parse, 'xs:duration(1)')
+        self.assertRaises(ValueError, self.parser.parse, 'xs:duration(1)')
 
         root = self.etree.XML('<root a="P1Y5M"/>')
         context = XPathContext(root)

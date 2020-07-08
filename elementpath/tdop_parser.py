@@ -242,7 +242,7 @@ class Token(MutableSequence):
         token_index = self.span[0]
         line = self._source[:token_index].count('\n') + 1
         if line == 1:
-            column = token_index + 2
+            column = token_index + 1
         else:
             column = token_index - self._source[:token_index].rindex('\n') + 1
 
