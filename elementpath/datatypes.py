@@ -1127,7 +1127,7 @@ class NumericTypeProxy(metaclass=TypeProxyMeta):
     """
     @staticmethod
     def instance_check(other):
-        return isinstance(other, (int, float, decimal.Decimal)) and \
+        return isinstance(other, (int, float, decimal.Decimal, UntypedAtomic)) and \
             not isinstance(other, bool)
 
     @staticmethod
@@ -1135,7 +1135,7 @@ class NumericTypeProxy(metaclass=TypeProxyMeta):
         if issubclass(subclass, bool):
             return False
         return issubclass(subclass, int) or issubclass(subclass, float) \
-            or issubclass(subclass, decimal.Decimal)
+            or issubclass(subclass, decimal.Decimal) or issubclass(subclass, UntypedAtomic)
 
     @staticmethod
     def instance_build(x=0):
@@ -1151,8 +1151,9 @@ class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
 
     @staticmethod
     def instance_check(other):
-        return isinstance(other, (int, float, decimal.Decimal, AbstractDateTime, Duration)) \
-            and not isinstance(other, bool)
+        return isinstance(
+            other, (int, float, decimal.Decimal, AbstractDateTime, Duration, UntypedAtomic)
+        ) and not isinstance(other, bool)
 
     @staticmethod
     def subclass_check(subclass):
@@ -1160,7 +1161,7 @@ class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
             return False
         return issubclass(subclass, int) or issubclass(subclass, float) or \
             issubclass(subclass, decimal.Decimal) or issubclass(subclass, Duration) \
-            or issubclass(subclass, AbstractDateTime)
+            or issubclass(subclass, AbstractDateTime) or issubclass(subclass, UntypedAtomic)
 
     @staticmethod
     def instance_build(x=0):

@@ -44,7 +44,7 @@ function('empty-sequence', nargs=0, label='sequence type')
 @method(function('item', nargs=0, label='sequence type'))
 def evaluate(self, context=None):
     if context is None:
-        return
+        raise self.missing_context()
     elif context.item is None:
         return context.root
     else:
@@ -99,80 +99,86 @@ def evaluate(self, context=None):
 
 @method(function('namespace-uri-for-prefix', nargs=2))
 def evaluate(self, context=None):
-    if context is not None:
-        prefix = self.get_argument(context=copy(context))
-        if prefix is None:
-            prefix = ''
-        if not isinstance(prefix, str):
-            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(prefix))
+    if context is None:
+        raise self.missing_context()
 
-        elem = self.get_argument(context, index=1)
-        if not is_element_node(elem):
-            raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
-        ns_uris = {get_namespace(e.tag) for e in elem.iter()}
-        for p, uri in self.parser.namespaces.items():
-            if uri in ns_uris:
-                if p == prefix:
-                    if not prefix or uri:
-                        return uri
-                    else:
-                        msg = 'Prefix %r is associated to no namespace'
-                        raise self.error('XPST0081', msg % prefix)
-        return []
+    prefix = self.get_argument(context=copy(context))
+    if prefix is None:
+        prefix = ''
+    if not isinstance(prefix, str):
+        raise self.error('FORG0006', '1st argument has an invalid type %r' % type(prefix))
+
+    elem = self.get_argument(context, index=1)
+    if not is_element_node(elem):
+        raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
+    ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+    for p, uri in self.parser.namespaces.items():
+        if uri in ns_uris:
+            if p == prefix:
+                if not prefix or uri:
+                    return uri
+                else:
+                    msg = 'Prefix %r is associated to no namespace'
+                    raise self.error('XPST0081', msg % prefix)
+    return []
 
 
 @method(function('in-scope-prefixes', nargs=1))
 def select(self, context=None):
-    if context is not None:
-        elem = self.get_argument(context)
-        if not is_element_node(elem):
-            raise self.error('FORG0006', 'argument %r is not a node' % elem)
+    if context is None:
+        raise self.missing_context()
 
-        if isinstance(context, XPathSchemaContext):
-            # For schema context returns prefixes of static namespaces
-            yield from self.parser.namespaces
-        elif hasattr(elem, 'nsmap'):
-            # For lxml returns Element's prefixes
-            for prefix in elem.nsmap:
-                yield prefix or ''
-        else:
-            yield from self.parser.namespaces
-            # For ElementTree returns module registered prefixes
-            prefixes = {x for x in self.parser.namespaces}
-            if context.namespaces:
-                prefixes.update(x for x in context.namespaces)
-            yield from prefixes
+    elem = self.get_argument(context)
+    if not is_element_node(elem):
+        raise self.error('FORG0006', 'argument %r is not a node' % elem)
+
+    if isinstance(context, XPathSchemaContext):
+        # For schema context returns prefixes of static namespaces
+        yield from self.parser.namespaces
+    elif hasattr(elem, 'nsmap'):
+        # For lxml returns Element's prefixes
+        for prefix in elem.nsmap:
+            yield prefix or ''
+    else:
+        yield from self.parser.namespaces
+        # For ElementTree returns module registered prefixes
+        prefixes = {x for x in self.parser.namespaces}
+        if context.namespaces:
+            prefixes.update(x for x in context.namespaces)
+        yield from prefixes
 
 
 @method(function('resolve-QName', nargs=2))
 def evaluate(self, context=None):
-    if context is not None:
-        elem = self.get_argument(context, index=1)
-        if not is_element_node(elem):
-            raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
+    if context is None:
+        raise self.missing_context()
 
-        qname = self.get_argument(context=copy(context))
-        if qname is None:
-            return []
-        if not isinstance(qname, str):
-            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
-        match = QNAME_PATTERN.match(qname)
-        if match is None:
-            raise self.error('FOCA0002', '1st argument must be an xs:QName')
-        prefix = match.groupdict()['prefix'] or ''
+    elem = self.get_argument(context, index=1)
+    if not is_element_node(elem):
+        raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
 
-        ns_uris = {get_namespace(e.tag) for e in elem.iter()}
-        for pfx, uri in self.parser.namespaces.items():
-            if pfx == prefix and uri in ns_uris:
-                if uri:
-                    return '{%s}%s' % (uri, match.groupdict()['local'])
-                elif not prefix:
-                    return match.groupdict()['local']
-                else:
-                    raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
+    qname = self.get_argument(context=copy(context))
+    if qname is None:
+        return []
+    if not isinstance(qname, str):
+        raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
+    match = QNAME_PATTERN.match(qname)
+    if match is None:
+        raise self.error('FOCA0002', '1st argument must be an xs:QName')
+    prefix = match.groupdict()['prefix'] or ''
 
-        if not isinstance(context, XPathSchemaContext):
-            raise self.error('FONS0004', 'No namespace found for prefix %r' % prefix)
+    ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+    for pfx, uri in self.parser.namespaces.items():
+        if pfx == prefix and uri in ns_uris:
+            if uri:
+                return '{%s}%s' % (uri, match.groupdict()['local'])
+            elif not prefix:
+                return match.groupdict()['local']
+            else:
+                raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
+
+    if not isinstance(context, XPathSchemaContext):
+        raise self.error('FONS0004', 'No namespace found for prefix %r' % prefix)
 
 
 ###
@@ -211,9 +217,11 @@ def evaluate(self, context=None):
 
 @method(function('document-uri', nargs=1))
 def evaluate(self, context=None):
-    if context is not None:
-        arg = self.get_argument(context)
-        return [] if arg is None else node_document_uri(arg)
+    if context is None:
+        raise self.missing_context()
+
+    arg = self.get_argument(context)
+    return [] if arg is None else node_document_uri(arg)
 
 
 ###
@@ -940,7 +948,7 @@ def evaluate(self, context=None):
 @method(function('root', nargs=(0, 1)))
 def evaluate(self, context=None):
     if context is None:
-        raise self.error('XPDY0002')
+        raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
         return
     elif not self:
@@ -1036,7 +1044,7 @@ def evaluate(self, context=None):
         raise self.error('FODC0005')
 
     uri = self.get_absolute_uri(uri)
-    if context is not None and not isinstance(context, XPathSchemaContext):
+    if not isinstance(context, XPathSchemaContext):
         try:
             doc = context.documents[uri]
         except (KeyError, TypeError):
@@ -1059,7 +1067,9 @@ def evaluate(self, context=None):
 @method(function('collection', nargs=(0, 1)))
 def evaluate(self, context=None):
     uri = self.get_argument(context)
-    if context is None or isinstance(context, XPathSchemaContext):
+    if context is None:
+        raise self.missing_context()
+    elif isinstance(context, XPathSchemaContext):
         return
     elif not self or uri is None:
         if context.default_collection is None:
@@ -1087,7 +1097,11 @@ def evaluate(self, context=None):
 
 
 ###
-# The error function (Ref: https://www.w3.org/TR/xpath20/#func-error)
+# The error function
+#
+# https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-error
+# https://www.w3.org/TR/xpath-functions/#func-error
+#
 @method(function('error', nargs=(0, 3)))
 def evaluate(self, context=None):
     if not self:
@@ -1099,6 +1113,21 @@ def evaluate(self, context=None):
         error = self.get_argument(context, cls=str)
         description = self.get_argument(context, index=1, cls=str)
         raise self.error(error or 'FOER0000', message=description)
+
+
+###
+# The trace function
+#
+# https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-trace
+#
+@method(function('trace', nargs=(2, 2)))
+def evaluate(self, context=None):
+    value = self.get_argument(context)
+    label = self.get_argument(context, index=1, cls=str)
+
+    '{} {}'.format(label, str(value).strip())  # TODO
+
+    return value
 
 
 # XPath 2.0 definitions continue into module xpath2_constructors

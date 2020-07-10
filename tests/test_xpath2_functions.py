@@ -327,7 +327,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_value('fn:count((xs:decimal("-999999999999999999")))', 1)
         self.check_value('fn:count((xs:float("0")))', 1)
-        self.check_value("count(//*[@name='John Doe'])", 0)
+
+        self.check_value("count(//*[@name='John Doe'])", MissingContextError)
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.check_value("count(//*[@name='John Doe'])", 0, context)
 
         with self.assertRaises(TypeError) as cm:
             self.check_value("fn:count()")

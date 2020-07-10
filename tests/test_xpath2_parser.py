@@ -746,8 +746,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value(". instance of empty-sequence()", expected=False, context=context)
 
     def test_item_sequence_type(self):
-        self.check_value("4 treat as item()", [4])
-        self.check_value("() treat as item()", TypeError)
+        self.check_value("4 treat as item()", MissingContextError)
+
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.check_value("4 treat as item()", [4], context)
+        self.check_value("() treat as item()", TypeError, context)
         self.wrong_syntax("item()")
 
         context = XPathContext(root=self.etree.XML('<A/>'))
@@ -879,7 +882,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_token_ambiguity(self):
         # Related to issue #27
         self.check_tokenizer("/is", ['/', 'is'])
-        self.check_value('/is', [])
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.check_value('/is', [], context)
+        context = XPathContext(self.etree.XML('<is/>'))
+        self.check_value('/is', [context.root], context)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

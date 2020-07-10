@@ -16,7 +16,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import AttributeNode, XPathContext, XPath2Parser
+from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
 
 try:
@@ -88,7 +88,8 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.wrong_syntax("schema-element(*)")
         self.wrong_name("schema-element(nil)")
         self.wrong_name("schema-element(xs:string)")
-        self.check_value("self::schema-element(xs:complexType)", [])
+        self.check_value("self::schema-element(xs:complexType)", MissingContextError)
+        self.check_value("self::schema-element(xs:complexType)", [], context)
         self.check_value("self::schema-element(xs:schema)", [context.item], context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
 
@@ -96,8 +97,8 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.wrong_syntax("schema-attribute(*)")
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")
-        self.check_value("self::schema-attribute(xml:lang)", [])
-        self.check_select("schema-attribute(xml:lang)", [])
+        self.check_value("self::schema-attribute(xml:lang)", MissingContextError)
+        self.check_select("schema-attribute(xml:lang)", [], context)
         self.check_value("self::schema-attribute(xml:lang)", [context.item], context)
         self.check_tree("schema-attribute(xsi:schemaLocation)",
                         '(schema-attribute (: (xsi) (schemaLocation)))')

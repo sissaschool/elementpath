@@ -290,7 +290,7 @@ class XPath2TokenTest(XPath1TokenTest):
     def test_bind_namespace_method(self):
         token = self.parser.parse('true()')
         self.assertIsNone(token.bind_namespace(XPATH_FUNCTIONS_NAMESPACE))
-        with self.assertRaises(SyntaxError) as ctx:
+        with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn("an XSD element or a constructor", str(ctx.exception))
 
@@ -298,12 +298,18 @@ class XPath2TokenTest(XPath1TokenTest):
         with self.assertRaises(SyntaxError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0003', str(ctx.exception))
-        self.assertIn("unexpected symbol", str(ctx.exception))
+        self.assertIn("an XSD element or a constructor", str(ctx.exception))
 
         self.assertIsNone(token[1].bind_namespace(XSD_NAMESPACE))
         with self.assertRaises(SyntaxError) as ctx:
             token[1].bind_namespace(XPATH_FUNCTIONS_NAMESPACE)
         self.assertIn("a function expected", str(ctx.exception))
+
+        token = self.parser.parse("tst:foo")
+        with self.assertRaises(SyntaxError) as ctx:
+            token.bind_namespace('http://xpath.test/ns')
+        self.assertIn('XPST0003', str(ctx.exception))
+        self.assertIn("a name or a name wildcard expected", str(ctx.exception))
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_add_xsd_type(self):

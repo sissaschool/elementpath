@@ -102,6 +102,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             "employee[@secretary and @assistant]",
             ['employee', '[', '@', 'secretary', '', 'and', '', '@', 'assistant', ']']
         )
+        self.check_tokenizer('/root/a/true()', ['/', 'root', '/', 'a', '/', 'true', '(', ')'])
 
         # additional tests from Python XML etree test cases
         self.check_tokenizer("{http://spam}egg", ['{', 'http', ':', '//', 'spam', '}', 'egg'])
@@ -244,9 +245,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     # XPath expression tests
     def test_node_selection(self):
-        self.check_value("mars", [])
-
         root = self.etree.XML('<A><B1/><B2/><B3/><B2/></A>')
+        self.check_value("mars", MissingContextError)
+        self.check_value("mars", [], context=XPathContext(root))
         self.check_value("B1", [root[0]], context=XPathContext(root))
         self.check_value("B2", [root[1], root[3]], context=XPathContext(root))
         self.check_value("B4", [], context=XPathContext(root))
@@ -267,15 +268,16 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         # Test evaluate method
         self.check_value("fn:true()", True)
-        self.check_value("fx:true()", KeyError)
+        self.check_value("fx:true()", NameError)
         self.check_value("tst:B1", [root[0]], context=XPathContext(root))
         self.check_value("tst:B2", [root[1], root[3]], context=XPathContext(root))
+        self.check_value("tst:B1:B2", SyntaxError)
 
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
         self.wrong_syntax("./tst:1")
         self.wrong_syntax("./fn:A")
-        self.wrong_syntax("./xs:true()")
+        self.wrong_type("./xs:true()")
 
         # Namespace wildcard works only for XPath > 1.0
         if self.parser.version == '1.0':
@@ -731,7 +733,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("1 and 1", True)
         self.check_value("1 and 'jupiter'", True)
         self.check_value("0 and 'mars'", False)
-        self.check_value("1 and mars", False)
+        self.check_value("1 and mars", MissingContextError)
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.check_value("1 and mars", False, context)
 
     def test_logical_or_operator(self):
         self.check_value("false() or true()", True)
@@ -812,7 +816,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("3 + 'alpha'", float('nan'))
         else:
             self.check_selector("/values/a + 2", root, TypeError)
-            self.check_value("/values/b + 2", TypeError, context=XPathContext(root))
+            self.check_value("/values/b + 2", ValueError, context=XPathContext(root))
             self.wrong_type("+'alpha'")
             self.wrong_type("3 + 'alpha'")
 
@@ -832,7 +836,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("3 - 'alpha'", float('nan'))
         else:
             self.check_selector("/values/a - 2", root, TypeError)
-            self.check_value("/values/b - 2", TypeError, context=XPathContext(root))
+            self.check_value("/values/b - 2", ValueError, context=XPathContext(root))
             self.wrong_type("-'alpha'")
             self.wrong_type("3 - 'alpha'")
 
@@ -849,7 +853,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("/values/b mod 2", float('nan'), context=XPathContext(root))
         else:
             self.check_selector("/values/a mod 2", root, TypeError)
-            self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
+            self.check_value("/values/b mod 2", ValueError, context=XPathContext(root))
 
         self.check_selector("/values/d mod 3", root, 2)
 
@@ -951,10 +955,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("$alpha", 10, context=context)
         self.check_value("$beta", NameError, context=context)
         self.check_value("$id", '19273222', context=context)
-        if self.parser.version == '1.0':
-            self.wrong_syntax("$id()")
-        else:
-            self.wrong_type("$id()")
+        self.wrong_type("$id()")
 
     def test_path_step_operator(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -979,8 +980,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/child::C1', root, [])
 
         if self.parser.version == '1.0':
-            self.wrong_syntax('/true()')
-            self.wrong_syntax('/A/true()')
+            self.wrong_type('/true()')
+            self.wrong_type('/A/true()')
             self.wrong_syntax('/|')
         else:
             self.check_value('/true()', [True], context=XPathContext(root))
@@ -1198,10 +1199,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector('/root/a/position()', root, [1, 2])
         else:
             # Functions are not allowed after path step in XPath 1.0
-            self.wrong_syntax('/root/a/true()')
+            self.wrong_type('/root/a/true()')
 
     def test_unknown_axis(self):
         self.check_value('unknown::node()', NameError)
+        self.check_value('A/unknown::node()', NameError)
 
     def test_predicate(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
@@ -1240,6 +1242,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_parenthesized_expression(self):
         self.check_value('(6 + 9)', 15)
+        if self.parser.version == '1.0':
+            self.check_value('()', ElementPathSyntaxError)
+        else:
+            self.check_value('()', [])
 
     def test_union(self):
         root = self.etree.XML(
