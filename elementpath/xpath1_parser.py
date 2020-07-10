@@ -15,11 +15,10 @@ from copy import copy
 
 from .exceptions import MissingContextError, ElementPathKeyError
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
+    YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy, UntypedAtomic
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
-from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, \
-    XQT_ERRORS_NAMESPACE, get_prefixed_qname
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_qname
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
@@ -122,10 +121,10 @@ class XPath1Parser(Parser):
         if ':' in local_name:
             return local_name
 
-        for prefix, uri in self.namespaces.items():
+        for pfx, uri in self.namespaces.items():
             if uri == namespace:
-                if prefix:
-                    return '%s:%s' % (prefix, local_name)
+                if pfx:
+                    return '%s:%s' % (pfx, local_name)
                 return local_name
         else:
             return local_name
@@ -221,6 +220,23 @@ class XPath1Parser(Parser):
             pass
         return root_token
 
+    def expected_name(self, *symbols, message=None):
+        """
+        Checks the next symbol with a list of symbols. Replaces the next token
+        with a '(name)' token if check fails and the symbol can be also a name.
+        Otherwise raises a syntax error.
+
+        :param symbols: a sequence of symbols.
+        :param message: optional error message.
+        """
+        if self.next_token.symbol in symbols:
+            return
+        elif self.next_token.label == 'operator' and \
+                self.name_pattern.match(self.next_token.symbol) is not None:
+            self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
+        else:
+            raise self.next_token.wrong_syntax(message)
+
 
 ##
 # XPath1 definitions
@@ -254,7 +270,17 @@ literal('(invalid)')
 literal('(unknown)')
 
 
-@method(literal('(name)', bp=10))
+@method(register('(name)', bp=10, label='literal'))
+def nud(self):
+    if self.parser.next_token.symbol == '(':
+        pass  # msg = 'name {!r} cannot have arguments'
+        # raise self.error('XPST0017', msg.format(self.value))
+    elif self.parser.next_token.symbol == '::':
+        raise self.missing_axis("axis '%s::' not found" % self.value)
+    return self
+
+
+@method('(name)')
 def evaluate(self, context=None):
     return [x for x in self.select(context)]
 
@@ -262,7 +288,7 @@ def evaluate(self, context=None):
 @method('(name)')
 def select(self, context=None):
     if context is None:
-        return
+        raise self.missing_context()
 
     name = self.value
 
@@ -319,22 +345,27 @@ def led(self, left):
         left.expected('(name)', '*')
 
     if self.parser.next_token.label not in ('function', 'constructor'):
-        self.parser.expected_next('(name)', '*')
+        self.parser.expected_name('(name)', '*')
     if self.parser.is_spaced():
         raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
 
     if left.symbol == '(name)':
         try:
             namespace = self.get_namespace(left.value)
-        except ElementPathKeyError as err:
-            err.code = self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPST0081')
-            raise
-        self.parser.next_token.bind_namespace(namespace)
-    elif left.symbol == '*' and self.parser.next_token.symbol != '(name)':
+        except ElementPathKeyError:
+            if self.parser.next_token.label in ('function', 'constructor'):
+                msg = "prefix {!r} has not been declared".format(left.value)
+                raise self.error('XPST0081', msg) from None
+        else:
+            self.parser.next_token.bind_namespace(namespace)
+    elif self.parser.next_token.symbol != '(name)':
         raise self.wrong_syntax()
 
     self[:] = left, self.parser.expression(90)
     self.value = '{}:{}'.format(self[0].value, self[1].value)
+
+    if self[1].symbol == ':':
+        raise self.wrong_syntax('{!r} is not a QName'.format(self.source))
     return self
 
 
@@ -358,11 +389,16 @@ def select(self, context=None):
     if self[0].value == '*':
         name = '*:%s' % self[1].value
     else:
-        namespace = self.get_namespace(self[0].value)
-        name = '{%s}%s' % (namespace, self[1].value)
+        try:
+            namespace = self.get_namespace(self[0].value)
+        except ElementPathKeyError:
+            msg = "prefix {!r} has not been declared".format(self[0].value)
+            raise self.error('XPST0081', msg) from None
+        else:
+            name = '{%s}%s' % (namespace, self[1].value)
 
     if context is None:
-        return
+        yield name
     elif isinstance(context, XPathSchemaContext):
         for item in map(lambda x: self.match_xsd_type(x, name), context.iter_children_or_self()):
             if item:
@@ -396,12 +432,12 @@ def select(self, context=None):
 @method('{', bp=95)
 def nud(self):
     if self.parser.strict:
-        self.unexpected()
+        raise self.wrong_syntax("not allowed symbol if parser has strict=True")
 
     namespace = self.parser.next_token.value + self.parser.raw_advance('}')
     self.parser.advance()
     if self.parser.next_token.label not in ('function', 'constructor'):
-        self.parser.expected_next('(name)', '*')
+        self.parser.expected_name('(name)', '*')
     self.parser.next_token.bind_namespace(namespace)
 
     self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), \
@@ -421,7 +457,9 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if self[1].label == 'function':
         yield self[1].evaluate(context)
-    elif context is not None:
+    elif context is None:
+        raise self.missing_context()
+    else:
         value = '{%s}%s' % (self[0].value, self[1].value)
         for item in context.iter_children_or_self():
             if is_attribute_node(item, value):
@@ -434,7 +472,7 @@ def select(self, context=None):
 # Variables
 @method('$', bp=90)
 def nud(self):
-    self.parser.expected_next('(name)')
+    self.parser.expected_name('(name)')
     self[:] = self.parser.expression(rbp=90),
     if ':' in self[0].value:
         raise self[0].wrong_syntax("variable reference requires a simple reference name")
@@ -550,6 +588,8 @@ def evaluate(self, context=None):
         if op1 is not None:
             try:
                 return op1 + op2
+            except ValueError as err:
+                raise self.error('FORG0001', str(err)) from None
             except TypeError as err:
                 raise self.error('XPTY0004', str(err)) from None
             except OverflowError as err:
@@ -589,8 +629,22 @@ def evaluate(self, context=None):
         op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
         if op1 is not None:
             try:
+                if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
+                    return op2 * op1
                 return op1 * op2
             except TypeError as err:
+                if isinstance(op1, float):
+                    if math.isnan(op1):
+                        raise self.error('FOCA0005', str(err)) from None
+                    elif math.isinf(op1):
+                        raise self.error('FODT0002', str(err)) from None
+
+                if isinstance(op2, float):
+                    if math.isnan(op2):
+                        raise self.error('FOCA0005', str(err)) from None
+                    elif math.isinf(op2):
+                        raise self.error('FODT0002', str(err)) from None
+
                 raise self.error('XPTY0004', str(err)) from None
             except ValueError as err:
                 raise self.error('FOCA0005', str(err)) from None
@@ -625,6 +679,10 @@ def evaluate(self, context=None):
     elif dividend == 0:
         return float('nan')
     elif not self.parser.compatibility_mode:
+        if isinstance(dividend, AbstractDateTime):
+            raise self.error('FODT0001')
+        elif isinstance(dividend, Duration):
+            raise self.error('FODT0002')
         raise self.error('FOAR0001')
     elif dividend > 0:
         return float('inf')
@@ -658,7 +716,7 @@ def led(self, left):
 @method('|')
 def select(self, context=None):
     if context is None:
-        return
+        raise self.missing_context()
     elif not self.cut_and_sort:
         for k in range(2):
             yield from self[k].select(context.copy())
@@ -675,7 +733,7 @@ def nud(self):
     if self.parser.next_token.symbol == '(end)' and self.symbol == '/':
         return self
     elif self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
-        self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
+        self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
 
     self[:] = self.parser.expression(75),
     return self
@@ -685,7 +743,7 @@ def nud(self):
 @method('/')
 def led(self, left):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
-        self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
+        self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
 
     self[:] = left, self.parser.expression(75)
     return self
@@ -697,7 +755,7 @@ def select(self, context=None):
     Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
     if context is None:
-        return
+        raise self.missing_context()
     elif not self:
         if is_document_node(context.root):
             yield context.root
@@ -709,8 +767,8 @@ def select(self, context=None):
         items = []
         for _ in context.iter_selector(self[0].select):
             if not is_xpath_node(context.item):
-                msg = "left operand must returns XPath nodes: {}"
-                raise self.wrong_type(msg.format(context.item))
+                raise self.error('XPTY0019')
+
             for result in self[1].select(context):
                 if not is_etree_element(result) and not isinstance(result, tuple):
                     yield result
@@ -733,7 +791,7 @@ def select(self, context=None):
 @method('//')
 def select(self, context=None):
     if context is None:
-        return
+        raise self.missing_context()
     elif len(self) == 1:
         if is_document_node(context.root) or context.item is context.root:
             context.item = None
@@ -751,7 +809,6 @@ def select(self, context=None):
 # Predicate filters
 @method('[', bp=80)
 def led(self, left):
-    self.parser.next_token.unexpected(']')
     self[:] = left, self.parser.expression()
     self.parser.advance(']')
     return self
@@ -759,26 +816,26 @@ def led(self, left):
 
 @method('[')
 def select(self, context=None):
-    if context is not None:
-        if self[0].label == 'axis':
-            selector = self[0].select(context)
-        else:
-            selector = context.iter_selector(self[0].select)
+    if context is None:
+        raise self.missing_context()
+    elif self[0].label == 'axis':
+        selector = self[0].select(context)
+    else:
+        selector = context.iter_selector(self[0].select)
 
-        for context.item in selector:
-            predicate = [x for x in self[1].select(context.copy())]
-            if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
-                if context.position == predicate[0]:
-                    yield context.item
-            elif self.boolean_value(predicate):
+    for context.item in selector:
+        predicate = [x for x in self[1].select(context.copy())]
+        if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
+            if context.position == predicate[0]:
                 yield context.item
+        elif self.boolean_value(predicate):
+            yield context.item
 
 
 ###
 # Parenthesized expressions
 @method('(', bp=100)
 def nud(self):
-    self.parser.next_token.unexpected(')')
     self[:] = self.parser.expression(),
     self.parser.advance(')')
     return self
@@ -798,7 +855,7 @@ def select(self, context=None):
 # Axes
 @method('@', bp=80)
 def nud(self):
-    self.parser.expected_next('*', '(name)', ':', message="invalid attribute specification")
+    self.parser.expected_name('*', '(name)', ':', message="invalid attribute specification")
     self[:] = self.parser.expression(rbp=80),
     return self
 
@@ -815,7 +872,9 @@ def select(self, context=None):
 
 @method(axis('namespace'))
 def select(self, context=None):
-    if context is not None and is_element_node(context.item):
+    if context is None:
+        raise self.missing_context()
+    elif is_element_node(context.item):
         elem = context.item
         namespaces = self.parser.namespaces
 
@@ -834,21 +893,27 @@ def select(self, context=None):
 
 @method(axis('self'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_self():
             yield from self[0].select(context)
 
 
 @method(axis('child'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_children_or_self(child_axis=True):
             yield from self[0].select(context)
 
 
 @method(axis('parent'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_parent():
             yield from self[0].select(context)
 
@@ -856,7 +921,9 @@ def select(self, context=None):
 @method(axis('following-sibling'))
 @method(axis('preceding-sibling'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_siblings(axis=self.symbol):
             yield from self[0].select(context)
 
@@ -864,7 +931,9 @@ def select(self, context=None):
 @method(axis('ancestor'))
 @method(axis('ancestor-or-self'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_ancestors(axis=self.symbol):
             yield from self[0].select(context)
 
@@ -872,21 +941,27 @@ def select(self, context=None):
 @method(axis('descendant'))
 @method(axis('descendant-or-self'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_descendants(axis=self.symbol):
             yield from self[0].select(context)
 
 
 @method(axis('following'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for _ in context.iter_followings():
             yield from self[0].select(context)
 
 
 @method(axis('preceding'))
 def select(self, context=None):
-    if context is not None and is_element_node(context.item):
+    if context is None:
+        raise self.missing_context()
+    elif is_element_node(context.item):
         for _ in context.iter_preceding():
             yield from self[0].select(context)
 
@@ -895,7 +970,9 @@ def select(self, context=None):
 # Kind tests (for matching of node types in XPath 1.0 or sequence types in XPath 2.0)
 @method(function('node', nargs=0, label='kind test'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for item in context.iter_children_or_self():
             if item is None:
                 yield context.root
@@ -905,19 +982,25 @@ def select(self, context=None):
 
 @method(function('processing-instruction', nargs=(0, 1), label='kind test'))
 def evaluate(self, context=None):
-    if context and is_processing_instruction_node(context.item):
+    if context is None:
+        raise self.missing_context()
+    elif is_processing_instruction_node(context.item):
         return context.item
 
 
 @method(function('comment', nargs=0, label='kind test'))
 def evaluate(self, context=None):
-    if context and is_comment_node(context.item):
+    if context is None:
+        raise self.missing_context()
+    elif is_comment_node(context.item):
         return context.item
 
 
 @method(function('text', nargs=0, label='kind test'))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         for item in context.iter_children_or_self():
             if is_text_node(item):
                 yield item
@@ -942,7 +1025,9 @@ def evaluate(self, context=None):
 
 @method(function('id', nargs=1))
 def select(self, context=None):
-    if context is not None:
+    if context is None:
+        raise self.missing_context()
+    else:
         value = self[0].evaluate(context)
         item = context.item
         if is_element_node(item):
@@ -1016,6 +1101,9 @@ def evaluate(self, context=None):
     trans_string = self.get_argument(context, index=2, default='', cls=str)
 
     maketrans = str.maketrans
+
+    if not self.parser.compatibility_mode and not map_string:
+        raise self.error('XPTY0004', 'the 2nd argument cannot be an empty string')
 
     if len(map_string) == len(trans_string):
         return arg.translate(maketrans(map_string, trans_string))
@@ -1105,7 +1193,7 @@ def evaluate(self, context=None):
 @method(function('lang', nargs=1))
 def evaluate(self, context=None):
     if context is None:
-        return
+        raise self.missing_context()
     elif not is_element_node(context.item):
         return False
     else:

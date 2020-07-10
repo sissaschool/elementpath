@@ -44,7 +44,7 @@ class NamespacesTest(unittest.TestCase):
         self.assertEqual(get_extended_qname('foo', {'': 'ns'}), '{ns}foo')
         self.assertEqual(get_extended_qname('', {'': 'ns'}), '')
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             get_extended_qname('bar:foo', self.namespaces)
         with self.assertRaises(ValueError):
             get_extended_qname('bar:foo:bar', {'bar': 'ns'})

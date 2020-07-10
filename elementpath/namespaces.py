@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from .exceptions import ElementPathValueError
 
 
 _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
@@ -68,7 +67,7 @@ def get_prefixed_qname(qname, namespaces):
     except IndexError:
         return qname
     except (ValueError, TypeError):
-        raise ElementPathValueError("{!r} is not a QName".format(qname))
+        raise ValueError("{!r} is not a QName".format(qname))
 
     for prefix, uri in sorted(namespaces.items(), reverse=True):
         if uri == ns_uri:
@@ -96,7 +95,7 @@ def get_extended_qname(qname, namespaces):
         prefix, local_name = qname.split(':')
     except ValueError:
         if ':' in qname:
-            raise ElementPathValueError("wrong format for prefixed QName %r" % qname)
+            raise ValueError("wrong format for prefixed QName %r" % qname)
         try:
             uri = namespaces['']
         except KeyError:
@@ -104,11 +103,7 @@ def get_extended_qname(qname, namespaces):
         else:
             return u'{%s}%s' % (uri, qname) if uri else qname
     else:
-        if not prefix or not qname:
-            raise ElementPathValueError("wrong format for reference name %r" % qname)
-        try:
-            uri = namespaces[prefix]
-        except KeyError:
-            raise ElementPathValueError("prefix %r not found in namespace map" % prefix)
-        else:
-            return u'{%s}%s' % (uri, local_name) if uri else local_name
+        if not prefix or not local_name:
+            raise ValueError("wrong format for reference name %r" % qname)
+        uri = namespaces[prefix]
+        return u'{%s}%s' % (uri, local_name) if uri else local_name

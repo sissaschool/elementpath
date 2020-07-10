@@ -279,15 +279,11 @@ class Token(MutableSequence):
         if symbols and self.symbol not in symbols:
             raise self.wrong_syntax()
 
-    def unexpected(self, *symbols):
-        if not symbols or self.symbol in symbols:
-            raise self.wrong_syntax()
-
     def wrong_syntax(self, message=None):
         if message:
             return TdopSyntaxError(message)
         elif self.symbol not in SPECIAL_SYMBOLS:
-            return TdopSyntaxError('unexpected symbol %r' % self.symbol)
+            return TdopSyntaxError('unexpected %s' % self)
         elif self.symbol == '(invalid)':
             return TdopSyntaxError('invalid literal %r' % self.value)
         elif self.symbol == '(unknown)':
@@ -400,8 +396,7 @@ class Parser(metaclass=ParserMeta):
 
             self.advance()
             root_token = self.expression()
-            if self.next_token.symbol != '(end)':
-                self.next_token.unexpected()
+            self.next_token.expected('(end)')
             return root_token
         finally:
             self.tokens = iter(())
@@ -414,7 +409,7 @@ class Parser(metaclass=ParserMeta):
         The Pratt's function for advancing to next token.
 
         :param symbols: Optional arguments tuple. If not empty one of the provided \
-        symbols is expected. If the next token's symbol differs the parser raise a \
+        symbols is expected. If the next token's symbol differs the parser raises a \
         parse error.
         :return: The next token instance.
         """
@@ -578,22 +573,6 @@ class Parser(metaclass=ParserMeta):
             return after and self.source[end] in ' \t\n'
         except IndexError:
             return False
-
-    def expected_next(self, *symbols, message=None):
-        """
-        Checks the next_token symbol with a list of symbols. Replaces with a
-        '(name)' token if check fails, '(name)' is an expected symbol and the
-        next_token's symbol is a also a name. Otherwise raises a syntax error.
-
-        :param symbols: a sequence of symbols.
-        :param message: optional error message.
-        """
-        if self.next_token.symbol in symbols:
-            return
-        elif '(name)' in symbols and self.name_pattern.match(self.next_token.symbol) is not None:
-            self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
-        else:
-            raise self.next_token.wrong_syntax(message)
 
     @classmethod
     def register(cls, symbol, **kwargs):

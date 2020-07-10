@@ -31,7 +31,7 @@ from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, 
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import UntypedAtomic, Timezone, DateTime10, Date10, \
-    DayTimeDuration, XSD_BUILTIN_TYPES
+    DayTimeDuration, Duration, XSD_BUILTIN_TYPES
 from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -387,9 +387,9 @@ class XPathToken(Token):
         if arg2 is None:
             return None, None
 
-        if isinstance(arg1, Decimal) and isinstance(arg2, float):
+        if isinstance(arg1, (Decimal, Duration)) and isinstance(arg2, float):
             return arg1, Decimal(arg2)
-        elif isinstance(arg2, Decimal) and isinstance(arg1, float):
+        elif isinstance(arg2, (Decimal, Duration)) and isinstance(arg1, float):
             return Decimal(arg1), arg2
 
         return arg1, arg2
@@ -418,7 +418,7 @@ class XPathToken(Token):
         try:
             return self.parser.namespaces[prefix]
         except KeyError as err:
-            msg = 'No namespace found for prefix %s' % str(err)
+            msg = 'no namespace found for prefix %r' % str(err)
             raise self.error('FONS0004', msg) from None
 
     def bind_namespace(self, namespace):
@@ -427,20 +427,20 @@ class XPathToken(Token):
         a function or a constructor, otherwise a syntax error is raised. Functions
         and constructors must be limited to its namespaces.
         """
-        if self.symbol not in ('(name)', '*') and self.label not in ('function', 'constructor'):
-            raise self.wrong_syntax()
-        elif namespace == XPATH_FUNCTIONS_NAMESPACE:
+        if namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                raise self.wrong_syntax(message="a function expected.")
+                raise self.wrong_syntax(message="a function expected")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
             if self.symbol not in ('(name)', '*') and self.label != 'constructor':
                 raise self.wrong_syntax(
-                    message="an XSD element or a constructor function expected."
+                    message="an XSD element or a constructor function expected"
                 )
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
+        elif self.symbol not in ('(name)', '*'):
+            raise self.wrong_syntax(message="a name or a name wildcard expected")
 
     def adjust_datetime(self, context, cls):
         """
@@ -477,7 +477,7 @@ class XPathToken(Token):
                     item -= timezone.offset - item.tzinfo.offset
                     item -= DayTimeDuration.fromstring('P1D')
         except OverflowError as err:
-            raise self.error('FOAR0002', str(err)) from None
+            raise self.error('FODT0001', str(err)) from None
 
         item.tzinfo = timezone
         return item
@@ -796,18 +796,8 @@ class XPathToken(Token):
 
     # Shortcuts for XPath errors, only the wrong_syntax
     def wrong_syntax(self, message=None, code='XPST0003'):
-        if self.symbol == '::' and self.parser.token.symbol == '(name)':
-            return self.missing_axis(message or "Axis '%s::' not found" % self.parser.token.value)
-        elif self.symbol == '(' and getattr(self.parser.token, 'symbol', None) == '(name)':
-            if self.parser.token.label == 'literal':
-                msg = 'name {!r} cannot have arguments'
-                return self.error('XPST0017', msg.format(self.parser.token.value))
-        elif self.symbol == 'is' and self.label == 'operator' and \
-                getattr(self.parser.next_token, 'symbol', None) == '(':
-            msg = '{} cannot have arguments'
-            return self.error('XPST0017', msg.format(self))
-        elif self.symbol in {'as', 'of'}:
-            return self.error('XPDY0002')  # Dynamic context required
+        if self.label == 'function':
+            code = 'XPST0017'
 
         if message:
             return self.error(code, message)
