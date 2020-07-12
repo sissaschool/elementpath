@@ -233,6 +233,8 @@ def cast(value):
 def cast(value, tz=None):
     if isinstance(value, Date10):
         return value
+    elif isinstance(value, DateTime10):
+        return Date10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
     return Date10.fromstring(value, tzinfo=tz)
 
 
@@ -240,6 +242,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianDay):
         return value
+    elif isinstance(value, (Date10, DateTime10)):
+        return XPathGregorianDay(value.day, tzinfo=tz or value.tzinfo)
     return XPathGregorianDay.fromstring(value, tzinfo=tz)
 
 
@@ -247,6 +251,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianMonth):
         return value
+    elif isinstance(value, (Date10, DateTime10)):
+        return XPathGregorianMonth(value.month, tzinfo=tz or value.tzinfo)
     return XPathGregorianMonth.fromstring(value, tzinfo=tz)
 
 
@@ -254,6 +260,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianMonthDay):
         return value
+    elif isinstance(value, (Date10, DateTime10)):
+        return XPathGregorianMonthDay(value.month, value.day, tzinfo=tz or value.tzinfo)
     return XPathGregorianMonthDay.fromstring(value, tzinfo=tz)
 
 
@@ -261,6 +269,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianYear):
         return value
+    elif isinstance(value, (Date10, DateTime10)):
+        return XPathGregorianYear(value.year, tzinfo=tz or value.tzinfo)
     return XPathGregorianYear.fromstring(value, tzinfo=tz)
 
 
@@ -268,6 +278,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianYearMonth):
         return value
+    elif isinstance(value, (Date10, DateTime10)):
+        return XPathGregorianYearMonth(value.year, value.month, tzinfo=tz or value.tzinfo)
     return XPathGregorianYearMonth.fromstring(value, tzinfo=tz)
 
 
@@ -275,6 +287,10 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, Time):
         return value
+    elif isinstance(value, DateTime10):
+        return Time(
+            value.hour, value.minute, value.second, value.microsecond, tzinfo=tz or value.tzinfo
+        )
     return Time.fromstring(value, tzinfo=tz)
 
 
@@ -512,6 +528,8 @@ def cast_to_qname(value, namespaces=None):
 def cast_to_datetime(value, tz=None):
     if isinstance(value, DateTime10):
         return value
+    elif isinstance(value, Date10):
+        return DateTime10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
     return DateTime10.fromstring(value, tzinfo=tz)
 
 

@@ -305,7 +305,7 @@ class AbstractDateTime(metaclass=ABCMeta):
             msg = '2nd argument has an invalid type {!r}'
             raise TypeError(msg.format(type(tzinfo)))
 
-        match = cls.pattern.match(datetime_string)
+        match = cls.pattern.match(datetime_string.strip())
         if match is None:
             msg = 'Invalid datetime string {!r} for {!r}'
             raise ValueError(msg.format(datetime_string, cls))
@@ -894,9 +894,11 @@ class YearMonthDuration(Duration):
         return '%s(months=%r)' % (self.__class__.__name__, self.months)
 
     def __add__(self, other):
-        if not isinstance(other, self.__class__):
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
-        return YearMonthDuration(months=self.months + other.months)
+        if isinstance(other, self.__class__):
+            return YearMonthDuration(months=self.months + other.months)
+        elif isinstance(other, DateTime10):
+            return other + self
+        raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
     def __sub__(self, other):
         if not isinstance(other, self.__class__):
@@ -1131,11 +1133,11 @@ class NumericTypeProxy(metaclass=TypeProxyMeta):
             not isinstance(other, bool)
 
     @staticmethod
-    def subclass_check(subclass):
-        if issubclass(subclass, bool):
+    def subclass_check(cls):
+        if issubclass(cls, bool):
             return False
-        return issubclass(subclass, int) or issubclass(subclass, float) \
-            or issubclass(subclass, decimal.Decimal) or issubclass(subclass, UntypedAtomic)
+        return issubclass(cls, int) or issubclass(cls, float) \
+            or issubclass(cls, decimal.Decimal) or issubclass(cls, UntypedAtomic)
 
     @staticmethod
     def instance_build(x=0):
@@ -1156,12 +1158,12 @@ class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
         ) and not isinstance(other, bool)
 
     @staticmethod
-    def subclass_check(subclass):
-        if issubclass(subclass, bool):
+    def subclass_check(cls):
+        if issubclass(cls, bool):
             return False
-        return issubclass(subclass, int) or issubclass(subclass, float) or \
-            issubclass(subclass, decimal.Decimal) or issubclass(subclass, Duration) \
-            or issubclass(subclass, AbstractDateTime) or issubclass(subclass, UntypedAtomic)
+        return issubclass(cls, int) or issubclass(cls, float) or \
+            issubclass(cls, decimal.Decimal) or issubclass(cls, Duration) \
+            or issubclass(cls, AbstractDateTime) or issubclass(cls, UntypedAtomic)
 
     @staticmethod
     def instance_build(x=0):

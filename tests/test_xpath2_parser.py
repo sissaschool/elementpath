@@ -265,6 +265,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("every $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4",
                          False, context)
 
+        self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 7",
+                         True, context)
+        self.check_value("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 8",
+                         False, context)
+
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
 

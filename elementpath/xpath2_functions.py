@@ -21,7 +21,7 @@ from copy import copy
 from urllib.parse import urlparse, urljoin, quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, Timezone, \
+from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, \
     Duration, DayTimeDuration, is_id, is_idrefs
 from .namespaces import get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -585,7 +585,7 @@ def evaluate(self, context=None):
     if len(self) == 2:
         base_uri = self.get_argument(context, index=1, required=True, cls=str)
         url_parts = urlparse(base_uri)
-        if not url_parts.path.startswith('/'):
+        if not url_parts.scheme and not url_parts.netloc and not url_parts.path.startswith('/'):
             raise self.error('FORG0002', '2nd argument is not an absolute URI')
         base_uri = url_parts.geturl()
     elif self.parser.base_uri is None:
@@ -940,7 +940,7 @@ def evaluate(self, context=None):
     if context is not None and context.timezone is not None:
         return context.timezone
     else:
-        return Timezone(datetime.timedelta(seconds=time.timezone))
+        return DayTimeDuration.fromtimedelta(datetime.timedelta(seconds=time.timezone))
 
 
 ###
