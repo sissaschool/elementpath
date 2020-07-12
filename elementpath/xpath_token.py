@@ -20,6 +20,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 import locale
 import contextlib
+from copy import copy
 from decimal import Decimal
 import urllib.parse
 
@@ -320,6 +321,12 @@ class XPathToken(Token):
 
         return [(self.data_value(value1), self.data_value(value2))
                 for value1 in operand1 for value2 in operand2]
+
+    def select_to_variable(self, context, varname):
+        for value in self.select(context):
+            print(varname, value)
+            context.variable_values[varname] = value
+            yield value
 
     def select_results(self, context):
         """

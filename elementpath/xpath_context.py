@@ -218,6 +218,39 @@ class XPathContext(object):
 
         self.item, self.size, self.position = status
 
+    def iter_product(self, selectors, varnames=None):
+        """
+        Iterator for cartesian products of selectors.
+
+        :param selectors: a sequence of selector generator functions.
+        :param varnames: a sequence of variables for storing the generated values.
+        """
+        iterators = [x(self) for x in selectors]
+        dimension = len(iterators)
+        prod = [None] * dimension
+        max_index = dimension - 1
+
+        k = 0
+        while True:
+            try:
+                value = next(iterators[k])
+            except StopIteration:
+                if not k:
+                    return
+                iterators[k] = selectors[k](self)
+                k -= 1
+            else:
+                try:
+                    self.variable_values[varnames[k]] = value
+                except (TypeError, IndexError):
+                    pass
+
+                prod[k] = value
+                if k == max_index:
+                    yield tuple(prod)
+                else:
+                    k += 1
+
     ##
     # Context item iterators for axis
 

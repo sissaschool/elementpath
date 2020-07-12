@@ -712,9 +712,9 @@ def evaluate(self, context=None):
 
     some = self.symbol == 'some'
     varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
-    selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
+    selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
-    for results in product(*selectors):
+    for results in context.iter_product(selectors, varnames):
         context.variable_values.update(x for x in zip(varnames, results))
         if self.boolean_value([x for x in self[-1].select(copy(context))]):
             if some:
@@ -750,6 +750,7 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
+    context = copy(context)
     varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
     selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
     for results in product(*selectors):
@@ -785,6 +786,9 @@ def evaluate(self, context=None):
             return False
         return True
     elif self[1].label in ('kind test', 'sequence type'):
+        if context is None:
+            raise self.missing_context()
+
         for position, context.item in enumerate(self[0].select(context)):
             if self[1].evaluate(context) is None:
                 return False

@@ -1104,7 +1104,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value(path='fn:current-time()', context=context,
                          expected=Time.fromdatetime(context.current_dt),)
         self.check_value(path='fn:implicit-timezone()', context=context,
-                         expected=Timezone(datetime.timedelta(seconds=time.timezone)),)
+                         expected=DayTimeDuration(seconds=time.timezone))
         context.timezone = Timezone.fromstring('-05:00')
         self.check_value(path='fn:implicit-timezone()', context=context,
                          expected=Timezone.fromstring('-05:00'))
