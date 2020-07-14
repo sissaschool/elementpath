@@ -800,7 +800,11 @@ class Duration(object):
         :param text: an ISO 8601 representation without week fragment and an optional decimal part \
         only for seconds fragment.
         """
-        match = cls._pattern.match(text)
+        if not isinstance(text, str):
+            msg = 'argument has an invalid type {!r}'
+            raise TypeError(msg.format(type(text)))
+
+        match = cls._pattern.match(text.strip())
         if match is None:
             raise ValueError('%r is not an xs:duration value' % text)
 

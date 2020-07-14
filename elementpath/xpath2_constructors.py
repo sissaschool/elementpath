@@ -50,6 +50,11 @@ def cast(value):
 
 @constructor('language')
 def cast(value):
+    if value is True:
+        return 'true'
+    elif value is False:
+        return 'false'
+
     match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise xpath_error('FORG0001', "%r is not a language code" % value)
@@ -465,12 +470,9 @@ def cast_to_boolean(value, context=None):
     elif not isinstance(value, str):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
-    if value in ('true', '1'):
-        return True
-    elif value in ('false', '0'):
-        return False
-    else:
+    if value.strip() not in {'true', 'false', '1', '0'}:
         raise xpath_error('FORG0001', "%r: not a boolean value" % value)
+    return 't' in value or '1' in value
 
 
 unregister('boolean')
@@ -521,7 +523,8 @@ register('string', lbp=90, rbp=90, label=('function', 'constructor'),  # pragma:
 def nud(self):
     try:
         self.parser.advance('(')
-        self[0:] = self.parser.expression(5),
+        if self.label != 'function' or self.parser.next_token.symbol != ')':
+            self[0:] = self.parser.expression(5),
         self.parser.advance(')')
     except ElementPathSyntaxError as err:
         err.code = self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPST0017')
@@ -534,6 +537,10 @@ def nud(self):
 @method('string')
 def evaluate(self, context=None):
     if self.label == 'function':
+        if not self:
+            if context is None:
+                raise self.missing_context()
+            return self.string_value(context.item)
         return self.string_value(self.get_argument(context))
     else:
         item = self.get_argument(context)

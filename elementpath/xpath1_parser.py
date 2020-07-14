@@ -162,7 +162,7 @@ class XPath1Parser(Parser):
         can be provided.
         """
         def nud_(self):
-            code = 'XPST0017' if self.label == 'function' else None
+            code = 'XPST0017' if self.label == 'function' else 'XPST0003'
             self.value = None
             self.parser.advance('(')
             if nargs is None:
@@ -684,18 +684,21 @@ def evaluate(self, context=None):
             raise self.error('FOAR0002', str(err)) from None
         except (ZeroDivisionError, decimal.DivisionByZero):
             raise self.error('FOAR0001') from None
+
+    elif isinstance(dividend, AbstractDateTime):
+        raise self.error('FODT0001')
+    elif isinstance(dividend, Duration):
+        raise self.error('FODT0002')
+    elif not self.parser.compatibility_mode and \
+            isinstance(dividend, (int, decimal.Decimal)) and \
+            isinstance(divisor, (int, decimal.Decimal)):
+        raise self.error('FOAR0001')
     elif dividend == 0:
         return float('nan')
-    elif not self.parser.compatibility_mode:
-        if isinstance(dividend, AbstractDateTime):
-            raise self.error('FODT0001')
-        elif isinstance(dividend, Duration):
-            raise self.error('FODT0002')
-        raise self.error('FOAR0001')
     elif dividend > 0:
-        return float('inf')
+        return float('-inf') if str(divisor).startswith('-') else float('inf')
     else:
-        return float('-inf')
+        return float('inf') if str(divisor).startswith('-') else float('-inf')
 
 
 @method(infix('mod', bp=45))
@@ -739,12 +742,21 @@ def select(self, context=None):
 ###
 # Path expressions
 @method('//', bp=75)
+def nud(self):
+    if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
+        self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
+
+    self[:] = self.parser.expression(75),
+    return self
+
+
 @method('/', bp=75)
 def nud(self):
-    if self.parser.next_token.symbol in ('(end)', ')') and self.symbol == '/':
-        return self
-    elif self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
-        self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
+    if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
+        try:
+            self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
+        except SyntaxError:
+            return self
 
     self[:] = self.parser.expression(75),
     return self
@@ -1066,8 +1078,12 @@ def evaluate(self, context=None):
 
 ###
 # String functions
-@method(function('string', nargs=1))
+@method(function('string', nargs=(0, 1)))
 def evaluate(self, context=None):
+    if not self:
+        if context is None:
+            raise self.missing_context()
+        return self.string_value(context.item)
     return self.string_value(self.get_argument(context))
 
 
@@ -1111,16 +1127,11 @@ def evaluate(self, context=None):
     map_string = self.get_argument(context, index=1, default='', cls=str)
     trans_string = self.get_argument(context, index=2, default='', cls=str)
 
-    maketrans = str.maketrans
-
-    if not self.parser.compatibility_mode and not map_string:
-        raise self.error('XPTY0004', 'the 2nd argument cannot be an empty string')
-
     if len(map_string) == len(trans_string):
-        return arg.translate(maketrans(map_string, trans_string))
+        return arg.translate(str.maketrans(map_string, trans_string))
     elif len(map_string) > len(trans_string):
         k = len(trans_string)
-        return arg.translate(maketrans(map_string[:k], trans_string, map_string[k:]))
+        return arg.translate(str.maketrans(map_string[:k], trans_string, map_string[k:]))
     else:
         raise self.wrong_value("the 3rd argument must have a length less or equal than the 2nd")
 
