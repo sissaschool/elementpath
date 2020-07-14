@@ -278,19 +278,19 @@ class TestCase(object):
     def test_set_file(self):
         return self.test_set.file
 
-    def get_xpath_context(self):
+    def get_environment(self):
         env_ref = self.environment_ref
         if env_ref:
             try:
-                environment = self.test_set.environments[env_ref]
+                return self.test_set.environments[env_ref]
             except KeyError:
                 msg = "Unknown environment %s in test case %s"
                 raise ExecutionError(msg % (env_ref, self.name)) from None
         elif self.environment:
-            environment = self.environment
-        else:
-            environment = None
+            return self.environment
 
+    def get_xpath_context(self):
+        environment = self.get_environment()
         if environment is None:
             return XPathContext(root=ElementTree.XML("<empty/>"))
 
@@ -319,8 +319,14 @@ class TestCase(object):
 
         If may_fail is true, raise the exception instead of printing and aborting
         """
+        environment = self.get_environment()
+        if environment is None:
+            namespaces = None
+        else:
+            namespaces = environment.namespaces.copy()
+
         try:
-            parser = XPath2Parser()
+            parser = XPath2Parser(namespaces=namespaces)
             root_node = parser.parse(self.test)
         except Exception as err:
             if not may_fail and verbose >= 2:
@@ -449,7 +455,7 @@ class Result(object):
         except (ElementPathError, ParseError, EvaluateError):
             return False
 
-        if type(result) == list and len(result) == 1:
+        if isinstance(result, list) and len(result) == 1:
             result = result[0]
 
         parser = XPath2Parser()
@@ -503,17 +509,37 @@ class Result(object):
             sys.exit(1)
 
     def assert_string_value_validator(self, verbose=1):
+        def string_value(obj):
+            if obj is None:
+                return ''
+            elif isinstance(obj, list):
+                return ' '.join(string_value(x) for x in obj)
+            elif isinstance(obj, tuple):
+                return str(obj[-1])
+            elif hasattr(obj, 'tag'):
+                print(obj)
+                return ''
+            elif isinstance(obj, bool):
+                return 'true' if obj else 'false'
+            elif isinstance(obj, float):
+                if math.isnan(obj):
+                    return 'NaN'
+                elif math.isinf(obj):
+                    return str(obj).upper()
+
+            return str(obj)
+
         try:
             result = self.test_case.run_xpath_test(verbose)
         except (ElementPathError, ParseError, EvaluateError):
             return False
+
+        value = string_value(result).strip() or None
+        if value == self.value:
+            return True
         else:
-            if isinstance(result, float):
-                if math.isnan(result):
-                    return self.value == 'NaN'
-                elif math.isinf(result):
-                    return self.value.lower().startswith(str(result))
-            return str(result) == self.value
+            print(repr(result), repr(value), repr(self.value))
+            return False
 
     def error_validator(self, verbose=1):
         try:
