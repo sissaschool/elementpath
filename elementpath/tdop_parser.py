@@ -476,12 +476,11 @@ class Parser(metaclass=ParserMeta):
                     raise RuntimeError(msg % self.match.group())
         return self.next_token
 
-    def raw_advance(self, *stop_symbols):
+    def advance_until(self, *stop_symbols):
         """
         Advances until one of the symbols is found or the end of source is reached,
         returning the raw source string placed before. Useful for raw parsing of
         comments and references enclosed between specific symbols.
-        This is an extension provided by this implementation.
 
         :param stop_symbols: The symbols that have to be found for stopping advance.
         :return: The source string chunk enclosed between the initial position \

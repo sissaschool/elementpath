@@ -145,8 +145,9 @@ class XPath1Parser(Parser):
         def nud_(self):
             self.parser.advance('::')
             self.parser.next_token.expected(
-                '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
-                'attribute', 'schema-attribute', 'element', 'schema-element'
+                '(name)', '*', 'text', 'node', 'document-node',
+                'comment', 'processing-instruction', 'attribute',
+                'schema-attribute', 'element', 'schema-element'
             )
             self[:] = self.parser.expression(rbp=bp),
             return self
@@ -442,7 +443,7 @@ def nud(self):
     if self.parser.strict:
         raise self.wrong_syntax("not allowed symbol if parser has strict=True")
 
-    namespace = self.parser.next_token.value + self.parser.raw_advance('}')
+    namespace = self.parser.next_token.value + self.parser.advance_until('}')
     self.parser.advance()
     if self.parser.next_token.label not in ('function', 'constructor'):
         self.parser.expected_name('(name)', '*')
