@@ -275,9 +275,13 @@ class Token(MutableSequence):
             for t in self._items[1:]:
                 yield from t.iter(*symbols)
 
-    def expected(self, *symbols):
+    def expected(self, *symbols, message=None):
         if symbols and self.symbol not in symbols:
-            raise self.wrong_syntax()
+            raise self.wrong_syntax(message)
+
+    def unexpected(self, *symbols, message=None):
+        if not symbols or self.symbol in symbols:
+            raise self.wrong_syntax(message)
 
     def wrong_syntax(self, message=None):
         if message:
@@ -318,6 +322,10 @@ class ParserMeta(type):
         # Checks and initializes class attributes
         if not hasattr(cls, 'token_base_class'):
             cls.token_base_class = Token
+        if not hasattr(cls, 'literals_pattern'):
+            cls.literals_pattern = re.compile(
+                r"""'[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
+            )
         if not hasattr(cls, 'name_pattern'):
             cls.name_pattern = re.compile(r'[A-Za-z0-9_]+')
         if 'tokenizer' not in namespace:
@@ -354,7 +362,6 @@ class Parser(metaclass=ParserMeta):
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
     SYMBOLS = SPECIAL_SYMBOLS
-    name_pattern = re.compile(r'[A-Za-z0-9_]+')
     token_base_class = Token
     tokenizer = None
     symbol_table = {}
@@ -437,7 +444,8 @@ class Parser(metaclass=ParserMeta):
                     break
                 elif literal is not None:
                     if literal[0] in '\'"':
-                        self.next_token = self.symbol_table['(string)'](self, literal.strip("'\""))
+                        value = self.unescape(literal)
+                        self.next_token = self.symbol_table['(string)'](self, value)
                     elif 'e' in literal or 'E' in literal:
                         try:
                             value = float(literal)
@@ -573,6 +581,10 @@ class Parser(metaclass=ParserMeta):
             return after and self.source[end] in ' \t\n'
         except IndexError:
             return False
+
+    @staticmethod
+    def unescape(string_literal):
+        return string_literal.strip("'\"")
 
     @classmethod
     def register(cls, symbol, **kwargs):
@@ -755,12 +767,11 @@ class Parser(metaclass=ParserMeta):
         :param symbol_table: a dictionary containing the token classes of the formal language.
         """
         tokenizer_pattern_template = r"""
-            ('[^']*' | "[^"]*" | (?:\d+|\.\d+)(?:\.\d*)  # Literals (strings and numbers)
-            ?(?:[Ee][+-]?\d+)?) |
-            (%s|[%s]) |                                  # Symbol's patterns
-            (%s) |                                       # Names
-            (\S) |                                       # Unknown symbols
-            \s+                                          # Skip extra spaces
+            (%s) |       # Literals
+            (%s|[%s]) |  # Symbols
+            (%s) |       # Names
+            (\S) |       # Unknown symbols
+            \s+          # Skip extra spaces
         """
         patterns = [
             t.pattern.replace('#', r'\#') for s, t in symbol_table.items()
@@ -779,6 +790,7 @@ class Parser(metaclass=ParserMeta):
                 string_patterns.append(p)
 
         pattern = tokenizer_pattern_template % (
+            cls.literals_pattern.pattern,
             '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
             ''.join(character_patterns),
             cls.name_pattern.pattern

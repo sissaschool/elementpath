@@ -164,8 +164,8 @@ class XPath2Parser(XPath1Parser):
         # XSD builtins constructors ('string', 'boolean' and 'QName' are
         # already registered as functions)
         'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID',
-        'IDREF', 'NMTOKEN', 'anyURI', 'decimal', 'int', 'integer', 'long', 'short',
-        'byte', 'double', 'float', 'nonNegativeInteger', 'positiveInteger',
+        'IDREF', 'NMTOKEN', 'anyURI', 'NOTATION', 'decimal', 'int', 'integer', 'long',
+        'short', 'byte', 'double', 'float', 'nonNegativeInteger', 'positiveInteger',
         'nonPositiveInteger', 'negativeInteger', 'unsignedLong', 'unsignedInt',
         'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time', 'gDay', 'gMonth',
         'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
@@ -916,8 +916,6 @@ def evaluate(self, context=None):
                 value = token_class.cast(
                     arg, tz=None if context is None else context.timezone
                 )
-            elif local_name == 'QName':
-                value = token_class.cast(arg, self.parser.namespaces)
             else:
                 value = token_class.cast(arg)
     except ElementPathError as err:
@@ -937,7 +935,7 @@ def evaluate(self, context=None):
         if self.symbol != 'cast':
             return False
         elif isinstance(arg, UntypedAtomic):
-            raise self.error('FORG0001', str(err)) from None
+            raise self.error('FORG0001', str(err))
         elif self[0].symbol == ':' and self[0][1].symbol == 'string':
             raise self.error('FORG0001', str(err)) from None
 

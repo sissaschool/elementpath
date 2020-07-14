@@ -20,7 +20,6 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 import locale
 import contextlib
-from copy import copy
 from decimal import Decimal
 import urllib.parse
 
@@ -321,12 +320,6 @@ class XPathToken(Token):
 
         return [(self.data_value(value1), self.data_value(value2))
                 for value1 in operand1 for value2 in operand2]
-
-    def select_to_variable(self, context, varname):
-        for value in self.select(context):
-            print(varname, value)
-            context.variable_values[varname] = value
-            yield value
 
     def select_results(self, context):
         """
@@ -674,15 +667,15 @@ class XPathToken(Token):
         if isinstance(obj, list):
             if not obj:
                 return False
+            elif isinstance(obj[0], (TypedElement, TypedAttribute)):
+                return bool(obj[0][1])
             elif isinstance(obj[0], tuple):
-                try:
-                    value = obj[0][1]
-                except IndexError:
-                    value = obj[0][0]
-                return True if isinstance(value, str) else bool(value)
+                return True
             elif is_element_node(obj[0]):
                 return True
             elif len(obj) == 1:
+                if isinstance(obj[0], UntypedAtomic):
+                    return bool(obj[0].value)
                 return bool(obj[0])
             else:
                 raise self.error(
@@ -690,6 +683,8 @@ class XPathToken(Token):
                     message="Effective boolean value is not defined for a sequence of two or "
                             "more items not starting with an XPath node.",
                 ) from None
+        elif isinstance(obj, UntypedAtomic):
+            return bool(obj.value)
         elif isinstance(obj, tuple) or is_element_node(obj):
             msg = "Effective boolean value is not defined for {}."
             raise self.error('FORG0006', msg.format(obj))

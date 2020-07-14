@@ -15,7 +15,7 @@ from copy import copy
 
 from .exceptions import MissingContextError, ElementPathKeyError
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy, UntypedAtomic
+    YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_qname
@@ -49,6 +49,9 @@ class XPath1Parser(Parser):
     """The XPath version string."""
 
     token_base_class = XPathToken
+    literals_pattern = re.compile(
+        r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
+    )
     name_pattern = re.compile(r'[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*')
 
     SYMBOLS = Parser.SYMBOLS | {
@@ -129,6 +132,13 @@ class XPath1Parser(Parser):
         else:
             return local_name
 
+    @staticmethod
+    def unescape(string_literal):
+        if string_literal.startswith("'"):
+            return string_literal.strip("'").replace("''", "'")
+        else:
+            return string_literal.strip('"').replace('""', '"')
+
     @classmethod
     def axis(cls, symbol, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
@@ -152,61 +162,59 @@ class XPath1Parser(Parser):
         can be provided.
         """
         def nud_(self):
+            code = 'XPST0017' if self.label == 'function' else None
             self.value = None
             self.parser.advance('(')
-            try:
-                if nargs is None:
-                    del self[:]
-                    while True:
-                        self.append(self.parser.expression(5))
-                        if self.parser.next_token.symbol != ',':
-                            break
-                        self.parser.advance(',')
-                    self.parser.advance(')')
-                    return self
-                elif nargs == 0:
-                    self.parser.advance(')')
-                    return self
-                elif isinstance(nargs, (tuple, list)):
-                    min_args, max_args = nargs
-                else:
-                    min_args = max_args = nargs
+            if nargs is None:
+                del self[:]
+                if self.parser.next_token.symbol == ')':
+                    raise self.error(code, 'at least an argument is required')
+                while True:
+                    self.append(self.parser.expression(5))
+                    if self.parser.next_token.symbol != ',':
+                        break
+                    self.parser.advance()
+                self.parser.advance(')')
+                return self
+            elif nargs == 0:
+                if self.parser.next_token.symbol != ')':
+                    raise self.error(code, '%s has no arguments' % str(self))
+                self.parser.advance()
+                return self
+            elif isinstance(nargs, (tuple, list)):
+                min_args, max_args = nargs
+            else:
+                min_args = max_args = nargs
 
-                k = 0
-                while k < min_args:
+            k = 0
+            while k < min_args:
+                if self.parser.next_token.symbol == ')':
+                    msg = 'Too few arguments: expected at least %s arguments' % min_args
+                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+
+                self[k:] = self.parser.expression(5),
+                k += 1
+                if k < min_args:
                     if self.parser.next_token.symbol == ')':
                         msg = 'Too few arguments: expected at least %s arguments' % min_args
-                        raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+                        raise self.error(code, msg if min_args > 1 else msg[:-1])
+                    self.parser.advance(',')
 
-                    self[k:] = self.parser.expression(5),
-                    k += 1
-                    if k < min_args:
-                        if self.parser.next_token.symbol == ')':
-                            msg = 'Too few arguments: expected at least %s arguments' % min_args
-                            raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
-                        self.parser.advance(',')
-
-                while k < max_args:
-                    if self.parser.next_token.symbol == ',':
-                        self.parser.advance(',')
-                        self[k:] = self.parser.expression(5),
-                    elif k == 0 and self.parser.next_token.symbol != ')':
-                        self[k:] = self.parser.expression(5),
-                    else:
-                        break
-                    k += 1
-
+            while k < max_args:
                 if self.parser.next_token.symbol == ',':
-                    msg = 'Too many arguments: expected at most %s arguments' % max_args
-                    raise self.wrong_nargs(msg if max_args > 1 else msg[:-1])
-
-                self.parser.advance(')')
-            except SyntaxError:
-                if self.label == 'function':
-                    raise self.error('XPST0017') from None
+                    self.parser.advance(',')
+                    self[k:] = self.parser.expression(5),
+                elif k == 0 and self.parser.next_token.symbol != ')':
+                    self[k:] = self.parser.expression(5),
                 else:
-                    raise self.error('XPST0003') from None
+                    break
+                k += 1
 
+            if self.parser.next_token.symbol == ',':
+                msg = 'Too many arguments: expected at most %s arguments' % max_args
+                raise self.error(code, msg if max_args > 1 else msg[:-1])
+
+            self.parser.advance(')')
             return self
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
@@ -254,7 +262,7 @@ axis = XPath1Parser.axis
 ###
 # Simple symbols
 register(',')
-register(')')
+register(')', bp=100)
 register(']')
 register('::')
 register('}')
@@ -573,7 +581,7 @@ def evaluate(self, context=None):
 
 ###
 # Numerical operators
-prefix('+')
+prefix('+', bp=40)
 prefix('-', bp=70)
 
 
@@ -694,6 +702,9 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     op1, op2 = self.get_operands(context, cls=NumericTypeProxy)
     if op1 is not None:
+        if op2 == 0:
+            return float('nan')
+
         try:
             return op1 % op2
         except TypeError as err:
@@ -730,7 +741,7 @@ def select(self, context=None):
 @method('//', bp=75)
 @method('/', bp=75)
 def nud(self):
-    if self.parser.next_token.symbol == '(end)' and self.symbol == '/':
+    if self.parser.next_token.symbol in ('(end)', ')') and self.symbol == '/':
         return self
     elif self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)

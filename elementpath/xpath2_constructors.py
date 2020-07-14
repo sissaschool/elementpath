@@ -233,6 +233,8 @@ def cast(value):
 def cast(value, tz=None):
     if isinstance(value, Date10):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return Date10.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, DateTime10):
         return Date10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
     return Date10.fromstring(value, tzinfo=tz)
@@ -242,6 +244,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianDay):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return XPathGregorianDay.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, (Date10, DateTime10)):
         return XPathGregorianDay(value.day, tzinfo=tz or value.tzinfo)
     return XPathGregorianDay.fromstring(value, tzinfo=tz)
@@ -251,6 +255,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianMonth):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return XPathGregorianMonth.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, (Date10, DateTime10)):
         return XPathGregorianMonth(value.month, tzinfo=tz or value.tzinfo)
     return XPathGregorianMonth.fromstring(value, tzinfo=tz)
@@ -260,6 +266,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianMonthDay):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return XPathGregorianMonthDay.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, (Date10, DateTime10)):
         return XPathGregorianMonthDay(value.month, value.day, tzinfo=tz or value.tzinfo)
     return XPathGregorianMonthDay.fromstring(value, tzinfo=tz)
@@ -269,6 +277,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianYear):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return XPathGregorianYear.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, (Date10, DateTime10)):
         return XPathGregorianYear(value.year, tzinfo=tz or value.tzinfo)
     return XPathGregorianYear.fromstring(value, tzinfo=tz)
@@ -278,6 +288,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, XPathGregorianYearMonth):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return XPathGregorianYearMonth.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, (Date10, DateTime10)):
         return XPathGregorianYearMonth(value.year, value.month, tzinfo=tz or value.tzinfo)
     return XPathGregorianYearMonth.fromstring(value, tzinfo=tz)
@@ -287,6 +299,8 @@ def cast(value, tz=None):
 def cast(value, tz=None):
     if isinstance(value, Time):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return Time.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, DateTime10):
         return Time(
             value.hour, value.minute, value.second, value.microsecond, tzinfo=tz or value.tzinfo
@@ -322,6 +336,8 @@ def evaluate(self, context=None):
 def cast(value):
     if isinstance(value, Duration):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return Duration.fromstring(value.value)
     return Duration.fromstring(value)
 
 
@@ -329,6 +345,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, YearMonthDuration):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return YearMonthDuration.fromstring(value.value)
     return YearMonthDuration.fromstring(value)
 
 
@@ -336,6 +354,8 @@ def cast(value):
 def cast(value):
     if isinstance(value, DayTimeDuration):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return DayTimeDuration.fromstring(value.value)
     return DayTimeDuration.fromstring(value)
 
 
@@ -412,6 +432,22 @@ def evaluate(self, context=None):
         raise
     except UnicodeEncodeError as err:
         raise self.error('FORG0001', str(err)) from None
+
+
+@constructor('NOTATION')
+def cast(value):
+    return value
+
+
+@method('NOTATION')
+def nud(self):
+    self.parser.advance('(')
+    self[0:] = self.parser.expression(5),
+    if self.parser.next_token.symbol == ',':
+        raise self.error('XPST0017', 'too many arguments: expected at most 1 argument')
+    self.parser.advance(')')
+    self.value = None
+    raise self.error('XPST0017', "no constructor function exists for xs:NOTATION")
 
 
 ###
@@ -511,23 +547,20 @@ def evaluate(self, context=None):
 # In those cases the label at parse time is set by the nud method, in dependence
 # of the number of args.
 #
-def cast_to_qname(value, namespaces=None):
+def cast_to_qname(value):
     if not isinstance(value, str):
         raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
-    match = QNAME_PATTERN.match(value)
-    if match is None:
+    if QNAME_PATTERN.match(value) is None:
         raise xpath_error('FORG0001', 'the argument must be an xs:QName')
-
-    pfx = match.groupdict()['prefix'] or ''
-    if pfx and (not namespaces or pfx not in namespaces):
-        raise xpath_error('FONS0004', 'No namespace found for prefix %r' % pfx)
     return value
 
 
 def cast_to_datetime(value, tz=None):
     if isinstance(value, DateTime10):
         return value
+    elif isinstance(value, UntypedAtomic):
+        return DateTime10.fromstring(value.value, tzinfo=tz)
     elif isinstance(value, Date10):
         return DateTime10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
     return DateTime10.fromstring(value, tzinfo=tz)
@@ -567,8 +600,8 @@ def evaluate(self, context=None):
 
         try:
             if isinstance(arg, UntypedAtomic):
-                return self.cast(arg.value, self.parser.namespaces)
-            return self.cast(arg, self.parser.namespaces)
+                return self.cast(arg.value)
+            return self.cast(arg)
         except ElementPathError as err:
             err.token = self
             raise
