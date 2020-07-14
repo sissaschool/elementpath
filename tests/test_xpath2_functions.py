@@ -406,7 +406,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_value("string-join(('a', 'b', 'c'), ', ')", 'a, b, c')
         self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004', '8 is not an instance')
-        self.wrong_type("string-join(('a', 4, 'c'), ', ')", 'FORG0006', 'values must be strings')
+        self.check_value("string-join(('a', 4, 'c'), ', ')", 'a, 4, c')
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']",

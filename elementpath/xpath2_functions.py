@@ -653,8 +653,7 @@ def evaluate(self, context=None):
 
 @method(function('string-join', nargs=(1, 2)))
 def evaluate(self, context=None):
-    items = [self.string_value(s) if is_element_node(s) or is_attribute_node(s) else s
-             for s in self[0].select(context)]
+    items = [self.string_value(s) for s in self[0].select(context)]
     try:
         return self.get_argument(context, 1, default='', cls=str).join(items)
     except ElementPathTypeError:

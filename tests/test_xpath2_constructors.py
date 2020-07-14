@@ -135,7 +135,6 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:QName(())', [])
         self.check_value('xs:QName("xs:element")', 'xs:element')
         self.check_value('xs:QName(xs:untypedAtomic("xs:element"))', 'xs:element')
-        self.assertRaises(KeyError, self.parser.parse, 'xs:QName("xsd:element")')
         self.wrong_type('xs:QName(5)', 'FORG0006', "the argument has an invalid type")
         self.wrong_value('xs:QName("1")', 'FORG0001', "the argument must be an xs:QName")
 
