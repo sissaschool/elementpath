@@ -275,39 +275,20 @@ class XPath2Parser(XPath1Parser):
 
     def advance(self, *symbols):
         super(XPath2Parser, self).advance(*symbols)
+
         if self.next_token.symbol == '(:':
-            token = self.token
-            if token is None:
-                self.next_token.comment = self.comment().strip()
-            elif token.comment is None:
-                token.comment = self.comment().strip()
-            else:
-                token.comment = '%s %s' % (token.comment, self.comment().strip())
-            super(XPath2Parser, self).advance()
+            # Parses and consumes an XPath 2.0 comment. A comment is
+            # delimited by symbols '(:' and ':)' and can be nested.
+            comment_level = 1
+            while comment_level:
+                self.advance_until('(:', ':)')
+                if self.next_token.symbol == ':)':
+                    comment_level -= 1
+                elif self.next_token.symbol == '(:':
+                    comment_level += 1
+            self.advance(':)')
+
         return self.next_token
-
-    def comment(self):
-        """
-        Parses and consumes a XPath 2.0 comment. Comments are delimited by symbols
-        '(:' and ':)' and can be nested. A comment is attached to the previous token
-        or the next token when the previous is None.
-        """
-        if self.next_token.symbol != '(:':
-            return
-
-        comment_level = 1
-        comment = []
-        while comment_level:
-            comment.append(self.raw_advance('(:', ':)'))
-            next_token = self.next_token
-            if next_token.symbol == ':)':
-                comment_level -= 1
-                if comment_level:
-                    comment.append(str(next_token.value))
-            elif next_token.symbol == '(:':
-                comment_level += 1
-                comment.append(str(next_token.value))
-        return ''.join(comment)
 
     @classmethod
     def constructor(cls, symbol, bp=0):

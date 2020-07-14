@@ -60,7 +60,6 @@ def ordinal(n):
 
 class XPathToken(Token):
     """Base class for XPath tokens."""
-    comment = None    # for XPath 2.0+ comments
     xsd_types = None   # fox XPath 2.0+ schema types labeling
 
     def evaluate(self, context=None):

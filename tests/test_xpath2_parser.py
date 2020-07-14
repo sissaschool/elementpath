@@ -183,7 +183,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
+        self.check_value("(: this is a comment :) true()", True)
+        self.check_value("(: comment 1 :)(: comment 2 :) true()", True)
+        self.check_value("(: comment 1 :) true() (: comment 2 :)", True)
         self.wrong_syntax("(: this is a (: nested :) comment :)")
+        self.check_value("(: this is a (: nested :) comment :) true()", True)
         self.check_tree('child (: nasty (:nested :) axis comment :) ::B1', '(child (B1))')
         self.check_tree('child (: nasty "(: but not nested :)" axis comment :) ::B1',
                         '(child (B1))')

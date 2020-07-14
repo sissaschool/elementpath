@@ -91,7 +91,13 @@ def evaluate(self, context=None):
         raise self.error('FOCA0002', 'argument must be an xs:QName')
     prefix = match.groupdict()['prefix'] or ''
 
-    namespace = self.get_namespace(prefix)
+    try:
+        namespace = self.get_namespace(prefix)
+    except KeyError:
+        if prefix:
+            raise
+        namespace = ''
+
     if not namespace and prefix:
         raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
     return namespace
