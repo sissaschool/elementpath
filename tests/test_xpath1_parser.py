@@ -513,8 +513,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value('fn:substring("12345", 1, 0 div 0E0)', '')
             self.check_value('fn:substring((), 1, 3)', '')
 
-            self.check_value('fn:substring("12345", -42, 1 div 0E0)', ZeroDivisionError)
-            self.check_value('fn:substring("12345", -1 div 0E0, 1 div 0E0)', ZeroDivisionError)
+            self.check_value('fn:substring("12345", -42, 1 div 0)', ZeroDivisionError)
+            self.check_value('fn:substring("12345", -42, 1 div 0E0)', '12345')
+            self.check_value('fn:substring("12345", -1 div 0E0, 1 div 0E0)', '')
 
             self.check_value('fn:substring(("alpha"), 1, 3)', 'alp')
             self.check_value('fn:substring(("alpha"), (1), 3)', 'alp')
@@ -799,7 +800,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_div_operator(self):
         self.check_value("5 div 2", 2.5)
         self.check_value("0 div 2", 0.0)
-        if self.parser.version > '1.0':
+        if self.parser.version == '1.0':
+            self.check_value("10div 3", SyntaxError)  # TODO: accepted syntax in XPath 1.0
+        else:
             self.check_value("() div 2")
 
     def test_numerical_add_operator(self):

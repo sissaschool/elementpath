@@ -169,8 +169,7 @@ class TestSet(object):
 
         self.spec_dependencies = []
         self.feature_dependencies = []
-        self.xml_version_dependency = None
-        self.xsd_version_dependency = None
+        self.xsd_version = None
 
         full_path = os.path.abspath(self.file)
         directory = os.path.dirname(full_path)
@@ -180,27 +179,17 @@ class TestSet(object):
 
             self.description = xml_root.find('description', namespaces).text
 
-            for dependency_xml in xml_root.findall('dependency', namespaces):
-                dep_type = dependency_xml.attrib['type']
-                value = dependency_xml.attrib['value']
+            for child in xml_root.findall('dependency', namespaces):
+                dep_type = child.attrib['type']
+                value = child.attrib['value']
                 if dep_type == 'spec':
                     self.spec_dependencies.extend(value.split(' '))
                 elif dep_type == 'feature':
                     self.feature_dependencies.append(value)
-                elif dep_type == 'xml-version':
-                    self.xml_version_dependency = value
                 elif dep_type == 'xsd-version':
-                    self.xsd_version_dependency = value
-                elif dep_type == 'default-language' or dep_type == 'language':
-                    pass
-                elif dep_type == 'limits' or dep_type == 'calendar':
-                    # TODO What do we need to do here?
-                    pass
+                    self.xsd_version = value
                 else:
-                    # print("unknown dependency type: %s = %s" % (dep_type, value))
-                    # sys.exit(4)
-                    # ignore other deps for now
-                    pass
+                    print("unexpected dependency type %s for test-set %r" % (dep_type, self.name))
 
             for child in xml_root.findall('environment', namespaces):
                 environment = Environment(child)
@@ -220,6 +209,17 @@ class TestCase(object):
     :param elem: the XML Element that contains the test-case definition.
     :param test_set: the test-set that the test-case belongs to.
     """
+    # Single value dependencies
+    calendar = None
+    default_language = None
+    format_integer_sequence = None
+    language = None
+    limits = None
+    unicode_version = None
+    unicode_normalization_form = None
+    xml_version = None
+    xsd_version = None
+
     def __init__(self, elem, test_set):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
@@ -234,37 +234,27 @@ class TestCase(object):
         self.environment = None
         self.spec_dependencies = []
         self.feature_dependencies = []
-        self.xml_version_dependency = None
-        self.xsd_version_dependency = None
 
-        for dependency_xml in elem.findall('dependency', namespaces):
-            dep_type = dependency_xml.attrib['type']
-            value = dependency_xml.attrib['value']
+        for child in elem.findall('dependency', namespaces):
+            dep_type = child.attrib['type']
+            value = child.attrib['value']
             if dep_type == 'spec':
                 self.spec_dependencies.extend(value.split(' '))
             elif dep_type == 'feature':
                 self.feature_dependencies.append(value)
-            elif dep_type == 'xml-version':
-                self.xml_version_dependency = value
-            elif dep_type == 'xsd-version':
-                self.xsd_version_dependency = value
-            elif dep_type == 'default-language' or dep_type == 'language':
-                pass
-            elif dep_type == 'limits' or dep_type == 'calendar':
-                # TODO What do we need to do here?
-                pass
+            elif dep_type in {'calendar', 'default-language', 'format-integer-sequence',
+                              'language', 'limits', 'xml-version', 'xsd-version',
+                              'unicode-version', 'unicode-normalization-form'}:
+                setattr(self, dep_type.replace('-', '_'), value)
             else:
-                # print("unknown dependency type: %s = %s" % (dep_type, value))
-                # sys.exit(4)
-                # ignore other deps for now
-                pass
+                print("unexpected dependency type %s for test-case %r" % (dep_type, self.name))
 
-        environment_xml = elem.find('environment', namespaces)
-        if environment_xml is not None:
-            if 'ref' in environment_xml.attrib:
-                self.environment_ref = environment_xml.attrib['ref']
+        child = elem.find('environment', namespaces)
+        if child is not None:
+            if 'ref' in child.attrib:
+                self.environment_ref = child.attrib['ref']
             else:
-                self.environment = Environment(environment_xml)
+                self.environment = Environment(child)
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)

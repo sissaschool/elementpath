@@ -1087,6 +1087,10 @@ def evaluate(self, context=None):
     op1, op2 = self.get_operands(context)
     if op1 is None or op2 is None:
         raise self.error('XPST0005')
+    elif isinstance(op1, UntypedAtomic):
+        op1 = type(op2)(op1)
+    elif isinstance(op2, UntypedAtomic):
+        op2 = type(op1)(op2)
 
     try:
         if math.isinf(op1):
