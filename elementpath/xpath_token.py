@@ -714,11 +714,15 @@ class XPathToken(Token):
             return obj.text
         elif isinstance(obj, bool):
             return 'true' if obj else 'false'
-        elif isinstance(obj, float):
+        elif isinstance(obj, (float, Decimal)):
             if math.isnan(obj):
                 return 'NaN'
             elif math.isinf(obj):
                 return str(obj).upper()
+            value = str(obj)
+            if value.endswith('.0'):
+                return value[:-2]
+            return value
 
         return str(obj)
 

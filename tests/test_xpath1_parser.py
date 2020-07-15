@@ -388,7 +388,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                             namespaces={'tst': "http://xpath.test/ns", '': ''})
 
     def test_string_function(self):
-        self.check_value("string(10.0)", '10.0')
+        self.check_value("string(10.0)", '10')
         if self.parser.version == '1.0':
             self.wrong_syntax("string(())")
         else:

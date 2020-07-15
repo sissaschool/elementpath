@@ -33,7 +33,8 @@ except ImportError:
 class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
     def test_string_constructor(self):
-        self.check_value("xs:string(5.0)", '5.0')
+        self.check_value("xs:string(5.0)", '5')
+        self.check_value("xs:string(5.2)", '5.2')
         self.check_value('xs:string(" hello  ")', ' hello  ')
         self.check_value('xs:string("\thello \n")', '\thello \n')
         self.check_value('xs:string(())', [])

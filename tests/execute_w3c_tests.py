@@ -290,9 +290,12 @@ class TestCase(object):
             return self.environment
 
     def get_xpath_context(self):
+        kwargs = {
+        }
+
         environment = self.get_environment()
         if environment is None:
-            return XPathContext(root=ElementTree.XML("<empty/>"))
+            return XPathContext(root=ElementTree.XML("<empty/>"), **kwargs)
 
         if '.' in environment.sources:
             root = environment.sources['.'].xml
@@ -300,12 +303,11 @@ class TestCase(object):
             root = ElementTree.XML("<empty/>")
 
         if any(k.startswith('$') for k in environment.sources):
-            variable_values = {
+            kwargs['variable_values'] = {
                 k[1:]: v.xml for k, v in environment.sources.items() if k.startswith('$')
             }
-            return XPathContext(root=root, variable_values=variable_values)
 
-        return XPathContext(root=root)
+        return XPathContext(root=root, **kwargs)
 
     def run(self, verbose=1):
         if verbose >= 4:
@@ -393,6 +395,10 @@ class Result(object):
     :param elem: the XML Element that contains the test-case definition.
     :param test_case: the test-case that the result validator belongs to.
     """
+    # Validation helper tokens
+    parser = XPath2Parser()
+    string_token = parser.parse('fn:string($result)')
+    string_join_token = parser.parse('fn:string-join($result, " ")')
 
     def __init__(self, elem, test_case):
         self.test_case = test_case
@@ -534,12 +540,32 @@ class Result(object):
         except (ElementPathError, ParseError, EvaluateError):
             return False
 
-        value = string_value(result).strip() or None
-        if value == self.value:
-            return True
+        context = XPathContext(ElementTree.XML("<empty/>"), variable_values={'result': result})
+        if isinstance(result, list):
+            value = self.string_join_token.evaluate(context)
         else:
+            value = self.string_token.evaluate(context)
+
+        if not value:
+            if self.value is None:
+                return True
+        elif value == self.value:
+            return True
+
+        if value and ' ' not in value:
+            try:
+                value = decimal.Decimal(value)
+                if value == decimal.Decimal(self.value):
+                    return True
+            except decimal.DecimalException:
+                pass
+
+        if verbose > 1:
+            if verbose < 4:
+                print(self.test_case.test)
             print(repr(result), repr(value), repr(self.value))
-            return False
+            print()
+        return False
 
     def error_validator(self, verbose=1):
         try:

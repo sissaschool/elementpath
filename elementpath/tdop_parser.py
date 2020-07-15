@@ -583,7 +583,7 @@ class Parser(metaclass=ParserMeta):
 
     @staticmethod
     def unescape(string_literal):
-        return string_literal.strip("'\"")
+        return string_literal[1:-1].replace("\\'", "'").replace('\\"', '"')
 
     @classmethod
     def register(cls, symbol, **kwargs):

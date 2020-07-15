@@ -104,24 +104,25 @@ class Timezone(datetime.tzinfo):
     def __init__(self, offset):
         super(Timezone, self).__init__()
         if not isinstance(offset, datetime.timedelta):
-            raise TypeError("offset must be a datetime.timedelta or "
-                            "an XSD timezone formatted string")
+            raise TypeError("offset must be a datetime.timedelta")
         if offset < self._minoffset or offset > self._maxoffset:
             raise ValueError("offset must be between -14:00 and +14:00")
         self.offset = offset
 
     @classmethod
     def fromstring(cls, text):
-        if text == 'Z':
-            return cls(datetime.timedelta(0))
-
         try:
-            hours, minutes = text.split(':')
-            hours = int(hours)
-            minutes = int(minutes) if hours >= 0 else -int(minutes)
-            return cls(datetime.timedelta(hours=hours, minutes=minutes))
+            hours, minutes = text.strip().split(':')
+            if hours.startswith('-'):
+                return cls(datetime.timedelta(hours=int(hours), minutes=-int(minutes)))
+            else:
+                return cls(datetime.timedelta(hours=int(hours), minutes=int(minutes)))
+        except AttributeError:
+            raise TypeError("argument is not a string")
         except ValueError:
-            raise ValueError("%r: not an XSD timezone formatted string" % text)
+            if text.strip() == 'Z':
+                return cls(datetime.timedelta(0))
+            raise ValueError("%r: not an XSD timezone formatted string" % text) from None
 
     @classmethod
     def fromduration(cls, duration):
@@ -490,11 +491,17 @@ class OrderedDateTime(AbstractDateTime):
 
         elif isinstance(other, DayTimeDuration):
             delta = op(self.todelta(), other.get_timedelta())
-            return type(self).fromdelta(delta)
+            if self._dt.tzinfo is None:
+                return type(self).fromdelta(delta)
+
+            value = type(self).fromdelta(delta)
+            if value.tzinfo is None:
+                value.tzinfo = self._utc_timezone
+            return value
 
         elif isinstance(other, YearMonthDuration):
             month = op(self._dt.month - 1, other.months) % 12 + 1
-            year = op(self.year, ((self._dt.month - 1) + other.months) // 12)
+            year = self.year + op(self._dt.month - 1, other.months) // 12
             day = adjust_day(year, month, self._dt.day)
 
             if year > 0:
@@ -556,10 +563,10 @@ class DateTime10(OrderedDateTime):
 
     def __str__(self):
         if self.microsecond:
-            return '{}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}{}'.format(
-                self.iso_year, self.month, self.day, self.hour, self.minute,
-                self.second, self.microsecond, str(self.tzinfo or '')
-            )
+            return '{}-{:02}-{:02}T{:02}:{:02}:{:02}.{}{}'.format(
+                self.iso_year, self.month, self.day, self.hour, self.minute, self.second,
+                '{:06}'.format(self.microsecond).rstrip('0'), str(self.tzinfo or '')
+            ).rstrip('0')
         return '{}-{:02}-{:02}T{:02}:{:02}:{:02}{}'.format(
             self.iso_year, self.month, self.day, self.hour,
             self.minute, self.second, str(self.tzinfo or '')
@@ -696,8 +703,10 @@ class Time(AbstractDateTime):
 
     def __str__(self):
         if self.microsecond:
-            return '{:02}:{:02}:{:02}.{:06}{}'.format(
-                self.hour, self.minute, self.second, self.microsecond, str(self.tzinfo or '')
+            return '{:02}:{:02}:{:02}.{}{}'.format(
+                self.hour, self.minute, self.second,
+                '{:06}'.format(self.microsecond).rstrip('0'),
+                str(self.tzinfo or '')
             )
         return '{:02}:{:02}:{:02}{}'.format(
             self.hour, self.minute, self.second, str(self.tzinfo or '')
@@ -765,7 +774,7 @@ class Duration(object):
     def __str__(self):
         m = abs(self.months)
         years, months = m // 12, m % 12
-        s = abs(self.seconds)
+        s = self.seconds.copy_abs()
         days = int(s // 86400)
         hours = int(s // 3600 % 24)
         minutes = int(s // 60 % 60)
@@ -787,7 +796,8 @@ class Duration(object):
             if minutes:
                 value += '%dM' % minutes
             if seconds:
-                value += '%sS' % seconds
+                value += '%sS' % seconds.normalize()
+
         elif value[-1] == 'P':
             value += 'T0S'
         return value
@@ -896,6 +906,19 @@ class YearMonthDuration(Duration):
 
     def __repr__(self):
         return '%s(months=%r)' % (self.__class__.__name__, self.months)
+
+    def __str__(self):
+        m = abs(self.months)
+        years, months = m // 12, m % 12
+
+        if not years:
+            return '-P%dM' % months if self.months < 0 else 'P%dM' % months
+        elif not months:
+            return '-P%dY' % years if self.months < 0 else 'P%dY' % years
+        elif self.months < 0:
+            return '-P%dY%dM' % (years, months)
+        else:
+            return 'P%dY%dM' % (years, months)
 
     def __add__(self, other):
         if isinstance(other, self.__class__):

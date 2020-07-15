@@ -11,6 +11,7 @@ import datetime
 from functools import lru_cache
 
 from .exceptions import ElementPathTypeError
+from .datatypes import Timezone
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
     etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
     is_attribute_node
@@ -79,7 +80,11 @@ class XPathContext(object):
             self.variable_values = {k: v for k, v in variable_values.items()}
 
         self.current_dt = current_dt or datetime.datetime.now()
-        self.timezone = timezone
+        if timezone is None or isinstance(timezone, Timezone):
+            self.timezone = timezone
+        else:
+            self.timezone = Timezone.fromstring(timezone)
+
         self.documents = documents
         self.collections = collections
         self.default_collection = default_collection
