@@ -1107,7 +1107,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          expected=DayTimeDuration(seconds=time.timezone))
         context.timezone = Timezone.fromstring('-05:00')
         self.check_value(path='fn:implicit-timezone()', context=context,
-                         expected=Timezone.fromstring('-05:00'))
+                         expected=DayTimeDuration.fromstring('-PT5H'))
 
     def test_static_base_uri_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'))

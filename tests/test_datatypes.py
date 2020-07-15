@@ -270,7 +270,7 @@ class DateTimeTypesTest(unittest.TestCase):
 
         dt = DateTime(2001, 1, 1, microsecond=10)
         self.assertEqual(repr(dt), 'DateTime(2001, 1, 1, 0, 0, 0.000010)')
-        self.assertEqual(str(dt), '2001-01-01T00:00:00.000010')
+        self.assertEqual(str(dt), '2001-01-01T00:00:00.00001')
 
     def test_24_hour_datetime(self):
         dt = DateTime.fromstring('0000-09-19T24:00:00Z')

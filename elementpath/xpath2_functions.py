@@ -826,7 +826,12 @@ def evaluate(self, context=None):
 @method(function('seconds-from-dateTime', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else item.second
+    if item is None:
+        return []
+    elif item.microsecond:
+        return decimal.Decimal('{}.{}'.format(item.seconds, item.microsecond))
+    else:
+        return item.second
 
 
 @method(function('timezone-from-dateTime', nargs=1))
@@ -943,7 +948,7 @@ def evaluate(self, context=None):
 @method(function('implicit-timezone', nargs=0))
 def evaluate(self, context=None):
     if context is not None and context.timezone is not None:
-        return context.timezone
+        return DayTimeDuration.fromtimedelta(context.timezone.offset)
     else:
         return DayTimeDuration.fromtimedelta(datetime.timedelta(seconds=time.timezone))
 

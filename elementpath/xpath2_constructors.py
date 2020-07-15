@@ -14,7 +14,7 @@ import decimal
 import codecs
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, ElementPathSyntaxError, xpath_error
+from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     XPathGregorianMonth, XPathGregorianMonthDay, XPathGregorianYear, \
@@ -22,6 +22,7 @@ from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, \
     NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN, \
     LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
+from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
 
@@ -39,17 +40,17 @@ constructor = XPath2Parser.constructor
 ###
 # Constructors for string-based XSD types
 @constructor('normalizedString')
-def cast(value):
+def cast(self, value):
     return str(value).replace('\t', ' ').replace('\n', ' ')
 
 
 @constructor('token')
-def cast(value):
+def cast(self, value):
     return collapse_white_spaces(value)
 
 
 @constructor('language')
-def cast(value):
+def cast(self, value):
     if value is True:
         return 'true'
     elif value is False:
@@ -57,23 +58,23 @@ def cast(value):
 
     match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FORG0001', "%r is not a language code" % value)
+        raise self.error('FORG0001', "%r is not a language code" % value)
     return match.group()
 
 
 @constructor('NMTOKEN')
-def cast(value):
+def cast(self, value):
     match = NMTOKEN_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FORG0001', "%r is not an xs:NMTOKEN value" % value)
+        raise self.error('FORG0001', "%r is not an xs:NMTOKEN value" % value)
     return match.group()
 
 
 @constructor('Name')
-def cast(value):
+def cast(self, value):
     match = NAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FORG0001', "%r is not an xs:Name value" % value)
+        raise self.error('FORG0001', "%r is not an xs:Name value" % value)
     return match.group()
 
 
@@ -81,161 +82,116 @@ def cast(value):
 @constructor('ID')
 @constructor('IDREF')
 @constructor('ENTITY')
-def cast(value):
+def cast(self, value):
     match = NCNAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
-        raise xpath_error('FORG0001', "invalid value %r for constructor" % value)
+        raise self.error('FORG0001', "invalid value %r for constructor" % value)
     return match.group()
 
 
 @constructor('anyURI')
-def cast(value):
+def cast(self, value):
     uri = collapse_white_spaces(value)
     try:
         url_parts = urlparse(uri)
         _ = url_parts.port
     except ValueError as err:
         msg = "%r is not an xs:anyURI value (%s)"
-        raise xpath_error('FORG0001', msg % (value, str(err)))
+        raise self.error('FORG0001', msg % (value, str(err)))
 
     if uri.count('#') > 1:
         msg = "%r is not an xs:anyURI value (too many # characters)"
-        raise xpath_error('FORG0001', msg % value)
+        raise self.error('FORG0001', msg % value)
     elif WRONG_ESCAPE_PATTERN.search(uri):
         msg = "%r is not an xs:anyURI value (wrong escaping)"
-        raise xpath_error('FORG0001', msg % value)
+        raise self.error('FORG0001', msg % value)
     return uri
 
 
 ###
 # Constructors for numeric XSD types
 @constructor('decimal')
-def cast(value):
+def cast(self, value):
     try:
         if isinstance(value, UntypedAtomic):
             return decimal.Decimal(value.value)
         return decimal.Decimal(value)
     except (ValueError, decimal.DecimalException) as err:
-        raise xpath_error('FORG0001', str(err))
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('double')
 @constructor('float')
-def cast(value):
+def cast(self, value):
     if isinstance(value, (str, bytes)) and value.lower() in {'nan', 'inf', '-inf'} \
             and value not in {'NaN', 'INF', '-INF'}:
-        raise xpath_error('FORG0001', "could not convert string to float: %r" % value)
+        raise self.error('FORG0001', "could not convert string to float: %r" % value)
 
     try:
         return float(value)
     except ValueError as err:
-        raise xpath_error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', str(err)) from None
 
 
-def cast_to_integer(value, lower_bound=None, higher_bound=None):
-    """
-    XSD integer types constructor helper.
+@constructor('integer')
+@constructor('nonNegativeInteger')
+@constructor('positiveInteger')
+@constructor('nonPositiveInteger')
+@constructor('negativeInteger')
+@constructor('long')
+@constructor('int')
+@constructor('short')
+@constructor('byte')
+@constructor('unsignedLong')
+@constructor('unsignedInt')
+@constructor('unsignedShort')
+@constructor('unsignedByte')
+def cast(self, value):
+    boundaries = {
+        'integer': (None, None),
+        'nonNegativeInteger': (0, None),
+        'positiveInteger': (1, None),
+        'nonPositiveInteger': (None, 1),
+        'negativeInteger': (None, 0),
+        'long': (-2**127, 2**127),
+        'int': (-2**63, 2**63),
+        'short': (-2**15, 2**15),
+        'byte': (-2**7, 2**7),
+        'unsignedLong': (0, 2**128),
+        'unsignedInt': (0, 2**64),
+        'unsignedShort': (0, 2**16),
+        'unsignedByte': (0, 2**8),
+    }
+    lower_bound, higher_bound = boundaries[self.symbol]
 
-    :param value: the value to convert.
-    :param lower_bound: if not `None` the result must be higher or equal than its value.
-    :param higher_bound: if not `None` the result must be lesser than its value.
-    :return: an empty list if the argument is the empty sequence or an `int` instance.
-    :raise: an `ElementPathValueError` if the value is not decodable to an integer or if \
-    the value is out of bounds.
-    """
     if isinstance(value, (str, bytes)):
         try:
             if value.strip().lower() in {'inf', '-inf'} and value.strip() not in {'INF', '-INF'}:
                 raise ValueError()
             result = int(float(value))
         except ValueError:
-            raise xpath_error('FORG0001', 'could not convert %r to integer' % value) from None
+            raise self.error('FORG0001', 'could not convert %r to integer' % value) from None
         except OverflowError as err:
-            raise xpath_error('FORG0001', str(err)) from None
+            raise self.error('FORG0001', str(err)) from None
     else:
         try:
             result = int(value)
         except ValueError as err:
-            raise xpath_error('FOCA0002', str(err)) from None
+            raise self.error('FOCA0002', str(err)) from None
         except OverflowError as err:
-            raise xpath_error('FOCA0002', str(err)) from None
+            raise self.error('FOCA0002', str(err)) from None
 
     if lower_bound is not None and result < lower_bound:
-        raise xpath_error('FORG0001', "value %d is too low" % result)
+        raise self.error('FORG0001', "value %d is too low" % result)
     elif higher_bound is not None and result >= higher_bound:
-        raise xpath_error('FORG0001', "value %d is too high" % result)
+        raise self.error('FORG0001', "value %d is too high" % result)
     return result
-
-
-@constructor('integer')
-def cast(value):
-    return cast_to_integer(value)
-
-
-@constructor('nonNegativeInteger')
-def cast(value):
-    return cast_to_integer(value, 0)
-
-
-@constructor('positiveInteger')
-def cast(value):
-    return cast_to_integer(value, 1)
-
-
-@constructor('nonPositiveInteger')
-def cast(value):
-    return cast_to_integer(value, higher_bound=1)
-
-
-@constructor('negativeInteger')
-def cast(value, context=None):
-    return cast_to_integer(value, higher_bound=0)
-
-
-@constructor('long')
-def cast(value):
-    return cast_to_integer(value, -2**127, 2**127)
-
-
-@constructor('int')
-def cast(value):
-    return cast_to_integer(value, -2**63, 2**63)
-
-
-@constructor('short')
-def cast(value):
-    return cast_to_integer(value, -2**15, 2**15)
-
-
-@constructor('byte')
-def cast(value):
-    return cast_to_integer(value, -2**7, 2**7)
-
-
-@constructor('unsignedLong')
-def cast(value):
-    return cast_to_integer(value, 0, 2**128)
-
-
-@constructor('unsignedInt')
-def cast(value):
-    return cast_to_integer(value, 0, 2**64)
-
-
-@constructor('unsignedShort')
-def cast(value):
-    return cast_to_integer(value, 0, 2**16)
-
-
-@constructor('unsignedByte')
-def cast(value):
-    return cast_to_integer(value, 0, 2**8)
 
 
 ###
 # Constructors for datetime XSD types
 @constructor('date')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, Date10):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -246,7 +202,7 @@ def cast(value, tz=None):
 
 
 @constructor('gDay')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, XPathGregorianDay):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -257,7 +213,7 @@ def cast(value, tz=None):
 
 
 @constructor('gMonth')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, XPathGregorianMonth):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -268,7 +224,7 @@ def cast(value, tz=None):
 
 
 @constructor('gMonthDay')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, XPathGregorianMonthDay):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -279,7 +235,7 @@ def cast(value, tz=None):
 
 
 @constructor('gYear')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, XPathGregorianYear):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -290,7 +246,7 @@ def cast(value, tz=None):
 
 
 @constructor('gYearMonth')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, XPathGregorianYearMonth):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -301,7 +257,7 @@ def cast(value, tz=None):
 
 
 @constructor('time')
-def cast(value, tz=None):
+def cast(self, value, tz=None):
     if isinstance(value, Time):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -338,7 +294,7 @@ def evaluate(self, context=None):
 ###
 # Constructors for time durations XSD types
 @constructor('duration')
-def cast(value):
+def cast(self, value):
     if isinstance(value, Duration):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -347,7 +303,7 @@ def cast(value):
 
 
 @constructor('yearMonthDuration')
-def cast(value):
+def cast(self, value):
     if isinstance(value, YearMonthDuration):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -356,7 +312,7 @@ def cast(value):
 
 
 @constructor('dayTimeDuration')
-def cast(value):
+def cast(self, value):
     if isinstance(value, DayTimeDuration):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -365,7 +321,7 @@ def cast(value):
 
 
 @constructor('dateTimeStamp')
-def cast(value):
+def cast(self, value):
     if not XSD_BUILTIN_TYPES['dateTimeStamp'].validator(value):
         raise ValueError("{} is not castable to an xs:dateTimeStamp".format(value))
     return value
@@ -390,9 +346,9 @@ def evaluate(self, context=None):
 ###
 # Constructors for binary XSD types
 @constructor('base64Binary')
-def cast(value, from_literal=False):
+def cast(self, value, from_literal=False):
     if not isinstance(value, (bytes, str)):
-        raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
     elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'base64')
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
@@ -405,9 +361,9 @@ def cast(value, from_literal=False):
 
 
 @constructor('hexBinary')
-def cast(value, from_literal=False):
+def cast(self, value, from_literal=False):
     if not isinstance(value, (bytes, str)):
-        raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
     elif not isinstance(value, bytes) or from_literal:
         return codecs.encode(value.encode('ascii'), 'hex')
     elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
@@ -440,7 +396,7 @@ def evaluate(self, context=None):
 
 
 @constructor('NOTATION')
-def cast(value):
+def cast(self, value):
     return value
 
 
@@ -461,23 +417,23 @@ def nud(self):
 
 # Case 1: In XPath 2.0 the 'boolean' keyword is used both for boolean() function and
 # for boolean() constructor.
-def cast_to_boolean(value, context=None):
+def cast_to_boolean(self, value, context=None):
     assert context is None or isinstance(context, XPathContext)
     if isinstance(value, bool):
         return value
     elif isinstance(value, (int, float, decimal.Decimal)):
         return bool(value)
     elif not isinstance(value, str):
-        raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
     if value.strip() not in {'true', 'false', '1', '0'}:
-        raise xpath_error('FORG0001', "%r: not a boolean value" % value)
+        raise self.error('FORG0001', "%r: not a boolean value" % value)
     return 't' in value or '1' in value
 
 
 unregister('boolean')
 register('boolean', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bboolean(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(cast_to_boolean))
+         pattern=r'\bboolean(?=\s*\(|\s*\(\:.*\:\)\()', cast=cast_to_boolean)
 
 
 @method('boolean')
@@ -512,11 +468,11 @@ def evaluate(self, context=None):
         raise
 
 
+###
 # Case 2: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
 unregister('string')
 register('string', lbp=90, rbp=90, label=('function', 'constructor'),  # pragma: no cover
-         pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()',
-         cast=staticmethod(lambda v, c=None: str(v)))
+         pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()', cast=XPathToken.string_value)
 
 
 @method('string')
@@ -554,16 +510,16 @@ def evaluate(self, context=None):
 # In those cases the label at parse time is set by the nud method, in dependence
 # of the number of args.
 #
-def cast_to_qname(value):
+def cast_to_qname(self, value):
     if not isinstance(value, str):
-        raise xpath_error('FORG0006', 'the argument has an invalid type %r' % type(value))
+        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
     if QNAME_PATTERN.match(value) is None:
-        raise xpath_error('FORG0001', 'the argument must be an xs:QName')
+        raise self.error('FORG0001', 'the argument must be an xs:QName')
     return value
 
 
-def cast_to_datetime(value, tz=None):
+def cast_to_datetime(self, value, tz=None):
     if isinstance(value, DateTime10):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -574,9 +530,9 @@ def cast_to_datetime(value, tz=None):
 
 
 register('QName', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bQName(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(cast_to_qname))
+         pattern=r'\bQName(?=\s*\(|\s*\(\:.*\:\)\()', cast=cast_to_qname)
 register('dateTime', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bdateTime(?=\s*\(|\s*\(\:.*\:\)\()', cast=staticmethod(cast_to_datetime))
+         pattern=r'\bdateTime(?=\s*\(|\s*\(\:.*\:\)\()', cast=cast_to_datetime)
 
 
 @method('QName')
@@ -672,7 +628,7 @@ def evaluate(self, context=None):
 
 
 @constructor('untypedAtomic')
-def cast(value):
+def cast(self, value):
     return UntypedAtomic(value)
 
 

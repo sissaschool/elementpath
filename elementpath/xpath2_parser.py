@@ -323,17 +323,17 @@ class XPath2Parser(XPath1Parser):
             except TypeError as err:
                 raise self.error('FORG0001', str(err)) from None
 
-        def cast(value):
+        def cast_(value):
             raise NotImplementedError
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
         token_class = cls.register(symbol, pattern=pattern, label='constructor', lbp=bp, rbp=bp,
-                                   nud=nud_, evaluate=evaluate_, cast=staticmethod(cast))
+                                   nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
             assert func.__name__ == 'cast', \
                 "The function name must be 'cast', not %r." % func.__name__
-            setattr(token_class, func.__name__, staticmethod(func))
+            setattr(token_class, func.__name__, func)
             return func
         return bind
 
@@ -890,15 +890,16 @@ def evaluate(self, context=None):
                 msg = "atomic type %r not found in the in-scope schema types"
                 self.unknown_atomic_type(msg % self[1].source)
 
+            token = token_class(self.parser)
             if local_name in {'base64Binary', 'hexBinary'}:
-                value = token_class.cast(arg, self[0].label == 'literal')
+                value = token.cast(arg, self[0].label == 'literal')
             elif local_name in {'dateTime', 'date', 'gDay', 'gMonth',
                                 'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
-                value = token_class.cast(
+                value = token.cast(
                     arg, tz=None if context is None else context.timezone
                 )
             else:
-                value = token_class.cast(arg)
+                value = token.cast(arg)
     except ElementPathError as err:
         if self.symbol != 'cast':
             return False

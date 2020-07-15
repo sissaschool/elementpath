@@ -135,9 +135,9 @@ class XPath1Parser(Parser):
     @staticmethod
     def unescape(string_literal):
         if string_literal.startswith("'"):
-            return string_literal.strip("'").replace("''", "'")
+            return string_literal[1:-1].replace("''", "'")
         else:
-            return string_literal.strip('"').replace('""', '"')
+            return string_literal[1:-1].replace('""', '"')
 
     @classmethod
     def axis(cls, symbol, bp=80):
