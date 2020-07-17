@@ -169,7 +169,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:boolean(0)', False)
         self.check_value('xs:boolean(xs:boolean(0))', False)
         self.check_value('xs:boolean(xs:untypedAtomic(0))', False)
-        self.wrong_type('xs:boolean(xs:hexBinary("FF"))', 'FORG0006', "<class 'bytes'>")
+        self.wrong_type('xs:boolean(xs:hexBinary("FF"))', 'FORG0006', "HexBinary")
         self.wrong_value('xs:boolean("2")', 'FORG0001', "not a boolean value")
 
     def test_integer_constructors(self):
@@ -501,56 +501,49 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
     def test_hex_binary_constructor(self):
         self.check_value('xs:hexBinary(())', [])
-        self.check_value('xs:hexBinary("84")', b'3834')
-        self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'3834')
+        self.check_value('xs:hexBinary("84")', b'84')
+        self.check_value('xs:hexBinary(xs:hexBinary("84"))', b'84')
         self.wrong_type('xs:hexBinary(12)')
 
         root = self.etree.XML('<root a="84"/>')
         context = XPathContext(root)
-        self.check_value('xs:hexBinary(@a)', b'3834', context=context)
+        self.check_value('xs:hexBinary(@a)', b'84', context=context)
 
         context.item = UntypedAtomic('84')
-        self.check_value('xs:hexBinary(.)', b'3834', context=context)
+        self.check_value('xs:hexBinary(.)', b'84', context=context)
 
         context.item = '84'
-        self.check_value('xs:hexBinary(.)', b'3834', context=context)
+        self.check_value('xs:hexBinary(.)', b'84', context=context)
 
         context.item = b'84'
         self.check_value('xs:hexBinary(.)', b'84', context=context)
 
         context.item = b'XY'
-        self.check_value('xs:hexBinary(.)', b'5859', context=context)
+        self.check_value('xs:hexBinary(.)', ValueError, context=context)
 
-        context.item = b'ODQ='
-        if platform.python_implementation() != 'PyPy':
-            # Skip for PyPy because PyPy 7.1.1-beta0 has a bug on codecs.decode()
-            self.check_value('xs:hexBinary(.)', b'3834', context=context)
+        context.item = b'F859'
+        self.check_value('xs:hexBinary(.)', b'F859', context=context)
 
     def test_base64_binary_constructor(self):
         self.check_value('xs:base64Binary(())', [])
-        self.check_value('xs:base64Binary("84")', b'ODQ=\n')
-        self.check_value('xs:base64Binary(xs:base64Binary("84"))', b'ODQ=\n')
-        self.check_value('xs:base64Binary("abcefghi")', b'YWJjZWZnaGk=\n')
+        self.check_value('xs:base64Binary("ODQ=")', b'ODQ=')
+        self.check_value('xs:base64Binary(xs:base64Binary("ODQ="))', b'ODQ=')
+        self.check_value('xs:base64Binary("YWJjZWZnaGk=")', b'YWJjZWZnaGk=')
         self.wrong_type('xs:base64Binary(1e2)')
         self.wrong_type('xs:base64Binary(1.1)')
 
-        root = self.etree.XML('<root a="abcefghi"/>')
+        root = self.etree.XML('<root a="YWJjZWZnaGk="/>')
         context = XPathContext(root)
-        self.check_value('xs:base64Binary(@a)', b'YWJjZWZnaGk=\n', context=context)
+        self.check_value('xs:base64Binary(@a)', b'YWJjZWZnaGk=', context=context)
 
-        context.item = UntypedAtomic('abcefghi')
-        self.check_value('xs:base64Binary(.)', b'YWJjZWZnaGk=\n', context=context)
-
-        context.item = b'FF'
-        if platform.python_implementation() != 'PyPy':
-            # Skip for PyPy because PyPy 7.1.1-beta0 has a bug on codecs.decode()
-            self.check_value('xs:base64Binary(.)', b'/w==\n', context=context)
+        context.item = UntypedAtomic('YWJjZWZnaGk=')
+        self.check_value('xs:base64Binary(.)', b'YWJjZWZnaGk=', context=context)
 
         context.item = b'abcefghi'  # Don't change, it can be an encoded value.
         self.check_value('xs:base64Binary(.)', b'abcefghi', context=context)
 
-        context.item = b'abcefghij'
-        self.check_value('xs:base64Binary(.)', b'YWJjZWZnaGlq\n', context=context)
+        context.item = b'YWJjZWZnaGlq'
+        self.check_value('xs:base64Binary(.)', b'YWJjZWZnaGlq', context=context)
 
     def test_untyped_atomic_constructor(self):
         self.check_value('xs:untypedAtomic(())', [])

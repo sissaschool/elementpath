@@ -291,7 +291,7 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
-    def constructor(cls, symbol, bp=0):
+    def constructor(cls, symbol, bp=0, label='constructor'):
         """Creates a constructor token class."""
         def nud_(self):
             try:
@@ -327,7 +327,7 @@ class XPath2Parser(XPath1Parser):
             raise NotImplementedError
 
         pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
-        token_class = cls.register(symbol, pattern=pattern, label='constructor', lbp=bp, rbp=bp,
+        token_class = cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp,
                                    nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
@@ -778,7 +778,11 @@ def evaluate(self, context=None):
         else:
             return position is not None or occurs in ('*', '?')
     else:
-        qname = get_extended_qname(self[1].source, self.parser.namespaces)
+        try:
+            qname = get_extended_qname(self[1].source, self.parser.namespaces)
+        except KeyError as err:
+            raise self.error('XPST0081', "namespace prefix {} not found".format(err))
+
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
@@ -891,20 +895,14 @@ def evaluate(self, context=None):
                 self.unknown_atomic_type(msg % self[1].source)
 
             token = token_class(self.parser)
-            if local_name in {'base64Binary', 'hexBinary'}:
-                value = token.cast(arg, self[0].label == 'literal')
-            elif local_name in {'dateTime', 'date', 'gDay', 'gMonth',
-                                'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
-                value = token.cast(
-                    arg, tz=None if context is None else context.timezone
-                )
+            if local_name in {'dateTime', 'date', 'gDay', 'gMonth',
+                              'gMonthDay', 'gYear', 'gYearMonth', 'time'}:
+                value = token.cast(arg, tz=None if context is None else context.timezone)
             else:
                 value = token.cast(arg)
     except ElementPathError as err:
         if self.symbol != 'cast':
             return False
-        elif err.token is None:
-            err.token = self
         if isinstance(arg, UntypedAtomic):
             err.code = 'err:FORG0001'
         else:
@@ -921,7 +919,7 @@ def evaluate(self, context=None):
         elif self[0].symbol == ':' and self[0][1].symbol == 'string':
             raise self.error('FORG0001', str(err)) from None
 
-        raise self.error('XPTY0004', str(err)) from None
+        raise self.error('XPTY0004', str(err)) #  from None
     except ValueError as err:
         if self.symbol != 'cast':
             return False
@@ -1069,12 +1067,13 @@ def evaluate(self, context=None):
     op1, op2 = self.get_operands(context)
     if op1 is None or op2 is None:
         raise self.error('XPST0005')
-    elif isinstance(op1, UntypedAtomic):
-        op1 = type(op2)(op1)
-    elif isinstance(op2, UntypedAtomic):
-        op2 = type(op1)(op2)
 
     try:
+        if isinstance(op1, UntypedAtomic):
+            op1 = type(op2)(op1)
+        elif isinstance(op2, UntypedAtomic):
+            op2 = type(op1)(op2)
+
         if math.isinf(op1):
             raise self.error('FOAR0001' if op2 == 0 else 'FOAR0002')
         elif math.isnan(op1) or math.isnan(op2):

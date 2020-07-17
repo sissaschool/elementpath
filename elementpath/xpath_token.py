@@ -21,7 +21,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 import locale
 import contextlib
 import math
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 import urllib.parse
 
 from .exceptions import ElementPathValueError, XPATH_ERROR_CODES
@@ -229,13 +229,22 @@ class XPathToken(Token):
 
         return item
 
+    def select_data_values(self, context=None):
+        """
+        Yields data value of selected items.
+
+        :param context: the XPath dynamic context.
+        """
+        for item in self.select(context):
+            yield self.data_value(item)
+
     def atomization(self, context=None):
         """
         Helper method for value atomization of a sequence.
 
         Ref: https://www.w3.org/TR/xpath20/#id-atomization
 
-        :param context: the XPath context.
+        :param context: the XPath dynamic context.
         """
         for item in self.select(context):
             value = self.data_value(item)
@@ -249,7 +258,7 @@ class XPathToken(Token):
         """
         Get the atomized value for an XPath operator.
 
-        :param context: the XPath context.
+        :param context: the XPath dynamic context.
         :return: the atomized value of a single length sequence or `None` if the sequence is empty.
         """
         selector = iter(self.atomization(context))
@@ -627,6 +636,32 @@ class XPathToken(Token):
         except (TypeError, ValueError):
             msg = "Type {!r} does not match sequence type of {!r}"
             raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
+
+    ###
+    # Conversion to number
+    def cast_to_number(self, value, cls=float):
+        try:
+            if isinstance(value, UntypedAtomic):
+                text = value.value.strip()
+            elif isinstance(value, (str, bytes)):
+                text = value.strip()
+            else:
+                return cls(value)
+
+            if self.parser.compatibility_mode:
+                if text in ('Infinity', '-Infinity'):
+                    return cls('NaN' if self.parser.version != '1.0' else text[:-5].upper())
+
+            if text in {'NaN', 'INF', '-INF'} or \
+                    text.lower() not in {'nan', 'inf', '-inf', 'infinity', '-infinity'}:
+                return cls(text)
+        except (ValueError, DecimalException):
+            pass
+
+        msg = "could not convert {!r} to {!r}".format(value, cls)
+        if isinstance(value, (str, bytes, UntypedAtomic)):
+            raise self.error('FORG0001', msg) from None
+        raise self.error('FOCA0002', msg) from None
 
     ###
     # XPath data accessors base functions

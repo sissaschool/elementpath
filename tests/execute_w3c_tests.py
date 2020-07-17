@@ -26,6 +26,7 @@ import traceback
 
 from collections import OrderedDict
 from xml.etree import ElementTree
+from xmlschema import XMLSchema
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext
 import elementpath
@@ -85,6 +86,11 @@ class Schema(object):
             self.description = elem.find('description', namespaces).text
         except AttributeError:
             self.description = ''
+
+        self.filepath = self.file and os.path.abspath(self.file)
+
+    def __repr__(self):
+        return '%s(uri=%r, file=%s)' % (self.__class__.__name__, self.uri, self.file)
 
 
 class Source(object):
@@ -323,12 +329,19 @@ class TestCase(object):
         """
         environment = self.get_environment()
         if environment is None:
-            namespaces = None
+            namespaces = schema_proxy = None
         else:
             namespaces = environment.namespaces.copy()
 
+            if environment.schema is None or not environment.schema.filepath:
+                schema_proxy = None
+            else:
+                # print("Schema %r required for test %r" % (environment.schema.file, self.name))
+                # schema = XMLSchema(environment.schema.filepath)
+                schema_proxy = None  # schema.xpath_proxy
+
         try:
-            parser = XPath2Parser(namespaces=namespaces)
+            parser = XPath2Parser(namespaces=namespaces, schema=schema_proxy)
             root_node = parser.parse(self.test)
         except Exception as err:
             if not may_fail and verbose >= 2:
@@ -515,26 +528,6 @@ class Result(object):
             sys.exit(1)
 
     def assert_string_value_validator(self, verbose=1):
-        def string_value(obj):
-            if obj is None:
-                return ''
-            elif isinstance(obj, list):
-                return ' '.join(string_value(x) for x in obj)
-            elif isinstance(obj, tuple):
-                return str(obj[-1])
-            elif hasattr(obj, 'tag'):
-                print(obj)
-                return ''
-            elif isinstance(obj, bool):
-                return 'true' if obj else 'false'
-            elif isinstance(obj, float):
-                if math.isnan(obj):
-                    return 'NaN'
-                elif math.isinf(obj):
-                    return str(obj).upper()
-
-            return str(obj)
-
         try:
             result = self.test_case.run_xpath_test(verbose)
         except (ElementPathError, ParseError, EvaluateError):
@@ -559,6 +552,9 @@ class Result(object):
                     return True
             except decimal.DecimalException:
                 pass
+            else:
+                if abs(value) > 10**3 and round(value) == decimal.Decimal(self.value):
+                    return True
 
         if verbose > 1:
             if verbose < 4:
