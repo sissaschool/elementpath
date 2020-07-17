@@ -19,21 +19,24 @@ import contextlib
 import decimal
 import re
 import json
-import math
 import os
 import sys
 import traceback
 
 from collections import OrderedDict
 from xml.etree import ElementTree
-from xmlschema import XMLSchema
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext
 import elementpath
 
 
-IGNORE_DEPENDENCIES = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30',
-                       'XQ30+', 'XP31', 'XP31+', 'XQ31', 'XQ31+'}
+DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
+                    'format-integer-sequence', 'language', 'limits',
+                    'xml-version', 'xsd-version', 'unicode-version',
+                    'unicode-normalization-form'}
+
+IGNORE_SPECS = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30',
+                'XQ30+', 'XP31', 'XP31+', 'XQ31', 'XQ31+'}
 
 SKIP_TESTS = [
     'fn-subsequence__cbcl-subsequence-010',
@@ -173,8 +176,8 @@ class TestSet(object):
         self.environments = {} if environments is None else environments.copy()
         self.test_cases = []
 
-        self.spec_dependencies = []
-        self.feature_dependencies = []
+        self.specs = []
+        self.features = []
         self.xsd_version = None
 
         full_path = os.path.abspath(self.file)
@@ -189,9 +192,9 @@ class TestSet(object):
                 dep_type = child.attrib['type']
                 value = child.attrib['value']
                 if dep_type == 'spec':
-                    self.spec_dependencies.extend(value.split(' '))
+                    self.specs.extend(value.split(' '))
                 elif dep_type == 'feature':
-                    self.feature_dependencies.append(value)
+                    self.features.append(value)
                 elif dep_type == 'xsd-version':
                     self.xsd_version = value
                 else:
@@ -238,19 +241,17 @@ class TestCase(object):
 
         self.environment_ref = None
         self.environment = None
-        self.spec_dependencies = []
-        self.feature_dependencies = []
+        self.specs = []
+        self.features = []
 
         for child in elem.findall('dependency', namespaces):
             dep_type = child.attrib['type']
             value = child.attrib['value']
             if dep_type == 'spec':
-                self.spec_dependencies.extend(value.split(' '))
+                self.specs.extend(value.split(' '))
             elif dep_type == 'feature':
-                self.feature_dependencies.append(value)
-            elif dep_type in {'calendar', 'default-language', 'format-integer-sequence',
-                              'language', 'limits', 'xml-version', 'xsd-version',
-                              'unicode-version', 'unicode-normalization-form'}:
+                self.features.append(value)
+            elif dep_type in DEPENDENCY_TYPES:
                 setattr(self, dep_type.replace('-', '_'), value)
             else:
                 print("unexpected dependency type %s for test-case %r" % (dep_type, self.name))
@@ -273,6 +274,18 @@ class TestCase(object):
         ]
         if self.environment_ref:
             children.append('<environment ref="{}"/>'.format(self.environment_ref))
+
+        for dep_type in sorted(DEPENDENCY_TYPES):
+            if dep_type == 'spec':
+                if self.specs:
+                    children.extend('<spec value="{}"/>'.format(x) for x in self.specs)
+            elif dep_type == 'feature':
+                if self.features:
+                    children.extend('<spec value="{}"/>'.format(x) for x in self.features)
+            else:
+                value = getattr(self, dep_type.replace('-', '_'))
+                if value is not None:
+                    children.append('<{} value="{}"/>'.format(dep_type, value))
 
         return '<test-case name="{}" test_set_file="{}"/>\n   {}\n</test-case>'.format(
             self.name,
@@ -297,6 +310,7 @@ class TestCase(object):
 
     def get_xpath_context(self):
         kwargs = {
+            'timezone': 'Z',
         }
 
         environment = self.get_environment()
@@ -316,9 +330,10 @@ class TestCase(object):
         return XPathContext(root=root, **kwargs)
 
     def run(self, verbose=1):
-        if verbose >= 4:
-            print("")
+        if verbose > 4:
+            print("\n*** Execute test case {!r} ***".format(self.name))
             print(str(self))
+            print()
         return self.result.validate(verbose)
 
     def run_xpath_test(self, verbose=1, may_fail=False):
@@ -329,9 +344,9 @@ class TestCase(object):
         """
         environment = self.get_environment()
         if environment is None:
-            namespaces = schema_proxy = None
+            test_namespaces = schema_proxy = None
         else:
-            namespaces = environment.namespaces.copy()
+            test_namespaces = environment.namespaces.copy()
 
             if environment.schema is None or not environment.schema.filepath:
                 schema_proxy = None
@@ -341,19 +356,9 @@ class TestCase(object):
                 schema_proxy = None  # schema.xpath_proxy
 
         try:
-            parser = XPath2Parser(namespaces=namespaces, schema=schema_proxy)
+            parser = XPath2Parser(namespaces=test_namespaces, schema=schema_proxy)
             root_node = parser.parse(self.test)
         except Exception as err:
-            if not may_fail and verbose >= 2:
-                print("\nTest case {!r}: {}".format(self.name, self.test))
-                print("Unexpected parse error %r: %s" % (type(err), str(err)))
-
-            if verbose >= 4:
-                if may_fail:
-                    print("\nExpected error parsing %r: %s" % (self.test, str(err)))
-                    print(str(self))
-                traceback.print_exc()
-
             if isinstance(err, ElementPathError):
                 raise
             raise ParseError(err)
@@ -362,22 +367,12 @@ class TestCase(object):
         try:
             result = root_node.evaluate(context)
         except Exception as err:
-            if not may_fail and verbose >= 2:
-                print("\nTest case {!r}: {}".format(self.name, self.test))
-                print("Unexpected evaluation error %r: %s" % (type(err), str(err)))
-
-            if verbose >= 4:
-                if may_fail:
-                    print("\nExpected error evaluating %r: %s" % (self.test, str(err)))
-                    print(str(self))
-                traceback.print_exc()
-
             if isinstance(err, ElementPathError):
                 raise
             raise EvaluateError(err)
 
-        if verbose >= 4:
-            print("Result of evaluation: {!r}".format(result))
+        if verbose > 4:
+            print("Result of evaluation: {!r}\n".format(result))
         return result
 
 
@@ -438,6 +433,26 @@ class Result(object):
         else:
             return '<{} {}/>'.format(self.type, attrib)
 
+    def report_failure(self, verbose=1, **results):
+        if verbose <= 1:
+            return
+
+        if verbose < 4:
+            print('Result <{}> failed for test case {!r}'.format(self.type, self.test_case.name))
+            print('XPath expression: {}'.format(self.test_case.test))
+        else:
+            print('Result <{}> failed\n'.format(self.type))
+            print(self.test_case)
+
+        if results:
+            print()
+            max_key = max(len(k) for k in results)
+            for k, v in results.items():
+                if isinstance(v, Exception):
+                    v = "Unexpected {!r}: {}".format(type(v), v)
+                print('  {}: {}{!r}'.format(k, ' ' * (max_key - len(k)), v))
+        print()
+
     def all_of_validator(self, verbose=1):
         """Valid if all child result validators are valid."""
         assert self.children
@@ -471,7 +486,8 @@ class Result(object):
     def assert_eq_validator(self, verbose=1):
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         if isinstance(result, list) and len(result) == 1:
@@ -480,12 +496,18 @@ class Result(object):
         parser = XPath2Parser()
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"))
-        return root_node.evaluate(context) == result
+        expected_result = root_node.evaluate(context)
+        if expected_result == result:
+            return True
+
+        self.report_failure(verbose, expected=expected_result, result=result)
+        return False
 
     def assert_type_validator(self, verbose=1):
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         if self.value == 'xs:anyURI':
@@ -530,7 +552,8 @@ class Result(object):
     def assert_string_value_validator(self, verbose=1):
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         context = XPathContext(ElementTree.XML("<empty/>"), variable_values={'result': result})
@@ -547,77 +570,81 @@ class Result(object):
 
         if value and ' ' not in value:
             try:
-                value = decimal.Decimal(value)
-                if value == decimal.Decimal(self.value):
+                dv = decimal.Decimal(value)
+                if dv == decimal.Decimal(self.value):
                     return True
             except decimal.DecimalException:
                 pass
             else:
-                if abs(value) > 10**3 and round(value) == decimal.Decimal(self.value):
+                if abs(dv) > 10**3 and round(dv) == decimal.Decimal(self.value):
                     return True
 
-        if verbose > 1:
-            if verbose < 4:
-                print(self.test_case.test)
-            print(repr(result), repr(value), repr(self.value))
-            print()
+        self.report_failure(
+            verbose, expected=self.value, string_value=value, xpath_result=result
+        )
         return False
 
     def error_validator(self, verbose=1):
+        code = self.attrib.get('code', '*').strip()
         try:
             self.test_case.run_xpath_test(verbose, may_fail=True)
         except ElementPathError as err:
-            if 'code' not in self.attrib:
-                return True
-
-            code = self.attrib['code'].strip()
             if code == '*' or code in str(err):
                 return True
-            if 3 <= verbose < 4:
-                print("\n{} code not found in {!r}: {}".format(code, type(err), str(err)))
-                if verbose == 3:
-                    print("Test case {!r}: {}".format(self.test_case.name, self.test_case.test))
-                else:
-                    print(str(self.test_case))
-            return False
-
+            reason = "Unexpected error {!r}: {}".format(type(err), str(err))
         except (ParseError, EvaluateError) as err:
-            if 2 <= verbose < 4:
-                print("\nNot an elementpath error {!r}: {}".format(type(err), str(err)))
-                if verbose == 2:
-                    print("Test case {!r}: {}".format(self.test_case.name, self.test_case.test))
-                else:
-                    print(str(self.test_case))
-            return self.attrib.get('code', '*') == '*'
-
+            reason = "Not an elementpath error {!r}: {}".format(type(err), str(err))
         else:
-            return False
+            reason = "Error not raised"
+
+        self.report_failure(verbose, reason=reason, expected_code=code)
+        return False
 
     def assert_true_validator(self, verbose=1):
         """Valid if the result is `True`."""
         try:
-            return self.test_case.run_xpath_test(verbose) is True
-        except (ElementPathError, ParseError, EvaluateError):
+            if self.test_case.run_xpath_test(verbose) is True:
+                return True
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
+            return False
+        else:
+            self.report_failure(verbose)
             return False
 
     def assert_false_validator(self, verbose=1):
         """Valid if the result is `False`."""
         try:
-            return self.test_case.run_xpath_test(verbose) is False
-        except (ElementPathError, ParseError, EvaluateError):
+            if self.test_case.run_xpath_test(verbose) is False:
+                return True
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
+            return False
+        else:
+            self.report_failure(verbose)
             return False
 
     def assert_count_validator(self, verbose=1):
         """Valid if the number of items of the result matches."""
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
-        if type(result) == str:
-            return int(self.value) == 1
+        try:
+            length = 1 if isinstance(result, (str, bytes)) else len(result)
+        except TypeError as err:
+            self.report_failure(verbose, error=err)
+            return False
         else:
-            return int(self.value) == len(result)
+            if int(self.value) == length:
+                return True
+
+        self.report_failure(
+            verbose, expected=int(self.value), value=length, xpath_result=result
+        )
+        return False
 
     def assert_validator(self, verbose=1):
         """
@@ -627,19 +654,25 @@ class Result(object):
         """
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         variables = {'result': result}
         parser = XPath2Parser(variables=variables)
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variable_values=variables)
-        return root_node.evaluate(context) is True
+        if root_node.evaluate(context) is True:
+            return True
+
+        self.report_failure(verbose)
+        return False
 
     def assert_deep_eq_validator(self, verbose=1):
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         expression = "fn:deep-equal($result, (%s))" % self.value
@@ -648,16 +681,25 @@ class Result(object):
         parser = XPath2Parser(variables=variables)
         root_node = parser.parse(expression)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variable_values=variables)
-        return root_node.evaluate(context) is True
+        if root_node.evaluate(context) is True:
+            return True
+
+        self.report_failure(verbose)
+        return False
 
     def assert_empty_validator(self, verbose=1):
         """Valid if the result is empty."""
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
         else:
-            return result is None or result == []
+            if result is None or result == []:
+                return True
+
+            self.report_failure(verbose, result=result)
+            return False
 
     def assert_permutation_validator(self, verbose=1):
         """ TODO """
@@ -679,6 +721,7 @@ class Result(object):
 
         if result is None:
             return False
+
         if type(result) == list:
             parts = []
             for item in result:
@@ -708,7 +751,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('catalog', metavar='CATALOG_FILE',
                         help='the path to the main index file of test suite (catalog.xml)')
-    parser.add_argument('pattern', nargs='?', default='', metavar='PATTERN',
+    parser.add_argument('pattern', nargs='?', default='.*', metavar='PATTERN',
                         help='run only test cases which name matches a regex pattern')
     parser.add_argument('-v', dest='verbose', action='count', default=1,
                         help='increase verbosity: one option to show unexpected errors, '
@@ -725,6 +768,8 @@ def main():
     report['success'] = []
 
     catalog_file = os.path.abspath(args.catalog)
+    pattern = re.compile(args.pattern)
+
     if not os.path.isfile(catalog_file):
         print("Error: catalog file %s does not exist" % args.catalog)
         sys.exit(1)
@@ -753,29 +798,32 @@ def main():
         for test_set in test_sets.values():
             # ignore test cases for XQuery, and 3.0
             ignore_all_in_test_set = any(
-                dep in IGNORE_DEPENDENCIES for dep in test_set.spec_dependencies
+                dep in IGNORE_SPECS for dep in test_set.specs
             )
 
             for test_case in test_set.test_cases:
-                # If a pattern argument is provided runs only cases with matching name
-                if args.pattern not in test_case.name:
-                    continue
-
                 count_read += 1
+
                 if ignore_all_in_test_set:
                     count_skip += 1
                     continue
 
+                # # Skip cases that not match the provided pattern
+                if pattern.search(test_case.name) is None:
+                    count_skip += 1
+                    continue
+
                 # ignore test cases for XQuery, and 3.0
-                if any(dep in IGNORE_DEPENDENCIES for dep in test_case.spec_dependencies):
+                if any(dep in IGNORE_SPECS for dep in test_case.specs):
                     count_skip += 1
                     continue
 
                 # ignore tests that rely on higher-order function such as array:sort()
-                if 'higherOrderFunctions' in test_case.feature_dependencies:
+                if 'higherOrderFunctions' in test_case.features:
                     count_skip += 1
                     continue
 
+                # Other test cases to skip for technical limitations
                 if test_case.name in SKIP_TESTS:
                     count_skip += 1
                     continue
