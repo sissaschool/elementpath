@@ -1069,19 +1069,12 @@ def evaluate(self, context=None):
         raise self.error('XPST0005')
 
     try:
-        if isinstance(op1, UntypedAtomic):
-            op1 = type(op2)(op1)
-        elif isinstance(op2, UntypedAtomic):
-            op2 = type(op1)(op2)
-
         if math.isinf(op1):
             raise self.error('FOAR0001' if op2 == 0 else 'FOAR0002')
         elif math.isnan(op1) or math.isnan(op2):
             raise self.error('FOAR0002')
     except TypeError as err:
         raise self.error('XPTY0004', str(err)) from None
-    except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
 
     try:
         return op1 // op2

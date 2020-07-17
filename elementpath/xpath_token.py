@@ -388,20 +388,30 @@ class XPathToken(Token):
         :return: a couple of values representing the operands. If any operand \
         is not available returns a `(None, None)` couple.
         """
-        arg1 = self.get_argument(context, cls=cls)
-        if arg1 is None:
+        op1 = self.get_argument(context, cls=cls)
+        if op1 is None:
             return None, None
+        elif is_element_node(op1):
+            op1 = self[0].data_value(op1)
 
-        arg2 = self.get_argument(context, index=1, cls=cls)
-        if arg2 is None:
+        op2 = self.get_argument(context, index=1, cls=cls)
+        if op2 is None:
             return None, None
+        elif is_element_node(op2):
+            op2 = self[1].data_value(op2)
 
-        if isinstance(arg1, (Decimal, Duration)) and isinstance(arg2, float):
-            return arg1, Decimal(arg2)
-        elif isinstance(arg2, (Decimal, Duration)) and isinstance(arg1, float):
-            return Decimal(arg1), arg2
+        if isinstance(op1, (Decimal, Duration)) and isinstance(op2, float):
+            return op1, Decimal(op2)
+        elif isinstance(op2, (Decimal, Duration)) and isinstance(op1, float):
+            return Decimal(op1), op2
+        elif isinstance(op1, UntypedAtomic):
+            if not isinstance(op2, UntypedAtomic):
+                return self.cast_to_number(op1, type(op2)), op2
+            return self.cast_to_number(op1, float), self.cast_to_number(op2, float)
+        elif isinstance(op2, UntypedAtomic):
+            return op2, self.cast_to_number(op2, type(op1))
 
-        return arg1, arg2
+        return op1, op2
 
     def get_absolute_uri(self, uri):
         """
