@@ -521,7 +521,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertEqual(parser.parse('fn:resolve-uri("/dir1/dir2")').evaluate(context),
                          '/dir1/dir2')
         self.assertEqual(parser.parse('fn:resolve-uri("file:text.txt")').evaluate(context),
-                         'http://www.example.com/ns/text.txt')
+                         'file:text.txt')
         self.assertIsNone(parser.parse('fn:resolve-uri(())').evaluate(context))
 
     def test_empty_function(self):

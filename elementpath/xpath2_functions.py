@@ -18,11 +18,11 @@ import re
 import locale
 import unicodedata
 from copy import copy
-from urllib.parse import urlparse, urljoin, quote as urllib_quote
+from urllib.parse import urlparse, quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, \
-    Duration, DayTimeDuration, UntypedAtomic, AnyURI, is_id, is_idrefs
+from .datatypes import any_uri_validator, QNAME_PATTERN, DateTime10, Date10, \
+    Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, is_id, is_idrefs
 from .namespaces import get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, \
@@ -603,25 +603,25 @@ def select(self, context=None):
 @method(function('resolve-uri', nargs=(1, 2)))
 def evaluate(self, context=None):
     relative = self.get_argument(context, cls=str)
-    if len(self) == 2:
-        base_uri = self.get_argument(context, index=1, required=True, cls=str)
-        url_parts = urlparse(base_uri)
-        if not url_parts.scheme and not url_parts.netloc and not url_parts.path.startswith('/'):
-            raise self.error('FORG0002', '2nd argument is not an absolute URI')
-        base_uri = url_parts.geturl()
-    elif self.parser.base_uri is None:
-        raise self.error('FONS0005')
-    else:
-        base_uri = self.parser.base_uri
-
-    if relative is not None:
-        url_parts = urlparse(relative)
-        if url_parts.path.startswith('/'):
-            return relative
-        elif url_parts.scheme:
-            return urljoin(base_uri, relative.split(':')[1])
+    if len(self) == 1:
+        if self.parser.base_uri is None:
+            raise self.error('FONS0005')
+        elif relative is None:
+            return
+        elif not any_uri_validator(relative):
+            raise self.error('FORG0002', '{!r} is not a valid URI'.format(relative))
         else:
-            return urljoin(base_uri, relative)
+            return self.get_absolute_uri(relative)
+
+    base_uri = self.get_argument(context, index=1, required=True, cls=str)
+    if not any_uri_validator(base_uri):
+        raise self.error('FORG0002', '{!r} is not a valid URI'.format(base_uri))
+    elif relative is None:
+        return
+    elif not any_uri_validator(relative):
+        raise self.error('FORG0002', '{!r} is not a valid URI'.format(relative))
+    else:
+        return self.get_absolute_uri(relative, base_uri)
 
 
 ###
