@@ -421,21 +421,32 @@ class XPathToken(Token):
 
         return op1, op2
 
-    def get_absolute_uri(self, uri):
+    def get_absolute_uri(self, uri, base_uri=None):
         """
         Obtains an absolute URI from the argument and the static context.
 
         :param uri: a string representing an URI.
+        :param base_uri: an alternative base URI, otherwise the base_uri \
+        of the static context is used.
         :returns: the argument if it's an absolute URI. Otherwise returns the URI
         obtained by the join o the base_uri of the static context with the
         argument. Returns the argument if the base_uri is `None'.
         """
+        if not base_uri:
+            base_uri = self.parser.base_uri
+
         url_parts = urllib.parse.urlparse(uri)
-        if url_parts.scheme not in urllib.parse.uses_relative \
+        if url_parts.scheme or url_parts.netloc \
                 or url_parts.path.startswith('/') \
-                or self.parser.base_uri is None:
+                or base_uri is None:
             return uri
-        return urllib.parse.urljoin(self.parser.base_uri, uri)
+
+        url_parts = urllib.parse.urlsplit(base_uri)
+        if url_parts.fragment or not url_parts.scheme and \
+                not url_parts.netloc and not url_parts.path.startswith('/'):
+            raise self.error('FORG0002', '{!r} is not suitable as base URI'.format(base_uri))
+
+        return urllib.parse.urljoin(base_uri, uri)
 
     def get_namespace(self, prefix):
         """

@@ -268,7 +268,7 @@ class TestCase(object):
 
     def __str__(self):
         children = [
-            '<description>{}</description>'.format(self.description),
+            '<description>{}</description>'.format(self.description or ''),
             '<test>{}</test>'.format(self.test) if self.test else '</test>',
             '<result>\n   {}\n</result>'.format(self.result),
         ]
@@ -336,7 +336,7 @@ class TestCase(object):
             print()
         return self.result.validate(verbose)
 
-    def run_xpath_test(self, verbose=1, may_fail=False):
+    def run_xpath_test(self, verbose=1):
         """
         Helper function to parse and evaluate tests with elementpath.
 
@@ -587,7 +587,7 @@ class Result(object):
     def error_validator(self, verbose=1):
         code = self.attrib.get('code', '*').strip()
         try:
-            self.test_case.run_xpath_test(verbose, may_fail=True)
+            self.test_case.run_xpath_test(verbose)
         except ElementPathError as err:
             if code == '*' or code in str(err):
                 return True

@@ -21,6 +21,7 @@ import base64
 from collections import namedtuple
 from calendar import isleap, leapdays
 from decimal import Decimal
+from urllib.parse import urlparse
 
 
 ###
@@ -85,6 +86,21 @@ def hex_binary_validator(value):
         return True
 
     return not len(value) % 2 and HEX_BINARY_PATTERN.match(value) is not None
+
+
+def any_uri_validator(value):
+    if isinstance(value, bytes):
+        value = value.decode()
+    elif not isinstance(value, str):
+        return False
+
+    try:
+        urlparse(value)
+    except ValueError:
+        return False
+    else:
+        return value.count('#') <= 1 and \
+            WRONG_ESCAPE_PATTERN.search(value) is None
 
 
 def datetime_stamp_validator(value):
@@ -1462,7 +1478,7 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value='alpha'
     ),
     'anyURI': XsdBuiltin(
-        lambda x: isinstance(x, str),
+        any_uri_validator,
         value='https://example.com'
     ),
     'normalizedString': XsdBuiltin(
