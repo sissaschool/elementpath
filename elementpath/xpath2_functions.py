@@ -275,7 +275,14 @@ def evaluate(self, context=None):
 # Aggregate functions
 @method(function('avg', nargs=1))
 def evaluate(self, context=None):
-    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+    values = []
+    for item in self[0].select_data_values(context):
+        if isinstance(item, (UntypedAtomic, decimal.Decimal)):
+            values.append(self.cast_to_number(item, float))
+        elif isinstance(item, AnyURI):
+            values.append(item.value)
+        else:
+            values.append(item)
 
     if not values:
         return values
