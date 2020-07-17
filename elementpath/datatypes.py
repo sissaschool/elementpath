@@ -41,7 +41,7 @@ BASE64_BINARY_PATTERN = re.compile(
 )
 
 LANGUAGE_CODE_PATTERN = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
-WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
+WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-f\d]{2})')
 
 
 def decimal_validator(value):

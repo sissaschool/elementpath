@@ -31,8 +31,8 @@ from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, 
     is_etree_element, is_attribute_node, etree_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
-from .datatypes import UntypedAtomic, Timezone, DateTime10, Date10, \
-    DayTimeDuration, Duration, XSD_BUILTIN_TYPES
+from .datatypes import AbstractDateTime, UntypedAtomic, Timezone, DateTime10, \
+    Date10, DayTimeDuration, Duration, XSD_BUILTIN_TYPES
 from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -276,10 +276,8 @@ class XPathToken(Token):
                     return value
                 if self.xsd_types and isinstance(value, str):
                     xsd_type = self.get_xsd_type(context.item)
-                    if xsd_type is None:
+                    if xsd_type is None or xsd_type.name in XSD_SPECIAL_TYPES:
                         pass
-                    elif xsd_type.name in XSD_SPECIAL_TYPES:
-                        value = UntypedAtomic(value)
                     else:
                         try:
                             value = xsd_type.decode(value)
@@ -400,16 +398,26 @@ class XPathToken(Token):
         elif is_element_node(op2):
             op2 = self[1].data_value(op2)
 
+        if isinstance(op1, AbstractDateTime) and isinstance(op2, AbstractDateTime):
+            if context is not None and context.timezone is not None:
+                if op1.tzinfo is None:
+                    op1.tzinfo = context.timezone
+                if op2.tzinfo is None:
+                    op2.tzinfo = context.timezone
+        else:
+            if isinstance(op1, UntypedAtomic):
+                op1 = self.cast_to_number(op1, float)
+                if isinstance(op2, Decimal):
+                    return op1, float(op2)
+            if isinstance(op2, UntypedAtomic):
+                op2 = self.cast_to_number(op2, float)
+                if isinstance(op1, Decimal):
+                    return float(op1), op2
+
         if isinstance(op1, (Decimal, Duration)) and isinstance(op2, float):
             return op1, Decimal(op2)
-        elif isinstance(op2, (Decimal, Duration)) and isinstance(op1, float):
+        if isinstance(op2, (Decimal, Duration)) and isinstance(op1, float):
             return Decimal(op1), op2
-        elif isinstance(op1, UntypedAtomic):
-            if not isinstance(op2, UntypedAtomic):
-                return self.cast_to_number(op1, type(op2)), op2
-            return self.cast_to_number(op1, float), self.cast_to_number(op2, float)
-        elif isinstance(op2, UntypedAtomic):
-            return op2, self.cast_to_number(op2, type(op1))
 
         return op1, op2
 

@@ -1134,7 +1134,7 @@ def evaluate(self, context=None):
         k = len(trans_string)
         return arg.translate(str.maketrans(map_string[:k], trans_string, map_string[k:]))
     else:
-        raise self.wrong_value("the 3rd argument must have a length less or equal than the 2nd")
+        return arg.translate(str.maketrans(map_string, trans_string[:len(map_string)]))
 
 
 @method(function('substring', nargs=(2, 3)))
@@ -1304,7 +1304,7 @@ def evaluate(self, context=None):
         if number > 0:
             return number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP')
         else:
-            return round(number)
+            return number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN')
     except TypeError as err:
         raise self.wrong_type(str(err)) from None
     except decimal.DecimalException as err:
