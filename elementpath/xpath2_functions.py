@@ -626,14 +626,23 @@ def evaluate(self, context=None):
 
 ###
 # String functions
+def xml10_chr(cp):
+    if cp in {0x9, 0xA, 0xD} \
+            or 0x20 <= cp <= 0xD7FF \
+            or 0xE000 <= cp <= 0xFFFD \
+            or 0x10000 <= cp <= 0x10FFFF:
+        return chr(cp)
+    raise ValueError("{} is not a valid XML 1.0 codepoint".format(cp))
+
+
 @method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
     try:
-        return ''.join(chr(cp) for cp in self[0].select(context))
+        return ''.join(xml10_chr(cp) for cp in self[0].select(context))
     except TypeError as err:
         raise self.wrong_type(str(err)) from None
-    except ValueError:
-        raise self.error('FOCH0001') from None  # Code point not valid
+    except ValueError as err:
+        raise self.error('FOCH0001', str(err)) from None  # Code point not valid
 
 
 @method(function('string-to-codepoints', nargs=1))
@@ -700,6 +709,8 @@ def evaluate(self, context=None):
         raise self.error('FOCH0003', msg)
     if not arg:
         return ''
+    elif not normalization_form:
+        return arg
 
     try:
         return unicodedata.normalize(normalization_form, arg)

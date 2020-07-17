@@ -183,82 +183,80 @@ def cast(self, value):
 ###
 # Constructors for datetime XSD types
 @constructor('date')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, Date10):
         return value
     elif isinstance(value, UntypedAtomic):
-        return Date10.fromstring(value.value, tzinfo=tz)
+        return Date10.fromstring(value.value)
     elif isinstance(value, DateTime10):
-        return Date10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
-    return Date10.fromstring(value, tzinfo=tz)
+        return Date10(value.year, value.month, value.day, value.tzinfo)
+    return Date10.fromstring(value)
 
 
 @constructor('gDay')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, XPathGregorianDay):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianDay.fromstring(value.value, tzinfo=tz)
+        return XPathGregorianDay.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianDay(value.day, tzinfo=tz or value.tzinfo)
-    return XPathGregorianDay.fromstring(value, tzinfo=tz)
+        return XPathGregorianDay(value.day, value.tzinfo)
+    return XPathGregorianDay.fromstring(value)
 
 
 @constructor('gMonth')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, XPathGregorianMonth):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianMonth.fromstring(value.value, tzinfo=tz)
+        return XPathGregorianMonth.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianMonth(value.month, tzinfo=tz or value.tzinfo)
-    return XPathGregorianMonth.fromstring(value, tzinfo=tz)
+        return XPathGregorianMonth(value.month, value.tzinfo)
+    return XPathGregorianMonth.fromstring(value)
 
 
 @constructor('gMonthDay')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, XPathGregorianMonthDay):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianMonthDay.fromstring(value.value, tzinfo=tz)
+        return XPathGregorianMonthDay.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianMonthDay(value.month, value.day, tzinfo=tz or value.tzinfo)
-    return XPathGregorianMonthDay.fromstring(value, tzinfo=tz)
+        return XPathGregorianMonthDay(value.month, value.day, value.tzinfo)
+    return XPathGregorianMonthDay.fromstring(value)
 
 
 @constructor('gYear')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, XPathGregorianYear):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianYear.fromstring(value.value, tzinfo=tz)
+        return XPathGregorianYear.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianYear(value.year, tzinfo=tz or value.tzinfo)
-    return XPathGregorianYear.fromstring(value, tzinfo=tz)
+        return XPathGregorianYear(value.year, value.tzinfo)
+    return XPathGregorianYear.fromstring(value)
 
 
 @constructor('gYearMonth')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, XPathGregorianYearMonth):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianYearMonth.fromstring(value.value, tzinfo=tz)
+        return XPathGregorianYearMonth.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianYearMonth(value.year, value.month, tzinfo=tz or value.tzinfo)
-    return XPathGregorianYearMonth.fromstring(value, tzinfo=tz)
+        return XPathGregorianYearMonth(value.year, value.month, value.tzinfo)
+    return XPathGregorianYearMonth.fromstring(value)
 
 
 @constructor('time')
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, Time):
         return value
     elif isinstance(value, UntypedAtomic):
-        return Time.fromstring(value.value, tzinfo=tz)
+        return Time.fromstring(value.value)
     elif isinstance(value, DateTime10):
-        return Time(
-            value.hour, value.minute, value.second, value.microsecond, tzinfo=tz or value.tzinfo
-        )
-    return Time.fromstring(value, tzinfo=tz)
+        return Time(value.hour, value.minute, value.second, value.microsecond, value.tzinfo)
+    return Time.fromstring(value)
 
 
 @method('date')
@@ -274,9 +272,7 @@ def evaluate(self, context=None):
         return []
 
     try:
-        if isinstance(arg, UntypedAtomic):
-            return self.cast(arg.value, tz=None if context is None else context.timezone)
-        return self.cast(arg, tz=None if context is None else context.timezone)
+        return self.cast(arg)
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
@@ -504,14 +500,14 @@ def cast(self, value):
 
 
 @constructor('dateTime', bp=90, label=('function', 'constructor'))
-def cast(self, value, tz=None):
+def cast(self, value):
     if isinstance(value, DateTime10):
         return value
     elif isinstance(value, UntypedAtomic):
-        return DateTime10.fromstring(value.value, tzinfo=tz)
+        return DateTime10.fromstring(value.value)
     elif isinstance(value, Date10):
-        return DateTime10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
-    return DateTime10.fromstring(value, tzinfo=tz)
+        return DateTime10(value.year, value.month, value.day, tzinfo=value.tzinfo)
+    return DateTime10.fromstring(value)
 
 
 @method('QName')
@@ -584,9 +580,7 @@ def evaluate(self, context=None):
             return []
 
         try:
-            if isinstance(arg, UntypedAtomic):
-                return self.cast(arg.value, tz=None if context is None else context.timezone)
-            return self.cast(arg, tz=None if context is None else context.timezone)
+            return self.cast(arg)
         except ValueError as err:
             raise self.error('FORG0001', str(err)) from None
         except TypeError as err:
