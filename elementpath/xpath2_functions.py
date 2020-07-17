@@ -22,12 +22,12 @@ from urllib.parse import urlparse, urljoin, quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Time, \
-    Duration, DayTimeDuration, is_id, is_idrefs
+    Duration, DayTimeDuration, UntypedAtomic, AnyURI, is_id, is_idrefs
 from .namespaces import get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, \
-    is_element_node, is_attribute_node, node_name, node_nilled, \
-    node_base_uri, node_document_uri, node_kind, etree_deep_equal
+    is_element_node, node_name, node_nilled, node_base_uri, \
+    node_document_uri, node_kind, etree_deep_equal
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -297,7 +297,15 @@ def evaluate(self, context=None):
 @method(function('max', nargs=(1, 2)))
 @method(function('min', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+    values = []
+    for item in self[0].select_data_values(context):
+        if isinstance(item, (UntypedAtomic, decimal.Decimal)):
+            values.append(self.cast_to_number(item, float))
+        elif isinstance(item, AnyURI):
+            values.append(item.value)
+        else:
+            values.append(item)
+
     if any(isinstance(x, float) and math.isnan(x) for x in values):
         return float('nan')
 
@@ -829,7 +837,7 @@ def evaluate(self, context=None):
     if item is None:
         return []
     elif item.microsecond:
-        return decimal.Decimal('{}.{}'.format(item.seconds, item.microsecond))
+        return decimal.Decimal('{}.{}'.format(item.second, item.microsecond))
     else:
         return item.second
 

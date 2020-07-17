@@ -8,21 +8,99 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-XSD atomic datatypes for XPath. Includes a class for UntypedAtomic data and
-some classes for XSD datetime and duration types. This module raises only
-built-in exceptions.
-
-TODO: Create special wrapper classes for xs:double and other numerical
-      types for the properly working of 'instance of' tests.
+XSD atomic datatypes. Includes a class for UntypedAtomic data and classes
+for other XSD built-in primitive types. This module raises only built-in
+exceptions in order to be reusable in other packages.
 """
-from abc import ABCMeta, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 import operator
 import re
-import decimal
+import codecs
 import datetime
 import base64
 from collections import namedtuple
 from calendar import isleap, leapdays
+from decimal import Decimal
+
+
+###
+# Data validation helpers
+
+WHITESPACES_PATTERN = re.compile(r'\s+')
+NMTOKEN_PATTERN = re.compile(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
+NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]*$')
+NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
+QNAME_PATTERN = re.compile(
+    r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
+    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
+)
+HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
+BASE64_BINARY_PATTERN = re.compile(
+    r'((([A-Za-z0-9+/] ?){4})*(([A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|([A-Za-z0-9+/] ?){2}'
+    r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'
+)
+
+LANGUAGE_CODE_PATTERN = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
+WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
+
+
+def decimal_validator(value):
+    return isinstance(value, (int, Decimal)) and not isinstance(value, bool)
+
+
+def integer_validator(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def base64_binary_validator(value):
+    if isinstance(value, bytes):
+        value = value.decode()
+    elif not isinstance(value, str):
+        return False
+
+    value = value.replace(' ', '')
+    if not value:
+        return True
+
+    match = BASE64_BINARY_PATTERN.match(value)
+    if match is None or match.group(0) != value:
+        return False
+
+    try:
+        base64.standard_b64decode(value)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True
+
+
+def hex_binary_validator(value):
+    if isinstance(value, bytes):
+        value = value.decode()
+    elif not isinstance(value, str):
+        return False
+
+    value = value.strip()
+    if not value:
+        return True
+
+    return not len(value) % 2 and HEX_BINARY_PATTERN.match(value) is not None
+
+
+def datetime_stamp_validator(value):
+    return isinstance(value, str) and DateTime.pattern.match(value) is not None
+
+
+def ncname_validator(value):
+    return isinstance(value, str) and NCNAME_PATTERN.match(value) is not None
+
+
+def is_id(value):
+    return isinstance(value, str) and ncname_validator(value)
+
+
+def is_idrefs(value):
+    return isinstance(value, str) and all(ncname_validator(x) for x in value.split())
 
 
 ###
@@ -179,6 +257,9 @@ class Timezone(datetime.tzinfo):
             raise TypeError("fromutc() argument must be a "
                             "datetime.datetime instance or None")
 
+
+###
+# Classes for XSD built-in primitive types
 
 class AbstractDateTime(metaclass=ABCMeta):
     """
@@ -384,6 +465,7 @@ class AbstractDateTime(metaclass=ABCMeta):
 
 
 class OrderedDateTime(AbstractDateTime):
+
     @abstractmethod
     def __str__(self):
         raise NotImplementedError()
@@ -764,7 +846,7 @@ class Duration(object):
         if seconds < 0 < months or months < 0 < seconds:
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         self.months = months
-        self.seconds = decimal.Decimal(seconds)
+        self.seconds = Decimal(seconds)
 
     def __repr__(self):
         return '{}(months={!r}, seconds={})'.format(
@@ -819,7 +901,7 @@ class Duration(object):
             raise ValueError('%r is not an xs:duration value' % text)
 
         sign, years, months, days, hours, minutes, seconds = match.groups()
-        seconds = decimal.Decimal(seconds or 0)
+        seconds = Decimal(seconds or 0)
         minutes = int(minutes or 0) + int(seconds // 60)
         seconds = seconds % 60
         hours = int(hours or 0) + minutes // 60
@@ -923,7 +1005,7 @@ class YearMonthDuration(Duration):
     def __add__(self, other):
         if isinstance(other, self.__class__):
             return YearMonthDuration(months=self.months + other.months)
-        elif isinstance(other, DateTime10):
+        elif isinstance(other, (DateTime10, Date10)):
             return other + self
         raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
@@ -933,14 +1015,14 @@ class YearMonthDuration(Duration):
         return YearMonthDuration(months=self.months - other.months)
 
     def __mul__(self, other):
-        if not isinstance(other, (float, int, decimal.Decimal)):
+        if not isinstance(other, (float, int, Decimal)):
             raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return YearMonthDuration(months=int(float(self.months * other) + 0.5))
 
     def __truediv__(self, other):
         if isinstance(other, self.__class__):
             return self.months / other.months
-        elif isinstance(other, (float, int, decimal.Decimal)):
+        elif isinstance(other, (float, int, Decimal)):
             return YearMonthDuration(months=int(float(self.months / other) + 0.5))
         else:
             raise TypeError("wrong type %r for operand %r" % (type(other), other))
@@ -953,7 +1035,7 @@ class DayTimeDuration(Duration):
 
     @classmethod
     def fromtimedelta(cls, td):
-        return cls(seconds=decimal.Decimal(
+        return cls(seconds=Decimal(
             '{}.{:06}'.format(td.days * 86400 + td.seconds, td.microseconds)
         ))
 
@@ -976,17 +1058,126 @@ class DayTimeDuration(Duration):
         return DayTimeDuration(seconds=self.seconds - other.seconds)
 
     def __mul__(self, other):
-        if not isinstance(other, (float, int, decimal.Decimal)):
+        if not isinstance(other, (float, int, Decimal)):
             raise TypeError("wrong type %r for operand %r" % (type(other), other))
         return DayTimeDuration(seconds=int(float(self.seconds * other) + 0.5))
 
     def __truediv__(self, other):
         if isinstance(other, self.__class__):
             return self.seconds / other.seconds
-        elif isinstance(other, (float, int, decimal.Decimal)):
+        elif isinstance(other, (float, int, Decimal)):
             return DayTimeDuration(seconds=int(float(self.seconds / other) + 0.5))
         else:
             raise TypeError("wrong type %r for operand %r" % (type(other), other))
+
+
+class AbstractBinary(ABC):
+    """
+    Abstract class for xs:base64Binary data.
+
+    :param value: a string or a binary data or an untyped atomic instance.
+    """
+    def __init__(self, value):
+        if isinstance(value, (self.__class__, UntypedAtomic)):
+            value = value.value
+        elif isinstance(value, (AbstractBinary, UntypedAtomic)):
+            value = self.encoder(value.decode())
+        elif not isinstance(value, (str, bytes)):
+            raise TypeError('the argument has an invalid type %r' % type(value))
+
+        if not self.validator(value):
+            raise ValueError('invalid value {!r} for {!r}'.format(value, self.__class__))
+
+        self.value = value if isinstance(value, bytes) else value.encode('ascii')
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
+
+    def __bytes__(self):
+        return self.value
+
+    def __str__(self):
+        return self.value.decode('utf-8')
+
+    def __eq__(self, other):
+        if isinstance(other, (AbstractBinary, UntypedAtomic)):
+            return self.value == other.value
+        return self.value == other
+
+    @staticmethod
+    @abstractmethod
+    def validator(value):
+        raise NotImplementedError()
+
+    @staticmethod
+    @abstractmethod
+    def encoder(value):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def decode(self):
+        raise NotImplementedError()
+
+
+class Base64Binary(AbstractBinary):
+    """Class for xs:base64Binary data."""
+
+    validator = staticmethod(base64_binary_validator)
+
+    @staticmethod
+    def encoder(value):
+        return codecs.encode(value, 'base64').rstrip(b'\n')
+
+    def decode(self):
+        return codecs.decode(self.value, 'base64')
+
+
+class HexBinary(AbstractBinary):
+    """Class for xs:hexBinary data."""
+
+    validator = staticmethod(hex_binary_validator)
+
+    @staticmethod
+    def encoder(value):
+        return codecs.encode(value, 'hex')
+
+    def decode(self):
+        return codecs.decode(self.value, 'hex')
+
+    def __str__(self):
+        return self.value.decode('utf-8').upper()
+
+    def __eq__(self, other):
+        if isinstance(other, (AbstractBinary, UntypedAtomic)):
+            return self.value.lower() == other.value.lower()
+        return isinstance(other, (str, bytes)) and self.value.lower() == other.lower()
+
+
+class Double(float):
+    """A wrapper for handle xs:double casting and type checking."""
+
+
+class AnyURI(object):
+    """
+    Class for xs:anyURI data.
+
+    :param value: a string or an untyped atomic instance.
+    """
+    def __init__(self, value):
+        if isinstance(value, str):
+            self.value = value
+        elif isinstance(value, bytes):
+            self.value = value.decode('utf-8')
+        elif isinstance(value, UntypedAtomic):
+            self.value = value.value
+        else:
+            raise TypeError("{!r} is not an xs:anyURI value".format(value))
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
+
+    def __str__(self):
+        return self.value
 
 
 class UntypedAtomic(object):
@@ -1005,7 +1196,9 @@ class UntypedAtomic(object):
             self.value = 'true' if value else 'false'
         elif isinstance(value, UntypedAtomic):
             self.value = value.value
-        elif isinstance(value, (AbstractDateTime, int, float, decimal.Decimal)):
+        elif isinstance(value, AbstractBinary):
+            self.value = value.value.decode('utf-8')
+        elif isinstance(value, (AbstractDateTime, Duration, int, float, Decimal)):
             self.value = str(value)
         else:
             raise TypeError("{!r} is not an atomic value".format(value))
@@ -1089,7 +1282,7 @@ class UntypedAtomic(object):
         return value in ('1', 'true')
 
     def __abs__(self):
-        return abs(decimal.Decimal(self.value))
+        return abs(Decimal(self.value))
 
     def __mod__(self, other):
         return operator.mod(*self._get_operands(other))
@@ -1102,24 +1295,7 @@ class UntypedAtomic(object):
 
 
 ####
-# XSD atomic builtins validators and values
-
-XsdBuiltin = namedtuple('XsdBuiltin', 'validator value')
-"""A namedtuple-based type for describing XSD builtin types."""
-
-WHITESPACES_PATTERN = re.compile(r'\s+')
-NMTOKEN_PATTERN = re.compile(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
-NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]*$')
-NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
-QNAME_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
-    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
-)
-HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
-LANGUAGE_CODE_PATTERN = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
-WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-eA-E\d]{2})')
-
+# Type proxies for multiple type-checking in XPath expressions
 
 class TypeProxyMeta(type):
     """
@@ -1156,7 +1332,7 @@ class NumericTypeProxy(metaclass=TypeProxyMeta):
     """
     @staticmethod
     def instance_check(other):
-        return isinstance(other, (int, float, decimal.Decimal, UntypedAtomic)) and \
+        return isinstance(other, (int, float, Decimal)) and \
             not isinstance(other, bool)
 
     @staticmethod
@@ -1164,7 +1340,7 @@ class NumericTypeProxy(metaclass=TypeProxyMeta):
         if issubclass(cls, bool):
             return False
         return issubclass(cls, int) or issubclass(cls, float) \
-            or issubclass(cls, decimal.Decimal) or issubclass(cls, UntypedAtomic)
+            or issubclass(cls, Decimal)
 
     @staticmethod
     def instance_build(x=0):
@@ -1181,7 +1357,7 @@ class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
     @staticmethod
     def instance_check(other):
         return isinstance(
-            other, (int, float, decimal.Decimal, AbstractDateTime, Duration, UntypedAtomic)
+            other, (int, float, Decimal, AbstractDateTime, Duration, UntypedAtomic)
         ) and not isinstance(other, bool)
 
     @staticmethod
@@ -1189,7 +1365,7 @@ class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
         if issubclass(cls, bool):
             return False
         return issubclass(cls, int) or issubclass(cls, float) or \
-            issubclass(cls, decimal.Decimal) or issubclass(cls, Duration) \
+            issubclass(cls, Decimal) or issubclass(cls, Duration) \
             or issubclass(cls, AbstractDateTime) or issubclass(cls, UntypedAtomic)
 
     @staticmethod
@@ -1197,46 +1373,11 @@ class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
         return float(x)
 
 
-def decimal_validator(x):
-    return isinstance(x, (int, decimal.Decimal)) and not isinstance(x, bool)
+####
+# XSD atomic builtins validators and values
 
-
-def integer_validator(x):
-    return isinstance(x, int) and not isinstance(x, bool)
-
-
-def base64_binary_validator(x):
-    if isinstance(x, bytes):
-        x = x.decode()
-    if not isinstance(x, str) or NOT_BASE64_BINARY_PATTERN.search(x) is not None:
-        return False
-    try:
-        base64.standard_b64decode(x)
-    except (ValueError, TypeError):
-        return False
-    else:
-        return True
-
-
-def hex_binary_validator(x):
-    return isinstance(x, str) and not len(x) % 2 and HEX_BINARY_PATTERN.match(x) is not None
-
-
-def datetime_stamp_validator(x):
-    return isinstance(x, str) and DateTime.pattern.match(x) is not None
-
-
-def ncname_validator(x):
-    return isinstance(x, str) and NCNAME_PATTERN.match(x) is not None
-
-
-def is_id(obj):
-    return isinstance(obj, str) and ncname_validator(obj)
-
-
-def is_idrefs(obj):
-    return isinstance(obj, str) and all(ncname_validator(x) for x in obj.split())
-
+XsdBuiltin = namedtuple('XsdBuiltin', 'validator value')
+"""A namedtuple-based type for describing XSD builtin types."""
 
 XSD_BUILTIN_TYPES = {           # pragma: no cover
     'anyType': XsdBuiltin(
@@ -1244,7 +1385,7 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=UntypedAtomic('1')
     ),
     'anySimpleType': XsdBuiltin(
-        lambda x: isinstance(x, (str, int, float, bool, decimal.Decimal,
+        lambda x: isinstance(x, (str, int, float, bool, Decimal,
                                  AbstractDateTime, Duration, Timezone, UntypedAtomic)),
         value=UntypedAtomic('1')
     ),
@@ -1258,7 +1399,7 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
     ),
     'decimal': XsdBuiltin(
         decimal_validator,
-        value=decimal.Decimal('1.0')
+        value=Decimal('1.0')
     ),
     'double': XsdBuiltin(
         lambda x: isinstance(x, float),

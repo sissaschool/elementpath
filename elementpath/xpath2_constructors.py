@@ -10,8 +10,7 @@
 """
 XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
-import decimal
-import codecs
+from decimal import Decimal
 from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathSyntaxError
@@ -19,8 +18,8 @@ from .namespaces import XQT_ERRORS_NAMESPACE
 from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
     XPathGregorianMonth, XPathGregorianMonthDay, XPathGregorianYear, \
     XPathGregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, \
-    DayTimeDuration, WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, \
-    NAME_PATTERN, NCNAME_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN, \
+    DayTimeDuration, Base64Binary, HexBinary, Double, WHITESPACES_PATTERN, \
+    QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, \
     LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
@@ -91,6 +90,9 @@ def cast(self, value):
 
 @constructor('anyURI')
 def cast(self, value):
+    if isinstance(value, UntypedAtomic):
+        value = value.value
+
     uri = collapse_white_spaces(value)
     try:
         url_parts = urlparse(uri)
@@ -112,25 +114,17 @@ def cast(self, value):
 # Constructors for numeric XSD types
 @constructor('decimal')
 def cast(self, value):
-    try:
-        if isinstance(value, UntypedAtomic):
-            return decimal.Decimal(value.value)
-        return decimal.Decimal(value)
-    except (ValueError, decimal.DecimalException) as err:
-        raise self.error('FORG0001', str(err))
+    return self.cast_to_number(value, Decimal)
 
 
 @constructor('double')
+def cast(self, value):
+    return self.cast_to_number(value, float)
+
+
 @constructor('float')
 def cast(self, value):
-    if isinstance(value, (str, bytes)) and value.lower() in {'nan', 'inf', '-inf'} \
-            and value not in {'NaN', 'INF', '-INF'}:
-        raise self.error('FORG0001', "could not convert string to float: %r" % value)
-
-    try:
-        return float(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
+    return self.cast_to_number(value, float)
 
 
 @constructor('integer')
@@ -164,11 +158,9 @@ def cast(self, value):
     }
     lower_bound, higher_bound = boundaries[self.symbol]
 
-    if isinstance(value, (str, bytes)):
+    if isinstance(value, (str, bytes, UntypedAtomic)):
         try:
-            if value.strip().lower() in {'inf', '-inf'} and value.strip() not in {'INF', '-INF'}:
-                raise ValueError()
-            result = int(float(value))
+            result = int(self.cast_to_number(value, Decimal))
         except ValueError:
             raise self.error('FORG0001', 'could not convert %r to integer' % value) from None
         except OverflowError as err:
@@ -308,6 +300,8 @@ def cast(self, value):
         return value
     elif isinstance(value, UntypedAtomic):
         return YearMonthDuration.fromstring(value.value)
+    elif isinstance(value, Duration):
+        return YearMonthDuration(months=value.months)
     return YearMonthDuration.fromstring(value)
 
 
@@ -317,6 +311,8 @@ def cast(self, value):
         return value
     elif isinstance(value, UntypedAtomic):
         return DayTimeDuration.fromstring(value.value)
+    elif isinstance(value, Duration):
+        return DayTimeDuration(seconds=value.seconds)
     return DayTimeDuration.fromstring(value)
 
 
@@ -346,35 +342,23 @@ def evaluate(self, context=None):
 ###
 # Constructors for binary XSD types
 @constructor('base64Binary')
-def cast(self, value, from_literal=False):
-    if not isinstance(value, (bytes, str)):
-        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
-    elif not isinstance(value, bytes) or from_literal:
-        return codecs.encode(value.encode('ascii'), 'base64')
-    elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
-        value = codecs.decode(value, 'hex') if str is not bytes else value
-        return codecs.encode(value, 'base64')
-    elif NOT_BASE64_BINARY_PATTERN.search(value.decode('utf-8')) or len(value.strip()) % 4:
-        return codecs.encode(value, 'base64')
-    else:
-        return value
+def cast(self, value):
+    try:
+        return Base64Binary(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err)) from None
+    except TypeError as err:
+        raise self.error('FORG0006', str(err)) from None
 
 
 @constructor('hexBinary')
-def cast(self, value, from_literal=False):
-    if not isinstance(value, (bytes, str)):
-        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
-    elif not isinstance(value, bytes) or from_literal:
-        return codecs.encode(value.encode('ascii'), 'hex')
-    elif HEX_BINARY_PATTERN.search(value.decode('utf-8')):
-        return value
-    else:
-        try:
-            value = codecs.decode(value, 'base64')
-        except ValueError:
-            return codecs.encode(value, 'hex')
-        else:
-            return codecs.encode(value, 'hex')
+def cast(self, value):
+    try:
+        return HexBinary(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err)) from None
+    except TypeError as err:
+        raise self.error('FORG0006', str(err)) from None
 
 
 @method('base64Binary')
@@ -385,9 +369,7 @@ def evaluate(self, context=None):
         return []
 
     try:
-        if isinstance(arg, UntypedAtomic):
-            return self.cast(arg.value, self[0].label == 'literal')
-        return self.cast(arg, self[0].label == 'literal')
+        return self.cast(arg)
     except ElementPathError as err:
         err.token = self
         raise
@@ -412,28 +394,29 @@ def nud(self):
 
 
 ###
-# Multi role-tokens constructors
+# Multi role-tokens constructors (function or constructor)
 #
 
 # Case 1: In XPath 2.0 the 'boolean' keyword is used both for boolean() function and
 # for boolean() constructor.
-def cast_to_boolean(self, value, context=None):
+unregister('boolean')
+
+
+@constructor('boolean', bp=90, label=('function', 'constructor'))
+def cast(self, value, context=None):
     assert context is None or isinstance(context, XPathContext)
     if isinstance(value, bool):
         return value
-    elif isinstance(value, (int, float, decimal.Decimal)):
+    elif isinstance(value, (int, float, Decimal)):
         return bool(value)
+    elif isinstance(value, UntypedAtomic):
+        value = value.value
     elif not isinstance(value, str):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
     if value.strip() not in {'true', 'false', '1', '0'}:
         raise self.error('FORG0001', "%r: not a boolean value" % value)
     return 't' in value or '1' in value
-
-
-unregister('boolean')
-register('boolean', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bboolean(?=\s*\(|\s*\(\:.*\:\)\()', cast=cast_to_boolean)
 
 
 @method('boolean')
@@ -510,7 +493,8 @@ def evaluate(self, context=None):
 # In those cases the label at parse time is set by the nud method, in dependence
 # of the number of args.
 #
-def cast_to_qname(self, value):
+@constructor('QName', bp=90, label=('function', 'constructor'))
+def cast(self, value):
     if not isinstance(value, str):
         raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
 
@@ -519,7 +503,8 @@ def cast_to_qname(self, value):
     return value
 
 
-def cast_to_datetime(self, value, tz=None):
+@constructor('dateTime', bp=90, label=('function', 'constructor'))
+def cast(self, value, tz=None):
     if isinstance(value, DateTime10):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -527,12 +512,6 @@ def cast_to_datetime(self, value, tz=None):
     elif isinstance(value, Date10):
         return DateTime10(value.year, value.month, value.day, tzinfo=tz or value.tzinfo)
     return DateTime10.fromstring(value, tzinfo=tz)
-
-
-register('QName', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bQName(?=\s*\(|\s*\(\:.*\:\)\()', cast=cast_to_qname)
-register('dateTime', lbp=90, rbp=90, label=('function', 'constructor'),
-         pattern=r'\bdateTime(?=\s*\(|\s*\(\:.*\:\)\()', cast=cast_to_datetime)
 
 
 @method('QName')

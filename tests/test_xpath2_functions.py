@@ -165,6 +165,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<a><b>1</b><b>9</b></a>')
         self.check_selector('max(/a/b/number(text()))', root, 9)
+        self.check_selector('max(/a/b)', root, 9)
 
     def test_min_function(self):
         self.check_value("fn:min((3,4,5))", 3)
@@ -177,6 +178,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<a><b>1</b><b>9</b></a>')
         self.check_selector('min(/a/b/number(text()))', root, 1)
+        self.check_selector('min(/a/b)', root, 1)
 
     ###
     # Functions on strings
