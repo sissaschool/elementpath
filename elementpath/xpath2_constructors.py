@@ -15,12 +15,12 @@ from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .datatypes import DateTime10, Date10, Time, XPathGregorianDay, \
-    XPathGregorianMonth, XPathGregorianMonthDay, XPathGregorianYear, \
-    XPathGregorianYearMonth, UntypedAtomic, Duration, YearMonthDuration, \
-    DayTimeDuration, Base64Binary, HexBinary, Double, WHITESPACES_PATTERN, \
-    QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, \
-    LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
+from .datatypes import DateTime10, DateTime, Date10, Date, Time, \
+    XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
+    XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic, Duration, \
+    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Double, \
+    WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
+    NCNAME_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
@@ -184,13 +184,18 @@ def cast(self, value):
 # Constructors for datetime XSD types
 @constructor('date')
 def cast(self, value):
-    if isinstance(value, Date10):
+    try:
+        cls = Date if self.parser.schema.xsd_version == '1.1' else Date10
+    except (AttributeError, NotImplementedError):
+        cls = Date10
+
+    if isinstance(value, cls):
         return value
     elif isinstance(value, UntypedAtomic):
-        return Date10.fromstring(value.value)
+        return cls.fromstring(value.value)
     elif isinstance(value, DateTime10):
-        return Date10(value.year, value.month, value.day, value.tzinfo)
-    return Date10.fromstring(value)
+        return cls(value.year, value.month, value.day, value.tzinfo)
+    return cls.fromstring(value)
 
 
 @constructor('gDay')
@@ -501,13 +506,18 @@ def cast(self, value):
 
 @constructor('dateTime', bp=90, label=('function', 'constructor'))
 def cast(self, value):
-    if isinstance(value, DateTime10):
+    try:
+        cls = DateTime if self.parser.schema.xsd_version == '1.1' else DateTime10
+    except (AttributeError, NotImplementedError):
+        cls = DateTime10
+
+    if isinstance(value, cls):
         return value
     elif isinstance(value, UntypedAtomic):
-        return DateTime10.fromstring(value.value)
+        return cls.fromstring(value.value)
     elif isinstance(value, Date10):
-        return DateTime10(value.year, value.month, value.day, tzinfo=value.tzinfo)
-    return DateTime10.fromstring(value)
+        return cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
+    return cls.fromstring(value)
 
 
 @method('QName')
@@ -596,6 +606,14 @@ def evaluate(self, context=None):
             tzinfo = tm.tzinfo
         else:
             raise self.error('FORG0008')
+
+        try:
+            if self.parser.schema.xsd_version == '1.1':
+                return DateTime(dt.year, dt.month, dt.day, tm.hour, tm.minute,
+                                tm.second, tm.microsecond, tzinfo)
+        except (AttributeError, NotImplementedError):
+            pass
+
         return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute,
                           tm.second, tm.microsecond, tzinfo)
 

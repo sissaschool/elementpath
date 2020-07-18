@@ -18,10 +18,10 @@ import re
 import locale
 import unicodedata
 from copy import copy
-from urllib.parse import urlparse, quote as urllib_quote
+from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import any_uri_validator, QNAME_PATTERN, DateTime10, Date10, \
+from .datatypes import any_uri_validator, QNAME_PATTERN, DateTime10, Date10, Date, \
     Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, is_id, is_idrefs
 from .namespaces import get_namespace, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -962,6 +962,12 @@ def evaluate(self, context=None):
 @method(function('current-date', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
+    try:
+        if self.parser.schema.xsd_version == '1.1':
+            return Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
+    except (AttributeError, NotImplementedError):
+        pass
+
     return Date10(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
 
 

@@ -176,6 +176,11 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :return: The first matching schema component, or ``None`` if there is no match.
         """
 
+    @property
+    def xsd_version(self):
+        """The XSD version, returns '1.0' or '1.1'."""
+        raise NotImplementedError()
+
     @abstractmethod
     def get_type(self, qname):
         """
