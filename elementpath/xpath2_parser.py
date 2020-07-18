@@ -26,7 +26,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_qname, get_extended_qname, \
     XSD_UNTYPED_ATOMIC
-from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES, ArithmeticTypeProxy
+from .datatypes import Duration, UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
     is_document_node, node_kind
 from .xpath1_parser import XPath1Parser
@@ -915,7 +915,7 @@ def evaluate(self, context=None):
         elif self[0].symbol == ':' and self[0][1].symbol == 'string':
             raise self.error('FORG0001', str(err)) from None
 
-        raise self.error('XPTY0004', str(err)) #  from None
+        raise self.error('XPTY0004', str(err)) from None
     except ValueError as err:
         if self.symbol != 'cast':
             return False
@@ -985,18 +985,29 @@ def select(self, context=None):
 @method(infix('le', bp=30))
 @method(infix('ge', bp=30))
 def evaluate(self, context=None):
-    op1 = self[0].get_atomized_operand(context=copy(context))
-    op2 = self[1].get_atomized_operand(context=copy(context))
+    operators = [self[0].get_atomized_operand(context=copy(context)),
+                 self[1].get_atomized_operand(context=copy(context))]
 
-    if op1 is None or op2 is None:
+    if any(x is None for x in operators):
         return
-    elif isinstance(op1, (str, bytes)) and not isinstance(op2, (str, bytes)) or \
-            not isinstance(op1, (str, bytes)) and isinstance(op2, (str, bytes)):
-        msg = "cannot apply {} between {!r} and {!r}".format(self, op1, op2)
+    elif all(isinstance(x, (float, int)) for x in operators):
+        pass
+    elif all(isinstance(x, (int, decimal.Decimal)) for x in operators):
+        pass
+    elif all(isinstance(x, (float, decimal.Decimal)) for x in operators):
+        if isinstance(operators[0], float):
+            operators[1] = float(operators[1])
+        else:
+            operators[0] = float(operators[0])
+
+    elif all(isinstance(x, Duration) for x in operators) and self.symbol in ('eq', 'ne'):
+        pass  # can compare duration types for equality or inequality
+    elif any(not isinstance(operators[k], type(operators[1-k])) for k in range(2)):
+        msg = "cannot apply {} between {!r} and {!r}".format(self, *operators)
         raise self.error('XPTY0004', msg)
 
     try:
-        return getattr(operator, self.symbol)(op1, op2)
+        return getattr(operator, self.symbol)(*operators)
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
             raise self.wrong_context_type(str(err)) from None
