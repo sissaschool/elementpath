@@ -1187,13 +1187,68 @@ class AnyURI(object):
         elif isinstance(value, UntypedAtomic):
             self.value = value.value
         else:
-            raise TypeError("{!r} is not an xs:anyURI value".format(value))
+            raise TypeError('the argument has an invalid type %r' % type(value))
+
+        if not any_uri_validator(self.value):
+            raise ValueError("invalid value {!r} for an xs:anyURI".format(value))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
     def __str__(self):
         return self.value
+
+    def __eq__(self, other):
+        if isinstance(other, (AnyURI, UntypedAtomic)):
+            return self.value == other.value
+        return self.value == other
+
+
+class QName(object):
+    """
+    XPath compliant QName, bound with a prefix and a namespace.
+
+    :param value: the prefixed name or a local name.
+    :param namespace: the bound namespace, must be a not empty \
+    URI if a prefixed name is provided for the 1st argument.
+    """
+    def __init__(self, value, namespace=None):
+        if not isinstance(value, str):
+            raise TypeError('the 1st argument has an invalid type %r' % type(value))
+        if namespace is not None and not isinstance(namespace, str):
+            raise TypeError('the 2nd argument has an invalid type %r' % type(namespace))
+
+        self.value = value.strip()
+        self.namespace = namespace
+
+        match = QNAME_PATTERN.match(self.value)
+        if match is None:
+            raise ValueError('invalid value {!r} for an xs:QName'.format(self.value))
+
+        self.prefix = match.groupdict()['prefix']
+        self.local_name = match.groupdict()['local']
+        if not namespace and self.prefix:
+            msg = '{!r}: cannot associate a non-empty prefix with no namespace'
+            raise ValueError(msg.format(self))
+
+    @property
+    def extended_name(self):
+        if not self.namespace:
+            return self.local_name
+        return '{%s}%s' % (self.namespace, self.local_name)
+
+    def __repr__(self):
+        if not self.namespace:
+            return '%s(%r)' % (self.__class__.__name__, self.value)
+        return '%s(%r, namespace=%r)' % (self.__class__.__name__, self.value, self.namespace)
+
+    def __str__(self):
+        return self.value
+
+    def __eq__(self, other):
+        if isinstance(other, (QName, UntypedAtomic)):
+            return self.value == other.value
+        return self.value == other
 
 
 class UntypedAtomic(object):
@@ -1210,7 +1265,7 @@ class UntypedAtomic(object):
             self.value = value.decode('utf-8')
         elif isinstance(value, bool):
             self.value = 'true' if value else 'false'
-        elif isinstance(value, UntypedAtomic):
+        elif isinstance(value, (UntypedAtomic, AnyURI, QName)):
             self.value = value.value
         elif isinstance(value, AbstractBinary):
             self.value = value.value.decode('utf-8')
