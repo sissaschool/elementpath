@@ -470,10 +470,10 @@ class XPath2Parser(XPath1Parser):
             if XSD_BUILTIN_TYPES['QName'].validator(value) and ':' in value:
                 return '{}:QName'.format(self.xsd_prefix)
 
-            for type_name in ['date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'gYear',
-                              'gYearMonth', 'time', 'duration', 'dayTimeDuration',
-                              'yearMonthDuration', 'dateTimeStamp', 'base64Binary',
-                              'hexBinary', 'string', 'boolean', 'decimal', 'float']:
+            for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
+                              'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay',
+                              'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
+                              'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary']:
                 if XSD_BUILTIN_TYPES[type_name].validator(value):
                     return '{}:{}'.format(self.xsd_prefix, type_name)
 

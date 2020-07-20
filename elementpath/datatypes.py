@@ -1169,8 +1169,29 @@ class HexBinary(AbstractBinary):
         return isinstance(other, (str, bytes)) and self.value.lower() == other.lower()
 
 
-class Double(float):
-    """A wrapper for handle xs:double casting and type checking."""
+class Float(float):
+    """A wrapper for emulating single precision floating point xs:float."""
+
+    def __add__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__add__(other))
+        return super(Float, self).__add__(other)
+
+    def __sub__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__sub__(other))
+        return super(Float, self).__sub__(other)
+
+    def __mul__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__mul__(other))
+        return super(Float, self).__mul__(other)
+
+    def __truediv__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__truediv__(other))
+        return super(Float, self).__truediv__(other)
+
 
 
 class AnyURI(object):
@@ -1478,11 +1499,11 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=Decimal('1.0')
     ),
     'double': XsdBuiltin(
-        lambda x: isinstance(x, float),
+        lambda x: isinstance(x, float) and not isinstance(x, Float),
         value=1.0
     ),
     'float': XsdBuiltin(
-        lambda x: isinstance(x, float),
+        lambda x: isinstance(x, Float),
         value=1.0
     ),
     'date': XsdBuiltin(
