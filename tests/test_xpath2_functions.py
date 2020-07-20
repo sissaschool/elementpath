@@ -1084,9 +1084,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          Time.fromstring('03:00:00+10:00'), context)
 
     def test_default_collation_function(self):
-        default_locale = locale.getdefaultlocale()
-        default_locale = '.'.join(default_locale) if default_locale[1] else default_locale[0]
-        self.check_value('fn:default-collation()', default_locale)
+        self.check_value('fn:default-collation()',
+                         'http://www.w3.org/2005/xpath-functions/collation/codepoint')
 
     def test_context_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
