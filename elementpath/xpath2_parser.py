@@ -1057,7 +1057,15 @@ def nud(self):
 
 ###
 # Range expression
-@method(infix('to', bp=35))
+@method('to', bp=35)
+def led(self, left):
+    if left.symbol == 'to':
+        raise self.wrong_syntax()
+    self[:] = left, self.parser.expression(rbp=35)
+    return self
+
+
+@method('to')
 def evaluate(self, context=None):
     start, stop = self.get_operands(context, cls=int)
     try:
