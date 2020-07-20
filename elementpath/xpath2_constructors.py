@@ -18,9 +18,9 @@ from .namespaces import XQT_ERRORS_NAMESPACE
 from .datatypes import DateTime10, DateTime, Date10, Date, Time, \
     XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
     XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic, Duration, \
-    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Double, \
-    WHITESPACES_PATTERN, QNAME_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
-    NCNAME_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
+    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Double, AnyURI, \
+    QName, WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, \
+    LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
@@ -496,12 +496,20 @@ def evaluate(self, context=None):
 #
 @constructor('QName', bp=90, label=('function', 'constructor'))
 def cast(self, value):
-    if not isinstance(value, str):
-        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
+    if isinstance(value, UntypedAtomic):
+        value = value.value
+    elif not isinstance(value, str):
+        raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
 
-    if QNAME_PATTERN.match(value) is None:
-        raise self.error('FORG0001', 'the argument must be an xs:QName')
-    return value
+    try:
+        if ':' not in value:
+            return QName(self.parser.namespaces.get('', ''), value)
+        pfx, _ = value.strip().split(':')
+        return QName(self.parser.namespaces[pfx], value)
+    except ValueError:
+        raise self.error('FORG0001', 'invalid value {!r} for argument'.format(value.strip()))
+    except KeyError as err:
+        raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
 
 
 @constructor('dateTime', bp=90, label=('function', 'constructor'))
@@ -527,9 +535,13 @@ def nud(self):
         self.parser.advance('(')
         self[0:] = self.parser.expression(5),
         if self.parser.next_token.symbol == ',':
+            if self.label != 'function':
+                raise self.error('XPST0017', 'unexpected 2nd argument')
             self.label = 'function'
             self.parser.advance(',')
             self[1:] = self.parser.expression(5),
+        elif self.label != 'constructor':
+            raise self.error('XPST0017', '2nd argument missing')
         else:
             self.label = 'constructor'
         self.parser.advance(')')
@@ -543,43 +555,16 @@ def nud(self):
 def evaluate(self, context=None):
     if self.label == 'constructor':
         arg = self.data_value(self.get_argument(context))
-        if arg is None:
-            return []
-
-        try:
-            if isinstance(arg, UntypedAtomic):
-                return self.cast(arg.value)
-            return self.cast(arg)
-        except ElementPathError as err:
-            err.token = self
-            raise
+        return [] if arg is None else self.cast(arg)
     else:
         uri = self.get_argument(context)
-        if uri is None:
-            uri = ''
-        elif not isinstance(uri, str):
-            raise self.error('FORG0006', '1st argument has an invalid type %r' % type(uri))
-
-        qname = self[1].evaluate(context)
-        if not isinstance(qname, str):
-            raise self.error('FORG0006', '2nd argument has an invalid type %r' % type(qname))
-        match = QNAME_PATTERN.match(qname)
-        if match is None:
-            raise self.error('FOCA0002', '2nd argument must be an xs:QName')
-
-        pfx = match.groupdict()['prefix'] or ''
-        if not uri:
-            if pfx:
-                msg = 'must be a local name when the parameter URI is empty'
-                raise self.error('FOCA0002', msg)
-        else:
-            try:
-                if uri != self.parser.namespaces[pfx]:
-                    msg = 'prefix %r is already is used for another namespace'
-                    raise self.error('FOCA0002', msg % pfx)
-            except KeyError:
-                self.parser.namespaces[pfx] = uri
-        return qname
+        qname = self.get_argument(context, index=1)
+        try:
+            return QName(uri, qname)
+        except TypeError as err:
+            raise self.error('XPTY0004', str(err))
+        except ValueError as err:
+            raise self.error('FOCA0002', str(err))
 
 
 @method('dateTime')

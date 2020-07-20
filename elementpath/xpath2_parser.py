@@ -24,7 +24,7 @@ from .exceptions import ElementPathError, ElementPathKeyError, ElementPathTypeEr
     MissingContextError, ElementPathValueError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
-    XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_qname, get_extended_qname, \
+    XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name, \
     XSD_UNTYPED_ATOMIC
 from .datatypes import Duration, UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
@@ -360,7 +360,7 @@ class XPath2Parser(XPath1Parser):
             else:
                 return self_.parser.schema.cast_as(self_[0].evaluate(context), atomic_type)
 
-        symbol = get_prefixed_qname(atomic_type, self.namespaces)
+        symbol = get_prefixed_name(atomic_type, self.namespaces)
         token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
         kwargs = {
             'symbol': symbol,
@@ -437,7 +437,7 @@ class XPath2Parser(XPath1Parser):
             return False
 
         try:
-            type_qname = get_extended_qname(text, self.namespaces)
+            type_qname = get_expanded_name(text, self.namespaces)
             self.is_instance(None, type_qname)
         except (KeyError, ValueError):
             return False
@@ -479,7 +479,7 @@ class XPath2Parser(XPath1Parser):
             sequence_type = sequence_type[:-1]
 
         if XSD_BUILTIN_TYPES['QName'].validator(sequence_type):
-            type_qname = get_extended_qname(sequence_type, self.namespaces)
+            type_qname = get_expanded_name(sequence_type, self.namespaces)
             if type_qname == XSD_UNTYPED_ATOMIC:
                 return UntypedAtomic('1')
             elif self.schema is not None:
@@ -517,7 +517,7 @@ class XPath2Parser(XPath1Parser):
                 return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
 
             try:
-                type_qname = get_extended_qname(sequence_type, self.namespaces)
+                type_qname = get_expanded_name(sequence_type, self.namespaces)
                 return self.is_instance(value, type_qname)
             except (KeyError, ValueError):
                 return False
@@ -779,7 +779,7 @@ def evaluate(self, context=None):
             return position is not None or occurs in ('*', '?')
     else:
         try:
-            qname = get_extended_qname(self[1].source, self.parser.namespaces)
+            qname = get_expanded_name(self[1].source, self.parser.namespaces)
         except KeyError as err:
             raise self.error('XPST0081', "namespace prefix {} not found".format(err))
 
@@ -818,7 +818,7 @@ def evaluate(self, context=None):
                 raise self.wrong_sequence_type("the sequence cannot be empty")
     else:
         try:
-            qname = get_extended_qname(self[1].source, self.parser.namespaces)
+            qname = get_expanded_name(self[1].source, self.parser.namespaces)
         except KeyError as err:
             raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
@@ -858,7 +858,7 @@ def led(self, left):
 @method('cast')
 def evaluate(self, context=None):
     try:
-        atomic_type = get_extended_qname(self[1].source, namespaces=self.parser.namespaces)
+        atomic_type = get_expanded_name(self[1].source, namespaces=self.parser.namespaces)
     except KeyError as err:
         raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
@@ -1177,7 +1177,7 @@ def select(self, context=None):
 
     for _ in context.iter_children_or_self():
         attribute_name = self[0].source
-        qname = get_extended_qname(attribute_name, self.parser.namespaces)
+        qname = get_expanded_name(attribute_name, self.parser.namespaces)
         if self.parser.schema.get_attribute(qname) is None:
             raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
@@ -1192,7 +1192,7 @@ def select(self, context=None):
 
     for _ in context.iter_children_or_self():
         element_name = self[0].source
-        qname = get_extended_qname(element_name, self.parser.namespaces)
+        qname = get_expanded_name(element_name, self.parser.namespaces)
         if self.parser.schema.get_element(qname) is None \
                 and self.parser.schema.get_substitution_group(qname) is None:
             raise self.missing_name("element %r not found in schema" % element_name)
@@ -1261,7 +1261,7 @@ def select(self, context=None):
     else:
         name = self[0].value
         if self.parser.schema is not None and len(self) == 2:
-            type_name = get_extended_qname(self[1].value, namespaces=self.parser.namespaces)
+            type_name = get_expanded_name(self[1].value, namespaces=self.parser.namespaces)
         else:
             type_name = None
 

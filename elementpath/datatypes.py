@@ -1208,47 +1208,50 @@ class QName(object):
     """
     XPath compliant QName, bound with a prefix and a namespace.
 
-    :param value: the prefixed name or a local name.
-    :param namespace: the bound namespace, must be a not empty \
-    URI if a prefixed name is provided for the 1st argument.
+    :param uri: the bound namespace URI, must be a not empty \
+    URI if a prefixed name is provided for the 2nd argument.
+    :param qname: the prefixed name or a local name.
     """
-    def __init__(self, value, namespace=None):
-        if not isinstance(value, str):
-            raise TypeError('the 1st argument has an invalid type %r' % type(value))
-        if namespace is not None and not isinstance(namespace, str):
-            raise TypeError('the 2nd argument has an invalid type %r' % type(namespace))
+    def __init__(self, uri, qname):
+        if uri is None:
+            self.namespace = ''
+        elif isinstance(uri, str):
+            self.namespace = uri
+        else:
+            raise TypeError('the 1st argument has an invalid type %r' % type(uri))
 
-        self.value = value.strip()
-        self.namespace = namespace
+        if not isinstance(qname, str):
+            raise TypeError('the 2nd argument has an invalid type %r' % type(qname))
+        self.qname = qname.strip()
 
-        match = QNAME_PATTERN.match(self.value)
+        match = QNAME_PATTERN.match(self.qname)
         if match is None:
-            raise ValueError('invalid value {!r} for an xs:QName'.format(self.value))
+            raise ValueError('invalid value {!r} for an xs:QName'.format(self.qname))
 
         self.prefix = match.groupdict()['prefix']
         self.local_name = match.groupdict()['local']
-        if not namespace and self.prefix:
+        if not uri and self.prefix:
             msg = '{!r}: cannot associate a non-empty prefix with no namespace'
             raise ValueError(msg.format(self))
 
     @property
-    def extended_name(self):
+    def expanded_name(self):
         if not self.namespace:
             return self.local_name
         return '{%s}%s' % (self.namespace, self.local_name)
 
     def __repr__(self):
         if not self.namespace:
-            return '%s(%r)' % (self.__class__.__name__, self.value)
-        return '%s(%r, namespace=%r)' % (self.__class__.__name__, self.value, self.namespace)
+            return '%s(%r)' % (self.__class__.__name__, self.qname)
+        return '%s(%r, namespace=%r)' % (self.__class__.__name__, self.qname, self.namespace)
 
     def __str__(self):
-        return self.value
+        return self.qname
 
     def __eq__(self, other):
-        if isinstance(other, (QName, UntypedAtomic)):
-            return self.value == other.value
-        return self.value == other
+        if not isinstance(other, self.__class__):
+            raise TypeError("cannot compare {!r} to {!r}".format(type(self), type(other)))
+        return self.namespace == other.namespace and self.local_name == other.local_name
 
 
 class UntypedAtomic(object):
@@ -1265,8 +1268,10 @@ class UntypedAtomic(object):
             self.value = value.decode('utf-8')
         elif isinstance(value, bool):
             self.value = 'true' if value else 'false'
-        elif isinstance(value, (UntypedAtomic, AnyURI, QName)):
+        elif isinstance(value, (UntypedAtomic, AnyURI)):
             self.value = value.value
+        elif isinstance(value, QName):
+            self.value = value.qname
         elif isinstance(value, AbstractBinary):
             self.value = value.value.decode('utf-8')
         elif isinstance(value, (AbstractDateTime, Duration, int, float, Decimal)):
@@ -1456,8 +1461,8 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=UntypedAtomic('1')
     ),
     'anySimpleType': XsdBuiltin(
-        lambda x: isinstance(x, (str, int, float, bool, Decimal,
-                                 AbstractDateTime, Duration, Timezone, UntypedAtomic)),
+        lambda x: isinstance(x, (str, int, float, bool, Decimal, AbstractDateTime, Duration,
+                                 Timezone, AbstractBinary, AnyURI, QName, UntypedAtomic)),
         value=UntypedAtomic('1')
     ),
     'anyAtomicType': XsdBuiltin(

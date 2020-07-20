@@ -10,7 +10,11 @@
 import re
 
 
-_RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
+_RE_MATCH_NAMESPACE = re.compile(r'{([^}]+)}')
+EXPANDED_NAME_PATTERN = re.compile(
+    r'^(?:{(?P<namespace>[^}]+)})?'
+    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
+)
 
 # Namespaces
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
@@ -49,11 +53,19 @@ XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
 def get_namespace(name):
     try:
         return _RE_MATCH_NAMESPACE.match(name).group(1)
-    except (AttributeError, TypeError):
+    except AttributeError:
         return ''
 
 
-def get_prefixed_qname(qname, namespaces):
+def split_expanded_name(name):
+    match = EXPANDED_NAME_PATTERN.match(name)
+    if match is None:
+        raise ValueError("{!r} is not an expanded QName".format(name))
+    namespace, local_name = tuple(match.groupdict().values())
+    return namespace or '', local_name
+
+
+def get_prefixed_name(qname, namespaces):
     """
     Get the prefixed form of a QName, using a namespace map.
 
@@ -76,14 +88,14 @@ def get_prefixed_qname(qname, namespaces):
         return qname
 
 
-def get_extended_qname(qname, namespaces):
+def get_expanded_name(qname, namespaces):
     """
-    Get the extended form of a QName, using a namespace map.
+    Get the expanded form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
 
     :param qname: a prefixed QName or a local name or an extended QName.
     :param namespaces: a dictionary with a map from prefixes to namespace URIs.
-    :return: a QName in extended format or a local name.
+    :return: the expanded format of a QName or a local name.
     """
     try:
         if qname[0] == '{':
