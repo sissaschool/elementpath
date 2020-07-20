@@ -31,7 +31,7 @@ from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, 
     is_etree_element, is_attribute_node, etree_iter_strings, is_text_node, \
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
-from .datatypes import AbstractDateTime, UntypedAtomic, Timezone, DateTime10, \
+from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
     Date10, DayTimeDuration, Duration, XSD_BUILTIN_TYPES
 from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token, MultiLabel
@@ -737,22 +737,24 @@ class XPathToken(Token):
                 return True
             elif is_element_node(obj[0]):
                 return True
-            elif len(obj) == 1:
-                if isinstance(obj[0], UntypedAtomic):
-                    return bool(obj[0].value)
-                return bool(obj[0])
+            elif len(obj) > 1:
+                message = "effective boolean value is not defined for a sequence " \
+                          "of two or more items not starting with an XPath node."
+                raise self.error('FORG0006', message)
             else:
-                raise self.error(
-                    code='FORG0006',
-                    message="Effective boolean value is not defined for a sequence of two or "
-                            "more items not starting with an XPath node.",
-                ) from None
-        elif isinstance(obj, UntypedAtomic):
+                obj = obj[0]
+
+        if isinstance(obj, (float, Decimal)):
+            return False if math.isnan(obj) else bool(obj)
+        elif isinstance(obj, (int, str)):  # Include bool
+            return bool(obj)
+        elif isinstance(obj, (UntypedAtomic, AnyURI)):
             return bool(obj.value)
-        elif isinstance(obj, tuple) or is_element_node(obj):
-            msg = "Effective boolean value is not defined for {}."
-            raise self.error('FORG0006', msg.format(obj))
-        return bool(obj)
+        elif obj is None:
+            return False
+        else:
+            message = "effective boolean value is not defined for {!r}.".format(type(obj))
+            raise self.error('FORG0006', message)
 
     def string_value(self, obj):
         """

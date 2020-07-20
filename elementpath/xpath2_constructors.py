@@ -18,7 +18,7 @@ from .namespaces import XQT_ERRORS_NAMESPACE
 from .datatypes import DateTime10, DateTime, Date10, Date, Time, \
     XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
     XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic, Duration, \
-    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Double, AnyURI, \
+    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Float, AnyURI, \
     QName, WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, \
     LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
@@ -124,7 +124,7 @@ def cast(self, value):
 
 @constructor('float')
 def cast(self, value):
-    return self.cast_to_number(value, float)
+    return self.cast_to_number(value, Float)
 
 
 @constructor('integer')
