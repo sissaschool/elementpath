@@ -22,7 +22,8 @@ from elementpath import XPathContext, AttributeNode, TypedAttribute
 from elementpath.datatypes import Timezone, DateTime, GregorianYear10, \
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, \
     XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
-    XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic
+    XPathGregorianYear, XPathGregorianYearMonth, QName, UntypedAtomic
+from elementpath.namespaces import XSD_NAMESPACE
 
 try:
     from tests import xpath_test_class
@@ -133,11 +134,12 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:ENTITY(xs:untypedAtomic("xyz"))', 'xyz')
 
     def test_qname_constructor(self):
+        qname = QName(XSD_NAMESPACE, 'xs:element')
         self.check_value('xs:QName(())', [])
-        self.check_value('xs:QName("xs:element")', 'xs:element')
-        self.check_value('xs:QName(xs:untypedAtomic("xs:element"))', 'xs:element')
-        self.wrong_type('xs:QName(5)', 'FORG0006', "the argument has an invalid type")
-        self.wrong_value('xs:QName("1")', 'FORG0001', "the argument must be an xs:QName")
+        self.check_value('xs:QName("xs:element")', qname)
+        self.check_value('xs:QName(xs:untypedAtomic("xs:element"))', qname)
+        self.wrong_type('xs:QName(5)', 'XPTY0004', "the argument has an invalid type")
+        self.wrong_value('xs:QName("1")', 'FORG0001', "invalid value")
 
     def test_any_uri_constructor(self):
         self.check_value('xs:anyURI("")', '')

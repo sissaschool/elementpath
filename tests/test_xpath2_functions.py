@@ -43,7 +43,7 @@ else:
 from elementpath import *
 from elementpath.namespaces import XSI_NAMESPACE
 from elementpath.datatypes import DateTime, Date, Time, Timezone, \
-    DayTimeDuration, YearMonthDuration, UntypedAtomic
+    DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
 
 try:
     from tests import test_xpath1_parser
@@ -615,16 +615,19 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('fn:exactly-one((10, 20, 30, 40))')
 
     def test_qname_function(self):
-        self.check_value('fn:QName("", "person")', 'person')
-        self.check_value('fn:QName((), "person")', 'person')
-        self.check_value('fn:QName("http://www.example.com/ns/", "person")', 'person')
-        self.check_value('fn:QName("http://www.example.com/ns/", "ht:person")', 'ht:person')
+        self.check_value('fn:string(fn:QName("", "person"))', 'person')
+        self.check_value('fn:string(fn:QName((), "person"))', 'person')
+        self.check_value('fn:string(fn:QName("http://www.example.com/ns/", "person"))', 'person')
+        self.check_value('fn:string(fn:QName("http://www.example.com/ns/", "ht:person"))',
+                         'ht:person')
+        self.check_value('fn:string(fn:QName("http://www.example.com/ns/", "xs:person"))',
+                         'xs:person')
 
-        self.wrong_type('fn:QName(1.0, "person")', 'FORG0006', '1st argument has an invalid type')
-        self.wrong_type('fn:QName("", 2)', 'FORG0006', '2nd argument has an invalid type')
-        self.wrong_value('fn:QName("", "3")', 'FOCA0002', '2nd argument must be an xs:QName')
-        self.wrong_value('fn:QName("http://www.example.com/ns/", "xs:person")')
-        self.wrong_value('fn:QName("", "xs:int")', 'FOCA0002', 'must be a local name')
+        self.wrong_type('fn:QName(1.0, "person")', 'XPTY0004', '1st argument has an invalid type')
+        self.wrong_type('fn:QName("", 2)', 'XPTY0004', '2nd argument has an invalid type')
+        self.wrong_value('fn:QName("", "3")', 'FOCA0002', 'invalid value')
+        self.wrong_value('fn:QName("", "xs:int")', 'FOCA0002',
+                         'cannot associate a non-empty prefix with no namespace')
 
     def test_prefix_from_qname_function(self):
         self.check_value(
@@ -635,7 +638,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         )
         self.check_value('fn:prefix-from-QName(())', [])
         self.check_value('fn:prefix-from-QName(7)', TypeError)
-        self.check_value('fn:prefix-from-QName("7")', ValueError)
+        self.check_value('fn:prefix-from-QName("7")', TypeError)
 
     def test_local_name_from_qname_function(self):
         self.check_value(
@@ -643,7 +646,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         )
         self.check_value('fn:local-name-from-QName(())', [])
         self.check_value('fn:local-name-from-QName(8)', TypeError)
-        self.check_value('fn:local-name-from-QName("8")', ValueError)
+        self.check_value('fn:local-name-from-QName("8")', TypeError)
 
     def test_namespace_uri_from_qname_function(self):
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
@@ -656,9 +659,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         )
         self.check_value('fn:namespace-uri-from-QName(())', [])
         self.check_value('fn:namespace-uri-from-QName(1)', TypeError)
-        self.check_value('fn:namespace-uri-from-QName("1")', ValueError)
-        self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, KeyError)
-        self.check_selector("fn:namespace-uri-from-QName('p3:C3')", root, NameError,
+        self.check_value('fn:namespace-uri-from-QName("1")', TypeError)
+        self.check_selector("fn:namespace-uri-from-QName(xs:QName('p3:C3'))", root, KeyError)
+        self.check_selector("fn:namespace-uri-from-QName(xs:QName('p3:C3'))", root, ValueError,
                             namespaces={'p3': ''})
 
     def test_resolve_qname_function(self):
@@ -669,27 +672,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root=root)
 
         self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
-        self.check_value("fn:resolve-QName('eg:C2', .)", '{http://www.example.com/ns/}C2',
-                         context=context.copy())
-        self.check_selector("fn:resolve-QName('p3:C3', .)", root, NameError, namespaces={'p3': ''})
+        self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context.copy())
+        self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError, namespaces={'p3': ''})
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError)
         self.check_value("fn:resolve-QName(2, .)", TypeError, context=context.copy())
         self.check_value("fn:resolve-QName('2', .)", ValueError, context=context.copy())
-        self.check_value("fn:resolve-QName((), 4)", TypeError, context=context.copy())
+        self.check_value("fn:resolve-QName((), 4)", [], context=context.copy())
 
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
-        self.check_selector("fn:resolve-QName('C3', .)", root, ['C3'], namespaces={'': ''})
-
-        if xmlschema is not None:
-            schema = xmlschema.XMLSchema("""
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                    xmlns:tns="http://foo.test">
-                  <xs:element name="root"/>
-                </xs:schema>""")
-
-            with self.schema_bound_parser(schema.xpath_proxy):
-                context = self.parser.schema.get_context()
-                self.check_value("fn:resolve-QName('p3:C3', .)", None, context)
+        self.check_selector("fn:resolve-QName('C3', .)", root,
+                            [QName('', 'C3')], namespaces={'': ''})
 
     def test_namespace_uri_for_prefix_function(self):
 
@@ -879,8 +871,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_node_accessor_functions(self):
         root = self.etree.XML('<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>'
                               '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE)
-        self.check_selector("node-name(.)", root, 'A')
-        self.check_selector("node-name(/A/B1)", root, 'B1')
+        self.check_selector("node-name(.)", root, QName('', 'A'))
+        self.check_selector("node-name(/A/B1)", root, QName('', 'B1'))
         self.check_selector("node-name(/A/*)", root, TypeError)  # Not allowed more than one item!
         self.check_selector("nilled(./B1/C1)", root, False)
         self.check_selector("nilled(./B1/C2)", root, True)

@@ -18,7 +18,7 @@ from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
-from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_qname
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_name
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
@@ -1068,7 +1068,7 @@ def evaluate(self, context=None):
 
     symbol = self.symbol
     if symbol == 'name':
-        return get_prefixed_qname(name, self.parser.namespaces)
+        return get_prefixed_name(name, self.parser.namespaces)
     elif not name or name[0] != '{':
         return name if symbol == 'local-name' else ''
     elif symbol == 'local-name':

@@ -10,8 +10,8 @@
 #
 import unittest
 
-from elementpath.namespaces import XSD_NAMESPACE, get_namespace, get_prefixed_qname, \
-    get_extended_qname
+from elementpath.namespaces import XSD_NAMESPACE, get_namespace, get_prefixed_name, \
+    get_expanded_name
 
 
 class NamespacesTest(unittest.TestCase):
@@ -28,30 +28,30 @@ class NamespacesTest(unittest.TestCase):
         self.assertEqual(get_namespace('{A}B{C}'), 'A')
 
     def test_qname_to_prefixed_function(self):
-        self.assertEqual(get_prefixed_qname('{ns}foo', {'bar': 'ns'}), 'bar:foo')
-        self.assertEqual(get_prefixed_qname('{ns}foo', {'': 'ns'}), 'foo')
-        self.assertEqual(get_prefixed_qname('foo', {'': 'ns'}), 'foo')
-        self.assertEqual(get_prefixed_qname('', {'': 'ns'}), '')
-        self.assertEqual(get_prefixed_qname('{ns}foo', {}), '{ns}foo')
-        self.assertEqual(get_prefixed_qname('{ns}foo', {'bar': 'other'}), '{ns}foo')
+        self.assertEqual(get_prefixed_name('{ns}foo', {'bar': 'ns'}), 'bar:foo')
+        self.assertEqual(get_prefixed_name('{ns}foo', {'': 'ns'}), 'foo')
+        self.assertEqual(get_prefixed_name('foo', {'': 'ns'}), 'foo')
+        self.assertEqual(get_prefixed_name('', {'': 'ns'}), '')
+        self.assertEqual(get_prefixed_name('{ns}foo', {}), '{ns}foo')
+        self.assertEqual(get_prefixed_name('{ns}foo', {'bar': 'other'}), '{ns}foo')
 
         with self.assertRaises(ValueError):
-            get_prefixed_qname('{{ns}}foo', {'bar': 'ns'})
+            get_prefixed_name('{{ns}}foo', {'bar': 'ns'})
 
     def test_prefixed_to_qname_function(self):
-        self.assertEqual(get_extended_qname('{ns}foo', {'bar': 'ns'}), '{ns}foo')
-        self.assertEqual(get_extended_qname('bar:foo', {'bar': 'ns'}), '{ns}foo')
-        self.assertEqual(get_extended_qname('foo', {'': 'ns'}), '{ns}foo')
-        self.assertEqual(get_extended_qname('', {'': 'ns'}), '')
+        self.assertEqual(get_expanded_name('{ns}foo', {'bar': 'ns'}), '{ns}foo')
+        self.assertEqual(get_expanded_name('bar:foo', {'bar': 'ns'}), '{ns}foo')
+        self.assertEqual(get_expanded_name('foo', {'': 'ns'}), '{ns}foo')
+        self.assertEqual(get_expanded_name('', {'': 'ns'}), '')
 
         with self.assertRaises(KeyError):
-            get_extended_qname('bar:foo', self.namespaces)
+            get_expanded_name('bar:foo', self.namespaces)
         with self.assertRaises(ValueError):
-            get_extended_qname('bar:foo:bar', {'bar': 'ns'})
+            get_expanded_name('bar:foo:bar', {'bar': 'ns'})
         with self.assertRaises(ValueError):
-            get_extended_qname(':foo', {'': 'ns'})
+            get_expanded_name(':foo', {'': 'ns'})
         with self.assertRaises(ValueError):
-            get_extended_qname('foo:', {'': 'ns'})
+            get_expanded_name('foo:', {'': 'ns'})
 
 
 if __name__ == '__main__':

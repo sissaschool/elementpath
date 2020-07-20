@@ -22,8 +22,8 @@ from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
 from .datatypes import any_uri_validator, QNAME_PATTERN, DateTime10, Date10, Date, \
-    Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, is_id, is_idrefs
-from .namespaces import get_namespace, XML_ID
+    Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, is_id, is_idrefs
+from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, \
     is_element_node, node_name, node_nilled, node_base_uri, \
@@ -58,12 +58,9 @@ def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
         return []
-    elif not isinstance(qname, str):
-        raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = QNAME_PATTERN.match(qname)
-    if match is None:
-        raise self.error('FOCA0002', 'argument must be an xs:QName')
-    return match.groupdict()['prefix'] or []
+    elif not isinstance(qname, QName):
+        raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
+    return qname.prefix or []
 
 
 @method(function('local-name-from-QName', nargs=1))
@@ -71,12 +68,9 @@ def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
         return []
-    elif not isinstance(qname, str):
-        raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = QNAME_PATTERN.match(qname)
-    if match is None:
-        raise self.error('FOCA0002', 'argument must be an xs:QName')
-    return match.groupdict()['local']
+    elif not isinstance(qname, QName):
+        raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
+    return qname.local_name
 
 
 @method(function('namespace-uri-from-QName', nargs=1))
@@ -84,23 +78,9 @@ def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
         return []
-    elif not isinstance(qname, str):
-        raise self.error('FORG0006', 'argument has an invalid type %r' % type(qname))
-    match = QNAME_PATTERN.match(qname)
-    if match is None:
-        raise self.error('FOCA0002', 'argument must be an xs:QName')
-    prefix = match.groupdict()['prefix'] or ''
-
-    try:
-        namespace = self.get_namespace(prefix)
-    except KeyError:
-        if prefix:
-            raise
-        namespace = ''
-
-    if not namespace and prefix:
-        raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
-    return namespace
+    elif not isinstance(qname, QName):
+        raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
+    return qname.namespace or ''
 
 
 @method(function('namespace-uri-for-prefix', nargs=2))
@@ -156,6 +136,12 @@ def select(self, context=None):
 
 @method(function('resolve-QName', nargs=2))
 def evaluate(self, context=None):
+    qname = self.get_argument(context=copy(context))
+    if qname is None:
+        return []
+    elif not isinstance(qname, str):
+        raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
+
     if context is None:
         raise self.missing_context()
 
@@ -163,35 +149,59 @@ def evaluate(self, context=None):
     if not is_element_node(elem):
         raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
 
-    qname = self.get_argument(context=copy(context))
-    if qname is None:
-        return []
-    if not isinstance(qname, str):
-        raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
+    qname = qname.strip()
     match = QNAME_PATTERN.match(qname)
     if match is None:
         raise self.error('FOCA0002', '1st argument must be an xs:QName')
+
     prefix = match.groupdict()['prefix'] or ''
+    if prefix == 'xml':
+        return QName(XML_NAMESPACE, qname)
 
-    ns_uris = {get_namespace(e.tag) for e in elem.iter()}
-    for pfx, uri in self.parser.namespaces.items():
-        if pfx == prefix and uri in ns_uris:
-            if uri:
-                return '{%s}%s' % (uri, match.groupdict()['local'])
-            elif not prefix:
-                return match.groupdict()['local']
+    try:
+        nsmap = {**self.parser.namespaces, **elem.nsmap}
+    except AttributeError:
+        nsmap = self.parser.namespaces
+
+    for pfx, uri in nsmap.items():
+        if pfx == prefix:
+            if pfx:
+                return QName(uri, '{}:{}'.format(pfx, match.groupdict()['local']))
             else:
-                raise self.error('XPST0081', 'Prefix %r is associated to no namespace' % prefix)
+                return QName(uri, match.groupdict()['local'])
 
-    if not isinstance(context, XPathSchemaContext):
-        raise self.error('FONS0004', 'No namespace found for prefix %r' % prefix)
+    if prefix or '' in self.parser.namespaces:
+        raise self.error('FONS0004', 'no namespace found for prefix %r' % prefix)
+    return QName('', qname)
 
 
 ###
 # Accessor functions
 @method(function('node-name', nargs=1))
 def evaluate(self, context=None):
-    return node_name(self.get_argument(context))
+    name = node_name(self.get_argument(context))
+    if name is None:
+        return []
+
+    if name.startswith('{'):
+        namespace, local_name = split_expanded_name(name)
+        for pfx, uri in self.parser.namespaces.items():
+            if uri == namespace:
+                if pfx:
+                    return QName(uri, '{}:{}'.format(pfx, local_name))
+                else:
+                    return QName(uri, local_name)
+        raise self.error('FONS0004', 'no prefix found for namespace {}'.format(namespace))
+
+    try:
+        if ':' not in name:
+            return QName(self.parser.namespaces.get('', ''), name)
+        pfx, _ = name.strip().split(':')
+        return QName(self.parser.namespaces[pfx], name)
+    except ValueError:
+        raise self.error('FORG0001', 'invalid value {!r} for argument'.format(name.strip()))
+    except KeyError as err:
+        raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
 
 
 @method(function('nilled', nargs=1))
