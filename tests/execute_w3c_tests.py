@@ -10,9 +10,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Tests script for running W3C XPath tests. A reworking of
-https://github.com/tjeb/elementpath_w3c_tests that uses
-ElementTree and only essential parts.
+Tests script for running W3C XPath tests on elementpath. This is a
+reworking of https://github.com/tjeb/elementpath_w3c_tests project
+that uses ElementTree for default and collapses the essential parts
+into only one module.
 """
 import argparse
 import contextlib
@@ -25,6 +26,7 @@ import traceback
 
 from collections import OrderedDict
 from xml.etree import ElementTree
+import lxml.etree
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext
 import elementpath
@@ -99,7 +101,7 @@ class Schema(object):
 class Source(object):
     """Represents a source file as used in XML environment settings."""
 
-    def __init__(self, elem):
+    def __init__(self, elem, use_lxml=False):
         assert elem.tag == '{%s}source' % QT3_NAMESPACE
         self.file = elem.attrib['file']
         self.role = elem.attrib.get('role', '')
@@ -110,8 +112,11 @@ class Source(object):
             self.description = ''
 
         try:
-            self.xml = ElementTree.parse(self.file)
-        except ElementTree.ParseError:
+            if use_lxml:
+                self.xml = lxml.etree.parse(self.file)
+            else:
+                self.xml = ElementTree.parse(self.file)
+        except (ElementTree.ParseError, lxml.etree.XMLSyntaxError):
             self.xml = None
 
     def __repr__(self):
@@ -119,9 +124,13 @@ class Source(object):
 
 
 class Environment(object):
-    """The XML environment definition for a test case."""
+    """
+    The XML environment definition for a test case.
 
-    def __init__(self, elem):
+    :param elem: the XML Element that contains the environment definition.
+    :param use_lxml: use lxml.etree for loading XML sources.
+    """
+    def __init__(self, elem, use_lxml=False):
         assert elem.tag == '{%s}environment' % QT3_NAMESPACE
         self.name = elem.get('name', 'anonymous')
         self.namespaces = {
@@ -137,7 +146,7 @@ class Environment(object):
 
         self.sources = {}
         for child in elem.iterfind('source', namespaces):
-            source = Source(child)
+            source = Source(child, use_lxml)
             self.sources[source.role] = source
             if source.role is None:
                 print(ElementTree.tostring(child))
@@ -168,8 +177,9 @@ class TestSet(object):
 
     :param elem: the XML Element that contains the test-set definitions.
     :param environments: the global environments.
+    :param use_lxml: use lxml.etree for loading environment XML sources.
     """
-    def __init__(self, elem, environments=None):
+    def __init__(self, elem, environments=None, use_lxml=False):
         assert elem.tag == '{%s}test-set' % QT3_NAMESPACE
         self.name = elem.attrib['name']
         self.file = elem.attrib['file']
@@ -201,11 +211,11 @@ class TestSet(object):
                     print("unexpected dependency type %s for test-set %r" % (dep_type, self.name))
 
             for child in xml_root.findall('environment', namespaces):
-                environment = Environment(child)
+                environment = Environment(child, use_lxml)
                 self.environments[environment.name] = environment
 
             for child in xml_root.findall('test-case', namespaces):
-                self.test_cases.append(TestCase(child, self))
+                self.test_cases.append(TestCase(child, self, use_lxml))
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)
@@ -217,6 +227,7 @@ class TestCase(object):
 
     :param elem: the XML Element that contains the test-case definition.
     :param test_set: the test-set that the test-case belongs to.
+    :param use_lxml: use lxml.etree for loading environment XML sources.
     """
     # Single value dependencies
     calendar = None
@@ -229,7 +240,7 @@ class TestCase(object):
     xml_version = None
     xsd_version = None
 
-    def __init__(self, elem, test_set):
+    def __init__(self, elem, test_set, use_lxml=False):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
         self.name = test_set.name + "__" + elem.attrib['name']
@@ -261,7 +272,7 @@ class TestCase(object):
             if 'ref' in child.attrib:
                 self.environment_ref = child.attrib['ref']
             else:
-                self.environment = Environment(child)
+                self.environment = Environment(child, use_lxml)
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)
@@ -446,11 +457,20 @@ class Result(object):
 
         if results:
             print()
+            print_traceback = False
             max_key = max(len(k) for k in results)
             for k, v in results.items():
                 if isinstance(v, Exception):
                     v = "Unexpected {!r}: {}".format(type(v), v)
+                    if verbose >= 3:
+                        print_traceback = True
+
                 print('  {}: {}{!r}'.format(k, ' ' * (max_key - len(k)), v))
+
+            if print_traceback:
+                print()
+                traceback.print_exc()
+
         print()
 
     def all_of_validator(self, verbose=1):
@@ -511,43 +531,49 @@ class Result(object):
             return False
 
         if self.value == 'xs:anyURI':
-            return isinstance(result, str)
+            type_check = isinstance(result, str)
         elif self.value == 'xs:boolean':
-            return isinstance(result, bool)
+            type_check = isinstance(result, bool)
         elif self.value == 'xs:date':
-            return isinstance(result, elementpath.datatypes.Date10)
+            type_check = isinstance(result, elementpath.datatypes.Date10)
         elif self.value == 'xs:double':
-            return isinstance(result, float)
+            type_check = isinstance(result, float)
         elif self.value == 'xs:dateTime':
-            return isinstance(result, elementpath.datatypes.DateTime10)
+            type_check = isinstance(result, elementpath.datatypes.DateTime10)
         elif self.value == 'xs:dayTimeDuration':
-            return isinstance(result, elementpath.datatypes.Timezone)
+            type_check = isinstance(result, elementpath.datatypes.DayTimeDuration)
         elif self.value == 'xs:decimal':
-            return isinstance(result, decimal.Decimal)
+            type_check = isinstance(result, (int, decimal.Decimal)) and not isinstance(result, bool)
         elif self.value == 'xs:float':
-            return isinstance(result, float)
+            type_check = isinstance(result, float)
         elif self.value == 'xs:integer':
-            return isinstance(result, int)
+            type_check = isinstance(result, int) and not isinstance(result, bool)
         elif self.value == 'xs:NCName':
-            return isinstance(result, str)
+            type_check = isinstance(result, str)
         elif self.value == 'xs:nonNegativeInteger':
-            return isinstance(result, int)
+            type_check = isinstance(result, int) and not isinstance(result, bool)
         elif self.value == 'xs:positiveInteger':
-            return isinstance(result, int)
+            type_check = isinstance(result, int) and not isinstance(result, bool)
         elif self.value == 'xs:string':
-            return isinstance(result, str)
+            type_check = isinstance(result, str)
         elif self.value == 'xs:time':
-            return isinstance(result, elementpath.datatypes.Time)
+            type_check = isinstance(result, elementpath.datatypes.Time)
         elif self.value == 'xs:token':
-            return isinstance(result, str)
+            type_check = isinstance(result, str)
         elif self.value == 'xs:unsignedShort':
-            return isinstance(result, int)
+            type_check = isinstance(result, int) and not isinstance(result, bool)
         elif self.value.startswith('document-node') or self.value.startswith('element'):
-            return isinstance(result, list)
+            type_check = isinstance(result, list)
         else:
             msg = "unknown type in assert_type: %s (result type is %s), test-case %s"
             print(msg % (self.value, str(type(result)), self.test_case.name))
             sys.exit(1)
+
+        if not type_check:
+            self.report_failure(
+                verbose, expected=self.value, result=result, result_type=type(result)
+            )
+        return type_check
 
     def assert_string_value_validator(self, verbose=1):
         try:
@@ -757,7 +783,9 @@ def main():
                         help='increase verbosity: one option to show unexpected errors, '
                              'two for show also unmatched error codes, three for debug')
     parser.add_argument('-r', dest='report', metavar='REPORT_FILE',
-                        help="Write a report (JSON format) to the given file")
+                        help="write a report (JSON format) to the given file")
+    parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
+                        help="use lxml.etree for environment sources (default is ElementTree)")
     args = parser.parse_args()
 
     report = OrderedDict()
@@ -779,12 +807,12 @@ def main():
 
         environments = {}
         for child in catalog_xml.getroot().iterfind("environment", namespaces):
-            environment = Environment(child)
+            environment = Environment(child, args.use_lxml)
             environments[environment.name] = environment
 
         test_sets = {}
         for child in catalog_xml.getroot().iterfind("test-set", namespaces):
-            test_set = TestSet(child, environments)
+            test_set = TestSet(child, environments, args.use_lxml)
             test_sets[test_set.name] = test_set
 
         count_read = 0
