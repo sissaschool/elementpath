@@ -29,6 +29,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
 from .datatypes import Duration, UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
     is_document_node, node_kind
+from .xpath_token import UNICODE_CODEPOINT_COLLATION
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
 from .schema_proxy import AbstractSchemaProxy
@@ -255,8 +256,13 @@ class XPath2Parser(XPath1Parser):
     def default_collation(self):
         if self._default_collation is not None:
             return self._default_collation
+
         default_locale = locale.getdefaultlocale()
-        return '.'.join(default_locale) if default_locale[1] else default_locale[0]
+        default_locale = '.'.join(default_locale) if default_locale[1] else default_locale[0]
+        if default_locale == 'en_US.UTF-8':
+            return UNICODE_CODEPOINT_COLLATION
+
+        return default_locale
 
     @property
     def default_namespace(self):

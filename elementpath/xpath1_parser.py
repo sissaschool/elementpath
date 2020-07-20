@@ -506,9 +506,10 @@ def select(self, context=None):
     if self:
         # Product operator
         item = self.evaluate(context)
-        if context is not None:
-            context.item = item
-        yield item
+        if item is not None:
+            if context is not None:
+                context.item = item
+            yield item
     elif context is None:
         raise self.missing_context()
     else:
