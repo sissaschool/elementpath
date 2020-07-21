@@ -26,7 +26,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name, \
     XSD_UNTYPED_ATOMIC
-from .datatypes import Duration, UntypedAtomic, XSD_BUILTIN_TYPES
+from .datatypes import Time, Duration, DayTimeDuration, UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
     is_document_node, node_kind
 from .xpath_token import UNICODE_CODEPOINT_COLLATION

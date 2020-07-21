@@ -15,12 +15,13 @@ exceptions in order to be reusable in other packages.
 from abc import ABC, ABCMeta, abstractmethod
 import operator
 import re
+import math
 import codecs
 import datetime
 import base64
 from collections import namedtuple
 from calendar import isleap, leapdays
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
 
@@ -183,6 +184,17 @@ def months2days(year, month, months_delta):
     else:
         m_days = sum(months_days[m] for m in range(target_month, month))
         return y_days - m_days if y_days >= 0 else y_days - m_days
+
+
+def round_number(value):
+    if math.isnan(value) or math.isinf(value):
+        return value
+
+    number = Decimal(value)
+    if number > 0:
+        return type(value)(number.quantize(Decimal('1'), rounding='ROUND_HALF_UP'))
+    else:
+        return type(value)(number.quantize(Decimal('1'), rounding='ROUND_HALF_DOWN'))
 
 
 class Timezone(datetime.tzinfo):
@@ -862,7 +874,10 @@ class Duration(object):
         if seconds < 0 < months or months < 0 < seconds:
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         self.months = months
-        self.seconds = Decimal(seconds)
+        try:
+            self.seconds = Decimal(seconds).quantize(Decimal('1.000000'))
+        except InvalidOperation:
+            self.seconds = Decimal(seconds)
 
     def __repr__(self):
         return '{}(months={!r}, seconds={})'.format(
@@ -894,7 +909,8 @@ class Duration(object):
             if minutes:
                 value += '%dM' % minutes
             if seconds:
-                value += '%sS' % seconds.normalize()
+                # seconds.normalize() does not remove exp every time: eg. Decimal('1E+1')
+                value += '%sS' % '{:.6f}'.format(seconds).strip('0').strip('.')
 
         elif value[-1] == 'P':
             value += 'T0S'
@@ -1023,25 +1039,25 @@ class YearMonthDuration(Duration):
             return YearMonthDuration(months=self.months + other.months)
         elif isinstance(other, (DateTime10, Date10)):
             return other + self
-        raise TypeError("wrong type %r for operand %r" % (type(other), other))
+        raise TypeError("invalid type %r for operand %r" % (type(other), other))
 
     def __sub__(self, other):
         if not isinstance(other, self.__class__):
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("invalid type %r for operand %r" % (type(other), other))
         return YearMonthDuration(months=self.months - other.months)
 
     def __mul__(self, other):
         if not isinstance(other, (float, int, Decimal)):
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
-        return YearMonthDuration(months=int(float(self.months * other) + 0.5))
+            raise TypeError("invalid type %r for operand %r" % (type(other), other))
+        return YearMonthDuration(months=int(round_number(self.months * other)))
 
     def __truediv__(self, other):
         if isinstance(other, self.__class__):
             return self.months / other.months
         elif isinstance(other, (float, int, Decimal)):
-            return YearMonthDuration(months=int(float(self.months / other) + 0.5))
+            return YearMonthDuration(months=int(round_number(self.months / other)))
         else:
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("invalid type %r for operand %r" % (type(other), other))
 
 
 class DayTimeDuration(Duration):
@@ -1064,27 +1080,46 @@ class DayTimeDuration(Duration):
         return '%s(seconds=%s)' % (self.__class__.__name__, str(self.seconds))
 
     def __add__(self, other):
-        if not isinstance(other, self.__class__):
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
-        return DayTimeDuration(seconds=self.seconds + other.seconds)
+        if isinstance(other, (Time, Date10)):
+            return other + self
+        elif not isinstance(other, self.__class__):
+            raise TypeError("cannot add %r to %r" % (type(other), type(self)))
+        return DayTimeDuration(self.seconds + other.seconds)
 
     def __sub__(self, other):
         if not isinstance(other, self.__class__):
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
+            raise TypeError("cannot subtract %r from %r" % (type(other), type(self)))
         return DayTimeDuration(seconds=self.seconds - other.seconds)
 
     def __mul__(self, other):
         if not isinstance(other, (float, int, Decimal)):
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
-        return DayTimeDuration(seconds=int(float(self.seconds * other) + 0.5))
+            raise TypeError("cannot multiply a %r by %r" % (type(self), type(other)))
+        elif math.isnan(other):
+            raise ValueError("cannot multiply a %r by NaN" % type(self))
+
+        if isinstance(other, (int, Decimal)):
+            seconds = self.seconds * other
+        else:
+            seconds = self.seconds * Decimal.from_float(other)
+        if math.isinf(seconds):
+            raise OverflowError("overflow when multiplying a %r by a number" % type(self))
+        return DayTimeDuration(seconds)
 
     def __truediv__(self, other):
         if isinstance(other, self.__class__):
             return self.seconds / other.seconds
-        elif isinstance(other, (float, int, Decimal)):
-            return DayTimeDuration(seconds=int(float(self.seconds / other) + 0.5))
+        elif not isinstance(other, (float, int, Decimal)):
+            raise TypeError("cannot divide a %r by %r" % (type(self), type(other)))
+        elif math.isnan(other):
+            raise ValueError("cannot divide a %r by NaN" % type(self))
+
+        if isinstance(other, (int, Decimal)):
+            seconds = self.seconds / other
         else:
-            raise TypeError("wrong type %r for operand %r" % (type(other), other))
+            seconds = self.seconds / Decimal.from_float(other)
+        if math.isinf(seconds):
+            raise OverflowError("overflow when dividing a %r by a number" % type(self))
+        return DayTimeDuration(seconds)
 
 
 class AbstractBinary(ABC):
@@ -1191,7 +1226,6 @@ class Float(float):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__truediv__(other))
         return super(Float, self).__truediv__(other)
-
 
 
 class AnyURI(object):
