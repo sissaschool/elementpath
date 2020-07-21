@@ -601,7 +601,7 @@ def evaluate(self, context=None):
             except ValueError as err:
                 raise self.error('FORG0001', str(err)) from None
             except TypeError as err:
-                raise self.error('XPTY0004', str(err)) from None
+                raise self.error('XPTY0004', str(err))
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
                     raise self.error('FODT0001', str(err))
@@ -685,6 +685,10 @@ def evaluate(self, context=None):
         except OverflowError as err:
             raise self.error('FOAR0002', str(err)) from None
         except (ZeroDivisionError, decimal.DivisionByZero):
+            if isinstance(dividend, AbstractDateTime):
+                raise self.error('FODT0001') from None
+            elif isinstance(dividend, Duration):
+                raise self.error('FODT0002') from None
             raise self.error('FOAR0001') from None
 
     elif isinstance(dividend, AbstractDateTime):

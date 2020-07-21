@@ -522,6 +522,9 @@ class Result(object):
         expected_result = root_node.evaluate(context)
         if expected_result == result:
             return True
+        elif isinstance(expected_result, decimal.Decimal) and isinstance(result, float):
+            if float(expected_result) == result:
+                return True
 
         self.report_failure(verbose, expected=expected_result, result=result)
         return False
