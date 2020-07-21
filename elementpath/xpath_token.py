@@ -674,23 +674,32 @@ class XPathToken(Token):
                 text = value.value.strip()
             elif isinstance(value, (str, bytes)):
                 text = value.strip()
+            elif issubclass(cls, Decimal) and (math.isinf(value) or math.isnan(value)):
+                raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % value)
             else:
                 return cls(value)
 
             if self.parser.compatibility_mode:
                 if text in ('Infinity', '-Infinity'):
+                    if issubclass(cls, Decimal):
+                        raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % text)
                     return cls('NaN' if self.parser.version != '1.0' else text[:-5].upper())
 
-            if text in {'NaN', 'INF', '-INF'} or \
-                    text.lower() not in {'nan', 'inf', '-inf', 'infinity', '-infinity'}:
+            if text in {'NaN', 'INF', '-INF'}:
+                if issubclass(cls, Decimal):
+                    raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % text)
+                return cls(text)
+            elif text.lower() not in {'nan', 'inf', '-inf', 'infinity', '-infinity'}:
+                if issubclass(cls, Decimal) and 'e' in text.lower():
+                    raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % text)
                 return cls(text)
         except (ValueError, DecimalException):
             pass
 
         msg = "could not convert {!r} to {!r}".format(value, cls)
         if isinstance(value, (str, bytes, UntypedAtomic)):
-            raise self.error('FORG0001', msg) from None
-        raise self.error('FOCA0002', msg) from None
+            raise self.error('FORG0001', msg)
+        raise self.error('FOCA0002', msg)
 
     ###
     # XPath data accessors base functions

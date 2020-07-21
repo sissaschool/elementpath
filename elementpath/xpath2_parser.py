@@ -883,7 +883,8 @@ def evaluate(self, context=None):
     namespace = get_namespace(atomic_type)
     if namespace != XSD_NAMESPACE and \
             (self.parser.schema is None or self.parser.schema.get_type(atomic_type) is None):
-        raise self.missing_schema("type %r not found in schema" % atomic_type)
+        msg = "atomic type %r not found in the in-scope schema types"
+        raise self.unknown_atomic_type(msg % atomic_type)
 
     result = [res for res in self[0].select(context)]
     if len(result) > 1:
@@ -907,7 +908,7 @@ def evaluate(self, context=None):
             token_class = self.parser.symbol_table.get(local_name)
             if token_class is None or token_class.label != 'constructor':
                 msg = "atomic type %r not found in the in-scope schema types"
-                self.unknown_atomic_type(msg % self[1].source)
+                raise self.unknown_atomic_type(msg % self[1].source)
 
             token = token_class(self.parser)
             value = token.cast(arg)

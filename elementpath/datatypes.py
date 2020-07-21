@@ -313,7 +313,9 @@ class AbstractDateTime(metaclass=ABCMeta):
         elif year == 0:
             raise ValueError('0 is an illegal value for year')
         elif not isinstance(year, int):
-            raise TypeError("wrong type %r for year" % type(year))
+            raise TypeError("invalid type %r for year" % type(year))
+        elif abs(year) > 2 ** 31:
+            raise OverflowError("year overflow")
         else:
             self._year = year
             if isleap(year + bool(self.version != '1.0')):
@@ -856,6 +858,11 @@ class Duration(object):
     def __init__(self, months=0, seconds=0):
         if seconds < 0 < months or months < 0 < seconds:
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
+        elif abs(months) > 2 ** 31:
+            raise OverflowError("months duration overflow")
+        elif abs(seconds) > 2 ** 63:
+            raise OverflowError("seconds duration overflow")
+
         self.months = months
         try:
             self.seconds = Decimal(seconds).quantize(Decimal('1.000000'))
