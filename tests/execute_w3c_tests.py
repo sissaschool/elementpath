@@ -370,7 +370,11 @@ class TestCase(object):
                 schema_proxy = None  # schema.xpath_proxy
 
         try:
-            parser = XPath2Parser(namespaces=test_namespaces, schema=schema_proxy)
+            parser = XPath2Parser(
+                namespaces=test_namespaces,
+                xsd_version=self.xsd_version,
+                schema=schema_proxy,
+            )
             root_node = parser.parse(self.test)
         except Exception as err:
             if isinstance(err, ElementPathError):

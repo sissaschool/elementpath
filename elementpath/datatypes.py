@@ -435,7 +435,10 @@ class AbstractDateTime(metaclass=ABCMeta):
                       "exceeds 4 digits leading zeroes are not allowed)"
                 raise ValueError(msg.format(datetime_string, cls))
 
-            if kwargs['year'] <= 0 and cls.version != '1.0':
+            if cls.version == '1.0':
+                if kwargs['year'] == 0:
+                    raise ValueError("year '0000' is an illegal value for XSD 1.0")
+            elif kwargs['year'] <= 0:
                 kwargs['year'] -= 1
 
         return cls(**kwargs)
@@ -707,68 +710,52 @@ class Date(Date10):
     version = '1.1'
 
 
-class XPathGregorianDay(AbstractDateTime):
-    """xs:gDay datatype for XPath expressions"""
+class GregorianDay(OrderedDateTime):
+    """XSD xs:gDay builtin type"""
     pattern = re.compile(r'^---(?P<day>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, day, tzinfo=None):
-        super(XPathGregorianDay, self).__init__(day=day, tzinfo=tzinfo)
+        super(GregorianDay, self).__init__(day=day, tzinfo=tzinfo)
 
     def __str__(self):
         return '---{:02}{}'.format(self.day, str(self.tzinfo or ''))
 
 
-class GregorianDay(XPathGregorianDay, OrderedDateTime):
-    """XSD xs:gDay builtin type"""
-
-
-class XPathGregorianMonth(AbstractDateTime):
-    """xs:gMonth datatype for XPath expressions"""
+class GregorianMonth(OrderedDateTime):
+    """XSD xs:gMonth builtin type"""
     pattern = re.compile(r'^--(?P<month>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, tzinfo=None):
-        super(XPathGregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
+        super(GregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
 
     def __str__(self):
         return '--{:02}{}'.format(self.month, str(self.tzinfo or ''))
 
 
-class GregorianMonth(XPathGregorianMonth, OrderedDateTime):
-    """XSD xs:gMonth builtin type"""
-
-
-class XPathGregorianMonthDay(AbstractDateTime):
-    """xs:gMonthDay datatype for XPath expressions"""
+class GregorianMonthDay(OrderedDateTime):
+    """XSD xs:gMonthDay builtin type"""
     pattern = re.compile(r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, month, day, tzinfo=None):
-        super(XPathGregorianMonthDay, self).__init__(month=month, day=day, tzinfo=tzinfo)
+        super(GregorianMonthDay, self).__init__(month=month, day=day, tzinfo=tzinfo)
 
     def __str__(self):
         return '--{:02}-{:02}{}'.format(self.month, self.day, str(self.tzinfo or ''))
 
 
-class GregorianMonthDay(XPathGregorianMonthDay, OrderedDateTime):
-    """XSD xs:gMonthDay builtin type"""
-
-
-class XPathGregorianYear(AbstractDateTime):
-    """xs:gYear datatype for XPath expressions"""
+class GregorianYear10(OrderedDateTime):
+    """XSD 1.0 xs:gYear builtin type"""
     pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, tzinfo=None):
-        super(XPathGregorianYear, self).__init__(year, tzinfo=tzinfo)
+        super(GregorianYear10, self).__init__(year, tzinfo=tzinfo)
 
     def __str__(self):
         return '{}{}'.format(self.iso_year, str(self.tzinfo or ''))
-
-
-class GregorianYear10(XPathGregorianYear, OrderedDateTime):
-    """XSD 1.0 xs:gYear builtin type"""
 
 
 class GregorianYear(GregorianYear10):
@@ -776,20 +763,16 @@ class GregorianYear(GregorianYear10):
     version = '1.1'
 
 
-class XPathGregorianYearMonth(AbstractDateTime):
-    """xs:gYearMonth datatype for XPath expressions"""
+class GregorianYearMonth10(OrderedDateTime):
+    """XSD 1.0 xs:gYearMonth builtin type"""
     pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, tzinfo=None):
-        super(XPathGregorianYearMonth, self).__init__(year, month, tzinfo=tzinfo)
+        super(GregorianYearMonth10, self).__init__(year, month, tzinfo=tzinfo)
 
     def __str__(self):
         return '{}-{:02}{}'.format(self.iso_year, self.month, str(self.tzinfo or ''))
-
-
-class GregorianYearMonth10(XPathGregorianYearMonth, OrderedDateTime):
-    """XSD 1.0 xs:gYearMonth builtin type"""
 
 
 class GregorianYearMonth(GregorianYearMonth10):
@@ -1561,11 +1544,11 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=GregorianMonthDay.fromstring('--12-01')
     ),
     'gYear': XsdBuiltin(
-        lambda x: isinstance(x, GregorianYear),
+        lambda x: isinstance(x, GregorianYear10),
         value=GregorianYear.fromstring('1999')
     ),
     'gYearMonth': XsdBuiltin(
-        lambda x: isinstance(x, GregorianYearMonth),
+        lambda x: isinstance(x, GregorianYearMonth10),
         value=GregorianYearMonth.fromstring('1999-09')
     ),
     'time': XsdBuiltin(
