@@ -176,10 +176,11 @@ class TestSet(object):
     Represents a test-set as read from the catalog file and the test-set XML file itself.
 
     :param elem: the XML Element that contains the test-set definitions.
-    :param environments: the global environments.
+    :param pattern: the regex pattern for selecting test-cases to load.
     :param use_lxml: use lxml.etree for loading environment XML sources.
+    :param environments: the global environments.
     """
-    def __init__(self, elem, environments=None, use_lxml=False):
+    def __init__(self, elem, pattern, use_lxml=False, environments=None):
         assert elem.tag == '{%s}test-set' % QT3_NAMESPACE
         self.name = elem.attrib['name']
         self.file = elem.attrib['file']
@@ -214,8 +215,10 @@ class TestSet(object):
                 environment = Environment(child, use_lxml)
                 self.environments[environment.name] = environment
 
+            test_case_template = self.name + '__%s'
             for child in xml_root.findall('test-case', namespaces):
-                self.test_cases.append(TestCase(child, self, use_lxml))
+                if pattern.search(test_case_template % child.attrib['name']) is not None:
+                    self.test_cases.append(TestCase(child, self, use_lxml))
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)
@@ -779,13 +782,15 @@ def main():
                         help='the path to the main index file of test suite (catalog.xml)')
     parser.add_argument('pattern', nargs='?', default='.*', metavar='PATTERN',
                         help='run only test cases which name matches a regex pattern')
+    parser.add_argument('-i', dest='ignore_case', action='store_true', default=False,
+                        help="ignore character case for regex pattern matching")
+    parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
+                        help="use lxml.etree for environment sources (default is ElementTree)")
     parser.add_argument('-v', dest='verbose', action='count', default=1,
                         help='increase verbosity: one option to show unexpected errors, '
                              'two for show also unmatched error codes, three for debug')
     parser.add_argument('-r', dest='report', metavar='REPORT_FILE',
                         help="write a report (JSON format) to the given file")
-    parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
-                        help="use lxml.etree for environment sources (default is ElementTree)")
     args = parser.parse_args()
 
     report = OrderedDict()
@@ -796,7 +801,7 @@ def main():
     report['success'] = []
 
     catalog_file = os.path.abspath(args.catalog)
-    pattern = re.compile(args.pattern)
+    pattern = re.compile(args.pattern, flags=re.IGNORECASE if args.ignore_case else 0)
 
     if not os.path.isfile(catalog_file):
         print("Error: catalog file %s does not exist" % args.catalog)
@@ -812,7 +817,7 @@ def main():
 
         test_sets = {}
         for child in catalog_xml.getroot().iterfind("test-set", namespaces):
-            test_set = TestSet(child, environments, args.use_lxml)
+            test_set = TestSet(child, pattern, args.use_lxml, environments)
             test_sets[test_set.name] = test_set
 
         count_read = 0
@@ -833,11 +838,6 @@ def main():
                 count_read += 1
 
                 if ignore_all_in_test_set:
-                    count_skip += 1
-                    continue
-
-                # # Skip cases that not match the provided pattern
-                if pattern.search(test_case.name) is None:
                     count_skip += 1
                     continue
 
