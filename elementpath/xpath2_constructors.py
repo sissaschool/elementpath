@@ -160,7 +160,7 @@ def cast(self, value):
 
     if isinstance(value, (str, bytes, UntypedAtomic)):
         try:
-            result = int(self.cast_to_number(value, Decimal))
+            result = self.cast_to_number(value, int)
         except ValueError:
             raise self.error('FORG0001', 'could not convert %r to integer' % value) from None
         except OverflowError as err:
@@ -187,11 +187,15 @@ def cast(self, value):
     cls = Date if self.parser.xsd_version == '1.1' else Date10
     if isinstance(value, cls):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return cls.fromstring(value.value)
-    elif isinstance(value, DateTime10):
-        return cls(value.year, value.month, value.day, value.tzinfo)
-    return cls.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return cls.fromstring(value.value)
+        elif isinstance(value, DateTime10):
+            return cls(value.year, value.month, value.day, value.tzinfo)
+        return cls.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0001', str(err)) from None
 
 
 @constructor('gDay')
@@ -232,11 +236,15 @@ def cast(self, value):
     cls = GregorianYear if self.parser.xsd_version == '1.1' else GregorianYear10
     if isinstance(value, cls):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return cls.fromstring(value.value)
-    elif isinstance(value, (Date10, DateTime10)):
-        return cls(value.year, value.tzinfo)
-    return cls.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return cls.fromstring(value.value)
+        elif isinstance(value, (Date10, DateTime10)):
+            return cls(value.year, value.tzinfo)
+        return cls.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0001', str(err)) from None
 
 
 @constructor('gYearMonth')
@@ -244,11 +252,15 @@ def cast(self, value):
     cls = GregorianYearMonth if self.parser.xsd_version == '1.1' else GregorianYearMonth10
     if isinstance(value, cls):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return cls.fromstring(value.value)
-    elif isinstance(value, (Date10, DateTime10)):
-        return cls(value.year, value.month, value.tzinfo)
-    return cls.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return cls.fromstring(value.value)
+        elif isinstance(value, (Date10, DateTime10)):
+            return cls(value.year, value.month, value.tzinfo)
+        return cls.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0001', str(err)) from None
 
 
 @constructor('time')
@@ -280,6 +292,8 @@ def evaluate(self, context=None):
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
         raise self.error('FORG0006', str(err)) from None
+    except OverflowError as err:
+        raise self.error('FODT0001', str(err)) from None
 
 
 ###
@@ -288,31 +302,43 @@ def evaluate(self, context=None):
 def cast(self, value):
     if isinstance(value, Duration):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return Duration.fromstring(value.value)
-    return Duration.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return Duration.fromstring(value.value)
+        return Duration.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0002', str(err)) from None
 
 
 @constructor('yearMonthDuration')
 def cast(self, value):
     if isinstance(value, YearMonthDuration):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return YearMonthDuration.fromstring(value.value)
     elif isinstance(value, Duration):
         return YearMonthDuration(months=value.months)
-    return YearMonthDuration.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return YearMonthDuration.fromstring(value.value)
+        return YearMonthDuration.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0002', str(err)) from None
 
 
 @constructor('dayTimeDuration')
 def cast(self, value):
     if isinstance(value, DayTimeDuration):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return DayTimeDuration.fromstring(value.value)
     elif isinstance(value, Duration):
         return DayTimeDuration(seconds=value.seconds)
-    return DayTimeDuration.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return DayTimeDuration.fromstring(value.value)
+        return DayTimeDuration.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0002', str(err)) from None
 
 
 @constructor('dateTimeStamp')
@@ -494,7 +520,9 @@ def evaluate(self, context=None):
 #
 @constructor('QName', bp=90, label=('function', 'constructor'))
 def cast(self, value):
-    if isinstance(value, UntypedAtomic):
+    if isinstance(value, QName):
+        return value
+    elif isinstance(value, UntypedAtomic):
         value = value.value
     elif not isinstance(value, str):
         raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
@@ -515,11 +543,15 @@ def cast(self, value):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
         return value
-    elif isinstance(value, UntypedAtomic):
-        return cls.fromstring(value.value)
-    elif isinstance(value, Date10):
-        return cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
-    return cls.fromstring(value)
+
+    try:
+        if isinstance(value, UntypedAtomic):
+            return cls.fromstring(value.value)
+        elif isinstance(value, Date10):
+            return cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
+        return cls.fromstring(value)
+    except OverflowError as err:
+        raise self.error('FODT0001', str(err)) from None
 
 
 @method('QName')
