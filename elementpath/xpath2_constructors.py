@@ -16,11 +16,11 @@ from urllib.parse import urlparse
 from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from .datatypes import DateTime10, DateTime, Date10, Date, Time, \
-    XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
-    XPathGregorianYear, XPathGregorianYearMonth, UntypedAtomic, Duration, \
-    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Float, AnyURI, \
-    QName, WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, NCNAME_PATTERN, \
-    LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
+    GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, \
+    GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
+    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Float, \
+    QName, UntypedAtomic, WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
+    NCNAME_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
@@ -184,11 +184,7 @@ def cast(self, value):
 # Constructors for datetime XSD types
 @constructor('date')
 def cast(self, value):
-    try:
-        cls = Date if self.parser.schema.xsd_version == '1.1' else Date10
-    except (AttributeError, NotImplementedError):
-        cls = Date10
-
+    cls = Date if self.parser.xsd_version == '1.1' else Date10
     if isinstance(value, cls):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -200,57 +196,59 @@ def cast(self, value):
 
 @constructor('gDay')
 def cast(self, value):
-    if isinstance(value, XPathGregorianDay):
+    if isinstance(value, GregorianDay):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianDay.fromstring(value.value)
+        return GregorianDay.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianDay(value.day, value.tzinfo)
-    return XPathGregorianDay.fromstring(value)
+        return GregorianDay(value.day, value.tzinfo)
+    return GregorianDay.fromstring(value)
 
 
 @constructor('gMonth')
 def cast(self, value):
-    if isinstance(value, XPathGregorianMonth):
+    if isinstance(value, GregorianMonth):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianMonth.fromstring(value.value)
+        return GregorianMonth.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianMonth(value.month, value.tzinfo)
-    return XPathGregorianMonth.fromstring(value)
+        return GregorianMonth(value.month, value.tzinfo)
+    return GregorianMonth.fromstring(value)
 
 
 @constructor('gMonthDay')
 def cast(self, value):
-    if isinstance(value, XPathGregorianMonthDay):
+    if isinstance(value, GregorianMonthDay):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianMonthDay.fromstring(value.value)
+        return GregorianMonthDay.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianMonthDay(value.month, value.day, value.tzinfo)
-    return XPathGregorianMonthDay.fromstring(value)
+        return GregorianMonthDay(value.month, value.day, value.tzinfo)
+    return GregorianMonthDay.fromstring(value)
 
 
 @constructor('gYear')
 def cast(self, value):
-    if isinstance(value, XPathGregorianYear):
+    cls = GregorianYear if self.parser.xsd_version == '1.1' else GregorianYear10
+    if isinstance(value, cls):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianYear.fromstring(value.value)
+        return cls.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianYear(value.year, value.tzinfo)
-    return XPathGregorianYear.fromstring(value)
+        return cls(value.year, value.tzinfo)
+    return cls.fromstring(value)
 
 
 @constructor('gYearMonth')
 def cast(self, value):
-    if isinstance(value, XPathGregorianYearMonth):
+    cls = GregorianYearMonth if self.parser.xsd_version == '1.1' else GregorianYearMonth10
+    if isinstance(value, cls):
         return value
     elif isinstance(value, UntypedAtomic):
-        return XPathGregorianYearMonth.fromstring(value.value)
+        return cls.fromstring(value.value)
     elif isinstance(value, (Date10, DateTime10)):
-        return XPathGregorianYearMonth(value.year, value.month, value.tzinfo)
-    return XPathGregorianYearMonth.fromstring(value)
+        return cls(value.year, value.month, value.tzinfo)
+    return cls.fromstring(value)
 
 
 @constructor('time')
@@ -514,11 +512,7 @@ def cast(self, value):
 
 @constructor('dateTime', bp=90, label=('function', 'constructor'))
 def cast(self, value):
-    try:
-        cls = DateTime if self.parser.schema.xsd_version == '1.1' else DateTime10
-    except (AttributeError, NotImplementedError):
-        cls = DateTime10
-
+    cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -592,13 +586,9 @@ def evaluate(self, context=None):
         else:
             raise self.error('FORG0008')
 
-        try:
-            if self.parser.schema.xsd_version == '1.1':
-                return DateTime(dt.year, dt.month, dt.day, tm.hour, tm.minute,
-                                tm.second, tm.microsecond, tzinfo)
-        except (AttributeError, NotImplementedError):
-            pass
-
+        if self.parser.xsd_version == '1.1':
+            return DateTime(dt.year, dt.month, dt.day, tm.hour, tm.minute,
+                            tm.second, tm.microsecond, tzinfo)
         return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute,
                           tm.second, tm.microsecond, tzinfo)
 

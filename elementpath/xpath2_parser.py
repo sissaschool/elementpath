@@ -26,7 +26,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name, \
     XSD_UNTYPED_ATOMIC
-from .datatypes import Time, Duration, DayTimeDuration, UntypedAtomic, XSD_BUILTIN_TYPES
+from .datatypes import Duration, UntypedAtomic, XSD_BUILTIN_TYPES
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
     is_document_node, node_kind
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
@@ -191,10 +191,14 @@ class XPath2Parser(XPath1Parser):
     }
 
     def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
-                 default_namespace=None, function_namespace=None, schema=None, base_uri=None,
-                 default_collation=None,
-                 document_types=None, collection_types=None, default_collection_type='node()*'):
+                 default_collation=None, default_namespace=None, function_namespace=None,
+                 xsd_version=None, schema=None, base_uri=None, document_types=None,
+                 collection_types=None, default_collection_type='node()*'):
         super(XPath2Parser, self).__init__(namespaces, strict)
+        self._compatibility_mode = compatibility_mode
+        self._default_collation = default_collation
+        self._xsd_version = xsd_version or '1.0'
+
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
 
@@ -221,8 +225,6 @@ class XPath2Parser(XPath1Parser):
             self.variables = {k: self.get_sequence_type(v) for k, v in variables.items()}
 
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
-        self._compatibility_mode = compatibility_mode
-        self._default_collation = default_collation
 
         if document_types:
             if any(not self.is_sequence_type(v) for v in document_types.values()):
@@ -267,6 +269,13 @@ class XPath2Parser(XPath1Parser):
     @property
     def default_namespace(self):
         return self.namespaces.get('')
+
+    @property
+    def xsd_version(self):
+        try:
+            return self.schema.xsd_version
+        except (AttributeError, NotImplementedError):
+            return self._xsd_version
 
     @property
     def xsd_prefix(self):
