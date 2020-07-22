@@ -21,7 +21,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 import locale
 import contextlib
 import math
-from decimal import Decimal, DecimalException
+from decimal import Decimal, DecimalException, getcontext
 import urllib.parse
 
 from .exceptions import ElementPathValueError, XPATH_ERROR_CODES
@@ -37,6 +37,7 @@ from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
 
+getcontext().prec = 30
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 
@@ -414,10 +415,16 @@ class XPathToken(Token):
                 if isinstance(op1, Decimal):
                     return float(op1), op2
 
-        if isinstance(op1, (Decimal, Duration)) and isinstance(op2, float):
-            return op1, Decimal(op2)
-        if isinstance(op2, (Decimal, Duration)) and isinstance(op1, float):
-            return Decimal(op1), op2
+        if isinstance(op1, float):
+            if isinstance(op2, Duration):
+                return Decimal(op1), op2
+            if isinstance(op2, Decimal):
+                return op1, type(op1)(op2)
+        if isinstance(op2, float):
+            if isinstance(op1, Duration):
+                return op1, Decimal(op2)
+            if isinstance(op1, Decimal):
+                return type(op2)(op1), op2
 
         return op1, op2
 
