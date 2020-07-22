@@ -474,7 +474,8 @@ class XPathToken(Token):
         """
         if namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                raise self.wrong_syntax(message="a function expected")
+                if self.label != 'literal':
+                    raise self.wrong_syntax(message="a function expected")
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:

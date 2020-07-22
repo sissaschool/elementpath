@@ -1172,14 +1172,12 @@ def evaluate(self, context=None):
 #
 # https://www.w3.org/TR/2010/REC-xpath-functions-20101214/#func-trace
 #
-@method(function('trace', nargs=(2, 2)))
-def evaluate(self, context=None):
-    value = self.get_argument(context)
+@method(function('trace', nargs=2))
+def select(self, context=None):
     label = self.get_argument(context, index=1, cls=str)
-
-    '{} {}'.format(label, str(value).strip())  # TODO
-
-    return value
+    for value in self[0].select(context):
+        '{} {}'.format(label, str(value).strip())  # TODO
+        yield value
 
 
 # XPath 2.0 definitions continue into module xpath2_constructors
