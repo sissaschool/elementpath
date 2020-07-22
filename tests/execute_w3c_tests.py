@@ -148,8 +148,6 @@ class Environment(object):
         for child in elem.iterfind('source', namespaces):
             source = Source(child, use_lxml)
             self.sources[source.role] = source
-            if source.role is None:
-                print(ElementTree.tostring(child))
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)

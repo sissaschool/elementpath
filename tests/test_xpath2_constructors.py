@@ -19,10 +19,9 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import XPathContext, AttributeNode, TypedAttribute
-from elementpath.datatypes import Timezone, DateTime, GregorianYear10, \
-    Duration, YearMonthDuration, DayTimeDuration, Date10, Time, \
-    XPathGregorianDay, XPathGregorianMonth, XPathGregorianMonthDay, \
-    XPathGregorianYear, XPathGregorianYearMonth, QName, UntypedAtomic
+from elementpath.datatypes import Timezone, DateTime, GregorianDay, \
+    GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYearMonth10, \
+    Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic
 from elementpath.namespaces import XSD_NAMESPACE
 
 try:
@@ -210,9 +209,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('xs:long("340282366920938463463374607431768211456")')
         self.check_value('xs:long("-20")', -20)
         self.wrong_value('xs:int("-20 91")')
-        self.wrong_value('xs:int("9223372036854775808")')
-        self.check_value('xs:int("-9223372036854775808")', -2**63)
-        self.check_value('xs:int("4611686018427387904")', 2**62)
+        self.wrong_value('xs:int("2147483648")')
+        self.check_value('xs:int("2147483647")', 2**31 - 1)
+        self.check_value('xs:int("-2147483648")', -2**31)
         self.wrong_value('xs:short("40000")')
         self.check_value('xs:short("9999")', 9999)
         self.check_value('xs:short(-9999)', -9999)
@@ -224,8 +223,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         self.wrong_value('xs:unsignedLong("-10")')
         self.check_value('xs:unsignedLong("3")', 3)
-        self.wrong_value('xs:unsignedInt("-9223372036854775808")')
-        self.check_value('xs:unsignedInt("9223372036854775808")', 2**63)
+        self.wrong_value('xs:unsignedInt("-4294967296")')
+        self.check_value('xs:unsignedInt("4294967295")', 2**32 - 1)
         self.wrong_value('xs:unsignedShort("-1")')
         self.check_value('xs:unsignedShort("0")', 0)
         self.wrong_value('xs:unsignedByte(-128)')
@@ -373,10 +372,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<root a="---08"/>')
         context = XPathContext(root)
-        self.check_value('xs:gDay(@a)', XPathGregorianDay(8), context=context)
+        self.check_value('xs:gDay(@a)', GregorianDay(8), context=context)
 
-        context.item = XPathGregorianDay(10)
-        self.check_value('xs:gDay(.)', XPathGregorianDay(10), context=context)
+        context.item = GregorianDay(10)
+        self.check_value('xs:gDay(.)', GregorianDay(10), context=context)
 
     def test_gregorian_month_constructor(self):
         self.check_value('xs:gMonth("--09")', datetime.datetime(2000, 9, 1))
@@ -388,10 +387,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<root a="--11"/>')
         context = XPathContext(root)
-        self.check_value('xs:gMonth(@a)', XPathGregorianMonth(11), context=context)
+        self.check_value('xs:gMonth(@a)', GregorianMonth(11), context=context)
 
-        context.item = XPathGregorianMonth(1)
-        self.check_value('xs:gMonth(.)', XPathGregorianMonth(1), context=context)
+        context.item = GregorianMonth(1)
+        self.check_value('xs:gMonth(.)', GregorianMonth(1), context=context)
 
     def test_gregorian_month_day_constructor(self):
         tz0 = None
@@ -409,10 +408,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<root a="--05-20"/>')
         context = XPathContext(root)
-        self.check_value('xs:gMonthDay(@a)', XPathGregorianMonthDay(5, 20), context=context)
+        self.check_value('xs:gMonthDay(@a)', GregorianMonthDay(5, 20), context=context)
 
-        context.item = XPathGregorianMonthDay(1, 15)
-        self.check_value('xs:gMonthDay(.)', XPathGregorianMonthDay(1, 15), context=context)
+        context.item = GregorianMonthDay(1, 15)
+        self.check_value('xs:gMonthDay(.)', GregorianMonthDay(1, 15), context=context)
 
     def test_gregorian_year_constructor(self):
         self.check_value('xs:gYear("2004")', datetime.datetime(2004, 1, 1))
@@ -426,10 +425,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<root a="1999"/>')
         context = XPathContext(root)
-        self.check_value('xs:gYear(@a)', XPathGregorianYear(1999), context=context)
+        self.check_value('xs:gYear(@a)', GregorianYear10(1999), context=context)
 
-        context.item = XPathGregorianYear(1492)
-        self.check_value('xs:gYear(.)', XPathGregorianYear(1492), context=context)
+        context.item = GregorianYear10(1492)
+        self.check_value('xs:gYear(.)', GregorianYear10(1492), context=context)
 
     def test_gregorian_year_month_constructor(self):
         self.check_value('xs:gYearMonth("2004-02")',
@@ -441,10 +440,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<root a="1900-01"/>')
         context = XPathContext(root)
-        self.check_value('xs:gYearMonth(@a)', XPathGregorianYearMonth(1900, 1), context=context)
+        self.check_value('xs:gYearMonth(@a)', GregorianYearMonth10(1900, 1), context=context)
 
-        context.item = XPathGregorianYearMonth(1300, 10)
-        self.check_value('xs:gYearMonth(.)', XPathGregorianYearMonth(1300, 10), context=context)
+        context.item = GregorianYearMonth10(1300, 10)
+        self.check_value('xs:gYearMonth(.)', GregorianYearMonth10(1300, 10), context=context)
 
     def test_duration_constructor(self):
         self.check_value('xs:duration("P3Y5M1D")', (41, 86400))

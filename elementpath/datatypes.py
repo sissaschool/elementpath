@@ -197,6 +197,11 @@ def round_number(value):
         return type(value)(number.quantize(Decimal('1'), rounding='ROUND_HALF_DOWN'))
 
 
+def normalized_seconds(seconds):
+    # Decimal.normalize() does not remove exp every time: eg. Decimal('1E+1')
+    return '{:.6f}'.format(seconds).strip('0').strip('.')
+
+
 class Timezone(datetime.tzinfo):
     """
     A tzinfo implementation for XSD timezone offsets. Offsets must be specified
@@ -871,7 +876,7 @@ class Duration(object):
 
     def __repr__(self):
         return '{}(months={!r}, seconds={})'.format(
-            self.__class__.__name__, self.months, str(self.seconds)
+            self.__class__.__name__, self.months, normalized_seconds(self.seconds)
         )
 
     def __str__(self):
@@ -899,8 +904,7 @@ class Duration(object):
             if minutes:
                 value += '%dM' % minutes
             if seconds:
-                # seconds.normalize() does not remove exp every time: eg. Decimal('1E+1')
-                value += '%sS' % '{:.6f}'.format(seconds).strip('0').strip('.')
+                value += '%sS' % normalized_seconds(seconds)
 
         elif value[-1] == 'P':
             value += 'T0S'
@@ -1029,16 +1033,16 @@ class YearMonthDuration(Duration):
             return YearMonthDuration(months=self.months + other.months)
         elif isinstance(other, (DateTime10, Date10)):
             return other + self
-        raise TypeError("invalid type %r for operand %r" % (type(other), other))
+        raise TypeError("cannot add %r to %r" % (type(other), type(self)))
 
     def __sub__(self, other):
         if not isinstance(other, self.__class__):
-            raise TypeError("invalid type %r for operand %r" % (type(other), other))
+            raise TypeError("cannot subtract %r from %r" % (type(other), type(self)))
         return YearMonthDuration(months=self.months - other.months)
 
     def __mul__(self, other):
         if not isinstance(other, (float, int, Decimal)):
-            raise TypeError("invalid type %r for operand %r" % (type(other), other))
+            raise TypeError("cannot multiply a %r by %r" % (type(self), type(other)))
         return YearMonthDuration(months=int(round_number(self.months * other)))
 
     def __truediv__(self, other):
@@ -1047,7 +1051,7 @@ class YearMonthDuration(Duration):
         elif isinstance(other, (float, int, Decimal)):
             return YearMonthDuration(months=int(round_number(self.months / other)))
         else:
-            raise TypeError("invalid type %r for operand %r" % (type(other), other))
+            raise TypeError("cannot divide a %r by %r" % (type(self), type(other)))
 
 
 class DayTimeDuration(Duration):
@@ -1067,7 +1071,7 @@ class DayTimeDuration(Duration):
         )
 
     def __repr__(self):
-        return '%s(seconds=%s)' % (self.__class__.__name__, str(self.seconds))
+        return '%s(seconds=%s)' % (self.__class__.__name__, normalized_seconds(self.seconds))
 
     def __add__(self, other):
         if isinstance(other, (Time, Date10)):
@@ -1202,20 +1206,50 @@ class Float(float):
             return Float(super(Float, self).__add__(other))
         return super(Float, self).__add__(other)
 
+    def __radd__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__radd__(other))
+        return super(Float, self).__radd__(other)
+
     def __sub__(self, other):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__sub__(other))
         return super(Float, self).__sub__(other)
+
+    def __rsub__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__rsub__(other))
+        return super(Float, self).__rsub__(other)
 
     def __mul__(self, other):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__mul__(other))
         return super(Float, self).__mul__(other)
 
+    def __rmul__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__rmul__(other))
+        return super(Float, self).__rmul__(other)
+
     def __truediv__(self, other):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__truediv__(other))
         return super(Float, self).__truediv__(other)
+
+    def __rtruediv__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__rtruediv__(other))
+        return super(Float, self).__rtruediv__(other)
+
+    def __mod__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__mod__(other))
+        return super(Float, self).__mod__(other)
+
+    def __rmod__(self, other):
+        if isinstance(other, (self.__class__, int)):
+            return Float(super(Float, self).__rmod__(other))
+        return super(Float, self).__rmod__(other)
 
 
 class AnyURI(object):

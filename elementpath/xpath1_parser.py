@@ -677,6 +677,8 @@ def evaluate(self, context=None):
         return
     elif divisor != 0:
         try:
+            if isinstance(dividend, int) and isinstance(divisor, int):
+                return decimal.Decimal.from_float(dividend / divisor)
             return dividend / divisor
         except TypeError as err:
             raise self.error('XPTY0004', str(err)) from None
@@ -711,8 +713,10 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     op1, op2 = self.get_operands(context, cls=NumericTypeProxy)
     if op1 is not None:
-        if op2 == 0:
+        if op2 == 0 and isinstance(op2, float):
             return float('nan')
+        elif math.isinf(op2) and not math.isinf(op1) and op1 != 0:
+            return op1 if self.parser.version != '1.0' else float('nan')
 
         try:
             return op1 % op2

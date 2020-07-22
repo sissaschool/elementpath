@@ -174,7 +174,7 @@ class DateTimeTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             DateTime(year=-1999.0, month=1, day=1)
-        self.assertIn("wrong type <class 'float'> for year", str(err.exception))
+        self.assertIn("invalid type <class 'float'> for year", str(err.exception))
 
     def test_datetime_fromstring(self):
         dt = DateTime.fromstring('2000-10-07T00:00:00')
@@ -218,7 +218,8 @@ class DateTimeTypesTest(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             Date.fromstring('01000-02-29')
 
-        self.assertIn("when year exceeds 4 digits leading zeroes are not allowed", str(ctx.exception))
+        self.assertIn("when year exceeds 4 digits leading zeroes are not allowed",
+                      str(ctx.exception))
 
         dt = Date.fromstring("-0003-01-01")
         self.assertEqual(dt._year, -4)
@@ -893,12 +894,12 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') + daytime_duration('P1D')
-        self.assertIn("wrong type <class 'elementpath.datatypes.DayTimeDuration'",
+        self.assertIn("cannot add <class 'elementpath.datatypes.DayTimeDuration'",
                       str(err.exception))
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') + year_month_duration('P2Y')
-        self.assertIn("wrong type <class 'elementpath.datatypes.YearMonthDuration'",
+        self.assertIn("cannot add <class 'elementpath.datatypes.YearMonthDuration'",
                       str(err.exception))
 
     def test_sub_operator(self):
@@ -913,12 +914,12 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') - daytime_duration('P1D')
-        self.assertIn("wrong type <class 'elementpath.datatypes.DayTimeDuration'",
+        self.assertIn("cannot subtract <class 'elementpath.datatypes.DayTimeDuration'",
                       str(err.exception))
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') - year_month_duration('P2Y')
-        self.assertIn("wrong type <class 'elementpath.datatypes.YearMonthDuration'",
+        self.assertIn("cannot subtract <class 'elementpath.datatypes.YearMonthDuration'",
                       str(err.exception))
 
     def test_mul_operator(self):
@@ -929,13 +930,13 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') * '2'
-        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+        self.assertIn("cannot multiply", str(err.exception))
 
         self.assertEqual(year_month_duration('P1Y2M') * 2, YearMonthDuration(months=14 * 2))
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P1Y2M') * '2'
-        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+        self.assertIn("cannot multiply", str(err.exception))
 
     def test_div_operator(self):
         daytime_duration = DayTimeDuration.fromstring
@@ -945,13 +946,13 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P2D') / '2'
-        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+        self.assertIn("cannot divide", str(err.exception))
 
         self.assertEqual(year_month_duration('P1Y2M') / 2, YearMonthDuration(months=14 / 2))
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P1Y2M') / '2'
-        self.assertEqual("wrong type <class 'str'> for operand '2'", str(err.exception))
+        self.assertIn("cannot divide", str(err.exception))
 
     def test_hashing(self):
         self.assertIsInstance(hash(Duration(16)), int)

@@ -10,7 +10,6 @@
 """
 XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 """
-from itertools import product
 from abc import ABCMeta
 import decimal
 import locale
@@ -610,6 +609,11 @@ def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
 
+    try:
+        get_expanded_name(self[0].value, self.parser.namespaces)
+    except KeyError as err:
+        raise self.error('XPST0081', "namespace prefix {} not found".format(err))
+
     varname = self[0].value
     try:
         return context.variable_values[varname]
@@ -687,9 +691,15 @@ def nud(self):
     del self[:]
     while True:
         self.parser.next_token.expected('$')
-        self.append(self.parser.expression(5))
+        variable = self.parser.expression(5)
+        self.append(variable)
         self.parser.advance('in')
-        self.append(self.parser.expression(5))
+        expr = self.parser.expression(5)
+        self.append(expr)
+        for tk in filter(lambda x: x.symbol == '$', expr.iter()):
+            if tk[0].value == variable[0].value:
+                raise tk.error('XPST0008', 'loop variable in its range expression')
+
         if self.parser.next_token.symbol == ',':
             self.parser.advance()
         else:
@@ -706,6 +716,7 @@ def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
 
+    context = copy(context)
     some = self.symbol == 'some'
     varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
@@ -728,9 +739,15 @@ def nud(self):
     del self[:]
     while True:
         self.parser.next_token.expected('$')
-        self.append(self.parser.expression(5))
+        variable = self.parser.expression(5)
+        self.append(variable)
         self.parser.advance('in')
-        self.append(self.parser.expression(5))
+        expr = self.parser.expression(5)
+        self.append(expr)
+        for tk in filter(lambda x: x.symbol == '$', expr.iter()):
+            if tk[0].value == variable[0].value:
+                raise tk.error('XPST0008', 'loop variable in its range expression')
+
         if self.parser.next_token.symbol == ',':
             self.parser.advance()
         else:
@@ -748,8 +765,9 @@ def select(self, context=None):
 
     context = copy(context)
     varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
-    selectors = tuple(self[k].select(copy(context)) for k in range(1, len(self) - 1, 2))
-    for results in product(*selectors):
+    selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
+
+    for results in context.iter_product(selectors, varnames):
         context.variable_values.update(x for x in zip(varnames, results))
         yield from self[-1].select(copy(context))
 
