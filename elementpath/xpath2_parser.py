@@ -335,7 +335,7 @@ class XPath2Parser(XPath1Parser):
             except ValueError as err:
                 raise self.error('FORG0001', str(err)) from None
             except TypeError as err:
-                raise self.error('FORG0001', str(err)) from None
+                raise self.error('FORG0001', str(err))
 
         def cast_(value):
             raise NotImplementedError
@@ -795,6 +795,7 @@ def led(self, left):
 def evaluate(self, context=None):
     occurs = self[2].symbol if len(self) > 2 else None
     position = None
+
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
             return False
@@ -804,7 +805,8 @@ def evaluate(self, context=None):
             raise self.missing_context()
 
         for position, context.item in enumerate(self[0].select(context)):
-            if self[1].evaluate(context) is None:
+            result = self[1].evaluate(context)
+            if result == []:
                 return False
             elif position and (occurs is None or occurs == '?'):
                 return False
@@ -1019,29 +1021,14 @@ def select(self, context=None):
 @method(infix('le', bp=30))
 @method(infix('ge', bp=30))
 def evaluate(self, context=None):
-    operators = [self[0].get_atomized_operand(context=copy(context)),
-                 self[1].get_atomized_operand(context=copy(context))]
-
-    if any(x is None for x in operators):
+    operands = [self[0].get_atomized_operand(context=copy(context)),
+                self[1].get_atomized_operand(context=copy(context))]
+    if any(x is None for x in operands):
         return
-    elif all(isinstance(x, (float, int)) for x in operators):
-        pass
-    elif all(isinstance(x, (int, decimal.Decimal)) for x in operators):
-        pass
-    elif all(isinstance(x, (float, decimal.Decimal)) for x in operators):
-        if isinstance(operators[0], float):
-            operators[1] = float(operators[1])
-        else:
-            operators[0] = float(operators[0])
 
-    elif all(isinstance(x, Duration) for x in operators) and self.symbol in ('eq', 'ne'):
-        pass  # can compare duration types for equality or inequality
-    elif any(not isinstance(operators[k], type(operators[1-k])) for k in range(2)):
-        msg = "cannot apply {} between {!r} and {!r}".format(self, *operators)
-        raise self.error('XPTY0004', msg)
-
+    self.check_comparison_operands(operands)
     try:
-        return getattr(operator, self.symbol)(*operators)
+        return getattr(operator, self.symbol)(*operands)
     except TypeError as err:
         if isinstance(context, XPathSchemaContext):
             raise self.wrong_context_type(str(err)) from None
@@ -1209,14 +1196,17 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
+    attribute_name = self[0].source
     for _ in context.iter_children_or_self():
-        attribute_name = self[0].source
         qname = get_expanded_name(attribute_name, self.parser.namespaces)
         if self.parser.schema.get_attribute(qname) is None:
             raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
         if is_attribute_node(context.item, qname):
             yield context.item
+            return
+    else:
+        raise self.error('XPST0008', 'schema attribute %r not found' % attribute_name)
 
 
 @method(function('schema-element', nargs=1, label='kind test'))
@@ -1224,8 +1214,8 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
+    element_name = self[0].source
     for _ in context.iter_children_or_self():
-        element_name = self[0].source
         qname = get_expanded_name(element_name, self.parser.namespaces)
         if self.parser.schema.get_element(qname) is None \
                 and self.parser.schema.get_substitution_group(qname) is None:
@@ -1233,6 +1223,9 @@ def select(self, context=None):
 
         if is_element_node(context.item) and context.item.tag == qname:
             yield context.item
+            return
+    else:
+        raise self.error('XPST0008', 'schema element %r not found' % element_name)
 
 
 @method('schema-attribute')

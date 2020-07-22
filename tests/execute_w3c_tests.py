@@ -50,13 +50,6 @@ SKIP_TESTS = [
 
     # Maybe tested with lxml
     'fn-string__fn-string-30',  # parse of comments required
-
-    # Implementation dependant? in elementpath the dynamic context
-    # is required for storing variable values so in for clause the
-    # static evaluation always raises XPDY0002.
-    'prod-ForClause__K2-ForExprWithout-7',
-    'prod-ForClause__K2-ForExprWithout-40',
-    'prod-ForClause__K2-ForExprWithout-41',
 ]
 
 
@@ -355,7 +348,7 @@ class TestCase(object):
             print()
         return self.result.validate(verbose)
 
-    def run_xpath_test(self, verbose=1):
+    def run_xpath_test(self, verbose=1, with_context=True):
         """
         Helper function to parse and evaluate tests with elementpath.
 
@@ -386,7 +379,7 @@ class TestCase(object):
                 raise
             raise ParseError(err)
 
-        context = self.get_xpath_context()
+        context = self.get_xpath_context() if with_context else None
         try:
             result = root_node.evaluate(context)
         except Exception as err:
@@ -628,7 +621,7 @@ class Result(object):
     def error_validator(self, verbose=1):
         code = self.attrib.get('code', '*').strip()
         try:
-            self.test_case.run_xpath_test(verbose)
+            self.test_case.run_xpath_test(verbose, with_context=code != 'XPDY0002')
         except ElementPathError as err:
             if code == '*' or code in str(err):
                 return True

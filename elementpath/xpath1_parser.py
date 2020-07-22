@@ -362,9 +362,8 @@ def led(self, left):
         try:
             namespace = self.get_namespace(left.value)
         except ElementPathKeyError:
-            if self.parser.next_token.label in ('function', 'constructor'):
-                msg = "prefix {!r} has not been declared".format(left.value)
-                raise self.error('XPST0081', msg) from None
+            msg = "prefix {!r} is not declared".format(left.value)
+            raise self.error('XPST0081', msg) from None
         else:
             self.parser.next_token.bind_namespace(namespace)
     elif self.parser.next_token.symbol != '(name)':
@@ -565,16 +564,38 @@ def evaluate(self, context=None):
 
 ###
 # Comparison operators
-@method(infix('=', bp=30))
-@method(infix('!=', bp=30))
-@method(infix('<', bp=30))
-@method(infix('>', bp=30))
-@method(infix('<=', bp=30))
-@method(infix('>=', bp=30))
+@method('=', bp=30)
+@method('!=', bp=30)
+@method('<', bp=30)
+@method('>', bp=30)
+@method('<=', bp=30)
+@method('>=', bp=30)
+def led(self, left):
+    if left.symbol in OPERATORS_MAP:
+        raise self.wrong_syntax()
+    self[:] = left, self.parser.expression(rbp=30)
+    return self
+
+
+@method('=')
+@method('!=')
+@method('<')
+@method('>')
+@method('<=')
+@method('>=')
 def evaluate(self, context=None):
     op = OPERATORS_MAP[self.symbol]
     try:
-        return any(op(x1, x2) for x1, x2 in self.get_comparison_data(context))
+        if self.parser.version == '1.0':
+            return any(op(x1, x2) for x1, x2 in self.get_comparison_data(context))
+
+        for operands in self.get_comparison_data(context):
+            if any(isinstance(x, int) for x in operands) and \
+                    any(isinstance(x, str) for x in operands):
+                raise TypeError("cannot compare {!r} and {!r}")
+            if op(*operands):
+                return True
+        return False
     except TypeError as err:
         raise self.error('XPTY0004', str(err))
     except ValueError as err:
@@ -719,6 +740,8 @@ def evaluate(self, context=None):
             return op1 if self.parser.version != '1.0' else float('nan')
 
         try:
+            if isinstance(op1, int) and isinstance(op2, int):
+                return op1 % op2 if op1 * op2 >= 0 else -(abs(op1) % op2)
             return op1 % op2
         except TypeError as err:
             raise self.wrong_type(str(err)) from None
@@ -1014,19 +1037,19 @@ def select(self, context=None):
 
 
 @method(function('processing-instruction', nargs=(0, 1), label='kind test'))
-def evaluate(self, context=None):
+def select(self, context=None):
     if context is None:
         raise self.missing_context()
     elif is_processing_instruction_node(context.item):
-        return context.item
+        yield context.item
 
 
 @method(function('comment', nargs=0, label='kind test'))
-def evaluate(self, context=None):
+def select(self, context=None):
     if context is None:
         raise self.missing_context()
     elif is_comment_node(context.item):
-        return context.item
+        yield context.item
 
 
 @method(function('text', nargs=0, label='kind test'))
