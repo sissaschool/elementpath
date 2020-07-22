@@ -314,6 +314,10 @@ class XPathContext(object):
             self.size = len(elem)
             for self.position, self.item in enumerate(elem, start=1):
                 yield self.item
+        elif is_document_node(self.item):
+            self.size = self.position = 1
+            self.item = self.item.getroot()
+            yield self.item
 
         self.item, self.size, self.position, self.axis = status
 
@@ -398,7 +402,13 @@ class XPathContext(object):
             self.size = self.position = 1
             yield self.root
             self.item = self.root.getroot() if is_document_node(self.root) else self.root
-        elif not is_element_node(self.item):
+        elif is_element_node(self.item):
+            pass
+        elif is_document_node(self.item):
+            self.size = self.position = 1
+            yield self.item
+            self.item = self.item.getroot()
+        else:
             return
 
         if axis == 'descendant':
