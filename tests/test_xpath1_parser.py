@@ -276,7 +276,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
         self.wrong_syntax("./tst:1")
-        self.wrong_syntax("./fn:A")
+        self.check_value("./fn:A", MissingContextError)
         self.wrong_type("./xs:true()")
 
         # Namespace wildcard works only for XPath > 1.0
@@ -301,9 +301,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                         "(string ({ ('http://www.w3.org/2001/XMLSchema') (unknown)))")
         self.wrong_syntax("{%s" % XSD_NAMESPACE)
         self.wrong_syntax("{%s}1" % XSD_NAMESPACE)
-        self.wrong_syntax("{%s}alpha" % XPATH_FUNCTIONS_NAMESPACE)
-
         self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
+
+        name = '{%s}alpha' % XPATH_FUNCTIONS_NAMESPACE
+        self.check_value(name, name)  # it's not an error to use 'fn' namespace for a name
+
         self.parser.strict = True
         self.wrong_syntax('{%s}string' % XSD_NAMESPACE)
 
