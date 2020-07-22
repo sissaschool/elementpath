@@ -1252,6 +1252,80 @@ class Float(float):
         return super(Float, self).__rmod__(other)
 
 
+class Integer(int):
+    """A wrapper for emulating xs:integer and limited integer types."""
+    lower_bound, higher_bound = None, None
+
+    def __init__(self, value):
+        if self.lower_bound is not None and self < self.lower_bound:
+            raise ValueError("value {} is too low for {!r}".format(value, self.__class__))
+        elif self.higher_bound is not None and self >= self.higher_bound:
+            raise ValueError("value {} is too high for {!r}".format(value, self.__class__))
+        super(Integer, self).__init__()
+
+    def __mod__(self, other):
+        if not isinstance(other, (int, Decimal)):
+            pass  # Type error??
+        value = super(Integer, self).__mod__(other)
+        # adapt to limits ...
+        return value
+
+    def __rmod__(self, other):
+        if not isinstance(other, (int, Decimal)):
+            pass  # Type error??
+        value = super(Integer, self).__rmod__(other)
+        # adapt to limits ...
+        return value
+
+
+class NonPositiveInteger(Integer):
+    lower_bound, higher_bound = None, 1
+
+
+class NegativeInteger(NonPositiveInteger):
+    lower_bound, higher_bound = None, 0
+
+
+class Long(Integer):
+    lower_bound, higher_bound = -2**63, 2**63
+
+
+class Int(Long):
+    lower_bound, higher_bound = -2**31, 2**31
+
+
+class Short(Int):
+    lower_bound, higher_bound = -2**15, 2**15
+
+
+class Byte(Short):
+    lower_bound, higher_bound = -2**7, 2**7
+
+
+class NonNegativeInteger(Integer):
+    lower_bound, higher_bound = 0, None
+
+
+class PositiveInteger(NonNegativeInteger):
+    lower_bound, higher_bound = 1, None
+
+
+class UnsignedLong(Integer):
+    lower_bound, higher_bound = 0, 2**64
+
+
+class UnsignedInt(UnsignedLong):
+    lower_bound, higher_bound = 0, 2**32
+
+
+class UnsignedShort(UnsignedInt):
+    lower_bound, higher_bound = 0, 2**16
+
+
+class UnsignedByte(UnsignedShort):
+    lower_bound, higher_bound = 0, 2**8
+
+
 class AnyURI(object):
     """
     Class for xs:anyURI data.
@@ -1725,3 +1799,13 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
         value=True
     ),
 }
+
+__all__ = [
+    'DateTime10', 'DateTime', 'Date10', 'Date', 'Time', 'Timezone', 'GregorianDay',
+    'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10', 'GregorianYear',
+    'GregorianYearMonth10', 'GregorianYearMonth', 'Duration', 'YearMonthDuration',
+    'DayTimeDuration', 'Base64Binary', 'HexBinary', 'AnyURI', 'QName', 'UntypedAtomic',
+    'Float', 'Integer', 'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short',
+    'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
+    'UnsignedShort', 'UnsignedByte'
+]

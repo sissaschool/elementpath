@@ -15,11 +15,8 @@ from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
-from .datatypes import DateTime10, DateTime, Date10, Date, Time, \
-    GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, \
-    GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
-    YearMonthDuration, DayTimeDuration, Base64Binary, HexBinary, Float, \
-    QName, UntypedAtomic, WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
+from .datatypes import *
+from .datatypes import WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
     NCNAME_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
@@ -124,7 +121,10 @@ def cast(self, value):
 
 @constructor('float')
 def cast(self, value):
-    return self.cast_to_number(value, Float)
+    value = self.cast_to_number(value, Float)
+    if -1e-36 < value < 1e-36:
+        Float(0)
+    return value
 
 
 @constructor('integer')
@@ -141,22 +141,22 @@ def cast(self, value):
 @constructor('unsignedShort')
 @constructor('unsignedByte')
 def cast(self, value):
-    boundaries = {
-        'integer': (None, None),
-        'nonNegativeInteger': (0, None),
-        'positiveInteger': (1, None),
-        'nonPositiveInteger': (None, 1),
-        'negativeInteger': (None, 0),
-        'long': (-2**63, 2**63),
-        'int': (-2**31, 2**31),
-        'short': (-2**15, 2**15),
-        'byte': (-2**7, 2**7),
-        'unsignedLong': (0, 2**64),
-        'unsignedInt': (0, 2**32),
-        'unsignedShort': (0, 2**16),
-        'unsignedByte': (0, 2**8),
+    int_subclass = {
+        'integer': int,
+        'nonNegativeInteger': NonNegativeInteger,
+        'positiveInteger': PositiveInteger,
+        'nonPositiveInteger': NonPositiveInteger,
+        'negativeInteger': NegativeInteger,
+        'long': Long,
+        'int': Int,
+        'short': Short,
+        'byte': Byte,
+        'unsignedLong': UnsignedLong,
+        'unsignedInt': UnsignedInt,
+        'unsignedShort': UnsignedShort,
+        'unsignedByte': UnsignedByte,
     }
-    lower_bound, higher_bound = boundaries[self.symbol]
+    cls = int_subclass[self.symbol]
 
     if isinstance(value, (str, bytes, UntypedAtomic)):
         try:
@@ -173,11 +173,10 @@ def cast(self, value):
         except OverflowError as err:
             raise self.error('FOCA0002', str(err)) from None
 
-    if lower_bound is not None and result < lower_bound:
-        raise self.error('FORG0001', "value %d is too low" % result)
-    elif higher_bound is not None and result >= higher_bound:
-        raise self.error('FORG0001', "value %d is too high" % result)
-    return result
+    try:
+        return cls(result)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 ###

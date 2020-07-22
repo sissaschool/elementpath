@@ -428,6 +428,23 @@ class XPathToken(Token):
 
         return op1, op2
 
+    def check_comparison_operands(self, operands):
+        if all(isinstance(x, (float, int)) for x in operands):
+            pass
+        elif all(isinstance(x, (int, Decimal)) for x in operands):
+            pass
+        elif all(isinstance(x, (float, Decimal)) for x in operands):
+            if isinstance(operands[0], float):
+                operands[1] = float(operands[1])
+            else:
+                operands[0] = float(operands[0])
+
+        elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
+            pass  # can compare duration types for equality or inequality
+        elif any(not isinstance(operands[k], type(operands[1 - k])) for k in range(2)):
+            msg = "cannot apply {} between {!r} and {!r}".format(self, *operands)
+            raise self.error('XPTY0004', msg)
+
     def get_absolute_uri(self, uri, base_uri=None):
         """
         Obtains an absolute URI from the argument and the static context.
