@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
+from . import datatypes
 from .datatypes import *
 from .datatypes import WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
     NCNAME_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
@@ -37,25 +38,25 @@ constructor = XPath2Parser.constructor
 # Constructors for string-based XSD types
 @constructor('normalizedString')
 def cast(self, value):
-    return str(value).replace('\t', ' ').replace('\n', ' ')
+    return datatypes.NormalizedString(str(value).replace('\t', ' ').replace('\n', ' '))
 
 
 @constructor('token')
 def cast(self, value):
-    return collapse_white_spaces(value)
+    return datatypes.XsdToken(collapse_white_spaces(value))
 
 
 @constructor('language')
 def cast(self, value):
     if value is True:
-        return 'true'
+        return datatypes.Language('true')
     elif value is False:
-        return 'false'
+        return datatypes.Language('false')
 
     match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise self.error('FORG0001', "%r is not a language code" % value)
-    return match.group()
+    return datatypes.Language(match.group())
 
 
 @constructor('NMTOKEN')
@@ -63,7 +64,7 @@ def cast(self, value):
     match = NMTOKEN_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise self.error('FORG0001', "%r is not an xs:NMTOKEN value" % value)
-    return match.group()
+    return datatypes.NMToken(match.group())
 
 
 @constructor('Name')
@@ -71,7 +72,7 @@ def cast(self, value):
     match = NAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise self.error('FORG0001', "%r is not an xs:Name value" % value)
-    return match.group()
+    return datatypes.NCName(match.group())
 
 
 @constructor('NCName')
@@ -82,7 +83,7 @@ def cast(self, value):
     match = NCNAME_PATTERN.match(collapse_white_spaces(value))
     if match is None:
         raise self.error('FORG0001', "invalid value %r for constructor" % value)
-    return match.group()
+    return datatypes.NCName(match.group())
 
 
 @constructor('anyURI')
@@ -342,7 +343,7 @@ def cast(self, value):
 
 @constructor('dateTimeStamp')
 def cast(self, value):
-    if not XSD_BUILTIN_TYPES['dateTimeStamp'].validator(value):
+    if XSD_BUILTIN_TYPES['dateTimeStamp'].validate(value) is False:
         raise ValueError("{} is not castable to an xs:dateTimeStamp".format(value))
     return value
 

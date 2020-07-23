@@ -23,15 +23,68 @@ from .exceptions import ElementPathError, ElementPathKeyError, ElementPathTypeEr
     MissingContextError, ElementPathValueError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
-    XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name, \
-    XSD_UNTYPED_ATOMIC
-from .datatypes import Duration, UntypedAtomic, XSD_BUILTIN_TYPES
+    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
+    get_prefixed_name, get_expanded_name, split_expanded_name
+from . import datatypes
+from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES, QName
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
     is_document_node, node_kind
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
 from .schema_proxy import AbstractSchemaProxy
+
+
+ATOMIC_VALUES = {
+    'untypedAtomic': UntypedAtomic('1'),
+    'anyType': UntypedAtomic('1'),
+    'anySimpleType': UntypedAtomic('1'),
+    'anyAtomicType': None,
+    'string': '  alpha\t',
+    'decimal': decimal.Decimal('1.0'),
+    'double': 1.0,
+    'float': 1.0,
+    'date': datatypes.Date.fromstring('2000-01-01'),
+    'dateTime': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
+    'gDay': datatypes.GregorianDay.fromstring('---31'),
+    'gMonth': datatypes.GregorianMonth.fromstring('--12'),
+    'gMonthDay': datatypes.GregorianMonthDay.fromstring('--12-01'),
+    'gYear': datatypes.GregorianYear.fromstring('1999'),
+    'gYearMonth': datatypes.GregorianYearMonth.fromstring('1999-09'),
+    'time': datatypes.Time.fromstring('09:26:54'),
+    'duration': datatypes.Duration.fromstring('P1MT1S'),
+    'dayTimeDuration': datatypes.DayTimeDuration.fromstring('P1DT1S'),
+    'yearMonthDuration': datatypes.YearMonthDuration.fromstring('P1Y1M'),
+    'QName': 'xs:element',
+    'NOTATION': 'alpha',
+    'anyURI': 'https://example.com',
+    'normalizedString': ' alpha  ',
+    'token': 'a token',
+    'language': 'en-US',
+    'Name': '_a.name::',
+    'NCName': 'nc-name',
+    'ID': 'id1',
+    'IDREF': 'id_ref1',
+    'ENTITY': 'entity1',
+    'NMTOKEN': 'a_token',
+    'base64Binary': b'YWxwaGE=',
+    'hexBinary': b'31',
+    'dateTimeStamp': '2000-01-01T12:00:00+01:00',
+    'integer': 1,
+    'long': 1,
+    'int': 1,
+    'short': 1,
+    'byte': 1,
+    'positiveInteger': 1,
+    'negativeInteger': -1,
+    'nonPositiveInteger': 0,
+    'nonNegativeInteger': 0,
+    'unsignedLong': 1,
+    'unsignedInt': 1,
+    'unsignedShort': 1,
+    'unsignedByte': 1,
+    'boolean': True,
+}
 
 
 class XPath2Parser(XPath1Parser):
@@ -424,11 +477,14 @@ class XPath2Parser(XPath1Parser):
 
         if get_namespace(type_qname) == XSD_NAMESPACE:
             try:
-                return XSD_BUILTIN_TYPES[type_qname.split('}')[1]].validator(obj)
+                local_name = type_qname.split('}')[1]
             except ValueError:
                 raise ElementPathValueError("%r is not extended QName" % type_qname)
-            except KeyError:
-                pass
+
+            try:
+                return XSD_BUILTIN_TYPES[local_name].validate(obj) is not False
+            except (ValueError, TypeError):
+                return False
 
         raise ElementPathKeyError("unknown type %r" % type_qname)
 
@@ -447,7 +503,7 @@ class XPath2Parser(XPath1Parser):
         if text in {'attribute()', 'element()', 'text()', 'document-node()',
                     'comment()', 'processing-instruction()', 'item()', 'node()'}:
             return True
-        elif not XSD_BUILTIN_TYPES['QName'].validator(text):
+        elif QName.pattern.match(text) is None:
             return False
 
         try:
@@ -475,38 +531,46 @@ class XPath2Parser(XPath1Parser):
             elif isinstance(value, UntypedAtomic):
                 return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
 
-            if XSD_BUILTIN_TYPES['QName'].validator(value) and ':' in value:
-                return '{}:QName'.format(self.xsd_prefix)
-
-            for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
+            for type_name in ['QName', 'string', 'boolean', 'decimal', 'float', 'double',
                               'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay',
                               'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
                               'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary']:
-                if XSD_BUILTIN_TYPES[type_name].validator(value):
-                    return '{}:{}'.format(self.xsd_prefix, type_name)
+                try:
+                    if XSD_BUILTIN_TYPES[type_name].validate(value) is not False:
+                        return '{}:{}'.format(self.xsd_prefix, type_name)
+                except (ValueError, TypeError):
+                    continue
 
         raise ElementPathTypeError("Inconsistent sequence type for {!r}".format(value))
 
-    def get_variable_value(self, varname):
-        sequence_type = self.variables[varname]
-        if sequence_type[-1] in {'?', '+', '*'}:
-            sequence_type = sequence_type[:-1]
+    def get_atomic_value(self, type_or_name):
+        if isinstance(type_or_name, str):
+            expanded_name = get_expanded_name(type_or_name, self.namespaces)
+            xsd_type = None
+        else:
+            xsd_type = type_or_name
+            expanded_name = xsd_type.name
 
-        if XSD_BUILTIN_TYPES['QName'].validator(sequence_type):
-            type_qname = get_expanded_name(sequence_type, self.namespaces)
-            if type_qname == XSD_UNTYPED_ATOMIC:
+        uri, local_name = split_expanded_name(expanded_name)
+        if uri == XSD_NAMESPACE:
+            try:
+                return ATOMIC_VALUES[local_name]
+            except KeyError:
+                pass
+
+        if xsd_type is None and self.schema is not None:
+            xsd_type = self.schema.get_type(expanded_name)
+
+        if xsd_type is None:
+            return UntypedAtomic('1')
+        elif xsd_type.is_simple() or xsd_type.has_simple_content():
+            primitive_type = self.schema.get_primitive_type(xsd_type)
+            try:
+                return ATOMIC_VALUES[primitive_type.local_name]
+            except KeyError:
                 return UntypedAtomic('1')
-            elif self.schema is not None:
-                xsd_type = self.schema.get_type(type_qname)
-                if xsd_type is not None:
-                    primitive_type = self.schema.get_primitive_type(xsd_type)
-                    return XSD_BUILTIN_TYPES[primitive_type.local_name].value
-
-            elif get_namespace(type_qname) == XSD_NAMESPACE:
-                try:
-                    return XSD_BUILTIN_TYPES[type_qname.split('}')[1]].value
-                except KeyError:
-                    pass
+        else:
+            return UntypedAtomic('')
 
     def match_sequence_type(self, value, sequence_type, occurrence=None):
         if sequence_type[-1] in {'?', '+', '*'}:
@@ -620,12 +684,18 @@ def evaluate(self, context=None):
     except KeyError:
         if isinstance(context, XPathSchemaContext):
             try:
-                value = self.parser.get_variable_value(varname)
+                sequence_type = self.parser.variables[varname].strip()
             except KeyError:
                 pass
             else:
-                if value is not None:
-                    return value
+                if sequence_type[-1] in {'?', '+', '*'}:
+                    sequence_type = sequence_type[:-1]
+
+                if QName.pattern.match(sequence_type) is not None:
+                    value = self.get_atomic_value(sequence_type)
+                    if value is not None:
+                        return value
+                return UntypedAtomic('')
 
     raise self.missing_name('unknown variable %r' % str(varname))
 
