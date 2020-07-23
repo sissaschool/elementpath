@@ -22,8 +22,7 @@ from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
     GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
     GregorianDay, AbstractDateTime, OrderedDateTime, NumericTypeProxy, ArithmeticTypeProxy, \
-    decimal_validator, integer_validator, base64_binary_validator, hex_binary_validator, \
-    ncname_validator, XSD_BUILTIN_TYPES, XsdBuiltin, is_id, is_idrefs
+    is_id, is_idrefs
 
 
 class DatatypesHelpersTest(unittest.TestCase):
@@ -1074,38 +1073,6 @@ class TypeProxiesTest(unittest.TestCase):
         self.assertEqual(ArithmeticTypeProxy(), 0.0)
         self.assertEqual(ArithmeticTypeProxy(8.0), 8.0)
         self.assertEqual(ArithmeticTypeProxy('81.0'), 81.0)
-
-
-class XsdBuiltinTypesTest(unittest.TestCase):
-
-    def test_decimal_validator(self):
-        self.assertTrue(decimal_validator(Decimal('10.9')))
-        self.assertFalse(decimal_validator(10.9))
-
-    def test_integer_validator(self):
-        self.assertTrue(integer_validator(10))
-        self.assertFalse(integer_validator(10.0))
-        self.assertFalse(integer_validator(Decimal('10.0')))
-
-    def test_base64_binary_validator(self):
-        self.assertTrue(base64_binary_validator('YWxwaGE='))
-        self.assertTrue(base64_binary_validator(b'YWxwaGE='))
-        self.assertFalse(base64_binary_validator('YWxwaGE!='))
-        self.assertFalse(base64_binary_validator('XYZ'))
-        self.assertFalse(base64_binary_validator('=59A'))
-
-    def test_hex_binary_validator(self):
-        self.assertTrue(hex_binary_validator('F3'))
-        self.assertFalse(hex_binary_validator('G3'))
-
-    def test_ncname_validator(self):
-        self.assertTrue(ncname_validator('myElement'))
-        self.assertFalse(ncname_validator('tns:myElement'))
-
-    def test_types(self):
-        self.assertEqual(len(XSD_BUILTIN_TYPES), 47)
-        for name in XSD_BUILTIN_TYPES:
-            self.assertIsInstance(XSD_BUILTIN_TYPES[name], XsdBuiltin)
 
 
 if __name__ == '__main__':

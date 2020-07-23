@@ -32,7 +32,7 @@ from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, 
     is_namespace_node, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
-    Date10, DayTimeDuration, Duration, XSD_BUILTIN_TYPES
+    Date10, DayTimeDuration, Duration
 from .schema_proxy import AbstractSchemaProxy
 from .tdop_parser import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -607,15 +607,7 @@ class XPathToken(Token):
             return
 
         self.add_xsd_type(name, xsd_type)
-
-        try:
-            value = XSD_BUILTIN_TYPES[xsd_type.local_name].value
-        except KeyError:
-            primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-            try:
-                value = XSD_BUILTIN_TYPES[primitive_type.local_name].value
-            except KeyError:
-                value = UntypedAtomic('1')
+        value = self.parser.get_atomic_value(xsd_type)
 
         if isinstance(schema_item, AttributeNode):
             return TypedAttribute(schema_item, value)
@@ -738,7 +730,7 @@ class XPathToken(Token):
         if obj is None:
             return
         elif hasattr(obj, 'type'):
-            return self.schema_node_value(obj)  # Schema context
+            return self.parser.get_atomic_value(obj.type)
         elif isinstance(obj, (TypedElement, TypedAttribute)):
             return obj[-1]
         elif is_namespace_node(obj):
@@ -797,7 +789,7 @@ class XPathToken(Token):
         if obj is None:
             return ''
         elif is_schema_node(obj):
-            return str(self.schema_node_value(obj))
+            return str(self.parser.get_atomic_value(obj.type))
         elif is_element_node(obj):
             return ''.join(etree_iter_strings(obj))
         elif is_attribute_node(obj):
@@ -834,34 +826,6 @@ class XPathToken(Token):
             return float(self.string_value(obj) if is_xpath_node(obj) else obj)
         except (TypeError, ValueError):
             return float('nan')
-
-    def schema_node_value(self, obj):
-        """
-        Returns a sample typed value for the XSD schema node, valid in the value space
-        of the node. Used for schema-based dynamic evaluation of XPath expressions.
-        """
-        try:
-            try:
-                return XSD_BUILTIN_TYPES[obj.type.local_name].value
-            except KeyError:
-                pass
-
-            if obj.type.is_simple() or obj.type.has_simple_content():
-                # In case of schema element or attribute use a the sample value
-                # of the primitive type
-                primitive_type = self.parser.schema.get_primitive_type(obj.type)
-                try:
-                    return XSD_BUILTIN_TYPES[primitive_type.local_name].value
-                except KeyError:
-                    return XSD_BUILTIN_TYPES['anyType'].value
-            else:
-                return UntypedAtomic('')
-
-        except AttributeError:
-            if self.parser.schema is None:
-                raise self.missing_schema() from None
-            msg = "the argument {!r} is not a node of an XSD schema".format(obj)
-            raise self.wrong_type(msg) from None
 
     ###
     # Error handling helpers

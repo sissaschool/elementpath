@@ -344,9 +344,6 @@ class ParserMeta(type):
                     break
         return cls
 
-    def __init__(cls, name, bases, namespace):
-        super(ParserMeta, cls).__init__(name, bases, namespace)
-
 
 class Parser(metaclass=ParserMeta):
     """
