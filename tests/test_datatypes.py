@@ -21,19 +21,19 @@ from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_
     months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
     GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
-    GregorianDay, AbstractDateTime, OrderedDateTime, NumericTypeProxy, ArithmeticTypeProxy, \
-    is_id, is_idrefs
+    GregorianDay, AbstractDateTime, OrderedDateTime, NumericProxy, ArithmeticProxy, \
+    Id, is_idrefs
 
 
-class DatatypesHelpersTest(unittest.TestCase):
+class StringTypesTest(unittest.TestCase):
 
     def test_is_id_function(self):
-        self.assertTrue(is_id(ElementTree.XML('<A>xyz</A>').text))
-        self.assertFalse(is_id(ElementTree.XML('<A>xyz abc</A>').text))
-        self.assertFalse(is_id(ElementTree.XML('<A>12345</A>').text))
-        self.assertTrue(is_id('alpha'))
-        self.assertFalse(is_id('alpha beta'))
-        self.assertFalse(is_id('12345'))
+        self.assertTrue(Id.is_valid(ElementTree.XML('<A>xyz</A>').text))
+        self.assertFalse(Id.is_valid(ElementTree.XML('<A>xyz abc</A>').text))
+        self.assertFalse(Id.is_valid(ElementTree.XML('<A>12345</A>').text))
+        self.assertTrue(Id.is_valid('alpha'))
+        self.assertFalse(Id.is_valid('alpha beta'))
+        self.assertFalse(Id.is_valid('12345'))
 
     def test_node_is_idref_function(self):
         self.assertTrue(is_idrefs(ElementTree.XML('<A>xyz</A>').text))
@@ -1043,36 +1043,36 @@ class TimezoneTypeTest(unittest.TestCase):
 class TypeProxiesTest(unittest.TestCase):
 
     def test_instance_check(self):
-        self.assertIsInstance(10, NumericTypeProxy)
-        self.assertIsInstance(17.8, NumericTypeProxy)
-        self.assertIsInstance(Decimal('18.12'), NumericTypeProxy)
-        self.assertNotIsInstance(True, NumericTypeProxy)
-        self.assertNotIsInstance(Duration.fromstring('P1Y'), NumericTypeProxy)
+        self.assertIsInstance(10, NumericProxy)
+        self.assertIsInstance(17.8, NumericProxy)
+        self.assertIsInstance(Decimal('18.12'), NumericProxy)
+        self.assertNotIsInstance(True, NumericProxy)
+        self.assertNotIsInstance(Duration.fromstring('P1Y'), NumericProxy)
 
-        self.assertIsInstance(10, ArithmeticTypeProxy)
+        self.assertIsInstance(10, ArithmeticProxy)
 
     def test_subclass_check(self):
-        self.assertFalse(issubclass(bool, NumericTypeProxy))
-        self.assertFalse(issubclass(str, NumericTypeProxy))
-        self.assertTrue(issubclass(int, NumericTypeProxy))
-        self.assertTrue(issubclass(float, NumericTypeProxy))
-        self.assertTrue(issubclass(Decimal, NumericTypeProxy))
-        self.assertFalse(issubclass(DateTime10, NumericTypeProxy))
+        self.assertFalse(issubclass(bool, NumericProxy))
+        self.assertFalse(issubclass(str, NumericProxy))
+        self.assertTrue(issubclass(int, NumericProxy))
+        self.assertTrue(issubclass(float, NumericProxy))
+        self.assertTrue(issubclass(Decimal, NumericProxy))
+        self.assertFalse(issubclass(DateTime10, NumericProxy))
 
-        self.assertFalse(issubclass(bool, ArithmeticTypeProxy))
-        self.assertFalse(issubclass(str, ArithmeticTypeProxy))
-        self.assertTrue(issubclass(int, ArithmeticTypeProxy))
-        self.assertTrue(issubclass(float, ArithmeticTypeProxy))
-        self.assertTrue(issubclass(Decimal, ArithmeticTypeProxy))
+        self.assertFalse(issubclass(bool, ArithmeticProxy))
+        self.assertFalse(issubclass(str, ArithmeticProxy))
+        self.assertTrue(issubclass(int, ArithmeticProxy))
+        self.assertTrue(issubclass(float, ArithmeticProxy))
+        self.assertTrue(issubclass(Decimal, ArithmeticProxy))
 
     # noinspection PyArgumentList
     def test_instance_build(self):
         self.assertEqual(NumericTypeProxy(), 0.0)
         self.assertEqual(NumericTypeProxy(9), 9.0)
         self.assertEqual(NumericTypeProxy('49'), 49.0)
-        self.assertEqual(ArithmeticTypeProxy(), 0.0)
-        self.assertEqual(ArithmeticTypeProxy(8.0), 8.0)
-        self.assertEqual(ArithmeticTypeProxy('81.0'), 81.0)
+        self.assertEqual(ArithmeticProxy(), 0.0)
+        self.assertEqual(ArithmeticProxy(8.0), 8.0)
+        self.assertEqual(ArithmeticProxy('81.0'), 81.0)
 
 
 if __name__ == '__main__':
