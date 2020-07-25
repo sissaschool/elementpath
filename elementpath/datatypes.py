@@ -1517,15 +1517,17 @@ class AnyURI(AnyAtomicType):
 
     def __init__(self, value):
         if isinstance(value, str):
-            self.value = value
+            self.value = collapse_white_spaces(value)
         elif isinstance(value, bytes):
-            self.value = value.decode('utf-8')
-        elif isinstance(value, UntypedAtomic):
+            self.value = collapse_white_spaces(value.decode('utf-8'))
+        elif isinstance(value, self.__class__):
             self.value = value.value
+        elif isinstance(value, UntypedAtomic):
+            self.value = collapse_white_spaces(value.value)
         else:
             raise TypeError('the argument has an invalid type %r' % type(value))
 
-        self.validate(value)
+        self.validate(self.value)
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
@@ -1537,6 +1539,31 @@ class AnyURI(AnyAtomicType):
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value == other.value
         return self.value == other
+
+    def __ne__(self, other):
+        if isinstance(other, (AnyURI, UntypedAtomic)):
+            return self.value != other.value
+        return self.value != other
+
+    def __lt__(self, other):
+        if isinstance(other, (AnyURI, UntypedAtomic)):
+            return self.value < other.value
+        return self.value < other
+
+    def __le__(self, other):
+        if isinstance(other, (AnyURI, UntypedAtomic)):
+            return self.value <= other.value
+        return self.value <= other
+
+    def __gt__(self, other):
+        if isinstance(other, (AnyURI, UntypedAtomic)):
+            return self.value > other.value
+        return self.value > other
+
+    def __ge__(self, other):
+        if isinstance(other, (AnyURI, UntypedAtomic)):
+            return self.value >= other.value
+        return self.value >= other
 
     @classmethod
     def validate(cls, value):
@@ -1550,12 +1577,15 @@ class AnyURI(AnyAtomicType):
         try:
             urlparse(value)
         except ValueError:
-            pass
+            msg = 'invalid value {!r} for xs:{}'
+            raise ValueError(msg.format(value, cls.name)) from None
         else:
-            if value.count('#') <= 1 and cls.pattern.search(value) is None:
-                return
-
-        raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            if value.count('#') > 1:
+                msg = 'invalid value {!r} for xs:{} (too many # characters)'
+                raise ValueError(msg.format(value, cls.name))
+            elif cls.pattern.search(value) is not None:
+                msg = 'invalid value {!r} for xs:{} (wrong escaping)'
+                raise ValueError(msg.format(value, cls.name))
 
 
 class QName(AnyAtomicType):

@@ -441,6 +441,8 @@ class XPathToken(Token):
 
         elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
             pass  # can compare duration types for equality or inequality
+        elif any(isinstance(x, AnyURI) for x in operands):
+            pass  # can compare duration types for equality or inequality
         elif any(not isinstance(operands[k], type(operands[1 - k])) for k in range(2)):
             msg = "cannot apply {} between {!r} and {!r}".format(self, *operands)
             raise self.error('XPTY0004', msg)

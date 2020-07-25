@@ -11,20 +11,14 @@
 XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
 from decimal import Decimal
-from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from . import datatypes
 from .datatypes import *
-from .datatypes import WHITESPACES_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
-
-
-def collapse_white_spaces(s):
-    return WHITESPACES_PATTERN.sub(' ', s).strip()
 
 
 register = XPath2Parser.register
@@ -106,24 +100,10 @@ def cast(self, value):
 
 @constructor('anyURI')
 def cast(self, value):
-    if isinstance(value, UntypedAtomic):
-        value = value.value
-
-    uri = collapse_white_spaces(value)
     try:
-        url_parts = urlparse(uri)
-        _ = url_parts.port
+        return datatypes.AnyURI(value)
     except ValueError as err:
-        msg = "%r is not an xs:anyURI value (%s)"
-        raise self.error('FORG0001', msg % (value, str(err)))
-
-    if uri.count('#') > 1:
-        msg = "%r is not an xs:anyURI value (too many # characters)"
-        raise self.error('FORG0001', msg % value)
-    elif WRONG_ESCAPE_PATTERN.search(uri):
-        msg = "%r is not an xs:anyURI value (wrong escaping)"
-        raise self.error('FORG0001', msg % value)
-    return uri
+        raise self.error('FORG0001', str(err))
 
 
 ###
@@ -140,7 +120,7 @@ def cast(self, value):
 
 @constructor('float')
 def cast(self, value):
-    value = self.cast_to_number(value, Float)
+    value = self.cast_to_number(value, datatypes.Float)
     if -1e-36 < value < 1e-36:
         Float(0)
     return value
@@ -361,9 +341,15 @@ def cast(self, value):
 
 @constructor('dateTimeStamp')
 def cast(self, value):
-    if XSD_BUILTIN_TYPES['dateTimeStamp'].validate(value) is False:
-        raise ValueError("{} is not castable to an xs:dateTimeStamp".format(value))
-    return value
+    if isinstance(value, datatypes.DateTimeStamp):
+        return value
+    elif isinstance(value, datatypes.DateTime10):
+        value = str(value)
+
+    try:
+        return datatypes.DateTimeStamp.fromstring(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @method('dateTimeStamp')
