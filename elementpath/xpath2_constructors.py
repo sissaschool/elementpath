@@ -17,8 +17,7 @@ from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE
 from . import datatypes
 from .datatypes import *
-from .datatypes import WHITESPACES_PATTERN, NMTOKEN_PATTERN, NAME_PATTERN, \
-    NCNAME_PATTERN, LANGUAGE_CODE_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
+from .datatypes import WHITESPACES_PATTERN, WRONG_ESCAPE_PATTERN, XSD_BUILTIN_TYPES
 from .xpath_token import XPathToken
 from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
@@ -38,52 +37,71 @@ constructor = XPath2Parser.constructor
 # Constructors for string-based XSD types
 @constructor('normalizedString')
 def cast(self, value):
-    return datatypes.NormalizedString(str(value).replace('\t', ' ').replace('\n', ' '))
+    return datatypes.NormalizedString(value)
 
 
 @constructor('token')
 def cast(self, value):
-    return datatypes.XsdToken(collapse_white_spaces(value))
+    try:
+        return datatypes.XsdToken(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('language')
 def cast(self, value):
-    if value is True:
-        return datatypes.Language('true')
-    elif value is False:
-        return datatypes.Language('false')
-
-    match = LANGUAGE_CODE_PATTERN.match(collapse_white_spaces(value))
-    if match is None:
-        raise self.error('FORG0001', "%r is not a language code" % value)
-    return datatypes.Language(match.group())
+    try:
+        return datatypes.Language(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('NMTOKEN')
 def cast(self, value):
-    match = NMTOKEN_PATTERN.match(collapse_white_spaces(value))
-    if match is None:
-        raise self.error('FORG0001', "%r is not an xs:NMTOKEN value" % value)
-    return datatypes.NMToken(match.group())
+    try:
+        return datatypes.NMToken(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('Name')
 def cast(self, value):
-    match = NAME_PATTERN.match(collapse_white_spaces(value))
-    if match is None:
-        raise self.error('FORG0001', "%r is not an xs:Name value" % value)
-    return datatypes.NCName(match.group())
+    try:
+        return datatypes.Name(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('NCName')
+def cast(self, value):
+    try:
+        return datatypes.NCName(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
+
+
 @constructor('ID')
+def cast(self, value):
+    try:
+        return datatypes.Id(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
+
+
 @constructor('IDREF')
+def cast(self, value):
+    try:
+        return datatypes.Idref(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
+
+
 @constructor('ENTITY')
 def cast(self, value):
-    match = NCNAME_PATTERN.match(collapse_white_spaces(value))
-    if match is None:
-        raise self.error('FORG0001', "invalid value %r for constructor" % value)
-    return datatypes.NCName(match.group())
+    try:
+        return datatypes.Entity(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('anyURI')

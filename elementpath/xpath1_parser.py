@@ -15,7 +15,7 @@ from copy import copy
 
 from .exceptions import MissingContextError, ElementPathKeyError
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericTypeProxy, ArithmeticTypeProxy
+    YearMonthDuration, NumericProxy, ArithmeticProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_name
@@ -611,11 +611,11 @@ prefix('-', bp=70)
 @method(infix('+', bp=40))
 def evaluate(self, context=None):
     if len(self) == 1:
-        arg = self.get_argument(context, cls=NumericTypeProxy)
+        arg = self.get_argument(context, cls=NumericProxy)
         if arg is not None:
             return +arg
     else:
-        op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
+        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is not None:
             try:
                 return op1 + op2
@@ -635,11 +635,11 @@ def evaluate(self, context=None):
 @method(infix('-', bp=40))
 def evaluate(self, context=None):
     if len(self) == 1:
-        arg = self.get_argument(context, cls=NumericTypeProxy)
+        arg = self.get_argument(context, cls=NumericProxy)
         if arg is not None:
             return -arg
     else:
-        op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
+        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is not None:
             try:
                 return op1 - op2
@@ -657,7 +657,7 @@ def evaluate(self, context=None):
 @method(infix('*', bp=45))
 def evaluate(self, context=None):
     if self:
-        op1, op2 = self.get_operands(context, cls=ArithmeticTypeProxy)
+        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is not None:
             try:
                 if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
@@ -693,7 +693,7 @@ def evaluate(self, context=None):
 
 @method(infix('div', bp=45))
 def evaluate(self, context=None):
-    dividend, divisor = self.get_operands(context, cls=ArithmeticTypeProxy)
+    dividend, divisor = self.get_operands(context, cls=ArithmeticProxy)
     if dividend is None:
         return
     elif divisor != 0:
@@ -732,7 +732,7 @@ def evaluate(self, context=None):
 
 @method(infix('mod', bp=45))
 def evaluate(self, context=None):
-    op1, op2 = self.get_operands(context, cls=NumericTypeProxy)
+    op1, op2 = self.get_operands(context, cls=NumericProxy)
     if op1 is not None:
         if op2 == 0 and isinstance(op2, float):
             return float('nan')
@@ -881,7 +881,7 @@ def select(self, context=None):
 
     for context.item in selector:
         predicate = [x for x in self[1].select(context.copy())]
-        if len(predicate) == 1 and isinstance(predicate[0], NumericTypeProxy):
+        if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
                 yield context.item
         elif self.boolean_value(predicate):

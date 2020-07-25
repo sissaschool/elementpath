@@ -30,21 +30,17 @@ from .namespaces import XSD_NAMESPACE
 # Data validation helpers
 
 WHITESPACES_PATTERN = re.compile(r'\s+')
-NMTOKEN_PATTERN = re.compile(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
-NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]*$')
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
 QNAME_PATTERN = re.compile(
     r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
     r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
 )
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-BASE64_BINARY_PATTERN = re.compile(
-    r'((([A-Za-z0-9+/] ?){4})*(([A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|([A-Za-z0-9+/] ?){2}'
-    r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'
-)
-
-LANGUAGE_CODE_PATTERN = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
 WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-f\d]{2})')
+
+
+def collapse_white_spaces(s):
+    return WHITESPACES_PATTERN.sub(' ', s).strip()
 
 
 def decimal_validator(value):
@@ -53,42 +49,6 @@ def decimal_validator(value):
 
 def integer_validator(value):
     return isinstance(value, int) and not isinstance(value, bool)
-
-
-def base64_binary_validator(value):
-    if isinstance(value, bytes):
-        value = value.decode()
-    elif not isinstance(value, str):
-        return False
-
-    value = value.replace(' ', '')
-    if not value:
-        return True
-
-    match = BASE64_BINARY_PATTERN.match(value)
-    if match is None or match.group(0) != value:
-        return False
-
-    try:
-        base64.standard_b64decode(value)
-    except (ValueError, TypeError):
-        print("Errore!")
-        return False
-    else:
-        return True
-
-
-def hex_binary_validator(value):
-    if isinstance(value, bytes):
-        value = value.decode()
-    elif not isinstance(value, str):
-        return False
-
-    value = value.strip()
-    if not value:
-        return True
-
-    return not len(value) % 2 and HEX_BINARY_PATTERN.match(value) is not None
 
 
 def any_uri_validator(value):
@@ -106,16 +66,9 @@ def any_uri_validator(value):
             WRONG_ESCAPE_PATTERN.search(value) is None
 
 
-def ncname_validator(value):
-    return isinstance(value, str) and NCNAME_PATTERN.match(value) is not None
-
-
-def is_id(value):
-    return isinstance(value, str) and ncname_validator(value)
-
-
 def is_idrefs(value):
-    return isinstance(value, str) and all(ncname_validator(x) for x in value.split())
+    return isinstance(value, str) and \
+           all(NCNAME_PATTERN.match(x) is not None for x in value.split())
 
 
 ###
@@ -293,27 +246,35 @@ atomic_types = {}
 
 
 class AtomicTypeMeta(ABCMeta):
+    """Metaclass that registers named classes into a global dictionary."""
 
     def __new__(mcs, class_name, bases, dict_):
         try:
             name = dict_['name']
         except KeyError:
-            return super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
+            name = dict_['name'] = None  # do not inherit name
 
-        if not isinstance(name, str):
-            raise TypeError("attribute 'name' must be a string")
-        expanded_name = dict_['expanded_name'] = '{%s}%s' % (XSD_NAMESPACE, name)
+        if isinstance(name, str):
+            expanded_name = dict_['expanded_name'] = '{%s}%s' % (XSD_NAMESPACE, name)
+        elif name is None:
+            expanded_name = dict_['expanded_name'] = None
+        else:
+            raise TypeError("attribute 'name' must be a string or None")
 
         cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
-        if name not in atomic_types:
-            atomic_types[expanded_name] = cls
+        if name and name not in atomic_types:
+            atomic_types[name] = atomic_types[expanded_name] = cls
         return cls
 
 
 class AnyAtomicType(metaclass=AtomicTypeMeta):
     name = 'anyAtomicType'
     version = '1.0'
-    pattern = re.compile('.*')
+    pattern = re.compile(r'^$')
+
+    @abstractmethod
+    def __str__(self):
+        raise NotImplementedError()
 
     @classmethod
     def validate(cls, value):
@@ -324,6 +285,15 @@ class AnyAtomicType(metaclass=AtomicTypeMeta):
         elif cls.pattern.match(value) is None:
             raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
 
+    @classmethod
+    def is_valid(cls, value):
+        try:
+            cls.validate(value)
+        except (TypeError, ValueError):
+            return False
+        else:
+            return True
+
 
 ###
 # Classes for XSD built-in primitive types
@@ -333,8 +303,6 @@ class AbstractDateTime(AnyAtomicType):
     A class for representing XSD date/time objects. It uses and internal datetime.datetime
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
     """
-    version = '1.0'
-    pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
     _year = None
 
@@ -1173,8 +1141,9 @@ class DayTimeDuration(Duration):
         return DayTimeDuration(seconds)
 
 
-class String(str, metaclass=AtomicTypeMeta):
+class String(str, AnyAtomicType):
     name = 'string'
+    pattern = re.compile('.*')
 
     @classmethod
     def validate(cls, value):
@@ -1191,17 +1160,47 @@ class NormalizedString(String):
     pattern = re.compile('[^\t\r]*')
     value = ' alpha  ',
 
+    def __new__(cls, obj):
+        try:
+            return super().__new__(cls, obj.replace('\t', ' ').replace('\n', ' '))
+        except AttributeError:
+            return super().__new__(cls, obj)
+
 
 class XsdToken(NormalizedString):
     name = 'token'
     pattern = re.compile(r'^\S+(?: \S+)*$')
     value = 'a token'
 
+    def __new__(cls, value):
+        if not isinstance(value, str):
+            value = str(value)
+        else:
+            value = collapse_white_spaces(value)
+
+        match = cls.pattern.match(value)
+        if match is None:
+            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        return super(NormalizedString, cls).__new__(cls, value)
+
 
 class Language(XsdToken):
     name = 'language'
     pattern = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
     value = 'en-US'
+
+    def __new__(cls, value):
+        if isinstance(value, bool):
+            value = 'true' if value else 'false'
+        elif not isinstance(value, str):
+            value = str(value)
+        else:
+            value = collapse_white_spaces(value)
+
+        match = cls.pattern.match(value)
+        if match is None:
+            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        return super(NormalizedString, cls).__new__(cls, value)
 
 
 class Name(XsdToken):
@@ -1213,7 +1212,6 @@ class Name(XsdToken):
 class NCName(Name):
     name = 'NCName'
     pattern = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
-    validator = ncname_validator,
     value='nc-name'
 
 
@@ -1295,7 +1293,17 @@ class Base64Binary(AbstractBinary):
         elif not isinstance(value, str):
             raise TypeError('invalid type {!r} for an {}'.format(type(value), cls))
 
-        if cls.pattern.match(value.strip().replace(' ', '')) is None:
+        value = value.replace(' ', '')
+        if not value:
+            return True
+
+        match = cls.pattern.match(value)
+        if match is None or match.group(0) != value:
+            raise ValueError('invalid value {!r} for an {}'.format(value, cls))
+
+        try:
+            base64.standard_b64decode(value)
+        except (ValueError, TypeError):
             raise ValueError('invalid value {!r} for an {}'.format(value, cls))
 
     @staticmethod
@@ -1319,8 +1327,12 @@ class HexBinary(AbstractBinary):
         elif not isinstance(value, str):
             raise TypeError('invalid type {!r} for an {}'.format(type(value), cls))
 
-        if cls.pattern.match(value.strip()) is None:
+        value = value.strip()
+        if value and (len(value) % 2 or HEX_BINARY_PATTERN.match(value) is None):
             raise ValueError('invalid value {!r} for an {}'.format(value, cls))
+
+        #if cls.pattern.match(value.strip()) is None:
+        #    raise ValueError('invalid value {!r} for an {}'.format(value, cls))
 
     @staticmethod
     def encoder(value):
@@ -1514,8 +1526,6 @@ class AnyURI(AnyAtomicType):
             raise TypeError('the argument has an invalid type %r' % type(value))
 
         self.validate(value)
-        if not any_uri_validator(self.value):
-            raise ValueError("invalid value {!r} for an xs:anyURI".format(value))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
@@ -1547,8 +1557,6 @@ class AnyURI(AnyAtomicType):
 
         raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
 
-
-AnyAtomicType.register(Integer)
 
 class QName(AnyAtomicType):
     """
@@ -1747,85 +1755,53 @@ class UntypedAtomic(object):
 
 ####
 # Type proxies for multiple type-checking in XPath expressions
+class NumericTypeMeta(type):
+    """Metaclass for checking numeric classes and instances."""
 
-class TypeProxyMeta(type):
-    """
-    A metaclass for creating type proxy classes, that can be used for instance
-    and subclass checking and for building instances of related types. A type
-    proxy class has to implement three methods as concrete class/static methods.
-    """
     def __instancecheck__(cls, instance):
-        return cls.instance_check(instance)
+        return isinstance(instance, (int, float, Decimal)) and not isinstance(instance, bool)
 
     def __subclasscheck__(cls, subclass):
-        return cls.subclass_check(subclass)
-
-    def __call__(cls, *args, **kwargs):
-        return cls.instance_build(*args, **kwargs)
-
-    def instance_check(cls, instance):
-        """Checks the if the argument is an instance of one of related types."""
-        raise NotImplementedError
-
-    def subclass_check(cls, subclass):
-        """Checks the if the argument is a subclass of one of related types."""
-        raise NotImplementedError
-
-    def instance_build(cls, *args, **kwargs):
-        """Builds an instance belonging to one of related types."""
-        raise NotImplementedError
-
-
-class NumericTypeProxy(metaclass=TypeProxyMeta):
-    """
-    A type proxy class for xs:numeric related types (xs:float, xs:decimal and
-    derived types). Builds xs:float instances.
-    """
-    @staticmethod
-    def instance_check(other):
-        return isinstance(other, (int, float, Decimal)) and \
-            not isinstance(other, bool)
-
-    @staticmethod
-    def subclass_check(cls):
-        if issubclass(cls, bool):
+        if issubclass(subclass, bool):
             return False
-        return issubclass(cls, int) or issubclass(cls, float) \
-            or issubclass(cls, Decimal)
-
-    @staticmethod
-    def instance_build(x=0):
-        return float(x)
+        return issubclass(subclass, int) or issubclass(subclass, float) \
+            or issubclass(subclass, Decimal)
 
 
-class ArithmeticTypeProxy(metaclass=TypeProxyMeta):
-    """
-    A type proxy class for XSD types related to arithmetic operators, including
-    types related to xs:numeric and datetime or duration types. Builds xs:float
-    instances.
-    """
+class NumericProxy(metaclass=NumericTypeMeta):
+    """Proxy for xs:numeric related types. Builds xs:float instances."""
 
-    @staticmethod
-    def instance_check(other):
+    def __new__(cls, *args, **kwargs):
+        return float(*args, **kwargs)
+
+
+class ArithmeticTypeMeta(type):
+    """Metaclass for checking numeric, datetime and duration classes/instances."""
+
+    def __instancecheck__(cls, instance):
         return isinstance(
-            other, (int, float, Decimal, AbstractDateTime, Duration, UntypedAtomic)
-        ) and not isinstance(other, bool)
+            instance, (int, float, Decimal, AbstractDateTime, Duration, UntypedAtomic)
+        ) and not isinstance(instance, bool)
 
-    @staticmethod
-    def subclass_check(cls):
-        if issubclass(cls, bool):
+    def __subclasscheck__(cls, subclass):
+        if issubclass(subclass, bool):
             return False
-        return issubclass(cls, int) or issubclass(cls, float) or \
-            issubclass(cls, Decimal) or issubclass(cls, Duration) \
-            or issubclass(cls, AbstractDateTime) or issubclass(cls, UntypedAtomic)
+        return issubclass(subclass, int) or issubclass(subclass, float) or \
+            issubclass(subclass, Decimal) or issubclass(subclass, Duration) \
+            or issubclass(subclass, AbstractDateTime) or issubclass(subclass, UntypedAtomic)
 
-    @staticmethod
-    def instance_build(x=0):
-        return float(x)
+
+class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
+    """Proxy for arithmetic related types. Builds xs:float instances."""
+
+    def __new__(cls, *args, **kwargs):
+        return float(*args, **kwargs)
 
 
 ####
 # XSD atomic builtins validators and values
+
+AnyAtomicType.register(Integer)
 
 XsdBuiltin = namedtuple('XsdBuiltin', 'validate')
 """A namedtuple-based type for describing XSD builtin types."""
@@ -1834,13 +1810,10 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
     'anyType': XsdBuiltin(
         lambda x: True,
     ),
-    'anySimpleType': XsdBuiltin(
-        lambda x: isinstance(x, (str, int, float, bool, Decimal, AbstractDateTime, Duration,
-                                 Timezone, AbstractBinary, AnyURI, QName, UntypedAtomic)),
-    ),
     'anyAtomicType': XsdBuiltin(
         lambda x: False,
     ),
+    'boolean': BooleanProxy,
     'string': XsdBuiltin(
         lambda x: isinstance(x, str),
     ),
@@ -1892,11 +1865,7 @@ XSD_BUILTIN_TYPES = {           # pragma: no cover
     'unsignedInt': UnsignedInt,
     'unsignedShort': UnsignedShort,
     'unsignedByte': UnsignedByte,
-    'boolean': BooleanProxy,
 }
-
-import pprint
-pprint.pprint(list(atomic_types))
 
 
 __all__ = [

@@ -21,8 +21,8 @@ from copy import copy
 from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import any_uri_validator, QNAME_PATTERN, DateTime10, Date10, Date, \
-    Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, is_id, is_idrefs
+from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, \
+    Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, \
@@ -618,17 +618,17 @@ def evaluate(self, context=None):
             raise self.error('FONS0005')
         elif relative is None:
             return
-        elif not any_uri_validator(relative):
+        elif not AnyURI.is_valid(relative):
             raise self.error('FORG0002', '{!r} is not a valid URI'.format(relative))
         else:
             return self.get_absolute_uri(relative)
 
     base_uri = self.get_argument(context, index=1, required=True, cls=str)
-    if not any_uri_validator(base_uri):
+    if not AnyURI.is_valid(base_uri):
         raise self.error('FORG0002', '{!r} is not a valid URI'.format(base_uri))
     elif relative is None:
         return
-    elif not any_uri_validator(relative):
+    elif not AnyURI.is_valid(relative):
         raise self.error('FORG0002', '{!r} is not a valid URI'.format(relative))
     else:
         return self.get_absolute_uri(relative, base_uri)
@@ -1048,7 +1048,7 @@ def select(self, context=None):
         root = context.root
 
     for elem in root.iter():
-        if is_id(elem.text) and any(v == elem.text for x in idrefs for v in x.split()):
+        if Id.is_valid(elem.text) and any(v == elem.text for x in idrefs for v in x.split()):
             yield elem
             continue
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
