@@ -532,7 +532,7 @@ class XPath2Parser(XPath1Parser):
                 return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
 
             for type_name in ['QName', 'string', 'boolean', 'decimal', 'float', 'double',
-                              'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay',
+                              'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
                               'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
                               'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary']:
                 try:
