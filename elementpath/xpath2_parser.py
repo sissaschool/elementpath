@@ -26,7 +26,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
     get_prefixed_name, get_expanded_name, split_expanded_name
 from . import datatypes
-from .datatypes import UntypedAtomic, XSD_BUILTIN_TYPES, QName
+from .datatypes import UntypedAtomic, atomic_types, QName
 from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, \
     is_document_node, node_kind
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
@@ -477,14 +477,9 @@ class XPath2Parser(XPath1Parser):
 
         if get_namespace(type_qname) == XSD_NAMESPACE:
             try:
-                local_name = type_qname.split('}')[1]
-            except ValueError:
-                raise ElementPathValueError("%r is not extended QName" % type_qname)
-
-            try:
-                return XSD_BUILTIN_TYPES[local_name].validate(obj) is not False
-            except (ValueError, TypeError):
-                return False
+                return isinstance(obj, atomic_types[type_qname])
+            except KeyError:
+                pass
 
         raise ElementPathKeyError("unknown type %r" % type_qname)
 
@@ -535,11 +530,8 @@ class XPath2Parser(XPath1Parser):
                               'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
                               'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
                               'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary']:
-                try:
-                    if XSD_BUILTIN_TYPES[type_name].validate(value) is not False:
-                        return '{}:{}'.format(self.xsd_prefix, type_name)
-                except (ValueError, TypeError):
-                    continue
+                if atomic_types[type_name].is_valid(value):
+                    return '{}:{}'.format(self.xsd_prefix, type_name)
 
         raise ElementPathTypeError("Inconsistent sequence type for {!r}".format(value))
 
