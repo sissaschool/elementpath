@@ -61,7 +61,8 @@ def ordinal(n):
 
 class XPathToken(Token):
     """Base class for XPath tokens."""
-    xsd_types = None   # fox XPath 2.0+ schema types labeling
+    xsd_types = None  # for XPath 2.0+ schema types labeling
+    namespace = None  # for namespace binding of names and wildcards
 
     def evaluate(self, context=None):
         """
@@ -491,21 +492,24 @@ class XPathToken(Token):
         a function or a constructor, otherwise a syntax error is raised. Functions
         and constructors must be limited to its namespaces.
         """
-        if namespace == XPATH_FUNCTIONS_NAMESPACE:
+        if self.symbol in ('(name)', '*'):
+            pass
+        elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                if self.label != 'literal':
-                    raise self.wrong_syntax(message="a function expected")
+                msg = "a name, a name wildcard or a function expected"
+                raise self.wrong_syntax(msg)
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
-            if self.symbol not in ('(name)', '*') and self.label != 'constructor':
-                raise self.wrong_syntax(
-                    message="an XSD element or a constructor function expected"
-                )
+            if self.label != 'constructor':
+                msg = "a name, a name wildcard or a constructor function expected"
+                raise self.wrong_syntax(msg)
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
-        elif self.symbol not in ('(name)', '*'):
-            raise self.wrong_syntax(message="a name or a name wildcard expected")
+        else:
+            raise self.wrong_syntax("a name or a wildcard or a function or a constructor expected")
+        
+        self.namespace = namespace
 
     def adjust_datetime(self, context, cls):
         """

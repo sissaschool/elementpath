@@ -18,7 +18,7 @@ from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
-from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, get_prefixed_name
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, get_prefixed_name
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
@@ -282,8 +282,9 @@ literal('(unknown)')
 @method(register('(name)', bp=10, label='literal'))
 def nud(self):
     if self.parser.next_token.symbol == '(':
-        pass  # msg = 'name {!r} cannot have arguments'
-        # raise self.error('XPST0017', msg.format(self.value))
+        if self.namespace == XSD_NAMESPACE:
+            raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
+        raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
     elif self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
     return self

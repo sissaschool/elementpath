@@ -1720,8 +1720,12 @@ class UntypedAtomic(object):
             self.value = value.qname
         elif isinstance(value, AbstractBinary):
             self.value = value.value.decode('utf-8')
-        elif isinstance(value, (AbstractDateTime, Duration, int, float, Decimal)):
+        elif isinstance(value, (AbstractDateTime, Duration, int)):
             self.value = str(value)
+        elif isinstance(value, float):
+            self.value = str(value).rstrip('0').rstrip('.')
+        elif isinstance(value, Decimal):
+            self.value = str(value.normalize())
         else:
             raise TypeError("{!r} is not an atomic value".format(value))
 
@@ -1985,10 +1989,10 @@ AnyAtomicType.register(Time)
 AnyAtomicType.register(UntypedAtomic)
 
 __all__ = ['atomic_types', 'is_idrefs', 'NumericProxy', 'ArithmeticProxy',
-           'QNAME_PATTERN', 'AnyAtomicType', 'DateTime10', 'DateTime',
-           'DateTimeStamp', 'Date10', 'Date', 'GregorianDay', 'GregorianMonth',
-           'GregorianMonthDay', 'GregorianYear10', 'GregorianYear',
-           'GregorianYearMonth10', 'GregorianYearMonth', 'Time', 'Duration',
+           'QNAME_PATTERN', 'AnyAtomicType', 'AbstractDateTime', 'DateTime10',
+           'DateTime', 'DateTimeStamp', 'Date10', 'Date', 'GregorianDay',
+           'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10', 'GregorianYear',
+           'GregorianYearMonth10', 'GregorianYearMonth', 'Time', 'Timezone', 'Duration',
            'YearMonthDuration', 'DayTimeDuration', 'String', 'NormalizedString',
            'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref', 'Entity',
            'NMToken', 'Base64Binary', 'HexBinary', 'Float', 'Integer',
