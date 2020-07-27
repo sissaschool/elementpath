@@ -700,7 +700,7 @@ def evaluate(self, context=None):
     elif divisor != 0:
         try:
             if isinstance(dividend, int) and isinstance(divisor, int):
-                return decimal.Decimal.from_float(dividend / divisor)
+                return decimal.Decimal(dividend) / decimal.Decimal(divisor)
             return dividend / divisor
         except TypeError as err:
             raise self.error('XPTY0004', str(err)) from None

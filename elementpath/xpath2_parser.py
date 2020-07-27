@@ -1177,9 +1177,15 @@ def evaluate(self, context=None):
         raise self.error('XPTY0004', str(err)) from None
 
     try:
-        return op1 // op2
+        result = op1 // op2
     except (ZeroDivisionError, decimal.DivisionByZero):
         raise self.error('FOAR0001') from None
+    else:
+        if result >= 0 or isinstance(op1, decimal.Decimal) or \
+                isinstance(op2, decimal.Decimal) or abs(op1) == abs(op2):
+            return int(result)
+        else:
+            return int(result) + 1
 
 
 ###
