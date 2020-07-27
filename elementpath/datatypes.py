@@ -1372,7 +1372,7 @@ class Float(float, metaclass=AtomicTypeMeta):
                 raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
 
         value = super().__new__(cls, value)
-        if -1e-36 < value < 1e-36:
+        if -1e-37 < value < 1e-37:
             return super().__new__(cls, 0.0)
         return value
 
@@ -1988,9 +1988,11 @@ AnyAtomicType.register(String)
 AnyAtomicType.register(Time)
 AnyAtomicType.register(UntypedAtomic)
 
-__all__ = ['atomic_types', 'is_idrefs', 'NumericProxy', 'ArithmeticProxy',
-           'QNAME_PATTERN', 'AnyAtomicType', 'AbstractDateTime', 'DateTime10',
-           'DateTime', 'DateTimeStamp', 'Date10', 'Date', 'GregorianDay',
+XSD_BUILTIN_TYPES = atomic_types
+
+__all__ = ['atomic_types', 'XSD_BUILTIN_TYPES', 'is_idrefs', 'NumericProxy',
+           'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType', 'AbstractDateTime',
+           'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10', 'Date', 'GregorianDay',
            'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10', 'GregorianYear',
            'GregorianYearMonth10', 'GregorianYearMonth', 'Time', 'Timezone', 'Duration',
            'YearMonthDuration', 'DayTimeDuration', 'String', 'NormalizedString',

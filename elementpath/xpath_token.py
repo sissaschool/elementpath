@@ -508,7 +508,7 @@ class XPathToken(Token):
                 self.label = 'constructor'
         else:
             raise self.wrong_syntax("a name or a wildcard or a function or a constructor expected")
-        
+
         self.namespace = namespace
 
     def adjust_datetime(self, context, cls):

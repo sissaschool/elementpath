@@ -596,25 +596,30 @@ class Result(object):
         else:
             value = self.string_token.evaluate(context)
 
+        if self.attrib.get('normalize-space'):
+            expected = ' '.join(x.strip() for x in self.value.split('\n')).strip()
+        else:
+            expected = self.value
+
         if not value:
-            if self.value is None:
+            if expected is None:
                 return True
-        elif value == self.value:
+        elif value == expected:
             return True
 
         if value and ' ' not in value:
             try:
                 dv = decimal.Decimal(value)
-                if dv == decimal.Decimal(self.value):
+                if dv == decimal.Decimal(expected):
                     return True
             except decimal.DecimalException:
                 pass
             else:
-                if abs(dv) > 10**3 and round(dv) == decimal.Decimal(self.value):
+                if abs(dv) > 10**3 and round(dv) == decimal.Decimal(expected):
                     return True
 
         self.report_failure(
-            verbose, expected=self.value, string_value=value, xpath_result=result
+            verbose, expected=expected, string_value=value, xpath_result=result
         )
         return False
 
