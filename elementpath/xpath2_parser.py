@@ -632,6 +632,7 @@ function = XPath2Parser.function
 unregister(',')
 unregister('(')
 unregister('$')
+unregister('contains')
 
 ###
 # Symbols

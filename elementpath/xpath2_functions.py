@@ -679,6 +679,18 @@ def evaluate(self, context=None):
     return 0 if not value else 1 if value > 0 else -1
 
 
+@method(function('contains', nargs=(2, 3)))
+def evaluate(self, context=None):
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
+
+    if len(self) < 3:
+        return arg2 in arg1
+    else:
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            return arg2 in arg1
+
+
 @method(function('codepoint-equal', nargs=2))
 def evaluate(self, context=None):
     comp1 = self.get_argument(context, 0, cls=str)
