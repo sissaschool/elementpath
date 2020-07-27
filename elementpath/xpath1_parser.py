@@ -709,10 +709,6 @@ def evaluate(self, context=None):
         except OverflowError as err:
             raise self.error('FOAR0002', str(err)) from None
         except (ZeroDivisionError, decimal.DivisionByZero):
-            if isinstance(dividend, AbstractDateTime):
-                raise self.error('FODT0001') from None
-            elif isinstance(dividend, Duration):
-                raise self.error('FODT0002') from None
             raise self.error('FOAR0001') from None
 
     elif isinstance(dividend, AbstractDateTime):
