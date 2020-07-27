@@ -21,7 +21,7 @@ import datetime
 import base64
 from calendar import isleap, leapdays
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from .namespaces import XSD_NAMESPACE
 
@@ -250,8 +250,10 @@ class AtomicTypeMeta(type):
             cls.pattern = re.compile(r'^$')
         if not hasattr(cls, 'validate'):
             cls.validate = mcs.validate
-        if not hasattr(cls, 'is_valid'):
-            cls.is_valid = mcs.is_valid
+
+        cls.is_valid = classmethod(mcs.is_valid)
+        cls.invalid_type = classmethod(mcs.invalid_type)
+        cls.invalid_value = classmethod(mcs.invalid_value)
 
         # Register class if it's not already registered
         if name and name not in atomic_types:
@@ -263,9 +265,9 @@ class AtomicTypeMeta(type):
         if isinstance(value, cls):
             return
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
     def is_valid(cls, value):
         try:
@@ -274,6 +276,16 @@ class AtomicTypeMeta(type):
             return False
         else:
             return True
+
+    def invalid_type(cls, value):
+        if cls.name:
+            return TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+        return TypeError('invalid type {!r} for {!r}'.format(type(value), cls))
+
+    def invalid_value(cls, value):
+        if cls.name:
+            return ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        return ValueError('invalid value {!r} for {!r}'.format(value, cls))
 
 
 class AtomicTypeABCMeta(AtomicTypeMeta, ABCMeta):
@@ -297,7 +309,7 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
 
     def __init__(self, year=2000, month=1, day=1, hour=0, minute=0,
                  second=0, microsecond=0, tzinfo=None):
-        if hour == 24 and minute == second == 0:
+        if hour == 24 and minute == second == microsecond == 0:
             delta = datetime.timedelta(days=1)
             hour = 0
         else:
@@ -808,7 +820,7 @@ class Time(AbstractDateTime):
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
-        if hour == 24 and minute == second == 0:
+        if hour == 24 and minute == second == microsecond == 0:
             hour = 0
         super(Time, self).__init__(
             hour=hour, minute=minute, second=second, microsecond=microsecond, tzinfo=tzinfo
@@ -1149,9 +1161,9 @@ class String(str, metaclass=AtomicTypeABCMeta):
         if isinstance(value, cls):
             return
         elif cls.name != 'string' or not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
 
 class NormalizedString(String):
@@ -1167,7 +1179,7 @@ class NormalizedString(String):
 
 class XsdToken(NormalizedString):
     name = 'token'
-    pattern = re.compile(r'^\S+(?: \S+)*$')
+    pattern = re.compile(r'^\S*(?: \S+)*$')
 
     def __new__(cls, value):
         if not isinstance(value, str):
@@ -1233,15 +1245,22 @@ class AbstractBinary(metaclass=AtomicTypeMeta):
     :param value: a string or a binary data or an untyped atomic instance.
     """
     def __init__(self, value):
-        if isinstance(value, (self.__class__, UntypedAtomic)):
-            value = value.value
-        elif isinstance(value, (AbstractBinary, UntypedAtomic)):
-            value = self.encoder(value.decode())
-        elif not isinstance(value, (str, bytes)):
-            raise TypeError('the argument has an invalid type %r' % type(value))
+        if isinstance(value, self.__class__):
+            self.value = value.value
+        elif isinstance(value, AbstractBinary):
+            self.value = self.encoder(value.decode())
+        else:
+            if isinstance(value, UntypedAtomic):
+                value = collapse_white_spaces(value.value)
+            elif isinstance(value, str):
+                value = collapse_white_spaces(value)
+            elif isinstance(value, bytes):
+                value = collapse_white_spaces(value.decode('utf-8'))
+            else:
+                raise self.invalid_type(value)
 
-        self.validate(value)
-        self.value = value if isinstance(value, bytes) else value.encode('ascii')
+            self.validate(value)
+            self.value = value.replace(' ', '').encode('ascii')
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
@@ -1281,7 +1300,7 @@ class Base64Binary(AbstractBinary):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for an {}'.format(type(value), cls))
+            raise cls.invalid_type(value)
 
         value = value.replace(' ', '')
         if not value:
@@ -1289,12 +1308,12 @@ class Base64Binary(AbstractBinary):
 
         match = cls.pattern.match(value)
         if match is None or match.group(0) != value:
-            raise ValueError('invalid value {!r} for an {}'.format(value, cls))
+            raise cls.invalid_value(value)
 
         try:
             base64.standard_b64decode(value)
         except (ValueError, TypeError):
-            raise ValueError('invalid value {!r} for an {}'.format(value, cls))
+            raise cls.invalid_value(value)
 
     @staticmethod
     def encoder(value):
@@ -1315,11 +1334,11 @@ class HexBinary(AbstractBinary):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for an {}'.format(type(value), cls))
+            raise cls.invalid_type(value)
 
         value = value.strip()
         if value and (len(value) % 2 or HEX_BINARY_PATTERN.match(value) is None):
-            raise ValueError('invalid value {!r} for an {}'.format(value, cls))
+            raise cls.invalid_value(value)
 
     @staticmethod
     def encoder(value):
@@ -1342,6 +1361,25 @@ class Float(float, metaclass=AtomicTypeMeta):
     pattern = re.compile(
         r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN'
     )
+
+    def __new__(cls, value, version='1.0'):
+        if isinstance(value, str):
+            value = collapse_white_spaces(value)
+            if value in {'INF', '-INF', 'NaN'} or version != '1.0' and value == '+INF':
+                pass
+            elif value.lower() in {'inf', '+inf', '-inf', 'nan',
+                                   'infinity', '+infinity', '-infinity'}:
+                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+
+        value = super().__new__(cls, value)
+        if -1e-36 < value < 1e-36:
+            return super().__new__(cls, 0.0)
+        return value
+
+    def __init__(self, value, version='1.0'):
+        if version != '1.0':
+            self.version = version
+        super().__init__()
 
     def __add__(self, other):
         if isinstance(other, (self.__class__, int)):
@@ -1434,9 +1472,9 @@ class Integer(int, metaclass=AtomicTypeABCMeta):
         elif cls.name == 'integer' and isinstance(value, int) and not isinstance(value, bool):
             return
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
 
 class NonPositiveInteger(Integer):
@@ -1506,7 +1544,7 @@ class AnyURI(metaclass=AtomicTypeMeta):
     :param value: a string or an untyped atomic instance.
     """
     name = 'anyURI'
-    pattern = re.compile(r'%(?![a-fA-f\d]{2})')  # for matching wrong escapes
+    pattern = re.compile(r'%(?![a-fA-F\d]{2})')  # for matching wrong escapes
 
     def __init__(self, value):
         if isinstance(value, str):
@@ -1565,15 +1603,16 @@ class AnyURI(metaclass=AtomicTypeMeta):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
 
         try:
-            urlparse(value)
+            url_parts = urlsplit(value)
         except ValueError:
-            msg = 'invalid value {!r} for xs:{}'
-            raise ValueError(msg.format(value, cls.name)) from None
+            raise cls.invalid_value(value) from None
         else:
-            if value.count('#') > 1:
+            if url_parts.path.startswith(':'):
+                raise cls.invalid_value(value)
+            elif value.count('#') > 1:
                 msg = 'invalid value {!r} for xs:{} (too many # characters)'
                 raise ValueError(msg.format(value, cls.name))
             elif cls.pattern.search(value) is not None:
@@ -1599,10 +1638,10 @@ class Notation(metaclass=AtomicTypeABCMeta):
         elif isinstance(value, bytes):
             value = value.decode()
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
 
         if any(cls.pattern.match(x) for x in value.split()):
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
 
 class QName(metaclass=AtomicTypeMeta):
@@ -1785,8 +1824,21 @@ class BooleanProxy(metaclass=AtomicTypeABCMeta):
     name = 'boolean'
     pattern = re.compile(r'true|false|1|0')
 
-    def __new__(cls, *args, **kwargs):
-        return bool(*args, **kwargs)
+    def __new__(cls, value):
+        if isinstance(value, bool):
+            return value
+        elif isinstance(value, (int, float, Decimal)):
+            if math.isnan(value):
+                return False
+            return bool(value)
+        elif isinstance(value, UntypedAtomic):
+            value = value.value
+        elif not isinstance(value, str):
+            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+
+        if value.strip() not in {'true', 'false', '1', '0'}:
+            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        return 't' in value or '1' in value
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -1797,17 +1849,27 @@ class BooleanProxy(metaclass=AtomicTypeABCMeta):
         if isinstance(value, bool):
             return
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
 
 class DecimalProxy(metaclass=AtomicTypeABCMeta):
     name = 'decimal'
     pattern = re.compile(r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)')
 
-    def __new__(cls, *args, **kwargs):
-        return Decimal(*args, **kwargs)
+    def __new__(cls, value):
+        if isinstance(value, str):
+            value = collapse_white_spaces(value).lower().replace(' ', '')
+            if value in {'', 'inf', '+inf', '-inf', 'nan', 'infinity', '+infinity', '-infinity'}:
+                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        elif isinstance(value, (float, Float, Decimal)):
+            if math.isinf(value) or math.isnan(value):
+                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        try:
+            return Decimal(value)
+        except ArithmeticError:
+            raise ArithmeticError('invalid value {!r} for xs:{}'.format(value, cls.name))
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -1818,9 +1880,9 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
         if isinstance(value, (int, Decimal, Integer)) and not isinstance(value, bool):
             return
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
 
 class DoubleProxy(metaclass=AtomicTypeABCMeta):
@@ -1829,8 +1891,15 @@ class DoubleProxy(metaclass=AtomicTypeABCMeta):
         r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN'
     )
 
-    def __new__(cls, *args, **kwargs):
-        return float(*args, **kwargs)
+    def __new__(cls, value, xsd_version='1.0'):
+        if isinstance(value, str):
+            value = collapse_white_spaces(value)
+            if value in {'INF', '-INF', 'NaN'} or xsd_version != '1.0' and value == '+INF':
+                pass
+            elif value.lower() in {'inf', '+inf', '-inf', 'nan',
+                                   'infinity', '+infinity', '-infinity'}:
+                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        return float(value)
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -1841,9 +1910,9 @@ class DoubleProxy(metaclass=AtomicTypeABCMeta):
         if isinstance(value, float) and not isinstance(value, Float):
             return
         elif not isinstance(value, str):
-            raise TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
+            raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
-            raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+            raise cls.invalid_value(value)
 
 
 ####

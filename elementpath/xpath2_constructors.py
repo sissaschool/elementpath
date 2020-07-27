@@ -110,20 +110,32 @@ def cast(self, value):
 # Constructors for numeric XSD types
 @constructor('decimal')
 def cast(self, value):
-    return self.cast_to_number(value, Decimal)
+    try:
+        return datatypes.DecimalProxy(value)
+    except (ArithmeticError, ValueError) as err:
+        if isinstance(value, str):
+            raise self.error('FORG0001', str(err))
+        raise self.error('FOCA0002', str(err))
 
 
 @constructor('double')
 def cast(self, value):
-    return self.cast_to_number(value, float)
+    try:
+        return datatypes.DoubleProxy(value, self.parser.xsd_version)
+    except ValueError as err:
+        if isinstance(value, str):
+            raise self.error('FORG0001', str(err))
+        raise self.error('FOCA0002', str(err))
 
 
 @constructor('float')
 def cast(self, value):
-    value = self.cast_to_number(value, datatypes.Float)
-    if -1e-36 < value < 1e-36:
-        Float(0)
-    return value
+    try:
+        return datatypes.Float(value, self.parser.xsd_version)
+    except ValueError as err:
+        if isinstance(value, str):
+            raise self.error('FORG0001', str(err))
+        raise self.error('FOCA0002', str(err))
 
 
 @constructor('integer')
@@ -377,7 +389,9 @@ def cast(self, value):
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
-        raise self.error('FORG0006', str(err)) from None
+        if isinstance(value, str):
+            raise self.error('FORG0006', str(err)) from None
+        raise self.error('XPTY0004', str(err)) from None
 
 
 @constructor('hexBinary')
@@ -387,7 +401,9 @@ def cast(self, value):
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
-        raise self.error('FORG0006', str(err)) from None
+        if isinstance(value, str):
+            raise self.error('FORG0006', str(err)) from None
+        raise self.error('XPTY0004', str(err)) from None
 
 
 @method('base64Binary')
@@ -414,10 +430,12 @@ def cast(self, value):
 @method('NOTATION')
 def nud(self):
     self.parser.advance('(')
+    if self.parser.next_token.symbol == ')':
+        raise self.error('XPST0017', 'expected exactly one argument')
     self[0:] = self.parser.expression(5),
-    if self.parser.next_token.symbol == ',':
-        raise self.error('XPST0017', 'too many arguments: expected at most 1 argument')
-    self.parser.advance(')')
+    if self.parser.next_token.symbol != ')':
+        raise self.error('XPST0017', 'expected exactly one argument')
+    self.parser.advance()
     self.value = None
     raise self.error('XPST0017', "no constructor function exists for xs:NOTATION")
 
@@ -432,20 +450,15 @@ unregister('boolean')
 
 
 @constructor('boolean', bp=90, label=('function', 'constructor'))
-def cast(self, value, context=None):
-    assert context is None or isinstance(context, XPathContext)
-    if isinstance(value, bool):
-        return value
-    elif isinstance(value, (int, float, Decimal)):
-        return bool(value)
-    elif isinstance(value, UntypedAtomic):
-        value = value.value
-    elif not isinstance(value, str):
-        raise self.error('FORG0006', 'the argument has an invalid type %r' % type(value))
-
-    if value.strip() not in {'true', 'false', '1', '0'}:
-        raise self.error('FORG0001', "%r: not a boolean value" % value)
-    return 't' in value or '1' in value
+def cast(self, value):
+    try:
+        return datatypes.BooleanProxy(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err)) from None
+    except TypeError as err:
+        if isinstance(value, str):
+            raise self.error('FORG0006', str(err)) from None
+        raise self.error('XPTY0004', str(err)) from None
 
 
 @method('boolean')
@@ -472,9 +485,7 @@ def evaluate(self, context=None):
         return []
 
     try:
-        if isinstance(arg, UntypedAtomic):
-            return self.cast(arg.value, context)
-        return self.cast(arg, context)
+        return self.cast(arg)
     except ElementPathError as err:
         err.token = self
         raise
