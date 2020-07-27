@@ -814,8 +814,8 @@ class XPathToken(Token):
             elif math.isinf(obj):
                 return str(obj).upper()
             value = str(obj)
-            if value.endswith('.0'):
-                return value[:-2]
+            if '.' in value:
+                return value.rstrip('0').rstrip('.')
             return value
 
         return str(obj)

@@ -19,8 +19,8 @@ from collections.abc import MutableSequence
 from copy import copy
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, ElementPathKeyError, ElementPathTypeError, \
-    MissingContextError, ElementPathValueError, xpath_error
+from .exceptions import ElementPathError, ElementPathKeyError, \
+    ElementPathTypeError, MissingContextError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
@@ -994,13 +994,9 @@ def evaluate(self, context=None):
 
             token = token_class(self.parser)
             value = token.cast(arg)
-    except ElementPathError as err:
+    except ElementPathError:
         if self.symbol != 'cast':
             return False
-        if isinstance(arg, UntypedAtomic):
-            err.code = 'err:FORG0001'
-        else:
-            err.code = 'err:XPTY0004'
         raise
     except KeyError:
         msg = "atomic type %r not found in the in-scope schema types"
