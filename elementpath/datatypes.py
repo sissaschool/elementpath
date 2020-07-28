@@ -1964,6 +1964,24 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
         return float(*args, **kwargs)
 
 
+class StringTypeMeta(type):
+    """Metaclass for checking string, AnyURI and UntypedAtomic classes."""
+
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, (str, AnyURI, UntypedAtomic))
+
+    def __subclasscheck__(cls, subclass):
+        return issubclass(subclass, str) or issubclass(subclass, AnyURI) \
+            or issubclass(subclass, UntypedAtomic)
+
+
+class StringProxy(metaclass=StringTypeMeta):
+    """Proxy for string related types. Builds str instances."""
+
+    def __new__(cls, *args, **kwargs):
+        return str(*args, **kwargs)
+
+
 ##
 # Register XSD primitive types and Python types as virtual subclasses of AnyAtomicType
 
@@ -1991,11 +2009,11 @@ AnyAtomicType.register(UntypedAtomic)
 XSD_BUILTIN_TYPES = atomic_types
 
 __all__ = ['atomic_types', 'XSD_BUILTIN_TYPES', 'is_idrefs', 'NumericProxy',
-           'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType', 'AbstractDateTime',
-           'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10', 'Date', 'GregorianDay',
-           'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10', 'GregorianYear',
-           'GregorianYearMonth10', 'GregorianYearMonth', 'Time', 'Timezone', 'Duration',
-           'YearMonthDuration', 'DayTimeDuration', 'String', 'NormalizedString',
+           'ArithmeticProxy', 'StringProxy', 'QNAME_PATTERN', 'AnyAtomicType',
+           'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
+           'Date', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10',
+           'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth', 'Time', 'Timezone',
+           'Duration', 'YearMonthDuration', 'DayTimeDuration', 'String', 'NormalizedString',
            'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref', 'Entity',
            'NMToken', 'Base64Binary', 'HexBinary', 'Float', 'Integer',
            'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int',
