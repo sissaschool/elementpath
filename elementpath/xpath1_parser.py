@@ -15,7 +15,7 @@ from copy import copy
 
 from .exceptions import MissingContextError, ElementPathKeyError
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy
+    YearMonthDuration, NumericProxy, ArithmeticProxy, StringProxy
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, get_prefixed_name
@@ -1135,8 +1135,8 @@ def evaluate(self, context=None):
 
 @method(function('contains', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=str)
-    arg2 = self.get_argument(context, index=1, default='', cls=str)
+    arg1 = self.get_argument(context, default='', cls=StringProxy)
+    arg2 = self.get_argument(context, index=1, default='', cls=StringProxy)
     return arg2 in arg1
 
 
@@ -1148,7 +1148,7 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=(0, 1)))
 def evaluate(self, context=None):
-    return len(self.get_argument(context, default_to_context=True, default='', cls=str))
+    return len(self.get_argument(context, default_to_context=True, default='', cls=StringProxy))
 
 
 @method(function('normalize-space', nargs=(0, 1)))
