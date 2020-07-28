@@ -50,6 +50,14 @@ SKIP_TESTS = [
 
     # Maybe tested with lxml
     'fn-string__fn-string-30',  # parse of comments required
+
+    # Unsupported collations
+    'fn-compare__compare-010',
+
+    # Processing-instructions (tests on env "auction")
+    'fn-local-name__fn-local-name-78',
+    'fn-name__fn-name-28',
+    'fn-string__fn-string-28',
 ]
 
 
@@ -858,6 +866,11 @@ def main():
 
                 # ignore tests that rely on higher-order function such as array:sort()
                 if 'higherOrderFunctions' in test_case.features:
+                    count_skip += 1
+                    continue
+
+                # ignore tests that rely on processing-instructions and comments
+                if test_case.environment_ref == 'bib2':
                     count_skip += 1
                     continue
 

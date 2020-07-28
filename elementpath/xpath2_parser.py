@@ -699,21 +699,19 @@ XPath2Parser.duplicate('|', 'union')
 
 
 @method(infix('intersect', bp=55))
-def select(self, context=None):
-    if context is None:
-        raise self.missing_context()
-
-    results = set(self[0].select(copy(context))) & set(self[1].select(copy(context)))
-    yield from context.iter_results(results)
-
-
 @method(infix('except', bp=55))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    results = set(self[0].select(copy(context))) - set(self[1].select(copy(context)))
-    yield from context.iter_results(results)
+    s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
+    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s1):
+        raise self.error('XPTY0004', 'only XPath nodes are allowed')
+
+    if self.symbol == 'except':
+        yield from context.iter_results(s1 - s2)
+    else:
+        yield from context.iter_results(s1 & s2)
 
 
 ###
