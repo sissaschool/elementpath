@@ -1038,7 +1038,23 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
     elif is_processing_instruction_node(context.item):
-        yield context.item
+        if not self:
+            yield context.item
+        else:
+            arg = self.get_argument(context, cls=str)
+            if context.item.tag == ' '.join(arg.strip().split()):
+                yield context.item
+
+
+@method('processing-instruction')
+def nud(self):
+    self.parser.advance('(')
+    if self.parser.next_token.symbol != ')':
+        self.expected('(name)', '(string)')
+        self[0:] = self.parser.expression(5),
+    self.parser.advance(')')
+    self.value = None
+    return self
 
 
 @method(function('comment', nargs=0, label='kind test'))
