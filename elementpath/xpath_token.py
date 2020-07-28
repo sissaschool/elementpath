@@ -818,8 +818,13 @@ class XPathToken(Token):
             elif math.isinf(obj):
                 return str(obj).upper()
             value = str(obj)
+
             if '.' in value:
-                return value.rstrip('0').rstrip('.')
+                value = value.rstrip('0').rstrip('.')
+            if '+' in value:
+                value = value.replace('+', '')
+            if 'e' in value:
+                return value.upper()
             return value
 
         return str(obj)

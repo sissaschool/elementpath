@@ -201,7 +201,7 @@ class XPath1Parser(Parser):
                         raise self.error(code, msg if min_args > 1 else msg[:-1])
                     self.parser.advance(',')
 
-            while k < max_args:
+            while max_args is None or k < max_args:
                 if self.parser.next_token.symbol == ',':
                     self.parser.advance(',')
                     self[k:] = self.parser.expression(5),
@@ -1124,7 +1124,7 @@ def evaluate(self, context=None):
     return arg2 in arg1
 
 
-@method(function('concat'))
+@method(function('concat', nargs=(2, None)))
 def evaluate(self, context=None):
     return ''.join(self.string_value(self.get_argument(context, index=k))
                    for k in range(len(self)))
@@ -1308,13 +1308,18 @@ def evaluate(self, context=None):
     elif is_xpath_node(arg) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
-    if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):
-        return arg
-
     try:
-        return math.floor(arg) if self.symbol == 'floor' else math.ceil(arg)
+        if math.isnan(arg) or math.isinf(arg):
+            return arg
+
+        if self.symbol == 'floor':
+            return type(arg)(math.floor(arg))
+        else:
+            return type(arg)(math.ceil(arg))
     except TypeError as err:
-        raise self.wrong_type(str(err)) from None
+        if isinstance(arg, str):
+            raise self.error('XPTY0004', str(err)) from None
+        raise self.error('FORG0006', str(err)) from None
 
 
 @method(function('round', nargs=1))
