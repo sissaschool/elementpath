@@ -110,6 +110,8 @@ class Schema(object):
 class Source(object):
     """Represents a source file as used in XML environment settings."""
 
+    namespaces = None
+
     def __init__(self, elem, use_lxml=False):
         assert elem.tag == '{%s}source' % QT3_NAMESPACE
         self.file = elem.attrib['file']
@@ -125,6 +127,10 @@ class Source(object):
                 self.xml = lxml.etree.parse(self.file)
             else:
                 self.xml = ElementTree.parse(self.file)
+                self.namespaces = {
+                    k: v for _, (k, v) in ElementTree.iterparse(self.file, events=('start-ns',))
+                }
+
         except (ElementTree.ParseError, lxml.etree.XMLSyntaxError):
             self.xml = None
 
@@ -258,7 +264,7 @@ class TestCase(object):
         self.test = elem.find('test', namespaces).text
 
         result_child = elem.find('result', namespaces).find("*")
-        self.result = Result(result_child, test_case=self)
+        self.result = Result(result_child, test_case=self, use_lxml=use_lxml)
 
         self.environment_ref = None
         self.environment = None
@@ -435,8 +441,9 @@ class Result(object):
     string_token = parser.parse('fn:string($result)')
     string_join_token = parser.parse('fn:string-join($result, " ")')
 
-    def __init__(self, elem, test_case):
+    def __init__(self, elem, test_case, use_lxml=False):
         self.test_case = test_case
+        self.use_lxml = use_lxml
         self.type = elem.tag.split('}')[1]
         self.value = elem.text
         self.attrib = {k: v for k, v in elem.attrib.items()}
@@ -772,20 +779,45 @@ class Result(object):
         if result is None:
             return False
 
+        if self.use_lxml:
+            tostring = lxml.etree.tostring
+        else:
+            tostring = ElementTree.tostring
+
+            environment = self.test_case.get_environment()
+            if environment is not None:
+                for source in environment.sources.values():
+                    if source.namespaces:
+                        for prefix, uri in source.namespaces.items():
+                            ElementTree.register_namespace(prefix, uri)
+
+                for prefix, uri in environment.namespaces.items():
+                    ElementTree.register_namespace(prefix, uri)
+
         if type(result) == list:
             parts = []
             for item in result:
-                if isinstance(item, elementpath.TextNode):
-                    parts.append(str(item))
+                if isinstance(item, elementpath.TypedElement):
+                    parts.append(tostring(item[0]).decode('utf-8').strip())
+                elif isinstance(item, tuple):
+                    parts.append(str(item[-1]))
+                elif hasattr(item, 'tag'):
+                    parts.append(tostring(item).decode('utf-8').strip())
                 else:
-                    parts.append(ElementTree.tostring(item).decode('utf-8').strip())
-            xml_str = "".join(parts)
+                    parts.append(str(item))
+            xml_str = ''.join(parts)
         else:
-            xml_str = ElementTree.tostring(result.getroot()).decode('utf-8').strip()
+            xml_str = tostring(result.getroot()).decode('utf-8').strip()
 
-        if verbose >= 5:
-            print("Final XML string to compare: '%s'" % xml_str)
-        return xml_str == self.value
+        if xml_str == self.value:
+            return True
+
+        diff = set(re.split('[> ]', self.value)) - set(re.split('[> ]', xml_str))
+        if not diff or all(x.startswith('xmlns:') for x in diff):
+            return True
+
+        self.report_failure(verbose, result=xml_str, expected=self.value)
+        return False
 
     def serialization_matches_validator(self, verbose=1):
         try:
