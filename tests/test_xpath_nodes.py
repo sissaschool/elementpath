@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+from unittest.mock import patch
 import io
 import xml.etree.ElementTree as ElementTree
 
@@ -18,6 +19,14 @@ from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     is_document_node, is_namespace_node, is_processing_instruction_node, \
     is_text_node, node_attributes, node_base_uri, node_document_uri, \
     node_children, node_nilled, node_kind, node_name, etree_iter_nodes
+from elementpath.schema_proxy import AbstractXsdType
+
+
+DummyXsdType = type(
+    'XsdType', (AbstractXsdType,),
+    dict(name=None, local_name=None, is_matching=lambda x: False, **{
+        k: lambda x: None for k in AbstractXsdType.__dict__ if k[0] != '_'
+    }))
 
 
 class XPathNodesTest(unittest.TestCase):
@@ -36,7 +45,11 @@ class XPathNodesTest(unittest.TestCase):
 
         self.assertListEqual(list(etree_iter_nodes(root)), result)
         self.assertListEqual(list(etree_iter_nodes(root, with_root=False)), result[1:])
-        self.assertListEqual(list(etree_iter_nodes(TypedElement(root, 'text1'))), result)
+
+        with patch.multiple(DummyXsdType(), is_simple=lambda x: False,
+                            has_mixed_content=lambda x: True) as xsd_type:
+            typed_root = TypedElement(root, xsd_type, 'text1')
+            self.assertListEqual(list(etree_iter_nodes(typed_root)), result)
 
         result = result[:4] + [AttributeNode('a', '10')] + result[4:]
         self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
@@ -49,7 +62,16 @@ class XPathNodesTest(unittest.TestCase):
         root = ElementTree.XML('<A>text1\n<B1>text2</B1>tail1<B2/><B3><C1>text3</C1></B3>tail2</A>')
         result = ['text1\n', 'text2', 'tail1', 'tail2', 'text3']
         self.assertListEqual(list(etree_iter_strings(root)), result)
-        self.assertListEqual(list(etree_iter_strings(TypedElement(root, 'text1'))), result)
+
+        with patch.multiple(DummyXsdType(), is_simple=lambda x: False,
+                            has_mixed_content=lambda x: True) as xsd_type:
+            typed_root = TypedElement(root, xsd_type, 'text1')
+            self.assertListEqual(list(etree_iter_strings(typed_root)), result)
+
+        with patch.multiple(DummyXsdType(), is_simple=lambda x: False,
+                            is_element_only=lambda x: True) as xsd_type:
+            typed_root = TypedElement(root, xsd_type, 'text1')
+            self.assertListEqual(list(etree_iter_strings(typed_root)), result)
 
         comment = ElementTree.Comment('foo')
         root[1].append(comment)
@@ -88,7 +110,7 @@ class XPathNodesTest(unittest.TestCase):
     def test_is_attribute_node_function(self):
         attr = AttributeNode('a1', '10')
         self.assertTrue(is_attribute_node(attr, '*'))
-        self.assertTrue(is_attribute_node(TypedAttribute(attr, 10), 'a1'))
+        self.assertTrue(is_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
         with self.assertRaises(ValueError):
             is_attribute_node(attr, '**')
         with self.assertRaises(ValueError):
@@ -160,7 +182,7 @@ class XPathNodesTest(unittest.TestCase):
     def test_node_children_function(self):
         self.assertListEqual(list(node_children(self.elem)), [])
         elem = ElementTree.XML("<A><B1/><B2/></A>")
-        self.assertListEqual(list(node_children(elem)), elem[:])
+        self.assertListEqual(list(node_children(elem)), [x for x in elem])
         document = ElementTree.parse(io.StringIO("<A><B1/><B2/></A>"))
         self.assertListEqual(list(node_children(document)), [document.getroot()])
         self.assertIsNone(node_children('a text node'))

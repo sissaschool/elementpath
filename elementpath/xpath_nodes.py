@@ -27,10 +27,10 @@ TextNode = namedtuple('Text', 'value')
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
 """A namedtuple-based type to represent XPath namespaces."""
 
-TypedAttribute = namedtuple('TypedAttribute', 'attr value')
+TypedAttribute = namedtuple('TypedAttribute', 'attr type value')
 """A wrapper for processing typed-value attributes."""
 
-TypedElement = namedtuple('TypedElement', 'elem value')
+TypedElement = namedtuple('TypedElement', 'elem type value')
 """A wrapper for processing typed-value elements."""
 
 
@@ -55,17 +55,26 @@ def etree_iter_nodes(elem, with_root=True, with_attributes=False):
             yield from map(lambda x: AttributeNode(*x), e.attrib.items())
 
 
-def etree_iter_strings(elem):
+def etree_iter_strings(elem, normalize=False):
     if isinstance(elem, TypedElement):
         elem = elem.elem
 
-    for e in elem.iter():
-        if callable(e.tag):
-            continue
-        if e.text is not None:
-            yield e.text
-        if e.tail is not None and e is not elem:
-            yield e.tail
+    if not normalize:
+        for e in elem.iter():
+            if callable(e.tag):
+                continue
+            if e.text is not None:
+                yield e.text
+            if e.tail is not None and e is not elem:
+                yield e.tail
+    else:
+        for e in elem.iter():
+            if callable(e.tag):
+                continue
+            if e.text is not None:
+                yield e.text.strip()
+            if e.tail is not None and e is not elem:
+                yield e.tail.strip()
 
 
 def etree_deep_equal(e1, e2):

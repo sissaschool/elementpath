@@ -896,6 +896,70 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         context = XPathContext(self.etree.XML('<is/>'))
         self.check_value('/is', [context.root], context)
 
+    @unittest.skipIf(xmlschema is None, "xmlschema library required.")
+    def test_get_atomic_value(self):
+        schema = xmlschema.XMLSchema("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="a" type="aType"/>
+              <xs:complexType name="aType">
+                <xs:sequence>
+                  <xs:element name="b1" type="xs:int"/>
+                  <xs:element name="b2" type="xs:boolean"/>
+                </xs:sequence>
+              </xs:complexType>
+
+              <xs:element name="b" type="xs:int"/>
+              <xs:element name="c"/>
+
+              <xs:element name="d" type="dType"/>
+              <xs:simpleType name="dType">
+                <xs:restriction base="xs:float"/>
+              </xs:simpleType>
+
+              <xs:element name="e" type="eType"/>
+              <xs:simpleType name="eType">
+                <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
+              </xs:simpleType>
+            </xs:schema>""")
+
+        token = self.parser.parse('true()')
+
+        self.assertEqual(self.parser.get_atomic_value(schema.elements['d'].type),
+                         UntypedAtomic('1'))
+
+        self.parser.schema = xmlschema.xpath.XMLSchemaProxy()
+        try:
+            token.string_value(schema.elements['a'].type)
+        finally:
+            self.parser.schema = None
+
+        self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+        try:
+            with self.assertRaises(AttributeError) as err:
+                self.parser.get_atomic_value(schema)
+
+            value = self.parser.get_atomic_value(schema.elements['a'].type)
+            self.assertIsInstance(value, UntypedAtomic)
+            self.assertEqual(value, UntypedAtomic(value=''))
+
+            value = self.parser.get_atomic_value(schema.elements['b'].type)
+            self.assertIsInstance(value, int)
+            self.assertEqual(value, 1)
+
+            value = self.parser.get_atomic_value(schema.elements['c'].type)
+            self.assertIsInstance(value, UntypedAtomic)
+            self.assertEqual(value, UntypedAtomic(value='1'))
+
+            value = self.parser.get_atomic_value(schema.elements['d'].type)
+            self.assertIsInstance(value, float)
+            self.assertEqual(value, 1.0)
+
+            value = self.parser.get_atomic_value(schema.elements['e'].type)
+            self.assertIsInstance(value, UntypedAtomic)
+            self.assertEqual(value, UntypedAtomic(value='1'))
+        finally:
+            self.parser.schema = None
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):

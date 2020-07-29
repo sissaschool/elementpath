@@ -89,7 +89,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.wrong_name("schema-element(nil)")
         self.wrong_name("schema-element(xs:string)")
         self.check_value("self::schema-element(xs:complexType)", MissingContextError)
-        self.check_value("self::schema-element(xs:complexType)", [], context)
+        self.check_value("self::schema-element(xs:complexType)", NameError, context)
         self.check_value("self::schema-element(xs:schema)", [context.item], context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
 
@@ -98,10 +98,15 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")
         self.check_value("self::schema-attribute(xml:lang)", MissingContextError)
-        self.check_select("schema-attribute(xml:lang)", [], context)
+        self.check_value("schema-attribute(xml:lang)", NameError, context)
         self.check_value("self::schema-attribute(xml:lang)", [context.item], context)
         self.check_tree("schema-attribute(xsi:schemaLocation)",
                         '(schema-attribute (: (xsi) (schemaLocation)))')
+
+        token = self.parser.parse("self::schema-attribute(xml:lang)")
+        context.item = AttributeNode(XML_LANG, 'en')
+        context.axis = 'attribute'
+        self.assertEqual(list(token.select(context)), [context.item])
 
     def test_bind_parser_method(self):
         schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

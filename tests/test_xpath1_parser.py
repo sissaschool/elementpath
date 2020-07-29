@@ -271,7 +271,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("fx:true()", NameError)
         self.check_value("tst:B1", [root[0]], context=XPathContext(root))
         self.check_value("tst:B2", [root[1], root[3]], context=XPathContext(root))
-        self.check_value("tst:B1:B2", SyntaxError)
+        self.check_value("tst:B1:B2", NameError)
 
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)
