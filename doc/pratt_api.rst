@@ -44,7 +44,7 @@ Parser base class
 
     .. automethod:: parse
     .. automethod:: advance
-    .. automethod:: raw_advance
+    .. automethod:: advance_until
     .. automethod:: expression
 
     Helper methods for checking parser status:

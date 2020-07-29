@@ -93,12 +93,24 @@ implementing concrete interfaces to other types of XML Schema processors.
     .. automethod:: get_type
     .. automethod:: get_attribute
     .. automethod:: get_element
-    .. automethod:: get_element
     .. automethod:: is_instance
     .. automethod:: cast_as
-    .. automethod:: is_instance
     .. automethod:: iter_atomic_types
     .. automethod:: get_primitive_type
+
+
+XPath nodes
+===========
+
+XPath nodes are processed using a set of namedtuple classes. The choice of
+a tuple-based processing is for speed and because these are only temporary
+containers, being that the final results are cleaned from intermediate tuples.
+
+.. autoclass:: elementpath.AttributeNode
+.. autoclass:: elementpath.TextNode
+.. autoclass:: elementpath.TypedAttribute
+.. autoclass:: elementpath.TypedElement
+.. autoclass:: elementpath.NamespaceNode
 
 
 Exception classes
