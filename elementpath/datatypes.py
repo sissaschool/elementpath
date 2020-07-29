@@ -21,7 +21,7 @@ import datetime
 import base64
 from calendar import isleap, leapdays
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlsplit
+from urllib.parse import urlparse
 
 from .namespaces import XSD_NAMESPACE
 
@@ -1606,9 +1606,11 @@ class AnyURI(metaclass=AtomicTypeMeta):
             raise cls.invalid_type(value)
 
         try:
-            url_parts = urlsplit(value)
-        except ValueError:
-            raise cls.invalid_value(value) from None
+            url_parts = urlparse(value)
+            _ = url_parts.port  # check invalid port!
+        except ValueError as err:
+            msg = 'invalid value {!r} for xs:{} ({})'
+            raise ValueError(msg.format(value, cls.name, str(err))) from None
         else:
             if url_parts.path.startswith(':'):
                 raise cls.invalid_value(value)
@@ -2008,7 +2010,58 @@ AnyAtomicType.register(UntypedAtomic)
 
 XSD_BUILTIN_TYPES = atomic_types
 
-__all__ = ['atomic_types', 'XSD_BUILTIN_TYPES', 'is_idrefs', 'NumericProxy',
+ATOMIC_VALUES = {
+    'untypedAtomic': UntypedAtomic('1'),
+    'anyType': UntypedAtomic('1'),
+    'anySimpleType': UntypedAtomic('1'),
+    'anyAtomicType': None,
+    'string': '  alpha\t',
+    'decimal': Decimal('1.0'),
+    'double': 1.0,
+    'float': 1.0,
+    'date': Date.fromstring('2000-01-01'),
+    'dateTime': DateTime.fromstring('2000-01-01T12:00:00'),
+    'gDay': GregorianDay.fromstring('---31'),
+    'gMonth': GregorianMonth.fromstring('--12'),
+    'gMonthDay': GregorianMonthDay.fromstring('--12-01'),
+    'gYear': GregorianYear.fromstring('1999'),
+    'gYearMonth': GregorianYearMonth.fromstring('1999-09'),
+    'time': Time.fromstring('09:26:54'),
+    'duration': Duration.fromstring('P1MT1S'),
+    'dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
+    'yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
+    'QName': 'xs:element',
+    'NOTATION': 'alpha',
+    'anyURI': 'https://example.com',
+    'normalizedString': ' alpha  ',
+    'token': 'a token',
+    'language': 'en-US',
+    'Name': '_a.name::',
+    'NCName': 'nc-name',
+    'ID': 'id1',
+    'IDREF': 'id_ref1',
+    'ENTITY': 'entity1',
+    'NMTOKEN': 'a_token',
+    'base64Binary': b'YWxwaGE=',
+    'hexBinary': b'31',
+    'dateTimeStamp': '2000-01-01T12:00:00+01:00',
+    'integer': 1,
+    'long': 1,
+    'int': 1,
+    'short': 1,
+    'byte': 1,
+    'positiveInteger': 1,
+    'negativeInteger': -1,
+    'nonPositiveInteger': 0,
+    'nonNegativeInteger': 0,
+    'unsignedLong': 1,
+    'unsignedInt': 1,
+    'unsignedShort': 1,
+    'unsignedByte': 1,
+    'boolean': True,
+}
+
+__all__ = ['atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES', 'is_idrefs', 'NumericProxy',
            'ArithmeticProxy', 'StringProxy', 'QNAME_PATTERN', 'AnyAtomicType',
            'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
            'Date', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10',

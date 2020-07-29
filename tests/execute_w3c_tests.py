@@ -30,6 +30,7 @@ import lxml.etree
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext
 import elementpath
+import xmlschema
 
 
 DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
@@ -371,9 +372,11 @@ class TestCase(object):
             if environment.schema is None or not environment.schema.filepath:
                 schema_proxy = None
             else:
-                # print("Schema %r required for test %r" % (environment.schema.file, self.name))
-                # schema = XMLSchema(environment.schema.filepath)
-                schema_proxy = None  # schema.xpath_proxy
+                if verbose > 2:
+                    print("Schema %r required for test %r" % (environment.schema.file, self.name))
+
+                schema = xmlschema.XMLSchema(environment.schema.filepath)
+                schema_proxy = schema.xpath_proxy
 
         try:
             parser = XPath2Parser(

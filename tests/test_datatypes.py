@@ -1067,9 +1067,9 @@ class TypeProxiesTest(unittest.TestCase):
 
     # noinspection PyArgumentList
     def test_instance_build(self):
-        self.assertEqual(NumericTypeProxy(), 0.0)
-        self.assertEqual(NumericTypeProxy(9), 9.0)
-        self.assertEqual(NumericTypeProxy('49'), 49.0)
+        self.assertEqual(NumericProxy(), 0.0)
+        self.assertEqual(NumericProxy(9), 9.0)
+        self.assertEqual(NumericProxy('49'), 49.0)
         self.assertEqual(ArithmeticProxy(), 0.0)
         self.assertEqual(ArithmeticProxy(8.0), 8.0)
         self.assertEqual(ArithmeticProxy('81.0'), 81.0)

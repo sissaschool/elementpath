@@ -96,10 +96,29 @@ class AbstractXsdType(AbstractXsdComponent):
         """Returns `True` if it's a simpleType instance, `False` if it's a complexType."""
 
     @abstractmethod
+    def is_empty(self):
+        """
+        Returns `True` if it's a simpleType instance or a complexType with empty content,
+        `False` otherwise.
+        """
+
+    @abstractmethod
     def has_simple_content(self):
         """
         Returns `True` if it's a simpleType instance or a complexType with simple content,
         `False` otherwise.
+        """
+
+    @abstractmethod
+    def has_mixed_content(self):
+        """
+        Returns `True` if it's a complexType with mixed content, `False` otherwise.
+        """
+
+    @abstractmethod
+    def is_element_only(self):
+        """
+        Returns `True` if it's a complexType with element-only content, `False` otherwise.
         """
 
     @abstractmethod

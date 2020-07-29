@@ -345,7 +345,7 @@ class XPathToken(Token):
             elif isinstance(result, AttributeNode):
                 yield result[1]
             elif isinstance(result, TypedAttribute):
-                yield result[0][1] if hasattr(result[0][1], 'type') else result[1]
+                yield result[0][1] if hasattr(result[0][1], 'type') else result[-1]
             else:
                 yield result
 
@@ -496,18 +496,18 @@ class XPathToken(Token):
             pass
         elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
-                msg = "a name, a name wildcard or a function expected"
+                msg = "a name, a wildcard or a function expected"
                 raise self.wrong_syntax(msg)
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
             if self.label != 'constructor':
-                msg = "a name, a name wildcard or a constructor function expected"
+                msg = "a name, a wildcard or a constructor function expected"
                 raise self.wrong_syntax(msg)
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
         else:
-            raise self.wrong_syntax("a name or a wildcard or a function or a constructor expected")
+            raise self.wrong_syntax("a name, a wildcard, a function or a constructor expected")
 
         self.namespace = namespace
 
@@ -616,8 +616,8 @@ class XPathToken(Token):
         value = self.parser.get_atomic_value(xsd_type)
 
         if isinstance(schema_item, AttributeNode):
-            return TypedAttribute(schema_item, value)
-        return TypedElement(schema_item, value)
+            return TypedAttribute(schema_item, xsd_type, value)
+        return TypedElement(schema_item, xsd_type, value)
 
     def get_xsd_type(self, item):
         """
@@ -669,21 +669,20 @@ class XPathToken(Token):
         xsd_type = self.get_xsd_type(item)
         if not xsd_type:
             return item
+        elif xsd_type.name in XSD_SPECIAL_TYPES:
+            decoder = UntypedAtomic
+        else:
+            decoder = xsd_type.decode
 
         try:
             if isinstance(item, AttributeNode):
-                if xsd_type.name in XSD_SPECIAL_TYPES:
-                    return TypedAttribute(item, UntypedAtomic(item[1]))
-                else:
-                    return TypedAttribute(item, xsd_type.decode(item[1]))
-
+                return TypedAttribute(item, xsd_type, decoder(item[1]))
             elif xsd_type.is_simple() or xsd_type.has_simple_content():
-                if xsd_type.name in XSD_SPECIAL_TYPES:
-                    return TypedElement(item, UntypedAtomic(item.text))
-                else:
-                    return TypedElement(item, xsd_type.decode(item.text))
+                return TypedElement(item, xsd_type, decoder(item.text))
+            elif xsd_type.has_mixed_content():
+                return TypedElement(item, xsd_type, item.text)
             else:
-                return item
+                return TypedElement(item, xsd_type, None)
 
         except (TypeError, ValueError):
             msg = "Type {!r} does not match sequence type of {!r}"
@@ -735,10 +734,10 @@ class XPathToken(Token):
         """
         if obj is None:
             return
-        elif hasattr(obj, 'type'):
-            return self.parser.get_atomic_value(obj.type)
         elif isinstance(obj, (TypedElement, TypedAttribute)):
             return obj[-1]
+        elif hasattr(obj, 'type'):
+            return self.parser.get_atomic_value(obj.type)
         elif is_namespace_node(obj):
             return obj[1]
         elif is_comment_node(obj):
@@ -764,7 +763,7 @@ class XPathToken(Token):
             if not obj:
                 return False
             elif isinstance(obj[0], (TypedElement, TypedAttribute)):
-                return bool(obj[0][1])
+                return bool(obj[0][-1])
             elif isinstance(obj[0], tuple):
                 return True
             elif is_element_node(obj[0]):

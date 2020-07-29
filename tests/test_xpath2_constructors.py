@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+from unittest.mock import patch
 import datetime
 import platform
 from decimal import Decimal
@@ -170,8 +171,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:boolean(0)', False)
         self.check_value('xs:boolean(xs:boolean(0))', False)
         self.check_value('xs:boolean(xs:untypedAtomic(0))', False)
-        self.wrong_type('xs:boolean(xs:hexBinary("FF"))', 'FORG0006', "HexBinary")
-        self.wrong_value('xs:boolean("2")', 'FORG0001', "not a boolean value")
+        self.wrong_type('xs:boolean(xs:hexBinary("FF"))', 'XPTY0004', "HexBinary")
+        self.wrong_value('xs:boolean("2")', 'FORG0001', "invalid value")
 
     def test_integer_constructors(self):
         self.wrong_value('xs:integer("hello")', 'FORG0001')
@@ -343,8 +344,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:date(.)', ValueError, context=context)
         context.item = AttributeNode('a', True)
         self.check_value('xs:date(.)', ValueError, context=context)
-        context.item = TypedAttribute(AttributeNode('a', 'true'), True)
-        self.check_value('xs:date(.)', TypeError, context=context)
+
+        with patch.multiple(self.dummy_type, is_simple=lambda x: True):
+            context.item = TypedAttribute(AttributeNode('a', 'true'), self.dummy_type, True)
+            self.check_value('xs:date(.)', TypeError, context=context)
 
         root = self.etree.XML("<root>2017-10-02</root>")
         context = XPathContext(root)

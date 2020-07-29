@@ -27,6 +27,14 @@ from xml.etree import ElementTree
 from elementpath import ElementPathError, XPath2Parser, XPathContext, select
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, \
     XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.schema_proxy import AbstractXsdType
+
+
+DummyXsdType = type(
+    'XsdType', (AbstractXsdType,),
+    dict(name=None, local_name=None, is_matching=lambda x: False, **{
+        k: lambda x: None for k in AbstractXsdType.__dict__ if k[0] != '_'
+    }))
 
 
 # noinspection PyPropertyAccess
@@ -48,6 +56,7 @@ class XPathTestCase(unittest.TestCase):
 
     def setUp(self):
         self.parser = XPath2Parser(self.namespaces, self.variables)
+        self.dummy_type = DummyXsdType()
 
     #
     # Helper methods

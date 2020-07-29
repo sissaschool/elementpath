@@ -13,17 +13,21 @@ import decimal
 import operator
 from copy import copy
 
-from .exceptions import MissingContextError, ElementPathKeyError
+from .exceptions import MissingContextError, ElementPathKeyError, \
+    ElementPathTypeError, xpath_error
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy, StringProxy
+    YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, \
+    QName, atomic_types, ATOMIC_VALUES
 from .xpath_context import XPathSchemaContext
 from .tdop_parser import Parser
-from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, get_prefixed_name
+from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, \
+    XSD_UNTYPED_ATOMIC, get_namespace, get_prefixed_name, get_expanded_name, \
+    split_expanded_name
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
 from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
     is_xpath_node, is_element_node, is_document_node, is_attribute_node, is_text_node, \
-    is_comment_node, is_processing_instruction_node, node_name
+    is_comment_node, is_processing_instruction_node, node_name, node_kind
 
 OPERATORS_MAP = {
     '=': operator.eq,
@@ -119,6 +123,17 @@ class XPath1Parser(Parser):
         namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
         """
         return
+
+    @property
+    def xsd_prefix(self):
+        if self.namespaces.get('xs') == XSD_NAMESPACE:
+            return 'xs'
+
+        for pfx, uri in self.namespaces.items():
+            if uri == XSD_NAMESPACE:
+                return pfx
+
+        raise xpath_error('XPST0081', 'Missing XSD namespace registration')
 
     def get_qname(self, namespace, local_name):
         if ':' in local_name:
@@ -245,6 +260,158 @@ class XPath1Parser(Parser):
             self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
         else:
             raise self.next_token.wrong_syntax(message)
+
+    ###
+    # Type checking (used in XPath 2.0)
+    def is_instance(self, obj, type_qname):
+        if type_qname == XSD_UNTYPED_ATOMIC:
+            return isinstance(obj, UntypedAtomic)
+        elif self.schema is not None:
+            return self.schema.is_instance(obj, type_qname)
+
+        if get_namespace(type_qname) == XSD_NAMESPACE:
+            try:
+                return isinstance(obj, atomic_types[type_qname])
+            except KeyError:
+                pass
+
+        raise ElementPathKeyError("unknown type %r" % type_qname)
+
+    def is_sequence_type(self, value):
+        if not isinstance(value, str):
+            return False
+
+        text = value.strip()
+        if not text:
+            return False
+        elif text == 'empty-sequence()':
+            return True
+        elif text[-1] in ('?', '+', '*'):
+            text = text[:-1]
+
+        if text in {'attribute()', 'element()', 'text()', 'document-node()',
+                    'comment()', 'processing-instruction()', 'item()', 'node()'}:
+            return True
+        elif QName.pattern.match(text) is None:
+            return False
+
+        try:
+            type_qname = get_expanded_name(text, self.namespaces)
+            self.is_instance(None, type_qname)
+        except (KeyError, ValueError):
+            return False
+        else:
+            return True
+
+    def get_sequence_type(self, value):
+        if value is None or value == []:
+            return 'empty-sequence()'
+        elif isinstance(value, list):
+            if value[0] is not None and not isinstance(value[0], list):
+                sequence_type = self.get_sequence_type(value[0])
+                if all(self.get_sequence_type(x) == sequence_type for x in value[1:]):
+                    return '{}+'.format(sequence_type)
+                else:
+                    return 'node()+'
+        else:
+            value_kind = node_kind(value)
+            if value_kind is not None:
+                return '{}()'.format(value_kind)
+            elif isinstance(value, UntypedAtomic):
+                return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
+
+            if QName.is_valid(value) and (':' in str(value) or self.namespaces.get('')):
+                return '{}:QName'.format(self.xsd_prefix)
+
+            for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
+                              'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
+                              'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
+                              'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary']:
+                if atomic_types[type_name].is_valid(value):
+                    return '{}:{}'.format(self.xsd_prefix, type_name)
+
+        raise ElementPathTypeError("Inconsistent sequence type for {!r}".format(value))
+
+    def get_atomic_value(self, type_or_name):
+        if isinstance(type_or_name, str):
+            expanded_name = get_expanded_name(type_or_name, self.namespaces)
+            xsd_type = None
+        else:
+            xsd_type = type_or_name
+            expanded_name = xsd_type.name
+
+        if expanded_name:
+            uri, local_name = split_expanded_name(expanded_name)
+            if uri == XSD_NAMESPACE:
+                try:
+                    return ATOMIC_VALUES[local_name]
+                except KeyError:
+                    pass
+
+        if xsd_type is None and self.schema is not None:
+            xsd_type = self.schema.get_type(expanded_name)
+
+        if xsd_type is None:
+            return UntypedAtomic('1')
+        elif xsd_type.is_simple() or xsd_type.has_simple_content():
+            try:
+                primitive_type = self.schema.get_primitive_type(xsd_type)
+                return ATOMIC_VALUES[primitive_type.local_name]
+            except (KeyError, AttributeError):
+                return UntypedAtomic('1')
+        else:
+            return UntypedAtomic('')
+
+    def match_sequence_type(self, value, sequence_type, occurrence=None):
+        if sequence_type[-1] in {'?', '+', '*'}:
+            return self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1])
+        elif value is None or value == []:
+            return sequence_type == 'empty-sequence()' or occurrence in {'?', '*'}
+        elif sequence_type == 'empty-sequence()':
+            return False
+        elif isinstance(value, list):
+            if len(value) == 1:
+                return self.match_sequence_type(value[0], sequence_type)
+            elif occurrence is None or occurrence == '?':
+                return False
+            else:
+                return all(self.match_sequence_type(x, sequence_type) for x in value)
+        else:
+            value_kind = node_kind(value)
+            if value_kind is not None:
+                return sequence_type == 'node()' or \
+                    '()' in sequence_type and sequence_type.startswith(value_kind)
+            elif isinstance(value, UntypedAtomic):
+                return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
+
+            try:
+                type_qname = get_expanded_name(sequence_type, self.namespaces)
+                return self.is_instance(value, type_qname)
+            except (KeyError, ValueError):
+                return False
+
+    def check_variables(self, values):
+        """Check variables values of the XPath dynamic context."""
+        for varname, xsd_type in self.variables.items():
+            if varname not in values:
+                raise xpath_error('XPST0008', "Missing variable {!r}".format(varname))
+
+        for varname, value in values.items():
+            try:
+                sequence_type = self.variables[varname]
+            except KeyError:
+                message = "Undeclared variable {!r}".format(varname)
+                raise xpath_error('XPST0008', message) from None
+            else:
+                if sequence_type[-1] in ('?', '+', '*'):
+                    if self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1]):
+                        continue
+                else:
+                    if self.match_sequence_type(value, sequence_type):
+                        continue
+
+                message = "Unmatched sequence type for variable {!r}".format(varname)
+                raise xpath_error('XPDY0050', message)
 
 
 ##
@@ -512,16 +679,25 @@ def select(self, context=None):
             yield item
     elif context is None:
         raise self.missing_context()
-    else:
-        # Wildcard literal
+
+    # Wildcard literal
+    elif isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
-                if hasattr(item, 'type'):
-                    self.add_xsd_type(item.name, item.type)
-                if is_attribute_node(item):
-                    yield item[1]
-                else:
-                    yield item
+                self.add_xsd_type(item.name, item.type)
+                yield item
+
+    elif self.xsd_types is None:
+        for item in context.iter_children_or_self():
+            if context.is_principal_node_kind():
+                yield item[1] if is_attribute_node(item) else item
+
+    else:
+        # XSD typed selection
+        for item in context.iter_children_or_self():
+            if context.is_principal_node_kind():
+                if is_attribute_node(item) or is_element_node(item):
+                    yield self.get_typed_node(item)
 
 
 @method(nullary('.'))
@@ -1135,8 +1311,8 @@ def evaluate(self, context=None):
 
 @method(function('contains', nargs=2))
 def evaluate(self, context=None):
-    arg1 = self.get_argument(context, default='', cls=StringProxy)
-    arg2 = self.get_argument(context, index=1, default='', cls=StringProxy)
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg2 in arg1
 
 
@@ -1148,7 +1324,13 @@ def evaluate(self, context=None):
 
 @method(function('string-length', nargs=(0, 1)))
 def evaluate(self, context=None):
-    return len(self.get_argument(context, default_to_context=True, default='', cls=StringProxy))
+    if self:
+        return len(self.get_argument(context, default_to_context=True, default='', cls=str))
+
+    try:
+        return len(self.string_value(context.item))
+    except AttributeError:
+        raise self.missing_context() from None
 
 
 @method(function('normalize-space', nargs=(0, 1)))
