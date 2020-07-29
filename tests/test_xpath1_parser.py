@@ -858,7 +858,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("/values/b mod 2", float('nan'), context=XPathContext(root))
         else:
             self.check_selector("/values/a mod 2", root, TypeError)
-            self.check_value("/values/b mod 2", ValueError, context=XPathContext(root))
+            self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
 
         self.check_selector("/values/d mod 3", root, 2)
 

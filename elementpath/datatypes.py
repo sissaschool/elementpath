@@ -299,7 +299,7 @@ class AnyAtomicType(metaclass=AtomicTypeABCMeta):
 ###
 # Classes for XSD built-in primitive types
 
-class AbstractDateTime(metaclass=AtomicTypeMeta):
+class AbstractDateTime(metaclass=AtomicTypeABCMeta):
     """
     A class for representing XSD date/time objects. It uses and internal datetime.datetime
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
@@ -1160,7 +1160,7 @@ class String(str, metaclass=AtomicTypeABCMeta):
     def validate(cls, value):
         if isinstance(value, cls):
             return
-        elif cls.name != 'string' or not isinstance(value, str):
+        elif not isinstance(value, str):
             raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
             raise cls.invalid_value(value)
@@ -1565,6 +1565,9 @@ class AnyURI(metaclass=AtomicTypeMeta):
 
     def __str__(self):
         return self.value
+
+    def __contains__(self, item):
+        return item in self.value
 
     def __eq__(self, other):
         if isinstance(other, (AnyURI, UntypedAtomic)):

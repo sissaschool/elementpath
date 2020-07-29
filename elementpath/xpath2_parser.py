@@ -471,7 +471,7 @@ def evaluate(self, context=None):
                     sequence_type = sequence_type[:-1]
 
                 if QName.pattern.match(sequence_type) is not None:
-                    value = self.get_atomic_value(sequence_type)
+                    value = self.parser.get_atomic_value(sequence_type)
                     if value is not None:
                         return value
                 return UntypedAtomic('')
@@ -1146,7 +1146,7 @@ def select(self, context=None):
         for item in context.iter_attributes():
             if is_attribute_node(item, name):
                 if isinstance(context, XPathSchemaContext):
-                    self.add_xsd_type(item[0], item[1].type)
+                    self.add_xsd_type(item[1].name, item[1].type)
                 elif not type_name:
                     yield context.item[1]
                 else:

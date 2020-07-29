@@ -21,7 +21,7 @@ from copy import copy
 from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, \
+from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, StringProxy, \
     Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -665,10 +665,16 @@ def select(self, context=None):
 
 @method(function('compare', nargs=(2, 3)))
 def evaluate(self, context=None):
-    comp1 = self.get_argument(context, 0, cls=str)
-    comp2 = self.get_argument(context, 1, cls=str)
-    if comp1 is None or comp2 is None:
-        return []
+    comp1 = self.get_argument(context, 0, cls=StringProxy)
+    comp2 = self.get_argument(context, 1, cls=StringProxy)
+    if not isinstance(comp1, str):
+        if comp1 is None:
+            return []
+        comp1 = str(comp1)
+    if not isinstance(comp2, str):
+        if comp2 is None:
+            return []
+        comp2 = str(comp2)
 
     if len(self) < 3:
         value = locale.strcoll(comp1, comp2)

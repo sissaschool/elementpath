@@ -25,9 +25,9 @@ from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, \
     split_expanded_name
 from .schema_proxy import AbstractSchemaProxy
 from .xpath_token import XPathToken
-from .xpath_nodes import NamespaceNode, TypedAttribute, TypedElement, is_etree_element, \
-    is_xpath_node, is_element_node, is_document_node, is_attribute_node, is_text_node, \
-    is_comment_node, is_processing_instruction_node, node_name, node_kind
+from .xpath_nodes import AttributeNode, NamespaceNode, TypedAttribute, TypedElement, \
+    is_etree_element, is_xpath_node, is_element_node, is_document_node, is_attribute_node, \
+    is_text_node, is_comment_node, is_processing_instruction_node, node_name, node_kind
 
 OPERATORS_MAP = {
     '=': operator.eq,
@@ -684,7 +684,8 @@ def select(self, context=None):
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
-                self.add_xsd_type(item.name, item.type)
+                if hasattr(item, 'type'):
+                    self.add_xsd_type(item.name, item.type)
                 yield item
 
     elif self.xsd_types is None:
@@ -1011,8 +1012,8 @@ def select(self, context=None):
                     items.append(result)
                     yield result
                     if isinstance(context, XPathSchemaContext):
-                        if isinstance(result, tuple):
-                            self[1].add_xsd_type(result[0], result[1].type)
+                        if isinstance(result, AttributeNode):
+                            self[1].add_xsd_type(result[1].name, result[1].type)
                         elif hasattr(result, 'type'):
                             self[1].add_xsd_type(result.tag, result.type)
 

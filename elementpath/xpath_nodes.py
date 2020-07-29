@@ -19,19 +19,48 @@ from .exceptions import ElementPathValueError
 ###
 # Node types
 AttributeNode = namedtuple('Attribute', 'name value')
-"""A namedtuple-based type to represent XPath attributes."""
+"""
+A namedtuple-based type for processing XPath attributes.
+
+:param name: the attribute name.
+:param value: the string value of the attribute, or an XSD attribute \
+when XPath is applied on a schema.
+"""
 
 TextNode = namedtuple('Text', 'value')
-"""A namedtuple-based type to represent XPath text nodes."""
+"""
+A namedtuple-based type for processing XPath text nodes. A text node is the elem.text 
+value if this is `None`, otherwise the element doesn't have a text node. 
+
+:param value: the string value.
+"""
 
 NamespaceNode = namedtuple('Namespace', 'prefix uri')
-"""A namedtuple-based type to represent XPath namespaces."""
+"""
+A namedtuple-based type for processing XPath namespaces.
 
-TypedAttribute = namedtuple('TypedAttribute', 'attr type value')
-"""A wrapper for processing typed-value attributes."""
+:param prefix: the namespace prefix.
+:param uri: the namespace URI.
+"""
 
-TypedElement = namedtuple('TypedElement', 'elem type value')
-"""A wrapper for processing typed-value elements."""
+TypedAttribute = namedtuple('TypedAttribute', 'attribute xsd_type value')
+"""
+A namedtuple-based type for processing typed-value attributes.
+
+:param attribute: the origin AttributeNode tuple.
+:param xsd_type: the reference XSD type.
+:param value: the decoded value. 
+"""
+
+TypedElement = namedtuple('TypedElement', 'elem xsd_type value')
+"""
+A namedtuple-based type for processing typed-value elements.
+
+:param elem: the origin element. Can be an Element, or an XSD element \
+when XPath is applied on a schema.
+:param xsd_type: the reference XSD type.
+:param value: the decoded value. Can be `None` for empty or element-only elements. 
+"""
 
 
 ###
@@ -151,7 +180,7 @@ def is_attribute_node(obj, name=None):
     elif not isinstance(obj, (AttributeNode, TypedAttribute)):
         return False
     elif isinstance(obj, TypedAttribute):
-        obj = obj.attr
+        obj = obj.attribute
 
     if name[0] == '*':
         try:
