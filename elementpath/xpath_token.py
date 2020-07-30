@@ -728,7 +728,6 @@ class XPathToken(Token):
 
     ###
     # XPath data accessors base functions
-
     def boolean_value(self, obj):
         """
         The effective boolean value, as computed by fn:boolean().
@@ -736,11 +735,9 @@ class XPathToken(Token):
         if isinstance(obj, list):
             if not obj:
                 return False
-            elif isinstance(obj[0], (TypedElement, TypedAttribute)):
-                return bool(obj[0][-1])
-            elif isinstance(obj[0], tuple):
-                return True
-            elif is_element_node(obj[0]):
+            elif is_xpath_node(obj[0]):
+                if isinstance(obj[0], (TypedElement, TypedAttribute)):
+                    return bool(obj[0][-1])
                 return True
             elif len(obj) > 1:
                 message = "effective boolean value is not defined for a sequence " \
@@ -749,12 +746,10 @@ class XPathToken(Token):
             else:
                 obj = obj[0]
 
-        if isinstance(obj, (float, Decimal)):
-            return False if math.isnan(obj) else bool(obj)
-        elif isinstance(obj, (int, str)):  # Include bool
+        if isinstance(obj, (int, str, UntypedAtomic, AnyURI)):  # Include bool
             return bool(obj)
-        elif isinstance(obj, (UntypedAtomic, AnyURI)):
-            return bool(obj.value)
+        elif isinstance(obj, (float, Decimal)):
+            return False if math.isnan(obj) else bool(obj)
         elif obj is None:
             return False
         else:
@@ -779,12 +774,12 @@ class XPathToken(Token):
         elif is_schema_node(obj):
             return self.parser.get_atomic_value(obj.type)
         elif hasattr(obj, 'tag'):
-            if is_etree_element(obj):
-                return UntypedAtomic(''.join(etree_iter_strings(obj)))
-            elif is_comment_node(obj):
+            if is_comment_node(obj):
                 return obj.text
             elif is_processing_instruction_node(obj):
                 return obj.text
+            elif hasattr(obj, 'attrib') and hasattr(obj, 'text'):
+                return UntypedAtomic(''.join(etree_iter_strings(obj)))
         elif is_document_node(obj):
             value = ''.join(etree_iter_strings(obj.getroot()))
             return UntypedAtomic(value)
@@ -809,12 +804,12 @@ class XPathToken(Token):
         elif is_schema_node(obj):
             return str(self.parser.get_atomic_value(obj.type))
         elif hasattr(obj, 'tag'):
-            if is_etree_element(obj):
-                return ''.join(etree_iter_strings(obj))
-            elif is_comment_node(obj):
+            if is_comment_node(obj):
                 return obj.text
             elif is_processing_instruction_node(obj):
                 return obj.text
+            elif hasattr(obj, 'attrib') and hasattr(obj, 'text'):
+                return ''.join(etree_iter_strings(obj))
         elif is_document_node(obj):
             return ''.join(e.text for e in obj.getroot().iter() if e.text is not None)
         elif isinstance(obj, bool):

@@ -1566,6 +1566,9 @@ class AnyURI(metaclass=AtomicTypeMeta):
     def __str__(self):
         return self.value
 
+    def __bool__(self):
+        return bool(self.value)  # For effective boolean value
+
     def __hash__(self):
         return hash(self.value)
 
@@ -1754,7 +1757,11 @@ class UntypedAtomic(object):
                 return float(self.value), float(other.value)
             return self.value, other.value
         elif isinstance(other, bool):
-            return bool(self), other
+            # Cast to xs:boolean
+            value = self.value.strip()
+            if value not in {'0', '1', 'true', 'false'}:
+                raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
+            return value in ('1', 'true'), other
         elif isinstance(other, int):
             return float(self.value), other
         elif isinstance(other, (AbstractDateTime, Duration)):
@@ -1810,10 +1817,7 @@ class UntypedAtomic(object):
         return float(self.value)
 
     def __bool__(self):
-        value = self.value.strip()
-        if value not in {'0', '1', 'true', 'false'}:
-            raise ValueError("{!r} cannot be cast to boolean".format(self.value))
-        return value in ('1', 'true')
+        return bool(self.value)  # For effective boolean value, not for cast to xs:boolean.
 
     def __abs__(self):
         return abs(Decimal(self.value))
@@ -2036,9 +2040,9 @@ ATOMIC_VALUES = {
     'duration': Duration.fromstring('P1MT1S'),
     'dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
     'yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
-    'QName': 'xs:element',
+    'QName': QName(XSD_NAMESPACE, 'xs:element'),
     'NOTATION': 'alpha',
-    'anyURI': 'https://example.com',
+    'anyURI': AnyURI('https://example.com'),
     'normalizedString': ' alpha  ',
     'token': 'a token',
     'language': 'en-US',
