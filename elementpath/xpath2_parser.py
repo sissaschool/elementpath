@@ -419,6 +419,9 @@ unregister(',')
 unregister('(')
 unregister('$')
 unregister('contains')
+unregister('lang')
+XPath2Parser.duplicate('id', 'element-with-id')  # Renamed in XPath 2.0 for backwards compatibility
+unregister('id')
 
 ###
 # Symbols

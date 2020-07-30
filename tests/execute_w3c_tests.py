@@ -447,6 +447,9 @@ class Result(object):
         self.type = elem.tag.split('}')[1]
         self.value = elem.text
         self.attrib = {k: v for k, v in elem.attrib.items()}
+
+        if self.value is None and self.type == 'assert-xml':
+            self.attrib['file'] = os.path.abspath(self.attrib['file'])
         self.children = [Result(child, test_case) for child in elem.findall('*')]
         self.validate = getattr(self, '%s_validator' % self.type.replace("-", "_"))
 
@@ -660,24 +663,28 @@ class Result(object):
     def assert_true_validator(self, verbose=1):
         """Valid if the result is `True`."""
         try:
-            if self.test_case.run_xpath_test(verbose) is True:
-                return True
+            result = self.test_case.run_xpath_test(verbose)
         except (ElementPathError, ParseError, EvaluateError) as err:
             self.report_failure(verbose, error=err)
             return False
         else:
+            if result is True or isinstance(result, list) and result and result[0] is True:
+                return True
+
             self.report_failure(verbose)
             return False
 
     def assert_false_validator(self, verbose=1):
         """Valid if the result is `False`."""
         try:
-            if self.test_case.run_xpath_test(verbose) is False:
-                return True
+            result = self.test_case.run_xpath_test(verbose)
         except (ElementPathError, ParseError, EvaluateError) as err:
             self.report_failure(verbose, error=err)
             return False
         else:
+            if result is False or isinstance(result, list) and result and result[0] is False:
+                return True
+
             self.report_failure(verbose)
             return False
 
@@ -809,14 +816,20 @@ class Result(object):
         else:
             xml_str = tostring(result.getroot()).decode('utf-8').strip()
 
-        if xml_str == self.value:
+        if self.value is not None:
+            expected = self.value
+        else:
+            with open(self.attrib['file']) as fp:
+                expected = fp.read()
+
+        if xml_str == expected:
             return True
 
-        diff = set(re.split('[> ]', self.value)) - set(re.split('[> ]', xml_str))
+        diff = set(re.split('[> ]', expected)) - set(re.split('[> ]', xml_str))
         if not diff or all(x.startswith('xmlns:') for x in diff):
             return True
 
-        self.report_failure(verbose, result=xml_str, expected=self.value)
+        self.report_failure(verbose, result=xml_str, expected=self.value or self.attrib['file'])
         return False
 
     def serialization_matches_validator(self, verbose=1):

@@ -360,13 +360,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_set_functions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
         context = XPathContext(root, item=root[1], size=3, position=3)
-        self.check_value("position()", 0)
+        self.check_value("position()", MissingContextError)
         self.check_value("position()", 3, context=context)
-        self.check_value("position()<=2", True)
+        self.check_value("position()<=2", MissingContextError)
         self.check_value("position()<=2", False, context=context)
         self.check_value("position()=3", True, context=context)
         self.check_value("position()=2", False, context=context)
-        self.check_value("last()", 0)
+        self.check_value("last()", MissingContextError)
         self.check_value("last()", 3, context=context)
         self.check_value("last()-1", 2, context=context)
 
