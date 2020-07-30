@@ -23,7 +23,7 @@ from urllib.parse import quote as urllib_quote
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, StringProxy, \
     Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
-from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID
+from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
     is_xpath_node, node_name, node_nilled, node_base_uri, node_document_uri, \
@@ -1042,12 +1042,42 @@ def evaluate(self, context=None):
             pass
 
 
+@method(function('lang', nargs=(1, 2)))
+def evaluate(self, context=None):
+    if len(self) > 1:
+        item = self.get_argument(context, index=1, default_to_context=True)
+    elif context is None:
+        raise self.missing_context()
+    else:
+        item = context.item
+
+    if not is_element_node(item):
+        raise self.error('XPTY0004')
+
+    try:
+        lang = item.attrib[XML_LANG].strip()
+    except KeyError:
+        if len(self) > 1:
+            return False
+
+        for elem in context.iter_ancestors():
+            if XML_LANG in elem.attrib:
+                lang = elem.attrib[XML_LANG]
+                break
+        else:
+            return False
+
+    test_lang = self.get_argument(context, cls=str)
+    if test_lang is None:
+        return
+
+    test_lang = test_lang.strip().lower()
+    lang = lang.strip().lower()
+    return lang == test_lang or lang.startswith(test_lang) and lang[len(test_lang)] == '-'
+
+
 ###
 # Functions that generate sequences
-XPath2Parser.duplicate('id', 'element-with-id')  # To preserve backwards compatibility
-XPath2Parser.unregister('id')
-
-
 @method(function('id', nargs=(1, 2)))
 def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation

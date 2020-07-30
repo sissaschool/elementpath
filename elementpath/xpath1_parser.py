@@ -1266,12 +1266,16 @@ def select(self, context=None):
 # Node set functions
 @method(function('last', nargs=0))
 def evaluate(self, context=None):
-    return context.size if context is not None else 0
+    if context is None:
+        raise self.missing_context()
+    return context.size
 
 
 @method(function('position', nargs=0))
 def evaluate(self, context=None):
-    return context.position if context is not None else 0
+    if context is None:
+        raise self.missing_context()
+    return context.position
 
 
 @method(function('count', nargs=1))
@@ -1461,7 +1465,7 @@ def evaluate(self, context=None):
         try:
             lang = context.item.attrib[XML_LANG].strip()
         except KeyError:
-            for elem in context.iter_ancestor():
+            for elem in context.iter_ancestors():
                 if XML_LANG in elem.attrib:
                     lang = elem.attrib[XML_LANG]
                     break
