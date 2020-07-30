@@ -27,10 +27,10 @@ import urllib.parse
 from .exceptions import ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
-    is_etree_element, is_attribute_node, etree_iter_strings, is_text_node, \
-    is_namespace_node, is_comment_node, is_processing_instruction_node, \
-    is_element_node, is_document_node, is_xpath_node, is_schema_node
+from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute, \
+    TypedElement, is_etree_element, etree_iter_strings, is_comment_node, \
+    is_processing_instruction_node, is_element_node, is_document_node, \
+    is_xpath_node, is_schema_node
 from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
     Date10, DayTimeDuration, Duration
 from .schema_proxy import AbstractSchemaProxy
@@ -345,7 +345,10 @@ class XPathToken(Token):
             elif isinstance(result, AttributeNode):
                 yield result[1]
             elif isinstance(result, TypedAttribute):
-                yield result[0][1] if hasattr(result[0][1], 'type') else result[-1]
+                if is_schema_node(result[0][1]):
+                    yield result[0][1]
+                else:
+                    yield result[-1]
             else:
                 yield result
 
@@ -725,35 +728,6 @@ class XPathToken(Token):
 
     ###
     # XPath data accessors base functions
-    def data_value(self, obj):
-        """
-        The typed value, as computed by fn:data() on each item.
-        Returns an instance of UntypedAtomic for untyped data.
-
-        https://www.w3.org/TR/xpath20/#dt-typed-value
-        """
-        if obj is None:
-            return
-        elif isinstance(obj, (TypedElement, TypedAttribute)):
-            return obj[-1]
-        elif hasattr(obj, 'type'):
-            return self.parser.get_atomic_value(obj.type)
-        elif is_namespace_node(obj):
-            return obj[1]
-        elif is_comment_node(obj):
-            return obj.text
-        elif is_processing_instruction_node(obj):
-            return obj.text
-        elif isinstance(obj, tuple):
-            return UntypedAtomic(obj[-1])
-        elif is_etree_element(obj):
-            value = ''.join(etree_iter_strings(obj))
-            return UntypedAtomic(value)
-        elif is_document_node(obj):
-            value = ''.join(etree_iter_strings(obj.getroot()))
-            return UntypedAtomic(value)
-        else:
-            return obj
 
     def boolean_value(self, obj):
         """
@@ -787,28 +761,62 @@ class XPathToken(Token):
             message = "effective boolean value is not defined for {!r}.".format(type(obj))
             raise self.error('FORG0006', message)
 
+    def data_value(self, obj):
+        """
+        The typed value, as computed by fn:data() on each item.
+        Returns an instance of UntypedAtomic for untyped data.
+
+        https://www.w3.org/TR/xpath20/#dt-typed-value
+        """
+        if obj is None:
+            return
+        elif isinstance(obj, tuple):
+            if isinstance(obj, (TypedElement, TypedAttribute)):
+                return obj[-1]
+            elif isinstance(obj, NamespaceNode):
+                return obj[1]
+            return UntypedAtomic(obj[-1])
+        elif is_schema_node(obj):
+            return self.parser.get_atomic_value(obj.type)
+        elif hasattr(obj, 'tag'):
+            if is_etree_element(obj):
+                return UntypedAtomic(''.join(etree_iter_strings(obj)))
+            elif is_comment_node(obj):
+                return obj.text
+            elif is_processing_instruction_node(obj):
+                return obj.text
+        elif is_document_node(obj):
+            value = ''.join(etree_iter_strings(obj.getroot()))
+            return UntypedAtomic(value)
+        else:
+            return obj
+
     def string_value(self, obj):
         """
         The string value, as computed by fn:string().
         """
         if obj is None:
             return ''
+        elif isinstance(obj, tuple):
+            if isinstance(obj, TypedElement):
+                if obj[-1] is None:
+                    return ''.join(etree_iter_strings(obj))
+                return str(obj[-1])
+            elif isinstance(obj, (AttributeNode, TypedAttribute)):
+                return str(obj[-1])
+            elif isinstance(obj, (TextNode, NamespaceNode)):
+                return obj[-1]
         elif is_schema_node(obj):
             return str(self.parser.get_atomic_value(obj.type))
-        elif is_element_node(obj):
-            return ''.join(etree_iter_strings(obj))
-        elif is_attribute_node(obj):
-            return str(obj[1])
-        elif is_text_node(obj):
-            return obj[0]
+        elif hasattr(obj, 'tag'):
+            if is_etree_element(obj):
+                return ''.join(etree_iter_strings(obj))
+            elif is_comment_node(obj):
+                return obj.text
+            elif is_processing_instruction_node(obj):
+                return obj.text
         elif is_document_node(obj):
             return ''.join(e.text for e in obj.getroot().iter() if e.text is not None)
-        elif is_namespace_node(obj):
-            return obj[1]
-        elif is_comment_node(obj):
-            return obj.text
-        elif is_processing_instruction_node(obj):
-            return obj.text
         elif isinstance(obj, bool):
             return 'true' if obj else 'false'
         elif isinstance(obj, (float, Decimal)):

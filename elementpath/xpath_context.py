@@ -13,8 +13,7 @@ from functools import lru_cache
 from .exceptions import ElementPathTypeError
 from .datatypes import Timezone
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
-    etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
-    is_attribute_node
+    etree_iter_nodes, is_etree_element, is_element_node, is_document_node
 
 
 class XPathContext(object):
@@ -169,7 +168,7 @@ class XPathContext(object):
 
     def is_principal_node_kind(self):
         if self.axis == 'attribute':
-            return is_attribute_node(self.item)
+            return isinstance(self.item, (AttributeNode, TypedAttribute))
         else:
             return is_element_node(self.item)
 

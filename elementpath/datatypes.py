@@ -1566,6 +1566,9 @@ class AnyURI(metaclass=AtomicTypeMeta):
     def __str__(self):
         return self.value
 
+    def __hash__(self):
+        return hash(self.value)
+
     def __contains__(self, item):
         return item in self.value
 

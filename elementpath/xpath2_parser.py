@@ -25,7 +25,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
 from .datatypes import UntypedAtomic, QName
-from .xpath_nodes import is_xpath_node, is_attribute_node, is_element_node, is_document_node
+from .xpath_nodes import is_xpath_node, match_attribute_node, is_element_node, is_document_node
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
@@ -1051,7 +1051,7 @@ def select(self, context=None):
         if self.parser.schema.get_attribute(qname) is None:
             raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
-        if is_attribute_node(context.item, qname):
+        if match_attribute_node(context.item, qname):
             yield context.item
             return
 
@@ -1133,9 +1133,8 @@ def select(self, context=None):
         for _ in context.iter_attributes():
             yield from self[0].select(context)
     elif not self:
-        for item in context.iter_attributes():
-            if is_attribute_node(item):
-                yield context.item[1]
+        for attribute in context.iter_attributes():
+            yield attribute.value
     else:
         name = self[0].value
         if self.parser.schema is not None and len(self) == 2:
@@ -1143,15 +1142,16 @@ def select(self, context=None):
         else:
             type_name = None
 
-        for item in context.iter_attributes():
-            if is_attribute_node(item, name):
+        for attribute in context.iter_attributes():
+            if match_attribute_node(attribute, name):
                 if isinstance(context, XPathSchemaContext):
-                    self.add_xsd_type(item[1].name, item[1].type)
+                    # Attribute value is an XSD attribute
+                    self.add_xsd_type(attribute[1].name, attribute[1].type)
                 elif not type_name:
-                    yield context.item[1]
+                    yield attribute.value
                 else:
-                    xsd_type = self.get_xsd_type(item)
+                    xsd_type = self.get_xsd_type(attribute)
                     if xsd_type is not None and xsd_type.name == type_name:
-                        yield context.item[1]
+                        yield attribute.value
 
 # XPath 2.0 definitions continue into module xpath2_functions

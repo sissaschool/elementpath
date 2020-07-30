@@ -25,9 +25,9 @@ from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, StringProxy, \
     Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID
 from .xpath_context import XPathContext, XPathSchemaContext
-from .xpath_nodes import AttributeNode, is_document_node, is_xpath_node, \
-    is_element_node, node_name, node_nilled, node_base_uri, \
-    node_document_uri, node_kind, etree_deep_equal
+from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
+    is_xpath_node, node_name, node_nilled, node_base_uri, node_document_uri, \
+    node_kind, etree_deep_equal
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -96,7 +96,7 @@ def evaluate(self, context=None):
 
     elem = self.get_argument(context, index=1)
     if not is_element_node(elem):
-        raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
+        raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
     ns_uris = {get_namespace(e.tag) for e in elem.iter()}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
@@ -116,7 +116,7 @@ def select(self, context=None):
 
     elem = self.get_argument(context)
     if not is_element_node(elem):
-        raise self.error('FORG0006', 'argument %r is not a node' % elem)
+        raise self.error('FORG0006', 'argument %r is not an element node' % elem)
 
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
@@ -147,7 +147,7 @@ def evaluate(self, context=None):
 
     elem = self.get_argument(context, index=1)
     if not is_element_node(elem):
-        raise self.error('FORG0006', '2nd argument %r is not a node' % elem)
+        raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
 
     qname = qname.strip()
     match = QNAME_PATTERN.match(qname)
