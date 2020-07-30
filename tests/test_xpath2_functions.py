@@ -102,7 +102,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("abs(.)", 10, context=context)
         context = XPathContext(root=self.etree.XML('<root>foo</root>'))
 
-        self.wrong_type('abs("10")', 'FORG0006', 'Invalid argument type')
+        self.wrong_type('abs("10")', 'XPTY0004', 'invalid argument type')
 
         with self.assertRaises(ValueError) as err:
             self.check_value("abs(.)", 10, context=context)

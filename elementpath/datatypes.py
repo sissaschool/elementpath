@@ -1381,6 +1381,13 @@ class Float(float, metaclass=AtomicTypeMeta):
             self.version = version
         super().__init__()
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if super(Float, self).__eq__(other):
+                return True
+            return math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
+        return super(Float, self).__eq__(other)
+
     def __add__(self, other):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__add__(other))
@@ -1430,6 +1437,9 @@ class Float(float, metaclass=AtomicTypeMeta):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__rmod__(other))
         return super(Float, self).__rmod__(other)
+
+    def __abs__(self):
+        return Float(super(Float, self).__abs__())
 
 
 class Integer(int, metaclass=AtomicTypeABCMeta):
@@ -1877,7 +1887,7 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
     def __new__(cls, value):
         if isinstance(value, str):
             value = collapse_white_spaces(value).lower().replace(' ', '')
-            if value in {'', 'inf', '+inf', '-inf', 'nan', 'infinity', '+infinity', '-infinity'}:
+            if value.lstrip('+-') in {'', 'inf', 'nan', 'infinity'}:
                 raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         elif isinstance(value, (float, Float, Decimal)):
             if math.isinf(value) or math.isnan(value):

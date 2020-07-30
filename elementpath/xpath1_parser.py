@@ -1237,7 +1237,7 @@ def select(self, context=None):
 def nud(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol != ')':
-        self.expected('(name)', '(string)')
+        self.parser.next_token.expected('(name)', '(string)')
         self[0:] = self.parser.expression(5),
     self.parser.advance(')')
     self.value = None
