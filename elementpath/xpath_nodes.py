@@ -43,22 +43,22 @@ A namedtuple-based type for processing XPath namespaces.
 :param uri: the namespace URI.
 """
 
-TypedAttribute = namedtuple('TypedAttribute', 'attribute xsd_type value')
+TypedAttribute = namedtuple('TypedAttribute', 'attribute type value')
 """
 A namedtuple-based type for processing typed-value attributes.
 
 :param attribute: the origin AttributeNode tuple.
-:param xsd_type: the reference XSD type.
+:param type: the reference XSD type.
 :param value: the decoded value. 
 """
 
-TypedElement = namedtuple('TypedElement', 'elem xsd_type value')
+TypedElement = namedtuple('TypedElement', 'elem type value')
 """
 A namedtuple-based type for processing typed-value elements.
 
 :param elem: the origin element. Can be an Element, or an XSD element \
 when XPath is applied on a schema.
-:param xsd_type: the reference XSD type.
+:param type: the reference XSD type.
 :param value: the decoded value. Can be `None` for empty or element-only elements. 
 """
 
@@ -131,7 +131,7 @@ def etree_deep_equal(e1, e2):
 # ElementTree-like objects for documents. Generic tuples are used for
 # representing attributes and named-tuples for namespaces.
 ###
-def is_element_node(obj, tag=None):
+def match_element_node(obj, tag=None):
     """
     Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
     Raises a ValueError if the argument tag has to be used but it's in a wrong format.
@@ -166,7 +166,7 @@ def is_element_node(obj, tag=None):
         return obj.tag == tag
 
 
-def is_attribute_node(obj, name=None):
+def match_attribute_node(obj, name=None):
     """
     Returns `True` if the first argument is an attribute node matching the name, `False` otherwise.
     Raises a ValueError if the argument name has to be used but it's in a wrong format.
@@ -197,8 +197,15 @@ def is_attribute_node(obj, name=None):
         return obj[0] == name
 
 
+def is_element_node(obj):
+    return isinstance(obj, TypedElement) or (
+        hasattr(obj, 'tag') and not callable(obj.tag)
+        and hasattr(obj, 'attrib') and hasattr(obj, 'text')
+    )
+
+
 def is_schema_node(obj):
-    return hasattr(obj, 'name') and hasattr(obj, 'local_name') and hasattr(obj, 'type')
+    return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
 
 
 def is_comment_node(obj):
@@ -210,20 +217,14 @@ def is_processing_instruction_node(obj):
 
 
 def is_document_node(obj):
-    return all(hasattr(obj, name) for name in ('getroot', 'iter', 'iterfind', 'parse'))
-
-
-def is_namespace_node(obj):
-    return isinstance(obj, NamespaceNode)
-
-
-def is_text_node(obj):
-    return isinstance(obj, TextNode)
+    return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
 def is_xpath_node(obj):
-    return isinstance(obj, tuple) or is_etree_element(obj) or \
-        is_schema_node(obj) or is_document_node(obj)
+    return isinstance(obj, tuple) or \
+        hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text') or \
+        hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name') or \
+        hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
 ###
@@ -269,16 +270,17 @@ def node_nilled(obj):
 
 
 def node_kind(obj):
-    if is_element_node(obj):
+    if isinstance(obj, tuple):
+        if isinstance(obj, (AttributeNode, TypedAttribute)):
+            return 'attribute'
+        elif isinstance(obj, TextNode):
+            return 'text'
+        elif isinstance(obj, NamespaceNode):
+            return 'namespace'
+    elif is_element_node(obj):
         return 'element'
-    elif is_attribute_node(obj):
-        return 'attribute'
-    elif is_text_node(obj):
-        return 'text'
     elif is_document_node(obj):
         return 'document-node'
-    elif is_namespace_node(obj):
-        return 'namespace'
     elif is_comment_node(obj):
         return 'comment'
     elif is_processing_instruction_node(obj):
@@ -288,5 +290,5 @@ def node_kind(obj):
 def node_name(obj):
     if is_element_node(obj):
         return obj.tag
-    elif is_attribute_node(obj) or is_namespace_node(obj):
+    elif isinstance(obj, (AttributeNode, TypedAttribute, NamespaceNode)):
         return obj[0]

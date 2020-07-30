@@ -15,10 +15,9 @@ import xml.etree.ElementTree as ElementTree
 
 from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     TypedElement, NamespaceNode, is_etree_element, etree_iter_strings, \
-    etree_deep_equal, is_element_node, is_attribute_node, is_comment_node, \
-    is_document_node, is_namespace_node, is_processing_instruction_node, \
-    is_text_node, node_attributes, node_base_uri, node_document_uri, \
-    node_children, node_nilled, node_kind, node_name, etree_iter_nodes
+    etree_deep_equal, match_element_node, match_attribute_node, is_comment_node, \
+    is_document_node, is_processing_instruction_node, node_attributes, node_base_uri, \
+    node_document_uri, node_children, node_nilled, node_kind, node_name, etree_iter_nodes
 from elementpath.schema_proxy import AbstractXsdType
 
 
@@ -96,30 +95,30 @@ class XPathNodesTest(unittest.TestCase):
     def test_is_element_node_function(self):
         elem = ElementTree.Element('alpha')
         empty_tag_elem = ElementTree.Element('')
-        self.assertTrue(is_element_node(elem, '*'))
-        self.assertFalse(is_element_node(empty_tag_elem, '*'))
+        self.assertTrue(match_element_node(elem, '*'))
+        self.assertFalse(match_element_node(empty_tag_elem, '*'))
         with self.assertRaises(ValueError):
-            is_element_node(elem, '**')
+            match_element_node(elem, '**')
         with self.assertRaises(ValueError):
-            is_element_node(elem, '*:*:*')
+            match_element_node(elem, '*:*:*')
         with self.assertRaises(ValueError):
-            is_element_node(elem, 'foo:*')
-        self.assertFalse(is_element_node(empty_tag_elem, 'foo:*'))
-        self.assertFalse(is_element_node(elem, '{foo}*'))
+            match_element_node(elem, 'foo:*')
+        self.assertFalse(match_element_node(empty_tag_elem, 'foo:*'))
+        self.assertFalse(match_element_node(elem, '{foo}*'))
 
     def test_is_attribute_node_function(self):
         attr = AttributeNode('a1', '10')
-        self.assertTrue(is_attribute_node(attr, '*'))
-        self.assertTrue(is_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
+        self.assertTrue(match_attribute_node(attr, '*'))
+        self.assertTrue(match_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
         with self.assertRaises(ValueError):
-            is_attribute_node(attr, '**')
+            match_attribute_node(attr, '**')
         with self.assertRaises(ValueError):
-            is_attribute_node(attr, '*:*:*')
+            match_attribute_node(attr, '*:*:*')
         with self.assertRaises(ValueError):
-            is_attribute_node(attr, 'foo:*')
-        self.assertTrue(is_attribute_node(attr, '*:a1'))
-        self.assertFalse(is_attribute_node(attr, '{foo}*'))
-        self.assertTrue(is_attribute_node(AttributeNode('{foo}a1', '10'), '{foo}*'))
+            match_attribute_node(attr, 'foo:*')
+        self.assertTrue(match_attribute_node(attr, '*:a1'))
+        self.assertFalse(match_attribute_node(attr, '{foo}*'))
+        self.assertTrue(match_attribute_node(AttributeNode('{foo}a1', '10'), '{foo}*'))
 
     def test_is_comment_node_function(self):
         comment = ElementTree.Comment('nothing important')
@@ -131,20 +130,10 @@ class XPathNodesTest(unittest.TestCase):
         self.assertTrue(is_document_node(document))
         self.assertFalse(is_document_node(self.elem))
 
-    def test_is_namespace_node_function(self):
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
-        self.assertTrue(is_namespace_node(namespace))
-        self.assertFalse(is_namespace_node(self.elem))
-
     def test_is_processing_instruction_node_function(self):
         pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
         self.assertTrue(is_processing_instruction_node(pi))
         self.assertFalse(is_processing_instruction_node(self.elem))
-
-    def test_is_text_node_function(self):
-        self.assertTrue(is_text_node(TextNode('alpha')))
-        self.assertFalse(is_text_node('alpha'))
-        self.assertFalse(is_text_node(self.elem))
 
     def test_node_attributes_function(self):
         self.assertEqual(node_attributes(self.elem), self.elem.attrib)
