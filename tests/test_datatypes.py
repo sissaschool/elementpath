@@ -80,7 +80,7 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertTrue(bool(True) == UntypedAtomic(1))
         with self.assertRaises(ValueError) as ctx:
             _ = bool(True) == UntypedAtomic(10)
-        self.assertEqual(str(ctx.exception), "'10' cannot be cast to boolean")
+        self.assertEqual(str(ctx.exception), "'10' cannot be cast to xs:boolean")
 
         self.assertFalse(-10.9 == UntypedAtomic(-10))
         self.assertFalse(UntypedAtomic(-10) == -11)

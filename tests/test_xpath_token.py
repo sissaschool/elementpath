@@ -134,7 +134,7 @@ class XPath1TokenTest(unittest.TestCase):
         context = XPathContext(elem, item=item)
         self.assertListEqual(list(token.select_results(context)), [30])
 
-        attribute = namedtuple('XsdAttribute', 'name type')('max', xsd_type)
+        attribute = namedtuple('XsdAttribute', 'name local_name type')('max', 'max', xsd_type)
         item = TypedAttribute(AttributeNode('max', attribute), xsd_type, 30)
         context = XPathContext(elem, item=item)
         self.assertListEqual(list(token.select_results(context)), [attribute])
