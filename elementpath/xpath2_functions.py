@@ -10,7 +10,6 @@
 """
 XPath 2.0 implementation - part 2 (functions)
 """
-import decimal
 import math
 import datetime
 import time
@@ -18,11 +17,12 @@ import re
 import locale
 import unicodedata
 from copy import copy
+from decimal import Decimal, DecimalException
 from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, StringProxy, \
-    Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
+from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, StringProxy, Float, \
+    DoubleProxy, Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
@@ -249,16 +249,16 @@ def evaluate(self, context=None):
         return []
     elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
         return item
-    elif not isinstance(item, (float, int, decimal.Decimal)):
+    elif not isinstance(item, (float, int, Decimal)):
         raise self.wrong_type("Invalid argument type {!r}".format(type(item)))
 
     precision = 0 if len(self) < 2 else self[1].evaluate(context)
     try:
-        round(decimal.Decimal(item), precision)
-        return float(round(decimal.Decimal(item), precision))
+        round(Decimal(item), precision)
+        return float(round(Decimal(item), precision))
     except TypeError as err:
         raise self.error('XPTY0004', str(err))
-    except decimal.DecimalException as err:
+    except DecimalException as err:
         raise self.error('FOCA0001', str(err))
 
 
@@ -272,11 +272,11 @@ def evaluate(self, context=None):
     elif is_xpath_node(item):
         value = self.string_value(item)
         try:
-            return abs(decimal.Decimal(value))
-        except decimal.DecimalException:
+            return abs(Decimal(value))
+        except DecimalException:
             raise self.wrong_value("Invalid string value {!r} for {!r}".format(value, item))
-    elif not isinstance(item, (float, int, decimal.Decimal)):
-        raise self.wrong_type("Invalid argument type {!r}".format(type(item)))
+    elif isinstance(item, bool) or not isinstance(item, (float, int, Decimal)):
+        raise self.error('XPTY0004', "invalid argument type {!r}".format(type(item)))
     else:
         return abs(item)
 
@@ -287,10 +287,10 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     values = []
     for item in self[0].select_data_values(context):
-        if isinstance(item, (UntypedAtomic, decimal.Decimal)):
+        if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_number(item, float))
-        elif isinstance(item, AnyURI):
-            values.append(item.value)
+        elif isinstance(item, (AnyURI, bool)):
+            raise self.error('FORG0006', 'non numeric value {!r} in the sequence'.format(item))
         else:
             values.append(item)
 
@@ -303,12 +303,22 @@ def evaluate(self, context=None):
                 value = value + item
             return value / len(values)
         except TypeError as err:
-            raise self.wrong_type(str(err))
+            raise self.error('FORG0006', str(err))
+    elif all(isinstance(x, int) for x in values):
+        result = sum(values) / Decimal(len(values))
+        return int(result) if result % 1 == 0 else result
+    elif all(isinstance(x, (int, Decimal)) for x in values):
+        return sum(values) / Decimal(len(values))
+    elif all(not isinstance(x, DoubleProxy) for x in values):
+        try:
+            return sum(Float(x) if isinstance(x, Decimal) else x for x in values) / len(values)
+        except TypeError as err:
+            raise self.error('FORG0006', str(err))
     else:
         try:
-            return sum(values) / len(values)
+            return sum(float(x) if isinstance(x, Decimal) else x for x in values) / len(values)
         except TypeError as err:
-            raise self.wrong_type(str(err))
+            raise self.error('FORG0006', str(err))
 
 
 @method(function('max', nargs=(1, 2)))
@@ -316,7 +326,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     values = []
     for item in self[0].select_data_values(context):
-        if isinstance(item, (UntypedAtomic, decimal.Decimal)):
+        if isinstance(item, (UntypedAtomic, Decimal)):
             values.append(self.cast_to_number(item, float))
         elif isinstance(item, AnyURI):
             values.append(item.value)
@@ -883,7 +893,7 @@ def evaluate(self, context=None):
     if item is None:
         return []
     elif item.microsecond:
-        return decimal.Decimal('{}.{}'.format(item.second, item.microsecond))
+        return Decimal('{}.{}'.format(item.second, item.microsecond))
     else:
         return item.second
 
