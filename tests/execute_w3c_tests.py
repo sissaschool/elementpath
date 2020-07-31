@@ -20,6 +20,7 @@ import contextlib
 import decimal
 import re
 import json
+import math
 import os
 import sys
 import traceback
@@ -641,13 +642,10 @@ class Result(object):
         if value and ' ' not in value:
             try:
                 dv = decimal.Decimal(value)
-                if dv == decimal.Decimal(expected):
+                if math.isclose(dv, decimal.Decimal(expected), rel_tol=1E-7, abs_tol=0.0):
                     return True
             except decimal.DecimalException:
                 pass
-            else:
-                if abs(dv) > 10**3 and round(dv) == decimal.Decimal(expected):
-                    return True
 
         self.report_failure(
             verbose, expected=expected, string_value=value, xpath_result=result
