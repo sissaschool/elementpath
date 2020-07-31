@@ -145,6 +145,9 @@ class Environment(object):
     :param elem: the XML Element that contains the environment definition.
     :param use_lxml: use lxml.etree for loading XML sources.
     """
+    schema = None
+    static_base_uri = None
+
     def __init__(self, elem, use_lxml=False):
         assert elem.tag == '{%s}environment' % QT3_NAMESPACE
         self.name = elem.get('name', 'anonymous')
@@ -156,8 +159,10 @@ class Environment(object):
         child = elem.find('schema', namespaces)
         if child is not None:
             self.schema = Schema(child)
-        else:
-            self.schema = None
+
+        child = elem.find('static-base-uri', namespaces)
+        if child is not None:
+            self.static_base_uri = child.get('uri')
 
         self.sources = {}
         for child in elem.iterfind('source', namespaces):
@@ -371,9 +376,10 @@ class TestCase(object):
         """
         environment = self.get_environment()
         if environment is None:
-            test_namespaces = schema_proxy = None
+            test_namespaces = static_base_uri = schema_proxy = None
         else:
             test_namespaces = environment.namespaces.copy()
+            static_base_uri = environment.static_base_uri
 
             if environment.schema is None or not environment.schema.filepath:
                 schema_proxy = None
@@ -389,6 +395,7 @@ class TestCase(object):
                 namespaces=test_namespaces,
                 xsd_version=self.xsd_version,
                 schema=schema_proxy,
+                base_uri=static_base_uri,
             )
             root_node = parser.parse(self.test)
         except Exception as err:

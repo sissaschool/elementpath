@@ -21,8 +21,9 @@ from decimal import Decimal, DecimalException
 from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, Date10, Date, StringProxy, Float, \
-    DoubleProxy, Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, Id, is_idrefs
+from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, StringProxy, \
+    Float, DoubleProxy, Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, \
+    Id, is_idrefs
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
@@ -223,8 +224,10 @@ def select(self, context=None):
 @method(function('base-uri', nargs=(0, 1)))
 def evaluate(self, context=None):
     item = self.get_argument(context, default_to_context=True)
-    if item is None:
+    if context is None:
         raise self.missing_context("context item is undefined")
+    elif item is None:
+        return []
     elif not is_xpath_node(item):
         raise self.wrong_context_type("context item is not a node")
     else:
@@ -867,40 +870,26 @@ def evaluate(self, context=None):
 
 
 @method(function('year-from-dateTime', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else -(item.year + 1) if item.bce else item.year
-
-
 @method(function('month-from-dateTime', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else item.month
-
-
 @method(function('day-from-dateTime', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else item.day
-
-
 @method(function('hours-from-dateTime', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else item.hour
-
-
 @method(function('minutes-from-dateTime', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
-    return [] if item is None else item.minute
-
-
 @method(function('seconds-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
+    cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
+    item = self.get_argument(context, cls=cls)
     if item is None:
         return []
+    elif self.symbol.startswith('year'):
+        return -(item.year + 1) if item.bce else item.year
+    elif self.symbol.startswith('month'):
+        return item.month
+    elif self.symbol.startswith('day'):
+        return item.day
+    elif self.symbol.startswith('hour'):
+        return item.hour
+    elif self.symbol.startswith('minute'):
+        return item.minute
     elif item.microsecond:
         return Decimal('{}.{}'.format(item.second, item.microsecond))
     else:
@@ -909,34 +898,29 @@ def evaluate(self, context=None):
 
 @method(function('timezone-from-dateTime', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=DateTime10)
+    cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
+    item = self.get_argument(context, cls=cls)
     if item is None or item.tzinfo is None:
         return []
     return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('year-from-date', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date10)
-    return [] if item is None else item.year
-
-
 @method(function('month-from-date', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date10)
-    return [] if item is None else item.month
-
-
 @method(function('day-from-date', nargs=1))
-def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date10)
-    return [] if item is None else item.day
-
-
 @method(function('timezone-from-date', nargs=1))
 def evaluate(self, context=None):
-    item = self.get_argument(context, cls=Date10)
-    if item is None or item.tzinfo is None:
+    cls = Date if self.parser.xsd_version == '1.1' else Date10
+    item = self.get_argument(context, cls=cls)
+    if item is None:
+        return []
+    elif self.symbol.startswith('year'):
+        return item.year
+    elif self.symbol.startswith('month'):
+        return item.month
+    elif self.symbol.startswith('day'):
+        return item.day
+    elif item.tzinfo is None:
         return []
     return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
@@ -956,7 +940,7 @@ def evaluate(self, context=None):
 @method(function('seconds-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
-    return [] if item is None else item.second + item.microsecond / 1000000.0
+    return [] if item is None else item.second + item.microsecond / Decimal('1000000.0')
 
 
 @method(function('timezone-from-time', nargs=1))
@@ -971,17 +955,22 @@ def evaluate(self, context=None):
 # Timezone adjustment functions
 @method(function('adjust-dateTime-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
-    return self.adjust_datetime(context, DateTime10)
+    cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
+    dt = self.adjust_datetime(context, cls)
+    return [] if dt is None else dt
 
 
 @method(function('adjust-date-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
-    return self.adjust_datetime(context, Date10)
+    cls = Date if self.parser.xsd_version == '1.1' else Date10
+    dt = self.adjust_datetime(context, cls)
+    return [] if dt is None else dt
 
 
 @method(function('adjust-time-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
-    return self.adjust_datetime(context, Time)
+    tm = self.adjust_datetime(context, Time)
+    return [] if tm is None else tm
 
 
 ###
@@ -993,8 +982,7 @@ def evaluate(self, context=None):
 
 @method(function('static-base-uri', nargs=0))
 def evaluate(self, context=None):
-    if self.parser.base_uri is not None:
-        return self.parser.base_uri
+    return self.parser.base_uri
 
 
 ###
@@ -1002,6 +990,9 @@ def evaluate(self, context=None):
 @method(function('current-dateTime', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
+    if self.parser.xsd_version == '1.1':
+        return DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute,
+                        dt.second, dt.microsecond, dt.tzinfo)
     return DateTime10(dt.year, dt.month, dt.day, dt.hour, dt.minute,
                       dt.second, dt.microsecond, dt.tzinfo)
 
@@ -1009,12 +1000,8 @@ def evaluate(self, context=None):
 @method(function('current-date', nargs=0))
 def evaluate(self, context=None):
     dt = datetime.datetime.now() if context is None else context.current_dt
-    try:
-        if self.parser.schema.xsd_version == '1.1':
-            return Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
-    except (AttributeError, NotImplementedError):
-        pass
-
+    if self.parser.xsd_version == '1.1':
+        return Date(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
     return Date10(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)
 
 

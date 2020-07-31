@@ -27,6 +27,7 @@ import math
 import os
 import platform
 import time
+from decimal import Decimal
 
 try:
     import lxml.etree as lxml_etree
@@ -760,8 +761,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         tz0 = None
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
 
-        self.check_value('fn:dateTime((), xs:time("24:00:00"))')
-        self.check_value('fn:dateTime(xs:date("1999-12-31"), ())')
+        self.check_value('fn:dateTime((), xs:time("24:00:00"))', [])
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), ())', [])
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))',
                          datetime.datetime(1999, 12, 31, 12, 0, tzinfo=tz0))
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("24:00:00"))',
@@ -841,7 +842,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_seconds_from_time_function(self):
         self.check_value('fn:seconds-from-time(xs:time("13:20:10.5"))', 10.5)
         self.check_value('fn:seconds-from-time(xs:time("20:50:10.0"))', 10.0)
-        self.check_value('fn:seconds-from-time(xs:time("03:59:59.000001"))', 59.000001)
+        self.check_value('fn:seconds-from-time(xs:time("03:59:59.000001"))', Decimal('59.000001'))
 
     def test_timezone_from_time_function(self):
         self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))',
@@ -1051,7 +1052,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             DateTime.fromstring('2002-03-07T10:00:00'), context
         )
 
-        self.check_value('fn:adjust-dateTime-to-timezone((), ())')
+        self.check_value('fn:adjust-dateTime-to-timezone((), ())', [])
 
     def test_adjust_date_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
@@ -1070,7 +1071,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), $tz)',
                          Date.fromstring('2002-03-06-10:00'), context)
 
-        self.check_value('fn:adjust-date-to-timezone((), ())')
+        self.check_value('fn:adjust-date-to-timezone((), ())', [])
         self.check_value('adjust-date-to-timezone(xs:date("-25252734927766555-06-07+02:00"), '
                          'xs:dayTimeDuration("PT0S"))', OverflowError)
 
@@ -1078,8 +1079,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
                                variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
 
-        self.check_value('fn:adjust-time-to-timezone(())')
-        self.check_value('fn:adjust-time-to-timezone((), ())')
+        self.check_value('fn:adjust-time-to-timezone(())', [])
+        self.check_value('fn:adjust-time-to-timezone((), ())', [])
 
         self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"))',
                          Time.fromstring('10:00:00-05:00'), context)
@@ -1131,7 +1132,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertIn('XPDY0002', str(err.exception))
         self.assertIn('context item is undefined', str(err.exception))
 
-        self.wrong_type('fn:base-uri(9)', 'XPTY0004', 'context item is not a node')
+        self.check_value('fn:base-uri(9)', MissingContextError)
+        self.check_value('fn:base-uri(9)', TypeError, context=context)
         self.check_value('fn:base-uri()', context=context)
 
         context = XPathContext(root=self.etree.XML('<A xml:base="/base_path/"/>'))

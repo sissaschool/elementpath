@@ -129,7 +129,7 @@ def round_number(value):
 
 def normalized_seconds(seconds):
     # Decimal.normalize() does not remove exp every time: eg. Decimal('1E+1')
-    return '{:.6f}'.format(seconds).strip('0').strip('.')
+    return '{:.6f}'.format(seconds).rstrip('0').rstrip('.')
 
 
 class Timezone(datetime.tzinfo):
@@ -167,6 +167,8 @@ class Timezone(datetime.tzinfo):
 
     @classmethod
     def fromduration(cls, duration):
+        if duration.seconds % 1 != 0:
+            raise ValueError("{!r} isn't an integral number of minutes".format(duration))
         return cls(datetime.timedelta(seconds=int(duration.seconds)))
 
     def __getinitargs__(self):
@@ -617,9 +619,8 @@ class OrderedDateTime(AbstractDateTime):
             if self._dt.tzinfo is None:
                 return type(self).fromdelta(delta)
 
-            value = type(self).fromdelta(delta)
-            if value.tzinfo is None:
-                value.tzinfo = self._utc_timezone
+            value = type(self).fromdelta(delta + self._dt.tzinfo.offset)
+            value.tzinfo = self._dt.tzinfo
             return value
 
         elif isinstance(other, YearMonthDuration):
