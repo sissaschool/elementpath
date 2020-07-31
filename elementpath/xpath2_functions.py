@@ -253,16 +253,24 @@ def evaluate(self, context=None):
     elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
         return item
     elif not isinstance(item, (float, int, Decimal)):
-        raise self.wrong_type("Invalid argument type {!r}".format(type(item)))
+        code = 'XPTY0004' if isinstance(item, str) else 'FORG0006'
+        raise self.error(code, "Invalid argument type {!r}".format(type(item)))
 
     precision = 0 if len(self) < 2 else self[1].evaluate(context)
     try:
-        round(Decimal(item), precision)
-        return float(round(Decimal(item), precision))
+        if isinstance(item, int):
+            return round(item, precision)
+        elif isinstance(item, Decimal):
+            return round(item, precision)
+        elif isinstance(item, Float):
+            return Float(round(item, precision))
+        return float(round(Decimal.from_float(item), precision))
     except TypeError as err:
         raise self.error('XPTY0004', str(err))
     except DecimalException as err:
-        raise self.error('FOCA0001', str(err))
+        if isinstance(item, Decimal):
+            return Decimal.from_float(round(float(item), precision))
+        return round(item, precision)
 
 
 @method(function('abs', nargs=1))
@@ -393,7 +401,7 @@ def select(self, context=None):
                     if not nan:
                         yield value
                         nan = True
-                elif all(not math.isclose(value, x, rel_tol=1E-7, abs_tol=0) 
+                elif all(not math.isclose(value, x, rel_tol=1E-7, abs_tol=0)
                          for x in results if isinstance(x, (int, Decimal, float))):
                     yield value
                     results.append(value)
