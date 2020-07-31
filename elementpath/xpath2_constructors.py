@@ -625,7 +625,7 @@ def evaluate(self, context=None):
         dt = self.get_argument(context, cls=Date10)
         tm = self.get_argument(context, 1, cls=Time)
         if dt is None or tm is None:
-            return
+            return []
         elif dt.tzinfo == tm.tzinfo or tm.tzinfo is None:
             tzinfo = dt.tzinfo
         elif dt.tzinfo is None:

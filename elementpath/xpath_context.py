@@ -78,11 +78,11 @@ class XPathContext(object):
         else:
             self.variable_values = {k: v for k, v in variable_values.items()}
 
-        self.current_dt = current_dt or datetime.datetime.now()
         if timezone is None or isinstance(timezone, Timezone):
             self.timezone = timezone
         else:
             self.timezone = Timezone.fromstring(timezone)
+        self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         self.documents = documents
         self.collections = collections

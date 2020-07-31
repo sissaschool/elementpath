@@ -20,6 +20,7 @@ for documents. Generic tuples are used for representing attributes and named-tup
 """
 import locale
 import contextlib
+import datetime
 import math
 from decimal import Decimal, DecimalException, getcontext
 import urllib.parse
@@ -529,8 +530,9 @@ class XPathToken(Token):
                 return
             timezone = getattr(context, 'timezone', None)
         else:
-            item = self.get_argument(context=None, cls=cls)  # don't use implicit timezone
+            item = self.get_argument(context, cls=cls)
             timezone = self.get_argument(context, 1, cls=DayTimeDuration)
+
             if timezone is not None:
                 try:
                     timezone = Timezone.fromduration(timezone)
