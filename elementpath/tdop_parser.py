@@ -100,6 +100,9 @@ class MultiLabel(object):
     def __ne__(self, other):
         return all(other != v for v in self.values)
 
+    def __repr__(self):
+        return '%s%s' % (self.__class__.__name__, self.values)
+
     def __str__(self):
         return '_'.join(self.values)
 
