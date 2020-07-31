@@ -411,10 +411,19 @@ def select(self, context=None):
 
 @method(function('index-of', nargs=(2, 3)))
 def select(self, context=None):
-    value = self[1].evaluate(context)
-    for pos, result in enumerate(self[0].select(context), start=1):
-        if result == value:
-            yield pos
+    value = self[1].get_atomized_operand(copy(context))
+    if value is None:
+        raise self.error('XPTY0004', "2nd argument cannot be an empty sequence")
+
+    if len(self) < 3:
+        for pos, result in enumerate(self[0].select(context), start=1):
+            if self.data_value(result) == value:
+                yield pos
+    else:
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            for pos, result in enumerate(self[0].select(context), start=1):
+                if self.data_value(result) == value:
+                    yield pos
 
 
 @method(function('remove', nargs=2))

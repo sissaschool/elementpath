@@ -563,6 +563,20 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
 
+        # Issue #28
+        root = self.etree.XML("""<root>
+            <incode>030</incode>
+            <descript></descript>
+        </root>""")
+
+        test1 = "/root/descript[index-of(('030','031'), '030')]"
+        test2 = "/root/descript[ancestor::root/incode = '030']"
+        test3 = "/root/descript[index-of(('030','031'), ancestor::root/incode)]"
+
+        self.check_selector(test1, root, [root[1]])
+        self.check_selector(test2, root, [root[1]])
+        self.check_selector(test3, root, [root[1]])
+
     def test_insert_before_function(self):
         context = XPathContext(root=self.etree.XML('<root/>'),
                                variable_values={'x': ['a', 'b', 'c']})

@@ -560,6 +560,8 @@ class XPathToken(Token):
         loc = locale.getlocale(locale.LC_COLLATE)
         if collation == UNICODE_CODEPOINT_COLLATION:
             collation = 'en_US.UTF-8'
+        elif collation is None:
+            raise self.error('XPTY0004', 'collation cannot be an empty sequence')
 
         try:
             locale.setlocale(locale.LC_COLLATE, collation)
