@@ -566,6 +566,9 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
+        if isinstance(result, list) and len(result) == 1:
+            result = result[0]
+
         if self.value == 'xs:anyURI':
             type_check = isinstance(result, str)
         elif self.value == 'xs:boolean':

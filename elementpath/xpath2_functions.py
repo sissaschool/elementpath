@@ -380,18 +380,33 @@ def select(self, context=None):
 
 @method(function('distinct-values', nargs=(1, 2)))
 def select(self, context=None):
-    nan = False
-    results = []
-    for item in self[0].select(context):
-        value = self.data_value(item)
-        if context is not None:
-            context.item = value
-        if not nan and isinstance(value, float) and math.isnan(value):
-            yield value
-            nan = True
-        elif value not in results:
-            yield value
-            results.append(value)
+
+    def distinct_values():
+        nan = False
+        results = []
+        for item in self[0].select(context):
+            value = self.data_value(item)
+            if context is not None:
+                context.item = value
+            if isinstance(value, (float, Decimal)):
+                if math.isnan(value):
+                    if not nan:
+                        yield value
+                        nan = True
+                elif all(not math.isclose(value, x, rel_tol=1E-7, abs_tol=0) 
+                         for x in results if isinstance(x, (int, Decimal, float))):
+                    yield value
+                    results.append(value)
+
+            elif value not in results:
+                yield value
+                results.append(value)
+
+    if len(self) > 1:
+        with self.use_locale(collation=self.get_argument(context, 1)):
+            yield from distinct_values()
+    else:
+        yield from distinct_values()
 
 
 @method(function('insert-before', nargs=3))
