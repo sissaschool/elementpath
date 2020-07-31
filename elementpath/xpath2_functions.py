@@ -528,7 +528,46 @@ def evaluate(self, context=None):
             elif (is_xpath_node(value1)) ^ (is_xpath_node(value2)):
                 return False
             elif not is_xpath_node(value1):
-                if value1 != value2:
+                try:
+                    if isinstance(value1, bool):
+                        if not isinstance(value2, bool) or value1 is not value2:
+                            return False
+
+                    elif isinstance(value2, bool):
+                        if not isinstance(value1, bool) or value1 is not value2:
+                            return False
+
+                    elif isinstance(value1, UntypedAtomic):
+                        if not isinstance(value2, UntypedAtomic) or value1 != value2:
+                            return False
+
+                    elif isinstance(value2, UntypedAtomic):
+                        if not isinstance(value1, UntypedAtomic) or value1 != value2:
+                            return False
+
+                    elif isinstance(value1, float):
+                        if math.isnan(value1):
+                            if not math.isnan(value2):
+                                return False
+                        elif isinstance(value2, Decimal):
+                            if value1 != float(value2):
+                                return False
+                        elif value1 != value2:
+                            return False
+
+                    elif isinstance(value2, float):
+                        if math.isnan(value2):
+                            if not math.isnan(value1):
+                                return False
+                        elif isinstance(value1, Decimal):
+                            if value2 != float(value1):
+                                return False
+                        elif value1 != value2:
+                            return False
+
+                    elif value1 != value2:
+                        return False
+                except TypeError:
                     return False
             elif node_kind(value1) != node_kind(value2):
                 return False

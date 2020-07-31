@@ -10,14 +10,11 @@
 """
 XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
-from decimal import Decimal
-
 from .exceptions import ElementPathError, ElementPathSyntaxError
-from .namespaces import XQT_ERRORS_NAMESPACE
+from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE
 from . import datatypes
 from .datatypes import *
 from .xpath_token import XPathToken
-from .xpath_context import XPathContext
 from .xpath2_functions import XPath2Parser
 
 
@@ -581,7 +578,7 @@ def nud(self):
             self.label = 'function'
             self.parser.advance(',')
             self[1:] = self.parser.expression(5),
-        elif self.label != 'constructor':
+        elif self.label != 'constructor' or self.namespace != XSD_NAMESPACE:
             raise self.error('XPST0017', '2nd argument missing')
         else:
             self.label = 'constructor'
