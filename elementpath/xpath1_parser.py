@@ -1039,7 +1039,7 @@ def select(self, context=None):
                 yield from self[0].select(context)
     else:
         for elem in self[0].select(context):
-            if not is_element_node(elem):
+            if not is_element_node(elem) and not is_document_node(elem):
                 raise self.wrong_type("left operand must returns element nodes: %r" % elem)
             for _ in context.iter_descendants(item=elem):
                 yield from self[1].select(context)
