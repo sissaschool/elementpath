@@ -123,7 +123,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, item=float('nan'))
         self.check_value("round-half-to-even(.)", float('nan'), context=context)
 
-        self.wrong_type('round-half-to-even("wrong")', 'FORG0006', 'Invalid argument type')
+        self.wrong_type('round-half-to-even("wrong")', 'XPTY0004', 'invalid argument type')
 
     def test_sum_function(self):
         self.check_value("sum((10, 15, 6, -2))", 29)
@@ -720,10 +720,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
         )
-        self.check_value("fn:namespace-uri-for-prefix('', .)",
-                         'http://www.example.com/ns/', context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix((), .)",
-                         'http://www.example.com/ns/', context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('', .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix((), .)", [], context=context.copy())
 
     def test_in_scope_prefixes_function(self):
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'

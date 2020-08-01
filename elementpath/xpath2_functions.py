@@ -22,8 +22,8 @@ from urllib.parse import quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, StringProxy, \
-    Float, DoubleProxy, Time, Duration, DayTimeDuration, UntypedAtomic, AnyURI, QName, \
-    Id, is_idrefs
+    Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, \
+    AnyURI, QName, Id, is_idrefs, ArithmeticProxy
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
@@ -254,7 +254,7 @@ def evaluate(self, context=None):
         return item
     elif not isinstance(item, (float, int, Decimal)):
         code = 'XPTY0004' if isinstance(item, str) else 'FORG0006'
-        raise self.error(code, "Invalid argument type {!r}".format(type(item)))
+        raise self.error(code, "invalid argument type {!r}".format(type(item)))
 
     precision = 0 if len(self) < 2 else self[1].evaluate(context)
     try:
@@ -335,27 +335,51 @@ def evaluate(self, context=None):
 @method(function('max', nargs=(1, 2)))
 @method(function('min', nargs=(1, 2)))
 def evaluate(self, context=None):
+
+    def max_or_min():
+        if not values:
+            return values
+        elif any(isinstance(x, str) for x in values):
+            if any(isinstance(x, ArithmeticProxy) for x in values):
+                raise self.error('FORG0006', "cannot compare strings with numeric data")
+        elif all(isinstance(x, (Decimal, int)) for x in values):
+            return aggregate_func(values)
+        elif any(isinstance(x, float) and math.isnan(x) for x in values):
+            return float_class('NaN')
+        elif all(isinstance(x, (int, float, Decimal)) for x in values):
+            return float_class(aggregate_func(values))
+        return aggregate_func(values)
+
     values = []
+    float_class = None
+    aggregate_func = max if self.symbol == 'max' else min
+
     for item in self[0].select_data_values(context):
-        if isinstance(item, (UntypedAtomic, Decimal)):
+        if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_number(item, float))
+            float_class = float
+        elif isinstance(item, (DayTimeDuration, Date10, YearMonthDuration, str, int, Decimal)):
+            values.append(item)
+        elif isinstance(item, float):
+            values.append(item)
+            if float_class is None:
+                float_class = type(item)
+            elif float_class is Float and not isinstance(item, Float):
+                float_class = float
         elif isinstance(item, AnyURI):
             values.append(item.value)
+        elif isinstance(item, (Duration, QName)):
+            raise self.error('FORG0006', "xs:{} is not an ordered type".format(type(item).name))
         else:
             values.append(item)
-
-    if any(isinstance(x, float) and math.isnan(x) for x in values):
-        return float('nan')
 
     try:
         if len(self) > 1:
             with self.use_locale(collation=self.get_argument(context, 1)):
-                return max(values) if self.symbol == 'max' else min(values)
-        return max(values) if self.symbol == 'max' else min(values)
+                return max_or_min()
+        return max_or_min()
     except TypeError as err:
-        raise self.wrong_type(str(err))
-    except ValueError:
-        return []
+        raise self.error('FORG0006', str(err))
 
 
 ###
