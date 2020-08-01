@@ -139,6 +139,19 @@ class Source(object):
         return '%s(file=%r)' % (self.__class__.__name__, self.file)
 
 
+class Collection(object):
+    """Represents a collection of source files as used in XML environment settings."""
+
+    def __init__(self, elem, use_lxml=False):
+        assert elem.tag == '{%s}collection' % QT3_NAMESPACE
+        self.uri = elem.attrib.get('uri')
+        self.query = elem.find('query', namespaces)  # Not used (for XQuery)
+        self.sources = [Source(e, use_lxml) for e in elem.iterfind('source', namespaces)]
+
+    def __repr__(self):
+        return '%s(uri=%r)' % (self.__class__.__name__, self.uri)
+
+
 class Environment(object):
     """
     The XML environment definition for a test case.
@@ -146,6 +159,7 @@ class Environment(object):
     :param elem: the XML Element that contains the environment definition.
     :param use_lxml: use lxml.etree for loading XML sources.
     """
+    collection = None
     schema = None
     static_base_uri = None
 
@@ -157,6 +171,10 @@ class Environment(object):
             for namespace in elem.iterfind('namespace', namespaces)
         }
 
+        child = elem.find('collection', namespaces)
+        if child is not None:
+            self.collection = Collection(child, use_lxml)
+
         child = elem.find('schema', namespaces)
         if child is not None:
             self.schema = Schema(child)
@@ -164,6 +182,8 @@ class Environment(object):
         child = elem.find('static-base-uri', namespaces)
         if child is not None:
             self.static_base_uri = child.get('uri')
+
+        self.params = [e.attrib for e in elem.iterfind('param', namespaces)]
 
         self.sources = {}
         for child in elem.iterfind('source', namespaces):
@@ -314,7 +334,7 @@ class TestCase(object):
                     children.extend('<spec value="{}"/>'.format(x) for x in self.specs)
             elif dep_type == 'feature':
                 if self.features:
-                    children.extend('<spec value="{}"/>'.format(x) for x in self.features)
+                    children.extend('<feature value="{}"/>'.format(x) for x in self.features)
             else:
                 value = getattr(self, dep_type.replace('-', '_'))
                 if value is not None:
@@ -341,27 +361,6 @@ class TestCase(object):
         elif self.environment:
             return self.environment
 
-    def get_xpath_context(self):
-        kwargs = {
-            'timezone': 'Z',
-        }
-
-        environment = self.get_environment()
-        if environment is None:
-            return XPathContext(root=ElementTree.XML("<empty/>"), **kwargs)
-
-        if '.' in environment.sources:
-            root = environment.sources['.'].xml
-        else:
-            root = ElementTree.XML("<empty/>")
-
-        if any(k.startswith('$') for k in environment.sources):
-            kwargs['variable_values'] = {
-                k[1:]: v.xml for k, v in environment.sources.items() if k.startswith('$')
-            }
-
-        return XPathContext(root=root, **kwargs)
-
     def run(self, verbose=1):
         if verbose > 4:
             print("\n*** Execute test case {!r} ***".format(self.name))
@@ -376,6 +375,8 @@ class TestCase(object):
         If may_fail is true, raise the exception instead of printing and aborting
         """
         environment = self.get_environment()
+
+        # Create the parser instance (static context)
         if environment is None:
             test_namespaces = static_base_uri = schema_proxy = None
         else:
@@ -391,20 +392,59 @@ class TestCase(object):
                 schema = xmlschema.XMLSchema(environment.schema.filepath)
                 schema_proxy = schema.xpath_proxy
 
+        parser = XPath2Parser(
+            namespaces=test_namespaces,
+            xsd_version=self.xsd_version,
+            schema=schema_proxy,
+            base_uri=static_base_uri,
+        )
+
         try:
-            parser = XPath2Parser(
-                namespaces=test_namespaces,
-                xsd_version=self.xsd_version,
-                schema=schema_proxy,
-                base_uri=static_base_uri,
-            )
-            root_node = parser.parse(self.test)
+            root_node = parser.parse(self.test)  # static evaluation
         except Exception as err:
             if isinstance(err, ElementPathError):
                 raise
             raise ParseError(err)
 
-        context = self.get_xpath_context() if with_context else None
+        # Create the dynamic context
+        if not with_context:
+            context = None
+        elif environment is None:
+            context = XPathContext(root=ElementTree.XML("<empty/>"), timezone='Z')
+        else:
+            if '.' in environment.sources:
+                root = environment.sources['.'].xml
+            else:
+                root = ElementTree.XML("<empty/>")
+
+            kwargs = {
+                'timezone': 'Z',
+            }
+            if environment.collection is not None:
+                uri = environment.collection.uri
+                collection = [source.xml for source in environment.collection.sources]
+                if uri:
+                    kwargs['collections'] = {uri: collection}
+
+                if 'non_empty_sequence_collection' in self.features or not uri:
+                    kwargs['default_collection'] = collection
+
+            variables = {}
+            if any(k.startswith('$') for k in environment.sources):
+                variables.update(
+                    (k[1:], v.xml) for k, v in environment.sources.items() if k.startswith('$')
+                )
+
+            for param in environment.params:
+                name = param['name']
+                value = XPath2Parser().parse(param['select']).evaluate()
+                variables[name] = value
+
+            if variables:
+                kwargs['variable_values'] = variables
+
+            context = XPathContext(root=root, **kwargs)
+
         try:
             result = root_node.evaluate(context)
         except Exception as err:

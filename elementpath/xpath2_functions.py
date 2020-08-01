@@ -18,7 +18,7 @@ import locale
 import unicodedata
 from copy import copy
 from decimal import Decimal, DecimalException
-from urllib.parse import quote as urllib_quote
+from urllib.parse import urlsplit, quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, StringProxy, \
@@ -1274,7 +1274,11 @@ def evaluate(self, context=None):
         try:
             collection = context.collections[uri]
         except (KeyError, TypeError):
-            raise self.error('FODC0004', '{!r} collection not found'.format(uri)) from None
+            url_parts = urlsplit(uri)
+            if url_parts.scheme in ('', 'file') and \
+                    not url_parts.path.startswith(':') and url_parts.path.endswith('/'):
+                raise self.error('FODC0003', 'collection URI is a directory')
+            raise self.error('FODC0002', '{!r} collection not found'.format(uri)) from None
 
         try:
             sequence_type = self.parser.collection_types[uri]
