@@ -15,6 +15,7 @@ import datetime
 import time
 import re
 import locale
+import os.path
 import unicodedata
 from copy import copy
 from decimal import Decimal, DecimalException
@@ -240,7 +241,21 @@ def evaluate(self, context=None):
         raise self.missing_context()
 
     arg = self.get_argument(context)
-    return [] if arg is None else node_document_uri(arg)
+    if arg is None or not is_document_node(arg):
+        return []
+
+    uri = node_document_uri(arg)
+    if uri is not None:
+        return uri
+    elif is_document_node(context.root):
+        try:
+            for uri, doc in context.documents.items():
+                if doc is context.root:
+                    return uri
+        except AttributeError:
+            pass
+
+    return []
 
 
 ###
@@ -758,7 +773,8 @@ def evaluate(self, context=None):
     try:
         return ''.join(xml10_chr(cp) for cp in self[0].select(context))
     except TypeError as err:
-        raise self.wrong_type(str(err)) from None
+        code = 'XPTY0004' if "'str'" in str(err) else 'FORG0006'
+        raise self.error(code, str(err)) from None
     except ValueError as err:
         raise self.error('FOCH0001', str(err)) from None  # Code point not valid
 
@@ -1229,20 +1245,30 @@ def select(self, context=None):
 def evaluate(self, context=None):
     uri = self.get_argument(context)
     if uri is None:
-        return None if self.symbol == 'doc' else False
+        return [] if self.symbol == 'doc' else False
     elif context is None:
         raise self.missing_context()
-    elif not isinstance(uri, str):
-        raise self.error('FODC0005')
+    elif isinstance(uri, str):
+        pass
+    elif isinstance(uri, UntypedAtomic):
+        raise self.error('FODC0002')
+    else:
+        raise self.error('XPTY0004')
 
-    uri = self.get_absolute_uri(uri)
+    uri = self.get_absolute_uri(uri.strip())
     if not isinstance(context, XPathSchemaContext):
         try:
             doc = context.documents[uri]
         except (KeyError, TypeError):
             if self.symbol == 'doc':
-                raise self.error('FODC0005')
+                url_parts = urlsplit(uri)
+                if url_parts.scheme in ('', 'file') and os.path.isdir(url_parts.path.lstrip(':')):
+                    raise self.error('FODC0005', 'document URI is a directory')
+                raise self.error('FODC0002')
             return False
+        else:
+            if doc is None:
+                raise self.error('FODC0002')
 
         try:
             sequence_type = self.parser.document_types[uri]
