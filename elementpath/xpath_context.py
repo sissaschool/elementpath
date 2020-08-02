@@ -390,7 +390,7 @@ class XPathContext(object):
         :param axis: the context axis, for default has no explicit axis.
         """
         status = self.item, self.size, self.position, self.axis
-        self.axis = axis
+        self.axis = axis or 'descendant-or-self'
 
         if item is not None:
             self.item = item[0] if isinstance(item, TypedElement) else item

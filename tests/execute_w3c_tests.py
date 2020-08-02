@@ -60,6 +60,14 @@ SKIP_TESTS = [
     'fn-local-name__fn-local-name-78',
     'fn-name__fn-name-28',
     'fn-string__fn-string-28',
+
+    # Require XML 1.1
+    'fn-codepoints-to-string__K-CodepointToStringFunc-8a',
+    'fn-codepoints-to-string__K-CodepointToStringFunc-11b',
+    'fn-codepoints-to-string__K-CodepointToStringFunc-12b',
+
+    # For XQuery??
+    'fn-deep-equal__K2-SeqDeepEqualFunc-43',  # includes a '!' symbol
 ]
 
 
@@ -412,24 +420,15 @@ class TestCase(object):
         elif environment is None:
             context = XPathContext(root=ElementTree.XML("<empty/>"), timezone='Z')
         else:
+            kwargs = {'timezone': 'Z'}
+            variables = {}
+            documents = {}
+
             if '.' in environment.sources:
                 root = environment.sources['.'].xml
             else:
                 root = ElementTree.XML("<empty/>")
 
-            kwargs = {
-                'timezone': 'Z',
-            }
-            if environment.collection is not None:
-                uri = environment.collection.uri
-                collection = [source.xml for source in environment.collection.sources]
-                if uri:
-                    kwargs['collections'] = {uri: collection}
-
-                if 'non_empty_sequence_collection' in self.features or not uri:
-                    kwargs['default_collection'] = collection
-
-            variables = {}
             if any(k.startswith('$') for k in environment.sources):
                 variables.update(
                     (k[1:], v.xml) for k, v in environment.sources.items() if k.startswith('$')
@@ -440,8 +439,24 @@ class TestCase(object):
                 value = XPath2Parser().parse(param['select']).evaluate()
                 variables[name] = value
 
+            for source in environment.sources.values():
+                documents[source.file] = source.xml
+                if source.uri is not None:
+                    documents[source.uri] = source.xml
+
+            if environment.collection is not None:
+                uri = environment.collection.uri
+                collection = [source.xml for source in environment.collection.sources]
+                if uri:
+                    kwargs['collections'] = {uri: collection}
+
+                if 'non_empty_sequence_collection' in self.features or not uri:
+                    kwargs['default_collection'] = collection
+
             if variables:
                 kwargs['variable_values'] = variables
+            if documents:
+                kwargs['documents'] = documents
 
             context = XPathContext(root=root, **kwargs)
 
@@ -835,8 +850,10 @@ class Result(object):
             return False
 
         if self.use_lxml:
+            fromstring = lxml.etree.fromstring
             tostring = lxml.etree.tostring
         else:
+            fromstring = ElementTree.fromstring
             tostring = ElementTree.tostring
 
             environment = self.test_case.get_environment()
@@ -873,9 +890,21 @@ class Result(object):
         if xml_str == expected:
             return True
 
-        diff = set(re.split('[> ]', expected)) - set(re.split('[> ]', xml_str))
-        if not diff or all(x.startswith('xmlns:') for x in diff):
-            return True
+        # 2nd tentative (expected result from a serialization)
+        try:
+            if xml_str == tostring(fromstring(expected)).decode('utf-8').strip():
+                return True
+        except (ElementTree.ParseError, lxml.etree.ParseError):
+            # expected result is a concatenation of XML elements,
+            # so try removing xmlns registrations.
+
+            xmlns_pattern = re.compile(r'\sxmlns[^"]+"[^"]+"')
+            expected_xmlns = xmlns_pattern.findall(expected)
+
+            if any(xmlns not in expected_xmlns for xmlns in xmlns_pattern.findall(xml_str)):
+                pass
+            elif xmlns_pattern.sub('', xml_str) == xmlns_pattern.sub('', expected):
+                return True
 
         self.report_failure(verbose, result=xml_str, expected=self.value or self.attrib['file'])
         return False

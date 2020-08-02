@@ -82,6 +82,8 @@ def etree_iter_nodes(elem, with_root=True, with_attributes=False):
             yield TextNode(e.text)
         if e.attrib and with_attributes:
             yield from map(lambda x: AttributeNode(*x), e.attrib.items())
+        if e.tail is not None:
+            yield TextNode(e.tail)
 
 
 def etree_iter_strings(elem, normalize=False):

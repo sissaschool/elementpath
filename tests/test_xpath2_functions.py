@@ -1140,7 +1140,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_document_uri_function(self):
         context = XPathContext(root=self.etree.parse(io.StringIO('<A/>')))
         self.check_value('fn:document-uri(())', [], context=context)
-        self.check_value('fn:document-uri(.)', context=context)
+        self.check_value('fn:document-uri(.)', [], context=context)
 
         context = XPathContext(root=self.etree.parse(io.StringIO('<A xml:base="/base_path/"/>')))
         self.check_value('fn:document-uri(.)', '/base_path/', context=context)
@@ -1150,7 +1150,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         doc = self.etree.parse(io.StringIO("<a><b1><c1/></b1><b2/><b3/></a>"))
         context = XPathContext(root, documents={'tns0': doc})
 
-        self.check_value("fn:doc(())", context=context)
+        self.check_value("fn:doc(())", [], context=context)
         self.check_value("fn:doc-available(())", False, context=context)
 
         self.check_value("fn:doc('tns0')", doc, context=context)
