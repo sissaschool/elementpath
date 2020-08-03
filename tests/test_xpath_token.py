@@ -456,36 +456,44 @@ class XPath2TokenTest(XPath1TokenTest):
             root_token = self.parser.parse('root')
             self.assertEqual(root_token.xsd_types, {'root': schema.meta_schema.types['int']})
 
-            obj = root_token.match_xsd_type(schema.elements['root'], 'root')
-            self.assertIsInstance(obj, TypedElement)
+            context = XPathContext(root=schema)
+            obj = list(root_token.select_xsd_nodes(context, 'root'))
+            self.assertIsInstance(obj[0], TypedElement)
             self.assertEqual(root_token.xsd_types, {'root': schema.meta_schema.types['int']})
 
+            context.axis = 'self'
             root_token.xsd_types = None
-            root_token.match_xsd_type(schema, 'root')
+            list(root_token.select_xsd_nodes(context, 'root'))
             self.assertIsNone(root_token.xsd_types)
 
-            obj = root_token.match_xsd_type(schema.elements['root'], 'root')
-            self.assertIsInstance(obj, TypedElement)
+            context.axis = None
+            obj = list(root_token.select_xsd_nodes(context, 'root'))
+            self.assertIsInstance(obj[0], TypedElement)
 
-            obj = root_token.match_xsd_type(schema.meta_schema.types['string'], 'root')
-            self.assertIsNone(obj)
+            context = XPathContext(root=schema.meta_schema)
+            obj = list(root_token.select_xsd_nodes(context, 'root'))
+            self.assertListEqual(obj, [])
 
             root_token = self.parser.parse('@a')
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['string']})
 
             attribute = AttributeNode('a', schema.attributes['a'])
-            obj = root_token.match_xsd_type(attribute, 'a')
-            self.assertIsInstance(obj, TypedAttribute)
+            context = XPathContext(root=schema.meta_schema, item=attribute, axis='self')
+
+            obj = list(root_token.select_xsd_nodes(context, 'a'))
+            self.assertIsInstance(obj[0], TypedAttribute)
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['string']})
 
             root_token.xsd_types = None
-            root_token.match_xsd_type(schema, 'a')
+            context = XPathContext(root=schema)
+            list(root_token.select_xsd_nodes(context, 'a'))
             self.assertIsNone(root_token.xsd_types)
 
-            obj = root_token.match_xsd_type(attribute, 'a')
-            self.assertIsInstance(obj, TypedAttribute)
-            self.assertEqual(obj[0], attribute)
-            self.assertIsInstance(obj[-1], str)
+            context = XPathContext(root=schema.meta_schema, item=attribute, axis='self')
+            obj = list(root_token.select_xsd_nodes(context, 'a'))
+            self.assertIsInstance(obj[0], TypedAttribute)
+            self.assertEqual(obj[0][0], attribute)
+            self.assertIsInstance(obj[0][-1], str)
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['string']})
 
         finally:

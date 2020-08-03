@@ -1212,11 +1212,11 @@ def select(self, context=None):
     # TODO: PSVI bindings with also xsi:type evaluation
     for elem in root.iter():
         if Id.is_valid(elem.text) and elem.text in idrefs:
-            if False and self.parser.schema is not None:
+            if self.parser.schema is not None:
                 path = context.get_path(elem)
                 xsd_element = self.parser.schema.find(path, self.parser.namespaces)
-                if xsd_element is None or not xsd_element.type.is_id():
-                    pass  # continue
+                if xsd_element is None or not xsd_element.type.is_key():
+                    continue
 
             idrefs.remove(elem.text)
             if self.symbol == 'id':
@@ -1226,8 +1226,19 @@ def select(self, context=None):
                 if parent is not None:
                     yield parent
             continue
+
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
             if attr.value in idrefs:
+                if self.parser.schema is not None:
+                    path = context.get_path(elem)
+                    xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                    if xsd_element is None:
+                        continue
+
+                    xsd_attribute = xsd_element.attrib.get(attr.name)
+                    if xsd_attribute is None or not xsd_attribute.type.is_key():
+                        continue
+
                 idrefs.remove(attr.value)
                 yield elem
                 break
