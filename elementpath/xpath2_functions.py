@@ -1186,29 +1186,49 @@ def evaluate(self, context=None):
 
 ###
 # Functions that generate sequences
+@method(function('element-with-id', nargs=(1, 2)))
 @method(function('id', nargs=(1, 2)))
 def select(self, context=None):
-    # TODO: PSVI bindings with also xsi:type evaluation
-    idrefs = [x for x in self[0].select(context=copy(context))]
+    try:
+        idrefs = {x for item in self[0].select(copy(context)) for x in item.split()}
+    except AttributeError:
+        raise self.error('XPTY0004', "1st argument must returns strings")
+
     node = self.get_argument(context, index=1, default_to_context=True)
 
     if context is None or node is not context.item:
         if not is_document_node(node):
             raise self.error('FODC0001', 'cannot retrieve document root')
         root = node
+    elif isinstance(context, XPathSchemaContext):
+        return
     else:
-        if not is_document_node(context.root):
+        if not is_document_node(context.root) and context.item is not None:
             raise self.error('FODC0001')
         elif not is_xpath_node(node):
             raise self.error('XPTY0004')
         root = context.root
 
+    # TODO: PSVI bindings with also xsi:type evaluation
     for elem in root.iter():
-        if Id.is_valid(elem.text) and any(v == elem.text for x in idrefs for v in x.split()):
-            yield elem
+        if Id.is_valid(elem.text) and elem.text in idrefs:
+            if False and self.parser.schema is not None:
+                path = context.get_path(elem)
+                xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                if xsd_element is None or not xsd_element.type.is_id():
+                    pass  # continue
+
+            idrefs.remove(elem.text)
+            if self.symbol == 'id':
+                yield elem
+            else:
+                parent = context.get_parent(elem)
+                if parent is not None:
+                    yield parent
             continue
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
-            if any(v == attr.value for x in idrefs for v in x.split()):
+            if attr.value in idrefs:
+                idrefs.remove(attr.value)
                 yield elem
                 break
 
