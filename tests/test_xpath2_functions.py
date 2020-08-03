@@ -906,10 +906,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertIn('argument node does not have a typed value', str(err.exception))
 
     def test_node_set_id_function(self):
-        # Backward compatibility with fs:id() of XPath 1
         root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
-        self.check_selector('element-with-id("foo")', root, [root[0]])
-
+        self.check_selector('element-with-id("foo")', root, ValueError)
         self.check_selector('id("foo")', root, ValueError)
 
         doc = self.etree.parse(

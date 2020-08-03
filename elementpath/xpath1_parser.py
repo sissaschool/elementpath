@@ -1028,6 +1028,7 @@ def select(self, context=None):
                         except AttributeError:
                             pass  # schemas ...
 
+
 @method('//')
 def select(self, context=None):
     if context is None:
@@ -1290,7 +1291,10 @@ def select(self, context=None):
     else:
         value = self[0].evaluate(context)
         item = context.item
-        if is_element_node(item):
+        if item is None:
+            item = context.root
+
+        if is_element_node(item) or is_document_node(item):
             yield from filter(lambda e: e.get(XML_ID) == value, item.iter())
 
 

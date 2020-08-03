@@ -1389,6 +1389,13 @@ class Float(float, metaclass=AtomicTypeMeta):
             return math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
         return super(Float, self).__eq__(other)
 
+    def __ne__(self, other):
+        if isinstance(other, self.__class__):
+            if super(Float, self).__eq__(other):
+                return False
+            return not math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
+        return super(Float, self).__ne__(other)
+
     def __add__(self, other):
         if isinstance(other, (self.__class__, int)):
             return Float(super(Float, self).__add__(other))
