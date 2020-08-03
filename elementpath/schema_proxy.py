@@ -9,6 +9,7 @@
 #
 from abc import ABCMeta, abstractmethod
 from .exceptions import ElementPathTypeError
+from .namespaces import XSD_NAMESPACE
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
@@ -70,6 +71,27 @@ class AbstractEtreeElement(metaclass=ABCMeta):
         """Iterate over element's children."""
 
 
+class AbstractXsdSchema(AbstractEtreeElement):
+    """Interface for XSD schemas."""
+
+    @property
+    def tag(self):
+        return '{%s}schema' % XSD_NAMESPACE
+
+    @property
+    @abstractmethod
+    def attrib(self):
+        """The global attributes of the schema."""
+
+    @property
+    def text(self):
+        return
+
+    @abstractmethod
+    def __iter__(self):
+        """Iterate over global elements of the schema."""
+
+
 class AbstractXsdElement(AbstractXsdComponent, AbstractEtreeElement):
     """Interface for XSD attribute."""
 
@@ -120,6 +142,18 @@ class AbstractXsdType(AbstractXsdComponent):
         """
         Returns `True` if it's a complexType with element-only content, `False` otherwise.
         """
+
+    @abstractmethod
+    def is_key(self):
+        """Returns `True` if it's a simpleType derived from xs:ID, `False` otherwise."""
+
+    @abstractmethod
+    def is_qname(self):
+        """Returns `True` if it's a simpleType derived from xs:QName, `False` otherwise."""
+
+    @abstractmethod
+    def is_notation(self):
+        """Returns `True` if it's a simpleType derived from xs:NOTATION, `False` otherwise."""
 
     @abstractmethod
     def validate(self, obj, *args, **kwargs):

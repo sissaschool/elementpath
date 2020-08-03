@@ -576,6 +576,45 @@ class XPathToken(Token):
 
     ###
     # Schema context methods
+    def select_xsd_nodes(self, context, name):
+        """
+        Selector for XSD nodes (elements, attributes and schemas). If there is
+        a match with an attribute or an element the node's type is added to
+        matching types of the token. For each matching elements or attributes
+        yields tuple nodes containing the node, its type and a compatible value
+        for doing static evaluation. For matching schemas yields the original
+        instance.
+
+        :param context: an XPath item related with a schema instance.
+        :param name: a QName in extended format for matching the item.
+        """
+        for xsd_node in context.iter_children_or_self():
+            try:
+                if isinstance(xsd_node, AttributeNode):
+                    if xsd_node[1].is_matching(name):
+                        if xsd_node.name is None:
+                            xsd_node = self.parser.schema.get_attribute(name)
+
+                        xsd_type = xsd_node[1].type
+                        self.add_xsd_type(name, xsd_type)
+                        value = self.parser.get_atomic_value(xsd_type)
+                        yield TypedAttribute(xsd_node, xsd_type, value)
+                elif xsd_node.is_matching(name, self.parser.default_namespace):
+                    if xsd_node.name is None:
+                        xsd_node = self.parser.schema.get_element(name)
+
+                    xsd_type = xsd_node.type
+                    self.add_xsd_type(name, xsd_type)
+                    value = self.parser.get_atomic_value(xsd_type)
+                    yield TypedElement(xsd_node, xsd_type, value)
+
+            except AttributeError:
+                try:
+                    if name == xsd_node.tag == '{%s}schema' % XSD_NAMESPACE:
+                        yield xsd_node
+                except AttributeError:
+                    pass
+
     def add_xsd_type(self, name, xsd_type):
         """
         Adds an XSD type association to token.
@@ -596,35 +635,6 @@ class XPathToken(Token):
                 obj.append(xsd_type)
 
         return xsd_type
-
-    def match_xsd_type(self, schema_item, name):
-        """
-        Match a token with a schema type, checking the matching between the provided schema
-        item and name. If there is a match and the token is already related with another
-        schema type an exception is raised.
-
-        :param schema_item: an XPath item related with a schema instance.
-        :param name: a QName in extended format for matching the item.
-        :returns: the matched XSD type or `None` if there isn't a match.
-        """
-        try:
-            if isinstance(schema_item, AttributeNode):
-                if not schema_item[1].is_matching(name):
-                    return
-                xsd_type = schema_item[1].type
-            elif not schema_item.is_matching(name, self.parser.default_namespace):
-                return
-            else:
-                xsd_type = schema_item.type
-        except AttributeError:
-            return
-
-        self.add_xsd_type(name, xsd_type)
-        value = self.parser.get_atomic_value(xsd_type)
-
-        if isinstance(schema_item, AttributeNode):
-            return TypedAttribute(schema_item, xsd_type, value)
-        return TypedElement(schema_item, xsd_type, value)
 
     def get_xsd_type(self, item):
         """

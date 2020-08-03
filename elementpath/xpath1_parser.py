@@ -471,10 +471,7 @@ def select(self, context=None):
     name = self.value
 
     if isinstance(context, XPathSchemaContext):
-        # Bind with the XSD type from a schema
-        for item in map(lambda x: self.match_xsd_type(x, name), context.iter_children_or_self()):
-            if item:
-                yield item
+        yield from self.select_xsd_nodes(context, name)
         return
 
     if name[0] == '{' or not self.parser.default_namespace:
@@ -577,9 +574,7 @@ def select(self, context=None):
     if context is None:
         yield name
     elif isinstance(context, XPathSchemaContext):
-        for item in map(lambda x: self.match_xsd_type(x, name), context.iter_children_or_self()):
-            if item:
-                yield item
+        yield from self.select_xsd_nodes(context, name)
 
     elif self.xsd_types is self.parser.schema:
         for item in context.iter_children_or_self():
@@ -634,15 +629,25 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if self[1].label == 'function':
         yield self[1].evaluate(context)
+        return
     elif context is None:
         raise self.missing_context()
-    else:
-        value = '{%s}%s' % (self[0].value, self[1].value)
+
+    name = '{%s}%s' % (self[0].value, self[1].value)
+    if isinstance(context, XPathSchemaContext):
+        yield from self.select_xsd_nodes(context, name)
+
+    elif self.xsd_types is None:
         for item in context.iter_children_or_self():
-            if match_attribute_node(item, value):
-                yield item[1]
-            elif match_element_node(item, value):
+            if match_attribute_node(item, name):
+                yield item[-1]
+            elif match_element_node(item, name):
                 yield item
+    else:
+        # XSD typed selection
+        for item in context.iter_children_or_self():
+            if match_attribute_node(item, name) or match_element_node(item, name):
+                yield self.get_typed_node(item)
 
 
 ###

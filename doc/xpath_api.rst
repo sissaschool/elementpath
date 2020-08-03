@@ -52,11 +52,17 @@ XPath tokens
     .. automethod:: atomization
     .. automethod:: get_atomized_operand
     .. automethod:: get_comparison_data
-    .. automethod:: get_results
     .. automethod:: get_operands
+    .. automethod:: get_results
+    .. automethod:: select_results
     .. automethod:: adjust_datetime
-    .. automethod:: match_xsd_type
     .. automethod:: use_locale
+
+    Schema context methods
+    .. automethod:: select_xsd_nodes
+    .. automethod:: add_xsd_type
+    .. automethod:: get_xsd_type
+    .. automethod:: get_typed_node
 
     Data accessor helpers
     .. automethod:: data_value
