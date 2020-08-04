@@ -118,21 +118,26 @@ def select(self, context=None):
 
     elem = self.get_argument(context)
     if not is_element_node(elem):
-        raise self.error('FORG0006', 'argument %r is not an element node' % elem)
+        raise self.error('XPTY0004', 'argument %r is not an element node' % elem)
 
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
         yield from self.parser.namespaces
     elif hasattr(elem, 'nsmap'):
         # For lxml returns Element's prefixes
+        if 'xml' not in elem.nsmap:
+            yield 'xml'
         for prefix in elem.nsmap:
-            yield prefix or ''
+            if prefix:
+                yield prefix
     else:
-        yield from self.parser.namespaces
         # For ElementTree returns module registered prefixes
-        prefixes = {x for x in self.parser.namespaces}
+        prefixes = {x for x in self.parser.namespaces if x}
         if context.namespaces:
-            prefixes.update(x for x in context.namespaces)
+            prefixes.update(x for x in context.namespaces if x)
+
+        if 'xml' not in prefixes:
+            yield 'xml'
         yield from prefixes
 
 
@@ -1190,27 +1195,26 @@ def evaluate(self, context=None):
 @method(function('id', nargs=(1, 2)))
 def select(self, context=None):
     try:
-        idrefs = {x for item in self[0].select(copy(context)) for x in item.split()}
+        idrefs = {x for item in self[0].select(copy(context))
+                  for x in self.string_value(item).split()}
     except AttributeError:
         raise self.error('XPTY0004', "1st argument must returns strings")
 
     node = self.get_argument(context, index=1, default_to_context=True)
-
-    if context is None or node is not context.item:
-        if not is_document_node(node):
-            raise self.error('FODC0001', 'cannot retrieve document root')
-        root = node
-    elif isinstance(context, XPathSchemaContext):
+    if isinstance(context, XPathSchemaContext):
         return
-    else:
-        if not is_document_node(context.root) and context.item is not None:
-            raise self.error('FODC0001')
-        elif not is_xpath_node(node):
-            raise self.error('XPTY0004')
-        root = context.root
+    elif context is None or node is not context.item:
+        pass
+    elif context.item is None:
+        node = context.root
+
+    if not is_xpath_node(node):
+        raise self.error('XPTY0004')
+    elif not is_element_node(node) and not is_document_node(node):
+        return
 
     # TODO: PSVI bindings with also xsi:type evaluation
-    for elem in root.iter():
+    for elem in node.iter():
         if Id.is_valid(elem.text) and elem.text in idrefs:
             if self.parser.schema is not None:
                 path = context.get_path(elem)
@@ -1250,18 +1254,19 @@ def select(self, context=None):
     ids = [x for x in self[0].select(context=copy(context))]
     node = self.get_argument(context, index=1, default_to_context=True)
 
-    if context is None or node is not context.item:
-        if not is_document_node(node):
-            raise self.error('FODC0001', 'cannot retrieve document root')
-        root = node
-    else:
-        if not is_document_node(context.root):
-            raise self.error('FODC0001')
-        elif not is_xpath_node(node):
-            raise self.error('XPTY0004')
-        root = context.root
+    if isinstance(context, XPathSchemaContext):
+        return
+    elif context is None or node is not context.item:
+        pass
+    elif context.item is None:
+        node = context.root
 
-    for elem in root.iter():
+    if not is_xpath_node(node):
+        raise self.error('XPTY0004')
+    elif not is_element_node(node) and not is_document_node(node):
+        return
+
+    for elem in node.iter():
         if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
             yield elem
             continue

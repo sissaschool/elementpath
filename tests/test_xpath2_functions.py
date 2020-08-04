@@ -907,8 +907,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_node_set_id_function(self):
         root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
-        self.check_selector('element-with-id("foo")', root, ValueError)
-        self.check_selector('id("foo")', root, ValueError)
+        self.check_selector('element-with-id("foo")', root, [root[0]])
+        self.check_selector('id("foo")', root, [root[0]])
 
         doc = self.etree.parse(
             io.StringIO('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
@@ -929,21 +929,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                <last>Brown</last>
             </employee>"""))
         root = doc.getroot()
+
         self.check_selector("id('ID21256')", doc, [root])
         self.check_selector("id('E21256')", doc, [root[0]])
-
-        with self.assertRaises(ValueError) as err:
-            self.check_selector("id('ID21256')", root, [root])
-        self.assertIn('FODC0001', str(err.exception))
-
         with self.assertRaises(MissingContextError) as err:
             self.check_value("id('ID21256')")
         self.assertIn('XPDY0002', str(err.exception))
 
         context = XPathContext(doc, variable_values={'x': 11})
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(TypeError) as err:
             self.check_value("id('ID21256', $x)", context=context)
-        self.assertIn('FODC0001', str(err.exception))
+        self.assertIn('XPTY0004', str(err.exception))
 
         context = XPathContext(doc, item=11, variable_values={'x': 11})
         with self.assertRaises(TypeError) as err:
@@ -972,15 +968,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("idref('ID21256')", MissingContextError)
         self.check_selector("idref('ID21256')", doc, [])
         self.check_selector("idref('E21256')", doc, [root[0][0]])
-
-        with self.assertRaises(ValueError) as err:
-            self.check_selector("idref('ID21256')", root, [root])
-        self.assertIn('FODC0001', str(err.exception))
+        self.check_selector("idref('ID21256')", root, [])
 
         context = XPathContext(doc, variable_values={'x': 11})
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(TypeError) as err:
             self.check_value("idref('ID21256', $x)", context=context)
-        self.assertIn('FODC0001', str(err.exception))
+        self.assertIn('XPTY0004', str(err.exception))
 
         context = XPathContext(doc, item=11, variable_values={'x': 11})
         with self.assertRaises(TypeError) as err:
