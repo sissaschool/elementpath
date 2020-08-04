@@ -352,10 +352,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_set_id_function(self):
         # XPath 1.0 id() function: https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id
         root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
-        if self.parser.version == '1.0':
-            self.check_selector('id("foo")', root, [root[0]])
-        else:
-            self.check_selector('id("foo")', root, ValueError)
+        self.check_selector('id("foo")', root, [root[0]])
 
     def test_node_set_functions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')

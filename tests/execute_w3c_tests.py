@@ -994,6 +994,12 @@ def main():
                     count_skip += 1
                     continue
 
+                # ignore tests that rely on DTD parsing (TODO with lxml or a custom parser)
+                if 'infoset-dtd' in test_case.features \
+                        or test_case.environment_ref == 'id-idref-dtd':
+                    count_skip += 1
+                    continue
+
                 # ignore tests that rely on processing-instructions and comments
                 if test_case.environment_ref == 'bib2':
                     count_skip += 1
