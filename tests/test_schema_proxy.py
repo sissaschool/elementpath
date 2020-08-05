@@ -155,6 +155,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         any_simple_type = schema_proxy.get_type('{%s}anySimpleType' % XSD_NAMESPACE)
         self.assertEqual(schema_proxy.get_primitive_type(any_simple_type), any_simple_type)
 
+    @unittest.skipIf(xmlschema.__version__ < '1.2.3', "Old find API does not work")
     def test_find_api(self):
         schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                             <xs:element name="test_element" type="xs:string"/>

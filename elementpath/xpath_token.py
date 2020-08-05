@@ -21,7 +21,6 @@ for documents. Generic tuples are used for representing attributes and named-tup
 import locale
 import contextlib
 import math
-import os.path
 from decimal import Decimal, DecimalException, getcontext
 import urllib.parse
 

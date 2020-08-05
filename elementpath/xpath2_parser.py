@@ -817,7 +817,7 @@ def evaluate(self, context=None):
         result = op.evaluate(context)
         if isinstance(result, list):
             results.extend(result)
-        elif results is not None:
+        elif result is not None:
             results.append(result)
     return results
 
@@ -998,12 +998,12 @@ def select(self, context=None):
 @method('document-node')
 def nud(self):
     self.parser.advance('(')
-    if self.parser.next_token.symbol == 'element':
+    if self.parser.next_token.symbol in ('element', 'schema-element'):
         self[0:] = self.parser.expression(5),
         if self.parser.next_token.symbol == ',':
             raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
     elif self.parser.next_token.symbol != ')':
-        raise self.wrong_syntax('element() kind test expected', code='XPST0081')
+        raise self.error('XPST0003', 'element or schema-element kind test expected')
     self.parser.advance(')')
     self.value = None
     return self

@@ -612,10 +612,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_document_node_accessor(self):
         document = self.etree.parse(io.StringIO('<A/>'))
         context = XPathContext(root=document)
-        self.wrong_name("document-node(A)")
-        self.wrong_name("document-node(*)")
-        self.wrong_name("document-node(true())")
-        self.wrong_name("document-node(node())")
+        self.wrong_syntax("document-node(A)")
+        self.wrong_syntax("document-node(*)")
+        self.wrong_syntax("document-node(true())")
+        self.wrong_syntax("document-node(node())")
         self.wrong_type("document-node(element(A), 1)")
         self.check_select("document-node()", [], context)
         self.check_select("self::document-node()", [document], context)
@@ -840,7 +840,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_logical_expressions_(self):
         super(XPath2ParserTest, self).test_logical_expressions()
 
-        if xmlschema is not None:
+        if xmlschema is not None and xmlschema.__version__ >= '1.2.3':
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                   <xs:element name="root">

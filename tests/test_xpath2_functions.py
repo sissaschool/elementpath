@@ -93,7 +93,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         # Test cases taken from https://www.w3.org/TR/xquery-operators/#numeric-value-functions
         self.check_value("abs(10.5)", 10.5)
         self.check_value("abs(-10.5)", 10.5)
-        self.check_value("abs(())", [])
+        self.check_value("abs(())")
 
         root = self.etree.XML('<root>-10</root>')
         context = XPathContext(root, item=float('nan'))
@@ -111,7 +111,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertIn('Invalid string value', str(err.exception))
 
     def test_round_half_to_even_function(self):
-        self.check_value("round-half-to-even(())", [])
+        self.check_value("round-half-to-even(())")
         self.check_value("round-half-to-even(0.5)", 0)
         self.check_value("round-half-to-even(1.5)", 2)
         self.check_value("round-half-to-even(2.5)", 2)
@@ -140,7 +140,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          context=context)
         root_token = self.parser.parse("fn:avg(($d1, $seq3))")
         self.assertRaises(TypeError, root_token.evaluate, context=context)
-        self.check_value("fn:avg(())", [])
+        self.check_value("fn:avg(())")
         self.wrong_type("fn:avg('10')", 'FORG0006')
         self.check_value("fn:avg($seq3)", 4.0, context=context)
 
@@ -188,15 +188,15 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_string_to_codepoints_function(self):
         self.check_value('string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
-        self.check_value('string-to-codepoints(())', [])
+        self.check_value('string-to-codepoints(())')
 
     def test_codepoint_equal_function(self):
         self.check_value("fn:codepoint-equal('abc', 'abc')", True)
         self.check_value("fn:codepoint-equal('abc', 'abcd')", False)
         self.check_value("fn:codepoint-equal('', '')", True)
-        self.check_value("fn:codepoint-equal((), 'abc')", [])
-        self.check_value("fn:codepoint-equal('abc', ())", [])
-        self.check_value("fn:codepoint-equal((), ())", [])
+        self.check_value("fn:codepoint-equal((), 'abc')")
+        self.check_value("fn:codepoint-equal('abc', ())")
+        self.check_value("fn:codepoint-equal((), ())")
 
     def test_compare_function(self):
         env_locale_setting = locale.getlocale(locale.LC_COLLATE)
@@ -651,7 +651,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value(
             'fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "person"))', []
         )
-        self.check_value('fn:prefix-from-QName(())', [])
+        self.check_value('fn:prefix-from-QName(())')
         self.check_value('fn:prefix-from-QName(7)', TypeError)
         self.check_value('fn:prefix-from-QName("7")', TypeError)
 
@@ -659,7 +659,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value(
             'fn:local-name-from-QName(fn:QName("http://www.example.com/ns/", "person"))', 'person'
         )
-        self.check_value('fn:local-name-from-QName(())', [])
+        self.check_value('fn:local-name-from-QName(())')
         self.check_value('fn:local-name-from-QName(8)', TypeError)
         self.check_value('fn:local-name-from-QName("8")', TypeError)
 
@@ -672,7 +672,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
         )
-        self.check_value('fn:namespace-uri-from-QName(())', [])
+        self.check_value('fn:namespace-uri-from-QName(())')
         self.check_value('fn:namespace-uri-from-QName(1)', TypeError)
         self.check_value('fn:namespace-uri-from-QName("1")', TypeError)
         self.check_selector("fn:namespace-uri-from-QName(xs:QName('p3:C3'))", root, KeyError)
@@ -686,13 +686,13 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                               '</p1:A>')
         context = XPathContext(root=root)
 
-        self.check_value("fn:resolve-QName((), .)", [], context=context.copy())
+        self.check_value("fn:resolve-QName((), .)", context=context.copy())
         self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context.copy())
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError, namespaces={'p3': ''})
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError)
         self.check_value("fn:resolve-QName(2, .)", TypeError, context=context.copy())
         self.check_value("fn:resolve-QName('2', .)", ValueError, context=context.copy())
-        self.check_value("fn:resolve-QName((), 4)", [], context=context.copy())
+        self.check_value("fn:resolve-QName((), 4)", context=context.copy())
 
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector("fn:resolve-QName('C3', .)", root,
@@ -706,7 +706,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                               '</p1:A>')
         context = XPathContext(root=root)
 
-        self.check_value("fn:namespace-uri-for-prefix('p1', .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('p1', .)", context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix(4, .)", TypeError, context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('p1', 9)", TypeError, context=context.copy())
         self.check_value("fn:namespace-uri-for-prefix('eg', .)",
@@ -715,13 +715,13 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                             root, NameError, namespaces={'p3': ''})
 
         # Note: default namespace for XPath 2 tests is 'http://www.example.com/ns/'
-        self.check_value("fn:namespace-uri-for-prefix('', .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('', .)", context=context.copy())
         self.check_value(
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
         )
-        self.check_value("fn:namespace-uri-for-prefix('', .)", [], context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix((), .)", [], context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('', .)", context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix((), .)", context=context.copy())
 
     def test_in_scope_prefixes_function(self):
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
@@ -847,37 +847,37 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          DayTimeDuration.fromstring('-PT5H'))
 
     def test_years_from_duration_function(self):
-        self.check_value('fn:years-from-duration(())', [])
+        self.check_value('fn:years-from-duration(())')
         self.check_value('fn:years-from-duration(xs:yearMonthDuration("P20Y15M"))', 21)
         self.check_value('fn:years-from-duration(xs:yearMonthDuration("-P15M"))', -1)
         self.check_value('fn:years-from-duration(xs:dayTimeDuration("-P2DT15H"))', 0)
 
     def test_months_from_duration_function(self):
-        self.check_value('fn:months-from-duration(())', [])
+        self.check_value('fn:months-from-duration(())')
         self.check_value('fn:months-from-duration(xs:yearMonthDuration("P20Y15M"))', 3)
         self.check_value('fn:months-from-duration(xs:yearMonthDuration("-P20Y18M"))', -6)
         self.check_value('fn:months-from-duration(xs:dayTimeDuration("-P2DT15H0M0S"))', 0)
 
     def test_days_from_duration_function(self):
-        self.check_value('fn:days-from-duration(())', [])
+        self.check_value('fn:days-from-duration(())')
         self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT10H"))', 3)
         self.check_value('fn:days-from-duration(xs:dayTimeDuration("P3DT55H"))', 5)
         self.check_value('fn:days-from-duration(xs:yearMonthDuration("P3Y5M"))', 0)
 
     def test_hours_from_duration_function(self):
-        self.check_value('fn:hours-from-duration(())', [])
+        self.check_value('fn:hours-from-duration(())')
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT10H"))', 10)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("P3DT12H32M12S"))', 12)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("PT123H"))', 3)
         self.check_value('fn:hours-from-duration(xs:dayTimeDuration("-P3DT10H"))', -10)
 
     def test_minutes_from_duration_function(self):
-        self.check_value('fn:minutes-from-duration(())', [])
+        self.check_value('fn:minutes-from-duration(())')
         self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("P3DT10H"))', 0)
         self.check_value('fn:minutes-from-duration(xs:dayTimeDuration("-P5DT12H30M"))', -30)
 
     def test_seconds_from_duration_function(self):
-        self.check_value('fn:seconds-from-duration(())', [])
+        self.check_value('fn:seconds-from-duration(())')
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("P3DT10H12.5S"))', 12.5)
         self.check_value('fn:seconds-from-duration(xs:dayTimeDuration("-PT256S"))', -16.0)
 
@@ -900,10 +900,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root=self.etree.XML('<A/>'))
         parser = XPath2Parser(base_uri='http://www.example.com/ns/')
-        with self.assertRaises(ValueError) as err:
-            parser.parse('data(fn:resolve-uri(()))').evaluate(context)
-        self.assertIn('FOTY0012', str(err.exception))
-        self.assertIn('argument node does not have a typed value', str(err.exception))
+        self.assertEqual(parser.parse('data(fn:resolve-uri(()))').evaluate(context), [])
 
     def test_node_set_id_function(self):
         root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
@@ -1041,7 +1038,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             DateTime.fromstring('2002-03-07T10:00:00'), context
         )
 
-        self.check_value('fn:adjust-dateTime-to-timezone((), ())', [])
+        self.check_value('fn:adjust-dateTime-to-timezone((), ())')
 
     def test_adjust_date_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
@@ -1060,7 +1057,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:adjust-date-to-timezone(xs:date("2002-03-07-07:00"), $tz)',
                          Date.fromstring('2002-03-06-10:00'), context)
 
-        self.check_value('fn:adjust-date-to-timezone((), ())', [])
+        self.check_value('fn:adjust-date-to-timezone((), ())')
         self.check_value('adjust-date-to-timezone(xs:date("-25252734927766555-06-07+02:00"), '
                          'xs:dayTimeDuration("PT0S"))', OverflowError)
 
@@ -1068,8 +1065,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
                                variable_values={'tz': DayTimeDuration.fromstring("-PT10H")})
 
-        self.check_value('fn:adjust-time-to-timezone(())', [])
-        self.check_value('fn:adjust-time-to-timezone((), ())', [])
+        self.check_value('fn:adjust-time-to-timezone(())')
+        self.check_value('fn:adjust-time-to-timezone((), ())')
 
         self.check_value('fn:adjust-time-to-timezone(xs:time("10:00:00"))',
                          Time.fromstring('10:00:00-05:00'), context)
@@ -1130,8 +1127,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_document_uri_function(self):
         context = XPathContext(root=self.etree.parse(io.StringIO('<A/>')))
-        self.check_value('fn:document-uri(())', [], context=context)
-        self.check_value('fn:document-uri(.)', [], context=context)
+        self.check_value('fn:document-uri(())', context=context)
+        self.check_value('fn:document-uri(.)', context=context)
 
         context = XPathContext(root=self.etree.parse(io.StringIO('<A xml:base="/base_path/"/>')))
         self.check_value('fn:document-uri(.)', '/base_path/', context=context)
@@ -1141,7 +1138,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         doc = self.etree.parse(io.StringIO("<a><b1><c1/></b1><b2/><b3/></a>"))
         context = XPathContext(root, documents={'tns0': doc})
 
-        self.check_value("fn:doc(())", [], context=context)
+        self.check_value("fn:doc(())", context=context)
         self.check_value("fn:doc-available(())", False, context=context)
 
         self.check_value("fn:doc('tns0')", doc, context=context)

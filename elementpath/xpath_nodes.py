@@ -29,8 +29,8 @@ when XPath is applied on a schema.
 
 TextNode = namedtuple('Text', 'value')
 """
-A namedtuple-based type for processing XPath text nodes. A text node is the elem.text 
-value if this is `None`, otherwise the element doesn't have a text node. 
+A namedtuple-based type for processing XPath text nodes. A text node is the elem.text
+value if this is `None`, otherwise the element doesn't have a text node.
 
 :param value: the string value.
 """
@@ -49,7 +49,7 @@ A namedtuple-based type for processing typed-value attributes.
 
 :param attribute: the origin AttributeNode tuple.
 :param type: the reference XSD type.
-:param value: the decoded value. 
+:param value: the decoded value.
 """
 
 TypedElement = namedtuple('TypedElement', 'elem type value')
@@ -59,7 +59,7 @@ A namedtuple-based type for processing typed-value elements.
 :param elem: the origin element. Can be an Element, or an XSD element \
 when XPath is applied on a schema.
 :param type: the reference XSD type.
-:param value: the decoded value. Can be `None` for empty or element-only elements. 
+:param value: the decoded value. Can be `None` for empty or element-only elements.
 """
 
 
@@ -201,10 +201,10 @@ def match_attribute_node(obj, name=None):
 
 
 def is_element_node(obj):
-    return isinstance(obj, TypedElement) or (
-        hasattr(obj, 'tag') and not callable(obj.tag)
-        and hasattr(obj, 'attrib') and hasattr(obj, 'text')
-    )
+    if isinstance(obj, TypedElement):
+        return True
+    return hasattr(obj, 'tag') and not callable(obj.tag) and \
+        hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
 def is_schema_node(obj):
