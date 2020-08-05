@@ -15,6 +15,7 @@ from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE
 from . import datatypes
 from .datatypes import *
 from .xpath_token import XPathToken
+from .xpath_context import XPathSchemaContext
 from .xpath2_functions import XPath2Parser
 
 
@@ -602,6 +603,8 @@ def evaluate(self, context=None):
         except TypeError as err:
             raise self.error('XPTY0004', str(err))
         except ValueError as err:
+            if isinstance(context, XPathSchemaContext):
+                return ATOMIC_VALUES['QName']
             raise self.error('FOCA0002', str(err))
 
 

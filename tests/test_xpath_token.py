@@ -312,13 +312,13 @@ class XPath2TokenTest(XPath1TokenTest):
         self.assertIn("a name, a wildcard or a constructor", str(ctx.exception))
 
         token = self.parser.parse("xs:string(10.1)")
-        with self.assertRaises(SyntaxError) as ctx:
+        with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
-        self.assertIn('XPST0003', str(ctx.exception))
+        self.assertIn('XPST0017', str(ctx.exception))
         self.assertIn("a name, a wildcard or a constructor", str(ctx.exception))
 
         self.assertIsNone(token[1].bind_namespace(XSD_NAMESPACE))
-        with self.assertRaises(SyntaxError) as ctx:
+        with self.assertRaises(TypeError) as ctx:
             token[1].bind_namespace(XPATH_FUNCTIONS_NAMESPACE)
         self.assertIn("a function expected", str(ctx.exception))
 

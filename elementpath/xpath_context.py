@@ -156,7 +156,10 @@ class XPathContext(object):
         elif isinstance(item, TypedAttribute):
             path.append('@%s' % item[0][0])
             item = self._elem
-        if isinstance(item, TypedElement):
+
+        if item is None:
+            return '' if not path else path[0]
+        elif isinstance(item, TypedElement):
             item = item[0]
 
         while True:

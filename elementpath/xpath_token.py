@@ -157,7 +157,7 @@ class XPathToken(Token):
     ###
     # Dynamic context methods
     def get_argument(self, context, index=0, required=False, default_to_context=False,
-                     default=None, cls=None):
+                     default=None, cls=None, promote=None):
         """
         Get the argument value of a function of constructor token. A zero length sequence is
         converted to a `None` value. If the function has no argument returns the context's
@@ -171,6 +171,7 @@ class XPathToken(Token):
         :param default: the default value returned in case the argument is an empty sequence. \
         If not provided returns `None`.
         :param cls: if a type is provided performs a type checking on item.
+        :param promote: a class or a tuple of classes that are promoted to `cls` class.
         """
         try:
             selector = self._items[index].select
@@ -208,6 +209,9 @@ class XPathToken(Token):
 
         # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         if cls is not None and not isinstance(item, cls):
+            if promote and isinstance(item, promote):
+                return cls(item)
+
             if self.parser.compatibility_mode:
                 if issubclass(cls, str):
                     return self.string_value(item)
@@ -501,13 +505,13 @@ class XPathToken(Token):
         elif namespace == XPATH_FUNCTIONS_NAMESPACE:
             if self.label != 'function':
                 msg = "a name, a wildcard or a function expected"
-                raise self.wrong_syntax(msg)
+                raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
             if self.label != 'constructor':
                 msg = "a name, a wildcard or a constructor function expected"
-                raise self.wrong_syntax(msg)
+                raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor'
         else:
@@ -897,15 +901,23 @@ class XPathToken(Token):
             )
 
     # Shortcuts for XPath errors, only the wrong_syntax
+    def expected(self, *symbols, message=None, code='XPST0003'):
+        if symbols and self.symbol not in symbols:
+            raise self.wrong_syntax(message, code)
+
+    def unexpected(self, *symbols, message=None, code='XPST0003'):
+        if not symbols or self.symbol in symbols:
+            raise self.wrong_syntax(message, code)
+
     def wrong_syntax(self, message=None, code='XPST0003'):
         if self.label == 'function':
             code = 'XPST0017'
 
         if message:
             return self.error(code, message)
-        else:
-            error = super(XPathToken, self).wrong_syntax(message)
-            return self.error(code, str(error))
+
+        error = super(XPathToken, self).wrong_syntax(message)
+        return self.error(code, str(error))
 
     def wrong_value(self, message=None):
         return self.error('FOCA0002', message)

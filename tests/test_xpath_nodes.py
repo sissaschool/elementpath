@@ -21,11 +21,20 @@ from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
 from elementpath.schema_proxy import AbstractXsdType
 
 
-DummyXsdType = type(
-    'XsdType', (AbstractXsdType,),
-    dict(name=None, local_name=None, is_matching=lambda x: False, **{
-        k: lambda x: None for k in AbstractXsdType.__dict__ if k[0] != '_'
-    }))
+class DummyXsdType(AbstractXsdType):
+    name = local_name = None
+
+    def is_matching(self, name, default_namespace): return False
+    def is_empty(self): return False
+    def is_simple(self): return False
+    def has_simple_content(self): return False
+    def has_mixed_content(self): return False
+    def is_element_only(self): return False
+    def is_key(self): return False
+    def is_qname(self): return False
+    def is_notation(self): return False
+    def decode(self, obj, *args, **kwargs): return None
+    def validate(self, obj, *args, **kwargs): pass
 
 
 class XPathNodesTest(unittest.TestCase):
@@ -45,8 +54,8 @@ class XPathNodesTest(unittest.TestCase):
         self.assertListEqual(list(etree_iter_nodes(root)), result)
         self.assertListEqual(list(etree_iter_nodes(root, with_root=False)), result[1:])
 
-        with patch.multiple(DummyXsdType(), is_simple=lambda x: False,
-                            has_mixed_content=lambda x: True) as xsd_type:
+        with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
+            xsd_type = DummyXsdType()
             typed_root = TypedElement(root, xsd_type, 'text1')
             self.assertListEqual(list(etree_iter_nodes(typed_root)), result)
 
@@ -62,15 +71,16 @@ class XPathNodesTest(unittest.TestCase):
         result = ['text1\n', 'text2', 'tail1', 'tail2', 'text3']
         self.assertListEqual(list(etree_iter_strings(root)), result)
 
-        with patch.multiple(DummyXsdType(), is_simple=lambda x: False,
-                            has_mixed_content=lambda x: True) as xsd_type:
-            typed_root = TypedElement(root, xsd_type, 'text1')
+        with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
+            xsd_type = DummyXsdType()
+            typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
             self.assertListEqual(list(etree_iter_strings(typed_root)), result)
 
-        with patch.multiple(DummyXsdType(), is_simple=lambda x: False,
-                            is_element_only=lambda x: True) as xsd_type:
-            typed_root = TypedElement(root, xsd_type, 'text1')
-            self.assertListEqual(list(etree_iter_strings(typed_root)), result)
+        norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
+        with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
+            xsd_type = DummyXsdType()
+            typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
+            self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
 
         comment = ElementTree.Comment('foo')
         root[1].append(comment)
