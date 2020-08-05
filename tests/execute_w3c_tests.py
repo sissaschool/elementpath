@@ -389,6 +389,12 @@ class TestCase(object):
             test_namespaces = static_base_uri = schema_proxy = None
         else:
             test_namespaces = environment.namespaces.copy()
+            for source in environment.sources.values():
+                if source.namespaces:
+                    for pfx, uri in source.namespaces.items():
+                        if pfx not in test_namespaces:
+                            test_namespaces[pfx] = uri
+
             static_base_uri = environment.static_base_uri
 
             if environment.schema is None or not environment.schema.filepath:

@@ -88,6 +88,7 @@ def etree_iter_nodes(elem, with_root=True, with_attributes=False):
 
 def etree_iter_strings(elem, normalize=False):
     if isinstance(elem, TypedElement):
+        normalize = elem.type.is_element_only()
         elem = elem.elem
 
     if not normalize:
@@ -290,7 +291,14 @@ def node_kind(obj):
 
 
 def node_name(obj):
-    if is_element_node(obj):
+    if isinstance(obj, tuple):
+        if isinstance(obj, (AttributeNode, NamespaceNode)):
+            return obj[0]
+        elif isinstance(obj, TypedAttribute):
+            return obj[0][0]
+        elif isinstance(obj, TypedElement):
+            return obj[0].tag
+
+    elif hasattr(obj, 'tag') and not callable(obj.tag) \
+            and hasattr(obj, 'attrib') and hasattr(obj, 'text'):
         return obj.tag
-    elif isinstance(obj, (AttributeNode, TypedAttribute, NamespaceNode)):
-        return obj[0]

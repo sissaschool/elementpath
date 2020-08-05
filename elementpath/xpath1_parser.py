@@ -1004,7 +1004,8 @@ def select(self, context=None):
             yield context.root
     elif len(self) == 1:
         if is_document_node(context.root) or context.item is context.root:
-            context.item = None
+            if not isinstance(context, XPathSchemaContext):
+                context.item = None
             yield from self[0].select(context)
     else:
         items = []
@@ -1101,7 +1102,7 @@ def select(self, context=None):
 # Axes
 @method('@', bp=80)
 def nud(self):
-    self.parser.expected_name('*', '(name)', ':', message="invalid attribute specification")
+    self.parser.expected_name('*', '(name)', ':', '{', message="invalid attribute specification")
     self[:] = self.parser.expression(rbp=80),
     return self
 
@@ -1307,7 +1308,16 @@ def select(self, context=None):
 @method(function('local-name', nargs=(0, 1)))
 @method(function('namespace-uri', nargs=(0, 1)))
 def evaluate(self, context=None):
-    name = node_name(self.get_argument(context, default_to_context=True))
+    if context is None:
+        raise self.missing_context()
+
+    arg = self.get_argument(context, default_to_context=True)
+    if arg is None:
+        return ''
+    elif not is_xpath_node(arg):
+        raise self.error('XPTY0004')
+
+    name = node_name(arg)
     if name is None:
         return ''
 
@@ -1359,7 +1369,7 @@ def evaluate(self, context=None):
 
 @method(function('normalize-space', nargs=(0, 1)))
 def evaluate(self, context=None):
-    if self.parser.version == '1.0':
+    if self.parser.version == '1.0' or not self:
         arg = self.string_value(self.get_argument(context, default_to_context=True, default=''))
     else:
         arg = self.get_argument(context, default_to_context=True, default='', cls=str)

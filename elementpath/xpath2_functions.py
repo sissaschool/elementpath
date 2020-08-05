@@ -186,7 +186,13 @@ def evaluate(self, context=None):
 # Accessor functions
 @method(function('node-name', nargs=1))
 def evaluate(self, context=None):
-    name = node_name(self.get_argument(context))
+    arg = self.get_argument(context)
+    if arg is None:
+        return []
+    elif not is_xpath_node(arg):
+        raise self.error('XPTY0004', 'an XPath node required')
+
+    name = node_name(arg)
     if name is None:
         return []
 
@@ -213,7 +219,13 @@ def evaluate(self, context=None):
 
 @method(function('nilled', nargs=1))
 def evaluate(self, context=None):
-    result = node_nilled(self.get_argument(context))
+    arg = self.get_argument(context)
+    if arg is None:
+        return []
+    elif not is_xpath_node(arg):
+        raise self.error('XPTY0004', 'an XPath node required')
+
+    result = node_nilled(arg)
     return [] if result is None else result
 
 
@@ -894,7 +906,7 @@ def evaluate(self, context=None):
 
 @method(function('iri-to-uri', nargs=1))
 def evaluate(self, context=None):
-    iri = self.get_argument(context, cls=str)
+    iri = self.get_argument(context, cls=str, promote=AnyURI)
     return '' if iri is None else urllib_quote(iri, safe='-_.!~*\'()#;/?:@&=+$,[]%')
 
 
