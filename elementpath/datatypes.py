@@ -47,7 +47,7 @@ def collapse_white_spaces(s):
 
 def is_idrefs(value):
     return isinstance(value, str) and \
-           all(NCNAME_PATTERN.match(x) is not None for x in value.split())
+        all(NCNAME_PATTERN.match(x) is not None for x in value.split())
 
 
 ###

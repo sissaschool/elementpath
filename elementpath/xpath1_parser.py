@@ -267,15 +267,14 @@ class XPath1Parser(Parser):
     def is_instance(self, obj, type_qname):
         if type_qname == XSD_UNTYPED_ATOMIC:
             return isinstance(obj, UntypedAtomic)
-        elif self.schema is not None:
-            return self.schema.is_instance(obj, type_qname)
-
-        if get_namespace(type_qname) == XSD_NAMESPACE:
+        elif get_namespace(type_qname) == XSD_NAMESPACE:
             try:
                 return isinstance(obj, atomic_types[type_qname])
             except KeyError:
                 pass
 
+        if self.schema is not None:
+            return self.schema.is_instance(obj, type_qname)
         raise ElementPathKeyError("unknown type %r" % type_qname)
 
     def is_sequence_type(self, value):
@@ -556,7 +555,7 @@ def select(self, context=None):
         value = self[1].evaluate(context)
         if isinstance(value, list):
             yield from value
-        else:
+        elif value is not None:
             yield value
         return
 

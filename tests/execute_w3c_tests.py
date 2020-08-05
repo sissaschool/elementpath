@@ -68,6 +68,9 @@ SKIP_TESTS = [
 
     # For XQuery??
     'fn-deep-equal__K2-SeqDeepEqualFunc-43',  # includes a '!' symbol
+
+    # IMHO incorrect tests
+    'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
 ]
 
 

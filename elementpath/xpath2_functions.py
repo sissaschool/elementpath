@@ -24,7 +24,7 @@ from urllib.parse import urlsplit, quote as urllib_quote
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, StringProxy, \
     Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, \
-    AnyURI, QName, Id, is_idrefs, ArithmeticProxy
+    AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
@@ -59,7 +59,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
-        return []
+        return
     elif not isinstance(qname, QName):
         raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
     return qname.prefix or []
@@ -69,20 +69,20 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
-        return []
+        return
     elif not isinstance(qname, QName):
         raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
-    return qname.local_name
+    return NCName(qname.local_name)
 
 
 @method(function('namespace-uri-from-QName', nargs=1))
 def evaluate(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
-        return []
+        return
     elif not isinstance(qname, QName):
         raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
-    return qname.namespace or ''
+    return AnyURI(qname.namespace or '')
 
 
 @method(function('namespace-uri-for-prefix', nargs=2))
@@ -104,11 +104,10 @@ def evaluate(self, context=None):
         if uri in ns_uris:
             if p == prefix:
                 if not prefix or uri:
-                    return uri
+                    return AnyURI(uri)
                 else:
                     msg = 'Prefix %r is associated to no namespace'
                     raise self.error('XPST0081', msg % prefix)
-    return []
 
 
 @method(function('in-scope-prefixes', nargs=1))
@@ -145,7 +144,7 @@ def select(self, context=None):
 def evaluate(self, context=None):
     qname = self.get_argument(context=copy(context))
     if qname is None:
-        return []
+        return
     elif not isinstance(qname, str):
         raise self.error('FORG0006', '1st argument has an invalid type %r' % type(qname))
 
@@ -188,13 +187,13 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
-        return []
+        return
     elif not is_xpath_node(arg):
         raise self.error('XPTY0004', 'an XPath node required')
 
     name = node_name(arg)
     if name is None:
-        return []
+        return
 
     if name.startswith('{'):
         namespace, local_name = split_expanded_name(name)
@@ -221,12 +220,10 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
-        return []
+        return
     elif not is_xpath_node(arg):
         raise self.error('XPTY0004', 'an XPath node required')
-
-    result = node_nilled(arg)
-    return [] if result is None else result
+    return node_nilled(arg)
 
 
 @method(function('data', nargs=1))
@@ -245,7 +242,7 @@ def evaluate(self, context=None):
     if context is None:
         raise self.missing_context("context item is undefined")
     elif item is None:
-        return []
+        return
     elif not is_xpath_node(item):
         raise self.wrong_context_type("context item is not a node")
     else:
@@ -259,7 +256,7 @@ def evaluate(self, context=None):
 
     arg = self.get_argument(context)
     if arg is None or not is_document_node(arg):
-        return []
+        return
 
     uri = node_document_uri(arg)
     if uri is not None:
@@ -272,8 +269,6 @@ def evaluate(self, context=None):
         except AttributeError:
             pass
 
-    return []
-
 
 ###
 # Number functions
@@ -281,7 +276,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
-        return []
+        return
     elif isinstance(item, float) and (math.isnan(item) or math.isinf(item)):
         return item
     elif not isinstance(item, (float, int, Decimal)):
@@ -299,7 +294,7 @@ def evaluate(self, context=None):
         return float(round(Decimal.from_float(item), precision))
     except TypeError as err:
         raise self.error('XPTY0004', str(err))
-    except DecimalException as err:
+    except DecimalException:
         if isinstance(item, Decimal):
             return Decimal.from_float(round(float(item), precision))
         return round(item, precision)
@@ -309,7 +304,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context)
     if item is None:
-        return []
+        return
     elif isinstance(item, float) and math.isnan(item):
         return item
     elif is_xpath_node(item):
@@ -338,7 +333,7 @@ def evaluate(self, context=None):
             values.append(item)
 
     if not values:
-        return values
+        return
     elif isinstance(values[0], Duration):
         value = values[0]
         try:
@@ -797,9 +792,9 @@ def evaluate(self, context=None):
 
 
 @method(function('string-to-codepoints', nargs=1))
-def select(self, context=None):
+def evaluate(self, context=None):
     try:
-        yield from (ord(c) for c in self[0].evaluate(context))
+        return [ord(c) for c in self[0].evaluate(context)] or None
     except TypeError:
         raise self.error('XPTY0004', 'an xs:string required') from None
 
@@ -810,11 +805,11 @@ def evaluate(self, context=None):
     comp2 = self.get_argument(context, 1, cls=StringProxy)
     if not isinstance(comp1, str):
         if comp1 is None:
-            return []
+            return
         comp1 = str(comp1)
     if not isinstance(comp2, str):
         if comp2 is None:
-            return []
+            return
         comp2 = str(comp2)
 
     if len(self) < 3:
@@ -843,7 +838,7 @@ def evaluate(self, context=None):
     comp1 = self.get_argument(context, 0, cls=str)
     comp2 = self.get_argument(context, 1, cls=str)
     if comp1 is None or comp2 is None:
-        return []
+        return
     elif len(comp1) != len(comp2):
         return False
     else:
@@ -938,7 +933,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return []
+        return
     else:
         return item.months // 12 if item.months >= 0 else -(abs(item.months) // 12)
 
@@ -947,7 +942,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return []
+        return
     else:
         return item.months % 12 if item.months >= 0 else -(abs(item.months) % 12)
 
@@ -956,7 +951,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return []
+        return
     else:
         return item.seconds // 86400 if item.seconds >= 0 else -(abs(item.seconds) // 86400)
 
@@ -965,7 +960,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return []
+        return
     else:
         return item.seconds // 3600 % 24 if item.seconds >= 0 else -(abs(item.seconds) // 3600 % 24)
 
@@ -974,7 +969,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return []
+        return
     else:
         return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
 
@@ -983,7 +978,7 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return []
+        return
     else:
         return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
 
@@ -998,7 +993,7 @@ def evaluate(self, context=None):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     item = self.get_argument(context, cls=cls)
     if item is None:
-        return []
+        return
     elif self.symbol.startswith('year'):
         return -(item.year + 1) if item.bce else item.year
     elif self.symbol.startswith('month'):
@@ -1020,7 +1015,7 @@ def evaluate(self, context=None):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     item = self.get_argument(context, cls=cls)
     if item is None or item.tzinfo is None:
-        return []
+        return
     return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
@@ -1032,7 +1027,7 @@ def evaluate(self, context=None):
     cls = Date if self.parser.xsd_version == '1.1' else Date10
     item = self.get_argument(context, cls=cls)
     if item is None:
-        return []
+        return
     elif self.symbol.startswith('year'):
         return item.year
     elif self.symbol.startswith('month'):
@@ -1040,33 +1035,33 @@ def evaluate(self, context=None):
     elif self.symbol.startswith('day'):
         return item.day
     elif item.tzinfo is None:
-        return []
+        return
     return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
 @method(function('hours-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
-    return [] if item is None else item.hour
+    return None if item is None else item.hour
 
 
 @method(function('minutes-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
-    return [] if item is None else item.minute
+    return None if item is None else item.minute
 
 
 @method(function('seconds-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
-    return [] if item is None else item.second + item.microsecond / Decimal('1000000.0')
+    return None if item is None else item.second + item.microsecond / Decimal('1000000.0')
 
 
 @method(function('timezone-from-time', nargs=1))
 def evaluate(self, context=None):
     item = self.get_argument(context, cls=Time)
     if item is None or item.tzinfo is None:
-        return []
+        return
     return DayTimeDuration(seconds=item.tzinfo.offset.total_seconds())
 
 
@@ -1075,21 +1070,18 @@ def evaluate(self, context=None):
 @method(function('adjust-dateTime-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
-    dt = self.adjust_datetime(context, cls)
-    return [] if dt is None else dt
+    return self.adjust_datetime(context, cls)
 
 
 @method(function('adjust-date-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
     cls = Date if self.parser.xsd_version == '1.1' else Date10
-    dt = self.adjust_datetime(context, cls)
-    return [] if dt is None else dt
+    return self.adjust_datetime(context, cls)
 
 
 @method(function('adjust-time-to-timezone', nargs=(1, 2)))
 def evaluate(self, context=None):
-    tm = self.adjust_datetime(context, Time)
-    return [] if tm is None else tm
+    return self.adjust_datetime(context, Time)
 
 
 ###
@@ -1293,7 +1285,7 @@ def select(self, context=None):
 def evaluate(self, context=None):
     uri = self.get_argument(context)
     if uri is None:
-        return [] if self.symbol == 'doc' else False
+        return None if self.symbol == 'doc' else False
     elif context is None:
         raise self.missing_context()
     elif isinstance(uri, str):
