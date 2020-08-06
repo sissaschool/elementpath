@@ -25,9 +25,6 @@ from urllib.parse import urlparse
 
 from .namespaces import XSD_NAMESPACE
 
-
-atomic_types = {}
-
 ###
 # Data validation helpers
 
@@ -223,6 +220,16 @@ class Timezone(datetime.tzinfo):
                             "datetime.datetime instance or None")
 
 
+###
+# Classes for XSD built-in atomic types. All defined classes use a
+# metaclass that adds some common methods and registers each class
+# into a dictionary. Some classes of XSD primitive types are defined 
+# as proxies of basic Python datatypes.
+
+atomic_types = {}
+"""Dictionary of builtin XSD atomic types."""
+
+
 class AtomicTypeABCMeta(ABCMeta):
     """
     Metaclass for creating XSD atomic types. The created classes
@@ -293,9 +300,6 @@ class AtomicTypeABCMeta(ABCMeta):
 class AnyAtomicType(metaclass=AtomicTypeABCMeta):
     name = 'anyAtomicType'
 
-
-###
-# Classes for XSD built-in primitive types
 
 class AbstractDateTime(metaclass=AtomicTypeABCMeta):
     """
@@ -1143,27 +1147,7 @@ class DayTimeDuration(Duration):
         return DayTimeDuration(seconds)
 
 
-class String(str, metaclass=AtomicTypeABCMeta):
-    name = 'string'
-    pattern = re.compile('.*')
-
-    @classmethod
-    def __subclasshook__(cls, subclass):
-        if cls is String:
-            return issubclass(subclass, str)
-        return NotImplemented
-
-    @classmethod
-    def validate(cls, value):
-        if isinstance(value, cls):
-            return
-        elif not isinstance(value, str):
-            raise cls.invalid_type(value)
-        elif cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
-
-
-class NormalizedString(String):
+class NormalizedString(str, metaclass=AtomicTypeABCMeta):
     name = 'normalizedString'
     pattern = re.compile('[^\t\r]*')
 
@@ -1465,20 +1449,6 @@ class Integer(int, metaclass=AtomicTypeABCMeta):
             return issubclass(subclass, int) and not issubclass(subclass, bool)
         return NotImplemented
 
-    def __mod__(self, other):
-        if not isinstance(other, (int, Decimal)):
-            pass  # Type error??
-        value = super(Integer, self).__mod__(other)
-        # adapt to limits ...
-        return value
-
-    def __rmod__(self, other):
-        if not isinstance(other, (int, Decimal)):
-            pass  # Type error??
-        value = super(Integer, self).__rmod__(other)
-        # adapt to limits ...
-        return value
-
     @classmethod
     def validate(cls, value):
         if isinstance(value, cls):
@@ -1725,13 +1695,20 @@ class QName(AnyAtomicType):
         return self.namespace == other.namespace and self.local_name == other.local_name
 
 
-class UntypedAtomic(object):
+class UntypedAtomic(metaclass=AtomicTypeABCMeta):
     """
     Class for xs:untypedAtomic data. Provides special methods for comparing
     and converting to basic data types.
 
     :param value: the untyped value, usually a string.
     """
+    name = 'untypedAtomic'
+
+    @classmethod
+    def validate(cls, value):
+        if not isinstance(value, (cls, str)):
+            raise cls.invalid_type(value)
+
     def __init__(self, value):
         if isinstance(value, str):
             self.value = value
@@ -1945,6 +1922,22 @@ class DoubleProxy(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
+class StringProxy(metaclass=AtomicTypeABCMeta):
+    name = 'string'
+
+    def __new__(cls, *args, **kwargs):
+        return str(*args, **kwargs)
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return issubclass(subclass, str)
+
+    @classmethod
+    def validate(cls, value):
+        if not isinstance(value, str):
+            raise cls.invalid_type(value)
+
+
 ####
 # Type proxies for multiple type-checking in XPath expressions
 class NumericTypeMeta(type):
@@ -1990,30 +1983,13 @@ class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
         return float(*args, **kwargs)
 
 
-class StringTypeMeta(type):
-    """Metaclass for checking string, AnyURI and UntypedAtomic classes."""
-
-    def __instancecheck__(cls, instance):
-        return isinstance(instance, (str, AnyURI, UntypedAtomic))
-
-    def __subclasscheck__(cls, subclass):
-        return issubclass(subclass, str) or issubclass(subclass, AnyURI) \
-            or issubclass(subclass, UntypedAtomic)
-
-
-class StringProxy(metaclass=StringTypeMeta):
-    """Proxy for string related types. Builds str instances."""
-
-    def __new__(cls, *args, **kwargs):
-        return str(*args, **kwargs)
-
-
 ##
 # Register not derived XSD primitive types as virtual subclasses of AnyAtomicType
 
 AnyAtomicType.register(BooleanProxy)
 AnyAtomicType.register(Base64Binary)
 AnyAtomicType.register(DecimalProxy)
+AnyAtomicType.register(StringProxy)
 AnyAtomicType.register(Date10)
 AnyAtomicType.register(DateTime10)
 AnyAtomicType.register(DoubleProxy)
@@ -2024,9 +2000,9 @@ AnyAtomicType.register(GregorianYear10)
 AnyAtomicType.register(GregorianYearMonth10)
 AnyAtomicType.register(HexBinary)
 AnyAtomicType.register(Notation)
-AnyAtomicType.register(String)
 AnyAtomicType.register(Time)
 AnyAtomicType.register(UntypedAtomic)
+StringProxy.register(NormalizedString)
 
 XSD_BUILTIN_TYPES = atomic_types
 
@@ -2035,10 +2011,11 @@ ATOMIC_VALUES = {
     'anyType': UntypedAtomic('1'),
     'anySimpleType': UntypedAtomic('1'),
     'anyAtomicType': UntypedAtomic('1'),
-    'string': '  alpha\t',
+    'boolean': True,
     'decimal': Decimal('1.0'),
     'double': 1.0,
-    'float': 1.0,
+    'float': Float(1.0),
+    'string': '  alpha\t',
     'date': Date.fromstring('2000-01-01'),
     'dateTime': DateTime.fromstring('2000-01-01T12:00:00'),
     'gDay': GregorianDay.fromstring('---31'),
@@ -2051,45 +2028,43 @@ ATOMIC_VALUES = {
     'dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
     'yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
     'QName': QName(XSD_NAMESPACE, 'xs:element'),
-    'NOTATION': 'alpha',
     'anyURI': AnyURI('https://example.com'),
-    'normalizedString': ' alpha  ',
-    'token': 'a token',
-    'language': 'en-US',
-    'Name': '_a.name::',
-    'NCName': 'nc-name',
-    'ID': 'id1',
-    'IDREF': 'id_ref1',
-    'ENTITY': 'entity1',
-    'NMTOKEN': 'a_token',
-    'base64Binary': b'YWxwaGE=',
-    'hexBinary': b'31',
-    'dateTimeStamp': '2000-01-01T12:00:00+01:00',
-    'integer': 1,
-    'long': 1,
-    'int': 1,
-    'short': 1,
-    'byte': 1,
-    'positiveInteger': 1,
-    'negativeInteger': -1,
-    'nonPositiveInteger': 0,
-    'nonNegativeInteger': 0,
-    'unsignedLong': 1,
-    'unsignedInt': 1,
-    'unsignedShort': 1,
-    'unsignedByte': 1,
-    'boolean': True,
+    'normalizedString': NormalizedString(' alpha  '),
+    'token': XsdToken('a token'),
+    'language': Language('en-US'),
+    'Name': Name('_a.name::'),
+    'NCName': NCName('nc-name'),
+    'ID': Id('id1'),
+    'IDREF': Idref('id_ref1'),
+    'ENTITY': Entity('entity1'),
+    'NMTOKEN': NMToken('a_token'),
+    'base64Binary': Base64Binary(b'YWxwaGE='),
+    'hexBinary': HexBinary(b'31'),
+    'dateTimeStamp': DateTimeStamp.fromstring('2000-01-01T12:00:00+01:00'),
+    'integer': Integer(1),
+    'long': Long(1),
+    'int': Int(1),
+    'short': Short(1),
+    'byte': Byte(1),
+    'positiveInteger': PositiveInteger(1),
+    'negativeInteger': NegativeInteger(-1),
+    'nonPositiveInteger': NonPositiveInteger(0),
+    'nonNegativeInteger': NonNegativeInteger(0),
+    'unsignedLong': UnsignedLong(1),
+    'unsignedInt': UnsignedInt(1),
+    'unsignedShort': UnsignedShort(1),
+    'unsignedByte': UnsignedByte(1),
 }
 
-__all__ = ['atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES', 'is_idrefs', 'NumericProxy',
-           'ArithmeticProxy', 'StringProxy', 'QNAME_PATTERN', 'AnyAtomicType',
+__all__ = ['atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES', 'is_idrefs',
+           'NumericProxy', 'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType',
            'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
            'Date', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10',
-           'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth', 'Time', 'Timezone',
-           'Duration', 'YearMonthDuration', 'DayTimeDuration', 'String', 'NormalizedString',
-           'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref', 'Entity',
-           'NMToken', 'Base64Binary', 'HexBinary', 'Float', 'Integer',
-           'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int',
-           'Short', 'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong',
-           'UnsignedInt', 'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation',
-           'QName', 'BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'UntypedAtomic']
+           'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth', 'Time',
+           'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
+           'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',
+           'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float', 'Integer',
+           'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short', 'Byte',
+           'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
+           'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName',
+           'BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'UntypedAtomic']

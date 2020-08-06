@@ -19,7 +19,7 @@ from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, \
     QName, atomic_types, ATOMIC_VALUES
 from .xpath_context import XPathSchemaContext
-from .tdop_parser import Parser
+from .tdop import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_prefixed_name, get_expanded_name, \
     split_expanded_name

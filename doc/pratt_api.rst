@@ -2,18 +2,20 @@
 Pratt's parser API
 ******************
 
-The TDOP (Top Down Operator Precedence) parser implemented within this library is a variant of the
-original Pratt's parser based on a class for the parser and metaclasses for tokens.
+The TDOP (Top Down Operator Precedence) parser implemented within this library is
+a variant of the original Pratt's parser based on a class for the parser and
+meta-classes for tokens.
 
 The parser base class includes helper functions for registering token classes,
 the Pratt's methods and a regexp-based tokenizer builder. There are also additional
 methods and attributes to help the developing of new parsers. Parsers can be defined
-by class derivation and following a tokens registration procedure.
+by class derivation and following a tokens registration procedure. These classes are
+not available at package level but only within module `elementpath.tdop`.
 
 Token base class
 ================
 
-.. autoclass:: elementpath.Token
+.. autoclass:: elementpath.tdop.Token
 
     .. autoattribute:: arity
     .. autoattribute:: tree
@@ -36,7 +38,7 @@ Token base class
 Parser base class
 =================
 
-.. autoclass:: elementpath.Parser
+.. autoclass:: elementpath.tdop.Parser
 
     .. autoattribute:: position
 
@@ -67,3 +69,4 @@ Parser base class
     .. automethod:: method
     .. automethod:: build
     .. automethod:: create_tokenizer
+
