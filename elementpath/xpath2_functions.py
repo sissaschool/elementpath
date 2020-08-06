@@ -22,9 +22,9 @@ from decimal import Decimal, DecimalException
 from urllib.parse import urlsplit, quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, StringProxy, \
-    Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, \
-    AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy
+from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
+    Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
+    UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
@@ -801,8 +801,8 @@ def evaluate(self, context=None):
 
 @method(function('compare', nargs=(2, 3)))
 def evaluate(self, context=None):
-    comp1 = self.get_argument(context, 0, cls=StringProxy)
-    comp2 = self.get_argument(context, 1, cls=StringProxy)
+    comp1 = self.get_argument(context, 0, cls=str, promote=(AnyURI, UntypedAtomic))
+    comp2 = self.get_argument(context, 1, cls=str, promote=(AnyURI, UntypedAtomic))
     if not isinstance(comp1, str):
         if comp1 is None:
             return

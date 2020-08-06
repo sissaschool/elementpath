@@ -12,7 +12,7 @@ import unittest
 import re
 from collections import namedtuple
 
-from elementpath.tdop_parser import symbol_to_identifier, Parser, MultiLabel
+from elementpath.tdop import symbol_to_identifier, Parser, MultiLabel
 
 
 FakeToken = namedtuple('Token', 'symbol pattern')

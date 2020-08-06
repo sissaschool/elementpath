@@ -17,10 +17,9 @@ __status__ = "Production/Stable"
 
 from .exceptions import ElementPathError, MissingContextError, \
     ElementPathSyntaxError, ElementPathNameError, ElementPathKeyError, \
-    ElementPathTypeError, ElementPathLocaleError, ElementPathValueError
+    ElementPathTypeError, ElementPathLocaleError, ElementPathValueError, \
+    ElementPathOverflowError, ElementPathZeroDivisionError
 
-from . import datatypes
-from .tdop_parser import Token, Parser
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, NamespaceNode
 from .xpath_token import XPathToken
@@ -30,9 +29,9 @@ from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
 
 __all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
-           'ElementPathNameError', 'ElementPathKeyError', 'ElementPathTypeError',
-           'ElementPathLocaleError', 'ElementPathValueError', 'datatypes', 'Token',
-           'Parser', 'XPathContext', 'XPathSchemaContext', 'AttributeNode', 'TextNode',
-           'TypedAttribute', 'TypedElement', 'NamespaceNode', 'XPathToken',
-           'XPath1Parser', 'XPath2Parser', 'select', 'iter_select', 'Selector',
+           'ElementPathKeyError', 'ElementPathLocaleError', 'ElementPathNameError',
+           'ElementPathOverflowError', 'ElementPathValueError', 'ElementPathTypeError',
+           'ElementPathZeroDivisionError', 'datatypes', 'XPathContext', 'XPathSchemaContext',
+           'AttributeNode', 'TextNode', 'TypedAttribute', 'TypedElement', 'NamespaceNode',
+           'XPathToken', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select', 'Selector',
            'AbstractSchemaProxy']

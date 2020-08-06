@@ -46,8 +46,8 @@ SPECIAL_SYMBOLS = frozenset((
 SPACE_PATTERN = re.compile(r'\s')
 
 
-class TdopSyntaxError(SyntaxError):
-    """Syntax error class for the TDOP parsing."""
+class ParseError(SyntaxError):
+    """An error when parsing source with TDOP parser."""
 
 
 def count_leading_spaces(s):
@@ -288,21 +288,21 @@ class Token(MutableSequence):
 
     def wrong_syntax(self, message=None):
         if message:
-            return TdopSyntaxError(message)
+            return ParseError(message)
         elif self.symbol not in SPECIAL_SYMBOLS:
-            return TdopSyntaxError('unexpected %s' % self)
+            return ParseError('unexpected %s' % self)
         elif self.symbol == '(invalid)':
-            return TdopSyntaxError('invalid literal %r' % self.value)
+            return ParseError('invalid literal %r' % self.value)
         elif self.symbol == '(unknown)':
-            return TdopSyntaxError('unknown symbol %r' % self.value)
+            return ParseError('unknown symbol %r' % self.value)
         elif self.symbol == '(name)':
-            return TdopSyntaxError('unexpected name %r' % self.value)
+            return ParseError('unexpected name %r' % self.value)
         elif self.symbol != '(end)':
-            return TdopSyntaxError('unexpected literal %r' % self.value)
+            return ParseError('unexpected literal %r' % self.value)
         elif self.parser.token is None:
-            return TdopSyntaxError('source is empty')
+            return ParseError('source is empty')
         else:
-            return TdopSyntaxError('unexpected end of source')
+            return ParseError('unexpected end of source')
 
     def wrong_type(self, message='invalid type'):
         return TypeError(message)

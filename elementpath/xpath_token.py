@@ -34,7 +34,7 @@ from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute,
 from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
     Date10, DayTimeDuration, Duration
 from .schema_proxy import AbstractSchemaProxy
-from .tdop_parser import Token, MultiLabel
+from .tdop import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
 
 getcontext().prec = 30

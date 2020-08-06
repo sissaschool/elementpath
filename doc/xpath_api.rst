@@ -125,15 +125,15 @@ Exception classes
 .. autoexception:: elementpath.ElementPathError
 .. autoexception:: elementpath.MissingContextError
 
-Other exceptions
-----------------
 
-There are some exceptions derived from the base exception and Python built-in exceptions:
+There are also other exceptions, multiple derived from the base exception
+and Python built-in exceptions:
 
 .. autoexception:: elementpath.ElementPathKeyError
 .. autoexception:: elementpath.ElementPathLocaleError
 .. autoexception:: elementpath.ElementPathNameError
+.. autoexception:: elementpath.ElementPathOverflowError
 .. autoexception:: elementpath.ElementPathSyntaxError
 .. autoexception:: elementpath.ElementPathTypeError
 .. autoexception:: elementpath.ElementPathValueError
-
+.. autoexception:: elementpath.ElementPathZeroDivisionError
