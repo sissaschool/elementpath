@@ -223,7 +223,7 @@ class Timezone(datetime.tzinfo):
                             "datetime.datetime instance or None")
 
 
-class AtomicTypeMeta(type):
+class AtomicTypeABCMeta(ABCMeta):
     """
     Metaclass for creating XSD atomic types. The created classes
     are decorated with missing attributes and methods. When a name
@@ -243,7 +243,7 @@ class AtomicTypeMeta(type):
         else:
             raise TypeError("attribute 'name' must be a string or None")
 
-        cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
+        cls = super(AtomicTypeABCMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Add missing attributes and methods
         if not hasattr(cls, 'version'):
@@ -288,10 +288,6 @@ class AtomicTypeMeta(type):
         if cls.name:
             return ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))
-
-
-class AtomicTypeABCMeta(AtomicTypeMeta, ABCMeta):
-    pass
 
 
 class AnyAtomicType(metaclass=AtomicTypeABCMeta):
@@ -873,7 +869,7 @@ class Time(AbstractDateTime):
             raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
 
-class Duration(metaclass=AtomicTypeMeta):
+class Duration(AnyAtomicType):
     """
     Base class for the XSD duration types.
 
@@ -1239,7 +1235,7 @@ class NMToken(XsdToken):
     pattern = re.compile(r'^[\w.\-:\u00B7\u0300-\u036F\u203F\u2040]+$')
 
 
-class AbstractBinary(metaclass=AtomicTypeMeta):
+class AbstractBinary(metaclass=AtomicTypeABCMeta):
     """
     Abstract class for xs:base64Binary data.
 
@@ -1357,7 +1353,7 @@ class HexBinary(AbstractBinary):
         return isinstance(other, (str, bytes)) and self.value.lower() == other.lower()
 
 
-class Float(float, metaclass=AtomicTypeMeta):
+class Float(float, AnyAtomicType):
     name = 'float'
     pattern = re.compile(
         r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN'
@@ -1555,7 +1551,7 @@ class UnsignedByte(UnsignedShort):
     lower_bound, higher_bound = 0, 2**8
 
 
-class AnyURI(metaclass=AtomicTypeMeta):
+class AnyURI(AnyAtomicType):
     """
     Class for xs:anyURI data.
 
@@ -1673,7 +1669,7 @@ class Notation(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
-class QName(metaclass=AtomicTypeMeta):
+class QName(AnyAtomicType):
     """
     XPath compliant QName, bound with a prefix and a namespace.
 
@@ -2013,17 +2009,14 @@ class StringProxy(metaclass=StringTypeMeta):
 
 
 ##
-# Register XSD primitive types and Python types as virtual subclasses of AnyAtomicType
+# Register not derived XSD primitive types as virtual subclasses of AnyAtomicType
 
-AnyAtomicType.register(AnyURI)
 AnyAtomicType.register(BooleanProxy)
 AnyAtomicType.register(Base64Binary)
 AnyAtomicType.register(DecimalProxy)
 AnyAtomicType.register(Date10)
 AnyAtomicType.register(DateTime10)
-AnyAtomicType.register(Duration)
 AnyAtomicType.register(DoubleProxy)
-AnyAtomicType.register(Float)
 AnyAtomicType.register(GregorianDay)
 AnyAtomicType.register(GregorianMonth)
 AnyAtomicType.register(GregorianMonthDay)
@@ -2031,7 +2024,6 @@ AnyAtomicType.register(GregorianYear10)
 AnyAtomicType.register(GregorianYearMonth10)
 AnyAtomicType.register(HexBinary)
 AnyAtomicType.register(Notation)
-AnyAtomicType.register(QName)
 AnyAtomicType.register(String)
 AnyAtomicType.register(Time)
 AnyAtomicType.register(UntypedAtomic)
