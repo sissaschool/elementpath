@@ -855,15 +855,15 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
                 root_token = self.parser.parse("(@a and not(@b)) or (not(@a) and @b)")
                 context = XPathContext(self.etree.XML('<root a="10" b="0"/>'))
-                self.assertTrue(root_token.evaluate(context=context) is True)
+                self.assertTrue(root_token.evaluate(context=context) is False)
                 context = XPathContext(self.etree.XML('<root a="10" b="1"/>'))
                 self.assertTrue(root_token.evaluate(context=context) is False)
                 context = XPathContext(self.etree.XML('<root a="10"/>'))
                 self.assertTrue(root_token.evaluate(context=context) is True)
                 context = XPathContext(self.etree.XML('<root a="0" b="10"/>'))
-                self.assertTrue(root_token.evaluate(context=context) is True)
-                context = XPathContext(self.etree.XML('<root b="0"/>'))
                 self.assertTrue(root_token.evaluate(context=context) is False)
+                context = XPathContext(self.etree.XML('<root b="0"/>'))
+                self.assertTrue(root_token.evaluate(context=context) is True)
 
     def test_element_decimal_cast(self):
         root = self.etree.XML('''
@@ -940,9 +940,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
             value = self.parser.get_atomic_value(schema.elements['a'].type)
             self.assertIsInstance(value, UntypedAtomic)
-            self.assertEqual(value, UntypedAtomic(value=''))
+            self.assertEqual(value, UntypedAtomic(value='1'))
 
             value = self.parser.get_atomic_value(schema.elements['b'].type)
+            if not isinstance(value, int):
+                import pdb
+                pdb.set_trace()
+                self.parser.get_atomic_value(schema.elements['b'].type)
+
             self.assertIsInstance(value, int)
             self.assertEqual(value, 1)
 

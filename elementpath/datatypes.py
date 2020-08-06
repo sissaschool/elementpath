@@ -2042,7 +2042,7 @@ ATOMIC_VALUES = {
     'untypedAtomic': UntypedAtomic('1'),
     'anyType': UntypedAtomic('1'),
     'anySimpleType': UntypedAtomic('1'),
-    'anyAtomicType': None,
+    'anyAtomicType': UntypedAtomic('1'),
     'string': '  alpha\t',
     'decimal': Decimal('1.0'),
     'double': 1.0,
