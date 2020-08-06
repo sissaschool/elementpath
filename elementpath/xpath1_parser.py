@@ -360,7 +360,7 @@ class XPath1Parser(Parser):
             except (KeyError, AttributeError):
                 return UntypedAtomic('1')
         else:
-            return UntypedAtomic('')
+            return UntypedAtomic('1')
 
     def match_sequence_type(self, value, sequence_type, occurrence=None):
         if sequence_type[-1] in {'?', '+', '*'}:

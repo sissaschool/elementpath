@@ -753,8 +753,6 @@ class XPathToken(Token):
             if not obj:
                 return False
             elif is_xpath_node(obj[0]):
-                if isinstance(obj[0], (TypedElement, TypedAttribute)):
-                    return bool(obj[0][-1])
                 return True
             elif len(obj) > 1:
                 message = "effective boolean value is not defined for a sequence " \
