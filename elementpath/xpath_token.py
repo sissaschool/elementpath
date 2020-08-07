@@ -204,7 +204,7 @@ class XPathToken(Token):
                         return default
                     ord_arg = ordinal(index + 1)
                     msg = "A not empty sequence required for {} argument"
-                    raise self.missing_sequence(msg.format(ord_arg))
+                    raise self.error('XPTY0004', msg.format(ord_arg))
 
         # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         if cls is not None and not isinstance(item, cls):

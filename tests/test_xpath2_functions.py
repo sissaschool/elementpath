@@ -277,7 +277,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertRaises(ElementPathValueError, self.parser.parse,
                           'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
-        self.wrong_type('fn:normalize-unicode("à", ())', 'FORG0006', "can't be an empty sequence")
+        self.wrong_type('fn:normalize-unicode("à", ())', 'XPTY0004', "can't be an empty sequence")
 
         # https://www.w3.org/TR/charmod-norm/#normalization_forms
         self.check_value("fn:normalize-unicode('\u01FA')", '\u01FA')
@@ -506,8 +506,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('fn:tokenize("abc", ".*?")', 'FORX0003', 'matches zero-length string')
         self.wrong_value('fn:tokenize("abba", ".?")')
         self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", "sxf")')
-        self.wrong_value('fn:tokenize("abracadabra", ())')
-        self.wrong_value('fn:tokenize("abracadabra", "(ab)|(a)", ())')
+        self.wrong_type('fn:tokenize("abracadabra", ())')
+        self.wrong_type('fn:tokenize("abracadabra", "(ab)|(a)", ())')
 
     def test_resolve_uri_function(self):
         self.check_value('fn:resolve-uri("dir1/dir2", "file:///home/")', 'file:///home/dir1/dir2')

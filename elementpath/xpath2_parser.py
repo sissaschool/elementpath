@@ -630,7 +630,14 @@ def led(self, left):
     if self.parser.next_token.label not in ('kind test', 'sequence type'):
         self.parser.expected_name('(name)', ':')
 
-    self[:] = left, self.parser.expression(rbp=self.rbp)
+    try:
+        self[:] = left, self.parser.expression(rbp=self.rbp)
+    except ElementPathTypeError as err:
+        try:
+            raise err.token.wrong_syntax(err.message) from None
+        except AttributeError:
+            raise self.parser.next_token.wrong_syntax() from None
+
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
         self[2:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
