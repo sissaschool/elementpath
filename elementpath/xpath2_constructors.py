@@ -110,7 +110,7 @@ def cast(self, value):
     try:
         return datatypes.DecimalProxy(value)
     except (ArithmeticError, ValueError) as err:
-        if isinstance(value, str):
+        if isinstance(value, (str, datatypes.UntypedAtomic)):
             raise self.error('FORG0001', str(err))
         raise self.error('FOCA0002', str(err))
 
@@ -120,7 +120,7 @@ def cast(self, value):
     try:
         return datatypes.DoubleProxy(value, self.parser.xsd_version)
     except ValueError as err:
-        if isinstance(value, str):
+        if isinstance(value, (str, datatypes.UntypedAtomic)):
             raise self.error('FORG0001', str(err))
         raise self.error('FOCA0002', str(err))
 
@@ -130,7 +130,7 @@ def cast(self, value):
     try:
         return datatypes.Float(value, self.parser.xsd_version)
     except ValueError as err:
-        if isinstance(value, str):
+        if isinstance(value, (str, datatypes.UntypedAtomic)):
             raise self.error('FORG0001', str(err))
         raise self.error('FOCA0002', str(err))
 
@@ -203,39 +203,53 @@ def cast(self, value):
         return cls.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0001', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('gDay')
 def cast(self, value):
     if isinstance(value, datatypes.GregorianDay):
         return value
-    elif isinstance(value, datatypes.UntypedAtomic):
-        return datatypes.GregorianDay.fromstring(value.value)
-    elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
-        return datatypes.GregorianDay(value.day, value.tzinfo)
-    return datatypes.GregorianDay.fromstring(value)
+
+    try:
+        if isinstance(value, datatypes.UntypedAtomic):
+            return datatypes.GregorianDay.fromstring(value.value)
+        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
+            return datatypes.GregorianDay(value.day, value.tzinfo)
+        return datatypes.GregorianDay.fromstring(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('gMonth')
 def cast(self, value):
     if isinstance(value, datatypes.GregorianMonth):
         return value
-    elif isinstance(value, datatypes.UntypedAtomic):
-        return datatypes.GregorianMonth.fromstring(value.value)
-    elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
-        return datatypes.GregorianMonth(value.month, value.tzinfo)
-    return datatypes.GregorianMonth.fromstring(value)
+
+    try:
+        if isinstance(value, datatypes.UntypedAtomic):
+            return datatypes.GregorianMonth.fromstring(value.value)
+        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
+            return datatypes.GregorianMonth(value.month, value.tzinfo)
+        return datatypes.GregorianMonth.fromstring(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('gMonthDay')
 def cast(self, value):
     if isinstance(value, datatypes.GregorianMonthDay):
         return value
-    elif isinstance(value, datatypes.UntypedAtomic):
-        return datatypes.GregorianMonthDay.fromstring(value.value)
-    elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
-        return datatypes.GregorianMonthDay(value.month, value.day, value.tzinfo)
-    return datatypes.GregorianMonthDay.fromstring(value)
+
+    try:
+        if isinstance(value, datatypes.UntypedAtomic):
+            return datatypes.GregorianMonthDay.fromstring(value.value)
+        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
+            return datatypes.GregorianMonthDay(value.month, value.day, value.tzinfo)
+        return datatypes.GregorianMonthDay.fromstring(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('gYear')
@@ -252,6 +266,8 @@ def cast(self, value):
         return cls.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0001', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('gYearMonth')
@@ -269,18 +285,24 @@ def cast(self, value):
         return cls.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0001', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('time')
 def cast(self, value):
     if isinstance(value, datatypes.Time):
         return value
-    elif isinstance(value, datatypes.UntypedAtomic):
-        return datatypes.Time.fromstring(value.value)
-    elif isinstance(value, datatypes.DateTime10):
-        return datatypes.Time(value.hour, value.minute, value.second,
-                              value.microsecond, value.tzinfo)
-    return datatypes.Time.fromstring(value)
+
+    try:
+        if isinstance(value, datatypes.UntypedAtomic):
+            return datatypes.Time.fromstring(value.value)
+        elif isinstance(value, datatypes.DateTime10):
+            return datatypes.Time(value.hour, value.minute, value.second,
+                                  value.microsecond, value.tzinfo)
+        return datatypes.Time.fromstring(value)
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @method('date')
@@ -318,6 +340,8 @@ def cast(self, value):
         return datatypes.Duration.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0002', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('yearMonthDuration')
@@ -333,6 +357,8 @@ def cast(self, value):
         return datatypes.YearMonthDuration.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0002', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('dayTimeDuration')
@@ -348,6 +374,8 @@ def cast(self, value):
         return datatypes.DayTimeDuration.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0002', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err))
 
 
 @constructor('dateTimeStamp')
@@ -566,6 +594,8 @@ def cast(self, value):
         return cls.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0001', str(err)) from None
+    except ValueError as err:
+        raise self.error('FORG0001', str(err)) from None
 
 
 @method('QName')

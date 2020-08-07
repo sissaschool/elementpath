@@ -34,8 +34,7 @@ QNAME_PATTERN = re.compile(
     r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
     r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
 )
-HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-f\d]{2})')
+WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-F\d]{2})')
 
 
 def collapse_white_spaces(s):
@@ -1149,7 +1148,7 @@ class DayTimeDuration(Duration):
 
 class NormalizedString(str, metaclass=AtomicTypeABCMeta):
     name = 'normalizedString'
-    pattern = re.compile('[^\t\r]*')
+    pattern = re.compile('^[^\t\r]*$')
 
     def __new__(cls, obj):
         try:
@@ -1306,7 +1305,7 @@ class Base64Binary(AbstractBinary):
 
 class HexBinary(AbstractBinary):
     name = 'hexBinary'
-    pattern = re.compile(r'([0-9a-fA-F]{2})*')
+    pattern = re.compile(r'^([0-9a-fA-F]{2})*$')
 
     @classmethod
     def validate(cls, value):
@@ -1318,7 +1317,7 @@ class HexBinary(AbstractBinary):
             raise cls.invalid_type(value)
 
         value = value.strip()
-        if value and (len(value) % 2 or HEX_BINARY_PATTERN.match(value) is None):
+        if cls.pattern.match(value) is None:
             raise cls.invalid_value(value)
 
     @staticmethod
@@ -1340,7 +1339,7 @@ class HexBinary(AbstractBinary):
 class Float(float, AnyAtomicType):
     name = 'float'
     pattern = re.compile(
-        r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN'
+        r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
 
     def __new__(cls, value, version='1.0'):
@@ -1433,7 +1432,7 @@ class Float(float, AnyAtomicType):
 class Integer(int, metaclass=AtomicTypeABCMeta):
     """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
-    pattern = re.compile(r'[\-+]?[0-9]+')
+    pattern = re.compile(r'^[\-+]?[0-9]+$')
     lower_bound, higher_bound = None, None
 
     def __init__(self, value):
@@ -1528,7 +1527,6 @@ class AnyURI(AnyAtomicType):
     :param value: a string or an untyped atomic instance.
     """
     name = 'anyURI'
-    pattern = re.compile(r'%(?![a-fA-F\d]{2})')  # for matching wrong escapes
 
     def __init__(self, value):
         if isinstance(value, str):
@@ -1614,7 +1612,7 @@ class AnyURI(AnyAtomicType):
             elif value.count('#') > 1:
                 msg = 'invalid value {!r} for xs:{} (too many # characters)'
                 raise ValueError(msg.format(value, cls.name))
-            elif cls.pattern.search(value) is not None:
+            elif WRONG_ESCAPE_PATTERN.search(value) is not None:
                 msg = 'invalid value {!r} for xs:{} (wrong escaping)'
                 raise ValueError(msg.format(value, cls.name))
 
@@ -1835,7 +1833,7 @@ class UntypedAtomic(metaclass=AtomicTypeABCMeta):
 
 class BooleanProxy(metaclass=AtomicTypeABCMeta):
     name = 'boolean'
-    pattern = re.compile(r'true|false|1|0')
+    pattern = re.compile(r'^(?:true|false|1|0)$')
 
     def __new__(cls, value):
         if isinstance(value, bool):
@@ -1869,16 +1867,16 @@ class BooleanProxy(metaclass=AtomicTypeABCMeta):
 
 class DecimalProxy(metaclass=AtomicTypeABCMeta):
     name = 'decimal'
-    pattern = re.compile(r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)')
+    pattern = re.compile(r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))$')
 
     def __new__(cls, value):
-        if isinstance(value, str):
-            value = collapse_white_spaces(value).lower().replace(' ', '')
-            if value.lstrip('+-') in {'', 'inf', 'nan', 'infinity'}:
-                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        if isinstance(value, (str, UntypedAtomic)):
+            value = collapse_white_spaces(str(value)).replace(' ', '')
+            if cls.pattern.match(value) is None:
+                raise cls.invalid_value(value)
         elif isinstance(value, (float, Float, Decimal)):
             if math.isinf(value) or math.isnan(value):
-                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
+                raise cls.invalid_value(value)
         try:
             return Decimal(value)
         except ArithmeticError:
@@ -1901,7 +1899,7 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
 class DoubleProxy(metaclass=AtomicTypeABCMeta):
     name = 'double'
     pattern = re.compile(
-        r'[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN'
+        r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
 
     def __new__(cls, value, xsd_version='1.0'):
