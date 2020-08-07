@@ -1562,11 +1562,15 @@ class AnyURI(AnyAtomicType):
     def __eq__(self, other):
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value == other.value
+        elif isinstance(other, (bool, float, Decimal, Integer)):
+            raise TypeError("cannot compare {} with xs:{}".format(type(other), self.name))
         return self.value == other
 
     def __ne__(self, other):
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value != other.value
+        elif isinstance(other, (bool, float, Decimal, Integer)):
+            raise TypeError("cannot compare {} with xs:{}".format(type(other), self.name))
         return self.value != other
 
     def __lt__(self, other):
@@ -1755,6 +1759,8 @@ class UntypedAtomic(metaclass=AtomicTypeABCMeta):
             return value in ('1', 'true'), other
         elif isinstance(other, int):
             return float(self.value), other
+        elif isinstance(other, str):
+            return str(self.value), other
         elif isinstance(other, (AbstractDateTime, Duration)):
             return type(other).fromstring(self.value), other
         else:

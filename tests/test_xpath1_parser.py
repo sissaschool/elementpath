@@ -764,9 +764,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("5 >= 9", False)
         self.check_value("5 > 3", True)
         self.check_value("5 < 20.0", True)
-        self.check_value("false() = 1", False)
-        self.check_value("0 = false()", True)
         self.check_value("2 * 2 = 4", True)
+
+        if self.parser.version == '1.0':
+            self.check_value("false() = 1", False)
+            self.check_value("0 = false()", True)
+        else:
+            self.wrong_type("false() = 1")
+            self.wrong_type("0 = false()")
 
     def test_comparison_of_sequences(self):
         root = self.etree.XML('<table>'

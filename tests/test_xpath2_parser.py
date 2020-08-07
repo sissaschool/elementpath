@@ -399,7 +399,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         super(XPath2ParserTest, self).test_comparison_of_sequences()
 
         self.parser.compatibility_mode = True
-        self.check_value("(false(), false()) = 1", False)
+        self.wrong_type("(false(), false()) = 1")
         self.check_value("(false(), false()) = (false(), false())", True)
         self.check_value("(false(), false()) = (false(), false(), false())", True)
         self.check_value("(false(), false()) = (false(), true())", True)

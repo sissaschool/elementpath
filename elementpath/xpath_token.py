@@ -21,7 +21,9 @@ for documents. Generic tuples are used for representing attributes and named-tup
 import locale
 import contextlib
 import math
+from copy import copy
 from decimal import Decimal, DecimalException, getcontext
+from itertools import product
 import urllib.parse
 
 from .exceptions import ElementPathValueError, XPATH_ERROR_CODES
@@ -32,7 +34,7 @@ from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute,
     is_processing_instruction_node, is_element_node, is_document_node, \
     is_xpath_node, is_schema_node
 from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
-    Date10, DayTimeDuration, Duration
+    Date10, DayTimeDuration, Duration, Integer
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -295,44 +297,53 @@ class XPathToken(Token):
                 msg = "atomized operand is a sequence of length greater than one"
                 raise self.wrong_context_type(msg)
 
-    def get_comparison_data(self, context):
+    def iter_comparison_data(self, context):
         """
-        Get comparison data couples for the general comparison of sequences. Different sequences
-        maybe generated with an XPath 2.0 parser, depending on compatibility mode setting.
+        Generates comparison data couples for the general comparison of sequences.
+        Different sequences maybe generated with an XPath 2.0 parser, depending on
+        compatibility mode setting.
 
         Ref: https://www.w3.org/TR/xpath20/#id-general-comparisons
 
         :param context: the XPath dynamic context.
-        :returns: a list of data couples.
         """
-        if context is None:
-            operand1 = [x for x in self._items[0].select()]
-            operand2 = [x for x in self._items[1].select()]
-        else:
-            operand1 = [x for x in self._items[0].select(context.copy())]
-            operand2 = [x for x in self._items[1].select(context.copy())]
-
         if self.parser.compatibility_mode:
+            operand1 = [x for x in self._items[0].select(copy(context))]
+            operand2 = [x for x in self._items[1].select(copy(context))]
+
             # Boolean comparison if one of the results is a single boolean value (1.)
             try:
                 if isinstance(operand1[0], bool):
                     if len(operand1) == 1:
-                        return [(operand1[0], self.boolean_value(operand2))]
+                        yield operand1[0], self.boolean_value(operand2)
+                        return
                 if isinstance(operand2[0], bool):
                     if len(operand2) == 1:
-                        return [(self.boolean_value(operand1), operand2[0])]
+                        yield self.boolean_value(operand1), operand2[0]
+                        return
             except IndexError:
-                return []
+                return
 
             # Converts to float for lesser-greater operators (3.)
             if self.symbol in ('<', '<=', '>', '>='):
-                return [
-                    (float(self.data_value(value1)), float(self.data_value(value2)))
-                    for value1 in operand1 for value2 in operand2
-                ]
+                yield from product(map(float, map(self.data_value, operand1)),
+                                   map(float, map(self.data_value, operand2)))
+                return
+            elif self.parser.version == '1.0':
+                yield from product(map(self.data_value, operand1), map(self.data_value, operand2))
+                return
 
-        return [(self.data_value(value1), self.data_value(value2))
-                for value1 in operand1 for value2 in operand2]
+        for values in product(map(self.data_value, self._items[0].select(copy(context))),
+                              map(self.data_value, self._items[1].select(copy(context)))):
+            if any(isinstance(x, bool) for x in values):
+                if any(isinstance(x, (str, Integer)) for x in values):
+                    msg = "cannot compare {!r} and {!r}"
+                    raise TypeError(msg.format(type(values[0]), type(values[1])))
+            elif any(isinstance(x, Integer) for x in values) and \
+                    any(isinstance(x, str) for x in values):
+                msg = "cannot compare {!r} and {!r}"
+                raise TypeError(msg.format(type(values[0]), type(values[1])))
+            yield values
 
     def select_results(self, context):
         """
