@@ -36,7 +36,7 @@ method = XPath2Parser.method
 function = XPath2Parser.function
 
 WRONG_REPLACEMENT_PATTERN = re.compile(r'(?<!\\)\$([^\d]|$)|((?<=[^\\])|^)\\([^$]|$)|\\\\\$')
-
+UNESCAPE_PATTERN = re.compile(r'\\(.)')
 
 ###
 # Sequence types (allowed only for type checking in treat-as/instance-of statements)
@@ -681,7 +681,7 @@ def evaluate(self, context=None):
         # TODO: full XML regex syntax
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
     except OverflowError as err:
-        raise self.error('FOAR0002', str(err)) from None
+        raise self.error('FORX0002', str(err)) from None
 
 
 @method(function('replace', nargs=(3, 4)))
@@ -713,7 +713,7 @@ def evaluate(self, context=None):
                 if '$%d' % g in replacement:
                     replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
 
-        return pattern.sub(replacement, input_string)
+        return UNESCAPE_PATTERN.sub(r'\1', pattern.sub(replacement, input_string))
 
 
 @method(function('tokenize', nargs=(2, 3)))
@@ -849,11 +849,11 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     items = [self.string_value(s) for s in self[0].select(context)]
     try:
-        return self.get_argument(context, 1, default='', cls=str).join(items)
+        return self.get_argument(context, 1, required=True, cls=str).join(items)
     except ElementPathTypeError:
         raise
     except TypeError as err:
-        raise self.wrong_type("the values must be strings: %s" % err) from None
+        raise self.error('XPTY0004', "the values must be strings: %s" % err) from None
 
 
 @method(function('normalize-unicode', nargs=(1, 2)))
@@ -862,7 +862,7 @@ def evaluate(self, context=None):
     if len(self) > 1:
         normalization_form = self.get_argument(context, 1, cls=str)
         if normalization_form is None:
-            raise self.wrong_type("2nd argument can't be an empty sequence")
+            raise self.error('XPTY0004', "2nd argument can't be an empty sequence")
         else:
             normalization_form = normalization_form.strip().upper()
     else:
@@ -917,14 +917,24 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
-    return arg1.startswith(arg2)
+
+    if len(self) < 3:
+        return arg1.startswith(arg2)
+    else:
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            return arg1.startswith(arg2)
 
 
 @method(function('ends-with', nargs=(2, 3)))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
-    return arg1.endswith(arg2)
+
+    if len(self) < 3:
+        return arg1.endswith(arg2)
+    else:
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            return arg1.endswith(arg2)
 
 
 ###
@@ -1145,7 +1155,9 @@ def evaluate(self, context=None):
             raise self.error('XPTY0004')
     else:
         item = self.get_argument(context)
-        if not is_xpath_node(item):
+        if item is None:
+            return
+        elif not is_xpath_node(item):
             raise self.error('XPTY0004')
         elif any(item is x for x in context.iter()):
             return context.root

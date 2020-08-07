@@ -69,6 +69,10 @@ SKIP_TESTS = [
     # For XQuery??
     'fn-deep-equal__K2-SeqDeepEqualFunc-43',  # includes a '!' symbol
 
+    # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
+    'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
+    'fn-normalize-unicode__cbcl-fn-normalize-unicode-006',
+
     # IMHO incorrect tests
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
 ]
@@ -666,8 +670,11 @@ class Result(object):
             type_check = isinstance(result, str)
         elif self.value == 'xs:unsignedShort':
             type_check = isinstance(result, int) and not isinstance(result, bool)
-        elif self.value.startswith('document-node') or self.value.startswith('element'):
-            type_check = isinstance(result, list)
+        elif self.value == 'document-node()*':
+            type_check = isinstance(result, list) and all(hasattr(x, 'getroot') for x in result)
+        elif self.value.startswith('element('):
+            tag = self.value[8:self.value.index(')')]
+            type_check = hasattr(result, 'tag') and result.tag == tag
         else:
             msg = "unknown type in assert_type: %s (result type is %s), test-case %s"
             print(msg % (self.value, str(type(result)), self.test_case.name))
@@ -889,6 +896,12 @@ class Result(object):
             xml_str = ''.join(parts)
         else:
             xml_str = tostring(result.getroot()).decode('utf-8').strip()
+
+        # Strip the tail from serialized result
+        if '>' in xml_str:
+            tail_pos = xml_str.rindex('>') + 1
+            if tail_pos < len(xml_str):
+                xml_str = xml_str[:tail_pos]
 
         if self.value is not None:
             expected = self.value
