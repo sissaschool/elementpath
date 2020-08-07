@@ -937,6 +937,28 @@ def evaluate(self, context=None):
             return arg1.endswith(arg2)
 
 
+@method(function('substring-before', nargs=(2, 3)))
+@method(function('substring-after', nargs=(2, 3)))
+def evaluate(self, context=None):
+    arg1 = self.get_argument(context, default='', cls=str)
+    arg2 = self.get_argument(context, index=1, default='', cls=str)
+    if arg1 is None:
+        return ''
+
+    if len(self) < 3:
+        index = arg1.find(arg2)
+    else:
+        with self.use_locale(collation=self.get_argument(context, 2)):
+            index = arg1.find(arg2)
+
+    if index < 0:
+        return ''
+    if self.symbol == 'substring-before':
+        return arg1[:index]
+    else:
+        return arg1[index + len(arg2):]
+
+
 ###
 # Functions on durations, dates and times
 @method(function('years-from-duration', nargs=1))

@@ -776,20 +776,11 @@ def led(self, left):
 def evaluate(self, context=None):
     op = OPERATORS_MAP[self.symbol]
     try:
-        if self.parser.version == '1.0':
-            return any(op(x1, x2) for x1, x2 in self.get_comparison_data(context))
-
-        for operands in self.get_comparison_data(context):
-            if any(isinstance(x, int) for x in operands) and \
-                    any(isinstance(x, str) for x in operands):
-                raise TypeError("cannot compare {!r} and {!r}")
-            if op(*operands):
-                return True
-        return False
+        return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
     except TypeError as err:
-        raise self.error('XPTY0004', str(err))
+        raise self.error('XPTY0004', str(err)) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', str(err)) from None
 
 
 ###
@@ -1436,13 +1427,7 @@ def evaluate(self, context=None):
     if arg1 is None:
         return ''
 
-    try:
-        index = arg1.find(arg2)
-    except AttributeError:
-        raise self.wrong_type("the first argument must be a string") from None
-    except TypeError:
-        raise self.wrong_type("the second argument must be a string") from None
-
+    index = arg1.find(arg2)
     if index < 0:
         return ''
     if self.symbol == 'substring-before':

@@ -421,6 +421,8 @@ unregister('$')
 unregister('contains')
 unregister('lang')
 unregister('id')
+unregister('substring-before')
+unregister('substring-after')
 
 ###
 # Symbols
