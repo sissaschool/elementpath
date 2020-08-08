@@ -28,7 +28,8 @@ from .namespaces import XSD_NAMESPACE
 ###
 # Data validation helpers
 
-WHITESPACES_PATTERN = re.compile(r'\s+')
+NORMALIZE_PATTERN = re.compile(r'[^\S\xa0]')
+WHITESPACES_PATTERN = re.compile(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
 QNAME_PATTERN = re.compile(
     r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
@@ -38,7 +39,7 @@ WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-F\d]{2})')
 
 
 def collapse_white_spaces(s):
-    return WHITESPACES_PATTERN.sub(' ', s).strip()
+    return WHITESPACES_PATTERN.sub(' ', s).strip(' ')
 
 
 def is_idrefs(value):
@@ -436,9 +437,19 @@ class AbstractDateTime(metaclass=AtomicTypeABCMeta):
 
         if 'tzinfo' not in kwargs and tzinfo is not None:
             kwargs['tzinfo'] = tzinfo
+
         if 'microsecond' in kwargs:
             pow10 = 6 - len(match.groupdict()['microsecond'])
-            kwargs['microsecond'] = 0 if pow10 < 0 else kwargs['microsecond'] * 10**pow10
+            if pow10 == 0:
+                pass
+            elif pow10 > 0:
+                kwargs['microsecond'] = kwargs['microsecond'] * 10**pow10
+            elif kwargs['microsecond'] > 999999:
+                msg = "Invalid value {} for microsecond"
+                raise OverflowError(msg.format(kwargs['microsecond']))
+            else:
+                kwargs['microsecond'] = int(match.groupdict()['microsecond'][:6])
+
         if 'year' in kwargs:
             year_digits = match.groupdict()['year'].lstrip('-')
             if year_digits.startswith('0') and len(year_digits) > 4:
@@ -1152,14 +1163,14 @@ class NormalizedString(str, metaclass=AtomicTypeABCMeta):
 
     def __new__(cls, obj):
         try:
-            return super().__new__(cls, obj.replace('\t', ' ').replace('\n', ' '))
-        except AttributeError:
+            return super().__new__(cls, NORMALIZE_PATTERN.sub(' ', obj))
+        except TypeError:
             return super().__new__(cls, obj)
 
 
 class XsdToken(NormalizedString):
     name = 'token'
-    pattern = re.compile(r'^\S*(?: \S+)*$')
+    pattern = re.compile(r'^[\S\xa0]*(?: [\S\xa0]+)*$')
 
     def __new__(cls, value):
         if not isinstance(value, str):

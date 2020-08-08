@@ -11,12 +11,12 @@
 XPath 2.0 implementation - part 1 (XPath2Parser class and operators)
 """
 from abc import ABCMeta
-import decimal
 import locale
 import math
 import operator
 from collections.abc import MutableSequence
 from copy import copy
+from decimal import Decimal, DivisionByZero
 from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathTypeError, \
@@ -24,7 +24,7 @@ from .exceptions import ElementPathError, ElementPathTypeError, \
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
-from .datatypes import UntypedAtomic, QName
+from .datatypes import UntypedAtomic, QName, AnyURI, Duration
 from .xpath_nodes import is_xpath_node, match_attribute_node, is_element_node, is_document_node
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
 from .xpath1_parser import XPath1Parser
@@ -877,10 +877,29 @@ def select(self, context=None):
 def evaluate(self, context=None):
     operands = [self[0].get_atomized_operand(context=copy(context)),
                 self[1].get_atomized_operand(context=copy(context))]
+
     if any(x is None for x in operands):
         return
+    elif isinstance(operands[0], type(operands[1])) and isinstance(operands[1], type(operands[0])):
+        pass
+    elif all(isinstance(x, float) for x in operands):
+        pass
+    elif all(isinstance(x, (int, Decimal)) for x in operands):
+        pass
+    elif all(isinstance(x, (str, UntypedAtomic, AnyURI)) for x in operands):
+        pass
+    elif all(isinstance(x, (float, Decimal, int)) for x in operands):
+        if isinstance(operands[0], float):
+            operands[1] = float(operands[1])
+        else:
+            operands[0] = float(operands[0])
 
-    self.check_comparison_operands(operands)
+    elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
+        pass  # can compare duration types for equality or inequality
+    else:
+        msg = "cannot apply {} between {!r} and {!r}".format(self, *operands)
+        raise self.error('XPTY0004', msg)
+
     try:
         return getattr(operator, self.symbol)(*operands)
     except TypeError as err:
@@ -974,11 +993,11 @@ def evaluate(self, context=None):
 
     try:
         result = op1 // op2
-    except (ZeroDivisionError, decimal.DivisionByZero):
+    except (ZeroDivisionError, DivisionByZero):
         raise self.error('FOAR0001') from None
     else:
-        if result >= 0 or isinstance(op1, decimal.Decimal) or \
-                isinstance(op2, decimal.Decimal) or abs(op1) == abs(op2):
+        if result >= 0 or isinstance(op1, Decimal) or \
+                isinstance(op2, Decimal) or abs(op1) == abs(op2):
             return int(result)
         else:
             return int(result) + 1
