@@ -12,7 +12,11 @@ XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
 from .exceptions import ElementPathError, ElementPathSyntaxError
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE
-from . import datatypes
+from .datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
+    GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYear, \
+    GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
+    YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
+    Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy, ATOMIC_VALUES
 from .xpath_token import XPathToken
 from .xpath_context import XPathSchemaContext
 from .xpath2_functions import XPath2Parser
@@ -27,78 +31,18 @@ constructor = XPath2Parser.constructor
 ###
 # Constructors for string-based XSD types
 @constructor('normalizedString')
-def cast(self, value):
-    return datatypes.NormalizedString(value)
-
-
 @constructor('token')
-def cast(self, value):
-    try:
-        return datatypes.XsdToken(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('language')
-def cast(self, value):
-    try:
-        return datatypes.Language(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('NMTOKEN')
-def cast(self, value):
-    try:
-        return datatypes.NMToken(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('Name')
-def cast(self, value):
-    try:
-        return datatypes.Name(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('NCName')
-def cast(self, value):
-    try:
-        return datatypes.NCName(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('ID')
-def cast(self, value):
-    try:
-        return datatypes.Id(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('IDREF')
-def cast(self, value):
-    try:
-        return datatypes.Idref(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('ENTITY')
-def cast(self, value):
-    try:
-        return datatypes.Entity(value)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
-
-
 @constructor('anyURI')
 def cast(self, value):
     try:
-        return datatypes.AnyURI(value)
+        return xsd10_atomic_types[self.symbol](value)
     except ValueError as err:
         raise self.error('FORG0001', str(err))
 
@@ -106,35 +50,15 @@ def cast(self, value):
 ###
 # Constructors for numeric XSD types
 @constructor('decimal')
-def cast(self, value):
-    try:
-        return datatypes.DecimalProxy(value)
-    except (ArithmeticError, ValueError) as err:
-        if isinstance(value, (str, datatypes.UntypedAtomic)):
-            raise self.error('FORG0001', str(err))
-        raise self.error('FOCA0002', str(err))
-
-
 @constructor('double')
-def cast(self, value):
-    try:
-        if self.parser.xsd_version == '1.0':
-            return datatypes.DoubleProxy10(value)
-        return datatypes.DoubleProxy(value)
-    except ValueError as err:
-        if isinstance(value, (str, datatypes.UntypedAtomic)):
-            raise self.error('FORG0001', str(err))
-        raise self.error('FOCA0002', str(err))
-
-
 @constructor('float')
 def cast(self, value):
     try:
         if self.parser.xsd_version == '1.0':
-            return datatypes.Float10(value)
-        return datatypes.Float(value)
+            return xsd10_atomic_types[self.symbol](value)
+        return xsd11_atomic_types[self.symbol](value)
     except ValueError as err:
-        if isinstance(value, (str, datatypes.UntypedAtomic)):
+        if isinstance(value, (str, UntypedAtomic)):
             raise self.error('FORG0001', str(err))
         raise self.error('FOCA0002', str(err))
 
@@ -153,56 +77,31 @@ def cast(self, value):
 @constructor('unsignedShort')
 @constructor('unsignedByte')
 def cast(self, value):
-    int_subclass = {
-        'integer': int,
-        'nonNegativeInteger': datatypes.NonNegativeInteger,
-        'positiveInteger': datatypes.PositiveInteger,
-        'nonPositiveInteger': datatypes.NonPositiveInteger,
-        'negativeInteger': datatypes.NegativeInteger,
-        'long': datatypes.Long,
-        'int': datatypes.Int,
-        'short': datatypes.Short,
-        'byte': datatypes.Byte,
-        'unsignedLong': datatypes.UnsignedLong,
-        'unsignedInt': datatypes.UnsignedInt,
-        'unsignedShort': datatypes.UnsignedShort,
-        'unsignedByte': datatypes.UnsignedByte,
-    }
-    cls = int_subclass[self.symbol]
-
-    if isinstance(value, (str, bytes, datatypes.UntypedAtomic)):
-        try:
-            result = self.cast_to_number(value, int)
-        except ValueError:
-            raise self.error('FORG0001', 'could not convert %r to integer' % value) from None
-        except OverflowError as err:
-            raise self.error('FORG0001', str(err)) from None
-    else:
-        try:
-            result = int(value)
-        except ValueError as err:
-            raise self.error('FOCA0002', str(err)) from None
-        except OverflowError as err:
-            raise self.error('FOCA0002', str(err)) from None
-
     try:
-        return cls(result)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        return xsd10_atomic_types[self.symbol](value)
+    except ValueError:
+        msg = 'could not convert {!r} to xs:{}'.format(value, self.symbol)
+        if isinstance(value, (str, bytes, UntypedAtomic, bool)):
+            raise self.error('FORG0001', msg) from None
+        raise self.error('FOCA0002', msg) from None
+    except OverflowError as err:
+        if isinstance(value, (str, bytes, UntypedAtomic)):
+            raise self.error('FORG0001', str(err)) from None
+        raise self.error('FOCA0002', str(err)) from None
 
 
 ###
 # Constructors for datetime XSD types
 @constructor('date')
 def cast(self, value):
-    cls = datatypes.Date if self.parser.xsd_version == '1.1' else datatypes.Date10
+    cls = Date if self.parser.xsd_version == '1.1' else Date10
     if isinstance(value, cls):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
+        if isinstance(value, UntypedAtomic):
             return cls.fromstring(value.value)
-        elif isinstance(value, datatypes.DateTime10):
+        elif isinstance(value, DateTime10):
             return cls(value.year, value.month, value.day, value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
@@ -213,59 +112,59 @@ def cast(self, value):
 
 @constructor('gDay')
 def cast(self, value):
-    if isinstance(value, datatypes.GregorianDay):
+    if isinstance(value, GregorianDay):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.GregorianDay.fromstring(value.value)
-        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
-            return datatypes.GregorianDay(value.day, value.tzinfo)
-        return datatypes.GregorianDay.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return GregorianDay.fromstring(value.value)
+        elif isinstance(value, (Date10, DateTime10)):
+            return GregorianDay(value.day, value.tzinfo)
+        return GregorianDay.fromstring(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err))
 
 
 @constructor('gMonth')
 def cast(self, value):
-    if isinstance(value, datatypes.GregorianMonth):
+    if isinstance(value, GregorianMonth):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.GregorianMonth.fromstring(value.value)
-        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
-            return datatypes.GregorianMonth(value.month, value.tzinfo)
-        return datatypes.GregorianMonth.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return GregorianMonth.fromstring(value.value)
+        elif isinstance(value, (Date10, DateTime10)):
+            return GregorianMonth(value.month, value.tzinfo)
+        return GregorianMonth.fromstring(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err))
 
 
 @constructor('gMonthDay')
 def cast(self, value):
-    if isinstance(value, datatypes.GregorianMonthDay):
+    if isinstance(value, GregorianMonthDay):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.GregorianMonthDay.fromstring(value.value)
-        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
-            return datatypes.GregorianMonthDay(value.month, value.day, value.tzinfo)
-        return datatypes.GregorianMonthDay.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return GregorianMonthDay.fromstring(value.value)
+        elif isinstance(value, (Date10, DateTime10)):
+            return GregorianMonthDay(value.month, value.day, value.tzinfo)
+        return GregorianMonthDay.fromstring(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err))
 
 
 @constructor('gYear')
 def cast(self, value):
-    cls = datatypes.GregorianYear if self.parser.xsd_version == '1.1' else datatypes.GregorianYear10
+    cls = GregorianYear if self.parser.xsd_version == '1.1' else GregorianYear10
     if isinstance(value, cls):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
+        if isinstance(value, UntypedAtomic):
             return cls.fromstring(value.value)
-        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
+        elif isinstance(value, (Date10, DateTime10)):
             return cls(value.year, value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
@@ -276,15 +175,15 @@ def cast(self, value):
 
 @constructor('gYearMonth')
 def cast(self, value):
-    cls = datatypes.GregorianYearMonth \
-        if self.parser.xsd_version == '1.1' else datatypes.GregorianYearMonth10
+    cls = GregorianYearMonth \
+        if self.parser.xsd_version == '1.1' else GregorianYearMonth10
     if isinstance(value, cls):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
+        if isinstance(value, UntypedAtomic):
             return cls.fromstring(value.value)
-        elif isinstance(value, (datatypes.Date10, datatypes.DateTime10)):
+        elif isinstance(value, (Date10, DateTime10)):
             return cls(value.year, value.month, value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
@@ -295,16 +194,16 @@ def cast(self, value):
 
 @constructor('time')
 def cast(self, value):
-    if isinstance(value, datatypes.Time):
+    if isinstance(value, Time):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.Time.fromstring(value.value)
-        elif isinstance(value, datatypes.DateTime10):
-            return datatypes.Time(value.hour, value.minute, value.second,
-                                  value.microsecond, value.tzinfo)
-        return datatypes.Time.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return Time.fromstring(value.value)
+        elif isinstance(value, DateTime10):
+            return Time(value.hour, value.minute, value.second,
+                        value.microsecond, value.tzinfo)
+        return Time.fromstring(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err))
 
@@ -335,13 +234,13 @@ def evaluate(self, context=None):
 # Constructors for time durations XSD types
 @constructor('duration')
 def cast(self, value):
-    if isinstance(value, datatypes.Duration):
+    if isinstance(value, Duration):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.Duration.fromstring(value.value)
-        return datatypes.Duration.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return Duration.fromstring(value.value)
+        return Duration.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0002', str(err)) from None
     except ValueError as err:
@@ -350,15 +249,15 @@ def cast(self, value):
 
 @constructor('yearMonthDuration')
 def cast(self, value):
-    if isinstance(value, datatypes.YearMonthDuration):
+    if isinstance(value, YearMonthDuration):
         return value
-    elif isinstance(value, datatypes.Duration):
-        return datatypes.YearMonthDuration(months=value.months)
+    elif isinstance(value, Duration):
+        return YearMonthDuration(months=value.months)
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.YearMonthDuration.fromstring(value.value)
-        return datatypes.YearMonthDuration.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return YearMonthDuration.fromstring(value.value)
+        return YearMonthDuration.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0002', str(err)) from None
     except ValueError as err:
@@ -367,15 +266,15 @@ def cast(self, value):
 
 @constructor('dayTimeDuration')
 def cast(self, value):
-    if isinstance(value, datatypes.DayTimeDuration):
+    if isinstance(value, DayTimeDuration):
         return value
-    elif isinstance(value, datatypes.Duration):
-        return datatypes.DayTimeDuration(seconds=value.seconds)
+    elif isinstance(value, Duration):
+        return DayTimeDuration(seconds=value.seconds)
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
-            return datatypes.DayTimeDuration.fromstring(value.value)
-        return datatypes.DayTimeDuration.fromstring(value)
+        if isinstance(value, UntypedAtomic):
+            return DayTimeDuration.fromstring(value.value)
+        return DayTimeDuration.fromstring(value)
     except OverflowError as err:
         raise self.error('FODT0002', str(err)) from None
     except ValueError as err:
@@ -384,13 +283,13 @@ def cast(self, value):
 
 @constructor('dateTimeStamp')
 def cast(self, value):
-    if isinstance(value, datatypes.DateTimeStamp):
+    if isinstance(value, DateTimeStamp):
         return value
-    elif isinstance(value, datatypes.DateTime10):
+    elif isinstance(value, DateTime10):
         value = str(value)
 
     try:
-        return datatypes.DateTimeStamp.fromstring(value)
+        return DateTimeStamp.fromstring(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err))
 
@@ -402,7 +301,7 @@ def evaluate(self, context=None):
         return []
 
     try:
-        if isinstance(arg, datatypes.UntypedAtomic):
+        if isinstance(arg, UntypedAtomic):
             return self.cast(arg.value)
         return self.cast(str(arg))
     except ValueError as err:
@@ -416,7 +315,7 @@ def evaluate(self, context=None):
 @constructor('base64Binary')
 def cast(self, value):
     try:
-        return datatypes.Base64Binary(value)
+        return Base64Binary(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
@@ -428,7 +327,7 @@ def cast(self, value):
 @constructor('hexBinary')
 def cast(self, value):
     try:
-        return datatypes.HexBinary(value)
+        return HexBinary(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
@@ -483,7 +382,7 @@ unregister('boolean')
 @constructor('boolean', bp=90, label=('function', 'constructor'))
 def cast(self, value):
     try:
-        return datatypes.BooleanProxy(value)
+        return BooleanProxy(value)
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
@@ -566,18 +465,18 @@ def evaluate(self, context=None):
 #
 @constructor('QName', bp=90, label=('function', 'constructor'))
 def cast(self, value):
-    if isinstance(value, datatypes.QName):
+    if isinstance(value, QName):
         return value
-    elif isinstance(value, datatypes.UntypedAtomic):
+    elif isinstance(value, UntypedAtomic):
         value = value.value
     elif not isinstance(value, str):
         raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
 
     try:
         if ':' not in value:
-            return datatypes.QName(self.parser.namespaces.get('', ''), value)
+            return QName(self.parser.namespaces.get('', ''), value)
         pfx, _ = value.strip().split(':')
-        return datatypes.QName(self.parser.namespaces[pfx], value)
+        return QName(self.parser.namespaces[pfx], value)
     except ValueError:
         raise self.error('FORG0001', 'invalid value {!r} for argument'.format(value.strip()))
     except KeyError as err:
@@ -586,14 +485,14 @@ def cast(self, value):
 
 @constructor('dateTime', bp=90, label=('function', 'constructor'))
 def cast(self, value):
-    cls = datatypes.DateTime if self.parser.xsd_version == '1.1' else datatypes.DateTime10
+    cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
         return value
 
     try:
-        if isinstance(value, datatypes.UntypedAtomic):
+        if isinstance(value, UntypedAtomic):
             return cls.fromstring(value.value)
-        elif isinstance(value, datatypes.Date10):
+        elif isinstance(value, Date10):
             return cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
@@ -634,12 +533,12 @@ def evaluate(self, context=None):
         uri = self.get_argument(context)
         qname = self.get_argument(context, index=1)
         try:
-            return datatypes.QName(uri, qname)
+            return QName(uri, qname)
         except TypeError as err:
             raise self.error('XPTY0004', str(err))
         except ValueError as err:
             if isinstance(context, XPathSchemaContext):
-                return datatypes.ATOMIC_VALUES['QName']
+                return ATOMIC_VALUES['QName']
             raise self.error('FOCA0002', str(err))
 
 
@@ -657,8 +556,8 @@ def evaluate(self, context=None):
         except TypeError as err:
             raise self.error('FORG0006', str(err)) from None
     else:
-        dt = self.get_argument(context, cls=datatypes.Date10)
-        tm = self.get_argument(context, 1, cls=datatypes.Time)
+        dt = self.get_argument(context, cls=Date10)
+        tm = self.get_argument(context, 1, cls=Time)
         if dt is None or tm is None:
             return []
         elif dt.tzinfo == tm.tzinfo or tm.tzinfo is None:
@@ -669,15 +568,15 @@ def evaluate(self, context=None):
             raise self.error('FORG0008')
 
         if self.parser.xsd_version == '1.1':
-            return datatypes.DateTime(dt.year, dt.month, dt.day, tm.hour, tm.minute,
-                                      tm.second, tm.microsecond, tzinfo)
-        return datatypes.DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute,
-                                    tm.second, tm.microsecond, tzinfo)
+            return DateTime(dt.year, dt.month, dt.day, tm.hour, tm.minute,
+                            tm.second, tm.microsecond, tzinfo)
+        return DateTime10(dt.year, dt.month, dt.day, tm.hour, tm.minute,
+                          tm.second, tm.microsecond, tzinfo)
 
 
 @constructor('untypedAtomic')
 def cast(self, value):
-    return datatypes.UntypedAtomic(value)
+    return UntypedAtomic(value)
 
 
 @method('untypedAtomic')
@@ -685,7 +584,7 @@ def evaluate(self, context=None):
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []
-    elif isinstance(arg, datatypes.UntypedAtomic):
+    elif isinstance(arg, UntypedAtomic):
         return arg
     else:
         return self.cast(arg)

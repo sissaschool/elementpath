@@ -22,7 +22,7 @@ import locale
 import contextlib
 import math
 from copy import copy
-from decimal import Decimal, DecimalException, getcontext
+from decimal import Decimal, getcontext
 from itertools import product
 import urllib.parse
 
@@ -426,25 +426,11 @@ class XPathToken(Token):
                     op2.tzinfo = context.timezone
         else:
             if isinstance(op1, UntypedAtomic):
-                try:
-                    if self.parser.xsd_version == '1.0':
-                        op1 = DoubleProxy10(op1.value)
-                    else:
-                        op1 = DoubleProxy(op1.value)
-                except ValueError as err:
-                    raise self.error('FORG0001', str(err))
-
+                op1 = self.cast_to_double(op1.value)
                 if isinstance(op2, Decimal):
                     return op1, float(op2)
             if isinstance(op2, UntypedAtomic):
-                try:
-                    if self.parser.xsd_version == '1.0':
-                        op2 = DoubleProxy10(op2.value)
-                    else:
-                        op2 = DoubleProxy(op2.value)
-                except ValueError as err:
-                    raise self.error('FORG0001', str(err))
-
+                op2 = self.cast_to_double(op2.value)
                 if isinstance(op1, Decimal):
                     return float(op1), op2
 
@@ -714,40 +700,16 @@ class XPathToken(Token):
             msg = "Type {!r} does not match sequence type of {!r}"
             raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
 
-    ###
-    # Conversion to number
-    def cast_to_number(self, value, cls=float):
+    def cast_to_double(self, value):
+        """Cast a value to xs:double."""
         try:
-            if isinstance(value, UntypedAtomic):
-                text = value.value.strip()
-            elif isinstance(value, (str, bytes)):
-                text = value.strip()
-            elif issubclass(cls, Decimal) and (math.isinf(value) or math.isnan(value)):
-                raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % value)
-            else:
-                return cls(value)
-
-            if self.parser.compatibility_mode:
-                if text in ('Infinity', '-Infinity'):
-                    if issubclass(cls, Decimal):
-                        raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % text)
-                    return cls('NaN' if self.parser.version != '1.0' else text[:-5].upper())
-
-            if text in {'NaN', 'INF', '-INF'}:
-                if issubclass(cls, Decimal):
-                    raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % text)
-                return cls(text)
-            elif text.lower() not in {'nan', 'inf', '-inf', 'infinity', '-infinity'}:
-                if issubclass(cls, Decimal) and 'e' in text.lower():
-                    raise self.error('FORG0001', 'cannot cast %r to xs:decimal' % text)
-                return cls(text)
-        except (ValueError, DecimalException):
-            pass
-
-        msg = "could not convert {!r} to {!r}".format(value, cls)
-        if isinstance(value, (str, bytes, UntypedAtomic)):
-            raise self.error('FORG0001', msg)
-        raise self.error('FOCA0002', msg)
+            if self.parser.xsd_version == '1.0':
+                return DoubleProxy10(value)
+            return DoubleProxy(value)
+        except ValueError as err:
+            if isinstance(value, (str, UntypedAtomic)):
+                raise self.error('FORG0001', str(err))
+            raise self.error('FOCA0002', str(err))
 
     ###
     # XPath data accessors base functions
