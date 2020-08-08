@@ -17,7 +17,7 @@ from .exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathTypeError, xpath_error
 from .datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, \
-    QName, atomic_types, ATOMIC_VALUES
+    QName, xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from .xpath_context import XPathSchemaContext
 from .tdop import Parser
 from .namespaces import XML_ID, XML_LANG, XML_NAMESPACE, XSD_NAMESPACE, \
@@ -102,8 +102,9 @@ class XPath1Parser(Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '{'
     }
 
-    variables = None  # XPath 1.0 doesn't have static context's in-scope variables
-    schema = None     # XPath 1.0 doesn't have schema bindings
+    variables = None     # XPath 1.0 doesn't have static context's in-scope variables
+    schema = None        # XPath 1.0 doesn't have schema bindings
+    xsd_version = '1.0'  # Use XSD 1.0 datatypes for default
 
     def __init__(self, namespaces=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
@@ -269,7 +270,9 @@ class XPath1Parser(Parser):
             return isinstance(obj, UntypedAtomic)
         elif get_namespace(type_qname) == XSD_NAMESPACE:
             try:
-                return isinstance(obj, atomic_types[type_qname])
+                if self.xsd_version == '1.1':
+                    return isinstance(obj, xsd11_atomic_types[type_qname])
+                return isinstance(obj, xsd10_atomic_types[type_qname])
             except KeyError:
                 pass
 
@@ -323,10 +326,17 @@ class XPath1Parser(Parser):
             if QName.is_valid(value) and (':' in str(value) or self.namespaces.get('')):
                 return '{}:QName'.format(self.xsd_prefix)
 
+            if self.xsd_version == '1.0':
+                atomic_types = xsd10_atomic_types
+            else:
+                atomic_types = xsd11_atomic_types
+                if atomic_types['dateTimeStamp'].is_valid(value):
+                    return '{}:dateTimeStamp'.format(self.xsd_prefix)
+
             for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
                               'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
                               'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
-                              'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary']:
+                              'yearMonthDuration', 'base64Binary', 'hexBinary']:
                 if atomic_types[type_name].is_valid(value):
                     return '{}:{}'.format(self.xsd_prefix, type_name)
 

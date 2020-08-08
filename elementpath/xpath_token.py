@@ -34,7 +34,7 @@ from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute,
     is_processing_instruction_node, is_element_node, is_document_node, \
     is_xpath_node, is_schema_node
 from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
-    Date10, DayTimeDuration, Duration, Integer
+    Date10, DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -426,11 +426,25 @@ class XPathToken(Token):
                     op2.tzinfo = context.timezone
         else:
             if isinstance(op1, UntypedAtomic):
-                op1 = self.cast_to_number(op1, float)
+                try:
+                    if self.parser.xsd_version == '1.0':
+                        op1 = DoubleProxy10(op1.value)
+                    else:
+                        op1 = DoubleProxy(op1.value)
+                except ValueError as err:
+                    raise self.error('FORG0001', str(err))
+
                 if isinstance(op2, Decimal):
                     return op1, float(op2)
             if isinstance(op2, UntypedAtomic):
-                op2 = self.cast_to_number(op2, float)
+                try:
+                    if self.parser.xsd_version == '1.0':
+                        op2 = DoubleProxy10(op2.value)
+                    else:
+                        op2 = DoubleProxy(op2.value)
+                except ValueError as err:
+                    raise self.error('FORG0001', str(err))
+
                 if isinstance(op1, Decimal):
                     return float(op1), op2
 

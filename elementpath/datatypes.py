@@ -226,8 +226,11 @@ class Timezone(datetime.tzinfo):
 # into a dictionary. Some classes of XSD primitive types are defined 
 # as proxies of basic Python datatypes.
 
-atomic_types = {}
-"""Dictionary of builtin XSD atomic types."""
+xsd10_atomic_types = {}
+"""Dictionary of builtin XSD 1.0 atomic types."""
+
+xsd11_atomic_types = {}
+"""Dictionary of builtin XSD 1.1 atomic types."""
 
 
 class AtomicTypeABCMeta(ABCMeta):
@@ -265,8 +268,12 @@ class AtomicTypeABCMeta(ABCMeta):
         cls.invalid_value = classmethod(mcs.invalid_value)
 
         # Register class if it's not already registered
-        if name and name not in atomic_types:
-            atomic_types[name] = atomic_types[expanded_name] = cls
+        if not name:
+            pass
+        elif cls.version == '1.0':
+            xsd10_atomic_types[name] = xsd10_atomic_types[expanded_name] = cls
+        else:
+            xsd11_atomic_types[name] = xsd11_atomic_types[expanded_name] = cls
 
         return cls
 
@@ -1347,16 +1354,16 @@ class HexBinary(AbstractBinary):
         return isinstance(other, (str, bytes)) and self.value.lower() == other.lower()
 
 
-class Float(float, AnyAtomicType):
+class Float10(float, AnyAtomicType):
     name = 'float'
     pattern = re.compile(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value, version='1.0'):
+    def __new__(cls, value):
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in {'INF', '-INF', 'NaN'} or version != '1.0' and value == '+INF':
+            if value in {'INF', '-INF', 'NaN'} or cls.version != '1.0' and value == '+INF':
                 pass
             elif value.lower() in {'inf', '+inf', '-inf', 'nan',
                                    'infinity', '+infinity', '-infinity'}:
@@ -1374,70 +1381,75 @@ class Float(float, AnyAtomicType):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            if super(Float, self).__eq__(other):
+            if super(Float10, self).__eq__(other):
                 return True
             return math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
-        return super(Float, self).__eq__(other)
+        return super(Float10, self).__eq__(other)
 
     def __ne__(self, other):
         if isinstance(other, self.__class__):
-            if super(Float, self).__eq__(other):
+            if super(Float10, self).__eq__(other):
                 return False
             return not math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
-        return super(Float, self).__ne__(other)
+        return super(Float10, self).__ne__(other)
 
     def __add__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__add__(other))
-        return super(Float, self).__add__(other)
+            return self.__class__(super(Float10, self).__add__(other))
+        return super(Float10, self).__add__(other)
 
     def __radd__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__radd__(other))
-        return super(Float, self).__radd__(other)
+            return self.__class__(super(Float10, self).__radd__(other))
+        return super(Float10, self).__radd__(other)
 
     def __sub__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__sub__(other))
-        return super(Float, self).__sub__(other)
+            return self.__class__(super(Float10, self).__sub__(other))
+        return super(Float10, self).__sub__(other)
 
     def __rsub__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__rsub__(other))
-        return super(Float, self).__rsub__(other)
+            return self.__class__(super(Float10, self).__rsub__(other))
+        return super(Float10, self).__rsub__(other)
 
     def __mul__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__mul__(other))
-        return super(Float, self).__mul__(other)
+            return self.__class__(super(Float10, self).__mul__(other))
+        return super(Float10, self).__mul__(other)
 
     def __rmul__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__rmul__(other))
-        return super(Float, self).__rmul__(other)
+            return self.__class__(super(Float10, self).__rmul__(other))
+        return super(Float10, self).__rmul__(other)
 
     def __truediv__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__truediv__(other))
-        return super(Float, self).__truediv__(other)
+            return self.__class__(super(Float10, self).__truediv__(other))
+        return super(Float10, self).__truediv__(other)
 
     def __rtruediv__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__rtruediv__(other))
-        return super(Float, self).__rtruediv__(other)
+            return self.__class__(super(Float10, self).__rtruediv__(other))
+        return super(Float10, self).__rtruediv__(other)
 
     def __mod__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__mod__(other))
-        return super(Float, self).__mod__(other)
+            return self.__class__(super(Float10, self).__mod__(other))
+        return super(Float10, self).__mod__(other)
 
     def __rmod__(self, other):
         if isinstance(other, (self.__class__, int)):
-            return Float(super(Float, self).__rmod__(other))
-        return super(Float, self).__rmod__(other)
+            return self.__class__(super(Float10, self).__rmod__(other))
+        return super(Float10, self).__rmod__(other)
 
     def __abs__(self):
-        return Float(super(Float, self).__abs__())
+        return self.__class__(super(Float10, self).__abs__())
+
+
+class Float(Float10):
+    name = 'float'
+    version = '1.1'
 
 
 class Integer(int, metaclass=AtomicTypeABCMeta):
@@ -1885,7 +1897,7 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
             value = collapse_white_spaces(str(value)).replace(' ', '')
             if cls.pattern.match(value) is None:
                 raise cls.invalid_value(value)
-        elif isinstance(value, (float, Float, Decimal)):
+        elif isinstance(value, (float, Float10, Decimal)):
             if math.isinf(value) or math.isnan(value):
                 raise cls.invalid_value(value)
         try:
@@ -1907,16 +1919,16 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
-class DoubleProxy(metaclass=AtomicTypeABCMeta):
+class DoubleProxy10(metaclass=AtomicTypeABCMeta):
     name = 'double'
     pattern = re.compile(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value, xsd_version='1.0'):
+    def __new__(cls, value):
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in {'INF', '-INF', 'NaN'} or xsd_version != '1.0' and value == '+INF':
+            if value in {'INF', '-INF', 'NaN'} or cls.version != '1.0' and value == '+INF':
                 pass
             elif value.lower() in {'inf', '+inf', '-inf', 'nan',
                                    'infinity', '+infinity', '-infinity'}:
@@ -1925,16 +1937,21 @@ class DoubleProxy(metaclass=AtomicTypeABCMeta):
 
     @classmethod
     def __subclasshook__(cls, subclass):
-        return issubclass(subclass, float) and not issubclass(subclass, Float)
+        return issubclass(subclass, float) and not issubclass(subclass, Float10)
 
     @classmethod
     def validate(cls, value):
-        if isinstance(value, float) and not isinstance(value, Float):
+        if isinstance(value, float) and not isinstance(value, Float10):
             return
         elif not isinstance(value, str):
             raise cls.invalid_type(value)
         elif cls.pattern.match(value) is None:
             raise cls.invalid_value(value)
+
+
+class DoubleProxy(DoubleProxy10):
+    name = 'double'
+    version = '1.1'
 
 
 class StringProxy(metaclass=AtomicTypeABCMeta):
@@ -2007,7 +2024,7 @@ AnyAtomicType.register(DecimalProxy)
 AnyAtomicType.register(StringProxy)
 AnyAtomicType.register(Date10)
 AnyAtomicType.register(DateTime10)
-AnyAtomicType.register(DoubleProxy)
+AnyAtomicType.register(DoubleProxy10)
 AnyAtomicType.register(GregorianDay)
 AnyAtomicType.register(GregorianMonth)
 AnyAtomicType.register(GregorianMonthDay)
@@ -2019,7 +2036,10 @@ AnyAtomicType.register(Time)
 AnyAtomicType.register(UntypedAtomic)
 StringProxy.register(NormalizedString)
 
-XSD_BUILTIN_TYPES = atomic_types
+xsd11_atomic_types.update(
+    (k, v) for k, v in xsd10_atomic_types.items() if k not in xsd11_atomic_types
+)
+XSD_BUILTIN_TYPES = xsd10_atomic_types
 
 ATOMIC_VALUES = {
     'untypedAtomic': UntypedAtomic('1'),
@@ -2029,7 +2049,7 @@ ATOMIC_VALUES = {
     'boolean': True,
     'decimal': Decimal('1.0'),
     'double': 1.0,
-    'float': Float(1.0),
+    'float': Float10(1.0),
     'string': '  alpha\t',
     'date': Date.fromstring('2000-01-01'),
     'dateTime': DateTime.fromstring('2000-01-01T12:00:00'),
@@ -2071,15 +2091,15 @@ ATOMIC_VALUES = {
     'unsignedByte': UnsignedByte(1),
 }
 
-__all__ = ['atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES', 'is_idrefs',
-           'NumericProxy', 'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType',
+__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES',
+           'is_idrefs', 'NumericProxy', 'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType',
            'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
            'Date', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10',
            'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth', 'Time',
            'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
            'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',
-           'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float', 'Integer',
-           'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short', 'Byte',
-           'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
-           'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName',
-           'BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'UntypedAtomic']
+           'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float10', 'Float',
+           'Integer', 'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short',
+           'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
+           'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
+           'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic']

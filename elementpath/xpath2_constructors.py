@@ -118,7 +118,9 @@ def cast(self, value):
 @constructor('double')
 def cast(self, value):
     try:
-        return datatypes.DoubleProxy(value, self.parser.xsd_version)
+        if self.parser.xsd_version == '1.0':
+            return datatypes.DoubleProxy10(value)
+        return datatypes.DoubleProxy(value)
     except ValueError as err:
         if isinstance(value, (str, datatypes.UntypedAtomic)):
             raise self.error('FORG0001', str(err))
@@ -128,7 +130,9 @@ def cast(self, value):
 @constructor('float')
 def cast(self, value):
     try:
-        return datatypes.Float(value, self.parser.xsd_version)
+        if self.parser.xsd_version == '1.0':
+            return datatypes.Float10(value)
+        return datatypes.Float(value)
     except ValueError as err:
         if isinstance(value, (str, datatypes.UntypedAtomic)):
             raise self.error('FORG0001', str(err))
