@@ -326,7 +326,7 @@ def evaluate(self, context=None):
     values = []
     for item in self[0].select_data_values(context):
         if isinstance(item, UntypedAtomic):
-            values.append(self.cast_to_number(item, float))
+            values.append(self.cast_to_double(item.value))
         elif isinstance(item, (AnyURI, bool)):
             raise self.error('FORG0006', 'non numeric value {!r} in the sequence'.format(item))
         else:
@@ -383,7 +383,7 @@ def evaluate(self, context=None):
 
     for item in self[0].select_data_values(context):
         if isinstance(item, UntypedAtomic):
-            values.append(self.cast_to_number(item, float))
+            values.append(self.cast_to_double(item))
             float_class = float
         elif isinstance(item, (DayTimeDuration, Date10, YearMonthDuration, str, int, Decimal)):
             values.append(item)
