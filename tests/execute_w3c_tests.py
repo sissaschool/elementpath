@@ -827,7 +827,7 @@ class Result(object):
         if root_node.evaluate(context) is True:
             return True
 
-        self.report_failure(verbose)
+        self.report_failure(verbose, expected=self.value, result=result)
         return False
 
     def assert_empty_validator(self, verbose=1):
