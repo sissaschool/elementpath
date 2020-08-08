@@ -23,7 +23,7 @@ from urllib.parse import urlsplit, quote as urllib_quote
 
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
-    Float, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
+    Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -289,8 +289,8 @@ def evaluate(self, context=None):
             return round(item, precision)
         elif isinstance(item, Decimal):
             return round(item, precision)
-        elif isinstance(item, Float):
-            return Float(round(item, precision))
+        elif isinstance(item, Float10):
+            return Float10(round(item, precision))
         return float(round(Decimal.from_float(item), precision))
     except TypeError as err:
         raise self.error('XPTY0004', str(err))
@@ -349,7 +349,7 @@ def evaluate(self, context=None):
         return sum(values) / Decimal(len(values))
     elif all(not isinstance(x, DoubleProxy) for x in values):
         try:
-            return sum(Float(x) if isinstance(x, Decimal) else x for x in values) / len(values)
+            return sum(Float10(x) if isinstance(x, Decimal) else x for x in values) / len(values)
         except TypeError as err:
             raise self.error('FORG0006', str(err))
     else:
@@ -391,7 +391,7 @@ def evaluate(self, context=None):
             values.append(item)
             if float_class is None:
                 float_class = type(item)
-            elif float_class is Float and not isinstance(item, Float):
+            elif float_class is Float10 and not isinstance(item, Float10):
                 float_class = float
         elif isinstance(item, AnyURI):
             values.append(item.value)
