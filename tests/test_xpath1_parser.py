@@ -34,7 +34,7 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import *
-from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.namespaces import XSD_NAMESPACE, XQT_ERRORS_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 
 try:
     from tests import xpath_test_class
@@ -1139,15 +1139,6 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/namespace::*', root, expected=set(namespaces),
                             namespaces=namespaces[-1:])
 
-        if self.etree is lxml_etree:
-            self.check_selector('/A/namespace::*', root, expected=set(namespaces))
-
-            root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" '
-                                  'xmlns="http://xpath.test/ns"><B1/></tst:A>')
-            namespaces = namespaces + [(None, 'http://xpath.test/ns')]
-            self.check_selector('/tst:A/namespace::*', root, set(namespaces),
-                                namespaces=namespaces[-2:-1])
-
     def test_parent_shortcut_and_axis(self):
         root = self.etree.XML(
             '<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3><B4><C3><D1/></C3></B4></A>')
@@ -1356,6 +1347,21 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
                 self.assertTrue(isinstance(results, expected))
             else:
                 self.assertTrue(expected(results))
+
+    def test_namespace_axis(self):
+        root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
+        namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) \
+            + [('tst', 'http://xpath.test/ns')]
+        self.check_selector('/A/namespace::*', root, expected=set(namespaces),
+                            namespaces=namespaces[-1:])
+
+        self.check_selector('/A/namespace::*', root, expected=set(namespaces))
+
+        root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" '
+                              'xmlns="http://xpath.test/ns"><B1/></tst:A>')
+        namespaces = namespaces + [(None, 'http://xpath.test/ns')]
+        self.check_selector('/tst:A/namespace::*', root, set(namespaces),
+                            namespaces=namespaces[-2:-1])
 
 
 if __name__ == '__main__':

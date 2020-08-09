@@ -33,8 +33,9 @@ from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute,
     TypedElement, is_etree_element, etree_iter_strings, is_comment_node, \
     is_processing_instruction_node, is_element_node, is_document_node, \
     is_xpath_node, is_schema_node
-from .datatypes import AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, \
-    Date10, DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy
+from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime, \
+    AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
+    Integer, DoubleProxy10, DoubleProxy, QName
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
@@ -682,6 +683,83 @@ class XPathToken(Token):
         if not xsd_type:
             return item
         elif xsd_type.name in XSD_SPECIAL_TYPES:
+            if isinstance(item, AttributeNode):
+                return TypedAttribute(item, xsd_type, UntypedAtomic(item[1]))
+            elif item.text:
+                return TypedElement(item, xsd_type, UntypedAtomic(item.text))
+            else:
+                return TypedElement(item, xsd_type, None)
+
+        elif xsd_type.has_mixed_content():
+            value = None if item.text is None else UntypedAtomic(item.text)
+            return TypedElement(item, xsd_type, value)
+        elif xsd_type.is_element_only():
+            return TypedElement(item, xsd_type, None)
+
+        if self.parser.xsd_version == '1.0':
+            atomic_types = xsd10_atomic_types
+        else:
+            atomic_types = xsd11_atomic_types
+
+        try:
+            builder = atomic_types[xsd_type.name]
+        except KeyError:
+            pass
+        else:
+            if issubclass(builder, (AbstractDateTime, Duration)):
+                builder = builder.fromstring
+            elif issubclass(builder, QName):
+                builder = self.cast_to_qname
+
+            try:
+                if isinstance(item, AttributeNode):
+                    return TypedAttribute(item, xsd_type, builder(item[1]))
+                else:
+                    return TypedElement(item, xsd_type, builder(item.text))
+            except (TypeError, ValueError) as err:
+                msg = "Type {!r} does not match sequence type of {!r}"
+                raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
+
+        try:
+            primitive_type = self.parser.schema.get_primitive_type(xsd_type)
+            builder = atomic_types[primitive_type.name]
+        except (KeyError, AttributeError):
+            builder = UntypedAtomic
+        else:
+            if isinstance(builder, (AbstractDateTime, Duration)):
+                builder = builder.fromstring
+            elif issubclass(builder, QName):
+                builder = self.cast_to_qname
+
+        try:
+            if isinstance(item, AttributeNode):
+                if xsd_type.is_valid(item[1]):
+                    return TypedAttribute(item, xsd_type, builder(item[1]))
+            elif xsd_type.is_valid(item.text):
+                return TypedElement(item, xsd_type, builder(item.text))
+        except (TypeError, ValueError):
+            pass
+
+        msg = "Type {!r} does not match sequence type of {!r}"
+        raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
+
+    def get_typed_node2(self, item):
+        """
+        Returns a typed node if the item is matching an XSD type.
+
+        Ref:
+          https://www.w3.org/TR/xpath20/#id-processing-model
+          https://www.w3.org/TR/xpath20/#id-static-analysis
+          https://www.w3.org/TR/xquery-semantics/
+
+        :param item: an untyped attribute ot element.
+        :return: a TypedAttribute or a TypedElement, or the argument \
+        if it's not matching any associated XSD type.
+        """
+        xsd_type = self.get_xsd_type(item)
+        if not xsd_type:
+            return item
+        elif xsd_type.name in XSD_SPECIAL_TYPES:
             decoder = UntypedAtomic
         else:
             decoder = xsd_type.decode
@@ -710,6 +788,19 @@ class XPathToken(Token):
             if isinstance(value, (str, UntypedAtomic)):
                 raise self.error('FORG0001', str(err))
             raise self.error('FOCA0002', str(err))
+
+    def cast_to_qname(self, qname):
+        """Cast a prefixed qname string to a QName object."""
+        try:
+            if ':' not in qname:
+                return QName(self.parser.namespaces.get(''), qname.strip())
+            pfx, _ = qname.strip().split(':')
+            return QName(self.parser.namespaces[pfx], qname)
+        except ValueError:
+            msg = 'invalid value {!r} for an xs:QName'.format(qname.strip())
+            raise self.error('FORG0001', msg)
+        except KeyError as err:
+            raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
 
     ###
     # XPath data accessors base functions
@@ -825,6 +916,17 @@ class XPathToken(Token):
 
     ###
     # Error handling helpers
+    def error_code(self, code):
+        """Returns a prefixed error code."""
+        if self.parser.namespaces.get('err') == XQT_ERRORS_NAMESPACE:
+            return 'err:%s' % code
+
+        for pfx, uri in self.parser.namespaces.items():
+            if uri == XQT_ERRORS_NAMESPACE:
+                return '%s:%s' % (pfx, code) if pfx else code
+
+        return code  # returns an unprefixed code (without prefix the namespace is not checked)
+
     def error(self, code, message=None):
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
@@ -839,14 +941,14 @@ class XPathToken(Token):
             except ValueError:
                 raise ElementPathValueError(
                     message='%r is not a QName' % code,
-                    code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPTY0004'),
+                    code=self.error_code('XPTY0004'),
                     token=self,
                 )
             else:
                 if self.parser.namespaces.get(prefix) != XQT_ERRORS_NAMESPACE:
                     raise ElementPathValueError(
                         message='{} namespace required for code' % XQT_ERRORS_NAMESPACE,
-                        code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPTY0004'),
+                        code=self.error_code('XPTY0004'),
                         token=self,
                     )
 
@@ -855,13 +957,13 @@ class XPathToken(Token):
         except KeyError:
             raise ElementPathValueError(
                 message='unknown XPath error code %r' % code,
-                code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPTY0004'),
+                code=self.error_code('XPTY0004'),
                 token=self,
             )
         else:
             return error_class(
                 message=message or default_message,
-                code=self.parser.get_qname(XQT_ERRORS_NAMESPACE, code),
+                code=self.error_code(code),
                 token=self,
             )
 
