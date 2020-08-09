@@ -126,28 +126,16 @@ class XPath1Parser(Parser):
         """
         return
 
-    @property
-    def xsd_prefix(self):
+    def xsd_qname(self, local_name):
+        """Returns a prefixed QName string for XSD namespace."""
         if self.namespaces.get('xs') == XSD_NAMESPACE:
-            return 'xs'
+            return 'xs:%s' % local_name
 
         for pfx, uri in self.namespaces.items():
             if uri == XSD_NAMESPACE:
-                return pfx
+                return '%s:%s' % (pfx, local_name) if pfx else local_name
 
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
-
-    def get_qname(self, namespace, local_name):
-        if ':' in local_name:
-            return local_name
-
-        for pfx, uri in self.namespaces.items():
-            if uri == namespace:
-                if pfx:
-                    return '%s:%s' % (pfx, local_name)
-                return local_name
-        else:
-            return local_name
 
     @staticmethod
     def unescape(string_literal):
@@ -321,24 +309,24 @@ class XPath1Parser(Parser):
             if value_kind is not None:
                 return '{}()'.format(value_kind)
             elif isinstance(value, UntypedAtomic):
-                return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
+                return self.xsd_qname('untypedAtomic')
 
             if QName.is_valid(value) and (':' in str(value) or self.namespaces.get('')):
-                return '{}:QName'.format(self.xsd_prefix)
+                return self.xsd_qname('QName')
 
             if self.xsd_version == '1.0':
                 atomic_types = xsd10_atomic_types
             else:
                 atomic_types = xsd11_atomic_types
                 if atomic_types['dateTimeStamp'].is_valid(value):
-                    return '{}:dateTimeStamp'.format(self.xsd_prefix)
+                    return self.xsd_qname('dateTimeStamp')
 
             for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
                               'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
                               'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
                               'yearMonthDuration', 'base64Binary', 'hexBinary']:
                 if atomic_types[type_name].is_valid(value):
-                    return '{}:{}'.format(self.xsd_prefix, type_name)
+                    return self.xsd_qname(type_name)
 
         raise ElementPathTypeError("Inconsistent sequence type for {!r}".format(value))
 
@@ -392,7 +380,7 @@ class XPath1Parser(Parser):
                 return sequence_type == 'node()' or \
                     '()' in sequence_type and sequence_type.startswith(value_kind)
             elif isinstance(value, UntypedAtomic):
-                return '{}:{}'.format(self.xsd_prefix, 'untypedAtomic')
+                return self.xsd_qname('untypedAtomic')
 
             try:
                 type_qname = get_expanded_name(sequence_type, self.namespaces)

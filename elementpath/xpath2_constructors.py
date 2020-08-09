@@ -11,7 +11,7 @@
 XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
 from .exceptions import ElementPathError, ElementPathSyntaxError
-from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE
+from .namespaces import XSD_NAMESPACE
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
     GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYear, \
     GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
@@ -436,7 +436,7 @@ def nud(self):
             self[0:] = self.parser.expression(5),
         self.parser.advance(')')
     except ElementPathSyntaxError as err:
-        err.code = self.parser.get_qname(XQT_ERRORS_NAMESPACE, 'XPST0017')
+        err.code = self.error_code('XPST0017')
         raise
 
     self.value = None
@@ -468,19 +468,11 @@ def cast(self, value):
     if isinstance(value, QName):
         return value
     elif isinstance(value, UntypedAtomic):
-        value = value.value
-    elif not isinstance(value, str):
+        return self.cast_to_qname(value.value)
+    elif isinstance(value, str):
+        return self.cast_to_qname(value)
+    else:
         raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
-
-    try:
-        if ':' not in value:
-            return QName(self.parser.namespaces.get('', ''), value)
-        pfx, _ = value.strip().split(':')
-        return QName(self.parser.namespaces[pfx], value)
-    except ValueError:
-        raise self.error('FORG0001', 'invalid value {!r} for argument'.format(value.strip()))
-    except KeyError as err:
-        raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
 
 
 @constructor('dateTime', bp=90, label=('function', 'constructor'))
