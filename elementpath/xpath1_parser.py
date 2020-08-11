@@ -15,8 +15,8 @@ from copy import copy
 
 from .exceptions import MissingContextError, ElementPathKeyError, xpath_error
 from .datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, \
-    QName, xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
+    YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, StringProxy, \
+    QName, AnyURI, xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from .xpath_context import XPathSchemaContext
 from .tdop import Parser
 from .namespaces import XSD_ANY_SIMPLE_TYPE, XML_ID, XML_LANG, XML_NAMESPACE, \
@@ -1451,18 +1451,21 @@ def evaluate(self, context=None):
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
     values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
-
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero
-    elif any(isinstance(x, float) and math.isnan(x) for x in values):
-        return float('nan')
 
     if all(isinstance(x, (decimal.Decimal, int)) for x in values):
         return sum(values)
     elif all(isinstance(x, DayTimeDuration) for x in values) or \
             all(isinstance(x, YearMonthDuration) for x in values):
         return sum(values[1:], start=values[0])
+    elif any(isinstance(x, Duration) for x in values):
+        raise self.error('FORG0006', 'invalid sum of duration values')
+    elif any(isinstance(x, (StringProxy, AnyURI)) for x in values):
+        raise self.error('FORG0006', 'cannot apply fn:sum() to string-based types')
+    elif any(isinstance(x, float) and math.isnan(x) for x in values):
+        return float('nan')
 
     try:
         return sum(self.number_value(x) for x in values)
@@ -1509,11 +1512,13 @@ def evaluate(self, context=None):
     try:
         number = decimal.Decimal(arg)
         if number > 0:
-            return number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP')
+            return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_UP'))
         else:
-            return number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN')
+            return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
         raise self.wrong_type(str(err)) from None
+    except decimal.InvalidOperation:
+        return round(arg)
     except decimal.DecimalException as err:
         raise self.wrong_value(str(err)) from None
 

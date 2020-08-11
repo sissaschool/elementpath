@@ -24,7 +24,7 @@ from urllib.parse import urlsplit, quote as urllib_quote
 from .exceptions import ElementPathTypeError
 from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
-    UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy
+    UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy, NumericProxy
 from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
@@ -521,14 +521,28 @@ def select(self, context=None):
 
 @method(function('subsequence', nargs=(2, 3)))
 def select(self, context=None):
-    starting_loc = self[1].evaluate(context) - 1
-    length = self[2].evaluate(context) if len(self) >= 3 else 0
-    for pos, result in enumerate(self[0].select(context)):
-        try:
-            if starting_loc <= pos and (not length or pos < starting_loc + length):
-                yield result
-        except TypeError as err:
-            raise self.error('XPTY0004', str(err)) from None
+    starting_loc = self.get_argument(context, 1, cls=NumericProxy)
+    if not math.isnan(starting_loc) and not math.isinf(starting_loc):
+        starting_loc = round(starting_loc)
+
+    if len(self) == 2:
+        for pos, result in enumerate(self[0].select(context), start=1):
+            try:
+                if starting_loc <= pos:
+                    yield result
+            except TypeError as err:
+                raise self.error('XPTY0004', str(err)) from None
+    else:
+        length = self.get_argument(context, 2, cls=NumericProxy)
+        if not math.isnan(length) and not math.isinf(length):
+            length = round(length)
+
+        for pos, result in enumerate(self[0].select(context), start=1):
+            try:
+                if starting_loc <= pos < starting_loc + length:
+                    yield result
+            except TypeError as err:
+                raise self.error('XPTY0004', str(err)) from None
 
 
 @method(function('unordered', nargs=1))
