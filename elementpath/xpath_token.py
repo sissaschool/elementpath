@@ -189,10 +189,7 @@ class XPathToken(Token):
                 return
         else:
             item = None
-            if context is not None:
-                context = context.copy()
-
-            for k, result in enumerate(selector(context)):
+            for k, result in enumerate(selector(copy(context))):
                 if k == 0:
                     item = result
                 elif not self.parser.compatibility_mode:
@@ -590,17 +587,15 @@ class XPathToken(Token):
                     if xsd_node[1].is_matching(name):
                         if xsd_node.name is None:
                             xsd_node = self.parser.schema.get_attribute(name)
-
-                        xsd_type = xsd_node[1].type
-                        self.add_xsd_type(name, xsd_type)
+                        xsd_type = self.add_xsd_type(xsd_node)
                         value = self.parser.get_atomic_value(xsd_type)
                         yield TypedAttribute(xsd_node, xsd_type, value)
+
                 elif xsd_node.is_matching(name, self.parser.default_namespace):
                     if xsd_node.name is None:
                         xsd_node = self.parser.schema.get_element(name)
 
-                    xsd_type = xsd_node.type
-                    self.add_xsd_type(name, xsd_type)
+                    xsd_type = self.add_xsd_type(xsd_node)
                     value = self.parser.get_atomic_value(xsd_type)
                     yield TypedElement(xsd_node, xsd_type, value)
 
@@ -611,26 +606,34 @@ class XPathToken(Token):
                 except AttributeError:
                     pass
 
-    def add_xsd_type(self, name, xsd_type):
+    def add_xsd_type(self, item):
         """
-        Adds an XSD type association to token.
+        Adds an XSD type association from an item. The association is
+        added using the item's name and type.
+        """
+        if isinstance(item, AttributeNode):
+            item = item.value
+        elif isinstance(item, TypedAttribute):
+            item = item[0].value
+        elif isinstance(item, TypedElement):
+            item = item[0]
 
-        :param name: the name to match with the XSD type.
-        :param xsd_type: the XSD type to add.
-        """
+        if not is_schema_node(item):
+            return
+
         if self.xsd_types is None:
-            self.xsd_types = {name: xsd_type}
+            self.xsd_types = {item.name: item.type}
         else:
-            obj = self.xsd_types.get(name)
+            obj = self.xsd_types.get(item.name)
             if obj is None:
-                self.xsd_types[name] = xsd_type
+                self.xsd_types[item.name] = item.type
             elif not isinstance(obj, list):
-                if obj is not xsd_type:
-                    self.xsd_types[name] = [obj, xsd_type]
-            elif xsd_type not in obj:
-                obj.append(xsd_type)
+                if obj is not item.type:
+                    self.xsd_types[item.name] = [obj, item.type]
+            elif item.type not in obj:
+                obj.append(item.type)
 
-        return xsd_type
+        return item.type
 
     def get_xsd_type(self, item):
         """
@@ -685,15 +688,14 @@ class XPathToken(Token):
         elif xsd_type.name in XSD_SPECIAL_TYPES:
             if isinstance(item, AttributeNode):
                 return TypedAttribute(item, xsd_type, UntypedAtomic(item[1]))
-            elif item.text:
-                return TypedElement(item, xsd_type, UntypedAtomic(item.text))
-            else:
-                return TypedElement(item, xsd_type, None)
+            return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
 
         elif xsd_type.has_mixed_content():
-            value = None if item.text is None else UntypedAtomic(item.text)
+            value = UntypedAtomic(item.text or '')
             return TypedElement(item, xsd_type, value)
         elif xsd_type.is_element_only():
+            return TypedElement(item, xsd_type, None)
+        elif xsd_type.is_empty():
             return TypedElement(item, xsd_type, None)
 
         if self.parser.xsd_version == '1.0':
@@ -743,52 +745,6 @@ class XPathToken(Token):
         msg = "Type {!r} does not match sequence type of {!r}"
         raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
 
-    def get_typed_node2(self, item):
-        """
-        Returns a typed node if the item is matching an XSD type.
-
-        Ref:
-          https://www.w3.org/TR/xpath20/#id-processing-model
-          https://www.w3.org/TR/xpath20/#id-static-analysis
-          https://www.w3.org/TR/xquery-semantics/
-
-        :param item: an untyped attribute ot element.
-        :return: a TypedAttribute or a TypedElement, or the argument \
-        if it's not matching any associated XSD type.
-        """
-        xsd_type = self.get_xsd_type(item)
-        if not xsd_type:
-            return item
-        elif xsd_type.name in XSD_SPECIAL_TYPES:
-            decoder = UntypedAtomic
-        else:
-            decoder = xsd_type.decode
-
-        try:
-            if isinstance(item, AttributeNode):
-                return TypedAttribute(item, xsd_type, decoder(item[1]))
-            elif xsd_type.is_simple() or xsd_type.has_simple_content():
-                return TypedElement(item, xsd_type, decoder(item.text))
-            elif xsd_type.has_mixed_content():
-                return TypedElement(item, xsd_type, item.text)
-            else:
-                return TypedElement(item, xsd_type, None)
-
-        except (TypeError, ValueError):
-            msg = "Type {!r} does not match sequence type of {!r}"
-            raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
-
-    def cast_to_double(self, value):
-        """Cast a value to xs:double."""
-        try:
-            if self.parser.xsd_version == '1.0':
-                return DoubleProxy10(value)
-            return DoubleProxy(value)
-        except ValueError as err:
-            if isinstance(value, (str, UntypedAtomic)):
-                raise self.error('FORG0001', str(err))
-            raise self.error('FOCA0002', str(err))
-
     def cast_to_qname(self, qname):
         """Cast a prefixed qname string to a QName object."""
         try:
@@ -801,6 +757,17 @@ class XPathToken(Token):
             raise self.error('FORG0001', msg)
         except KeyError as err:
             raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
+
+    def cast_to_double(self, value):
+        """Cast a value to xs:double."""
+        try:
+            if self.parser.xsd_version == '1.0':
+                return DoubleProxy10(value)
+            return DoubleProxy(value)
+        except ValueError as err:
+            if isinstance(value, (str, UntypedAtomic)):
+                raise self.error('FORG0001', str(err))
+            raise self.error('FOCA0002', str(err))
 
     ###
     # XPath data accessors base functions

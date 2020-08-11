@@ -25,7 +25,8 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
 from .datatypes import UntypedAtomic, QName, AnyURI, Duration
-from .xpath_nodes import is_xpath_node, match_attribute_node, is_element_node, is_document_node
+from .xpath_nodes import AttributeNode, TypedAttribute, is_xpath_node, \
+    match_attribute_node, is_element_node, is_document_node
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
 from .xpath1_parser import XPath1Parser
 from .xpath_context import XPathSchemaContext
@@ -880,7 +881,9 @@ def evaluate(self, context=None):
 
     if any(x is None for x in operands):
         return
-    elif isinstance(operands[0], type(operands[1])) and isinstance(operands[1], type(operands[0])):
+
+    cls0, cls1 = type(operands[0]), type(operands[1])
+    if cls0 is cls1:
         pass
     elif all(isinstance(x, float) for x in operands):
         pass
@@ -893,9 +896,10 @@ def evaluate(self, context=None):
             operands[1] = float(operands[1])
         else:
             operands[0] = float(operands[0])
-
     elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
-        pass  # can compare duration types for equality or inequality
+        pass
+    elif (issubclass(cls0, cls1) or issubclass(cls1, cls0)) and not issubclass(cls0, Duration):
+        pass
     else:
         msg = "cannot apply {} between {!r} and {!r}".format(self, *operands)
         raise self.error('XPTY0004', msg)
@@ -1175,10 +1179,12 @@ def select(self, context=None):
         for attribute in context.iter_attributes():
             if match_attribute_node(attribute, name):
                 if isinstance(context, XPathSchemaContext):
-                    # Attribute value is an XSD attribute
-                    self.add_xsd_type(attribute[1].name, attribute[1].type)
+                    self.add_xsd_type(attribute)
                 elif not type_name:
                     yield attribute.value
+                elif isinstance(attribute, TypedAttribute):
+                    if attribute.type.name == type_name:
+                        yield attribute.value
                 else:
                     xsd_type = self.get_xsd_type(attribute)
                     if xsd_type is not None and xsd_type.name == type_name:

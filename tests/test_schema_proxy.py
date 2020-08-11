@@ -245,11 +245,13 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.assertEqual(token[0].xsd_types['b'], schema.maps.types['{%s}integer' % XSD_NAMESPACE])
         token = parser.parse("//values/c")
 
-        self.assertEqual(token[0][0].xsd_types["values"], schema.elements['values'].type)
+        self.assertEqual(token[0][0].xsd_types["{http://xpath.test/ns}values"],
+                         schema.elements['values'].type)
         self.assertEqual(token[1].xsd_types['c'], schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
 
         token = parser.parse("values/c")
-        self.assertEqual(token[0].xsd_types['values'], schema.elements['values'].type)
+        self.assertEqual(token[0].xsd_types['{http://xpath.test/ns}values'],
+                         schema.elements['values'].type)
         self.assertEqual(token[1].xsd_types['c'], schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
 
         token = parser.parse("values/*")
@@ -291,7 +293,8 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.assertEqual(token[0].xsd_types['b'], schema.types['rangeType'])
         token = parser.parse("values/c")
 
-        self.assertEqual(token[0].xsd_types['values'], schema.elements['values'].type)
+        self.assertEqual(token[0].xsd_types['{http://xpath.test/ns}values'],
+                         schema.elements['values'].type)
         self.assertEqual(token[1].xsd_types['c'], schema.maps.types['{%s}boolean' % XSD_NAMESPACE])
         token = parser.parse("//b/@min")
         self.assertEqual(token[0][0].xsd_types['b'], schema.types['rangeType'])
@@ -300,7 +303,8 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
                          schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
         token = parser.parse("values/b/@min")
-        self.assertEqual(token[0][0].xsd_types['values'], schema.elements['values'].type)
+        self.assertEqual(token[0][0].xsd_types['{http://xpath.test/ns}values'],
+                         schema.elements['values'].type)
         self.assertEqual(token[0][1].xsd_types['b'], schema.types['rangeType'])
         self.assertEqual(token[1][0].xsd_types['min'],
                          schema.maps.types['{%s}integer' % XSD_NAMESPACE])

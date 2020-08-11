@@ -271,7 +271,10 @@ class XPathContext(object):
 
     def iter_attributes(self):
         """Iterator for 'attribute' axis and '@' shortcut."""
-        if not is_element_node(self.item):
+        if isinstance(self.item, (AttributeNode, TypedAttribute)) and self.axis == 'attribute':
+            yield self.item
+            return
+        elif not is_element_node(self.item):
             return
 
         status = self.item, self.size, self.position, self.axis

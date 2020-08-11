@@ -339,7 +339,7 @@ class XPath2TokenTest(XPath1TokenTest):
 
         root_token = self.parser.parse('a1')
         self.assertIsNone(root_token.xsd_types)
-        root_token.add_xsd_type('a1', schema.meta_schema.types['int'])
+        root_token.add_xsd_type(schema.elements['a1'])
         self.assertEqual(root_token.xsd_types, {'a1': schema.meta_schema.types['int']})
 
         self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
@@ -521,9 +521,16 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertEqual(xsd_type, schema.meta_schema.types['int'])
             self.assertIsNone(root_token.get_xsd_type('node'))
 
-            root_token.add_xsd_type('node', schema.meta_schema.types['float'])
-            root_token.add_xsd_type('node', schema.meta_schema.types['boolean'])
-            root_token.add_xsd_type('node', schema.meta_schema.types['decimal'])
+            TestElement = namedtuple('XsdElement', 'name local_name type')
+            root_token.add_xsd_type(
+                TestElement('node', 'node', schema.meta_schema.types['float'])
+            )
+            root_token.add_xsd_type(
+                TestElement('node', 'node', schema.meta_schema.types['boolean'])
+            )
+            root_token.add_xsd_type(
+                TestElement('node', 'node', schema.meta_schema.types['decimal'])
+            )
 
             xsd_type = root_token.get_xsd_type('node')
             self.assertEqual(xsd_type, schema.meta_schema.types['float'])
@@ -566,7 +573,8 @@ class XPath2TokenTest(XPath1TokenTest):
 
             self.assertEqual(root_token.get_xsd_type(elem), schema.types['aType'])
 
-            root_token.add_xsd_type('a', schema.meta_schema.types['float'])
+            TestElement = namedtuple('XsdElement', 'name local_name type')
+            root_token.add_xsd_type(TestElement('a', 'a', schema.meta_schema.types['float']))
             self.assertEqual(root_token.get_xsd_type(elem), schema.types['aType'])
 
             root_token.xsd_types['a'].insert(0, schema.meta_schema.types['boolean'])
@@ -651,6 +659,7 @@ class XPath2TokenTest(XPath1TokenTest):
                 self.assertEqual(value, '1')
             finally:
                 self.parser.schema = None
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -582,9 +582,9 @@ def select(self, context=None):
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, name):
                 path = context.get_path(item)
-                xsd_component = self.parser.schema.find(path, self.parser.namespaces)
-                if xsd_component is not None:
-                    self.add_xsd_type(xsd_component.name, xsd_component.type)
+                xsd_node = self.parser.schema.find(path, self.parser.namespaces)
+                if xsd_node is not None:
+                    self.add_xsd_type(xsd_node)
                 else:
                     self.xsd_types = self.parser.schema
                 yield self.get_typed_node(item)
@@ -686,19 +686,15 @@ def select(self, context=None):
     # Wildcard literal
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
-            if context.axis == 'attribute':
-                if isinstance(item, (AttributeNode, TypedAttribute)):
-                    if is_schema_node(item.value):
-                        self.add_xsd_type(item.value.name, item.value.type)
-                yield item
-            elif is_element_node(item):
-                if is_schema_node(item):
-                    self.add_xsd_type(item.name, item.type)
+            if context.item is not None:
+                self.add_xsd_type(item)
                 yield item
 
     elif self.xsd_types is None:
         for item in context.iter_children_or_self():
-            if context.axis == 'attribute':
+            if context.item is None:
+                pass
+            elif context.axis == 'attribute':
                 if isinstance(item, (AttributeNode, TypedAttribute)):
                     yield item[-1]
             elif is_element_node(item):
@@ -707,7 +703,9 @@ def select(self, context=None):
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if context.is_principal_node_kind():
+            if context.item is None:
+                pass
+            elif context.is_principal_node_kind():
                 yield self.get_typed_node(item)
 
 
@@ -719,7 +717,7 @@ def select(self, context=None):
     for item in context.iter_self():
         if item is not None:
             if is_schema_node(item):
-                self.add_xsd_type(item.name, item.type)
+                self.add_xsd_type(item)
             yield item
         elif is_document_node(context.root):
             yield context.root
@@ -1014,13 +1012,7 @@ def select(self, context=None):
                     items.append(result)
                     yield result
                     if isinstance(context, XPathSchemaContext):
-                        try:
-                            if isinstance(result, AttributeNode):
-                                self[1].add_xsd_type(result[1].name, result[1].type)
-                            else:
-                                self[1].add_xsd_type(result.tag, result.type)
-                        except AttributeError:
-                            pass  # schemas ...
+                        self[1].add_xsd_type(result)
 
 
 @method('//')
