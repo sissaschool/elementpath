@@ -568,8 +568,8 @@ class XPathToken(Token):
             locale.setlocale(locale.LC_COLLATE, loc)
 
     ###
-    # Schema context methods
-    def select_xsd_nodes(self, context, name):
+    # XSD types related methods
+    def select_xsd_nodes(self, schema_context, name):
         """
         Selector for XSD nodes (elements, attributes and schemas). If there is
         a match with an attribute or an element the node's type is added to
@@ -578,33 +578,43 @@ class XPathToken(Token):
         for doing static evaluation. For matching schemas yields the original
         instance.
 
-        :param context: an XPath item related with a schema instance.
-        :param name: a QName in extended format for matching the item.
+        :param schema_context: an XPathSchemaContext instance.
+        :param name: a QName in extended format.
         """
-        for xsd_node in context.iter_children_or_self():
+        for xsd_node in schema_context.iter_children_or_self():
+            if xsd_node is None:
+                if name == schema_context.root.tag == '{%s}schema' % XSD_NAMESPACE:
+                    yield None
+                continue
+
             try:
                 if isinstance(xsd_node, AttributeNode):
                     if xsd_node[1].is_matching(name):
                         if xsd_node.name is None:
+                            # node is an XSD attribute wildcard
                             xsd_node = self.parser.schema.get_attribute(name)
+                            if xsd_node is None:
+                                continue
+
                         xsd_type = self.add_xsd_type(xsd_node)
                         value = self.parser.get_atomic_value(xsd_type)
                         yield TypedAttribute(xsd_node, xsd_type, value)
 
                 elif xsd_node.is_matching(name, self.parser.default_namespace):
                     if xsd_node.name is None:
+                        # node is an XSD element wildcard
                         xsd_node = self.parser.schema.get_element(name)
+                        if xsd_node is None:
+                            continue
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     value = self.parser.get_atomic_value(xsd_type)
                     yield TypedElement(xsd_node, xsd_type, value)
 
             except AttributeError:
-                try:
-                    if name == xsd_node.tag == '{%s}schema' % XSD_NAMESPACE:
-                        yield xsd_node
-                except AttributeError:
-                    pass
+                # Item is a schema
+                if name == xsd_node.tag == '{%s}schema' % XSD_NAMESPACE:
+                    yield xsd_node
 
     def add_xsd_type(self, item):
         """
@@ -718,7 +728,7 @@ class XPathToken(Token):
                     return TypedAttribute(item, xsd_type, builder(item[1]))
                 else:
                     return TypedElement(item, xsd_type, builder(item.text))
-            except (TypeError, ValueError) as err:
+            except (TypeError, ValueError):
                 msg = "Type {!r} does not match sequence type of {!r}"
                 raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
 

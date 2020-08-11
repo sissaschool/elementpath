@@ -488,14 +488,14 @@ def select(self, context=None):
 
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
 
-        # Try to match the type using the path
+        # Try to match the type using the item's path
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, tag):
                 path = context.get_path(item)
 
-                xsd_component = self.parser.schema.find(path, self.parser.namespaces)
-                if xsd_component is not None:
-                    self.xsd_types = {tag: xsd_component.type}
+                xsd_node = self.parser.schema.find(path, self.parser.namespaces)
+                if xsd_node is not None:
+                    self.xsd_types = {tag: xsd_node.type}
                 else:
                     self.xsd_types = self.parser.schema
 
@@ -686,14 +686,14 @@ def select(self, context=None):
     # Wildcard literal
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
-            if context.item is not None:
+            if item is not None:
                 self.add_xsd_type(item)
                 yield item
 
     elif self.xsd_types is None:
         for item in context.iter_children_or_self():
-            if context.item is None:
-                pass
+            if item is None:
+                pass  # '*' wildcard doesn't match document nodes
             elif context.axis == 'attribute':
                 if isinstance(item, (AttributeNode, TypedAttribute)):
                     yield item[-1]

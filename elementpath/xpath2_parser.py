@@ -25,7 +25,7 @@ from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
 from .datatypes import UntypedAtomic, QName, AnyURI, Duration
-from .xpath_nodes import AttributeNode, TypedAttribute, is_xpath_node, \
+from .xpath_nodes import TypedAttribute, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from .xpath_token import UNICODE_CODEPOINT_COLLATION
 from .xpath1_parser import XPath1Parser
