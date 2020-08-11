@@ -20,10 +20,9 @@ class XPathSelectorsTest(unittest.TestCase):
     def test_select_function(self):
         self.assertListEqual(select(self.root, 'text()'), ['Dickens'])
         self.assertEqual(select(self.root, '$a', variables={'a': 1}), 1)
-        self.assertEqual(select(self.root, '$a', variable_values={'a': 1}), 1)
 
         self.assertEqual(
-            select(self.root, '$a', variable_values={'a': 1}, variables={'a': 'xs:decimal'}), 1
+            select(self.root, '$a', variables={'a': 1}, variable_types={'a': 'xs:decimal'}), 1
         )
 
     def test_iter_select_function(self):

@@ -35,7 +35,7 @@ class XPathContext(object):
     :param position: the current position of the node within the input sequence.
     :param size: the number of items in the input sequence.
     :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
-    :param variable_values: dictionary of context variable values that maps a QName to a value.
+    :param variables: dictionary of context variables that maps a QName to a value.
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
@@ -51,7 +51,7 @@ class XPathContext(object):
     _elem = None
 
     def __init__(self, root, namespaces=None, item=None, position=1, size=1, axis=None,
-                 variable_values=None, current_dt=None, timezone=None, documents=None,
+                 variables=None, current_dt=None, timezone=None, documents=None,
                  collections=None, default_collection=None):
         self.root = root
         self.namespaces = namespaces
@@ -73,10 +73,10 @@ class XPathContext(object):
         self.size = size
         self.axis = axis
 
-        if variable_values is None:
-            self.variable_values = {}
+        if variables is None:
+            self.variables = {}
         else:
-            self.variable_values = {k: v for k, v in variable_values.items()}
+            self.variables = {k: v for k, v in variables.items()}
 
         if timezone is None or isinstance(timezone, Timezone):
             self.timezone = timezone
@@ -99,7 +99,7 @@ class XPathContext(object):
             position=self.position,
             size=self.size,
             axis=None,
-            variable_values=self.variable_values,
+            variables=self.variables,
             current_dt=self.current_dt,
             timezone=self.timezone,
             documents=self.documents,
@@ -248,7 +248,7 @@ class XPathContext(object):
                 k -= 1
             else:
                 try:
-                    self.variable_values[varnames[k]] = value
+                    self.variables[varnames[k]] = value
                 except (TypeError, IndexError):
                     pass
 
