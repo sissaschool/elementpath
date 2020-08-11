@@ -904,11 +904,13 @@ def led(self, left):
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
+
+    results = {item for k in range(2) for item in self[k].select(context.copy())}
+    if any(not is_xpath_node(x) for x in results):
+        raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif not self.cut_and_sort:
-        for k in range(2):
-            yield from self[k].select(context.copy())
+        yield from results
     else:
-        results = {item for k in range(2) for item in self[k].select(context.copy())}
         yield from context.iter_results(results)
 
 

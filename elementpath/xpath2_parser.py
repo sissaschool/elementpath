@@ -887,12 +887,25 @@ def select(self, context=None):
 #
 # Ref: https://www.w3.org/TR/xpath20/#id-value-comparisons
 #
-@method(infix('eq', bp=30))
-@method(infix('ne', bp=30))
-@method(infix('lt', bp=30))
-@method(infix('gt', bp=30))
-@method(infix('le', bp=30))
-@method(infix('ge', bp=30))
+@method('eq', bp=30)
+@method('ne', bp=30)
+@method('lt', bp=30)
+@method('gt', bp=30)
+@method('le', bp=30)
+@method('ge', bp=30)
+def led(self, left):
+    if left.symbol in {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}:
+        raise self.wrong_syntax()
+    self[:] = left, self.parser.expression(rbp=30)
+    return self
+
+
+@method('eq')
+@method('ne')
+@method('lt')
+@method('gt')
+@method('le')
+@method('ge')
 def evaluate(self, context=None):
     operands = [self[0].get_atomized_operand(context=copy(context)),
                 self[1].get_atomized_operand(context=copy(context))]
@@ -901,7 +914,7 @@ def evaluate(self, context=None):
         return
 
     cls0, cls1 = type(operands[0]), type(operands[1])
-    if cls0 is cls1:
+    if cls0 is cls1 and cls0 is not Duration:
         pass
     elif all(isinstance(x, float) for x in operands):
         pass
