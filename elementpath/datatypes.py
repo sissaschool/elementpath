@@ -223,7 +223,7 @@ class Timezone(datetime.tzinfo):
 ###
 # Classes for XSD built-in atomic types. All defined classes use a
 # metaclass that adds some common methods and registers each class
-# into a dictionary. Some classes of XSD primitive types are defined 
+# into a dictionary. Some classes of XSD primitive types are defined
 # as proxies of basic Python datatypes.
 
 xsd10_atomic_types = {}
@@ -240,6 +240,8 @@ class AtomicTypeABCMeta(ABCMeta):
     attribute is provided the class is registered into a global map
     of XSD atomic types and also the expanded name is added.
     """
+    name = None
+
     def __new__(mcs, class_name, bases, dict_):
         try:
             name = dict_['name']

@@ -34,7 +34,7 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import *
-from elementpath.namespaces import XSD_NAMESPACE, XQT_ERRORS_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 
 try:
     from tests import xpath_test_class
@@ -1359,7 +1359,7 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
         root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" '
                               'xmlns="http://xpath.test/ns"><B1/></tst:A>')
-        namespaces = namespaces + [(None, 'http://xpath.test/ns')]
+        namespaces.append((None, 'http://xpath.test/ns'))
         self.check_selector('/tst:A/namespace::*', root, set(namespaces),
                             namespaces=namespaces[-2:-1])
 
