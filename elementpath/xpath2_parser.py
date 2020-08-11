@@ -20,7 +20,7 @@ from decimal import Decimal, DivisionByZero
 from urllib.parse import urlparse
 
 from .exceptions import ElementPathError, ElementPathTypeError, \
-    MissingContextError, xpath_error
+    ElementPathValueError, MissingContextError, xpath_error
 from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
@@ -36,16 +36,15 @@ from .schema_proxy import AbstractSchemaProxy
 class XPath2Parser(XPath1Parser):
     """
     XPath 2.0 expression parser class. This is the default parser used by XPath selectors.
-    A parser instance represents also the XPath static context. With *variables* you can pass
-    a dictionary with the static context's in-scope variables.
+    A parser instance represents also the XPath static context. With *variable_types* you
+    can pass a dictionary with the types of the in-scope variables.
     Provide a *namespaces* dictionary argument for mapping namespace prefixes to URI inside
     expressions. If *strict* is set to `False` the parser enables also the parsing of QNames,
     like the ElementPath library. There are some additional XPath 2.0 related arguments.
 
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
-    :param variables: a dictionary with the static context's in-scope variables. \
-    It defines the associations between variables and static types. For backward \
-    compatibility the variable types are detected if values are provided.
+    :param variable_types: a dictionary with the static context's in-scope variable \
+    types. It defines the associations between variables and static types.
     :param strict: if strict mode is `False` the parser enables parsing of QNames, \
     like the ElementPath library. Default is `True`.
     :param compatibility_mode: if set to `True` the parser instance works with \
@@ -188,7 +187,7 @@ class XPath2Parser(XPath1Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
     }
 
-    def __init__(self, namespaces=None, variables=None, strict=True, compatibility_mode=False,
+    def __init__(self, namespaces=None, variable_types=None, strict=True, compatibility_mode=False,
                  default_collation=None, default_namespace=None, function_namespace=None,
                  xsd_version=None, schema=None, base_uri=None, document_types=None,
                  collection_types=None, default_collection_type='node()*'):
@@ -213,14 +212,12 @@ class XPath2Parser(XPath1Parser):
         else:
             schema.bind_parser(self)
 
-        if not variables:
-            self.variables = {}
-        elif all(self.is_sequence_type(v) for v in variables.values()):
-            self.variables = variables.copy()
-        elif any(self.is_sequence_type(v) for v in variables.values()):
-            raise ElementPathTypeError('ambiguous sequence types in variables')
+        if not variable_types:
+            self.variable_types = {}
+        elif all(self.is_sequence_type(v) for v in variable_types.values()):
+            self.variable_types = variable_types.copy()
         else:
-            self.variables = {k: self.get_sequence_type(v) for k, v in variables.items()}
+            raise ElementPathValueError('invalid sequence type for in-scope variable types')
 
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
 
@@ -402,6 +399,27 @@ class XPath2Parser(XPath1Parser):
 
         return root_token
 
+    def check_variables(self, values):
+        for varname, xsd_type in self.variable_types.items():
+            if varname not in values:
+                raise xpath_error('XPST0008', "Missing variable {!r}".format(varname))
+
+        for varname, value in values.items():
+            try:
+                sequence_type = self.variable_types[varname]
+            except KeyError:
+                sequence_type = 'item()*' if isinstance(value, list) else 'item()'
+
+            if sequence_type[-1] in ('?', '+', '*'):
+                if self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1]):
+                    continue
+            else:
+                if self.match_sequence_type(value, sequence_type):
+                    continue
+
+            message = "Unmatched sequence type for variable {!r}".format(varname)
+            raise xpath_error('XPDY0050', message)
+
 
 ##
 # XPath 2.0 definitions
@@ -464,11 +482,11 @@ def evaluate(self, context=None):
 
     varname = self[0].value
     try:
-        return context.variable_values[varname]
+        return context.variables[varname]
     except KeyError:
         if isinstance(context, XPathSchemaContext):
             try:
-                sequence_type = self.parser.variables[varname].strip()
+                sequence_type = self.parser.variable_types[varname].strip()
             except KeyError:
                 pass
             else:
@@ -574,7 +592,7 @@ def evaluate(self, context=None):
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
     for results in context.iter_product(selectors, varnames):
-        context.variable_values.update(x for x in zip(varnames, results))
+        context.variables.update(x for x in zip(varnames, results))
         if self.boolean_value([x for x in self[-1].select(copy(context))]):
             if some:
                 return True
@@ -620,7 +638,7 @@ def select(self, context=None):
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
     for results in context.iter_product(selectors, varnames):
-        context.variable_values.update(x for x in zip(varnames, results))
+        context.variables.update(x for x in zip(varnames, results))
         yield from self[-1].select(copy(context))
 
 

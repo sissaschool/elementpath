@@ -37,8 +37,9 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
-from elementpath.datatypes import DateTime, Date, Time, Timezone, \
-    DayTimeDuration, YearMonthDuration, UntypedAtomic
+from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
+    Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
+from elementpath.xpath_nodes import node_kind
 
 try:
     from tests import test_xpath1_parser
@@ -46,10 +47,50 @@ except ImportError:
     import test_xpath1_parser
 
 
+def get_sequence_type(value, xsd_version='1.0'):
+    """
+    Infers the sequence type from a value.
+    """
+    if value is None or value == []:
+        return 'empty-sequence()'
+    elif isinstance(value, list):
+        if value[0] is not None and not isinstance(value[0], list):
+            sequence_type = get_sequence_type(value[0], xsd_version)
+            if all(get_sequence_type(x, xsd_version) == sequence_type for x in value[1:]):
+                return '{}+'.format(sequence_type)
+            else:
+                return 'node()+'
+    else:
+        value_kind = node_kind(value)
+        if value_kind is not None:
+            return '{}()'.format(value_kind)
+        elif isinstance(value, UntypedAtomic):
+            return 'xs:untypedAtomic'
+
+        if QName.is_valid(value) and ':' in str(value):
+            return 'xs:QName'
+
+        if xsd_version == '1.0':
+            atomic_types = xsd10_atomic_types
+        else:
+            atomic_types = xsd11_atomic_types
+            if atomic_types['dateTimeStamp'].is_valid(value):
+                return 'xs:dateTimeStamp'
+
+        for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
+                          'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
+                          'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
+                          'yearMonthDuration', 'base64Binary', 'hexBinary']:
+            if atomic_types[type_name].is_valid(value):
+                return 'xs:%s' % type_name
+
+    raise ValueError("Inconsistent sequence type for {!r}".format(value))
+
+
 class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def setUp(self):
-        self.parser = XPath2Parser(namespaces=self.namespaces, variables=self.variables)
+        self.parser = XPath2Parser(namespaces=self.namespaces)
 
         # Make sure the tests are repeatable.
         env_vars_to_tweak = 'LC_ALL', 'LANG'
@@ -75,34 +116,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertFalse(self.parser.is_sequence_type('unknown'))
         self.assertFalse(self.parser.is_sequence_type('unknown?'))
         self.assertFalse(self.parser.is_sequence_type('tns0:unknown'))
-
-    def test_get_sequence_type_method(self):
-        self.assertEqual(self.parser.get_sequence_type(None), 'empty-sequence()')
-        self.assertEqual(self.parser.get_sequence_type([]), 'empty-sequence()')
-        self.assertEqual(self.parser.get_sequence_type([1, Decimal('2.0'), 3]), 'xs:decimal+')
-
-        with self.assertRaises(TypeError) as ctx:
-            self.parser.get_sequence_type(())
-        self.assertEqual('Inconsistent sequence type for ()', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
-            self.parser.get_sequence_type([None])
-        self.assertEqual('Inconsistent sequence type for [None]', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
-            self.parser.get_sequence_type([[1]])
-        self.assertEqual('Inconsistent sequence type for [[1]]', str(ctx.exception))
-
-        self.assertEqual(self.parser.get_sequence_type([1, 2.0]), 'node()+')
-        self.assertEqual(self.parser.get_sequence_type(UntypedAtomic(1)), 'xs:untypedAtomic')
-
-        root = self.etree.XML('<root><e1/><e2/><e3/></root>')
-        self.assertEqual(self.parser.get_sequence_type(root), 'element()')
-        self.assertEqual(self.parser.get_sequence_type(root[:]), 'element()+')
-
-        self.assertEqual(self.parser.get_sequence_type('a string'), 'xs:string')
-        self.assertEqual(self.parser.get_sequence_type('unknown'), 'xs:string')
-        self.assertEqual(self.parser.get_sequence_type('xs:unknown'), 'xs:QName')
 
     def test_match_sequence_type_method(self):
         self.assertTrue(self.parser.match_sequence_type(None, 'empty-sequence()'))
@@ -131,7 +144,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertFalse(self.parser.match_sequence_type('1', 'tns0:string'))
 
     def test_check_variables_method(self):
-        self.assertEqual(self.parser.variables,
+        self.parser.variable_types.update(
+            (k, get_sequence_type(v)) for k, v in self.variables.items()
+        )
+        self.assertEqual(self.parser.variable_types,
                          {'values': 'xs:decimal+', 'myaddress': 'xs:string', 'word': 'xs:string'})
 
         self.assertIsNone(self.parser.check_variables(
@@ -141,12 +157,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         with self.assertRaises(NameError) as ctx:
             self.parser.check_variables({'values': 1})
         self.assertIn("[err:XPST0008] Missing variable", str(ctx.exception))
-
-        with self.assertRaises(NameError) as ctx:
-            self.parser.check_variables(
-                {'values': 1, 'myaddress': 'info@example.com', 'word': '', 'unknown': 1}
-            )
-        self.assertEqual("[err:XPST0008] Undeclared variable 'unknown'", str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             self.parser.check_variables(
@@ -161,6 +171,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             )
         self.assertEqual("[err:XPDY0050] Unmatched sequence type for variable 'word'",
                          str(ctx.exception))
+
+        self.parser.variable_types.clear()
 
     def test_xpath_tokenizer(self):
         super(XPath2ParserTest, self).test_xpath_tokenizer()
@@ -231,7 +243,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root = self.etree.XML('<part discounted="false"><wholesale/><retail/></part>')
         self.check_selector(
             'if ($part/@discounted) then $part/wholesale else $part/retail',
-            root, [root[0]], variable_values={'part': root}, variables={'part': 'element()'}
+            root, [root[0]], variables={'part': root}, variable_types={'part': 'element()'}
         )
         root = self.etree.XML('<widgets>'
                               '  <widget><unit-cost>25</unit-cost></widget>'
@@ -240,7 +252,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                               '</widgets>')
         self.check_selector(
             'if ($widget1/unit-cost < $widget2/unit-cost) then $widget1 else $widget2',
-            root, [root[2]], variable_values={'widget1': root[0], 'widget2': root[2]}
+            root, [root[2]], variables={'widget1': root[0], 'widget2': root[2]}
         )
 
     def test_quantifier_expressions(self):
@@ -309,10 +321,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         # Test step-by-step, testing also other basic features.
         self.check_selector("book/author[1]", root, [root[0][1], root[1][1], root[2][1]])
         self.check_selector("book/author[. = $a]", root, [root[0][1], root[1][1]],
-                            variable_values={'a': 'Stevens'})
+                            variables={'a': 'Stevens'})
         self.check_tree("book/author[. = $a][1]", '(/ (book) ([ ([ (author) (= (.) ($ (a)))) (1)))')
         self.check_selector("book/author[. = $a][1]", root, [root[0][1], root[1][1]],
-                            variable_values={'a': 'Stevens'})
+                            variables={'a': 'Stevens'})
         self.check_selector("book/author[. = 'Stevens'][2]", root, [])
 
         self.check_selector("for $a in fn:distinct-values(book/author) return $a",
@@ -414,7 +426,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                               '   <book><author>Huxley</author></book>'
                               '   <book><author>Asimov</author></book>'
                               '</collection>')
-        context = XPathContext(root=root, variable_values={'book1': root[0]})
+        context = XPathContext(root=root, variables={'book1': root[0]})
         self.check_value('$book1 / author = "Kafka"', True, context=context)
         self.check_value('$book1 / author eq "Kafka"', True, context=context)
 
@@ -423,7 +435,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("(1, 2) = (3, 4)", False)
         self.check_value("(1, 2) != (2, 3)", True)  # != is not the inverse of =
 
-        context = XPathContext(root=root, variable_values={
+        context = XPathContext(root=root, variables={
             'a': UntypedAtomic('1'), 'b': UntypedAtomic('2'), 'c': UntypedAtomic('2.0')
         })
         self.check_value('($a, $b) = ($c, 3.0)', False, context=context)
@@ -694,7 +706,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root = self.etree.XML('<root><A/><B/><C/></root>')
 
         # From variables like XPath 2.0 examples
-        context = XPathContext(root, variable_values={
+        context = XPathContext(root, variables={
             'seq1': root[:2],  # (A, B)
             'seq2': root[:2],  # (A, B)
             'seq3': root[1:],  # (B, C)
@@ -771,7 +783,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() instance of item()", expected=False, context=context)
 
     def test_static_analysis_phase(self):
-        context = XPathContext(self.etree.XML('<root/>'), variable_values=self.variables)
+        context = XPathContext(self.etree.XML('<root/>'), variables=self.variables)
         self.check_value('fn:concat($word, fn:lower-case(" BETA"))', 'alpha beta', context)
         self.check_value('fn:concat($word, fn:lower-case(10))', TypeError, context)
         self.check_value('fn:concat($unknown, fn:lower-case(10))', NameError, context)

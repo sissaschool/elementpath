@@ -467,7 +467,7 @@ class TestCase(object):
                     kwargs['default_collection'] = collection
 
             if variables:
-                kwargs['variable_values'] = variables
+                kwargs['variables'] = variables
             if documents:
                 kwargs['documents'] = documents
 
@@ -693,7 +693,7 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
-        context = XPathContext(ElementTree.XML("<empty/>"), variable_values={'result': result})
+        context = XPathContext(ElementTree.XML("<empty/>"), variables={'result': result})
         if isinstance(result, list):
             value = self.string_join_token.evaluate(context)
         else:
@@ -802,9 +802,9 @@ class Result(object):
             return False
 
         variables = {'result': result}
-        parser = XPath2Parser(variables=variables)
+        parser = XPath2Parser()
         root_node = parser.parse(self.value)
-        context = XPathContext(root=ElementTree.XML("<empty/>"), variable_values=variables)
+        context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.evaluate(context) is True:
             return True
 
@@ -821,9 +821,9 @@ class Result(object):
         expression = "fn:deep-equal($result, (%s))" % self.value
         variables = {'result': result}
 
-        parser = XPath2Parser(variables=variables)
+        parser = XPath2Parser()
         root_node = parser.parse(expression)
-        context = XPathContext(root=ElementTree.XML("<empty/>"), variable_values=variables)
+        context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.evaluate(context) is True:
             return True
 

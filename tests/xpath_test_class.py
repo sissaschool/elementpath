@@ -55,7 +55,7 @@ class XPathTestCase(unittest.TestCase):
     etree = ElementTree
 
     def setUp(self):
-        self.parser = XPath2Parser(self.namespaces, self.variables)
+        self.parser = XPath2Parser(self.namespaces)
         self.dummy_type = DummyXsdType()
 
     #
