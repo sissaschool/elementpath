@@ -131,6 +131,16 @@ class XPathToken(Token):
             )
         return super(XPathToken, self).source
 
+    @property
+    def child_axis(self):
+        """Is `True` if the token apply child axis for default, `False` otherwise."""
+        if self.symbol not in {'*', 'node', 'child', 'text', '(name)', ':',
+                               'document-node', 'element', 'schema-element'}:
+            return False
+        elif self.symbol != ':':
+            return True
+        return self[1].label not in ('function', 'constructor')
+
     ###
     # Tokens tree analysis methods
     def iter_leaf_elements(self):
@@ -983,7 +993,9 @@ class XPathToken(Token):
         return self.error('XPST0008', message)
 
     def missing_axis(self, message=None):
-        return self.error('XPST0010', message)
+        if self.parser.compatibility_mode:
+            return self.error('XPST0010', message)
+        return self.error('XPST0003', message)
 
     def wrong_nargs(self, message=None):
         return self.error('XPST0017', message)

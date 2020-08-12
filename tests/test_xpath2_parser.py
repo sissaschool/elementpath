@@ -496,6 +496,15 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("a[3] = (1 to 10, 30)", root, True)
         self.check_selector("a[4] = (1 to 10, 30)", root, False)
 
+    def test_unknown_axis(self):
+        self.wrong_syntax('unknown::node()', 'XPST0003')
+        self.wrong_syntax('A/unknown::node()', 'XPST0003')
+
+        self.parser.compatibility_mode = True
+        self.wrong_name('unknown::node()', 'XPST0010')
+        self.wrong_name('A/unknown::node()', 'XPST0010')
+        self.parser.compatibility_mode = False
+
     def test_predicate(self):
         super(XPath2ParserTest, self).test_predicate()
         root = self.etree.XML('<A><B1><B2/><B2/></B1><C1><C2/><C2/></C1></A>')

@@ -69,20 +69,22 @@ def is_etree_element(obj):
     return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
-def etree_iter_nodes(elem, with_root=True, with_attributes=False):
-    if isinstance(elem, TypedElement):
-        elem = elem.elem
+def etree_iter_nodes(root, with_root=True, with_attributes=False):
+    if isinstance(root, TypedElement):
+        root = root.elem
+    elif is_document_node(root) and with_root:
+        yield root
 
-    for e in elem.iter():
+    for e in root.iter():
         if callable(e.tag):
-            continue
-        if with_root or e is not elem:
+            continue  # is a comment or a process instruction
+        if with_root or e is not root:
             yield e
         if e.text is not None:
             yield TextNode(e.text)
         if e.attrib and with_attributes:
             yield from map(lambda x: AttributeNode(*x), e.attrib.items())
-        if e.tail is not None:
+        if e.tail is not None and e is not root:
             yield TextNode(e.tail)
 
 

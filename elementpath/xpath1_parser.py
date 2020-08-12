@@ -986,18 +986,26 @@ def select(self, context=None):
 
 @method('//')
 def select(self, context=None):
+    # Note: // is short for /descendant-or-self::node()/, so the axis
+    #   is left to None. Use descendant:: only if next-step uses child
+    #   axis, to preserve document order.
     if context is None:
         raise self.missing_context()
     elif len(self) == 1:
         if is_document_node(context.root) or context.item is context.root:
             context.item = None
-            for _ in context.iter_descendants(axis='descendant-or-self'):
+            _axis = 'descendant' if self[0].child_axis else None
+
+            for _ in context.iter_descendants(axis=_axis):
                 yield from self[0].select(context)
     else:
-        for elem in self[0].select(context):
-            if not is_element_node(elem) and not is_document_node(elem):
-                raise self.wrong_type("left operand must returns element nodes: %r" % elem)
-            for _ in context.iter_descendants(elem, axis='descendant-or-self'):
+        _axis = 'descendant' if self[1].child_axis else None
+
+        for context.item in self[0].select(context):
+            if not is_xpath_node(context.item):
+                raise self.error('XPTY0019')
+
+            for _ in context.iter_descendants(axis=_axis):
                 yield from self[1].select(context)
 
 
@@ -1020,6 +1028,10 @@ def select(self, context=None):
         selector = context.iter_selector(self[0].select)
 
     for context.item in selector:
+        if self[1].label in ('axis', 'kind test') or self[1].symbol == '..':
+            if not is_xpath_node(context.item):
+                raise self.error('XPTY0020')
+
         predicate = [x for x in self[1].select(context.copy())]
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
@@ -1101,7 +1113,7 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
     else:
-        for _ in context.iter_children_or_self(child_axis=True):
+        for _ in context.iter_children_or_self():
             yield from self[0].select(context)
 
 
