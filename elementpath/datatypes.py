@@ -1031,12 +1031,16 @@ class Duration(AnyAtomicType):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.months == other.months and self.seconds == other.seconds
+        elif isinstance(other, UntypedAtomic):
+            return self.__eq__(self.fromstring(other.value))
         else:
             return other == (self.months, self.seconds)
 
     def __ne__(self, other):
         if isinstance(other, self.__class__):
             return self.months != other.months or self.seconds != other.seconds
+        elif isinstance(other, UntypedAtomic):
+            return self.__ne__(self.fromstring(other.value))
         else:
             return other != (self.months, self.seconds)
 

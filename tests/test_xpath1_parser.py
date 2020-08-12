@@ -343,10 +343,12 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("node()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
         self.check_selector("text()", self.etree.XML('<author>Dickens</author>'), ['Dickens'])
 
-        root = self.etree.XML('<author>Dickens</author>')
+        document = self.etree.parse(io.StringIO('<author>Dickens</author>'))
+        root = document.getroot()
         if self.etree is not lxml_etree:
+            # self.check_value("//self::node()", [document, root, 'Dickens'], context=context)
             # Skip lxml test because lxml's XPath doesn't include document root
-            self.check_selector("//self::node()", root, [root, root, 'Dickens'])
+            self.check_selector("//self::node()", document, [document, root, 'Dickens'])
         self.check_selector("//self::text()", root, ['Dickens'])
 
     def test_node_set_id_function(self):
@@ -1200,8 +1202,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.wrong_type('/root/a/true()')
 
     def test_unknown_axis(self):
-        self.check_value('unknown::node()', NameError)
-        self.check_value('A/unknown::node()', NameError)
+        self.wrong_name('unknown::node()', 'XPST0010')
+        self.wrong_name('A/unknown::node()', 'XPST0010')
 
     def test_predicate(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')

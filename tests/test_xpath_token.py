@@ -260,9 +260,14 @@ class XPath1TokenTest(unittest.TestCase):
             raise token.missing_name()
         self.assertIn('XPST0008', str(err.exception))
 
-        with self.assertRaises(NameError) as err:
-            raise token.missing_axis()
-        self.assertIn('XPST0010', str(err.exception))
+        if self.parser.compatibility_mode:
+            with self.assertRaises(NameError) as err:
+                raise token.missing_axis()
+            self.assertIn('XPST0010', str(err.exception))
+        else:
+            with self.assertRaises(SyntaxError) as err:
+                raise token.missing_axis()
+            self.assertIn('XPST0003', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
             raise token.wrong_nargs()
