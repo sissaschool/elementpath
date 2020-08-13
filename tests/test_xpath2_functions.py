@@ -1085,8 +1085,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          Time.fromstring('03:00:00+10:00'), context)
 
     def test_default_collation_function(self):
-        self.check_value('fn:default-collation()',
-                         'http://www.w3.org/2005/xpath-functions/collation/codepoint')
+        default_collation = self.parser.default_collation
+        self.check_value('fn:default-collation()', default_collation)
 
     def test_context_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
