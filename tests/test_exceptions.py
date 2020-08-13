@@ -21,12 +21,14 @@ class ExceptionsTest(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = XPath1Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
 
-    def test_exception_repr(self):
+    def test_string_conversion(self):
         err = ElementPathError("unknown error")
         self.assertEqual(str(err), 'unknown error')
         err = ElementPathError("unknown error", code='XPST0001')
         self.assertEqual(str(err), '[XPST0001] unknown error')
         token = self.parser.symbol_table['true'](self.parser)
+        err = ElementPathError("unknown error", token=token)
+        self.assertEqual(str(err), "'true' function at line 1, column 1: unknown error")
         err = ElementPathError("unknown error", code='XPST0001', token=token)
         self.assertEqual(str(err), "'true' function at line 1, column 1: [XPST0001] unknown error")
 

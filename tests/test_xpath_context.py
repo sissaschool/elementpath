@@ -25,8 +25,14 @@ DummyXsdType = type(
 class XPathContextTest(unittest.TestCase):
     root = ElementTree.XML('<author>Dickens</author>')
 
-    def test_initialization(self):
+    def test_basic_initialization(self):
         self.assertRaises(TypeError, XPathContext, None)
+
+    def test_timezone_argument(self):
+        context = XPathContext(self.root)
+        self.assertIsNone(context.timezone)
+        context = XPathContext(self.root, timezone='Z')
+        self.assertIsInstance(context.timezone, datatypes.Timezone)
 
     def test_repr(self):
         self.assertEqual(
@@ -102,6 +108,7 @@ class XPathContextTest(unittest.TestCase):
 
         context = XPathContext(root)
 
+        self.assertEqual(context.get_path(None), '')
         self.assertEqual(context.get_path(root), '/A')
         self.assertEqual(context.get_path(root[0]), '/A/B1')
         self.assertEqual(context.get_path(root[0][0]), '/A/B1/C1')
@@ -123,6 +130,52 @@ class XPathContextTest(unittest.TestCase):
             context._elem = root[1]
             self.assertEqual(context.get_path(attr), '/A/B2/@min')
 
+    def test_is_principal_node_kind(self):
+        root = ElementTree.XML('<A a1="10" a2="20"/>')
+        context = XPathContext(root)
+        self.assertTrue(hasattr(context.item, 'tag'))
+        self.assertTrue(context.is_principal_node_kind())
+        context.item = AttributeNode('a1', '10')
+        self.assertFalse(context.is_principal_node_kind())
+        context.axis = 'attribute'
+        self.assertTrue(context.is_principal_node_kind())
+
+    def test_iter_product(self):
+        context = XPathContext(self.root)
+
+        def sel1(context):
+            yield from range(2)
+
+        def sel2(context):
+            yield from range(3)
+
+        expected = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
+
+        self.assertListEqual(list(context.iter_product([sel1, sel2])), expected)
+        self.assertEqual(context.variables, {})
+
+        self.assertListEqual(list(context.iter_product([sel1, sel2], [])), expected)
+        self.assertEqual(context.variables, {})
+
+        self.assertListEqual(list(context.iter_product([sel1, sel2], ['a', 'b'])), expected)
+        self.assertEqual(context.variables, {'a': 1, 'b': 2})
+
+        context.variables = {'a': 0, 'b': 0}
+        self.assertListEqual(list(context.iter_product([sel1, sel2], ['a', 'b'])), expected)
+        self.assertEqual(context.variables, {'a': 1, 'b': 2})
+
+        context.variables = {'a': 0, 'b': 0}
+        self.assertListEqual(list(context.iter_product([sel1, sel2], ['a'])), expected)
+        self.assertEqual(context.variables, {'a': 1, 'b': 0})
+
+        context.variables = {'a': 0, 'b': 0}
+        self.assertListEqual(list(context.iter_product([sel1, sel2], ['c', 'b'])), expected)
+        self.assertEqual(context.variables, {'a': 0, 'b': 2, 'c': 1})
+
+        context.variables = {'a': 0, 'b': 0}
+        self.assertListEqual(list(context.iter_product([sel1, sel2], ['b'])), expected)
+        self.assertEqual(context.variables, {'a': 0, 'b': 1})
+
     def test_iter_attributes(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
         context = XPathContext(root)
@@ -130,6 +183,9 @@ class XPathContextTest(unittest.TestCase):
             sorted(list(context.iter_attributes()), key=lambda x: x[0]),
             [AttributeNode(name='a1', value='10'), AttributeNode(name='a2', value='20')]
         )
+
+        context.item = AttributeNode('a1', '10')
+        self.assertListEqual(list(context.iter_attributes()), [AttributeNode('a1', '10')])
 
         with patch.object(DummyXsdType(), 'has_simple_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=TypedElement(root, xsd_type, ''))
@@ -140,6 +196,17 @@ class XPathContextTest(unittest.TestCase):
 
         context.item = None
         self.assertListEqual(list(context.iter_attributes()), [])
+
+    def test_iter_children_or_self(self):
+        doc = ElementTree.ElementTree(self.root)
+        context = XPathContext(doc)
+        self.assertListEqual(list(context.iter_children_or_self()), [self.root])
+
+        context.item = self.root
+        self.assertListEqual(list(context.iter_children_or_self()), [TextNode('Dickens')])
+
+        context.item = doc
+        self.assertListEqual(list(context.iter_children_or_self()), [self.root])
 
     def test_iter_parent(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')

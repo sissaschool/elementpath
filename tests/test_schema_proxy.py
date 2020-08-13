@@ -18,6 +18,7 @@ except ImportError:
 
 from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
+from elementpath.schema_proxy import AbstractXsdSchema
 
 try:
     # noinspection PyPackageRequirements
@@ -57,6 +58,19 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
     def setUp(self):
         self.schema_proxy = XMLSchemaProxy(self.schema)
         self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema_proxy)
+
+    def test_abstract_xsd_schema(self):
+        class XsdSchema(AbstractXsdSchema):
+            @property
+            def attrib(self):
+                return {}
+
+            def __iter__(self):
+                return iter(())
+
+        schema = XsdSchema()
+        self.assertEqual(schema.tag, '{http://www.w3.org/2001/XMLSchema}schema')
+        self.assertIsNone(schema.text)
 
     def test_schema_proxy_init(self):
         schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

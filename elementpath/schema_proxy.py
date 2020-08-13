@@ -315,5 +315,5 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
 
-__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdType',
-           'AbstractXsdAttribute', 'AbstractXsdElement', 'AbstractSchemaProxy']
+__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdSchema',
+           'AbstractXsdAttribute', 'AbstractXsdElement', 'AbstractXsdType', 'AbstractSchemaProxy']

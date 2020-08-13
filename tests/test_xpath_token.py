@@ -23,7 +23,7 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath.exceptions import MissingContextError
-from elementpath.datatypes import UntypedAtomic
+from elementpath.datatypes import UntypedAtomic, QName
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, TypedAttribute, \
     TypedElement, NamespaceNode, TextNode
@@ -39,6 +39,13 @@ DummyXsdType = type(
     dict(name=None, local_name=None, is_matching=lambda x: False, **{
         k: lambda x: None for k in AbstractXsdType.__dict__ if k[0] != '_'
     }))
+
+
+class Tagged(object):
+    tag = 'root'
+
+    def __repr__(self):
+        return 'Tagged(tag=%r)' % self.tag
 
 
 class XPath1TokenTest(unittest.TestCase):
@@ -145,6 +152,19 @@ class XPath1TokenTest(unittest.TestCase):
         context = XPathContext(elem, item='10')
         self.assertListEqual(list(token.select_results(context)), ['10'])
 
+    def test_cast_to_double(self):
+        token = self.parser.parse('.')
+        self.assertEqual(token.cast_to_double(1), 1.0)
+
+        with self.assertRaises(ValueError) as ctx:
+            token.cast_to_double('nan')
+        self.assertIn('FORG0001', str(ctx.exception))
+
+        if self.parser.version != '1.0':
+            self.parser._xsd_version = '1.1'
+            self.assertEqual(token.cast_to_double('1'), 1.0)
+            self.parser._xsd_version = '1.0'
+
     def test_boolean_value_function(self):
         token = self.parser.parse('true()')
         elem = ElementTree.Element('A')
@@ -161,6 +181,8 @@ class XPath1TokenTest(unittest.TestCase):
             token.boolean_value(elem)
         self.assertFalse(token.boolean_value(0))
         self.assertTrue(token.boolean_value(1))
+        self.assertTrue(token.boolean_value(1.0))
+        self.assertFalse(token.boolean_value(None))
 
     def test_data_value_function(self):
         token = self.parser.parse('true()')
@@ -197,6 +219,9 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(token.data_value('19'), '19')
         self.assertFalse(token.data_value(False))
 
+        tagged_object = Tagged()
+        self.assertIsNone(token.data_value(tagged_object))
+
     def test_string_value_function(self):
         token = self.parser.parse('true()')
 
@@ -216,6 +241,22 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(token.string_value(text), 'betelgeuse')
         self.assertEqual(token.string_value(None), '')
         self.assertEqual(token.string_value(10), '10')
+        self.assertEqual(token.string_value(1e99), '1E99')
+        self.assertEqual(token.string_value(float('nan')), 'NaN')
+        self.assertEqual(token.string_value(float('inf')), 'INF')
+        self.assertEqual(token.string_value(float('-inf')), '-INF')
+
+        self.assertEqual(token.string_value(()), '()')
+
+        tagged_object = Tagged()
+        self.assertEqual(token.string_value(tagged_object), "Tagged(tag='root')")
+
+        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
+            xsd_type = DummyXsdType()
+            typed_elem = TypedElement(elem=element, type=xsd_type, value=10)
+            self.assertEqual(token.string_value(typed_elem), '10')
+            typed_elem = TypedElement(elem=element, type=xsd_type, value=None)
+            self.assertEqual(token.string_value(typed_elem), '')
 
     def test_number_value_function(self):
         token = self.parser.parse('true()')
@@ -229,77 +270,130 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertNotEqual(token1, token2)
         self.assertNotEqual(token2, 'false()')
 
+    def test_expected_method(self):
+        token = self.parser.parse('.')
+        self.assertIsNone(token.expected('.'))
+
+        with self.assertRaises(SyntaxError) as ctx:
+            raise token.expected('*')
+        self.assertIn('XPST0003', str(ctx.exception))
+
+    def test_unexpected_method(self):
+        token = self.parser.parse('.')
+        self.assertIsNone(token.unexpected('*'))
+
+        with self.assertRaises(SyntaxError) as ctx:
+            raise token.unexpected('.')
+        self.assertIn('XPST0003', str(ctx.exception))
+
+        with self.assertRaises(SyntaxError) as ctx:
+            raise token.unexpected('.', message="unknown error")
+        self.assertIn('XPST0003', str(ctx.exception))
+        self.assertIn('unknown error', str(ctx.exception))
+
+        with self.assertRaises(TypeError) as ctx:
+            raise token.unexpected('.', code='XPST0017')
+        self.assertIn('XPST0017', str(ctx.exception))
+
+    def test_xpath_error_code(self):
+        parser = XPath2Parser()
+        token = parser.parse('.')
+
+        self.assertEqual(token.error_code('XPST0003'), 'err:XPST0003')
+        parser.namespaces['error'] = parser.namespaces.pop('err')
+        self.assertEqual(token.error_code('XPST0003'), 'error:XPST0003')
+        parser.namespaces.pop('error')
+        self.assertEqual(token.error_code('XPST0003'), 'XPST0003')
+
+    def test_xpath_error(self):
+        token = self.parser.parse('.')
+
+        with self.assertRaises(ValueError) as ctx:
+            raise token.error('xml:XPST0003')
+        self.assertIn('XPTY0004', str(ctx.exception))
+        self.assertIn("required for error code", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            raise token.error('err:err:XPST0003')
+        self.assertIn('XPTY0004', str(ctx.exception))
+        self.assertIn("is not a QName", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            raise token.error('XPST9999')
+        self.assertIn('XPTY0004', str(ctx.exception))
+        self.assertIn("unknown XPath error code", str(ctx.exception))
+
     def test_xpath_error_shortcuts(self):
         token = self.parser.parse('.')
 
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError) as ctx:
             raise token.wrong_value()
-        self.assertIn('FOCA0002', str(err.exception))
+        self.assertIn('FOCA0002', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_type()
-        self.assertIn('FORG0006', str(err.exception))
+        self.assertIn('FORG0006', str(ctx.exception))
 
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError) as ctx:
             raise token.missing_schema()
-        self.assertIn('XPST0001', str(err.exception))
+        self.assertIn('XPST0001', str(ctx.exception))
 
-        with self.assertRaises(MissingContextError) as err:
+        with self.assertRaises(MissingContextError) as ctx:
             raise token.missing_context()
-        self.assertIn('XPDY0002', str(err.exception))
+        self.assertIn('XPDY0002', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_context_type()
-        self.assertIn('XPTY0004', str(err.exception))
+        self.assertIn('XPTY0004', str(ctx.exception))
 
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError) as ctx:
             raise token.missing_sequence()
-        self.assertIn('XPST0005', str(err.exception))
+        self.assertIn('XPST0005', str(ctx.exception))
 
-        with self.assertRaises(NameError) as err:
+        with self.assertRaises(NameError) as ctx:
             raise token.missing_name()
-        self.assertIn('XPST0008', str(err.exception))
+        self.assertIn('XPST0008', str(ctx.exception))
 
         if self.parser.compatibility_mode:
-            with self.assertRaises(NameError) as err:
+            with self.assertRaises(NameError) as ctx:
                 raise token.missing_axis()
-            self.assertIn('XPST0010', str(err.exception))
+            self.assertIn('XPST0010', str(ctx.exception))
         else:
-            with self.assertRaises(SyntaxError) as err:
+            with self.assertRaises(SyntaxError) as ctx:
                 raise token.missing_axis()
-            self.assertIn('XPST0003', str(err.exception))
+            self.assertIn('XPST0003', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_nargs()
-        self.assertIn('XPST0017', str(err.exception))
+        self.assertIn('XPST0017', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_step_result()
-        self.assertIn('XPTY0018', str(err.exception))
+        self.assertIn('XPTY0018', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_intermediate_step_result()
-        self.assertIn('XPTY0019', str(err.exception))
+        self.assertIn('XPTY0019', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_axis_argument()
-        self.assertIn('XPTY0020', str(err.exception))
+        self.assertIn('XPTY0020', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as err:
+        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_sequence_type()
-        self.assertIn('XPDY0050', str(err.exception))
+        self.assertIn('XPDY0050', str(ctx.exception))
 
-        with self.assertRaises(NameError) as err:
+        with self.assertRaises(NameError) as ctx:
             raise token.unknown_atomic_type()
-        self.assertIn('XPST0051', str(err.exception))
+        self.assertIn('XPST0051', str(ctx.exception))
 
-        with self.assertRaises(NameError) as err:
+        with self.assertRaises(NameError) as ctx:
             raise token.wrong_target_type()
-        self.assertIn('XPST0080', str(err.exception))
+        self.assertIn('XPST0080', str(ctx.exception))
 
-        with self.assertRaises(NameError) as err:
+        with self.assertRaises(NameError) as ctx:
             raise token.unknown_namespace()
-        self.assertIn('XPST0081', str(err.exception))
+        self.assertIn('XPST0081', str(ctx.exception))
 
 
 class XPath2TokenTest(XPath1TokenTest):
