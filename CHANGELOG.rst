@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v2.0.0`_ (2020-06-18)
+`v2.0.0`_ (2020-08-13)
 ======================
-* Fix xs:dateTime datatype
+* Extensive testing with W3C XPath 2.0 tests (~98% passed)
+* Split context variables from in-scope variables (types)
+* Add other XSD builtin atomic types
 
 `v1.4.6`_ (2020-06-15)
 ======================
