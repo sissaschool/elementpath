@@ -10,8 +10,8 @@
 #
 import unittest
 
-from elementpath.namespaces import XSD_NAMESPACE, get_namespace, get_prefixed_name, \
-    get_expanded_name
+from elementpath.namespaces import XSD_NAMESPACE, get_namespace, \
+    get_prefixed_name, get_expanded_name, split_expanded_name
 
 
 class NamespacesTest(unittest.TestCase):
@@ -52,6 +52,17 @@ class NamespacesTest(unittest.TestCase):
             get_expanded_name(':foo', {'': 'ns'})
         with self.assertRaises(ValueError):
             get_expanded_name('foo:', {'': 'ns'})
+
+    def test_split_expanded_name_function(self):
+        self.assertEqual(split_expanded_name('{ns}foo'), ('ns', 'foo'))
+        self.assertEqual(split_expanded_name('foo'), ('', 'foo'))
+
+        with self.assertRaises(ValueError):
+            split_expanded_name('tst:foo')
+
+        with self.assertRaises(ValueError):
+            split_expanded_name('{{ns}}foo')
+
 
 
 if __name__ == '__main__':

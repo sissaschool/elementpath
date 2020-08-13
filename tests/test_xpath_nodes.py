@@ -82,8 +82,10 @@ class XPathNodesTest(unittest.TestCase):
             typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
             self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
 
-        comment = ElementTree.Comment('foo')
-        root[1].append(comment)
+            comment = ElementTree.Comment('foo')
+            root[1].append(comment)
+            self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
+
         self.assertListEqual(list(etree_iter_strings(root)), result)
 
     def test_etree_deep_equal_function(self):
@@ -102,9 +104,10 @@ class XPathNodesTest(unittest.TestCase):
         elem = ElementTree.XML('<A><B1>10</B1><B2 max="20"><C1/></B2>end</A>')
         self.assertFalse(etree_deep_equal(root, elem))
 
-    def test_is_element_node_function(self):
+    def test_match_element_node_function(self):
         elem = ElementTree.Element('alpha')
         empty_tag_elem = ElementTree.Element('')
+        self.assertTrue(match_element_node(elem))
         self.assertTrue(match_element_node(elem, '*'))
         self.assertFalse(match_element_node(empty_tag_elem, '*'))
         with self.assertRaises(ValueError):
@@ -116,7 +119,12 @@ class XPathNodesTest(unittest.TestCase):
         self.assertFalse(match_element_node(empty_tag_elem, 'foo:*'))
         self.assertFalse(match_element_node(elem, '{foo}*'))
 
-    def test_is_attribute_node_function(self):
+        with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
+            xsd_type = DummyXsdType()
+            typed_elem = TypedElement(elem=elem, type=xsd_type, value='text1')
+            self.assertTrue(match_element_node(typed_elem, '*'))
+
+    def test_match_attribute_node_function(self):
         attr = AttributeNode('a1', '10')
         self.assertTrue(match_attribute_node(attr, '*'))
         self.assertTrue(match_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
@@ -192,6 +200,7 @@ class XPathNodesTest(unittest.TestCase):
         xml_test = '<A xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="false" />'
         self.assertFalse(node_nilled(ElementTree.XML(xml_test)))
         self.assertFalse(node_nilled(ElementTree.XML('<A />')))
+        self.assertFalse(node_nilled(TextNode('foo')))
 
     def test_node_kind_function(self):
         document = ElementTree.parse(io.StringIO(u'<A/>'))
@@ -208,6 +217,7 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(node_kind(comment), 'comment')
         self.assertEqual(node_kind(pi), 'processing-instruction')
         self.assertEqual(node_kind(text), 'text')
+        self.assertIsNone(node_kind(()))
         self.assertIsNone(node_kind(None))
         self.assertIsNone(node_kind(10))
 
@@ -218,6 +228,17 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(node_name(elem), 'root')
         self.assertEqual(node_name(attr), 'a1')
         self.assertEqual(node_name(namespace), 'xs')
+        self.assertIsNone(node_name(()))
+        self.assertIsNone(node_name(None))
+
+        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
+            xsd_type = DummyXsdType()
+
+            typed_elem = TypedElement(elem=elem, type=xsd_type, value=10)
+            self.assertEqual(node_name(typed_elem), 'root')
+
+            typed_attr = TypedAttribute(attribute=attr, type=xsd_type, value=20)
+            self.assertEqual(node_name(typed_attr), 'a1')
 
 
 if __name__ == '__main__':

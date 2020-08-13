@@ -783,9 +783,7 @@ class XPathToken(Token):
                 return DoubleProxy10(value)
             return DoubleProxy(value)
         except ValueError as err:
-            if isinstance(value, (str, UntypedAtomic)):
-                raise self.error('FORG0001', str(err))
-            raise self.error('FOCA0002', str(err))
+            raise self.error('FORG0001', str(err))  # str or UntypedAtomic
 
     ###
     # XPath data accessors base functions
@@ -932,7 +930,7 @@ class XPathToken(Token):
             else:
                 if self.parser.namespaces.get(prefix) != XQT_ERRORS_NAMESPACE:
                     raise ElementPathValueError(
-                        message='{} namespace required for code' % XQT_ERRORS_NAMESPACE,
+                        message='%r namespace is required for error code' % XQT_ERRORS_NAMESPACE,
                         code=self.error_code('XPTY0004'),
                         token=self,
                     )

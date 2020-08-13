@@ -88,27 +88,29 @@ def etree_iter_nodes(root, with_root=True, with_attributes=False):
             yield TextNode(e.tail)
 
 
-def etree_iter_strings(elem, normalize=False):
+def etree_iter_strings(elem):
     if isinstance(elem, TypedElement):
-        normalize = elem.type.is_element_only()
+        if elem.type.is_element_only():
+            # Element-only text content is normalized
+            elem = elem.elem
+            for e in elem.iter():
+                if callable(e.tag):
+                    continue
+                if e.text is not None:
+                    yield e.text.strip() if e is elem else e.text
+                if e.tail is not None and e is not elem:
+                    yield e.tail.strip() if e in elem else e.tail
+            return
+
         elem = elem.elem
 
-    if not normalize:
-        for e in elem.iter():
-            if callable(e.tag):
-                continue
-            if e.text is not None:
-                yield e.text
-            if e.tail is not None and e is not elem:
-                yield e.tail
-    else:
-        for e in elem.iter():
-            if callable(e.tag):
-                continue
-            if e.text is not None:
-                yield e.text.strip()
-            if e.tail is not None and e is not elem:
-                yield e.tail.strip()
+    for e in elem.iter():
+        if callable(e.tag):
+            continue
+        if e.text is not None:
+            yield e.text
+        if e.tail is not None and e is not elem:
+            yield e.tail
 
 
 def etree_deep_equal(e1, e2):
