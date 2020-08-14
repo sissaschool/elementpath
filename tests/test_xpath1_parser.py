@@ -1282,6 +1282,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             # XPath 1.0 ignores the default namespace declarations
             self.check_selector("name(B1)", root, '', namespaces={'': "http://xpath.test/ns"})
 
+    @unittest.skipIf(lxml_etree is None, 'lxml is not installed')
     def test_issue_25_with_count_function(self):
         root = lxml_etree.fromstring("""
             <line>
