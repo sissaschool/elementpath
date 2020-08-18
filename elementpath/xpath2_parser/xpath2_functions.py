@@ -21,15 +21,16 @@ from copy import copy
 from decimal import Decimal, DecimalException
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from .exceptions import ElementPathTypeError
-from .datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
+from ..exceptions import ElementPathTypeError
+from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy, NumericProxy
-from .namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
-from .xpath_context import XPathContext, XPathSchemaContext
-from .xpath_nodes import AttributeNode, is_element_node, is_document_node, \
+from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
+from ..xpath_context import XPathContext, XPathSchemaContext
+from ..xpath_nodes import AttributeNode, is_element_node, is_document_node, \
     is_xpath_node, node_name, node_nilled, node_base_uri, node_document_uri, \
     node_kind, etree_deep_equal
+from ..regex import RegexError, get_python_pattern
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -690,9 +691,9 @@ def evaluate(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        return re.search(pattern, input_string, flags=flags) is not None
-    except re.error:
-        # TODO: full XML regex syntax
+        python_pattern = get_python_pattern(pattern, flags)
+        return re.search(python_pattern, input_string, flags=flags) is not None
+    except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
     except OverflowError as err:
         raise self.error('FORX0002', str(err)) from None
@@ -712,9 +713,9 @@ def evaluate(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        pattern = re.compile(pattern, flags=flags)
-    except re.error:
-        # TODO: full XML regex syntax
+        python_pattern = get_python_pattern(pattern, flags)
+        pattern = re.compile(python_pattern, flags=flags)
+    except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
     else:
         if pattern.search(''):
@@ -743,8 +744,9 @@ def select(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        pattern = re.compile(pattern, flags=flags)
-    except re.error:
+        python_pattern = get_python_pattern(pattern, flags)
+        pattern = re.compile(python_pattern, flags=flags)
+    except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
     else:
         if pattern.search(''):

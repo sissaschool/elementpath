@@ -18,3 +18,7 @@ from .codepoints import iter_code_points
 from .unicode_subsets import RegexError, UnicodeSubset, UNICODE_CATEGORIES, UNICODE_BLOCKS
 from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
 from .patterns import get_python_pattern
+
+__all__ = ['UNICODE_CATEGORIES', 'UNICODE_BLOCKS', 'I_SHORTCUT_REPLACE',
+           'C_SHORTCUT_REPLACE', 'get_python_pattern', 'RegexError',
+           'UnicodeSubset', 'CharacterClass', 'iter_code_points']

@@ -19,18 +19,18 @@ from copy import copy
 from decimal import Decimal, DivisionByZero
 from urllib.parse import urlparse
 
-from .exceptions import ElementPathError, ElementPathTypeError, \
+from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
-from .namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
+from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
-from .datatypes import UntypedAtomic, QName, AnyURI, Duration
-from .xpath_nodes import TypedAttribute, is_xpath_node, \
+from ..datatypes import UntypedAtomic, QName, AnyURI, Duration
+from ..xpath_nodes import TypedAttribute, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
-from .xpath_token import UNICODE_CODEPOINT_COLLATION
-from .xpath1_parser import XPath1Parser
-from .xpath_context import XPathSchemaContext
-from .schema_proxy import AbstractSchemaProxy
+from ..xpath_token import UNICODE_CODEPOINT_COLLATION
+from ..xpath1_parser import XPath1Parser
+from ..xpath_context import XPathSchemaContext
+from ..schema_proxy import AbstractSchemaProxy
 
 
 class XPath2Parser(XPath1Parser):
