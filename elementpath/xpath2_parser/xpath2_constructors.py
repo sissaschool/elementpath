@@ -10,15 +10,15 @@
 """
 XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
 """
-from .exceptions import ElementPathError, ElementPathSyntaxError
-from .namespaces import XSD_NAMESPACE
-from .datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
+from ..exceptions import ElementPathError, ElementPathSyntaxError
+from ..namespaces import XSD_NAMESPACE
+from ..datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
     GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYear, \
     GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
     YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
     Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy, ATOMIC_VALUES
-from .xpath_token import XPathToken
-from .xpath_context import XPathSchemaContext
+from ..xpath_token import XPathToken
+from ..xpath_context import XPathSchemaContext
 from .xpath2_functions import XPath2Parser
 
 

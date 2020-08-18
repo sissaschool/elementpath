@@ -435,6 +435,9 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('azBCDE1234567890BCDEFza'))
         self.assertEqual(pattern.search('BCD').group(0), 'BCD')
 
+    def test_lazy_quantifiers(self):
+        regex = get_python_pattern('.*?')
+
 
 if __name__ == '__main__':
     from xmlschema.testing import print_test_header

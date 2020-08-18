@@ -23,12 +23,13 @@ _RE_FORBIDDEN_ESCAPES = re.compile(
 )
 
 
-def get_python_pattern(pattern, back_references=True, lazy_quantifiers=True,
+def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=True,
                        is_syntax=True, anchors=True):
     """
     Translates a pattern regex expression to a Python regex pattern.
 
     :param pattern: the source XML Schema regular expression.
+    :param flags: regex flags as represented by Python's re module.
     :param back_references: if `True` supports back-references and capturing groups.
     :param lazy_quantifiers: if `True` supports lazy quantifiers (*?, +?).
     :param is_syntax: if `True` supports 'Is' prefix on unicode scripts.
@@ -86,6 +87,7 @@ def get_python_pattern(pattern, back_references=True, lazy_quantifiers=True,
     pos = 0
     pattern_len = len(pattern)
     nested_groups = 0
+    dot_all = flags & re.DOTALL
 
     match = _RE_FORBIDDEN_ESCAPES.search(pattern)
     if match:
@@ -95,7 +97,7 @@ def get_python_pattern(pattern, back_references=True, lazy_quantifiers=True,
     while pos < pattern_len:
         ch = pattern[pos]
         if ch == '.':
-            regex.append('[^\r\n]')
+            regex.append(ch if dot_all else '[^\r\n]')
         elif ch in ('^', '$'):
             if not anchors:
                 msg = "unexpected anchor {!r} at position {}: {!r}"
@@ -157,6 +159,8 @@ def get_python_pattern(pattern, back_references=True, lazy_quantifiers=True,
             if pos == 0:
                 msg = "unexpected quantifier {!r} at position {}: {!r}"
                 raise RegexError(msg.format(ch, pos, pattern))
+            elif lazy_quantifiers:
+                pass
             elif pos < pattern_len - 1 and pattern[pos + 1] in ('?', '+', '*', '{'):
                 msg = "unexpected meta character {!r} at position {}: {!r}"
                 raise RegexError(msg.format(pattern[pos + 1], pos + 1, pattern))
