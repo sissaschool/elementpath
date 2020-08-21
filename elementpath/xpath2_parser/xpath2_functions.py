@@ -693,8 +693,9 @@ def evaluate(self, context=None):
     try:
         python_pattern = get_python_pattern(pattern, flags)
         return re.search(python_pattern, input_string, flags=flags) is not None
-    except (re.error, RegexError):
-        raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
+    except (re.error, RegexError) as err:
+        msg = "Invalid regular expression: {}"
+        raise self.error('FORX0002', msg.format(str(err))) from None
     except OverflowError as err:
         raise self.error('FORX0002', str(err)) from None
 

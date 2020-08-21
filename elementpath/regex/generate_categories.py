@@ -23,7 +23,8 @@ CATEGORIES_TEMPLATE = """#
 # Unicode data version {0}
 #
 RAW_UNICODE_CATEGORIES = {{
- {1}
+    {1}
+}}
 """
 
 
@@ -110,4 +111,5 @@ if __name__ == '__main__':
 
     with open(filename, 'w') as fp:
         categories_repr = pprint.pformat(get_unicodedata_categories(), compact=True)
-        fp.write(CATEGORIES_TEMPLATE.format(unidata_version, categories_repr[1:]))
+        indented_repr = '\n   '.join(categories_repr[1:-1].split('\n'))
+        fp.write(CATEGORIES_TEMPLATE.format(unidata_version, indented_repr))
