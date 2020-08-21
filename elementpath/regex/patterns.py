@@ -16,10 +16,14 @@ from sys import maxunicode
 from .unicode_subsets import RegexError, UnicodeSubset, unicode_subset
 from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
 
-_RE_HYPHENS = re.compile(r'(?<!\\)--')
-_RE_QUANTIFIER = re.compile(r'{\d+(,(\d+)?)?}')
-_RE_FORBIDDEN_ESCAPES = re.compile(
+HYPHENS_PATTERN = re.compile(r'(?<!\\)--')
+DIGITS_PATTERN = re.compile(r'\d+')
+QUANTIFIER_PATTERN = re.compile(r'{\d+(,(\d+)?)?}')
+FORBIDDEN_ESCAPES_NOREF_PATTERN = re.compile(
     r'(?<!\\)\\(U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|o{\d+}|\d+|A|Z|z|B|b|o)'
+)
+FORBIDDEN_ESCAPES_REF_PATTERN = re.compile(
+    r'(?<!\\)\\(U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|o{\d+}|A|Z|z|B|b|o)'
 )
 
 
@@ -53,13 +57,16 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
                 msg = "invalid character '[' at position {}: {!r}"
                 raise RegexError(msg.format(pos, pattern))
             elif pattern[pos] == '\\':
+                if pattern[pos + 1].isdigit():
+                    msg = "illegal back-reference in character class at position {}: {!r}"
+                    raise RegexError(msg.format(pos, pattern))
                 pos += 2
             elif pattern[pos] == ']' or pattern[pos:pos + 2] == '-[':
                 if pos == group_pos:
                     msg = "empty character class at position {}: {!r}"
                     raise RegexError(msg.format(pos, pattern))
 
-                if _RE_HYPHENS.search(pattern[group_pos:pos]) and pos - group_pos > 2:
+                if HYPHENS_PATTERN.search(pattern[group_pos:pos]) and pos - group_pos > 2:
                     msg = "invalid character range '--' at position {}: {!r}"
                     raise RegexError(msg.format(pos, pattern))
 
@@ -86,10 +93,15 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
     regex = [] if anchors else ['^%s' % group_open_char]
     pos = 0
     pattern_len = len(pattern)
+    total_groups = 0
     nested_groups = 0
     dot_all = flags & re.DOTALL
 
-    match = _RE_FORBIDDEN_ESCAPES.search(pattern)
+    if back_references:
+        match = FORBIDDEN_ESCAPES_REF_PATTERN.search(pattern)
+    else:
+        match = FORBIDDEN_ESCAPES_NOREF_PATTERN.search(pattern)
+
     if match:
         msg = "not allowed escape sequence {!r} at position {}: {!r}"
         raise RegexError(msg.format(match.group(), match.span()[0], pattern))
@@ -102,7 +114,11 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
             if not anchors:
                 msg = "unexpected anchor {!r} at position {}: {!r}"
                 raise RegexError(msg.format(ch, pos, pattern))
-            regex.append(ch)
+            if ch == '^' or flags & re.MULTILINE:
+                regex.append(ch)
+            else:
+                regex.append(r'$(?!\n$)')
+
         elif ch == '[':
             try:
                 char_group = parse_character_class()
@@ -123,7 +139,7 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
                 msg = "unexpected quantifier {!r} at position {}: {!r}"
                 raise RegexError(msg.format(ch, pos, pattern))
 
-            match = _RE_QUANTIFIER.match(pattern[pos:])
+            match = QUANTIFIER_PATTERN.match(pattern[pos:])
             if match is None:
                 msg = "invalid quantifier {!r} at position {}: {!r}"
                 raise RegexError(msg.format(ch, pos, pattern))
@@ -140,6 +156,7 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
                 msg = "invalid '(?...)' extension notation ad position {}: {!r}"
                 raise RegexError(msg.format(pos, pattern))
 
+            total_groups += 1
             nested_groups += 1
             regex.append(group_open_char)
 
@@ -171,6 +188,18 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
             pos += 1
             if pos >= pattern_len:
                 regex.append('\\')
+            elif pattern[pos].isdigit():
+                regex.append('\\%s' % pattern[pos])
+                reference = DIGITS_PATTERN.match(pattern[pos:]).group()
+                if len(reference) > 1:
+                    k = 0
+                    for k in range(1, len(reference)):
+                        if total_groups < int(reference[:k + 1]):
+                            regex.append('[%s]' % pattern[pos + k])
+                            break
+                        else:
+                            regex.append(pattern[pos + k])
+                    pos += k
             elif pattern[pos] == 'i':
                 regex.append('[%s]' % I_SHORTCUT_REPLACE)
             elif pattern[pos] == 'I':
@@ -190,15 +219,23 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
                     msg = "truncated unicode block escape at position {}: {!r}"
                     raise RegexError(msg.format(block_pos, pattern))
 
+                block_name = pattern[block_pos + 3:pos]
+                if flags & re.VERBOSE:
+                    # spaces are completely collapsed in verbose regex patterns
+                    block_name = block_name.replace(' ', '')
+
                 try:
-                    p_shortcut_set = unicode_subset(pattern[block_pos + 3:pos])
+                    p_shortcut_set = unicode_subset(block_name)
                 except RegexError:
-                    if not is_syntax or not pattern[3:].startswith('Is'):
+                    if not is_syntax or not block_name.startswith('Is'):
                         raise
                     regex.append('[%s]' % UnicodeSubset([(0, maxunicode)]))
                 else:
                     if pattern[block_pos + 1] == 'p':
-                        regex.append('[%s]' % p_shortcut_set)
+                        if (flags & re.IGNORECASE) and block_name in {'Lu', 'Ll'}:
+                            regex.append(r'[^\s\S]')
+                        else:
+                            regex.append('[%s]' % p_shortcut_set)
                     else:
                         regex.append('[^%s]' % p_shortcut_set)
             else:
