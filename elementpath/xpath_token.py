@@ -22,7 +22,7 @@ import locale
 import contextlib
 import math
 from copy import copy
-from decimal import Decimal, getcontext
+from decimal import Decimal
 from itertools import product
 import urllib.parse
 
@@ -39,8 +39,6 @@ from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime,
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
-
-getcontext().prec = 30
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 

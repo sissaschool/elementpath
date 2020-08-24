@@ -627,7 +627,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          DayTimeDuration.fromstring('PT17H40M7S'))
         self.check_value(
             'xs:dayTimeDuration("P2DT53M11S") div xs:dayTimeDuration("P1DT10H")',
-            Decimal('1.43783496732026143790849673203')
+            Decimal('1.437834967320261437908496732')
         )
 
     def test_document_node_accessor(self):
