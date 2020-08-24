@@ -14,18 +14,18 @@ from sys import maxunicode
 from collections.abc import Iterable, MutableSet
 
 from .unicode_categories import RAW_UNICODE_CATEGORIES
-from .codepoints import code_point_order, code_point_repr, iter_code_points, check_code_point
+from .codepoints import code_point_order, code_point_repr, iter_code_points, get_code_point_range
 
 
 class RegexError(Exception):
     pass
 
 
-def iterparse_character_class(s, expand_ranges=False):
+def iterparse_character_subset(s, expand_ranges=False):
     """
-    Parse a regex character group part, generating a sequence of code points
-    and code points ranges. An unescaped hyphen (-) that is not at the start
-    or at the and is interpreted as range specifier.
+    Parses a regex character subset, generating a sequence of code points
+    and code points ranges. An unescaped hyphen (-) that is not at the
+    start or at the and is interpreted as range specifier.
 
     :param s: a string representing a character group part.
     :param expand_ranges: if set to `True` then expands character ranges.
@@ -116,10 +116,10 @@ class UnicodeSubset(MutableSet):
     """
     Represents a subset of Unicode code points, implemented with an ordered list of
     integer values and ranges. Codepoints can be added or discarded using sequences
-    of integer values and ranges or with strings equivalent to regex character class.
+    of integer values and ranges or with strings equivalent to regex character set.
 
     :param codepoints: a sequence of integer values and ranges, another UnicodeSubset \
-    instance ora a string equivalent of a regex character class.
+    instance ora a string equivalent of a regex character set.
     """
 
     def __init__(self, codepoints=None):
@@ -191,9 +191,7 @@ class UnicodeSubset(MutableSet):
             try:
                 value = ord(value)
             except TypeError:
-                raise TypeError(
-                    "%r: argument must be a code point or a character." % value
-                )
+                return False
 
         for cp in self._codepoints:
             if not isinstance(cp, int):
@@ -225,14 +223,18 @@ class UnicodeSubset(MutableSet):
     def update(self, *others):
         for value in others:
             if isinstance(value, str):
-                for cp in iter_code_points(iterparse_character_class(value), reverse=True):
+                for cp in iter_code_points(iterparse_character_subset(value), reverse=True):
                     self.add(cp)
             else:
                 for cp in iter_code_points(value, reverse=True):
                     self.add(cp)
 
     def add(self, value):
-        start_value, end_value = check_code_point(value)
+        try:
+            start_value, end_value = get_code_point_range(value)
+        except TypeError:
+            raise ValueError("{!r} is not a Unicode code point value/range".format(value))
+
         code_points = self._codepoints
         last_index = len(code_points) - 1
         for k, cp in enumerate(code_points):
@@ -264,14 +266,18 @@ class UnicodeSubset(MutableSet):
     def difference_update(self, *others):
         for value in others:
             if isinstance(value, str):
-                for cp in iter_code_points(iterparse_character_class(value), reverse=True):
+                for cp in iter_code_points(iterparse_character_subset(value), reverse=True):
                     self.discard(cp)
             else:
                 for cp in iter_code_points(value, reverse=True):
                     self.discard(cp)
 
     def discard(self, value):
-        start_cp, end_cp = check_code_point(value)
+        try:
+            start_cp, end_cp = get_code_point_range(value)
+        except TypeError:
+            raise ValueError("{!r} is not a Unicode code point value/range".format(value))
+
         code_points = self._codepoints
         for k in reversed(range(len(code_points))):
             cp = code_points[k]

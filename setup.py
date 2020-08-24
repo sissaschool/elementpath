@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from setuptools import setup
+from setuptools import setup, find_packages
 
 with open("README.rst") as readme:
     long_description = readme.read()
@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 setup(
     name='elementpath',
     version='2.0.1',
-    packages=['elementpath'],
+    packages=find_packages(include=['elementpath', 'elementpath.*']),
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/sissaschool/elementpath',

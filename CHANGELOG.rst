@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.0.1`_ (2020-08-24)
+======================
+* Add regex transpiler (for XPath/XQuery and XML Schema regular expressions)
+* Hotfix for issue #30
+
 `v2.0.0`_ (2020-08-13)
 ======================
 * Extensive testing with W3C XPath 2.0 tests (~98% passed)
@@ -232,3 +237,5 @@ CHANGELOG
 .. _v1.4.5: https://github.com/sissaschool/elementpath/compare/v1.4.4...v1.4.5
 .. _v1.4.6: https://github.com/sissaschool/elementpath/compare/v1.4.5...v1.4.6
 .. _v2.0.0: https://github.com/sissaschool/elementpath/compare/v1.4.6...v2.0.0
+.. _v2.0.1: https://github.com/sissaschool/elementpath/compare/v2.0.0...v2.0.1
+
