@@ -7,9 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-Parse and translate XML Schema regular expressions to Python regex syntax.
-"""
 import re
 from itertools import chain
 from sys import maxunicode
@@ -92,7 +89,7 @@ class CharacterClass(MutableSet):
             self.add(charset)
 
     def __repr__(self):
-        return '<%s at %d>' % (self.__class__.__name__, id(self))
+        return '%s(%s)' % (self.__class__.__name__, str(self))
 
     def __str__(self):
         if not self.negative:

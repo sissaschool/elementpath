@@ -18,8 +18,9 @@ from itertools import chain
 from unicodedata import category
 
 from elementpath.regex import RegexError, CharacterClass, get_python_pattern
+from elementpath.regex.codepoints import get_code_point_range
 from elementpath.regex.unicode_subsets import code_point_repr, \
-    iterparse_character_class, iter_code_points, UnicodeSubset, \
+    iterparse_character_subset, iter_code_points, UnicodeSubset, \
     UNICODE_CATEGORIES
 
 
@@ -43,6 +44,18 @@ class TestCodePoints(unittest.TestCase):
                                   reverse=True)),
             [25, (8, 23), 0]
         )
+
+    def test_get_code_point_range(self):
+        self.assertEqual(get_code_point_range(97), (97, 98))
+        self.assertEqual(get_code_point_range((97, 100)), (97, 100))
+        self.assertEqual(get_code_point_range([97, 100]), [97, 100])
+
+        self.assertIsNone(get_code_point_range(-1))
+        self.assertIsNone(get_code_point_range(sys.maxunicode + 1))
+        self.assertIsNone(get_code_point_range((-1, 100)))
+        self.assertIsNone(get_code_point_range((97, sys.maxunicode + 2)))
+        self.assertIsNone(get_code_point_range(97.0))
+        self.assertIsNone(get_code_point_range((97.0, 100)))
 
 
 class TestUnicodeSubset(unittest.TestCase):
@@ -136,38 +149,53 @@ class TestUnicodeSubset(unittest.TestCase):
 
 class TestCharacterClass(unittest.TestCase):
 
-    def test_char_group_split(self):
+    def test_char_class_init(self):
+        char_class = CharacterClass()
+        self.assertEqual(char_class.positive, [])
+        self.assertEqual(char_class.negative, [])
+
+        char_class = CharacterClass('a-z')
+        self.assertEqual(char_class.positive, [(97, 123)])
+        self.assertEqual(char_class.negative, [])
+
+    def test_char_class_repr(self):
+        char_class = CharacterClass('a-z')
+        self.assertEqual(repr(char_class), 'CharacterClass([a-z])')
+        char_class.complement()
+        self.assertEqual(repr(char_class), 'CharacterClass([^a-z])')
+
+    def test_char_class_split(self):
         self.assertListEqual(CharacterClass._re_char_set.split(r'2-\\'), [r'2-\\'])
 
     def test_complement(self):
-        char_group = CharacterClass('a-z')
-        char_group.complement()
-        self.assertEqual(str(char_group), '[^a-z]')
+        char_class = CharacterClass('a-z')
+        char_class.complement()
+        self.assertEqual(str(char_class), '[^a-z]')
 
     def test_isub_operator(self):
-        char_group = CharacterClass('A-Za-z')
-        char_group -= CharacterClass('a-z')
-        self.assertEqual(str(char_group), '[A-Z]')
+        char_class = CharacterClass('A-Za-z')
+        char_class -= CharacterClass('a-z')
+        self.assertEqual(str(char_class), '[A-Z]')
 
-        char_group = CharacterClass('a-z')
+        char_class = CharacterClass('a-z')
         other = CharacterClass('A-Za-c')
         other.complement()
-        char_group -= other
-        self.assertEqual(str(char_group), '[a-c]')
+        char_class -= other
+        self.assertEqual(str(char_class), '[a-c]')
 
-        char_group = CharacterClass('a-z')
+        char_class = CharacterClass('a-z')
         other = CharacterClass('A-Za-c')
         other.complement()
         other.add('b')
-        char_group -= other
-        self.assertEqual(str(char_group), '[ac]')
+        char_class -= other
+        self.assertEqual(str(char_class), '[ac]')
 
-        char_group = CharacterClass('a-c')
-        char_group.complement()
+        char_class = CharacterClass('a-c')
+        char_class.complement()
         other = CharacterClass('a-z')
         other.complement()
-        char_group -= other
-        self.assertEqual(str(char_group), '[d-z]')
+        char_class -= other
+        self.assertEqual(str(char_class), '[d-z]')
 
 
 class TestUnicodeCategories(unittest.TestCase):
@@ -327,10 +355,10 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('xx:y'))
 
     def test_iterparse_character_group(self):
-        self.assertListEqual(list(iterparse_character_class('a-c-1-4x-z-7-9')),
+        self.assertListEqual(list(iterparse_character_subset('a-c-1-4x-z-7-9')),
                              [(ord('a'), ord('c') + 1), ord('-'), (ord('1'), ord('4') + 1),
                               (ord('x'), ord('z') + 1), ord('-'), (55, 58)])
-        self.assertListEqual(list(iterparse_character_class('2-\\')), [(ord('2'), ord('\\') + 1)])
+        self.assertListEqual(list(iterparse_character_subset('2-\\')), [(ord('2'), ord('\\') + 1)])
 
     def test_occurrences_qualifiers(self):
         regex = get_python_pattern('#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?', anchors=False)

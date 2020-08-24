@@ -69,21 +69,24 @@ def iter_code_points(code_points, reverse=False):
                 yield start_cp
 
 
-def check_code_point(cp):
+def get_code_point_range(cp):
     """
-    Checks a code point or code point range.
+    Returns a code point range.
 
-    :return: a valid code point range.
+    :param cp: a single code point or a code point range.
+    :return: a code point range or `None` if the argument is not a \
+    code point or a code point range.
     """
     if isinstance(cp, int):
-        if not (0 <= cp <= maxunicode):
-            raise ValueError("not a Unicode code point: %r" % cp)
-        return cp, cp + 1
+        if 0 <= cp <= maxunicode:
+            return cp, cp + 1
     else:
-        if not (0 <= cp[0] < cp[1] <= maxunicode + 1) \
-                or not isinstance(cp[0], int) or not isinstance(cp[1], int):
-            raise ValueError("not a Unicode code point range: %r" % cp)
-        return cp
+        try:
+            if isinstance(cp[0], int) and isinstance(cp[1], int):
+                if 0 <= cp[0] < cp[1] <= maxunicode + 1:
+                    return cp
+        except (IndexError, TypeError):
+            pass
 
 
 def code_point_repr(cp):
