@@ -242,14 +242,14 @@ class TestPatterns(unittest.TestCase):
 
     def test_category_escape(self):
         regex = get_python_pattern('^\\p{IsBasicLatin}*$')
-        self.assertEqual(regex, '^[\x00-\x7f]*$')
+        self.assertEqual(regex, '^[\x00-\x7f]*$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('').group(0), '')
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertIsNone(pattern.search('è'))
 
         regex = get_python_pattern('^[\\p{IsBasicLatin}\\p{IsLatin-1Supplement}]*$')
-        self.assertEqual(regex, '^[\x00-\xff]*$')
+        self.assertEqual(regex, '^[\x00-\xff]*$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertEqual(pattern.search('è').group(0), 'è')
@@ -300,10 +300,11 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('13:20'))
 
         regex = get_python_pattern(r'^[A-Za-z0-9_\-]+(:[A-Za-z0-9_\-]+)?$')
-        self.assertEqual(regex, r'^[\-0-9A-Z_a-z]+(:[\-0-9A-Z_a-z]+)?$')
+        self.assertEqual(regex, r'^[\-0-9A-Z_a-z]+(:[\-0-9A-Z_a-z]+)?$(?!\n\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('fa9').group(0), 'fa9')
-        self.assertEqual(pattern.search('-x_1:_tZ-\n').group(0), '-x_1:_tZ-')
+        self.assertIsNone(pattern.search('-x_1:_tZ-\n'))
+        self.assertEqual(pattern.search('-x_1:_tZ-').group(0), '-x_1:_tZ-')
         self.assertIsNone(pattern.search(''))
         self.assertIsNone(pattern.search('+78'))
 
@@ -437,6 +438,16 @@ class TestPatterns(unittest.TestCase):
 
     def test_lazy_quantifiers(self):
         regex = get_python_pattern('.*?')
+        self.assertEqual(regex, '[^\r\n]*?')
+        regex = get_python_pattern('[a-z]{2,3}?')
+        self.assertEqual(regex, '[a-z]{2,3}?')
+
+        with self.assertRaises(RegexError) as ctx:
+            get_python_pattern('.*?', lazy_quantifiers=False)
+        self.assertEqual(str(ctx.exception), "unexpected meta character '?' at position 2: '.*?'")
+
+        with self.assertRaises(RegexError):
+            get_python_pattern('[a-z]{2,3}?', lazy_quantifiers=False)
 
 
 if __name__ == '__main__':
