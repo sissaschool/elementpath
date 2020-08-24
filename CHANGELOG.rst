@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.0.2`_ (2020-08-xx)
+======================
+* Add regex transpiler to package API
+
 `v2.0.1`_ (2020-08-24)
 ======================
 * Add regex transpiler (for XPath/XQuery and XML Schema regular expressions)
@@ -238,4 +242,5 @@ CHANGELOG
 .. _v1.4.6: https://github.com/sissaschool/elementpath/compare/v1.4.5...v1.4.6
 .. _v2.0.0: https://github.com/sissaschool/elementpath/compare/v1.4.6...v2.0.0
 .. _v2.0.1: https://github.com/sissaschool/elementpath/compare/v2.0.0...v2.0.1
+.. _v2.0.2: https://github.com/sissaschool/elementpath/compare/v2.0.1...v2.0.2
 

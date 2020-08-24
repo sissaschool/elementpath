@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='2.0.1',
+    version='2.0.2',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     author='Davide Brunato',
     author_email='brunato@sissa.it',
@@ -26,7 +26,7 @@ setup(
     description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     extra_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema~=1.2.0', 'Sphinx']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema~=1.2.3', 'Sphinx']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

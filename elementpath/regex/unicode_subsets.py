@@ -18,7 +18,11 @@ from .codepoints import code_point_order, code_point_repr, iter_code_points, get
 
 
 class RegexError(Exception):
-    pass
+    """
+    Error in a regular expression or in a character class specification.
+    This exception is derived from `Exception` base class and is raised
+    only by the regex subpackage.
+    """
 
 
 def iterparse_character_subset(s, expand_ranges=False):

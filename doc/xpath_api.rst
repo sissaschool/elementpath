@@ -119,15 +119,21 @@ containers, being that the final results are cleaned from intermediate tuples.
 .. autoclass:: elementpath.NamespaceNode
 
 
+XPath regular expressions
+=========================
+
+.. autofunction:: elementpath.translate_pattern
+
+
 Exception classes
 =================
 
 .. autoexception:: elementpath.ElementPathError
 .. autoexception:: elementpath.MissingContextError
-
+.. autoexception:: elementpath.RegexError
 
 There are also other exceptions, multiple derived from the base exception
-and Python built-in exceptions:
+:class:`ElementPathError` and Python built-in exceptions:
 
 .. autoexception:: elementpath.ElementPathKeyError
 .. autoexception:: elementpath.ElementPathLocaleError
