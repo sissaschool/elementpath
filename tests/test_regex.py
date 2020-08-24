@@ -17,7 +17,7 @@ import re
 from itertools import chain
 from unicodedata import category
 
-from elementpath.regex import RegexError, CharacterClass, get_python_pattern
+from elementpath.regex import RegexError, CharacterClass, translate_pattern
 from elementpath.regex.codepoints import get_code_point_range
 from elementpath.regex.unicode_subsets import code_point_repr, \
     iterparse_character_subset, iter_code_points, UnicodeSubset, \
@@ -228,14 +228,14 @@ class TestPatterns(unittest.TestCase):
     """
     def test_issue_079(self):
         # Do not escape special characters in character class
-        regex = get_python_pattern('[^\n\t]+', anchors=False)
+        regex = translate_pattern('[^\n\t]+', anchors=False)
         self.assertEqual(regex, '^([^\t\n]+)$')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('first\tsecond\tthird'))
         self.assertEqual(pattern.search('first second third').group(0), 'first second third')
 
     def test_dot_wildcard(self):
-        regex = get_python_pattern('.+', anchors=False)
+        regex = translate_pattern('.+', anchors=False)
         self.assertEqual(regex, '^([^\r\n]+)$')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('line1\rline2\r'))
@@ -244,7 +244,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNotNone(pattern.search('\\'))
         self.assertEqual(pattern.search('abc').group(0), 'abc')
 
-        regex = get_python_pattern('.+T.+(Z|[+-].+)', anchors=False)
+        regex = translate_pattern('.+T.+(Z|[+-].+)', anchors=False)
         self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\\+\\-][^\r\n]+))$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12T0A3+36').group(0), '12T0A3+36')
@@ -253,7 +253,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('12T0A3Z2'))
 
     def test_not_spaces(self):
-        regex = get_python_pattern(r"[\S' ']{1,10}", anchors=False)
+        regex = translate_pattern(r"[\S' ']{1,10}", anchors=False)
         if sys.version_info >= (3,):
             self.assertEqual(regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\U0010ffff ']{1,10})$")
 
@@ -269,14 +269,14 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('abc').group(0), 'abc')
 
     def test_category_escape(self):
-        regex = get_python_pattern('^\\p{IsBasicLatin}*$')
+        regex = translate_pattern('^\\p{IsBasicLatin}*$')
         self.assertEqual(regex, '^[\x00-\x7f]*$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('').group(0), '')
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertIsNone(pattern.search('è'))
 
-        regex = get_python_pattern('^[\\p{IsBasicLatin}\\p{IsLatin-1Supplement}]*$')
+        regex = translate_pattern('^[\\p{IsBasicLatin}\\p{IsLatin-1Supplement}]*$')
         self.assertEqual(regex, '^[\x00-\xff]*$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('e').group(0), 'e')
@@ -284,7 +284,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('Ĭ'))
 
     def test_digit_shortcut(self):
-        regex = get_python_pattern(r'\d{1,3}\.\d{1,2}', anchors=False)
+        regex = translate_pattern(r'\d{1,3}\.\d{1,2}', anchors=False)
         self.assertEqual(regex, r'^(\d{1,3}\.\d{1,2})$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12.40').group(0), '12.40')
@@ -295,14 +295,14 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('1867.0'))
         self.assertIsNone(pattern.search('a1.13'))
 
-        regex = get_python_pattern(r'[-+]?(\d+|\d+(\.\d+)?%)', anchors=False)
+        regex = translate_pattern(r'[-+]?(\d+|\d+(\.\d+)?%)', anchors=False)
         self.assertEqual(regex, r'^([\+\-]?(\d+|\d+(\.\d+)?%))$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('78.8%').group(0), '78.8%')
         self.assertIsNone(pattern.search('867.00'))
 
     def test_character_class_reordering(self):
-        regex = get_python_pattern('[A-Z ]', anchors=False)
+        regex = translate_pattern('[A-Z ]', anchors=False)
         self.assertEqual(regex, '^([ A-Z])$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('A').group(0), 'A')
@@ -312,7 +312,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('  '))
         self.assertIsNone(pattern.search('AA'))
 
-        regex = get_python_pattern(r'[0-9.,DHMPRSTWYZ/:+\-]+', anchors=False)
+        regex = translate_pattern(r'[0-9.,DHMPRSTWYZ/:+\-]+', anchors=False)
         self.assertEqual(regex, r'^([\+-\-\.-:DHMPR-TWYZ]+)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12,40').group(0), '12,40')
@@ -320,14 +320,14 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search(''))
         self.assertIsNone(pattern.search('C'))
 
-        regex = get_python_pattern('[^: \n\r\t]+', anchors=False)
+        regex = translate_pattern('[^: \n\r\t]+', anchors=False)
         self.assertEqual(regex, '^([^\t\n\r :]+)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('56,41').group(0), '56,41')
         self.assertEqual(pattern.search('56,41\n').group(0), '56,41')
         self.assertIsNone(pattern.search('13:20'))
 
-        regex = get_python_pattern(r'^[A-Za-z0-9_\-]+(:[A-Za-z0-9_\-]+)?$')
+        regex = translate_pattern(r'^[A-Za-z0-9_\-]+(:[A-Za-z0-9_\-]+)?$')
         self.assertEqual(regex, r'^[\-0-9A-Z_a-z]+(:[\-0-9A-Z_a-z]+)?$(?!\n\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('fa9').group(0), 'fa9')
@@ -336,7 +336,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search(''))
         self.assertIsNone(pattern.search('+78'))
 
-        regex = get_python_pattern(r'[!%\^\*@~;#,|/]', anchors=False)
+        regex = translate_pattern(r'[!%\^\*@~;#,|/]', anchors=False)
         self.assertEqual(regex, r'^([!#%\*,/;@\^\|~])$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('#').group(0), '#')
@@ -348,7 +348,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('b'))
         self.assertIsNone(pattern.search(''))
 
-        regex = get_python_pattern('[A-Za-z]+:[A-Za-z][A-Za-z0-9\\-]+', anchors=False)
+        regex = translate_pattern('[A-Za-z]+:[A-Za-z][A-Za-z0-9\\-]+', anchors=False)
         self.assertEqual(regex, '^([A-Za-z]+:[A-Za-z][\\-0-9A-Za-z]+)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('zk:xy-9s').group(0), 'zk:xy-9s')
@@ -361,7 +361,7 @@ class TestPatterns(unittest.TestCase):
         self.assertListEqual(list(iterparse_character_subset('2-\\')), [(ord('2'), ord('\\') + 1)])
 
     def test_occurrences_qualifiers(self):
-        regex = get_python_pattern('#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?', anchors=False)
+        regex = translate_pattern('#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?', anchors=False)
         self.assertEqual(regex, '^(#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('#F3D').group(0), '#F3D')
@@ -373,7 +373,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search(''))
 
     def test_or_operator(self):
-        regex = get_python_pattern('0|1', anchors=False)
+        regex = translate_pattern('0|1', anchors=False)
         self.assertEqual(regex, '^(0|1)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('0').group(0), '0')
@@ -384,7 +384,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('01'))
         self.assertIsNone(pattern.search('1\n '))
 
-        regex = get_python_pattern(r'\d+[%]|\d*\.\d+[%]', anchors=False)
+        regex = translate_pattern(r'\d+[%]|\d*\.\d+[%]', anchors=False)
         self.assertEqual(regex, r'^(\d+[%]|\d*\.\d+[%])$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('99%').group(0), '99%')
@@ -393,7 +393,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('%'))
         self.assertIsNone(pattern.search('90.%'))
 
-        regex = get_python_pattern('([ -~]|\n|\r|\t)*', anchors=False)
+        regex = translate_pattern('([ -~]|\n|\r|\t)*', anchors=False)
         self.assertEqual(regex, '^(([ -~]|\n|\r|\t)*)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('ciao\t-~ ').group(0), 'ciao\t-~ ')
@@ -403,79 +403,79 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('\t\n à'))
 
     def test_character_class_shortcuts(self):
-        regex = get_python_pattern(r"^[\i-[:]][\c-[:]]*$")
+        regex = translate_pattern(r"^[\i-[:]][\c-[:]]*$")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('x11').group(0), 'x11')
         self.assertIsNone(pattern.search('3a'))
 
-        regex = get_python_pattern(r"^\w*$")
+        regex = translate_pattern(r"^\w*$")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('aA_x7').group(0), 'aA_x7')
         self.assertIsNone(pattern.search('.'))
         self.assertIsNone(pattern.search('-'))
 
-        regex = get_python_pattern(r"\W*", anchors=False)
+        regex = translate_pattern(r"\W*", anchors=False)
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('aA_x7'))
         self.assertEqual(pattern.search('.-').group(0), '.-')
 
-        regex = get_python_pattern(r"^\d*$")
+        regex = translate_pattern(r"^\d*$")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('6410').group(0), '6410')
         self.assertIsNone(pattern.search('a'))
         self.assertIsNone(pattern.search('-'))
 
-        regex = get_python_pattern(r"^\D*$")
+        regex = translate_pattern(r"^\D*$")
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('6410'))
         self.assertEqual(pattern.search('a').group(0), 'a')
         self.assertEqual(pattern.search('-').group(0), '-')
 
         # Pull Request 114
-        regex = get_python_pattern(r"^[\w]{0,5}$")
+        regex = translate_pattern(r"^[\w]{0,5}$")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('abc').group(0), 'abc')
         self.assertIsNone(pattern.search('.'))
 
-        regex = get_python_pattern(r"^[\W]{0,5}$")
+        regex = translate_pattern(r"^[\W]{0,5}$")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('.').group(0), '.')
         self.assertIsNone(pattern.search('abc'))
 
     def test_empty_character_group_repr(self):
-        regex = get_python_pattern('[a-[a-f]]', anchors=False)
+        regex = translate_pattern('[a-[a-f]]', anchors=False)
         self.assertEqual(regex, r'^([^\w\W])$')
-        self.assertRaises(RegexError, get_python_pattern, '[]')
+        self.assertRaises(RegexError, translate_pattern, '[]')
 
     def test_character_class_range(self):
-        regex = get_python_pattern('[bc-]')
+        regex = translate_pattern('[bc-]')
         self.assertEqual(regex, r'[\-bc]')
 
     def test_character_class_subtraction(self):
-        regex = get_python_pattern('[a-z-[aeiuo]]')
+        regex = translate_pattern('[a-z-[aeiuo]]')
         self.assertEqual(regex, '[b-df-hj-np-tv-z]')
 
         # W3C XSD 1.1 test group RegexTest_422
-        regex = get_python_pattern('[^0-9-[a-zAE-Z]]')
+        regex = translate_pattern('[^0-9-[a-zAE-Z]]')
         self.assertEqual(regex, '[^0-9AE-Za-z]')
 
-        regex = get_python_pattern(r'^([^0-9-[a-zAE-Z]]|[\w-[a-zAF-Z]])+$')
+        regex = translate_pattern(r'^([^0-9-[a-zAE-Z]]|[\w-[a-zAF-Z]])+$')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('azBCDE1234567890BCDEFza'))
         self.assertEqual(pattern.search('BCD').group(0), 'BCD')
 
     def test_lazy_quantifiers(self):
-        regex = get_python_pattern('.*?')
+        regex = translate_pattern('.*?')
         self.assertEqual(regex, '[^\r\n]*?')
-        regex = get_python_pattern('[a-z]{2,3}?')
+        regex = translate_pattern('[a-z]{2,3}?')
         self.assertEqual(regex, '[a-z]{2,3}?')
 
         with self.assertRaises(RegexError) as ctx:
-            get_python_pattern('.*?', lazy_quantifiers=False)
+            translate_pattern('.*?', lazy_quantifiers=False)
         self.assertEqual(str(ctx.exception), "unexpected meta character '?' at position 2: '.*?'")
 
         with self.assertRaises(RegexError):
-            get_python_pattern('[a-z]{2,3}?', lazy_quantifiers=False)
+            translate_pattern('[a-z]{2,3}?', lazy_quantifiers=False)
 
 
 if __name__ == '__main__':

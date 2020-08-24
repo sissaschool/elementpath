@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2020, SISSA"
@@ -27,6 +27,8 @@ from .xpath1_parser import XPath1Parser
 from .xpath2_parser import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
+from .regex import RegexError, translate_pattern
+
 
 __all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
            'ElementPathKeyError', 'ElementPathLocaleError', 'ElementPathNameError',
@@ -34,4 +36,4 @@ __all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
            'ElementPathZeroDivisionError', 'datatypes', 'XPathContext', 'XPathSchemaContext',
            'AttributeNode', 'TextNode', 'TypedAttribute', 'TypedElement', 'NamespaceNode',
            'XPathToken', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select', 'Selector',
-           'AbstractSchemaProxy']
+           'AbstractSchemaProxy', 'RegexError', 'translate_pattern']

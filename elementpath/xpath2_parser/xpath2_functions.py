@@ -30,7 +30,7 @@ from ..xpath_context import XPathContext, XPathSchemaContext
 from ..xpath_nodes import AttributeNode, is_element_node, is_document_node, \
     is_xpath_node, node_name, node_nilled, node_base_uri, node_document_uri, \
     node_kind, etree_deep_equal
-from ..regex import RegexError, get_python_pattern
+from ..regex import RegexError, translate_pattern
 from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
@@ -688,7 +688,7 @@ def evaluate(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        python_pattern = get_python_pattern(pattern, flags)
+        python_pattern = translate_pattern(pattern, flags)
         return re.search(python_pattern, input_string, flags=flags) is not None
     except (re.error, RegexError) as err:
         msg = "Invalid regular expression: {}"
@@ -714,7 +714,7 @@ def evaluate(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        python_pattern = get_python_pattern(pattern, flags)
+        python_pattern = translate_pattern(pattern, flags)
         pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
@@ -745,7 +745,7 @@ def select(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        python_pattern = get_python_pattern(pattern, flags)
+        python_pattern = translate_pattern(pattern, flags)
         pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None

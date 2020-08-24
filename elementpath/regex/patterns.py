@@ -27,18 +27,21 @@ FORBIDDEN_ESCAPES_REF_PATTERN = re.compile(
 )
 
 
-def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=True,
-                       is_syntax=True, anchors=True):
+def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=True,
+                      is_syntax=True, anchors=True):
     """
-    Translates a pattern regex expression to a Python regex pattern.
+    Translates a pattern regex expression to a Python regex pattern. With default
+    options the translator processes XPath 2.0/XQuery 1.0 regex patterns. For XML
+    Schema 1.0 patterns set all boolean options to `False`. For XML Schema 1.1 set
+    all boolean options to `False` except *is_syntax*.
 
     :param pattern: the source XML Schema regular expression.
     :param flags: regex flags as represented by Python's re module.
     :param back_references: if `True` supports back-references and capturing groups.
     :param lazy_quantifiers: if `True` supports lazy quantifiers (*?, +?).
     :param is_syntax: if `True` supports 'Is' prefix on unicode scripts.
-    :param anchors: if `True` supports ^ and $ anchors, otherwise anchors \
-    are added at expression boundaries.
+    :param anchors: if `True` supports ^ and $ anchors, otherwise the translated \
+    pattern is anchored to its boundaries and anchors are treated as normal characters.
     """
     def parse_character_class():
         nonlocal pos
@@ -112,8 +115,7 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
             regex.append(ch if dot_all else '[^\r\n]')
         elif ch in ('^', '$'):
             if not anchors:
-                msg = "unexpected anchor {!r} at position {}: {!r}"
-                raise RegexError(msg.format(ch, pos, pattern))
+                regex.append(r'\%s' % ch)
             elif ch == '^':
                 regex.append(r'(?<!\n\Z)^' if flags & re.MULTILINE else '^')
             else:
