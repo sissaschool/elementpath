@@ -114,10 +114,10 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
             if not anchors:
                 msg = "unexpected anchor {!r} at position {}: {!r}"
                 raise RegexError(msg.format(ch, pos, pattern))
-            if ch == '^' or flags & re.MULTILINE:
-                regex.append(ch)
+            elif ch == '^':
+                regex.append(r'(?<!\n\Z)^' if flags & re.MULTILINE else '^')
             else:
-                regex.append(r'$(?!\n$)')
+                regex.append('$' if flags & re.MULTILINE else r'$(?!\n\Z)')
 
         elif ch == '[':
             try:
@@ -146,7 +146,7 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
 
             regex.append(match.group())
             pos += len(match.group())
-            if pos < pattern_len and pattern[pos] in ('?', '+', '*'):
+            if not lazy_quantifiers and pos < pattern_len and pattern[pos] in ('?', '+', '*'):
                 msg = "unexpected meta character {!r} at position {}: {!r}"
                 raise RegexError(msg.format(pattern[pos], pos, pattern))
             continue
@@ -186,6 +186,10 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
 
         elif ch == '\\':
             pos += 1
+            if re.VERBOSE:
+                while pos < pattern_len and pattern[pos] == ' ':
+                    pos += 1
+
             if pos >= pattern_len:
                 regex.append('\\')
             elif pattern[pos].isdigit():
@@ -229,15 +233,18 @@ def get_python_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=
                 except RegexError:
                     if not is_syntax or not block_name.startswith('Is'):
                         raise
-                    regex.append('[%s]' % UnicodeSubset([(0, maxunicode)]))
+                    p_shortcut_group = '[%s]' % UnicodeSubset([(0, maxunicode)])
                 else:
                     if pattern[block_pos + 1] == 'p':
-                        if (flags & re.IGNORECASE) and block_name in {'Lu', 'Ll'}:
-                            regex.append(r'[^\s\S]')
-                        else:
-                            regex.append('[%s]' % p_shortcut_set)
+                        p_shortcut_group = '[%s]' % p_shortcut_set
                     else:
-                        regex.append('[^%s]' % p_shortcut_set)
+                        p_shortcut_group = '[^%s]' % p_shortcut_set
+
+                if flags & re.IGNORECASE:
+                    regex.append('(?-i:%s)' % p_shortcut_group)
+                else:
+                    regex.append(p_shortcut_group)
+
             else:
                 regex.append('\\%s' % pattern[pos])
         else:

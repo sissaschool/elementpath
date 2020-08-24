@@ -1,6 +1,7 @@
 [run]
 branch = True
 source = elementpath/
+omit = elementpath/regex/generate_categories.py
 
 [report]
 exclude_lines =

@@ -36,9 +36,6 @@ from .xpath2_parser import XPath2Parser
 method = XPath2Parser.method
 function = XPath2Parser.function
 
-WRONG_REPLACEMENT_PATTERN = re.compile(r'(?<!\\)\$([^\d]|$)|((?<=[^\\])|^)\\([^$]|$)|\\\\\$')
-UNESCAPE_PATTERN = re.compile(r'\\(.)')
-
 ###
 # Sequence types (allowed only for type checking in treat-as/instance-of statements)
 function('empty-sequence', nargs=0, label='sequence type')
@@ -700,6 +697,9 @@ def evaluate(self, context=None):
         raise self.error('FORX0002', str(err)) from None
 
 
+REPLACEMENT_PATTERN = re.compile(r'^([^\\$]|[\\]{2}|\\\$|\$\d+)*$')
+
+
 @method(function('replace', nargs=(3, 4)))
 def evaluate(self, context=None):
     input_string = self.get_argument(context, default='', cls=str)
@@ -722,14 +722,14 @@ def evaluate(self, context=None):
         if pattern.search(''):
             msg = "Regular expression %r matches zero-length string"
             raise self.error('FORX0003', msg % pattern.pattern)
-        elif WRONG_REPLACEMENT_PATTERN.search(replacement):
+        elif REPLACEMENT_PATTERN.search(replacement) is None:
             raise self.error('FORX0004', "Invalid replacement string %r" % replacement)
         else:
-            for g in range(pattern.groups + 1):
+            for g in range(pattern.groups, -1, -1):
                 if '$%d' % g in replacement:
                     replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
 
-        return UNESCAPE_PATTERN.sub(r'\1', pattern.sub(replacement, input_string))
+        return pattern.sub(replacement, input_string).replace('\\$', '$')
 
 
 @method(function('tokenize', nargs=(2, 3)))
