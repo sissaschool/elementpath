@@ -869,13 +869,19 @@ class XPathToken(Token):
             return ''.join(etree_iter_strings(obj.getroot()))
         elif isinstance(obj, bool):
             return 'true' if obj else 'false'
-        elif isinstance(obj, (float, Decimal)):
+        elif isinstance(obj, Decimal):
+            value = format(obj, 'f')
+            if '.' in value:
+                return value.rstrip('0').rstrip('.')
+            return value
+
+        elif isinstance(obj, float):
             if math.isnan(obj):
                 return 'NaN'
             elif math.isinf(obj):
                 return str(obj).upper()
-            value = str(obj)
 
+            value = str(obj)
             if '.' in value:
                 value = value.rstrip('0').rstrip('.')
             if '+' in value:

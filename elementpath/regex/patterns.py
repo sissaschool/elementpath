@@ -76,7 +76,7 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
                 char_class = CharacterClass(pattern[group_pos:pos], is_syntax)
                 if negative:
                     char_class.complement()
-                break
+                break  # pragma: no cover
             else:
                 pos += 1
 
@@ -85,9 +85,6 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
             pos += 1
             subtracted_class = parse_character_class()
             pos += 1
-            if pattern[pos] != ']':
-                msg = "unterminated character group at position {}: {!r}"
-                raise RegexError(msg.format(pos, pattern))
             char_class -= subtracted_class
 
         return char_class
@@ -123,18 +120,15 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
 
         elif ch == '[':
             try:
-                char_group = parse_character_class()
+                char_class_repr = str(parse_character_class())
             except IndexError:
-                msg = "unterminated character group at position {}: {!r}"
+                msg = "unterminated character class at position {}: {!r}"
                 raise RegexError(msg.format(pos, pattern))
             else:
-                char_group_repr = str(char_group)
-                if char_group_repr == '[^]':
-                    regex.append(r'[\w\W]')
-                elif char_group_repr == '[]':
+                if char_class_repr == '[]':
                     regex.append(r'[^\w\W]')
                 else:
-                    regex.append(char_group_repr)
+                    regex.append(char_class_repr)
 
         elif ch == '{':
             if pos == 0:
@@ -151,7 +145,7 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
             if not lazy_quantifiers and pos < pattern_len and pattern[pos] in ('?', '+', '*'):
                 msg = "unexpected meta character {!r} at position {}: {!r}"
                 raise RegexError(msg.format(pattern[pos], pos, pattern))
-            continue
+            continue  # pragma: no cover
 
         elif ch == '(':
             if pattern[pos:pos + 2] == '(?':
@@ -188,7 +182,7 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
 
         elif ch == '\\':
             pos += 1
-            if re.VERBOSE:
+            if flags & re.VERBOSE:
                 while pos < pattern_len and pattern[pos] == ' ':
                     pos += 1
 
@@ -205,7 +199,7 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
                             break
                         else:
                             regex.append(pattern[pos + k])
-                    pos += k
+                    pos += k  # pragma: no cover
             elif pattern[pos] == 'i':
                 regex.append('[%s]' % I_SHORTCUT_REPLACE)
             elif pattern[pos] == 'I':

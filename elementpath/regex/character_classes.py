@@ -10,6 +10,7 @@
 import re
 from itertools import chain
 from sys import maxunicode
+from collections import Counter
 from collections.abc import MutableSet
 
 from .unicode_subsets import RegexError, UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
@@ -101,10 +102,12 @@ class CharacterClass(MutableSet):
                 str(UnicodeSubset(self.negative.complement())), str(self.positive)
             )
 
-    def __contains__(self, char):
+    def __contains__(self, item):
+        if not isinstance(item, int):
+            item = ord(item)
         if self.negative:
-            return ord(char) not in self.negative or ord(char) in self.positive
-        return ord(char) in self.positive
+            return item not in self.negative or item in self.positive
+        return item in self.positive
 
     def __iter__(self):
         if self.negative:
@@ -115,7 +118,10 @@ class CharacterClass(MutableSet):
         return iter(sorted(self.positive))
 
     def __len__(self):
-        return len(self.positive) + len(self.negative)
+        if self.negative:
+            not_in_positive = Counter(x not in self.positive for x in self.negative)[True]
+            return maxunicode + 1 - not_in_positive
+        return len(self.positive)
 
     def __isub__(self, other):
         if self.negative:
@@ -145,9 +151,9 @@ class CharacterClass(MutableSet):
                 try:
                     subset = unicode_subset(part[3:-1])
                 except RegexError:
-                    if self.is_syntax == '1.0' or not part[3:].startswith('Is'):
+                    if not self.is_syntax or not part[3:].startswith('Is'):
                         raise
-                    self.positive |= UnicodeSubset([(0, maxunicode)])
+                    self.positive |= UnicodeSubset([(0, maxunicode + 1)])
                 else:
                     if part.startswith('\\p'):
                         self.positive |= subset
@@ -162,10 +168,16 @@ class CharacterClass(MutableSet):
                 value = CHARACTER_ESCAPES[part]
                 if isinstance(value, str):
                     self.positive.difference_update(value)
+                    if self.negative:
+                        self.negative.update(value)
                 elif part[-1].islower():
                     self.positive -= value
+                    if self.negative:
+                        self.negative |= value
                 else:
-                    self.negative -= value
+                    self.positive &= value
+                    self.negative.clear()
+
             elif part.startswith('\\p') or part.startswith('\\P'):
                 if self._re_unicode_ref.search(part) is None:
                     raise RegexError("wrong Unicode block specification %r" % part)
@@ -173,9 +185,9 @@ class CharacterClass(MutableSet):
                 try:
                     subset = unicode_subset(part[3:-1])
                 except RegexError:
-                    if self.is_syntax == '1.0' or not part[3:].startswith('Is'):
+                    if not self.is_syntax or not part[3:].startswith('Is'):
                         raise
-                    self.positive -= UnicodeSubset([(0, maxunicode)])
+                    self.positive -= UnicodeSubset([(0, maxunicode + 1)])
                 else:
                     if part.startswith('\\p'):
                         self.positive -= subset
@@ -189,4 +201,7 @@ class CharacterClass(MutableSet):
         self.negative.clear()
 
     def complement(self):
-        self.positive, self.negative = self.negative, self.positive
+        if self.positive or self.negative:
+            self.positive, self.negative = self.negative, self.positive
+        else:
+            self.positive.codepoints.append((0, maxunicode + 1))

@@ -31,7 +31,7 @@ def iterparse_character_subset(s, expand_ranges=False):
     and code points ranges. An unescaped hyphen (-) that is not at the
     start or at the and is interpreted as range specifier.
 
-    :param s: a string representing a character group part.
+    :param s: a string representing the character subset.
     :param expand_ranges: if set to `True` then expands character ranges.
     :return: yields integers or couples of integers.
     """
@@ -39,8 +39,8 @@ def iterparse_character_subset(s, expand_ranges=False):
     on_range = False
     char = None
     length = len(s)
-    string_iter = iter(range(len(s)))
-    for k in string_iter:
+    subset_index_iterator = iter(range(len(s)))
+    for k in subset_index_iterator:
         if k == 0:
             char = s[0]
             if char == '\\':
@@ -63,19 +63,15 @@ def iterparse_character_subset(s, expand_ranges=False):
             else:
                 # Parse character range
                 on_range = True
-                try:
-                    k = next(string_iter)
-                    end_char = s[k]
-                    if end_char == '\\' and (k < length - 1):
-                        if s[k + 1] in r'-|.^?*+{}()[]':
-                            k = next(string_iter)
-                            end_char = s[k]
-                        elif s[k + 1] in r'sSdDiIcCwWpP':
-                            msg = "bad character range '%s-\\%s' at position %d: %r"
-                            raise RegexError(msg % (char, s[k + 1], k - 2, s))
-                except StopIteration:
-                    msg = "bad character range '%s-%s' at position %d: %r"
-                    raise RegexError(msg % (char, s[-1], k - 2, s))
+                k = next(subset_index_iterator)
+                end_char = s[k]
+                if end_char == '\\' and (k < length - 1):
+                    if s[k + 1] in r'-|.^?*+{}()[]':
+                        k = next(subset_index_iterator)
+                        end_char = s[k]
+                    elif s[k + 1] in r'sSdDiIcCwWpP':
+                        msg = "bad character range '%s-\\%s' at position %d: %r"
+                        raise RegexError(msg % (char, s[k + 1], k - 2, s))
 
                 if ord(char) > ord(end_char):
                     msg = "bad character range '%s-%s' at position %d: %r"
@@ -84,6 +80,7 @@ def iterparse_character_subset(s, expand_ranges=False):
                     yield from range(ord(char) + 1, ord(end_char) + 1)
                 else:
                     yield ord(char), ord(end_char) + 1
+
         elif s[k] in r'|.^?*+{}()':
             if escaped:
                 escaped = False
@@ -142,7 +139,7 @@ class UnicodeSubset(MutableSet):
         return self._codepoints
 
     def __repr__(self):
-        return "<%s %r at %d>" % (self.__class__.__name__, str(self._codepoints), id(self))
+        return "%s(%r)" % (self.__class__.__name__, str(self))
 
     def __str__(self):
         return ''.join(code_point_repr(cp) for cp in self._codepoints)
@@ -163,9 +160,7 @@ class UnicodeSubset(MutableSet):
     def complement(self):
         last_cp = 0
         for cp in self._codepoints:
-            if last_cp > maxunicode:
-                break
-            elif isinstance(cp, int):
+            if isinstance(cp, int):
                 cp = cp, cp + 1
 
             diff = cp[0] - last_cp
@@ -176,8 +171,8 @@ class UnicodeSubset(MutableSet):
                 yield last_cp + 1
             elif diff == 1:
                 yield last_cp
-            elif diff != 0:
-                raise ValueError("instance code points unordered")
+            elif diff:
+                raise ValueError("unordered code points found in {!r}".format(self))
             last_cp = cp[1]
 
         if last_cp < maxunicode:
@@ -331,6 +326,8 @@ class UnicodeSubset(MutableSet):
             return NotImplemented
         elif isinstance(other, UnicodeSubset):
             other = reversed(other._codepoints)
+        elif isinstance(other, str):
+            other = reversed(UnicodeSubset(other)._codepoints)
         else:
             other = iter_code_points(other, reverse=True)
 
@@ -343,6 +340,8 @@ class UnicodeSubset(MutableSet):
             return NotImplemented
         elif isinstance(other, UnicodeSubset):
             other = reversed(other._codepoints)
+        elif isinstance(other, str):
+            other = reversed(UnicodeSubset(other)._codepoints)
         else:
             other = iter_code_points(other, reverse=True)
 
