@@ -14,6 +14,7 @@ This module runs tests on XML Schema regular expressions.
 import unittest
 import sys
 import re
+import string
 from itertools import chain
 from unicodedata import category
 
@@ -58,93 +59,314 @@ class TestCodePoints(unittest.TestCase):
         self.assertIsNone(get_code_point_range((97.0, 100)))
 
 
+class TestParseCharacterSubset(unittest.TestCase):
+
+    def test_expand_ranges(self):
+        self.assertListEqual(
+            list(iterparse_character_subset('a-e', expand_ranges=True)),
+            [ord('a'), ord('b'), ord('c'), ord('d'), ord('e')]
+        )
+
+    def test_backslash_character(self):
+        self.assertListEqual(list(iterparse_character_subset('\\')), [ord('\\')])
+        self.assertListEqual(list(iterparse_character_subset('2-\\')),
+                             [(ord('2'), ord('\\') + 1)])
+        self.assertListEqual(list(iterparse_character_subset('2-\\\\')),
+                             [(ord('2'), ord('\\') + 1), ord('\\')])
+        self.assertListEqual(list(iterparse_character_subset('2-\\x')),
+                             [(ord('2'), ord('\\') + 1), ord('x')])
+        self.assertListEqual(list(iterparse_character_subset('2-\\a-x')),
+                             [(ord('2'), ord('\\') + 1), (ord('a'), ord('x') + 1)])
+        self.assertListEqual(list(iterparse_character_subset('2-\\{')),
+                             [(ord('2'), ord('{') + 1)])
+
+    def test_backslash_escapes(self):
+        self.assertListEqual(list(iterparse_character_subset('\\{')), [ord('{')])
+        self.assertListEqual(list(iterparse_character_subset('\\(')), [ord('(')])
+        self.assertListEqual(list(iterparse_character_subset('\\a')), [ord('\\'), ord('a')])
+
+    def test_square_brackets(self):
+        self.assertListEqual(list(iterparse_character_subset('\\[')), [ord('[')])
+        self.assertListEqual(list(iterparse_character_subset('[')), [ord('[')])
+
+        with self.assertRaises(RegexError) as ctx:
+            list(iterparse_character_subset('[ '))
+        self.assertIn("bad character '['", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            list(iterparse_character_subset('x['))
+        self.assertIn("bad character '['", str(ctx.exception))
+
+        self.assertListEqual(list(iterparse_character_subset('\\]')), [ord(']')])
+        self.assertListEqual(list(iterparse_character_subset(']')), [ord(']')])
+
+        with self.assertRaises(RegexError) as ctx:
+            list(iterparse_character_subset('].'))
+        self.assertIn("bad character ']'", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            list(iterparse_character_subset('8['))
+        self.assertIn("bad character '['", str(ctx.exception))
+
+    def test_character_range(self):
+        self.assertListEqual(list(iterparse_character_subset('A-z')),
+                             [(ord('A'), ord('z') + 1)])
+        self.assertListEqual(list(iterparse_character_subset('\\[-z')),
+                             [(ord('['), ord('z') + 1)])
+
+    def test_bad_character_range(self):
+        with self.assertRaises(RegexError) as ctx:
+            list(iterparse_character_subset('9-2'))
+        self.assertIn('bad character range', str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            list(iterparse_character_subset('2-\\s'))
+        self.assertIn('bad character range', str(ctx.exception))
+
+    def test_parse_multiple_ranges(self):
+        self.assertListEqual(
+            list(iterparse_character_subset('a-c-1-4x-z-7-9')),
+            [(ord('a'), ord('c') + 1), ord('-'), (ord('1'), ord('4') + 1),
+             (ord('x'), ord('z') + 1), ord('-'), (55, 58)]
+        )
+
+
 class TestUnicodeSubset(unittest.TestCase):
 
     def test_creation(self):
-        cds = UnicodeSubset([(0, 9), 11, 12, (14, 32), (33, sys.maxunicode + 1)])
-        self.assertEqual(cds, [(0, 9), 11, 12, (14, 32), (33, sys.maxunicode + 1)])
+        subset = UnicodeSubset([(0, 9), 11, 12, (14, 32), (33, sys.maxunicode + 1)])
+        self.assertEqual(subset, [(0, 9), 11, 12, (14, 32), (33, sys.maxunicode + 1)])
         self.assertEqual(UnicodeSubset('0-9'), [(48, 58)])
         self.assertEqual(UnicodeSubset('0-9:'), [(48, 59)])
 
+        subset = UnicodeSubset('a-z')
+        self.assertEqual(UnicodeSubset(subset), [(ord('a'), ord('z') + 1)])
+
+    def test_repr(self):
+        self.assertEqual(code_point_repr((ord('2'), ord('\\') + 1)), r'2-\\')
+
+        subset = UnicodeSubset('a-z')
+        self.assertEqual(repr(subset), "UnicodeSubset('a-z')")
+        self.assertEqual(str(subset), "a-z")
+
+        subset = UnicodeSubset((50, 90))
+        subset.codepoints.append(sys.maxunicode + 10)  # Invalid subset
+        self.assertRaises(ValueError, repr, subset)
+
     def test_modify(self):
-        cds = UnicodeSubset()
+        subset = UnicodeSubset()
         for cp in [50, 90, 10, 90]:
-            cds.add(cp)
-        self.assertEqual(cds, [10, 50, 90])
-        self.assertRaises(ValueError, cds.add, -1)
-        self.assertRaises(ValueError, cds.add, sys.maxunicode + 1)
-        cds.add((100, 20001))
-        cds.discard((100, 19001))
-        self.assertEqual(cds, [10, 50, 90, (19001, 20001)])
-        cds.add(0)
-        cds.discard(1)
-        self.assertEqual(cds, [0, 10, 50, 90, (19001, 20001)])
-        cds.discard(0)
-        self.assertEqual(cds, [10, 50, 90, (19001, 20001)])
-        cds.discard((10, 100))
-        self.assertEqual(cds, [(19001, 20001)])
-        cds.add(20)
-        cds.add(19)
-        cds.add(30)
-        cds.add([30, 33])
-        cds.add(30000)
-        cds.add(30001)
-        self.assertEqual(cds, [(19, 21), (30, 33), (19001, 20001), (30000, 30002)])
-        cds.add(22)
-        cds.add(21)
-        cds.add(22)
-        self.assertEqual(cds, [(19, 22), 22, (30, 33), (19001, 20001), (30000, 30002)])
-        cds.discard((90, 50000))
-        self.assertEqual(cds, [(19, 22), 22, (30, 33)])
-        cds.discard(21)
-        cds.discard(19)
-        self.assertEqual(cds, [20, 22, (30, 33)])
-        cds.discard((0, 200))
-        self.assertEqual(cds, [])
+            subset.add(cp)
+        self.assertEqual(subset, [10, 50, 90])
+        self.assertRaises(ValueError, subset.add, -1)
+        self.assertRaises(ValueError, subset.add, sys.maxunicode + 1)
+        subset.add((100, 20001))
+        subset.discard((100, 19001))
+        self.assertEqual(subset, [10, 50, 90, (19001, 20001)])
+        subset.add(0)
+        subset.discard(1)
+        self.assertEqual(subset, [0, 10, 50, 90, (19001, 20001)])
+        subset.discard(0)
+        self.assertEqual(subset, [10, 50, 90, (19001, 20001)])
+        subset.discard((10, 100))
+        self.assertEqual(subset, [(19001, 20001)])
+        subset.add(20)
+        subset.add(19)
+        subset.add(30)
+        subset.add([30, 33])
+        subset.add(30000)
+        subset.add(30001)
+        self.assertEqual(subset, [(19, 21), (30, 33), (19001, 20001), (30000, 30002)])
+        subset.add(22)
+        subset.add(21)
+        subset.add(22)
+        self.assertEqual(subset, [(19, 22), 22, (30, 33), (19001, 20001), (30000, 30002)])
+        subset.discard((90, 50000))
+        self.assertEqual(subset, [(19, 22), 22, (30, 33)])
+        subset.discard(21)
+        subset.discard(19)
+        self.assertEqual(subset, [20, 22, (30, 33)])
+        subset.discard((0, 200))
+        self.assertEqual(subset, [])
+
+        with self.assertRaises(ValueError):
+            subset.discard(None)
+        with self.assertRaises(ValueError):
+            subset.discard((10, 11, 12))
+
+    def test_update_method(self):
+        subset = UnicodeSubset()
+        subset.update('\\\\')
+        self.assertListEqual(subset.codepoints, [ord('\\')])
+        subset.update('\\$')
+        self.assertListEqual(subset.codepoints, [ord('$'), ord('\\')])
+
+        subset.clear()
+        subset.update('!--')
+        self.assertListEqual(subset.codepoints, [(ord('!'), ord('-') + 1)])
+
+        subset.clear()
+        subset.update('!---')
+        self.assertListEqual(subset.codepoints, [(ord('!'), ord('-') + 1)])
+
+        subset.clear()
+        subset.update('!--a')
+        self.assertListEqual(subset.codepoints, [(ord('!'), ord('-') + 1), ord('a')])
+
+        with self.assertRaises(RegexError):
+            subset.update('[[')
+
+    def test_difference_update_method(self):
+        subset = UnicodeSubset('a-z')
+        subset.difference_update('a-c')
+        self.assertEqual(subset, UnicodeSubset('d-z'))
+
+        subset = UnicodeSubset('a-z')
+        subset.difference_update([(ord('a'), ord('c') + 1)])
+        self.assertEqual(subset, UnicodeSubset('d-z'))
+
+    def test_iterate(self):
+        subset = UnicodeSubset('a-d')
+        self.assertListEqual(list(iter(subset)), [ord('a'), ord('b'), ord('c'), ord('d')])
+        self.assertListEqual(list(subset.iter_characters()), ['a', 'b', 'c', 'd'])
+
+    def test_reversed(self):
+        subset = UnicodeSubset('0-9ax')
+        self.assertEqual(list(reversed(subset)),
+                         [ord('x'), ord('a'), ord('9'), 56, 55, 54, 53, 52, 51, 50, 49, 48])
+
+    def test_in_operator(self):
+        subset = UnicodeSubset('0-9a-z')
+
+        self.assertIn('a', subset)
+        self.assertIn(ord('a'), subset)
+        self.assertIn(ord('z'), subset)
+
+        self.assertNotIn('/', subset)
+        self.assertNotIn('A', subset)
+        self.assertNotIn(ord('A'), subset)
+        self.assertNotIn(ord('}'), subset)
+        self.assertNotIn(float(ord('a')), subset)
+
+        self.assertNotIn('.', subset)
+        subset.update('.')
+        self.assertIn('.', subset)
+        self.assertNotIn('/', subset)
+        self.assertNotIn('-', subset)
 
     def test_complement(self):
-        cds = UnicodeSubset((50, 90, 10, 90))
-        self.assertEqual(list(cds.complement()),
+        subset = UnicodeSubset((50, 90, 10, 90))
+        self.assertEqual(list(subset.complement()),
                          [(0, 10), (11, 50), (51, 90), (91, sys.maxunicode + 1)])
-        cds.add(11)
-        self.assertEqual(list(cds.complement()),
+        subset.add(11)
+        self.assertEqual(list(subset.complement()),
                          [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode + 1)])
-        cds.add((0, 10))
-        self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
+        subset.add((0, 10))
+        self.assertEqual(list(subset.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
 
-        cds1 = UnicodeSubset(chain(
+        s1 = UnicodeSubset(chain(
             UNICODE_CATEGORIES['L'].codepoints,
             UNICODE_CATEGORIES['M'].codepoints,
             UNICODE_CATEGORIES['N'].codepoints,
             UNICODE_CATEGORIES['S'].codepoints
         ))
-        cds2 = UnicodeSubset(chain(
+        s2 = UnicodeSubset(chain(
             UNICODE_CATEGORIES['C'].codepoints,
             UNICODE_CATEGORIES['P'].codepoints,
             UNICODE_CATEGORIES['Z'].codepoints
         ))
-        self.assertListEqual(cds1.codepoints, UnicodeSubset(cds2.complement()).codepoints)
+        self.assertEqual(s1.codepoints, UnicodeSubset(s2.complement()).codepoints)
+
+        subset = UnicodeSubset((50, 90))
+        subset.codepoints.append(70)  # Invalid subset (unordered)
+        with self.assertRaises(ValueError) as ctx:
+            list(subset.complement())
+        self.assertEqual(
+            str(ctx.exception), "unordered code points found in UnicodeSubset('2ZF')")
+
+        subset = UnicodeSubset((sys.maxunicode - 1,))
+        self.assertEqual(list(subset.complement()), [(0, sys.maxunicode - 1), sys.maxunicode])
+
+    def test_equality(self):
+        self.assertFalse(UnicodeSubset() == 0.0)
+        self.assertEqual(UnicodeSubset('a-z'), UnicodeSubset('a-kl-z'))
 
     def test_union_and_intersection(self):
-        cds1 = UnicodeSubset([50, (90, 200), 10])
-        cds2 = UnicodeSubset([10, 51, (89, 150), 90])
-        self.assertEqual(cds1 | cds2, [10, (50, 52), (89, 200)])
-        self.assertEqual(cds1 & cds2, [10, (90, 150)])
+        s1 = UnicodeSubset([50, (90, 200), 10])
+        s2 = UnicodeSubset([10, 51, (89, 150), 90])
+        self.assertEqual(s1 | s2, [10, (50, 52), (89, 200)])
+        self.assertEqual(s1 & s2, [10, (90, 150)])
+
+        subset = UnicodeSubset('a-z')
+        subset |= UnicodeSubset('A-Zfx')
+        self.assertEqual(subset, UnicodeSubset('A-Za-z'))
+        subset |= '0-9'
+        self.assertEqual(subset, UnicodeSubset('0-9A-Za-z'))
+        subset |= [ord('{'), ord('}')]
+        self.assertEqual(subset, UnicodeSubset('0-9A-Za-z{}'))
+
+        subset = UnicodeSubset('a-z')
+        subset &= UnicodeSubset('A-Zfx')
+        self.assertEqual(subset, UnicodeSubset('fx'))
+        subset &= 'xyz'
+        self.assertEqual(subset, UnicodeSubset('x'))
+
+        with self.assertRaises(TypeError) as ctx:
+            subset = UnicodeSubset('a-z')
+            subset |= False
+        self.assertIn('unsupported operand type', str(ctx.exception))
+
+        with self.assertRaises(TypeError) as ctx:
+            subset = UnicodeSubset('a-z')
+            subset &= False
+        self.assertIn('unsupported operand type', str(ctx.exception))
 
     def test_max_and_min(self):
-        cds1 = UnicodeSubset([10, 51, (89, 151), 90])
-        cds2 = UnicodeSubset([0, 2, (80, 201), 10000])
-        cds3 = UnicodeSubset([1])
-        self.assertEqual((min(cds1), max(cds1)), (10, 150))
-        self.assertEqual((min(cds2), max(cds2)), (0, 10000))
-        self.assertEqual((min(cds3), max(cds3)), (1, 1))
+        s1 = UnicodeSubset([10, 51, (89, 151), 90])
+        s2 = UnicodeSubset([0, 2, (80, 201), 10000])
+        s3 = UnicodeSubset([1])
+        self.assertEqual((min(s1), max(s1)), (10, 150))
+        self.assertEqual((min(s2), max(s2)), (0, 10000))
+        self.assertEqual((min(s3), max(s3)), (1, 1))
 
     def test_subtraction(self):
-        cds = UnicodeSubset([0, 2, (80, 200), 10000])
-        self.assertEqual(cds - {2, 120, 121, (150, 260)}, [0, (80, 120), (122, 150), 10000])
+        subset = UnicodeSubset([0, 2, (80, 200), 10000])
+        self.assertEqual(subset - {2, 120, 121, (150, 260)}, [0, (80, 120), (122, 150), 10000])
 
-    def test_code_point_repr_function(self):
-        self.assertEqual(code_point_repr((ord('2'), ord('\\') + 1)), r'2-\\')
+        subset = UnicodeSubset('a-z')
+        subset -= UnicodeSubset('a-c')
+        self.assertEqual(subset, UnicodeSubset('d-z'))
+
+        subset = UnicodeSubset('a-z')
+        subset -= 'a-c'
+        self.assertEqual(subset, UnicodeSubset('d-z'))
+
+        with self.assertRaises(TypeError) as ctx:
+            subset = UnicodeSubset('a-z')
+            subset -= False
+        self.assertIn('unsupported operand type', str(ctx.exception))
+
+    def test_xor(self):
+        subset = UnicodeSubset('a-z')
+        subset ^= subset
+        self.assertEqual(subset, UnicodeSubset())
+
+        subset = UnicodeSubset('a-z')
+        subset ^= UnicodeSubset('a-c')
+        self.assertEqual(subset, UnicodeSubset('d-z'))
+
+        subset = UnicodeSubset('a-z')
+        subset ^= 'a-f'
+        self.assertEqual(subset, UnicodeSubset('g-z'))
+
+        with self.assertRaises(TypeError) as ctx:
+            subset = UnicodeSubset('a-z')
+            subset ^= False
+        self.assertIn('unsupported operand type', str(ctx.exception))
+
+        subset = UnicodeSubset('a-z')
+        subset ^= 'A-Za-f'
+        self.assertEqual(subset, UnicodeSubset('A-Zg-z'))
 
 
 class TestCharacterClass(unittest.TestCase):
@@ -169,8 +391,17 @@ class TestCharacterClass(unittest.TestCase):
 
     def test_complement(self):
         char_class = CharacterClass('a-z')
+        self.assertListEqual(char_class.positive.codepoints, [(97, 123)])
+        self.assertListEqual(char_class.negative.codepoints, [])
+
         char_class.complement()
+        self.assertListEqual(char_class.positive.codepoints, [])
+        self.assertListEqual(char_class.negative.codepoints, [(97, 123)])
         self.assertEqual(str(char_class), '[^a-z]')
+
+        char_class = CharacterClass()
+        char_class.complement()
+        self.assertEqual(len(char_class), sys.maxunicode + 1)
 
     def test_isub_operator(self):
         char_class = CharacterClass('A-Za-z')
@@ -196,6 +427,138 @@ class TestCharacterClass(unittest.TestCase):
         other.complement()
         char_class -= other
         self.assertEqual(str(char_class), '[d-z]')
+
+    def test_in_operator(self):
+        char_class = CharacterClass('A-Za-z')
+        self.assertIn(100, char_class)
+        self.assertIn('d', char_class)
+        self.assertNotIn(49, char_class)
+        self.assertNotIn('1', char_class)
+
+        char_class.complement()
+        self.assertNotIn(100, char_class)
+        self.assertNotIn('d', char_class)
+        self.assertIn(49, char_class)
+        self.assertIn('1', char_class)
+
+    def test_iterate(self):
+        char_class = CharacterClass('A-Za-z')
+        self.assertEqual(''.join(chr(c) for c in char_class),
+                         string.ascii_uppercase + string.ascii_lowercase)
+
+        char_class.complement()
+        self.assertEqual(len(''.join(chr(c) for c in char_class)),
+                         sys.maxunicode + 1 - len(string.ascii_letters))
+
+    def test_length(self):
+        char_class = CharacterClass('0-9A-Z')
+        self.assertListEqual(char_class.positive.codepoints, [(48, 58), (65, 91)])
+        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(len(char_class), 36)
+
+        char_class.complement()
+        self.assertListEqual(char_class.positive.codepoints, [])
+        self.assertListEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(len(char_class), sys.maxunicode + 1 - 36)
+
+        char_class.add('k-m')
+        self.assertListEqual(char_class.positive.codepoints, [(107, 110)])
+        self.assertListEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(str(char_class), '[\x00-/:-@\\[-\U0010ffffk-m]')
+        self.assertEqual(len(char_class), sys.maxunicode + 1 - 36)
+
+        char_class.add('K-M')
+        self.assertListEqual(char_class.positive.codepoints, [(75, 78), (107, 110)])
+        self.assertListEqual(char_class.negative.codepoints, [(48, 58), (65, 91)])
+        self.assertEqual(len(char_class), sys.maxunicode + 1 - 33)
+        self.assertEqual(str(char_class), '[\x00-/:-@\\[-\U0010ffffK-Mk-m]')
+
+        char_class.clear()
+        self.assertListEqual(char_class.positive.codepoints, [])
+        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(len(char_class), 0)
+
+    def test_add(self):
+        char_class = CharacterClass()
+        self.assertListEqual(char_class.positive.codepoints, [])
+        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(len(char_class), 0)
+
+        char_class.add('0-9')
+        self.assertListEqual(char_class.positive.codepoints, [(48, 58)])
+        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(len(char_class), 10)
+
+        char_class.add(r'\p{Nd}')
+        self.assertEqual(len(char_class), 630)
+
+        with self.assertRaises(RegexError):
+            char_class.add(r'\p{}')
+
+        with self.assertRaises(RegexError):
+            char_class.add(r'\p{XYZ}')
+
+        char_class.add(r'\P{Nd}')
+        self.assertEqual(len(char_class), sys.maxunicode + 1)
+
+        char_class = CharacterClass()
+        char_class.add(r'\p{IsFoo}')
+
+    def test_discard(self):
+        char_class = CharacterClass('0-9')
+        char_class.discard('6-9')
+        self.assertListEqual(char_class.positive.codepoints, [(48, 54)])
+        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(len(char_class), 6)
+
+        char_class.add(r'\p{Nd}')
+        self.assertEqual(len(char_class), 630)
+
+        char_class.discard(r'\p{Nd}')
+        self.assertEqual(len(char_class), 0)
+
+        with self.assertRaises(RegexError):
+            char_class.discard(r'\p{}')
+
+        with self.assertRaises(RegexError):
+            char_class.discard(r'\p{XYZ}')
+
+        char_class.add(r'\P{Nd}')
+        self.assertEqual(len(char_class), sys.maxunicode + 1 - 630)
+
+        char_class.discard(r'\P{Nd}')
+        self.assertEqual(len(char_class), 0)
+
+        char_class = CharacterClass('a-z')
+        char_class.discard(r'\p{IsFoo}')
+        self.assertEqual(len(char_class), 0)
+
+        char_class = CharacterClass()
+        char_class.complement()
+        char_class.discard('\\n')
+        self.assertListEqual(char_class.positive.codepoints, [(0, 10), (11, 1114112)])
+        self.assertListEqual(char_class.negative.codepoints, [])
+        self.assertEqual(len(char_class), sys.maxunicode)
+        char_class.discard('\\s')
+        self.assertListEqual(char_class.positive.codepoints,
+                             [(0, 9), (11, 13), (14, 32), (33, 1114112)])
+        self.assertEqual(len(char_class), sys.maxunicode - 3)
+        char_class.discard('\\S')
+        self.assertEqual(len(char_class), 0)
+
+        char_class.clear()
+        char_class.negative.codepoints.append(10)
+        char_class.discard('\\s')
+        self.assertListEqual(char_class.positive.codepoints, [])
+        self.assertListEqual(char_class.negative.codepoints, [(9, 11), 13, 32])
+
+        char_class = CharacterClass('\t')
+        char_class.complement()
+        self.assertListEqual(char_class.negative.codepoints, [9])
+        char_class.discard('\\n')
+        self.assertListEqual(char_class.positive.codepoints, [])
+        self.assertListEqual(char_class.negative.codepoints, [(9, 11)])
+        self.assertEqual(len(char_class), sys.maxunicode - 1)
 
 
 class TestUnicodeCategories(unittest.TestCase):
@@ -354,12 +717,6 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('zk:xy-9s').group(0), 'zk:xy-9s')
         self.assertIsNone(pattern.search('xx:y'))
 
-    def test_iterparse_character_group(self):
-        self.assertListEqual(list(iterparse_character_subset('a-c-1-4x-z-7-9')),
-                             [(ord('a'), ord('c') + 1), ord('-'), (ord('1'), ord('4') + 1),
-                              (ord('x'), ord('z') + 1), ord('-'), (55, 58)])
-        self.assertListEqual(list(iterparse_character_subset('2-\\')), [(ord('2'), ord('\\') + 1)])
-
     def test_occurrences_qualifiers(self):
         regex = translate_pattern('#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?', anchors=False)
         self.assertEqual(regex, '^(#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?)$')
@@ -442,11 +799,6 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('.').group(0), '.')
         self.assertIsNone(pattern.search('abc'))
 
-    def test_empty_character_group_repr(self):
-        regex = translate_pattern('[a-[a-f]]', anchors=False)
-        self.assertEqual(regex, r'^([^\w\W])$')
-        self.assertRaises(RegexError, translate_pattern, '[]')
-
     def test_character_class_range(self):
         regex = translate_pattern('[bc-]')
         self.assertEqual(regex, r'[\-bc]')
@@ -464,11 +816,73 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('azBCDE1234567890BCDEFza'))
         self.assertEqual(pattern.search('BCD').group(0), 'BCD')
 
+    def test_invalid_character_class(self):
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('[[]')
+        self.assertIn("invalid character '['", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('ab]d')
+        self.assertIn("unexpected meta character ']'", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('[abc\\1]')
+        self.assertIn("illegal back-reference in character class", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('[--a]')
+        self.assertIn("invalid character range '--'", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('[a-z-[c-q')
+        self.assertIn("unterminated character class", str(ctx.exception))
+
+    def test_empty_character_class(self):
+        regex = translate_pattern('[a-[a-f]]', anchors=False)
+        self.assertEqual(regex, r'^([^\w\W])$')
+        self.assertRaises(RegexError, translate_pattern, '[]')
+
+        self.assertEqual(translate_pattern(r'[\w-[\w]]'), r'[^\w\W]')
+        self.assertEqual(translate_pattern(r'[\s-[\s]]'), r'[^\w\W]')
+        self.assertEqual(translate_pattern(r'[\c-[\c]]'), r'[^\w\W]')
+        self.assertEqual(translate_pattern(r'[\i-[\i]]'), r'[^\w\W]')
+        self.assertEqual(translate_pattern('[a-[ab]]'), r'[^\w\W]')
+        self.assertEqual(translate_pattern('[^a-[^a]]'), r'[^\w\W]')
+
+    def test_back_references(self):
+        self.assertEqual(translate_pattern('(a)\\1'), '(a)\\1')
+        self.assertEqual(translate_pattern('(a)\\11'), '(a)\\1[1]')
+
+        regex = translate_pattern('((((((((((((a))))))))))))\\11')
+        self.assertEqual(regex, '((((((((((((a))))))))))))\\11')
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('(a)\\1', back_references=False)
+        self.assertIn("not allowed escape sequence", str(ctx.exception))
+
+    def test_anchors(self):
+        regex = translate_pattern('a^b')
+        self.assertEqual(regex, 'a^b')
+
+        regex = translate_pattern('a^b', anchors=False)
+        self.assertEqual(regex, '^(a\\^b)$')
+
+        regex = translate_pattern('ab$')
+        self.assertEqual(regex, 'ab$(?!\\n\\Z)')
+
+        regex = translate_pattern('ab$', anchors=False)
+        self.assertEqual(regex, '^(ab\\$)$')
+
     def test_lazy_quantifiers(self):
         regex = translate_pattern('.*?')
         self.assertEqual(regex, '[^\r\n]*?')
         regex = translate_pattern('[a-z]{2,3}?')
         self.assertEqual(regex, '[a-z]{2,3}?')
+        regex = translate_pattern('[a-z]*?')
+        self.assertEqual(regex, '[a-z]*?')
+
+        regex = translate_pattern('[a-z]*', lazy_quantifiers=False)
+        self.assertEqual(regex, '[a-z]*')
 
         with self.assertRaises(RegexError) as ctx:
             translate_pattern('.*?', lazy_quantifiers=False)
@@ -476,6 +890,85 @@ class TestPatterns(unittest.TestCase):
 
         with self.assertRaises(RegexError):
             translate_pattern('[a-z]{2,3}?', lazy_quantifiers=False)
+
+        with self.assertRaises(RegexError):
+            translate_pattern(r'[a-z]{2,3}?\s+', lazy_quantifiers=False)
+
+        with self.assertRaises(RegexError):
+            translate_pattern(r'[a-z]+?\s+', lazy_quantifiers=False)
+
+    def test_invalid_quantifiers(self):
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('{1}')
+        self.assertIn("unexpected quantifier '{'", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('.{1,2,3}')
+        self.assertIn("invalid quantifier '{'", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('*')
+        self.assertIn("unexpected quantifier '*'", str(ctx.exception))
+
+    def test_invalid_pattern_groups(self):
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('(?:.*)')
+        self.assertIn("invalid '(?...)' extension notation", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('(.*))')
+        self.assertIn("unbalanced parenthesis ')'", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('((.*)')
+        self.assertIn("unterminated subpattern in expression", str(ctx.exception))
+
+    def test_verbose_patterns(self):
+        regex = translate_pattern('\\  s*[a-z]+', flags=re.VERBOSE)
+        self.assertEqual(regex, '\\s*[a-z]+')
+        regex = translate_pattern('\\  p{  Is BasicLatin}+', flags=re.VERBOSE)
+        self.assertEqual(regex, '[\x00-\x7f]+')
+
+    def test_backslash_and_escapes(self):
+        regex = translate_pattern('\\')
+        self.assertEqual(regex, '\\')
+        regex = translate_pattern('\\i')
+        self.assertTrue(regex.startswith('[:A-Z_a-z'))
+        regex = translate_pattern('\\I')
+        self.assertTrue(regex.startswith('[^:A-Z_a-z'))
+        regex = translate_pattern('\\c')
+        self.assertTrue(regex.startswith('[-.0-9:A-Z_a-z'))
+        regex = translate_pattern('\\C')
+        self.assertTrue(regex.startswith('[^-.0-9:A-Z_a-z'))
+
+    def test_block_escapes(self):
+        regex = translate_pattern('\\p{P}')
+        self.assertTrue(regex.startswith('[!-#%-'))
+        regex = translate_pattern('\\P{P}')
+        self.assertTrue(regex.startswith('[^!-#%-'))
+        regex = translate_pattern('\\p{IsBasicLatin}')
+        self.assertEqual(regex, '[\x00-\x7f]')
+        regex = translate_pattern('\\p{IsBasicLatin}', flags=re.IGNORECASE)
+        self.assertEqual(regex, '(?-i:[\x00-\x7f])')
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('\\px')
+        self.assertIn("a '{' expected", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('\\p{Pu')
+        self.assertIn("truncated unicode block escape", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('\\p{Unknown}')
+        self.assertIn("'Unknown' doesn't match to any Unicode category", str(ctx.exception))
+
+        regex = translate_pattern('\\p{IsUnknown}')
+        self.assertEqual(regex, '[\x00-\U0010fffe]')
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('\\p{IsUnknown}', is_syntax=False)
+        self.assertIn("'IsUnknown' doesn't match to any Unicode block", str(ctx.exception))
 
 
 if __name__ == '__main__':
