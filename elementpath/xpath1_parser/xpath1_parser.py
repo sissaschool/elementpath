@@ -144,7 +144,7 @@ class XPath1Parser(Parser):
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
-    def axis(cls, symbol, bp=80):
+    def axis(cls, symbol, reverse=False, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
         def nud_(self):
             self.parser.advance('::')
@@ -157,7 +157,9 @@ class XPath1Parser(Parser):
             return self
 
         pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % symbol
-        return cls.register(symbol, pattern=pattern, label='axis', lbp=bp, rbp=bp, nud=nud_)
+        return cls.register(
+            symbol, pattern=pattern, label='axis', reverse=reverse, lbp=bp, rbp=bp, nud=nud_
+        )
 
     @classmethod
     def function(cls, symbol, nargs=None, label='function', bp=90):
@@ -1022,7 +1024,7 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
     elif self[0].label == 'axis':
-        selector = self[0].select(context)
+        selector = context.iter_selector(self[0].select, reverse=self[0].reverse)
     else:
         selector = context.iter_selector(self[0].select)
 

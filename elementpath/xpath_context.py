@@ -209,7 +209,7 @@ class XPathContext(object):
 
         self.item, self.size, self.position = status
 
-    def iter_selector(self, selector):
+    def iter_selector(self, selector, reverse=False):
         """
         Iterator for generic selector with buffering into a list.
 
@@ -218,9 +218,16 @@ class XPathContext(object):
         status = self.item, self.size, self.position
 
         results = [x for x in selector(self.copy())]
-        self.size = len(results)
-        for self.position, self.item in enumerate(results, start=1):
-            yield self.item
+
+        if reverse:
+            self.size = self.position = len(results)
+            for self.item in results:
+                yield self.item
+                self.position -= 1
+        else:
+            self.size = len(results)
+            for self.position, self.item in enumerate(results, start=1):
+                yield self.item
 
         self.item, self.size, self.position = status
 
