@@ -1044,18 +1044,16 @@ def evaluate(self, context=None):
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif not is_document_node(context.root) or context.item is not None:
-        return
     elif not self:
-        for item in context.iter_children_or_self():
-            if item is None:
-                yield context.root
+        if is_document_node(context.root) and context.item is None:
+            for item in context.iter_children_or_self():
+                if item is None:
+                    yield context.root
     else:
-        context.item = context.root.getroot()
-        elements = [e for e in self[0].select(context) if is_element_node(e)]
-        if len(elements) == 1:
-            yield context.root
-        context.item = None
+        elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
+        if is_document_node(context.root) and context.item is None:
+            if len(elements) == 1:
+                yield context.root
 
 
 @method('document-node')

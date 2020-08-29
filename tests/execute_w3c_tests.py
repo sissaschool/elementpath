@@ -947,6 +947,8 @@ def main():
                         help='the path to the main index file of test suite (catalog.xml)')
     parser.add_argument('pattern', nargs='?', default='.*', metavar='PATTERN',
                         help='run only test cases which name matches a regex pattern')
+    parser.add_argument('--xpath', metavar='XPATH_EXPR',
+                        help="run only test cases that have a specific XPath expression")
     parser.add_argument('-i', dest='ignore_case', action='store_true', default=False,
                         help="ignore character case for regex pattern matching")
     parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
@@ -1022,6 +1024,11 @@ def main():
                     count_skip += 1
                     continue
 
+                # ignore tests that rely on XQuery 1.0/XPath 2.0 static-typing enforcement
+                if 'staticTyping' in test_case.test_set.features:
+                    count_skip += 1
+                    continue
+
                 # ignore tests that rely on processing-instructions and comments
                 if test_case.environment_ref == 'bib2':
                     count_skip += 1
@@ -1029,6 +1036,10 @@ def main():
 
                 # Other test cases to skip for technical limitations
                 if test_case.name in SKIP_TESTS:
+                    count_skip += 1
+                    continue
+
+                if args.xpath and test_case.test != args.xpath:
                     count_skip += 1
                     continue
 
