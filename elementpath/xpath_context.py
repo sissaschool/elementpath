@@ -416,6 +416,8 @@ class XPathContext(object):
             descendants = [x for x in self._iter_nodes(self.item, with_root=with_self)]
             self.size = len(descendants)
         else:
+            if with_self:
+                yield self.item
             return
 
         for self.position, self.item in enumerate(descendants, start=1):
