@@ -255,7 +255,12 @@ class XPathContextTest(unittest.TestCase):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')
         attr = AttributeNode('a1', '10')
         self.assertListEqual(list(XPathContext(root).iter_descendants()), [root, root[0], root[1]])
-        self.assertListEqual(list(XPathContext(root, item=attr).iter_descendants()), [])
+        self.assertListEqual(
+            list(XPathContext(root, item=attr).iter_descendants(axis='descendant')), []
+        )
+        self.assertListEqual(
+            list(XPathContext(root, item=attr).iter_descendants()), [attr]
+        )
 
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=TypedElement(root, xsd_type, ''))
