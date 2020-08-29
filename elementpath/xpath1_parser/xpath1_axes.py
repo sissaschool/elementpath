@@ -71,7 +71,7 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('parent'))
+@method(axis('parent', reverse=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -81,7 +81,7 @@ def select(self, context=None):
 
 
 @method(axis('following-sibling'))
-@method(axis('preceding-sibling'))
+@method(axis('preceding-sibling', reverse=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -90,8 +90,8 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('ancestor'))
-@method(axis('ancestor-or-self'))
+@method(axis('ancestor', reverse=True))
+@method(axis('ancestor-or-self', reverse=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -119,7 +119,7 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('preceding'))
+@method(axis('preceding', reverse=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
