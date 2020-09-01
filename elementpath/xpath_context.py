@@ -9,6 +9,7 @@
 #
 import datetime
 from functools import lru_cache
+from itertools import chain
 
 from .exceptions import ElementPathTypeError
 from .datatypes import Timezone
@@ -187,39 +188,34 @@ class XPathContext(object):
         """
         Iterates results in document order.
 
-        :param results: list containing selection results.
+        :param results: a container with selection results.
         """
-        status = self.item, self.size, self.position
+        status = self.item
 
-        self.size = len(results)
-        for self.position, self.item in \
-                enumerate(self._iter_nodes(self.root, with_attributes=True), start=1):
+        for self.item in self._iter_nodes(self.root, with_attributes=True):
             if self.item in results:
                 yield self.item
+
             elif isinstance(self.item, AttributeNode):
                 # Match XSD decoded attributes
                 for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
                     if attr[0] == self.item:
                         yield attr
+
             elif is_etree_element(self.item):
                 # Match XSD decoded elements
                 for elem in filter(lambda x: isinstance(x, TypedElement), results):
                     if elem[0] is self.item:
                         yield elem
 
-        self.item, self.size, self.position = status
+        self.item = status
 
-    def iter_selector(self, selector, reverse=False):
-        """
-        Iterator for generic selector with buffering into a list.
-
-        :param selector: a selector generator function.
-        """
+    def inner_focus_select(self, token):
+        """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position
+        results = [x for x in token.select(self.copy())]
 
-        results = [x for x in selector(self.copy())]
-
-        if reverse:
+        if token.label == 'axis' and token.reverse_axis:
             self.size = self.position = len(results)
             for self.item in results:
                 yield self.item
@@ -269,37 +265,34 @@ class XPathContext(object):
 
     def iter_self(self):
         """Iterator for 'self' axis and '.' shortcut."""
-        status = self.size, self.position, self.axis
-        self.size = self.position = 1
+        status = self.axis
         self.axis = 'self'
         yield self.item
-        self.size, self.position, self.axis = status
+        self.axis = status
 
     def iter_attributes(self):
         """Iterator for 'attribute' axis and '@' shortcut."""
         if isinstance(self.item, (AttributeNode, TypedAttribute)):
-            status = self.size, self.position, self.axis
-            self.size = self.position = 1
+            status = self.axis
             self.axis = 'attribute'
             yield self.item
-            self.size, self.position, self.axis = status
+            self.axis = status
             return
         elif not is_element_node(self.item):
             return
 
-        status = self.item, self.size, self.position, self.axis
+        status = self.item, self.axis
         self.axis = 'attribute'
 
         if isinstance(self.item, TypedElement):
             self.item = self.item.elem
 
-        attributes = [AttributeNode(*x) for x in self.item.attrib.items()]
+        attributes = (AttributeNode(*x) for x in self.item.attrib.items())
 
-        self.size = len(attributes)
-        for self.position, self.item in enumerate(attributes, start=1):
+        for self.item in attributes:
             yield self.item
 
-        self.item, self.size, self.position, self.axis = status
+        self.item, self.axis = status
 
     def iter_children_or_self(self):
         """Iterator for 'child' forward axis and '/' step."""
@@ -307,14 +300,13 @@ class XPathContext(object):
             yield self.item
             return
 
-        status = self.item, self.size, self.position, self.axis
+        status = self.item, self.axis
         self.axis = 'child'
 
         if isinstance(self.item, TypedElement):
             self.item = self.item[0]
 
         if self.item is None:
-            self.size = self.position = 1
             self.item = self.root.getroot() if is_document_node(self.root) else self.root
             yield self.item
         elif is_etree_element(self.item):
@@ -322,15 +314,13 @@ class XPathContext(object):
             if elem.text is not None:
                 self.item = TextNode(elem.text)
                 yield self.item
-            self.size = len(elem)
-            for self.position, self.item in enumerate(elem, start=1):
+            for self.item in elem:
                 yield self.item
         elif is_document_node(self.item):
-            self.size = self.position = 1
             self.item = self.item.getroot()
             yield self.item
 
-        self.item, self.size, self.position, self.axis = status
+        self.item, self.axis = status
 
     def iter_parent(self):
         """Iterator for 'parent' reverse axis and '..' shortcut."""
@@ -340,14 +330,13 @@ class XPathContext(object):
             parent = self.get_parent(self.item)
 
         if parent is not None:
-            status = self.item, self.size, self.position, self.axis
+            status = self.item, self.axis
             self.axis = 'parent'
 
             self.item = parent
-            self.size = self.position = 1
             yield self.item
 
-            self.item, self.size, self.position, self.axis = status
+            self.item, self.axis = status
 
     def iter_siblings(self, axis=None):
         """
@@ -366,71 +355,69 @@ class XPathContext(object):
         if parent is None:
             return
 
-        status = self.item, self.size, self.position, self.axis
+        status = self.item, self.axis
         self.axis = axis or 'following-sibling'
 
-        siblings = []
         if axis == 'preceding-sibling':
             for child in parent:  # pragma: no cover
                 if child is item:
                     break
-                siblings.append(child)
-
-            self.size = self.position = len(siblings)
-            for self.item in siblings:
-                yield self.item
-                self.position -= 1
+                self.item = child
+                yield child
         else:
             follows = False
             for child in parent:
                 if follows:
-                    siblings.append(child)
+                    self.item = child
+                    yield child
                 elif child is item:
                     follows = True
 
-            self.size = len(siblings)
-            for self.position, self.item in enumerate(siblings, start=1):
-                yield self.item
+        self.item, self.axis = status
 
-        self.item, self.size, self.position, self.axis = status
-
-    def iter_descendants(self, axis=None):
+    def iter_descendants(self, axis=None, inner_focus=False):
         """
         Iterator for 'descendant' and 'descendant-or-self' forward axes and '//' shortcut.
 
         :param axis: the context axis, for default has no explicit axis.
+        :param inner_focus: if `True` splits between outer focus and inner focus. \
+        In this case set the context size at start and change both position and \
+        item at each iteration. For default only context item is changed.
         """
-        status = self.item, self.size, self.position, self.axis
-        self.axis = axis
         with_self = axis != 'descendant'
-
-        if isinstance(self.item, TypedElement):
-            self.item = self.item[0]
 
         if self.item is None:
             if is_document_node(self.root):
-                descendants = [x for x in self._iter_nodes(self.root, with_root=with_self)]
-                self.size = len(descendants)
+                descendants = self._iter_nodes(self.root, with_root=with_self)
+            elif with_self:
+                # Yields None in order to emulate position on document
+                # FIXME replacing the self.root with ElementTree(self.root)?
+                descendants = chain((None,), self._iter_nodes(self.root))
             else:
-                descendants = [x for x in self._iter_nodes(self.root)]
-                self.size = len(descendants)
-                if with_self:
-                    # Yields twice root element to emulate document node
-                    # FIXME substituting the root element with ElementTree(root)??
-                    self.position = 1
-                    yield self.root
+                descendants = self._iter_nodes(self.root)
         elif is_element_node(self.item) or is_document_node(self.item):
-            descendants = [x for x in self._iter_nodes(self.item, with_root=with_self)]
-            self.size = len(descendants)
+            descendants = self._iter_nodes(self.item, with_root=with_self)
+        elif with_self:
+            descendants = self.item,
         else:
-            if with_self:
-                yield self.item
             return
 
-        for self.position, self.item in enumerate(descendants, start=1):
-            yield self.item
+        if inner_focus:
+            status = self.item, self.position, self.size, self.axis
+            self.axis = axis
+            results = [e for e in descendants]
 
-        self.item, self.size, self.position, self.axis = status
+            self.size = len(results)
+            for self.position, self.item in enumerate(results, start=1):
+                yield self.item
+
+            self.item, self.position, self.size, self.axis = status
+        else:
+            status = self.item, self.axis
+            self.axis = axis
+            for self.item in descendants:
+                yield self.item
+            self.item, self.axis = status
 
     def iter_ancestors(self, axis=None):
         """
@@ -438,7 +425,7 @@ class XPathContext(object):
 
         :param axis: the context axis, default is 'ancestor'.
         """
-        status = self.item, self.size, self.position, self.axis
+        status = self.item, self.axis
         self.axis = axis or 'ancestor'
 
         if isinstance(self.item, TypedElement):
@@ -450,12 +437,10 @@ class XPathContext(object):
             ancestors.append(parent)
             parent = self.get_parent(parent)
 
-        self.size = self.position = len(ancestors) or 1
         for self.item in reversed(ancestors):
             yield self.item
-            self.position -= 1
 
-        self.item, self.size, self.position, self.axis = status
+        self.item, self.axis = status
 
     def iter_preceding(self):
         """Iterator for 'preceding' reverse axis."""
@@ -463,7 +448,7 @@ class XPathContext(object):
         if not is_etree_element(item) or item is self.root or callable(item.tag):
             return
 
-        status = self.item, self.size, self.position, self.axis
+        status = self.item, self.axis
         self.axis = 'preceding'
 
         ancestors = []
@@ -476,22 +461,18 @@ class XPathContext(object):
                 ancestors.append(parent)
                 elem = parent
 
-        preceding = []
         for elem in self.root.iter():  # pragma: no cover
             if elem is item:
                 break
             elif elem not in ancestors:
-                preceding.append(elem)
+                self.item = elem
+                yield elem
 
-        self.size = len(preceding)
-        for self.position, self.item in enumerate(preceding, start=1):
-            yield self.item
-
-        self.item, self.size, self.position, self.axis = status
+        self.item, self.axis = status
 
     def iter_followings(self):
         """Iterator for 'following' forward axis."""
-        status = self.item, self.size, self.position, self.axis
+        status = self.item, self.axis
         self.axis = 'following'
 
         if self.item is None or self.item is self.root:
@@ -502,20 +483,16 @@ class XPathContext(object):
             return
 
         descendants = set(self._iter_nodes(self.item))
-        followings = []
         follows = False
         for elem in self._iter_nodes(self.root):
             if follows:
                 if elem not in descendants:
-                    followings.append(elem)
+                    self.item = elem
+                    yield elem
             elif self.item is elem:
                 follows = True
 
-        self.size = len(followings)
-        for self.position, self.item in enumerate(followings, start=1):
-            yield self.item
-
-        self.item, self.size, self.position, self.axis = status
+        self.item, self.axis = status
 
 
 class XPathSchemaContext(XPathContext):

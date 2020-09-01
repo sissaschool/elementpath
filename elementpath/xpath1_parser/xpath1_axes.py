@@ -10,7 +10,7 @@
 from ..xpath_nodes import NamespaceNode, is_element_node
 from .xpath1_functions import XPath1Parser
 
-register = XPath1Parser.register
+
 method = XPath1Parser.method
 axis = XPath1Parser.axis
 
@@ -71,7 +71,7 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('parent', reverse=True))
+@method(axis('parent', reverse_axis=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -81,7 +81,7 @@ def select(self, context=None):
 
 
 @method(axis('following-sibling'))
-@method(axis('preceding-sibling', reverse=True))
+@method(axis('preceding-sibling', reverse_axis=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -90,8 +90,8 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('ancestor', reverse=True))
-@method(axis('ancestor-or-self', reverse=True))
+@method(axis('ancestor', reverse_axis=True))
+@method(axis('ancestor-or-self', reverse_axis=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -119,7 +119,7 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-@method(axis('preceding', reverse=True))
+@method(axis('preceding', reverse_axis=True))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -128,5 +128,5 @@ def select(self, context=None):
             yield from self[0].select(context)
 
 
-register('(end)')
+register = XPath1Parser.register('(end)')
 XPath1Parser.build()
