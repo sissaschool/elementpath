@@ -144,7 +144,7 @@ class XPath1Parser(Parser):
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
-    def axis(cls, symbol, reverse=False, bp=80):
+    def axis(cls, symbol, reverse_axis=False, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
         def nud_(self):
             self.parser.advance('::')
@@ -158,7 +158,8 @@ class XPath1Parser(Parser):
 
         pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % symbol
         return cls.register(
-            symbol, pattern=pattern, label='axis', reverse=reverse, lbp=bp, rbp=bp, nud=nud_
+            symbol, pattern=pattern, label='axis',
+            reverse_axis=reverse_axis, lbp=bp, rbp=bp, nud=nud_
         )
 
     @classmethod
@@ -965,7 +966,7 @@ def select(self, context=None):
             yield from self[0].select(context)
     else:
         items = []
-        for _ in context.iter_selector(self[0].select):
+        for _ in context.inner_focus_select(self[0]):
             if not is_xpath_node(context.item):
                 raise self.error('XPTY0019')
 
@@ -992,22 +993,22 @@ def select(self, context=None):
     #   axis, to preserve document order.
     if context is None:
         raise self.missing_context()
-    elif len(self) == 1:
-        if is_document_node(context.root) or context.item is context.root:
-            context.item = None
-            _axis = 'descendant' if self[0].child_axis else None
-
-            for _ in context.iter_descendants(axis=_axis):
-                yield from self[0].select(context)
-    else:
+    elif len(self) == 2:
         _axis = 'descendant' if self[1].child_axis else None
 
         for context.item in self[0].select(context):
             if not is_xpath_node(context.item):
                 raise self.error('XPTY0019')
 
-            for _ in context.iter_descendants(axis=_axis):
+            for _ in context.iter_descendants(axis=_axis, inner_focus=True):
                 yield from self[1].select(context)
+
+    elif is_document_node(context.root) or context.item is context.root:
+        context.item = None
+        _axis = 'descendant' if self[0].child_axis else None
+
+        for _ in context.iter_descendants(axis=_axis, inner_focus=True):
+            yield from self[0].select(context)
 
 
 ###
@@ -1023,12 +1024,8 @@ def led(self, left):
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif self[0].label == 'axis':
-        selector = context.iter_selector(self[0].select, reverse=self[0].reverse)
-    else:
-        selector = context.iter_selector(self[0].select)
 
-    for context.item in selector:
+    for _ in context.inner_focus_select(self[0]):
         if self[1].label in ('axis', 'kind test') or self[1].symbol == '..':
             if not is_xpath_node(context.item):
                 raise self.error('XPTY0020')
