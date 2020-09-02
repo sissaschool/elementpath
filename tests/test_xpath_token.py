@@ -311,12 +311,13 @@ class XPath1TokenTest(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             raise token.error('xml:XPST0003')
         self.assertIn('XPTY0004', str(ctx.exception))
-        self.assertIn("required for error code", str(ctx.exception))
+        self.assertIn("'http://www.w3.org/2005/xqt-errors' namespace is required",
+                      str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             raise token.error('err:err:XPST0003')
         self.assertIn('XPTY0004', str(ctx.exception))
-        self.assertIn("is not a QName", str(ctx.exception))
+        self.assertIn("is not a prefixed name", str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             raise token.error('XPST9999')

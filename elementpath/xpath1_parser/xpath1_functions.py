@@ -194,8 +194,16 @@ def evaluate(self, context=None):
 @method(function('translate', nargs=3))
 def evaluate(self, context=None):
     arg = self.get_argument(context, default='', cls=str)
-    map_string = self.get_argument(context, index=1, default='', cls=str)
-    trans_string = self.get_argument(context, index=2, default='', cls=str)
+
+    map_string = self.get_argument(context, index=1, cls=str)
+    if map_string is None:
+        message = "the 2nd argument of fn:translate() cannot be the empty sequence"
+        raise self.error('XPTY0004', message)
+
+    trans_string = self.get_argument(context, index=2, cls=str)
+    if trans_string is None:
+        message = "the 3rd argument of fn:translate() cannot be the empty sequence"
+        raise self.error('XPTY0004', message)
 
     if len(map_string) == len(trans_string):
         return arg.translate(str.maketrans(map_string, trans_string))
@@ -214,7 +222,7 @@ def evaluate(self, context=None):
         if math.isnan(start) or math.isinf(start):
             return ''
     except TypeError:
-        raise self.wrong_type("the second argument must be xs:numeric") from None
+        raise self.error('FORG0006', "the second argument must be xs:numeric") from None
     else:
         start = int(round(start)) - 1
 
@@ -355,8 +363,8 @@ def evaluate(self, context=None):
             return type(arg)(math.ceil(arg))
     except TypeError as err:
         if isinstance(arg, str):
-            raise self.error('XPTY0004', str(err)) from None
-        raise self.error('FORG0006', str(err)) from None
+            raise self.error('XPTY0004', err) from None
+        raise self.error('FORG0006', err) from None
 
 
 @method(function('round', nargs=1))
@@ -377,8 +385,8 @@ def evaluate(self, context=None):
         else:
             return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
-        raise self.wrong_type(str(err)) from None
+        raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
         return round(arg)
     except decimal.DecimalException as err:
-        raise self.wrong_value(str(err)) from None
+        raise self.error('FOCA0002', err) from None

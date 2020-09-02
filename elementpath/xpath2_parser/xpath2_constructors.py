@@ -44,7 +44,7 @@ def cast(self, value):
     try:
         return xsd10_atomic_types[self.symbol](value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 ###
@@ -59,8 +59,8 @@ def cast(self, value):
         return xsd11_atomic_types[self.symbol](value)
     except ValueError as err:
         if isinstance(value, (str, UntypedAtomic)):
-            raise self.error('FORG0001', str(err))
-        raise self.error('FOCA0002', str(err))
+            raise self.error('FORG0001', err)
+        raise self.error('FOCA0002', err)
 
 
 @constructor('integer')
@@ -86,8 +86,8 @@ def cast(self, value):
         raise self.error('FOCA0002', msg) from None
     except OverflowError as err:
         if isinstance(value, (str, bytes, UntypedAtomic)):
-            raise self.error('FORG0001', str(err)) from None
-        raise self.error('FOCA0002', str(err)) from None
+            raise self.error('FORG0001', err) from None
+        raise self.error('FOCA0002', err) from None
 
 
 ###
@@ -105,9 +105,9 @@ def cast(self, value):
             return cls(value.year, value.month, value.day, value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0001', str(err)) from None
+        raise self.error('FODT0001', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('gDay')
@@ -122,7 +122,7 @@ def cast(self, value):
             return GregorianDay(value.day, value.tzinfo)
         return GregorianDay.fromstring(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('gMonth')
@@ -137,7 +137,7 @@ def cast(self, value):
             return GregorianMonth(value.month, value.tzinfo)
         return GregorianMonth.fromstring(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('gMonthDay')
@@ -152,7 +152,7 @@ def cast(self, value):
             return GregorianMonthDay(value.month, value.day, value.tzinfo)
         return GregorianMonthDay.fromstring(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('gYear')
@@ -168,9 +168,9 @@ def cast(self, value):
             return cls(value.year, value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0001', str(err)) from None
+        raise self.error('FODT0001', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('gYearMonth')
@@ -187,9 +187,9 @@ def cast(self, value):
             return cls(value.year, value.month, value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0001', str(err)) from None
+        raise self.error('FODT0001', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('time')
@@ -205,7 +205,7 @@ def cast(self, value):
                         value.microsecond, value.tzinfo)
         return Time.fromstring(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @method('date')
@@ -222,12 +222,10 @@ def evaluate(self, context=None):
 
     try:
         return self.cast(arg)
-    except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
     except TypeError as err:
-        raise self.error('FORG0006', str(err)) from None
+        raise self.error('FORG0006', err) from None
     except OverflowError as err:
-        raise self.error('FODT0001', str(err)) from None
+        raise self.error('FODT0001', err) from None
 
 
 ###
@@ -242,9 +240,9 @@ def cast(self, value):
             return Duration.fromstring(value.value)
         return Duration.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0002', str(err)) from None
+        raise self.error('FODT0002', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('yearMonthDuration')
@@ -259,9 +257,9 @@ def cast(self, value):
             return YearMonthDuration.fromstring(value.value)
         return YearMonthDuration.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0002', str(err)) from None
+        raise self.error('FODT0002', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('dayTimeDuration')
@@ -276,9 +274,9 @@ def cast(self, value):
             return DayTimeDuration.fromstring(value.value)
         return DayTimeDuration.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0002', str(err)) from None
+        raise self.error('FODT0002', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @constructor('dateTimeStamp')
@@ -291,7 +289,7 @@ def cast(self, value):
     try:
         return DateTimeStamp.fromstring(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err))
+        raise self.error('FORG0001', err)
 
 
 @method('dateTimeStamp')
@@ -304,10 +302,8 @@ def evaluate(self, context=None):
         if isinstance(arg, UntypedAtomic):
             return self.cast(arg.value)
         return self.cast(str(arg))
-    except ValueError as err:
-        raise self.error('FOCA0002', str(err)) from None
     except TypeError as err:
-        raise self.error('FORG0006', str(err)) from None
+        raise self.error('FORG0006', err) from None
 
 
 ###
@@ -317,11 +313,11 @@ def cast(self, value):
     try:
         return Base64Binary(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', err) from None
     except TypeError as err:
         if isinstance(value, str):
-            raise self.error('FORG0006', str(err)) from None
-        raise self.error('XPTY0004', str(err)) from None
+            raise self.error('FORG0006', err) from None
+        raise self.error('XPTY0004', err) from None
 
 
 @constructor('hexBinary')
@@ -329,11 +325,11 @@ def cast(self, value):
     try:
         return HexBinary(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', err) from None
     except TypeError as err:
         if isinstance(value, str):
-            raise self.error('FORG0006', str(err)) from None
-        raise self.error('XPTY0004', str(err)) from None
+            raise self.error('FORG0006', err) from None
+        raise self.error('XPTY0004', err) from None
 
 
 @method('base64Binary')
@@ -349,7 +345,7 @@ def evaluate(self, context=None):
         err.token = self
         raise
     except UnicodeEncodeError as err:
-        raise self.error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', err) from None
 
 
 @constructor('NOTATION')
@@ -384,11 +380,11 @@ def cast(self, value):
     try:
         return BooleanProxy(value)
     except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', err) from None
     except TypeError as err:
         if isinstance(value, str):
-            raise self.error('FORG0006', str(err)) from None
-        raise self.error('XPTY0004', str(err)) from None
+            raise self.error('FORG0006', err) from None
+        raise self.error('XPTY0004', err) from None
 
 
 @method('boolean')
@@ -488,9 +484,9 @@ def cast(self, value):
             return cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
         return cls.fromstring(value)
     except OverflowError as err:
-        raise self.error('FODT0001', str(err)) from None
+        raise self.error('FODT0001', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', err) from None
 
 
 @method('QName')
@@ -527,11 +523,11 @@ def evaluate(self, context=None):
         try:
             return QName(uri, qname)
         except TypeError as err:
-            raise self.error('XPTY0004', str(err))
+            raise self.error('XPTY0004', err)
         except ValueError as err:
             if isinstance(context, XPathSchemaContext):
                 return ATOMIC_VALUES['QName']
-            raise self.error('FOCA0002', str(err))
+            raise self.error('FOCA0002', err)
 
 
 @method('dateTime')
@@ -544,9 +540,9 @@ def evaluate(self, context=None):
         try:
             return self.cast(arg)
         except ValueError as err:
-            raise self.error('FORG0001', str(err)) from None
+            raise self.error('FORG0001', err) from None
         except TypeError as err:
-            raise self.error('FORG0006', str(err)) from None
+            raise self.error('FORG0006', err) from None
     else:
         dt = self.get_argument(context, cls=Date10)
         tm = self.get_argument(context, 1, cls=Time)

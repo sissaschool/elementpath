@@ -291,7 +291,7 @@ def evaluate(self, context=None):
             return Float10(round(item, precision))
         return float(round(Decimal.from_float(item), precision))
     except TypeError as err:
-        raise self.error('XPTY0004', str(err))
+        raise self.error('XPTY0004', err)
     except DecimalException:
         if isinstance(item, Decimal):
             return Decimal.from_float(round(float(item), precision))
@@ -310,7 +310,7 @@ def evaluate(self, context=None):
         try:
             return abs(Decimal(value))
         except DecimalException:
-            raise self.wrong_value("Invalid string value {!r} for {!r}".format(value, item))
+            raise self.error('FOCA0002', "invalid string value {!r} for {!r}".format(value, item))
     elif isinstance(item, bool) or not isinstance(item, (float, int, Decimal)):
         raise self.error('XPTY0004', "invalid argument type {!r}".format(type(item)))
     else:
@@ -339,7 +339,7 @@ def evaluate(self, context=None):
                 value = value + item
             return value / len(values)
         except TypeError as err:
-            raise self.error('FORG0006', str(err))
+            raise self.error('FORG0006', err)
     elif all(isinstance(x, int) for x in values):
         result = sum(values) / Decimal(len(values))
         return int(result) if result % 1 == 0 else result
@@ -349,12 +349,12 @@ def evaluate(self, context=None):
         try:
             return sum(Float10(x) if isinstance(x, Decimal) else x for x in values) / len(values)
         except TypeError as err:
-            raise self.error('FORG0006', str(err))
+            raise self.error('FORG0006', err)
     else:
         try:
             return sum(float(x) if isinstance(x, Decimal) else x for x in values) / len(values)
         except TypeError as err:
-            raise self.error('FORG0006', str(err))
+            raise self.error('FORG0006', err)
 
 
 @method(function('max', nargs=(1, 2)))
@@ -404,7 +404,7 @@ def evaluate(self, context=None):
                 return max_or_min()
         return max_or_min()
     except TypeError as err:
-        raise self.error('FORG0006', str(err))
+        raise self.error('FORG0006', err)
 
 
 ###
@@ -529,7 +529,7 @@ def select(self, context=None):
                 if starting_loc <= pos:
                     yield result
             except TypeError as err:
-                raise self.error('XPTY0004', str(err)) from None
+                raise self.error('XPTY0004', err) from None
     else:
         length = self.get_argument(context, 2, cls=NumericProxy)
         if not math.isnan(length) and not math.isinf(length):
@@ -540,7 +540,7 @@ def select(self, context=None):
                 if starting_loc <= pos < starting_loc + length:
                     yield result
             except TypeError as err:
-                raise self.error('XPTY0004', str(err)) from None
+                raise self.error('XPTY0004', err) from None
 
 
 @method(function('unordered', nargs=1))
@@ -694,7 +694,7 @@ def evaluate(self, context=None):
         msg = "Invalid regular expression: {}"
         raise self.error('FORX0002', msg.format(str(err))) from None
     except OverflowError as err:
-        raise self.error('FORX0002', str(err)) from None
+        raise self.error('FORX0002', err) from None
 
 
 REPLACEMENT_PATTERN = re.compile(r'^([^\\$]|[\\]{2}|\\\$|\$\d+)*$')
@@ -803,9 +803,9 @@ def evaluate(self, context=None):
         return ''.join(xml10_chr(cp) for cp in self[0].select(context))
     except TypeError as err:
         code = 'XPTY0004' if "'str'" in str(err) else 'FORG0006'
-        raise self.error(code, str(err)) from None
+        raise self.error(code, err) from None
     except ValueError as err:
-        raise self.error('FOCH0001', str(err)) from None  # Code point not valid
+        raise self.error('FOCH0001', err) from None  # Code point not valid
 
 
 @method(function('string-to-codepoints', nargs=1))
@@ -1044,7 +1044,7 @@ def evaluate(self, context=None):
     if item is None:
         return
     elif self.symbol.startswith('year'):
-        return -(item.year + 1) if item.bce else item.year
+        return item.year
     elif self.symbol.startswith('month'):
         return item.month
     elif self.symbol.startswith('day'):
@@ -1420,12 +1420,12 @@ def evaluate(self, context=None):
     if not self:
         raise self.error('FOER0000')
     elif len(self) == 1:
-        error = self.get_argument(context, cls=str)
+        error = self.get_argument(context, cls=QName)
         raise self.error(error or 'FOER0000')
     else:
-        error = self.get_argument(context, cls=str)
+        error = self.get_argument(context, cls=QName)
         description = self.get_argument(context, index=1, cls=str)
-        raise self.error(error or 'FOER0000', message=description)
+        raise self.error(error or 'FOER0000', description)
 
 
 ###

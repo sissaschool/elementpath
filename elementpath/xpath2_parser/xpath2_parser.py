@@ -324,9 +324,9 @@ class XPath2Parser(XPath1Parser):
                     err.token = self
                 raise
             except ValueError as err:
-                raise self.error('FORG0001', str(err)) from None
+                raise self.error('FORG0001', err) from None
             except TypeError as err:
-                raise self.error('FORG0001', str(err))
+                raise self.error('FORG0001', err)
 
         def cast_(value):
             raise NotImplementedError
@@ -390,7 +390,7 @@ class XPath2Parser(XPath1Parser):
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
         if root_token.label == 'sequence type':
-            raise root_token.error('XPST0003', message="not allowed in XPath expression")
+            raise root_token.error('XPST0003', "not allowed in XPath expression")
 
         if self.schema is None:
             try:
@@ -408,7 +408,7 @@ class XPath2Parser(XPath1Parser):
     def check_variables(self, values):
         for varname, xsd_type in self.variable_types.items():
             if varname not in values:
-                raise xpath_error('XPST0008', "Missing variable {!r}".format(varname))
+                raise xpath_error('XPST0008', "missing variable {!r}".format(varname))
 
         for varname, value in values.items():
             try:
@@ -826,18 +826,18 @@ def evaluate(self, context=None):
         if self.symbol != 'cast':
             return False
         elif isinstance(arg, UntypedAtomic):
-            raise self.error('FORG0001', str(err))
+            raise self.error('FORG0001', err)
         elif self[0].symbol == ':' and self[0][1].symbol == 'string':
-            raise self.error('FORG0001', str(err)) from None
+            raise self.error('FORG0001', err) from None
 
-        raise self.error('XPTY0004', str(err)) from None
+        raise self.error('XPTY0004', err) from None
     except ValueError as err:
         if self.symbol != 'cast':
             return False
         elif self[0].symbol == ':' and self[0][1].symbol == 'string':
-            raise self.error('FORG0001', str(err)) from None
+            raise self.error('FORG0001', err) from None
 
-        raise self.error('XPTY0004', str(err)) from None
+        raise self.error('XPTY0004', err) from None
     else:
         return value if self.symbol == 'cast' else True
 
@@ -944,14 +944,27 @@ def evaluate(self, context=None):
     try:
         return getattr(operator, self.symbol)(*operands)
     except TypeError as err:
-        if isinstance(context, XPathSchemaContext):
-            raise self.wrong_context_type(str(err)) from None
-        raise self.error('XPTY0004', str(err)) from None
+        raise self.error('XPTY0004', err) from None
 
 
 ###
 # Node comparison
-@method(infix('is', bp=30))
+@method('is', bp=30)
+def led(self, left):
+    if left.symbol == 'is':
+        raise self.wrong_syntax()
+    self[:] = left, self.parser.expression(rbp=30)
+    return self
+
+
+@method('is')
+def nud(self):
+    if self.parser.next_token.symbol == '(':
+        raise self.error('XPST0017', '{} cannot have arguments'.format(self))
+    raise self.wrong_syntax()
+
+
+@method('is')
 @method(infix('<<', bp=30))
 @method(infix('>>', bp=30))
 def evaluate(self, context=None):
@@ -980,14 +993,7 @@ def evaluate(self, context=None):
             elif right[0] is item:
                 return False if symbol == '<<' else True
         else:
-            raise self.wrong_value("operands are not nodes of the XML tree!")
-
-
-@method('is')
-def nud(self):
-    if self.parser.next_token.symbol == '(':
-        raise self.error('XPST0017', '{} cannot have arguments'.format(self))
-    raise self.wrong_syntax()
+            raise self.error('FOCA0002', "operands are not nodes of the XML tree!")
 
 
 ###
@@ -1008,7 +1014,7 @@ def evaluate(self, context=None):
     except TypeError as err:
         if context is None or start is None or stop is None:
             return []
-        raise self.wrong_type(str(err)) from None
+        raise self.error('FORG0006', err) from None
 
 
 @method('to')
@@ -1030,7 +1036,7 @@ def evaluate(self, context=None):
         elif math.isnan(op1) or math.isnan(op2):
             raise self.error('FOAR0002')
     except TypeError as err:
-        raise self.error('XPTY0004', str(err)) from None
+        raise self.error('XPTY0004', err) from None
 
     try:
         result = op1 // op2

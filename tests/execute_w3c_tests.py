@@ -69,6 +69,9 @@ SKIP_TESTS = [
     # For XQuery??
     'fn-deep-equal__K2-SeqDeepEqualFunc-43',  # includes a '!' symbol
 
+    # For XP30+
+    'fn-root__K-NodeRootFunc-2',  # includes a XPath 3.0 fn:generate-id()
+
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-006',
@@ -806,7 +809,7 @@ class Result(object):
         parser = XPath2Parser()
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
-        if root_node.evaluate(context) is True:
+        if root_node.boolean_value(root_node.evaluate(context)) is True:
             return True
 
         self.report_failure(verbose)
