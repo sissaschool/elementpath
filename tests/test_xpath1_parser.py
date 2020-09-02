@@ -707,11 +707,20 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.assertEqual(True, root_token.evaluate(context))
 
     def test_nonempty_elements(self):
-        root = self.etree.XML("""<a> <b>text</b> </a>""")
+        root = self.etree.XML("<a> <b>text</b></a>")
         context = XPathContext(root=root)
 
         root_token = self.parser.parse("normalize-space(text()) = ''")
         self.assertEqual(True, root_token.evaluate(context))
+
+        if self.parser.version > '1.0':
+            with self.assertRaises(ElementPathTypeError) as ctx:
+                root_token.evaluate(
+                    context=XPathContext(
+                        root=self.etree.XML("<a> <b>text</b> </a>")  # Two text nodes ...
+                    )
+                )
+            self.assertIn('sequence of more than one item is not allowed', str(ctx.exception))
 
         elements = select(root, "//*")
         for element in elements:

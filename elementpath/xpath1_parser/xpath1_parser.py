@@ -743,7 +743,7 @@ def evaluate(self, context=None):
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
     except TypeError as err:
-        raise self.error('XPTY0004', str(err)) from None
+        raise self.error('XPTY0004', err) from None
     except ValueError as err:
         raise self.error('FORG0001', str(err)) from None
 
