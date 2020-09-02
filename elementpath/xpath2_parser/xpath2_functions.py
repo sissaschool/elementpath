@@ -688,7 +688,7 @@ def evaluate(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        python_pattern = translate_pattern(pattern, flags)
+        python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
         return re.search(python_pattern, input_string, flags=flags) is not None
     except (re.error, RegexError) as err:
         msg = "Invalid regular expression: {}"
@@ -714,7 +714,7 @@ def evaluate(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        python_pattern = translate_pattern(pattern, flags)
+        python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
         pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
@@ -745,7 +745,7 @@ def select(self, context=None):
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
     try:
-        python_pattern = translate_pattern(pattern, flags)
+        python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
         pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None

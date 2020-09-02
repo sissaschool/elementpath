@@ -77,13 +77,16 @@ class CharacterClass(MutableSet):
     """
     A set class to represent XML Schema/XQuery/XPath regex character class.
 
+    :param charset: a string with formatted character set or a list of \
+    codepoints and codepoint ranges.
+    :param xsd_version: the reference XSD version for syntax variants. Defaults to '1.0'.
     TODO: implement __ior__, __iand__, __ixor__ operators for a full mutable set class.
     """
     _re_char_set = re.compile(r'(?<!.-)(\\[nrt|.\-^?*+{}()\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([\w\d-]+)}')
 
-    def __init__(self, charset=None, is_syntax=True):
-        self.is_syntax = is_syntax
+    def __init__(self, charset=None, xsd_version='1.0'):
+        self.xsd_version = xsd_version
         self.positive = UnicodeSubset()
         self.negative = UnicodeSubset()
         if charset:
@@ -151,7 +154,8 @@ class CharacterClass(MutableSet):
                 try:
                     subset = unicode_subset(part[3:-1])
                 except RegexError:
-                    if not self.is_syntax or not part[3:].startswith('Is'):
+                    # XSD 1.1 supports Is prefix to match Unicode blocks
+                    if not self.xsd_version or not part[3:].startswith('Is'):
                         raise
                     self.positive |= UnicodeSubset([(0, maxunicode + 1)])
                 else:
@@ -185,7 +189,8 @@ class CharacterClass(MutableSet):
                 try:
                     subset = unicode_subset(part[3:-1])
                 except RegexError:
-                    if not self.is_syntax or not part[3:].startswith('Is'):
+                    # XSD 1.1 supports Is prefix to match Unicode blocks
+                    if not self.xsd_version or not part[3:].startswith('Is'):
                         raise
                     self.positive -= UnicodeSubset([(0, maxunicode + 1)])
                 else:

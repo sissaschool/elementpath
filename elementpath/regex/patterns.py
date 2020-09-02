@@ -27,19 +27,18 @@ FORBIDDEN_ESCAPES_REF_PATTERN = re.compile(
 )
 
 
-def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=True,
-                      is_syntax=True, anchors=True):
+def translate_pattern(pattern, flags=0, xsd_version='1.0', back_references=True,
+                      lazy_quantifiers=True, anchors=True):
     """
     Translates a pattern regex expression to a Python regex pattern. With default
     options the translator processes XPath 2.0/XQuery 1.0 regex patterns. For XML
-    Schema 1.0 patterns set all boolean options to `False`. For XML Schema 1.1 set
-    all boolean options to `False` except *is_syntax*.
+    Schema patterns set all boolean options to `False`.
 
     :param pattern: the source XML Schema regular expression.
     :param flags: regex flags as represented by Python's re module.
+    :param xsd_version: apply regex rules of a specific XSD version, '1.0' for default.
     :param back_references: if `True` supports back-references and capturing groups.
     :param lazy_quantifiers: if `True` supports lazy quantifiers (*?, +?).
-    :param is_syntax: if `True` supports 'Is' prefix on unicode scripts.
     :param anchors: if `True` supports ^ and $ anchors, otherwise the translated \
     pattern is anchored to its boundaries and anchors are treated as normal characters.
     """
@@ -54,7 +53,7 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
         else:
             negative = False
 
-        group_pos = pos
+        char_class_pos = pos
         while True:
             if pattern[pos] == '[':
                 msg = "invalid character '[' at position {}: {!r}"
@@ -65,15 +64,16 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
                     raise RegexError(msg.format(pos, pattern))
                 pos += 2
             elif pattern[pos] == ']' or pattern[pos:pos + 2] == '-[':
-                if pos == group_pos:
+                if pos == char_class_pos:
                     msg = "empty character class at position {}: {!r}"
                     raise RegexError(msg.format(pos, pattern))
 
-                if HYPHENS_PATTERN.search(pattern[group_pos:pos]) and pos - group_pos > 2:
+                char_class_pattern = pattern[char_class_pos:pos]
+                if HYPHENS_PATTERN.search(char_class_pattern) and pos - char_class_pos > 2:
                     msg = "invalid character range '--' at position {}: {!r}"
                     raise RegexError(msg.format(pos, pattern))
 
-                char_class = CharacterClass(pattern[group_pos:pos], is_syntax)
+                char_class = CharacterClass(char_class_pattern, xsd_version)
                 if negative:
                     char_class.complement()
                 break  # pragma: no cover
@@ -227,7 +227,8 @@ def translate_pattern(pattern, flags=0, back_references=True, lazy_quantifiers=T
                 try:
                     p_shortcut_set = unicode_subset(block_name)
                 except RegexError:
-                    if not is_syntax or not block_name.startswith('Is'):
+                    # XSD 1.1 supports Is prefix to match Unicode blocks
+                    if xsd_version == '1.0' or not block_name.startswith('Is'):
                         raise
                     p_shortcut_group = '[%s]' % UnicodeSubset([(0, maxunicode)])
                 else:
