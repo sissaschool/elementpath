@@ -225,7 +225,9 @@ class XPathToken(Token):
                 elif issubclass(cls, float) or issubclass(float, cls):
                     return self.number_value(item)
 
-            if self.parser.version > '1.0':
+            if self.parser.version == '1.0':
+                code = 'XPTY0004'
+            else:
                 value = self.data_value(item)
                 if isinstance(value, cls):
                     return value
@@ -238,8 +240,10 @@ class XPathToken(Token):
                     except (TypeError, ValueError):
                         pass
 
-            message = "the %s argument %r is not an instance of %r"
-            raise self.error('XPTY0004', message % (ordinal(index + 1), item, cls))
+                code = 'FOTY0012' if value is None else 'XPTY0004'
+
+            message = "the type of the {} argument is {!r} instead of {!r}"
+            raise self.error(code, message.format(ordinal(index + 1), type(item), cls))
 
         return item
 
@@ -914,30 +918,36 @@ class XPathToken(Token):
 
         return code  # returns an unprefixed code (without prefix the namespace is not checked)
 
-    def error(self, code, message=None):
+    def error(self, code, message_or_error=None):
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
         alphanumeric token starting with four uppercase letters and ending with four digits.
 
-        :param code: the error code.
-        :param message: an optional custom additional message.
+        :param code: the error code as QName or string.
+        :param message_or_error: an optional custom additional message.
         """
-        if ':' in code:
+        if isinstance(code, QName):
+            code, namespace = code.local_name, code.namespace
+        elif ':' not in code:
+            namespace = None
+        else:
             try:
                 prefix, code = code.split(':')
             except ValueError:
                 raise ElementPathValueError(
-                    message='%r is not a QName' % code,
+                    message='%r is not a prefixed name' % code,
                     code=self.error_code('XPTY0004'),
                     token=self,
                 )
             else:
-                if self.parser.namespaces.get(prefix) != XQT_ERRORS_NAMESPACE:
-                    raise ElementPathValueError(
-                        message='%r namespace is required for error code' % XQT_ERRORS_NAMESPACE,
-                        code=self.error_code('XPTY0004'),
-                        token=self,
-                    )
+                namespace = self.parser.namespaces.get(prefix)
+
+        if namespace and namespace != XQT_ERRORS_NAMESPACE:
+            raise ElementPathValueError(
+                message='%r namespace is required' % XQT_ERRORS_NAMESPACE,
+                code=self.error_code('XPTY0004'),
+                token=self,
+            )
 
         try:
             error_class, default_message = XPATH_ERROR_CODES[code]
@@ -948,13 +958,14 @@ class XPathToken(Token):
                 token=self,
             )
 
-        if message is None:
+        if message_or_error is None:
             message = default_message
-        elif isinstance(message, Exception):
-            if isinstance(message, ElementPathError):
-                message = message.message
-            else:
-                message = str(message)
+        elif isinstance(message_or_error, str):
+            message = message_or_error
+        elif isinstance(message_or_error, ElementPathError):
+            message = message_or_error.message
+        else:
+            message = str(message_or_error)
 
         return error_class(message, code=self.error_code(code), token=self)
 

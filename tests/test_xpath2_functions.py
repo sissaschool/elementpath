@@ -108,7 +108,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         with self.assertRaises(ValueError) as err:
             self.check_value("abs(.)", 10, context=context)
         self.assertIn('FOCA0002', str(err.exception))
-        self.assertIn('Invalid string value', str(err.exception))
+        self.assertIn('invalid string value', str(err.exception))
 
     def test_round_half_to_even_function(self):
         self.check_value("round-half-to-even(())")
@@ -364,7 +364,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('upper-case("aBcDe01")', 'ABCDE01')
         self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
         self.check_value('upper-case(())', '')
-        self.wrong_type('upper-case((10))', 'XPTY0004', 'the 1st argument 10 is not an instance')
+        self.wrong_type('upper-case((10))', 'XPTY0004', "1st argument is <class 'int'>")
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[upper-case(@id) = 'A_ID']", root, [root[0]])
@@ -408,7 +408,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("string-join((), 'separator')", '')
 
         self.check_value("string-join(('a', 'b', 'c'), ', ')", 'a, b, c')
-        self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004', '8 is not an instance')
+        self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004', 'type of the 2nd argument')
         self.check_value("string-join(('a', 4, 'c'), ', ')", 'a, 4, c')
 
         root = self.etree.XML(XML_GENERIC_TEST)
@@ -1231,10 +1231,21 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         with self.assertRaises(ElementPathError) as err:
             self.check_value('fn:error("err:XPST0001")')
+        self.assertIn(
+            "[err:XPTY0004] the type of the 1st argument is <class 'str'>", str(err.exception)
+        )
+
+        with self.assertRaises(ElementPathError) as err:
+            self.check_value(
+                "fn:error(fn:QName('http://www.w3.org/2005/xqt-errors', 'err:XPST0001'))"
+            )
         self.assertEqual(str(err.exception), '[err:XPST0001] Parser not bound to a schema')
 
         with self.assertRaises(ElementPathError) as err:
-            self.check_value('fn:error("err:XPST0001", "Missing schema")')
+            self.check_value(
+                "fn:error(fn:QName('http://www.w3.org/2005/xqt-errors', 'err:XPST0001'), "
+                "'Missing schema')"
+            )
         self.assertEqual(str(err.exception), '[err:XPST0001] Missing schema')
 
 

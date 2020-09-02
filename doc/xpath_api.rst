@@ -51,7 +51,7 @@ XPath tokens
     .. automethod:: get_argument
     .. automethod:: atomization
     .. automethod:: get_atomized_operand
-    .. automethod:: get_comparison_data
+    .. automethod:: iter_comparison_data
     .. automethod:: get_operands
     .. automethod:: get_results
     .. automethod:: select_results

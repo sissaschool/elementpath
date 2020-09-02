@@ -156,7 +156,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         with self.assertRaises(NameError) as ctx:
             self.parser.check_variables({'values': 1})
-        self.assertIn("[err:XPST0008] Missing variable", str(ctx.exception))
+        self.assertIn("[err:XPST0008] missing variable", str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             self.parser.check_variables(

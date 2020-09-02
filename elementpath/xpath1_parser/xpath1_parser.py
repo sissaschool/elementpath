@@ -148,7 +148,7 @@ class XPath1Parser(Parser):
         """Register a token for a symbol that represents an XPath *axis*."""
         def nud_(self):
             self.parser.advance('::')
-            self.parser.next_token.expected(
+            self.parser.expected_name(
                 '(name)', '*', 'text', 'node', 'document-node',
                 'comment', 'processing-instruction', 'attribute',
                 'schema-attribute', 'element', 'schema-element'
@@ -745,7 +745,7 @@ def evaluate(self, context=None):
     except TypeError as err:
         raise self.error('XPTY0004', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', str(err)) from None
+        raise self.error('FORG0001', err) from None
 
 
 ###
@@ -766,16 +766,16 @@ def evaluate(self, context=None):
             try:
                 return op1 + op2
             except ValueError as err:
-                raise self.error('FORG0001', str(err)) from None
+                raise self.error('FORG0001', err) from None
             except TypeError as err:
-                raise self.error('XPTY0004', str(err))
+                raise self.error('XPTY0004', err)
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', str(err))
+                    raise self.error('FODT0001', err)
                 elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', str(err))
+                    raise self.error('FODT0002', err)
                 else:
-                    raise self.error('FOAR0002', str(err))
+                    raise self.error('FOAR0002', err)
 
 
 @method(infix('-', bp=40))
@@ -790,14 +790,14 @@ def evaluate(self, context=None):
             try:
                 return op1 - op2
             except TypeError as err:
-                raise self.error('XPTY0004', str(err)) from None
+                raise self.error('XPTY0004', err) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', str(err))
+                    raise self.error('FODT0001', err)
                 elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', str(err))
+                    raise self.error('FODT0002', err)
                 else:
-                    raise self.error('FOAR0002', str(err))
+                    raise self.error('FOAR0002', err)
 
 
 @method(infix('*', bp=45))
@@ -812,26 +812,26 @@ def evaluate(self, context=None):
             except TypeError as err:
                 if isinstance(op1, float):
                     if math.isnan(op1):
-                        raise self.error('FOCA0005', str(err)) from None
+                        raise self.error('FOCA0005', err) from None
                     elif math.isinf(op1):
-                        raise self.error('FODT0002', str(err)) from None
+                        raise self.error('FODT0002', err) from None
 
                 if isinstance(op2, float):
                     if math.isnan(op2):
-                        raise self.error('FOCA0005', str(err)) from None
+                        raise self.error('FOCA0005', err) from None
                     elif math.isinf(op2):
-                        raise self.error('FODT0002', str(err)) from None
+                        raise self.error('FODT0002', err) from None
 
-                raise self.error('XPTY0004', str(err)) from None
+                raise self.error('XPTY0004', err) from None
             except ValueError as err:
-                raise self.error('FOCA0005', str(err)) from None
+                raise self.error('FOCA0005', err) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', str(err)) from None
+                    raise self.error('FODT0001', err) from None
                 elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', str(err)) from None
+                    raise self.error('FODT0002', err) from None
                 else:
-                    raise self.error('FOAR0002', str(err)) from None
+                    raise self.error('FOAR0002', err) from None
     else:
         # This is not a multiplication operator but a wildcard select statement
         return [x for x in self.select(context)]
@@ -848,11 +848,11 @@ def evaluate(self, context=None):
                 return decimal.Decimal(dividend) / decimal.Decimal(divisor)
             return dividend / divisor
         except TypeError as err:
-            raise self.error('XPTY0004', str(err)) from None
+            raise self.error('XPTY0004', err) from None
         except ValueError as err:
-            raise self.error('FOCA0005', str(err)) from None
+            raise self.error('FOCA0005', err) from None
         except OverflowError as err:
-            raise self.error('FOAR0002', str(err)) from None
+            raise self.error('FOAR0002', err) from None
         except (ZeroDivisionError, decimal.DivisionByZero):
             raise self.error('FOAR0001') from None
 
@@ -886,7 +886,7 @@ def evaluate(self, context=None):
                 return op1 % op2 if op1 * op2 >= 0 else -(abs(op1) % op2)
             return op1 % op2
         except TypeError as err:
-            raise self.wrong_type(str(err)) from None
+            raise self.error('FORG0006', err) from None
         except (ZeroDivisionError, decimal.InvalidOperation):
             raise self.error('FOAR0001') from None
 
