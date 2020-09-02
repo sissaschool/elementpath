@@ -701,6 +701,7 @@ class Result(object):
 
         if self.attrib.get('normalize-space'):
             expected = ' '.join(x.strip() for x in self.value.split('\n')).strip()
+            value = ' '.join(x.strip() for x in value.split('\n')).strip()
         else:
             expected = self.value
 

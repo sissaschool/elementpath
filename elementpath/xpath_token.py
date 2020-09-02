@@ -26,7 +26,7 @@ from decimal import Decimal
 from itertools import product
 import urllib.parse
 
-from .exceptions import ElementPathValueError, XPATH_ERROR_CODES
+from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute, \
@@ -947,12 +947,16 @@ class XPathToken(Token):
                 code=self.error_code('XPTY0004'),
                 token=self,
             )
-        else:
-            return error_class(
-                message=message or default_message,
-                code=self.error_code(code),
-                token=self,
-            )
+
+        if message is None:
+            message = default_message
+        elif isinstance(message, Exception):
+            if isinstance(message, ElementPathError):
+                message = message.message
+            else:
+                message = str(message)
+
+        return error_class(message, code=self.error_code(code), token=self)
 
     # Shortcuts for XPath errors, only the wrong_syntax
     def expected(self, *symbols, message=None, code='XPST0003'):

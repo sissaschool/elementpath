@@ -314,8 +314,15 @@ class XPathContext(object):
             if elem.text is not None:
                 self.item = TextNode(elem.text)
                 yield self.item
-            for self.item in elem:
-                yield self.item
+
+            for child in elem:
+                self.item = child
+                yield child
+
+                if child.tail is not None:
+                    self.item = TextNode(child.tail)
+                    yield self.item
+
         elif is_document_node(self.item):
             self.item = self.item.getroot()
             yield self.item
