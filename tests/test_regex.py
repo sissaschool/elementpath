@@ -963,11 +963,11 @@ class TestPatterns(unittest.TestCase):
             translate_pattern('\\p{Unknown}')
         self.assertIn("'Unknown' doesn't match to any Unicode category", str(ctx.exception))
 
-        regex = translate_pattern('\\p{IsUnknown}')
+        regex = translate_pattern('\\p{IsUnknown}', xsd_version='1.1')
         self.assertEqual(regex, '[\x00-\U0010fffe]')
 
         with self.assertRaises(RegexError) as ctx:
-            translate_pattern('\\p{IsUnknown}', is_syntax=False)
+            translate_pattern('\\p{IsUnknown}')
         self.assertIn("'IsUnknown' doesn't match to any Unicode block", str(ctx.exception))
 
 

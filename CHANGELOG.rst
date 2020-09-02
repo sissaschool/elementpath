@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v2.0.2`_ (2020-08-xx)
+`v2.0.2`_ (2020-09-03)
 ======================
-* Add regex transpiler to package API
+* Add regex translator to package API
+* More than 99% of W3C XPath 2.0 tests pass
 
 `v2.0.1`_ (2020-08-24)
 ======================
