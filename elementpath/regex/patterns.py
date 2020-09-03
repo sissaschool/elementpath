@@ -17,6 +17,7 @@ from .unicode_subsets import RegexError, UnicodeSubset, unicode_subset
 from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
 
 HYPHENS_PATTERN = re.compile(r'(?<!\\)--')
+INVALID_HYPHEN_PATTERN = re.compile(r'[^\\]-[^\\]-[^\\]')
 DIGITS_PATTERN = re.compile(r'\d+')
 QUANTIFIER_PATTERN = re.compile(r'{\d+(,(\d+)?)?}')
 FORBIDDEN_ESCAPES_NOREF_PATTERN = re.compile(
@@ -72,6 +73,13 @@ def translate_pattern(pattern, flags=0, xsd_version='1.0', back_references=True,
                 if HYPHENS_PATTERN.search(char_class_pattern) and pos - char_class_pos > 2:
                     msg = "invalid character range '--' at position {}: {!r}"
                     raise RegexError(msg.format(pos, pattern))
+
+                if xsd_version == '1.0':
+                    hyphen_match = INVALID_HYPHEN_PATTERN.search(char_class_pattern)
+                    if hyphen_match is not None:
+                        hyphen_pos = char_class_pos + hyphen_match.span()[1] - 2
+                        msg = "unescaped character '-' at position {}: {!r}"
+                        raise RegexError(msg.format(hyphen_pos, pattern))
 
                 char_class = CharacterClass(char_class_pattern, xsd_version)
                 if negative:
