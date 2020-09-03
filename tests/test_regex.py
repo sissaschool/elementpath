@@ -910,6 +910,16 @@ class TestPatterns(unittest.TestCase):
             translate_pattern('*')
         self.assertIn("unexpected quantifier '*'", str(ctx.exception))
 
+    def test_invalid_hyphen(self):
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('[a-b-c]')
+        self.assertIn("unescaped character '-' at position 4", str(ctx.exception))
+
+        regex = translate_pattern('[a-b-c]', xsd_version='1.1')
+        self.assertEqual(regex, '[\\-a-c]')
+        self.assertEqual(translate_pattern('[-a-bc]'), regex)
+        self.assertEqual(translate_pattern('[a-bc-]'), regex)
+
     def test_invalid_pattern_groups(self):
         with self.assertRaises(RegexError) as ctx:
             translate_pattern('(?:.*)')

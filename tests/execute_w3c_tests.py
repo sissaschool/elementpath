@@ -78,7 +78,6 @@ SKIP_TESTS = [
 
     # IMHO incorrect tests
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
-    'fn-matches__K2-MatchesFunc-16a',    # "[0-9-.]*/" is valid or dozens of W3C XSD tests fail
 ]
 
 
