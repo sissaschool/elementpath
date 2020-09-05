@@ -21,8 +21,14 @@ XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
+
+# XPath/XQuery namespaces
 XPATH_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions"
 XQT_ERRORS_NAMESPACE = "http://www.w3.org/2005/xqt-errors"
+XPATH_MATH_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions/math"
+XPATH_MAP_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions/map"
+XPATH_ARRAY_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions/array"
+XSLT_XQUERY_SERIALIZATION_NAMESPACE = "http://www.w3.org/2010/xslt-xquery-serialization "
 
 # XML namespace attributes
 XML_BASE = '{%s}base' % XML_NAMESPACE
