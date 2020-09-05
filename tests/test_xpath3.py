@@ -61,7 +61,7 @@ class XPath3ParserTest(test_xpath2_parser.XPath2ParserTest):
                     os.environ[v] = self.current_env_vars[v]
 
     def test_pi_math_function(self):
-        pass
+        pass  # token = self.parser.parse('math:pi()')
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
