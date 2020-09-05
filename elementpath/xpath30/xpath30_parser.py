@@ -10,6 +10,8 @@
 """
 XPath 3.0 implementation
 """
+import math
+
 from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
 from ..xpath2_parser import XPath2Parser
 
@@ -22,34 +24,32 @@ class XPath30Parser(XPath2Parser):
 
     # add namespaces math
 
-    SYMBOLS = XPath2Parser.SYMBOLS | set()
-    """
-    {
+    SYMBOLS = XPath2Parser.SYMBOLS | {
         # Formatting functions
-        'format-integer', 'format-dateTime', 'format-date', 'format-time',
+        # 'format-integer', 'format-dateTime', 'format-date', 'format-time',
 
         # Trigonometric and exponential functions
-        'pi', 'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
-        'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+        'pi', #'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
+        # 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
 
         # String functions that use regular expressions
-        'analyze-string',
+        #'analyze-string',
 
         # Functions and operators on nodes
-        'path', 'has-children', 'innermost', 'outermost',
+        # 'path', 'has-children', 'innermost', 'outermost',
 
         # Functions and operators on sequences
-        'head', 'tail', 'generate-id', 'uri-collection',
-        'unparsed-text', 'unparsed-text-lines', 'unparsed-text-available',
-        'environment-variable', 'available-environment-variables',
+        # 'head', 'tail', 'generate-id', 'uri-collection',
+        # 'unparsed-text', 'unparsed-text-lines', 'unparsed-text-available',
+        # 'environment-variable', 'available-environment-variables',
 
         # Parsing and serializing
-        'parse-xml', 'parse-xml-fragment', 'serialize',
+        # 'parse-xml', 'parse-xml-fragment', 'serialize',
 
         # Higher-order functions
-        'function-lookup', 'function-name', 'function-arity',
-        'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
-    }"""
+        # 'function-lookup', 'function-name', 'function-arity',
+        # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+    }
 
     DEFAULT_NAMESPACES = {
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
@@ -66,5 +66,13 @@ infix = XPath30Parser.infix
 infixr = XPath30Parser.infixr
 method = XPath30Parser.method
 function = XPath30Parser.function
+
+
+###
+# Mathematical functions
+@method(function('pi', label='math function'))
+def evaluate(self, context):
+    return math.pi
+
 
 XPath30Parser.build()
