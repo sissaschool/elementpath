@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from .xpath_context import XPathContext
-from .xpath2_parser import XPath2Parser as XPath2Parser
+from .xpath2 import XPath2Parser as XPath2Parser
 
 
 def select(root, path, namespaces=None, parser=None, **kwargs):

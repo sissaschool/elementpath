@@ -12,7 +12,7 @@ import unittest
 
 from elementpath.exceptions import ElementPathError, xpath_error
 from elementpath.namespaces import XSD_NAMESPACE
-from elementpath.xpath1_parser import XPath1Parser
+from elementpath.xpath1 import XPath1Parser
 
 
 class ExceptionsTest(unittest.TestCase):

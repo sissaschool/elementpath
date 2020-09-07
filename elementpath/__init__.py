@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '2.0.2'
+__version__ = '2.0.3'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2020, SISSA"
@@ -23,8 +23,8 @@ from .exceptions import ElementPathError, MissingContextError, \
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, NamespaceNode
 from .xpath_token import XPathToken
-from .xpath1_parser import XPath1Parser
-from .xpath2_parser import XPath2Parser
+from .xpath1 import XPath1Parser
+from .xpath2 import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
 from .regex import RegexError, translate_pattern

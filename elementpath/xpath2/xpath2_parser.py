@@ -28,7 +28,7 @@ from ..datatypes import UntypedAtomic, QName, AnyURI, Duration
 from ..xpath_nodes import TypedAttribute, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_token import UNICODE_CODEPOINT_COLLATION
-from ..xpath1_parser import XPath1Parser
+from ..xpath1 import XPath1Parser
 from ..xpath_context import XPathSchemaContext
 from ..schema_proxy import AbstractSchemaProxy
 

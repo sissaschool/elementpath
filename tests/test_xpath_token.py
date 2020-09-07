@@ -23,14 +23,14 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath.exceptions import MissingContextError
-from elementpath.datatypes import UntypedAtomic, QName
+from elementpath.datatypes import UntypedAtomic
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, TypedAttribute, \
     TypedElement, NamespaceNode, TextNode
 from elementpath.xpath_token import ordinal
 from elementpath.xpath_context import XPathContext
-from elementpath.xpath1_parser import XPath1Parser
-from elementpath.xpath2_parser import XPath2Parser
+from elementpath.xpath1 import XPath1Parser
+from elementpath.xpath2 import XPath2Parser
 from elementpath.schema_proxy import AbstractXsdType
 
 
