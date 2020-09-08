@@ -14,6 +14,7 @@ import math
 
 from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
 from ..xpath2 import XPath2Parser
+from ..datatypes import NumericProxy
 
 
 class XPath30Parser(XPath2Parser):
@@ -29,7 +30,7 @@ class XPath30Parser(XPath2Parser):
         # 'format-integer', 'format-dateTime', 'format-date', 'format-time',
 
         # Trigonometric and exponential functions
-        'pi', #'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
+        'pi', 'exp', 'exp10', 'log', 'log10', # 'pow', 'sqrt',
         # 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
 
         # String functions that use regular expressions
@@ -70,9 +71,39 @@ function = XPath30Parser.function
 
 ###
 # Mathematical functions
-@method(function('pi', label='math function'))
+@method(function('pi', label='math function', nargs=0))
 def evaluate(self, context):
     return math.pi
+
+
+@method(function('exp', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        return math.exp(arg)
+
+
+@method(function('exp10', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        return float(10 ** arg)
+
+
+@method(function('log', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        return float('-inf') if not arg else float('nan') if arg <= -1 else math.log(arg)
+
+
+@method(function('log10', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        return float('-inf') if not arg else float('nan') if arg <= -1 else math.log10(arg)
+
+
 
 
 XPath30Parser.build()

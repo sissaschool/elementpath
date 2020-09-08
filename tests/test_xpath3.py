@@ -21,6 +21,7 @@
 #
 import unittest
 import os
+import math
 
 try:
     import lxml.etree as lxml_etree
@@ -61,7 +62,55 @@ class XPath3ParserTest(test_xpath2_parser.XPath2ParserTest):
                     os.environ[v] = self.current_env_vars[v]
 
     def test_pi_math_function(self):
-        pass  # token = self.parser.parse('math:pi()')
+        token = self.parser.parse('math:pi()')
+        self.assertEqual(token.evaluate(), math.pi)
+
+    def test_exp_math_function(self):
+        token = self.parser.parse('math:exp(())')
+        self.assertIsNone(token.evaluate())
+        self.assertEqual(self.parser.parse('math:exp(0)').evaluate(), 1.0)
+        self.assertEqual(self.parser.parse('math:exp(1)').evaluate(), 2.718281828459045)
+        self.assertEqual(self.parser.parse('math:exp(2)').evaluate(), 7.38905609893065)
+        self.assertEqual(self.parser.parse('math:exp(-1)').evaluate(), 0.36787944117144233)
+        self.assertEqual(self.parser.parse('math:exp(math:pi())').evaluate(), 23.140692632779267)
+        self.assertTrue(math.isnan(self.parser.parse('math:exp(xs:double("NaN"))').evaluate()))
+        self.assertEqual(self.parser.parse("math:exp(xs:double('INF'))").evaluate(), float('inf'))
+        self.assertEqual(self.parser.parse("math:exp(xs:double('-INF'))").evaluate(), 0.0)
+
+    def test_exp10_math_function(self):
+        token = self.parser.parse('math:exp10(())')
+        self.assertIsNone(token.evaluate())
+        self.assertEqual(self.parser.parse('math:exp10(0)').evaluate(), 1.0)
+        self.assertEqual(self.parser.parse('math:exp10(1)').evaluate(), 10)
+        self.assertEqual(self.parser.parse('math:exp10(0.5)').evaluate(), 3.1622776601683795)
+        self.assertEqual(self.parser.parse('math:exp10(-1)').evaluate(), 0.1)
+        self.assertTrue(math.isnan(self.parser.parse('math:exp10(xs:double("NaN"))').evaluate()))
+        self.assertEqual(self.parser.parse("math:exp10(xs:double('INF'))").evaluate(), float('inf'))
+        self.assertEqual(self.parser.parse("math:exp10(xs:double('-INF'))").evaluate(), 0.0)
+
+    def test_log_math_function(self):
+        token = self.parser.parse('math:log(())')
+        self.assertIsNone(token.evaluate())
+        self.assertEqual(self.parser.parse('math:log(0)').evaluate(), float('-inf'))
+        self.assertEqual(self.parser.parse('math:log(math:exp(1))').evaluate(), 1.0)
+        self.assertEqual(self.parser.parse('math:log(1.0e-3)').evaluate(), -6.907755278982137)
+        self.assertEqual(self.parser.parse('math:log(2)').evaluate(), 0.6931471805599453)
+        self.assertTrue(math.isnan(self.parser.parse('math:log(-1)').evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse('math:log(xs:double("NaN"))').evaluate()))
+        self.assertEqual(self.parser.parse("math:log(xs:double('INF'))").evaluate(), float('inf'))
+        self.assertTrue(math.isnan(self.parser.parse('math:log(xs:double("-INF"))').evaluate()))
+
+    def test_log10_math_function(self):
+        token = self.parser.parse('math:log10(())')
+        self.assertIsNone(token.evaluate())
+        self.assertEqual(self.parser.parse('math:log10(0)').evaluate(), float('-inf'))
+        self.assertEqual(self.parser.parse('math:log10(1.0e3)').evaluate(), 3.0)
+        self.assertEqual(self.parser.parse('math:log10(1.0e-3)').evaluate(), -3.0)
+        self.assertEqual(self.parser.parse('math:log10(2)').evaluate(), 0.3010299956639812)
+        self.assertTrue(math.isnan(self.parser.parse('math:log10(-1)').evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse('math:log10(xs:double("NaN"))').evaluate()))
+        self.assertEqual(self.parser.parse("math:log10(xs:double('INF'))").evaluate(), float('inf'))
+        self.assertTrue(math.isnan(self.parser.parse('math:log10(xs:double("-INF"))').evaluate()))
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
