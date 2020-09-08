@@ -28,7 +28,7 @@ import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute, \
     TypedElement, is_etree_element, etree_iter_strings, is_comment_node, \
     is_processing_instruction_node, is_element_node, is_document_node, \
@@ -513,6 +513,12 @@ class XPathToken(Token):
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor function'
+        elif namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
+            if self.label != 'math function':
+                msg = "a name, a wildcard or a math function expected"
+                raise self.wrong_syntax(msg, code='XPST0017')
+            elif isinstance(self.label, MultiLabel):
+                self.label = 'math function'
         else:
             raise self.wrong_syntax("a name, a wildcard or a function expected")
 
