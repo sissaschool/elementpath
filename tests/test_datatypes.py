@@ -17,12 +17,13 @@ import random
 from decimal import Decimal
 from calendar import isleap
 from xml.etree import ElementTree
-from elementpath.datatypes import MONTH_DAYS, MONTH_DAYS_LEAP, days_from_common_era, \
-    months2days, DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
+from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
     DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
     GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
-    GregorianDay, AbstractDateTime, OrderedDateTime, NumericProxy, ArithmeticProxy, \
-    Id, is_idrefs
+    GregorianDay, AbstractDateTime, NumericProxy, ArithmeticProxy, Id, is_idrefs
+from elementpath.datatypes.helpers import MONTH_DAYS, MONTH_DAYS_LEAP, \
+    days_from_common_era, months2days
+from elementpath.datatypes.datetime import OrderedDateTime
 
 
 class StringTypesTest(unittest.TestCase):
@@ -629,8 +630,9 @@ class DateTimeTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             date("0001-01-05") + date("0001-01-01")
-        self.assertEqual(str(err.exception), "wrong type <class 'elementpath.datatypes.Date'> "
-                                             "for operand Date(1, 1, 1)")
+        self.assertEqual(str(err.exception),
+                         "wrong type <class 'elementpath.datatypes.datetime.Date'> "
+                         "for operand Date(1, 1, 1)")
 
         with self.assertRaises(TypeError) as err:
             date("0001-01-05") + 10
@@ -893,12 +895,12 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') + daytime_duration('P1D')
-        self.assertIn("cannot add <class 'elementpath.datatypes.DayTimeDuration'",
+        self.assertIn("cannot add <class 'elementpath.datatypes.datetime.DayTimeDuration'",
                       str(err.exception))
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') + year_month_duration('P2Y')
-        self.assertIn("cannot add <class 'elementpath.datatypes.YearMonthDuration'",
+        self.assertIn("cannot add <class 'elementpath.datatypes.datetime.YearMonthDuration'",
                       str(err.exception))
 
     def test_sub_operator(self):
@@ -913,12 +915,12 @@ class DurationTypesTest(unittest.TestCase):
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') - daytime_duration('P1D')
-        self.assertIn("cannot subtract <class 'elementpath.datatypes.DayTimeDuration'",
+        self.assertIn("cannot subtract <class 'elementpath.datatypes.datetime.DayTimeDuration'",
                       str(err.exception))
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') - year_month_duration('P2Y')
-        self.assertIn("cannot subtract <class 'elementpath.datatypes.YearMonthDuration'",
+        self.assertIn("cannot subtract <class 'elementpath.datatypes.datetime.YearMonthDuration'",
                       str(err.exception))
 
     def test_mul_operator(self):

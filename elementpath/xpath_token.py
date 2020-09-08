@@ -94,7 +94,7 @@ class XPathToken(Token):
             return '$%s variable reference' % (self[0].value if self._items else '')
         elif symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
-        elif label in ('axis', 'function', 'sequence type', 'kind test', 'constructor'):
+        elif label.endswith('function') or label in ('axis', 'sequence type', 'kind test'):
             return '%r %s' % (symbol, label)
         return super(XPathToken, self).__str__()
 
@@ -103,7 +103,7 @@ class XPathToken(Token):
         symbol, label = self.symbol, self.label
         if label == 'axis':
             return '%s::%s' % (self.symbol, self[0].source)
-        elif label in ('function', 'sequence type', 'kind test', 'constructor'):
+        elif label.endswith('function') or label in ('sequence type', 'kind test'):
             return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
         elif symbol == ':':
             return '%s:%s' % (self[0].source, self[1].source)
@@ -137,7 +137,7 @@ class XPathToken(Token):
             return False
         elif self.symbol != ':':
             return True
-        return self[1].label not in ('function', 'constructor')
+        return not self[1].label.endswith('function')
 
     ###
     # Tokens tree analysis methods
@@ -508,13 +508,13 @@ class XPathToken(Token):
             elif isinstance(self.label, MultiLabel):
                 self.label = 'function'
         elif namespace == XSD_NAMESPACE:
-            if self.label != 'constructor':
+            if self.label != 'constructor function':
                 msg = "a name, a wildcard or a constructor function expected"
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
-                self.label = 'constructor'
+                self.label = 'constructor function'
         else:
-            raise self.wrong_syntax("a name, a wildcard, a function or a constructor expected")
+            raise self.wrong_syntax("a name, a wildcard or a function expected")
 
         self.namespace = namespace
 
