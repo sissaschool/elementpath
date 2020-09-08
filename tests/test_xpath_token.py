@@ -409,13 +409,13 @@ class XPath2TokenTest(XPath1TokenTest):
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0017', str(ctx.exception))
-        self.assertIn("a name, a wildcard or a constructor", str(ctx.exception))
+        self.assertIn("a name, a wildcard or a constructor function", str(ctx.exception))
 
         token = self.parser.parse("xs:string(10.1)")
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0017', str(ctx.exception))
-        self.assertIn("a name, a wildcard or a constructor", str(ctx.exception))
+        self.assertIn("a name, a wildcard or a constructor function", str(ctx.exception))
 
         self.assertIsNone(token[1].bind_namespace(XSD_NAMESPACE))
         with self.assertRaises(TypeError) as ctx:
@@ -426,7 +426,7 @@ class XPath2TokenTest(XPath1TokenTest):
         with self.assertRaises(SyntaxError) as ctx:
             token.bind_namespace('http://xpath.test/ns')
         self.assertIn('XPST0003', str(ctx.exception))
-        self.assertIn("a name, a wildcard, a function or a constructor", str(ctx.exception))
+        self.assertIn("a name, a wildcard or a function", str(ctx.exception))
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_add_xsd_type(self):

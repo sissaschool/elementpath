@@ -51,12 +51,27 @@ ExpressionParser.build()
 class TdopParserTest(unittest.TestCase):
 
     def test_multi_label_class(self):
-        label = MultiLabel('function', 'constructor')
+        label = MultiLabel('function', 'constructor function')
         self.assertEqual(label, 'function')
-        self.assertEqual(label, 'constructor')
+        self.assertEqual(label, 'constructor function')
+        self.assertNotEqual(label, 'constructor')
         self.assertNotEqual(label, 'operator')
-        self.assertEqual(str(label), 'function_constructor')
-        self.assertEqual(hash(label), hash(('function', 'constructor')))
+        self.assertEqual(str(label), 'function__constructor_function')
+        self.assertEqual(hash(label), hash(('function', 'constructor function')))
+
+        self.assertIn(label, ['function'])
+        self.assertNotIn(label, [])
+        self.assertNotIn(label, ['not a function'])
+        self.assertNotIn(label, {'function'})  # compares not equality but hash
+
+        self.assertIn('function', label)
+        self.assertIn('constructor', label)
+        self.assertNotIn('axis', label)
+
+        self.assertTrue(label.startswith('function'))
+        self.assertTrue(label.startswith('constructor'))
+        self.assertTrue(label.endswith('function'))
+        self.assertFalse(label.endswith('constructor'))
 
     def test_symbol_to_identifier_function(self):
         self.assertEqual(symbol_to_identifier('_cat10'), '_cat10')

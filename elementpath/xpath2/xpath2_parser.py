@@ -296,7 +296,7 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
-    def constructor(cls, symbol, bp=0, label='constructor'):
+    def constructor(cls, symbol, bp=0, label='constructor function'):
         """Creates a constructor token class."""
         def nud_(self):
             try:
@@ -369,7 +369,7 @@ class XPath2Parser(XPath1Parser):
         token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
         kwargs = {
             'symbol': symbol,
-            'label': 'constructor',
+            'label': 'constructor function',
             'pattern': r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol,
             'lbp': bp,
             'rbp': bp,
@@ -809,7 +809,7 @@ def evaluate(self, context=None):
         else:
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
-            if token_class is None or token_class.label != 'constructor':
+            if token_class is None or token_class.label != 'constructor function':
                 msg = "atomic type %r not found in the in-scope schema types"
                 raise self.unknown_atomic_type(msg % self[1].source)
 

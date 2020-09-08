@@ -104,10 +104,19 @@ class MultiLabel(object):
         return '%s%s' % (self.__class__.__name__, self.values)
 
     def __str__(self):
-        return '_'.join(self.values)
+        return '__'.join(self.values).replace(' ', '_')
 
     def __hash__(self):
         return hash(self.values)
+
+    def __contains__(self, item):
+        return any(item in v for v in self.values)
+
+    def startswith(self, string):
+        return any(v.startswith(string) for v in self.values)
+
+    def endswith(self, string):
+        return any(v.endswith(string) for v in self.values)
 
 
 class Token(MutableSequence):
@@ -137,12 +146,12 @@ class Token(MutableSequence):
     :cvar label: defines the typology of the token class. Its value is used in \
     representations of the token instance and can be used to restrict code choices \
     without more complicated analysis. The label value can be set as needed by the \
-    parser implementation (eg. 'function', 'axis', 'constructor' are used by the XPath \
-    parsers). In the base parser class defaults to 'symbol' with 'literal' and 'operator' \
-    as possible alternatives. If set by a tuple of values the token class label is \
-    transformed to a multi-value label, that means the token class can covers multiple \
-    roles (eg. as XPath function or axis). In those cases the definitive role is defined \
-    at parse time (nud and/or led methods) after the token instance creation.
+    parser implementation (eg. 'function', 'axis', 'constructor function' are used by \
+    the XPath parsers). In the base parser class defaults to 'symbol' with 'literal' \
+    and 'operator' as possible alternatives. If set by a tuple of values the token \
+    class label is transformed to a multi-value label, that means the token class can \
+    covers multiple roles (eg. as XPath function or axis). In those cases the definitive \
+    role is defined at parse time (nud and/or led methods) after the token instance creation.
     """
     symbol = None     # the token identifier, key in the token table.
     lbp = 0           # left binding power

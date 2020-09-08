@@ -375,7 +375,7 @@ def nud(self):
 unregister('boolean')
 
 
-@constructor('boolean', bp=90, label=('function', 'constructor'))
+@constructor('boolean', bp=90, label=('function', 'constructor function'))
 def cast(self, value):
     try:
         return BooleanProxy(value)
@@ -420,7 +420,7 @@ def evaluate(self, context=None):
 ###
 # Case 2: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
 unregister('string')
-register('string', lbp=90, rbp=90, label=('function', 'constructor'),  # pragma: no cover
+register('string', lbp=90, rbp=90, label=('function', 'constructor function'),  # pragma: no cover
          pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()', cast=XPathToken.string_value)
 
 
@@ -459,7 +459,7 @@ def evaluate(self, context=None):
 # In those cases the label at parse time is set by the nud method, in dependence
 # of the number of args.
 #
-@constructor('QName', bp=90, label=('function', 'constructor'))
+@constructor('QName', bp=90, label=('function', 'constructor function'))
 def cast(self, value):
     if isinstance(value, QName):
         return value
@@ -471,7 +471,7 @@ def cast(self, value):
         raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
 
 
-@constructor('dateTime', bp=90, label=('function', 'constructor'))
+@constructor('dateTime', bp=90, label=('function', 'constructor function'))
 def cast(self, value):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
@@ -501,10 +501,10 @@ def nud(self):
             self.label = 'function'
             self.parser.advance(',')
             self[1:] = self.parser.expression(5),
-        elif self.label != 'constructor' or self.namespace != XSD_NAMESPACE:
+        elif self.label != 'constructor function' or self.namespace != XSD_NAMESPACE:
             raise self.error('XPST0017', '2nd argument missing')
         else:
-            self.label = 'constructor'
+            self.label = 'constructor function'
         self.parser.advance(')')
     except SyntaxError:
         raise self.error('XPST0017') from None
@@ -514,7 +514,7 @@ def nud(self):
 
 @method('QName')
 def evaluate(self, context=None):
-    if self.label == 'constructor':
+    if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         return [] if arg is None else self.cast(arg)
     else:
@@ -532,7 +532,7 @@ def evaluate(self, context=None):
 
 @method('dateTime')
 def evaluate(self, context=None):
-    if self.label == 'constructor':
+    if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         if arg is None:
             return []
