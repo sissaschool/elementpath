@@ -485,7 +485,7 @@ def led(self, left):
     else:
         left.expected('(name)', '*')
 
-    if self.parser.next_token.label not in ('function', 'constructor'):
+    if not self.parser.next_token.label.endswith('function'):
         self.parser.expected_name('(name)', '*')
     if self.parser.is_spaced():
         raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
@@ -511,14 +511,14 @@ def led(self, left):
 
 @method(':')
 def evaluate(self, context=None):
-    if self[1].label in ('function', 'constructor'):
+    if self[1].label.endswith('function'):
         return self[1].evaluate(context)
     return [x for x in self.select(context)]
 
 
 @method(':')
 def select(self, context=None):
-    if self[1].label in ('function', 'constructor'):
+    if self[1].label.endswith('function'):
         value = self[1].evaluate(context)
         if isinstance(value, list):
             yield from value
@@ -574,7 +574,7 @@ def nud(self):
 
     namespace = self.parser.next_token.value + self.parser.advance_until('}')
     self.parser.advance()
-    if self.parser.next_token.label not in ('function', 'constructor'):
+    if not self.parser.next_token.label.endswith('function'):
         self.parser.expected_name('(name)', '*')
     self.parser.next_token.bind_namespace(namespace)
 
@@ -585,7 +585,7 @@ def nud(self):
 
 @method('{')
 def evaluate(self, context=None):
-    if self[1].label == 'function':
+    if self[1].label.endswith('function'):
         return self[1].evaluate(context)
     else:
         return '{%s}%s' % (self[0].value, self[1].value)
@@ -593,7 +593,7 @@ def evaluate(self, context=None):
 
 @method('{')
 def select(self, context=None):
-    if self[1].label == 'function':
+    if self[1].label.endswith('function'):
         yield self[1].evaluate(context)
         return
     elif context is None:

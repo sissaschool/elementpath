@@ -23,14 +23,14 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath.exceptions import MissingContextError
-from elementpath.datatypes import UntypedAtomic, QName
+from elementpath.datatypes import UntypedAtomic
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, TypedAttribute, \
     TypedElement, NamespaceNode, TextNode
 from elementpath.xpath_token import ordinal
 from elementpath.xpath_context import XPathContext
-from elementpath.xpath1_parser import XPath1Parser
-from elementpath.xpath2_parser import XPath2Parser
+from elementpath.xpath1 import XPath1Parser
+from elementpath.xpath2 import XPath2Parser
 from elementpath.schema_proxy import AbstractXsdType
 
 
@@ -409,13 +409,13 @@ class XPath2TokenTest(XPath1TokenTest):
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0017', str(ctx.exception))
-        self.assertIn("a name, a wildcard or a constructor", str(ctx.exception))
+        self.assertIn("a name, a wildcard or a constructor function", str(ctx.exception))
 
         token = self.parser.parse("xs:string(10.1)")
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0017', str(ctx.exception))
-        self.assertIn("a name, a wildcard or a constructor", str(ctx.exception))
+        self.assertIn("a name, a wildcard or a constructor function", str(ctx.exception))
 
         self.assertIsNone(token[1].bind_namespace(XSD_NAMESPACE))
         with self.assertRaises(TypeError) as ctx:
@@ -426,7 +426,7 @@ class XPath2TokenTest(XPath1TokenTest):
         with self.assertRaises(SyntaxError) as ctx:
             token.bind_namespace('http://xpath.test/ns')
         self.assertIn('XPST0003', str(ctx.exception))
-        self.assertIn("a name, a wildcard, a function or a constructor", str(ctx.exception))
+        self.assertIn("a name, a wildcard or a function", str(ctx.exception))
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_add_xsd_type(self):

@@ -13,7 +13,7 @@ XPath 3.0 implementation
 import math
 
 from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
-from ..xpath2_parser import XPath2Parser
+from ..xpath2 import XPath2Parser
 
 
 class XPath30Parser(XPath2Parser):
