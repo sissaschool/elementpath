@@ -30,11 +30,11 @@ class XPath30Parser(XPath2Parser):
         # 'format-integer', 'format-dateTime', 'format-date', 'format-time',
 
         # Trigonometric and exponential functions
-        'pi', 'exp', 'exp10', 'log', 'log10', # 'pow', 'sqrt',
-        # 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+        'pi', 'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
+        'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
 
         # String functions that use regular expressions
-        #'analyze-string',
+        # 'analyze-string',
 
         # Functions and operators on nodes
         # 'path', 'has-children', 'innermost', 'outermost',
@@ -104,6 +104,63 @@ def evaluate(self, context):
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log10(arg)
 
 
+@method(function('pow', label='math function', nargs=2))
+def evaluate(self, context):
+    x = self.get_argument(context, cls=NumericProxy)
+    y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
+    if x is not None:
+        if not x and y < 0:
+            return float('inf')
+
+        try:
+            return float(x ** y)
+        except TypeError:
+            return float('nan')
+
+
+@method(function('sqrt', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        if arg < 0:
+            return float('nan')
+        return math.sqrt(arg)
+
+
+@method(function('sin', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+
+
+@method(function('cos', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+
+
+@method(function('tan', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+
+
+@method(function('asin', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+
+
+@method(function('acos', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+
+
+@method(function('atan', label='math function', nargs=1))
+def evaluate(self, context):
+    arg = self.get_argument(context, cls=NumericProxy)
+
+
+@method(function('atan2', label='math function', nargs=2))
+def evaluate(self, context):
+    x = self.get_argument(context, cls=NumericProxy)
+    y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
 
 
 XPath30Parser.build()
