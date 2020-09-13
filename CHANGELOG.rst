@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.0.3`_ (2020-09-13)
+======================
+* Fix context handling in cycle statements
+* Change constructor's label to 'constructor function'
+
 `v2.0.2`_ (2020-09-03)
 ======================
 * Add regex translator to package API
@@ -244,4 +249,4 @@ CHANGELOG
 .. _v2.0.0: https://github.com/sissaschool/elementpath/compare/v1.4.6...v2.0.0
 .. _v2.0.1: https://github.com/sissaschool/elementpath/compare/v2.0.0...v2.0.1
 .. _v2.0.2: https://github.com/sissaschool/elementpath/compare/v2.0.1...v2.0.2
-
+.. _v2.0.3: https://github.com/sissaschool/elementpath/compare/v2.0.2...v2.0.3

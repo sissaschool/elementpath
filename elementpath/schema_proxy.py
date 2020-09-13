@@ -308,10 +308,12 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     @abstractmethod
     def get_primitive_type(self, xsd_type):
         """
-        Returns the primitive type of an XSD type.
+        Returns the type at base of the definition of an XSD type. For an atomic type
+        is effectively the primitive type. For a list is the primitive type of the item.
+        For a union is the base union type. For a complex type is xs:anyType.
 
         :param xsd_type: an XSD type instance.
-        :return: an XSD builtin primitive type.
+        :return: an XSD type instance.
         """
 
 
