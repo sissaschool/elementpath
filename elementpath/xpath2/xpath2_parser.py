@@ -597,7 +597,7 @@ def evaluate(self, context=None):
     varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
-    for results in context.iter_product(selectors, varnames):
+    for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
         if self.boolean_value([x for x in self[-1].select(copy(context))]):
             if some:
@@ -643,7 +643,7 @@ def select(self, context=None):
     varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
     selectors = [self[k].select for k in range(1, len(self) - 1, 2)]
 
-    for results in context.iter_product(selectors, varnames):
+    for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
         yield from self[-1].select(copy(context))
 
