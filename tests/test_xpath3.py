@@ -162,6 +162,127 @@ class XPath3ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(self.parser.parse("math:sqrt(xs:double('INF'))").evaluate(), float('inf'))
         self.assertTrue(math.isnan(self.parser.parse("math:sqrt(xs:double('-INF'))").evaluate()))
 
+    def test_sin_math_function(self):
+        self.assertIsNone(self.parser.parse('math:sin(())').evaluate())
+        self.assertEqual(self.parser.parse('math:sin(0)').evaluate(), 0.0)
+        self.assertEqual(self.parser.parse('math:sin(-0.0e0)').evaluate(), -0.0)
+        self.assertEqual(self.parser.parse('math:sin(math:pi() div 2)').evaluate(), 1.0)
+        self.assertEqual(self.parser.parse('math:sin(-math:pi() div 2)').evaluate(), -1.0)
+        self.assertTrue(
+            math.isclose(self.parser.parse('math:sin(math:pi())').evaluate(), 0.0, abs_tol=1e-14)
+        )
+        self.assertTrue(math.isnan(self.parser.parse("math:sin(xs:double('NaN'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:sin(xs:double('INF'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:sin(xs:double('-INF'))").evaluate()))
+
+    def test_cos_math_function(self):
+        self.assertIsNone(self.parser.parse('math:cos(())').evaluate())
+        self.assertEqual(self.parser.parse('math:cos(0)').evaluate(), 1.0)
+        self.assertEqual(self.parser.parse('math:cos(-0.0e0)').evaluate(), 1.0)
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:cos(math:pi() div 2)').evaluate(), 0.0, abs_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:cos(-math:pi() div 2)').evaluate(), 0.0, abs_tol=1e-14
+        ))
+        self.assertEqual(self.parser.parse('math:cos(math:pi())').evaluate(), -1.0)
+        self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('NaN'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('INF'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('-INF'))").evaluate()))
+
+    def test_tan_math_function(self):
+        self.assertIsNone(self.parser.parse('math:tan(())').evaluate())
+        self.assertEqual(self.parser.parse('math:tan(0)').evaluate(), 0.0)
+        self.assertEqual(self.parser.parse('math:tan(-0.0e0)').evaluate(), -0.0)
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:tan(math:pi() div 4)').evaluate(), 1.0, abs_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:tan(-math:pi() div 4)').evaluate(), -1.0, abs_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:tan(math:pi() div 2)').evaluate(),
+            1.633123935319537E16, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:tan(-math:pi() div 2)').evaluate(),
+            -1.633123935319537E16, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:tan(math:pi())').evaluate(), 0.0, abs_tol=1e-14
+        ))
+        self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('NaN'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('INF'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('-INF'))").evaluate()))
+
+    def test_asin_math_function(self):
+        self.assertIsNone(self.parser.parse('math:asin(())').evaluate())
+        self.assertEqual(self.parser.parse('math:asin(0)').evaluate(), 0.0)
+        self.assertEqual(self.parser.parse('math:asin(-0.0e0)').evaluate(), -0.0)
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:asin(1.0e0)').evaluate(),
+            1.5707963267948966e0, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:asin(-1.0e0)').evaluate(),
+            -1.5707963267948966e0, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isnan(self.parser.parse("math:asin(2.0e0)").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:asin(xs:double('NaN'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:asin(xs:double('INF'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:asin(xs:double('-INF'))").evaluate()))
+
+    def test_acos_math_function(self):
+        self.assertIsNone(self.parser.parse('math:acos(())').evaluate())
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:acos(0.0e0)').evaluate(),
+            1.5707963267948966e0, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:acos(-0.0e0)').evaluate(),
+            1.5707963267948966e0, rel_tol=1e-14
+        ))
+        self.assertEqual(self.parser.parse('math:acos(1.0)').evaluate(), 0.0)
+        self.assertEqual(self.parser.parse('math:acos(-1.0e0)').evaluate(), math.pi)
+        self.assertTrue(math.isnan(self.parser.parse("math:acos(2.0e0)").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:acos(xs:double('NaN'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:acos(xs:double('INF'))").evaluate()))
+        self.assertTrue(math.isnan(self.parser.parse("math:acos(xs:double('-INF'))").evaluate()))
+
+    def test_atan_math_function(self):
+        self.assertIsNone(self.parser.parse('math:atan(())').evaluate())
+        self.assertEqual(self.parser.parse('math:atan(0)').evaluate(), 0.0)
+        self.assertEqual(self.parser.parse('math:atan(-0.0e0)').evaluate(), -0.0)
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:atan(1.0e0)').evaluate(),
+            0.7853981633974483e0, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse('math:atan(-1.0e0)').evaluate(),
+            -0.7853981633974483e0, rel_tol=1e-14
+        ))
+        self.assertTrue(math.isnan(self.parser.parse("math:atan(xs:double('NaN'))").evaluate()))
+        self.assertTrue(math.isclose(
+            self.parser.parse("math:atan(xs:double('INF'))").evaluate(),
+            1.5707963267948966e0, rel_tol=1e-5
+        ))
+        self.assertTrue(math.isclose(
+            self.parser.parse("math:atan(xs:double('-INF'))").evaluate(),
+            -1.5707963267948966e0, rel_tol=1e-5
+        ))
+
+    def test_atan2_math_function(self):
+        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, 0.0e0)').evaluate(), 0.0)
+        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, 0.0e0)').evaluate(), -0.0)
+        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, -0.0e0)').evaluate(), math.pi)
+        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, -0.0e0)').evaluate(), -math.pi)
+        self.assertEqual(self.parser.parse('math:atan2(-1, 0.0e0)').evaluate(), -math.pi / 2)
+        self.assertEqual(self.parser.parse('math:atan2(+1, 0.0e0)').evaluate(), math.pi / 2)
+        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, -1)').evaluate(), -math.pi)
+        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, -1)').evaluate(), math.pi)
+        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, +1)').evaluate(), -0.0e0)
+        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath3ParserTest(XPath3ParserTest):
