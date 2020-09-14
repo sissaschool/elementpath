@@ -200,12 +200,17 @@ class XPathToken(Token):
             for k, result in enumerate(selector(copy(context))):
                 if k == 0:
                     item = result
-                elif not self.parser.compatibility_mode:
+                elif self.parser.compatibility_mode:
+                    break
+                elif isinstance(context, XPathSchemaContext):
+                    # Multiple schema nodes are ignored but do not raise. The target
+                    # of schema context selection is XSD type association and multiple
+                    # nodes coherency is already checked at schema level.
+                    break
+                else:
                     raise self.wrong_context_type(
                         "a sequence of more than one item is not allowed as argument"
                     )
-                else:
-                    break
             else:
                 if item is None:
                     if not required:
@@ -285,15 +290,20 @@ class XPathToken(Token):
         except StopIteration:
             return
         else:
+            item = getattr(context, 'item', None)
+
             try:
                 next(selector)
             except StopIteration:
                 if isinstance(value, UntypedAtomic):
                     value = str(value)
-                if isinstance(context, XPathSchemaContext):
-                    return value
-                if self.xsd_types and isinstance(value, str):
-                    xsd_type = self.get_xsd_type(context.item)
+
+                if not isinstance(context, XPathSchemaContext) and \
+                        item is not None and \
+                        self.xsd_types and \
+                        isinstance(value, str):
+
+                    xsd_type = self.get_xsd_type(item)
                     if xsd_type is None or xsd_type.name in XSD_SPECIAL_TYPES:
                         pass
                     else:
@@ -302,6 +312,7 @@ class XPathToken(Token):
                         except (TypeError, ValueError):
                             msg = "Type {!r} is not appropriate for the context"
                             raise self.wrong_context_type(msg.format(type(value)))
+
                 return value
             else:
                 msg = "atomized operand is a sequence of length greater than one"
@@ -674,6 +685,8 @@ class XPathToken(Token):
             xsd_type = self.xsd_types.get(item)
         elif isinstance(item, AttributeNode):
             xsd_type = self.xsd_types.get(item[0])
+        elif isinstance(item, (TypedAttribute, TypedElement)):
+            return item.type
         else:
             xsd_type = self.xsd_types.get(item.tag)
 
@@ -708,6 +721,9 @@ class XPathToken(Token):
         :return: a TypedAttribute or a TypedElement, or the argument \
         if it's not matching any associated XSD type.
         """
+        if isinstance(item, (TypedAttribute, TypedElement)):
+            return item
+
         xsd_type = self.get_xsd_type(item)
         if not xsd_type:
             return item

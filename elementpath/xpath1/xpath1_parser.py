@@ -468,12 +468,14 @@ def select(self, context=None):
                 else:
                     self.xsd_types = self.parser.schema
 
-                yield self.get_typed_node(item)
+                context.item = self.get_typed_node(item)
+                yield context.item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, tag):
-                yield self.get_typed_node(item)
+                context.item = self.get_typed_node(item)
+                yield context.item
 
 
 ###
@@ -556,13 +558,16 @@ def select(self, context=None):
                     self.add_xsd_type(xsd_node)
                 else:
                     self.xsd_types = self.parser.schema
-                yield self.get_typed_node(item)
+
+                context.item = self.get_typed_node(item)
+                yield context.item
 
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, name):
-                yield self.get_typed_node(item)
+                context.item = self.get_typed_node(item)
+                yield context.item
 
 
 ###
@@ -613,7 +618,8 @@ def select(self, context=None):
         # XSD typed selection
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, name):
-                yield self.get_typed_node(item)
+                context.item = self.get_typed_node(item)
+                yield context.item
 
 
 ###
@@ -675,7 +681,8 @@ def select(self, context=None):
             if context.item is None:
                 pass
             elif context.is_principal_node_kind():
-                yield self.get_typed_node(item)
+                context.item = self.get_typed_node(item)
+                yield context.item
 
 
 @method(nullary('.'))
