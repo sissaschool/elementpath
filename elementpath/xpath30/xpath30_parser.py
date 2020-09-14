@@ -130,37 +130,60 @@ def evaluate(self, context):
 @method(function('sin', label='math function', nargs=1))
 def evaluate(self, context):
     arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        if math.isinf(arg):
+            return float('nan')
+        return math.sin(arg)
 
 
 @method(function('cos', label='math function', nargs=1))
 def evaluate(self, context):
     arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        if math.isinf(arg):
+            return float('nan')
+        return math.cos(arg)
 
 
 @method(function('tan', label='math function', nargs=1))
 def evaluate(self, context):
     arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        if math.isinf(arg):
+            return float('nan')
+        return math.tan(arg)
 
 
 @method(function('asin', label='math function', nargs=1))
 def evaluate(self, context):
     arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        if arg < -1 or arg > 1:
+            return float('nan')
+        return math.asin(arg)
 
 
 @method(function('acos', label='math function', nargs=1))
 def evaluate(self, context):
     arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        if arg < -1 or arg > 1:
+            return float('nan')
+        return math.acos(arg)
 
 
 @method(function('atan', label='math function', nargs=1))
 def evaluate(self, context):
     arg = self.get_argument(context, cls=NumericProxy)
+    if arg is not None:
+        return math.atan(arg)
 
 
 @method(function('atan2', label='math function', nargs=2))
 def evaluate(self, context):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
+    return math.atan2(x, y)
 
 
 XPath30Parser.build()
