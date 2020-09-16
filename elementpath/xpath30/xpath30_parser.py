@@ -13,6 +13,8 @@ XPath 3.0 implementation
 import math
 
 from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
+from ..xpath_nodes import is_xpath_node, is_document_node, is_etree_element, TypedElement
+from ..xpath_context import XPathContext, XPathSchemaContext
 from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy
 
@@ -37,7 +39,7 @@ class XPath30Parser(XPath2Parser):
         # 'analyze-string',
 
         # Functions and operators on nodes
-        # 'path', 'has-children', 'innermost', 'outermost',
+        'path', 'has-children', 'innermost', 'outermost',
 
         # Functions and operators on sequences
         # 'head', 'tail', 'generate-id', 'uri-collection',
@@ -184,6 +186,85 @@ def evaluate(self, context):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     return math.atan2(x, y)
+
+
+###
+# Functions and operators on nodes
+@method(function('path', nargs=(0, 1)))
+def evaluate(self, context=None):
+    if context is None:
+        raise self.missing_context()
+    elif isinstance(context, XPathSchemaContext):
+        return
+    elif not self:
+        if context.item is None:
+            return '/'
+        item = context.item
+    else:
+        item = self.get_argument(context)
+        if item is None:
+            return
+
+    if is_document_node(item):
+        return '/'
+
+
+@method(function('has-children', nargs=(0, 1)))
+def evaluate(self, context=None):
+    if context is None:
+        raise self.missing_context()
+    elif not self:
+        if context.item is None:
+            return is_document_node(context.root)
+
+        item = context.item
+        if not is_xpath_node(item):
+            raise self.error('XPTY0004', 'context item must be a node')
+    else:
+        item = self.get_argument(context)
+        if item is None:
+            return False
+        elif not is_xpath_node(item):
+            raise self.error('XPTY0004', 'argument must be a node')
+
+    return is_document_node(item) or \
+        is_etree_element(item) and len(item) > 0 or \
+        isinstance(item, TypedElement) and len(item.elem) > 0
+
+
+@method(function('innermost', nargs=1))
+def select(self, context=None):
+    if context is None:
+        raise self.missing_context()
+
+    context = context.copy()
+    nodes = [e for e in self[0].select(context)]
+    if any(not is_xpath_node(x) for x in nodes):
+        raise self.error('XPTY0004', 'argument must contain only nodes')
+
+    print(nodes)
+    ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
+    print(ancestors)
+    yield from (x for x in nodes if x not in ancestors)
+
+
+@method(function('outermost', nargs=(0, 1)))
+def evaluate(self, context=None):
+    if context is None:
+        raise self.missing_context()
+    elif not self:
+        if context.item is None:
+            return True  # on document root
+
+        item = context.item
+        if not is_xpath_node(item):
+            raise self.error('XPTY0004', 'context item must be a node')
+    else:
+        item = self.get_argument(context)
+        if item is None:
+            return False
+        elif not is_xpath_node(item):
+            raise self.error('XPTY0004', 'argument must be a node')
 
 
 XPath30Parser.build()

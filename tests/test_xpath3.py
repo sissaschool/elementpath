@@ -283,6 +283,52 @@ class XPath3ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(self.parser.parse('math:atan2(-0.0e0, +1)').evaluate(), -0.0e0)
         self.assertEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
 
+    def test_has_children_function(self):
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('has-children()').evaluate()
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:has-children(1)').evaluate()
+
+        context = XPathContext(root=self.etree.ElementTree(self.etree.XML('<dummy/>')))
+        self.assertTrue(self.parser.parse('has-children()').evaluate(context))
+        self.assertTrue(self.parser.parse('has-children(.)').evaluate(context))
+
+        context = XPathContext(root=self.etree.XML('<dummy/>'))
+        self.assertFalse(self.parser.parse('has-children()').evaluate(context))
+        self.assertFalse(self.parser.parse('has-children(.)').evaluate(context))
+        context.item = None
+        self.assertFalse(self.parser.parse('has-children()').evaluate(context))
+        self.assertFalse(self.parser.parse('has-children(.)').evaluate(context))
+
+        context.variables['elem'] = self.etree.XML('<a><b1/><b2/></a>')
+        self.assertTrue(self.parser.parse('has-children($elem)').evaluate(context))
+        self.assertFalse(self.parser.parse('has-children($elem/b1)').evaluate(context))
+
+    def test_innermost_function(self):
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:innermost(A)').evaluate()
+
+        root = self.etree.XML('<a/>')
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+        nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], document)
+
+        context = XPathContext(root=root)
+        nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], root)
+
+        context = XPathContext(root=document)
+        context.variables['nodes'] = [root, document]
+        nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], document)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath3ParserTest(XPath3ParserTest):
