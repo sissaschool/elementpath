@@ -295,9 +295,12 @@ def evaluate(self, context=None):
             lang = context.item.attrib[XML_LANG].strip()
         except KeyError:
             for elem in context.iter_ancestors():
-                if XML_LANG in elem.attrib:
-                    lang = elem.attrib[XML_LANG]
-                    break
+                try:
+                    if XML_LANG in elem.attrib:
+                        lang = elem.attrib[XML_LANG]
+                        break
+                except AttributeError:
+                    pass  # is a document node
             else:
                 return False
 

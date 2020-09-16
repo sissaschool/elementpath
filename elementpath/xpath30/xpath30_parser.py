@@ -242,29 +242,24 @@ def select(self, context=None):
     if any(not is_xpath_node(x) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
-    print(nodes)
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
-    print(ancestors)
-    yield from (x for x in nodes if x not in ancestors)
+    yield from context.iter_results([x for x in nodes if x not in ancestors])
 
 
-@method(function('outermost', nargs=(0, 1)))
-def evaluate(self, context=None):
+@method(function('outermost', nargs=1))
+def select(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif not self:
-        if context.item is None:
-            return True  # on document root
 
-        item = context.item
-        if not is_xpath_node(item):
-            raise self.error('XPTY0004', 'context item must be a node')
-    else:
-        item = self.get_argument(context)
-        if item is None:
-            return False
-        elif not is_xpath_node(item):
-            raise self.error('XPTY0004', 'argument must be a node')
+    context = context.copy()
+    nodes = {e for e in self[0].select(context)}
+    if any(not is_xpath_node(x) for x in nodes):
+        raise self.error('XPTY0004', 'argument must contain only nodes')
+
+    yield from context.iter_results([
+        context.item for context.item in nodes
+        if all(x not in nodes for x in context.iter_ancestors(axis='ancestor'))
+    ])
 
 
 XPath30Parser.build()
