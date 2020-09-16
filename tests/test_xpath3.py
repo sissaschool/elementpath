@@ -44,7 +44,7 @@ except ImportError:
     import test_xpath2_parser
 
 
-class XPath3ParserTest(test_xpath2_parser.XPath2ParserTest):
+class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
@@ -327,15 +327,80 @@ class XPath3ParserTest(test_xpath2_parser.XPath2ParserTest):
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], root)
+
+        root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+
+        context.variables['nodes'] = [root, document, root[0], root[0]]
+        nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], root[0])
+
+        context.variables['nodes'] = [document, root[0][0], root, document, root[0], root[1]]
+        nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 2)
+        self.assertIs(nodes[0], root[0][0])
+        self.assertIs(nodes[1], root[1])
+
+    def test_outermost_function(self):
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:outermost(A)').evaluate()
+
+        root = self.etree.XML('<a/>')
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+        nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], document)
+
+        context = XPathContext(root=root)
+        nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], root)
+
+        context = XPathContext(root=document)
+        context.variables['nodes'] = [root, document]
+        nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], document)
+
+        root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+
+        context.variables['nodes'] = [root, document, root[0], document]
+        nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], document)
+
+        context.variables['nodes'] = [document, root[0][0], root, document, root[0], root[1]]
+        nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIs(nodes[0], document)
+
+        context.variables['nodes'] = [root[0][0], root[1], root[0]]
+        nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 2)
+        self.assertIs(nodes[0], root[0])
+        self.assertIs(nodes[1], root[1])
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
-class LxmlXPath3ParserTest(XPath3ParserTest):
+class LxmlXPath3ParserTest(XPath30ParserTest):
     etree = lxml_etree
 
 
-class XPath31ParserTest(XPath3ParserTest):
+class XPath31ParserTest(XPath30ParserTest):
 
     def setUp(self):
         self.parser = XPath31Parser(namespaces=self.namespaces)
