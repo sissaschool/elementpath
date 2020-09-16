@@ -65,7 +65,7 @@ class XPathContext(object):
             else:
                 self.item, self._elem = item, root
         elif is_document_node(root):
-            self.item = None if item is None else item
+            self.item = item
         else:
             msg = "invalid root {!r}, an Element or an ElementTree instance required"
             raise ElementPathTypeError(msg.format(root))
@@ -142,7 +142,10 @@ class XPathContext(object):
         try:
             return self._parent_map[elem]
         except (KeyError, TypeError):
-            self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
+            self._parent_map = {child: e for e in self.root.iter() for child in e}
+            if is_document_node(self.root):
+                self._parent_map[self.root.getroot()] = self.root
+
             try:
                 return self._parent_map[elem]
             except KeyError:
@@ -164,8 +167,12 @@ class XPathContext(object):
             item = item[0]
 
         while True:
+            try:
+                path.append(item.tag)
+            except AttributeError:
+                pass  # is a document node
+
             parent = self.get_parent(item)
-            path.append(item.tag)
             if parent is None:
                 return '/{}'.format('/'.join(reversed(path)))
             item = parent
