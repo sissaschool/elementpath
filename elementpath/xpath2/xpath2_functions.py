@@ -1229,9 +1229,12 @@ def evaluate(self, context=None):
             return False
 
         for elem in context.iter_ancestors():
-            if XML_LANG in elem.attrib:
-                lang = elem.attrib[XML_LANG]
-                break
+            try:
+                if XML_LANG in elem.attrib:
+                    lang = elem.attrib[XML_LANG]
+                    break
+            except AttributeError:
+                pass  # is a document node
         else:
             return False
 
