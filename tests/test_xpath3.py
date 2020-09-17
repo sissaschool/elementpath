@@ -61,6 +61,18 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
                 if self.current_env_vars[v] is not None:
                     os.environ[v] = self.current_env_vars[v]
 
+    def test_braced_uri_literal(self):
+        token = self.parser.parse('Q{http://www.w3.org/2005/xpath-functions/math}pi()')
+        self.assertEqual(token.evaluate(), math.pi)
+
+        with self.assertRaises(SyntaxError):
+            self.parser.parse('{http://www.w3.org/2005/xpath-functions/math}pi()')
+
+        self.parser.strict = False
+        token = self.parser.parse('{http://www.w3.org/2005/xpath-functions/math}pi()')
+        self.assertEqual(token.evaluate(), math.pi)
+        self.parser.strict = True
+
     def test_pi_math_function(self):
         token = self.parser.parse('math:pi()')
         self.assertEqual(token.evaluate(), math.pi)

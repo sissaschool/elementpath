@@ -574,7 +574,7 @@ def select(self, context=None):
 # Namespace URI as in ElementPath
 @method('{', bp=95)
 def nud(self):
-    if self.parser.strict:
+    if self.parser.strict and self.symbol == '{':
         raise self.wrong_syntax("not allowed symbol if parser has strict=True")
 
     namespace = self.parser.next_token.value + self.parser.advance_until('}')

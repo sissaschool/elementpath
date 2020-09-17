@@ -9,6 +9,10 @@
 #
 """
 XPath 3.0 implementation
+
+Refs:
+  - https://www.w3.org/TR/2014/REC-xpath-30-20140408/
+  - https://www.w3.org/TR/xpath-functions-30/
 """
 import math
 
@@ -25,9 +29,9 @@ class XPath30Parser(XPath2Parser):
     """
     version = '3.0'
 
-    # add namespaces math
-
     SYMBOLS = XPath2Parser.SYMBOLS | {
+        'Q{',  # see BracedURILiteral rule
+
         # Formatting functions
         # 'format-integer', 'format-dateTime', 'format-date', 'format-time',
 
@@ -70,6 +74,7 @@ infixr = XPath30Parser.infixr
 method = XPath30Parser.method
 function = XPath30Parser.function
 
+XPath30Parser.duplicate('{', 'Q{')
 
 ###
 # Mathematical functions
