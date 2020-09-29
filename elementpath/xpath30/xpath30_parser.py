@@ -17,10 +17,11 @@ Refs:
 import math
 import xml.etree.ElementTree as ElementTree
 
-from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
+    XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath_nodes import etree_iterpath, is_xpath_node, is_document_node, \
     is_etree_element, TypedElement, TypedAttribute, AttributeNode, TextNode
-from ..xpath_context import XPathContext, XPathSchemaContext
+from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy
 
@@ -290,6 +291,7 @@ def select(self, context=None):
 
 # Parsing and serializing
 @method(function('parse-xml', nargs=1))
+@method(function('parse-xml-fragment', nargs=1))
 def evaluate(self, context=None):
     # TODO: resolve relative entity references with static base URI
     arg = self.get_argument(context, cls=str)
@@ -297,6 +299,11 @@ def evaluate(self, context=None):
         return
 
     etree = ElementTree if context is None else context.etree
+    if self.symbol == 'parse-xml-fragment':
+        # Wrap argument in a fake document because an
+        # XML document can have only one root element
+        arg = '<document>{}</document>'.format(arg)
+
     try:
         root = etree.XML(arg)
     except etree.ParseError:
@@ -305,14 +312,32 @@ def evaluate(self, context=None):
         return etree.ElementTree(root)
 
 
-@method(function('parse-xml-fragment', nargs=1))
-def select(self, context=None):
-    arg = self.get_argument(context, cls=str)
+@method(function('serialize', nargs=(1, 2)))
+def evaluate(self, context=None):
+    # TODO full implementation of serialization with
+    #  https://www.w3.org/TR/xpath-functions-30/#xslt-xquery-serialization-30
 
+    params = self.get_argument(context, index=1) if len(self) == 2 else None
+    if params is None:
+        tmpl = '<output:serialization-parameters xmlns:output="{}"/>'
+        params = ElementTree.XML(tmpl.format(XSLT_XQUERY_SERIALIZATION_NAMESPACE))
 
-@method(function('serialize', nargs=1))
-def select(self, context=None):
-    arg = self.get_argument(context, cls=str)
+    chunks = []
+    etree = ElementTree if context is None else context.etree
+
+    child = params.find(
+        'output:serialization-parameters/omit-xml-declaration',
+        namespaces={'output': XSLT_XQUERY_SERIALIZATION_NAMESPACE},
+    )
+    xml_declaration = child is not None and child.get('value') in ('yes',)
+
+    for item in self[0].select(context):
+        if is_etree_element(item):
+            chunks.append(etree.tostring(
+                item, encoding='utf-8', xml_declaration=xml_declaration
+            ))
+
+    return b'\n'.join(chunks)
 
 
 XPath30Parser.build()

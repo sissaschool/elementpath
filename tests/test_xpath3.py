@@ -440,7 +440,62 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         self.assertIn('FODC0006', str(ctx.exception))
         self.assertIn('not a well-formed XML document', str(ctx.exception))
-        
+
+    def test_parse_xml_fragment_function(self):
+        document = self.parser.parse(
+            'fn:parse-xml-fragment("<alpha>abcd</alpha><beta>abcd</beta>")'
+        ).evaluate()
+        self.assertIsInstance(document, ElementTree.ElementTree)
+        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertEqual(document.getroot()[0].tag, 'alpha')
+        self.assertEqual(document.getroot()[0].text, 'abcd')
+        self.assertEqual(document.getroot()[1].tag, 'beta')
+        self.assertEqual(document.getroot()[1].text, 'abcd')
+
+        document = self.parser.parse(
+            'fn:parse-xml-fragment("He was <i>so</i> kind")'
+        ).evaluate()
+        self.assertIsInstance(document, ElementTree.ElementTree)
+        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertEqual(document.getroot().text, 'He was ')
+        self.assertEqual(document.getroot()[0].tag, 'i')
+        self.assertEqual(document.getroot()[0].text, 'so')
+        self.assertEqual(document.getroot()[0].tail, ' kind')
+
+        document = self.parser.parse('fn:parse-xml-fragment("")').evaluate()
+        self.assertIsInstance(document, ElementTree.ElementTree)
+        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertEqual(document.getroot().tag, 'document')
+        self.assertIsNone(document.getroot().text)
+
+        document = self.parser.parse('fn:parse-xml-fragment(" ")').evaluate()
+        self.assertIsInstance(document, ElementTree.ElementTree)
+        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertEqual(document.getroot().tag, 'document')
+        self.assertEqual(document.getroot().text, ' ')
+
+        with self.assertRaises(ValueError) as ctx:
+            self.parser.parse(
+                'fn:parse-xml(\'<xml version="1.0" encoding="utf8" standalone="yes"?></a>\')'
+            ).evaluate()
+
+        self.assertIn('FODC0006', str(ctx.exception))
+        self.assertIn('not a well-formed XML document', str(ctx.exception))
+
+    def test_serialize_function(self):
+        root = self.etree.XML('<root/>')
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+        context.variables['params'] = ElementTree.XML(
+            '<output:serialization-parameters '
+            '    xmlns:output="http://www.w3.org/2010/xslt-xquery-serialization">'
+            '  <output:omit-xml-declaration value="yes"/>'
+            '</output:serialization-parameters>'
+        )
+        context.variables['data'] = self.etree.XML("<a b='3'/>")
+        result = self.parser.parse('fn:serialize($data, $params)').evaluate(context)
+        self.assertEqual(result.replace(b' />', b'/>'), b'<a b="3"/>')
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath3ParserTest(XPath30ParserTest):
