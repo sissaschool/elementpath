@@ -22,6 +22,7 @@
 import unittest
 import os
 import math
+import xml.etree.ElementTree as ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -36,6 +37,8 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
+from elementpath.xpath_nodes import is_document_node, is_lxml_document_node, \
+    is_etree_element, is_lxml_etree_element
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
 
 try:
@@ -406,6 +409,38 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIs(nodes[0], root[0])
         self.assertIs(nodes[1], root[1])
 
+    def test_parse_xml_function(self):
+        document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
+        self.assertIsInstance(document, ElementTree.ElementTree)
+        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertEqual(document.getroot().tag, 'alpha')
+        self.assertEqual(document.getroot().text, 'abcd')
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=self.etree.ElementTree(root))
+        document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate(context)
+
+        self.assertTrue(is_document_node(document))
+        self.assertTrue(is_etree_element(document.getroot()))
+
+        if self.etree is lxml_etree:
+            self.assertTrue(is_lxml_document_node(document))
+            self.assertTrue(is_lxml_etree_element(document.getroot()))
+        else:
+            self.assertFalse(is_lxml_document_node(document))
+            self.assertFalse(is_lxml_etree_element(document.getroot()))
+
+        self.assertEqual(document.getroot().tag, 'alpha')
+        self.assertEqual(document.getroot().text, 'abcd')
+
+        self.assertIsNone(self.parser.parse('fn:parse-xml(())').evaluate())
+
+        with self.assertRaises(ValueError) as ctx:
+            self.parser.parse('fn:parse-xml("<alpha>abcd<alpha>")').evaluate()
+
+        self.assertIn('FODC0006', str(ctx.exception))
+        self.assertIn('not a well-formed XML document', str(ctx.exception))
+        
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath3ParserTest(XPath30ParserTest):
