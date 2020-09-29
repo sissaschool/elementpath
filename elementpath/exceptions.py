@@ -58,6 +58,10 @@ class ElementPathOverflowError(ElementPathError, OverflowError):
     pass
 
 
+class ElementPathRuntimeError(ElementPathError, RuntimeError):
+    pass
+
+
 class ElementPathSyntaxError(ElementPathError, SyntaxError):
     pass
 
@@ -136,6 +140,12 @@ XPATH_ERROR_CODES = {
     'FORX0003': (ElementPathValueError, 'Regular expression matches zero-length string'),
     'FORX0004': (ElementPathValueError, 'Invalid replacement string'),
     'FOTY0012': (ElementPathValueError, 'Argument node does not have a typed value'),
+
+    # XPath 3.0 errors
+    'FODC0006': (ElementPathValueError,
+                 'String passed to fn:parse-xml is not a well-formed XML document'),
+    'FODC0010': (ElementPathRuntimeError,
+                 'The processor does not support serialization'),
 }
 
 

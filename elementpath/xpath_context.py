@@ -8,13 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+import xml.etree.ElementTree as ElementTree
 from functools import lru_cache
 from itertools import chain
 
 from .exceptions import ElementPathTypeError
 from .datatypes import Timezone
 from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
-    etree_iter_nodes, is_etree_element, is_element_node, is_document_node
+    etree_iter_nodes, is_etree_element, is_lxml_etree_element, is_element_node, \
+    is_document_node, is_lxml_document_node
 
 
 class XPathContext(object):
@@ -50,6 +52,7 @@ class XPathContext(object):
     _iter_nodes = staticmethod(etree_iter_nodes)
     _parent_map = None
     _elem = None
+    _etree = None
 
     def __init__(self, root, namespaces=None, item=None, position=1, size=1, axis=None,
                  variables=None, current_dt=None, timezone=None, documents=None,
@@ -126,6 +129,23 @@ class XPathContext(object):
         if self._parent_map is None:
             self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
         return self._parent_map
+
+    @property
+    def etree(self):
+        if self._etree is not None:
+            return self._etree
+        elif is_lxml_etree_element(self.root) or is_lxml_document_node(self.root):
+            try:
+                import lxml.etree as lxml_etree
+            except ImportError:
+                self._etree = ElementTree
+                return ElementTree
+            else:
+                self._etree = lxml_etree
+                return lxml_etree
+        else:
+            self._etree = ElementTree
+            return ElementTree
 
     @lru_cache(maxsize=1024)
     def get_parent(self, elem):

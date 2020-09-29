@@ -15,9 +15,11 @@ Refs:
   - https://www.w3.org/TR/xpath-functions-30/
 """
 import math
+import xml.etree.ElementTree as ElementTree
 
-from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
-from ..xpath_nodes import is_xpath_node, is_document_node, is_etree_element, TypedElement
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE
+from ..xpath_nodes import etree_iterpath, is_xpath_node, is_document_node, \
+    is_etree_element, TypedElement, TypedAttribute, AttributeNode, TextNode
 from ..xpath_context import XPathContext, XPathSchemaContext
 from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy
@@ -51,7 +53,7 @@ class XPath30Parser(XPath2Parser):
         # 'environment-variable', 'available-environment-variables',
 
         # Parsing and serializing
-        # 'parse-xml', 'parse-xml-fragment', 'serialize',
+        'parse-xml', 'parse-xml-fragment', 'serialize',
 
         # Higher-order functions
         # 'function-lookup', 'function-name', 'function-arity',
@@ -75,6 +77,7 @@ method = XPath30Parser.method
 function = XPath30Parser.function
 
 XPath30Parser.duplicate('{', 'Q{')
+
 
 ###
 # Mathematical functions
@@ -212,6 +215,24 @@ def evaluate(self, context=None):
 
     if is_document_node(item):
         return '/'
+    elif isinstance(item, TypedElement):
+        elem = item.elem
+    elif is_etree_element(item):
+        elem = item
+    else:
+        elem = self._elem
+
+    try:
+        root = context.root.getroot()
+    except AttributeError:
+        root = context.root
+        path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
+    else:
+        path = '/%s' % root.tag
+
+    for e, path in etree_iterpath(root, path):
+        if e is elem:
+            return path
 
 
 @method(function('has-children', nargs=(0, 1)))
@@ -265,6 +286,33 @@ def select(self, context=None):
         context.item for context.item in nodes
         if all(x not in nodes for x in context.iter_ancestors(axis='ancestor'))
     ])
+
+
+# Parsing and serializing
+@method(function('parse-xml', nargs=1))
+def evaluate(self, context=None):
+    # TODO: resolve relative entity references with static base URI
+    arg = self.get_argument(context, cls=str)
+    if arg is None:
+        return
+
+    etree = ElementTree if context is None else context.etree
+    try:
+        root = etree.XML(arg)
+    except etree.ParseError:
+        raise self.error('FODC0006')
+    else:
+        return etree.ElementTree(root)
+
+
+@method(function('parse-xml-fragment', nargs=1))
+def select(self, context=None):
+    arg = self.get_argument(context, cls=str)
+
+
+@method(function('serialize', nargs=1))
+def select(self, context=None):
+    arg = self.get_argument(context, cls=str)
 
 
 XPath30Parser.build()
