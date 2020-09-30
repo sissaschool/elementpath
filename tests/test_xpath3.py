@@ -22,6 +22,7 @@
 import unittest
 import os
 import math
+import pathlib
 import xml.etree.ElementTree as ElementTree
 
 try:
@@ -411,8 +412,8 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_parse_xml_function(self):
         document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
-        self.assertIsInstance(document, ElementTree.ElementTree)
-        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertTrue(is_document_node(document))
+        self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot().tag, 'alpha')
         self.assertEqual(document.getroot().text, 'abcd')
 
@@ -445,8 +446,8 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         document = self.parser.parse(
             'fn:parse-xml-fragment("<alpha>abcd</alpha><beta>abcd</beta>")'
         ).evaluate()
-        self.assertIsInstance(document, ElementTree.ElementTree)
-        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertTrue(is_document_node(document))
+        self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot()[0].tag, 'alpha')
         self.assertEqual(document.getroot()[0].text, 'abcd')
         self.assertEqual(document.getroot()[1].tag, 'beta')
@@ -455,22 +456,22 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         document = self.parser.parse(
             'fn:parse-xml-fragment("He was <i>so</i> kind")'
         ).evaluate()
-        self.assertIsInstance(document, ElementTree.ElementTree)
-        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertTrue(is_document_node(document))
+        self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot().text, 'He was ')
         self.assertEqual(document.getroot()[0].tag, 'i')
         self.assertEqual(document.getroot()[0].text, 'so')
         self.assertEqual(document.getroot()[0].tail, ' kind')
 
         document = self.parser.parse('fn:parse-xml-fragment("")').evaluate()
-        self.assertIsInstance(document, ElementTree.ElementTree)
-        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertTrue(is_document_node(document))
+        self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot().tag, 'document')
         self.assertIsNone(document.getroot().text)
 
         document = self.parser.parse('fn:parse-xml-fragment(" ")').evaluate()
-        self.assertIsInstance(document, ElementTree.ElementTree)
-        self.assertIsInstance(document.getroot(), ElementTree.Element)
+        self.assertTrue(is_document_node(document))
+        self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot().tag, 'document')
         self.assertEqual(document.getroot().text, ' ')
 
@@ -495,6 +496,91 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         context.variables['data'] = self.etree.XML("<a b='3'/>")
         result = self.parser.parse('fn:serialize($data, $params)').evaluate(context)
         self.assertEqual(result.replace(b' />', b'/>'), b'<a b="3"/>')
+
+    def test_head_function(self):
+        self.assertEqual(self.parser.parse('fn:head(1 to 5)').evaluate(), 1)
+        self.assertEqual(self.parser.parse('fn:head(("a", "b", "c"))').evaluate(), 'a')
+        self.assertIsNone(self.parser.parse('fn:head(())').evaluate())
+
+    def test_tail_function(self):
+        self.assertListEqual(self.parser.parse('fn:tail(1 to 5)').evaluate(), [2, 3, 4, 5])
+        self.assertListEqual(self.parser.parse('fn:tail(("a", "b", "c"))').evaluate(), ['b', 'c'])
+        self.assertListEqual(self.parser.parse('fn:tail(("a"))').evaluate(), [])
+        self.assertListEqual(self.parser.parse('fn:tail(())').evaluate(), [])
+
+    def test_generate_id_function(self):
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:generate-id()').evaluate()
+
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.parse('fn:generate-id(1)').evaluate()
+
+        self.assertIn('XPTY0004', str(ctx.exception))
+        self.assertIn('argument is not a node', str(ctx.exception))
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        result = self.parser.parse('fn:generate-id()').evaluate(context)
+        self.assertEqual(result, 'ID-{}'.format(id(context.item)))
+
+        result = self.parser.parse('fn:generate-id(.)').evaluate(context)
+        self.assertEqual(result, 'ID-{}'.format(id(context.item)))
+
+        context.item = 1
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.parse('fn:generate-id()').evaluate(context)
+
+        self.assertIn('XPTY0004', str(ctx.exception))
+        self.assertIn('context item is not a node', str(ctx.exception))
+
+    def test_unparsed_text_function(self):
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.parse('fn:unparsed-text("alpha#fragment")').evaluate()
+        self.assertIn('FOUT1170', str(ctx.exception))
+
+        self.assertIsNone(self.parser.parse('fn:unparsed-text(())').evaluate())
+
+        filepath = pathlib.Path(__file__).absolute().parent.joinpath('resources/sample.xml')
+        path = 'fn:unparsed-text("file://{}")'.format(str(filepath))
+        result = self.parser.parse(path).evaluate()
+        result = [x.strip() for x in result.strip().split('\n')]
+        self.assertListEqual(
+            result, ['<?xml version="1.0" encoding="UTF-8"?>', '<root>abc àèéìù</root>']
+        )
+
+        path = 'fn:unparsed-text("file://{}", "unknown")'.format(str(filepath))
+        with self.assertRaises(ValueError) as ctx:
+            self.parser.parse(path).evaluate()
+        self.assertIn('FOUT1190', str(ctx.exception))
+
+    def test_environment_variable_function(self):
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:environment-variable("PATH")').evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        path = 'fn:environment-variable("PATH")'
+        self.assertIsNone(self.parser.parse(path).evaluate(context))
+        context = XPathContext(root=root, allow_environment=True)
+
+        try:
+            key = list(os.environ)[0]
+        except IndexError:
+            pass
+        else:
+            path = 'fn:environment-variable("{}")'.format(key)
+            self.assertEqual(self.parser.parse(path).evaluate(context), os.environ[key])
+
+    def test_available_environment_variables_function(self):
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:available-environment-variables()').evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        path = 'fn:available-environment-variables()'
+        self.assertIsNone(self.parser.parse(path).evaluate(context))
+        context = XPathContext(root=root, allow_environment=True)
+        self.assertListEqual(self.parser.parse(path).evaluate(context), list(os.environ))
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

@@ -14,8 +14,12 @@ Refs:
   - https://www.w3.org/TR/2014/REC-xpath-30-20140408/
   - https://www.w3.org/TR/xpath-functions-30/
 """
+import os
+import codecs
 import math
 import xml.etree.ElementTree as ElementTree
+from urllib.parse import urlsplit
+from urllib.request import urlopen
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -49,9 +53,9 @@ class XPath30Parser(XPath2Parser):
         'path', 'has-children', 'innermost', 'outermost',
 
         # Functions and operators on sequences
-        # 'head', 'tail', 'generate-id', 'uri-collection',
-        # 'unparsed-text', 'unparsed-text-lines', 'unparsed-text-available',
-        # 'environment-variable', 'available-environment-variables',
+        'head', 'tail', 'generate-id', 'uri-collection',
+        'unparsed-text', 'unparsed-text-lines', 'unparsed-text-available',
+        'environment-variable', 'available-environment-variables',
 
         # Parsing and serializing
         'parse-xml', 'parse-xml-fragment', 'serialize',
@@ -289,6 +293,112 @@ def select(self, context=None):
     ])
 
 
+##
+# Functions and operators on sequences
+
+@method(function('head', nargs=1))
+def evaluate(self, context=None):
+    for item in self[0].select(context):
+        return item
+
+
+@method(function('tail', nargs=1))
+def select(self, context=None):
+    for k, item in enumerate(self[0].select(context)):
+        if k:
+            yield item
+
+
+@method(function('generate-id', nargs=(0, 1)))
+def evaluate(self, context=None):
+    arg = self.get_argument(context, default_to_context=True)
+    if arg is None:
+        return ''
+    elif not is_xpath_node(arg):
+        if self:
+            raise self.error('XPTY0004', "argument is not a node")
+        raise self.error('XPTY0004', "context item is not a node")
+    else:
+        return 'ID-{}'.format(id(arg))
+
+
+@method(function('uri-collection', nargs=(0, 1)))
+def evaluate(self, context=None):
+    uri = self.get_argument(context)
+    if context is None:
+        raise self.missing_context()
+    elif isinstance(context, XPathSchemaContext):
+        return
+    elif not self or uri is None:
+        if context.default_resource_collection is None:
+            raise self.error('FODC0002', 'no default resource collection has been defined')
+        resource_collection = context.default_resource_collection
+    else:
+        uri = self.get_absolute_uri(uri)
+        try:
+            resource_collection = context.resource_collections[uri]
+        except (KeyError, TypeError):
+            url_parts = urlsplit(uri)
+            if url_parts.scheme in ('', 'file') and \
+                    not url_parts.path.startswith(':') and url_parts.path.endswith('/'):
+                raise self.error('FODC0003', 'collection URI is a directory')
+            raise self.error('FODC0002', '{!r} collection not found'.format(uri)) from None
+
+    if not self.parser.match_sequence_type(resource_collection, 'xs:anyURI*'):
+        raise self.wrong_sequence_type("Type does not match sequence type xs:anyURI*")
+
+    return resource_collection
+
+
+@method(function('unparsed-text', nargs=(1, 2)))
+@method(function('unparsed-text-lines', nargs=(1, 2)))
+@method(function('unparsed-text-available', nargs=(1, 2)))
+def evaluate(self, context=None):
+    href = self.get_argument(context, cls=str)
+    if href is None:
+        return
+    elif urlsplit(href).fragment:
+        raise self.error('FOUT1170')
+
+    if len(self) > 1:
+        encoding = self.get_argument(context, index=1, required=True, cls=str)
+    else:
+        encoding = 'UTF-8'
+
+    uri = self.get_absolute_uri(href)
+    try:
+        codecs.lookup(encoding)
+    except LookupError:
+        raise self.error('FOUT1190') from None
+
+    with urlopen(uri) as rp:
+        obj = rp.read()
+
+    return codecs.decode(obj, encoding)
+
+
+@method(function('environment-variable', nargs=1))
+def evaluate(self, context=None):
+    name = self.get_argument(context, required=True, cls=str)
+    if context is None:
+        raise self.missing_context()
+    elif not context.allow_environment:
+        return
+    else:
+        return os.environ.get(name)
+
+
+@method(function('available-environment-variables', nargs=0))
+def evaluate(self, context=None):
+    if context is None:
+        raise self.missing_context()
+    elif not context.allow_environment:
+        return
+    else:
+        return list(os.environ)
+
+
+###
 # Parsing and serializing
 @method(function('parse-xml', nargs=1))
 @method(function('parse-xml-fragment', nargs=1))
@@ -324,18 +434,23 @@ def evaluate(self, context=None):
 
     chunks = []
     etree = ElementTree if context is None else context.etree
+    kwargs = {}
 
     child = params.find(
         'output:serialization-parameters/omit-xml-declaration',
         namespaces={'output': XSLT_XQUERY_SERIALIZATION_NAMESPACE},
     )
-    xml_declaration = child is not None and child.get('value') in ('yes',)
+    if child is not None and child.get('value') in ('yes',):
+        kwargs['xml_declaration'] = True
 
     for item in self[0].select(context):
         if is_etree_element(item):
-            chunks.append(etree.tostring(
-                item, encoding='utf-8', xml_declaration=xml_declaration
-            ))
+            try:
+                serialized_item  = etree.tostring(item, encoding='utf-8', **kwargs)
+            except TypeError:
+                serialized_item = etree.tostring(item, encoding='utf-8')
+
+            chunks.append(serialized_item )
 
     return b'\n'.join(chunks)
 

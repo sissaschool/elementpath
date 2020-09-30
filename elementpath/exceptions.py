@@ -146,6 +146,11 @@ XPATH_ERROR_CODES = {
                  'String passed to fn:parse-xml is not a well-formed XML document'),
     'FODC0010': (ElementPathRuntimeError,
                  'The processor does not support serialization'),
+    'FOUT1170': (ElementPathTypeError, 'Invalid $href argument to fn:unparsed-text()'),
+    'FOUT1190': (ElementPathValueError,
+                 'Cannot decode resource retrieved by fn:unparsed-text()'),
+    'FOUT1200': (ElementPathValueError,
+                 'Cannot infer encoding of resource retrieved by fn:unparsed-text()'),
 }
 
 
