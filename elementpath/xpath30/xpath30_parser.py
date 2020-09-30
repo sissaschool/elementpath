@@ -15,6 +15,7 @@ Refs:
   - https://www.w3.org/TR/xpath-functions-30/
 """
 import os
+import re
 import codecs
 import math
 import xml.etree.ElementTree as ElementTree
@@ -23,11 +24,12 @@ from urllib.request import urlopen
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..xpath_nodes import etree_iterpath, is_xpath_node, is_document_node, \
-    is_etree_element, TypedElement, TypedAttribute, AttributeNode, TextNode
+from ..xpath_nodes import etree_iterpath, is_xpath_node, \
+    is_document_node, is_etree_element, TypedElement
 from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy
+from ..regex import translate_pattern, RegexError
 
 
 class XPath30Parser(XPath2Parser):
@@ -47,7 +49,7 @@ class XPath30Parser(XPath2Parser):
         'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
 
         # String functions that use regular expressions
-        # 'analyze-string',
+        'analyze-string',
 
         # Functions and operators on nodes
         'path', 'has-children', 'innermost', 'outermost',
@@ -199,6 +201,64 @@ def evaluate(self, context):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     return math.atan2(x, y)
+
+
+###
+# String functions that use regular expressions
+@method(function('analyze-string', nargs=(2, 3)))
+def evaluate(self, context=None):
+    input_string = self.get_argument(context, default='', cls=str)
+    pattern = self.get_argument(context, 1, required=True, cls=str)
+    flags = 0
+    if len(self) > 2:
+        for c in self.get_argument(context, 2, required=True, cls=str):
+            if c in 'smix':
+                flags |= getattr(re, c.upper())
+            else:
+                raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
+
+    try:
+        python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
+        compiled_pattern = re.compile(python_pattern, flags=flags)
+    except (re.error, RegexError) as err:
+        msg = "Invalid regular expression: {}"
+        raise self.error('FORX0002', msg.format(str(err))) from None
+    except OverflowError as err:
+        raise self.error('FORX0002', err) from None
+
+    etree = ElementTree if context is None else context.etree
+    lines = ['<analyze-string-result xmlns="{}">'.format(XPATH_FUNCTIONS_NAMESPACE)]
+    k = 0
+
+    while k < len(input_string):
+        match = compiled_pattern.search(input_string, k)
+        if match is None:
+            lines.append('  <non-match>{}</non-match>'.format(input_string[k:]))
+            break
+        elif not match.groups():
+            start, stop = match.span()
+            if start > k:
+                lines.append('  <non-match>{}</non-match>'.format(input_string[k:start]))
+            lines.append('  <match>{}</match>'.format(input_string[start:stop]))
+            k = stop
+        else:
+            start, stop = match.span()
+            if start > k:
+                lines.append('  <non-match>{}</non-match>'.format(input_string[k:start]))
+                k = start
+
+            group_string = []
+            group_tmpl = '<group nr="{}">{}</group>'
+            for idx in range(1, len(match.groups()) + 1):
+                start, stop = match.span(idx)
+                if start > k:
+                    group_string.append(input_string[k:start])
+                group_string.append(group_tmpl.format(idx, input_string[start:stop]))
+                k = stop
+            lines.append('  <match>{}</match>'.format(''.join(group_string)))
+
+    lines.append('</analyze-string-result>')
+    return etree.XML('\n'.join(lines))
 
 
 ###
@@ -446,11 +506,11 @@ def evaluate(self, context=None):
     for item in self[0].select(context):
         if is_etree_element(item):
             try:
-                serialized_item  = etree.tostring(item, encoding='utf-8', **kwargs)
+                serialized_item = etree.tostring(item, encoding='utf-8', **kwargs)
             except TypeError:
                 serialized_item = etree.tostring(item, encoding='utf-8')
 
-            chunks.append(serialized_item )
+            chunks.append(serialized_item)
 
     return b'\n'.join(chunks)
 

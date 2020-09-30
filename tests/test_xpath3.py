@@ -48,7 +48,25 @@ except ImportError:
     import test_xpath2_parser
 
 
+ANALYZE_STRING_1 = """<analyze-string-result xmlns="http://www.w3.org/2005/xpath-functions">
+  <match><group nr="1">2008</group>-<group nr="2">12</group>-<group nr="3">03</group></match>
+</analyze-string-result>"""
+
+ANALYZE_STRING_2 = """<analyze-string-result xmlns="http://www.w3.org/2005/xpath-functions">
+  <match><group nr="1">A</group><group nr="2">1</group></match>
+  <non-match>,</non-match>
+  <match><group nr="1">C</group><group nr="2">15</group></match>
+  <non-match>,,</non-match>
+  <match><group nr="1">D</group><group nr="2">24</group></match>
+  <non-match>, </non-match>
+  <match><group nr="1">X</group><group nr="2">50</group></match>
+  <non-match>,</non-match>
+</analyze-string-result>"""
+
+
 class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
+
+    maxDiff = 1024
 
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
@@ -298,6 +316,40 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(self.parser.parse('math:atan2(+0.0e0, -1)').evaluate(), math.pi)
         self.assertEqual(self.parser.parse('math:atan2(-0.0e0, +1)').evaluate(), -0.0e0)
         self.assertEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
+
+    def test_analyze_string_function(self):
+        token = self.parser.parse('fn:analyze-string("The cat sat on the mat.", "unmatchable")')
+        root = token.evaluate()
+        self.assertEqual(len(root), 1)
+        self.assertEqual(root[0].text, "The cat sat on the mat.")
+
+        token = self.parser.parse(r'fn:analyze-string("The cat sat on the mat.", "\w+")')
+        root = token.evaluate()
+        self.assertEqual(len(root), 12)
+        chunks = ['The', ' ', 'cat', ' ', 'sat', ' ', 'on', ' ', 'the', ' ', 'mat', '.']
+        for k in range(len(chunks)):
+            if k % 2:
+                self.assertEqual(root[k].tag, '{http://www.w3.org/2005/xpath-functions}non-match')
+            else:
+                self.assertEqual(root[k].tag, '{http://www.w3.org/2005/xpath-functions}match')
+            self.assertEqual(root[k].text, chunks[k])
+
+        token = self.parser.parse(r'fn:analyze-string("2008-12-03", "^(\d+)\-(\d+)\-(\d+)$")')
+        root = token.evaluate()
+        self.assertEqual(len(root), 1)
+        ElementTree.register_namespace('', 'http://www.w3.org/2005/xpath-functions')
+        self.assertEqual(
+            ElementTree.tostring(root, encoding='utf-8').decode('utf-8'),
+            ANALYZE_STRING_1
+        )
+
+        token = self.parser.parse('fn:analyze-string("A1,C15,,D24, X50,", "([A-Z])([0-9]+)")')
+        root = token.evaluate()
+        self.assertEqual(len(root), 8)
+        self.assertEqual(
+            ElementTree.tostring(root, encoding='utf-8').decode('utf-8'),
+            ANALYZE_STRING_2
+        )
 
     def test_has_children_function(self):
         with self.assertRaises(MissingContextError):
