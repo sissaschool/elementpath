@@ -20,7 +20,6 @@ import codecs
 import math
 import xml.etree.ElementTree as ElementTree
 from urllib.parse import urlsplit
-from urllib.request import urlopen
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -414,6 +413,8 @@ def evaluate(self, context=None):
 @method(function('unparsed-text-lines', nargs=(1, 2)))
 @method(function('unparsed-text-available', nargs=(1, 2)))
 def evaluate(self, context=None):
+    from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
+
     href = self.get_argument(context, cls=str)
     if href is None:
         return
