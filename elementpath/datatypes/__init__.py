@@ -14,8 +14,6 @@ exceptions in order to be reusable in other packages.
 """
 from decimal import Decimal
 
-from ..namespaces import XSD_NAMESPACE
-
 from .helpers import is_idrefs, QNAME_PATTERN
 from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType
 from .untyped import UntypedAtomic
@@ -81,7 +79,7 @@ ATOMIC_VALUES = {
     'duration': Duration.fromstring('P1MT1S'),
     'dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
     'yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
-    'QName': QName(XSD_NAMESPACE, 'xs:element'),
+    'QName': QName("http://www.w3.org/2001/XMLSchema", 'xs:element'),
     'anyURI': AnyURI('https://example.com'),
     'normalizedString': NormalizedString(' alpha  '),
     'token': XsdToken('a token'),
