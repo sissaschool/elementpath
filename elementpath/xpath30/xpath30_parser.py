@@ -40,12 +40,13 @@ class XPath30Parser(XPath2Parser):
     SYMBOLS = XPath2Parser.SYMBOLS | {
         'Q{',  # see BracedURILiteral rule
 
-        # Formatting functions
-        # 'format-integer', 'format-dateTime', 'format-date', 'format-time',
-
-        # Trigonometric and exponential functions
+        # Math functions (trigonometric and exponential)
         'pi', 'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
         'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+
+        # Formatting functions
+        'format-integer', 'format-number', 'format-dateTime',
+        'format-date', 'format-time',
 
         # String functions that use regular expressions
         'analyze-string',
@@ -200,6 +201,43 @@ def evaluate(self, context):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     return math.atan2(x, y)
+
+
+###
+# Formatting functions
+@method(function('format-integer', nargs=(2, 3)))
+def evaluate(self, context):
+    value = self.get_argument(context, cls=NumericProxy)
+    if value is None:
+        return ''
+
+
+@method(function('format-number', nargs=(2, 3)))
+def evaluate(self, context):
+    value = self.get_argument(context, cls=NumericProxy)
+    if value is None:
+        return ''
+
+
+@method(function('format-dateTime', nargs=(2, 3)))
+def evaluate(self, context):
+    value = self.get_argument(context, cls=NumericProxy)
+    if value is None:
+        return ''
+
+
+@method(function('format-date', nargs=(2, 5)))
+def evaluate(self, context):
+    value = self.get_argument(context, cls=NumericProxy)
+    if value is None:
+        return None
+
+
+@method(function('format-time', nargs=(2, 3)))
+def evaluate(self, context):
+    value = self.get_argument(context, cls=NumericProxy)
+    if value is None:
+        return ''
 
 
 ###
