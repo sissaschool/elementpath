@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.0.4`_ (2020-10-30)
+======================
+* Lazy tokenizer for parser classes in order to minimize import time
+
 `v2.0.3`_ (2020-09-13)
 ======================
 * Fix context handling in cycle statements
@@ -250,3 +254,4 @@ CHANGELOG
 .. _v2.0.1: https://github.com/sissaschool/elementpath/compare/v2.0.0...v2.0.1
 .. _v2.0.2: https://github.com/sissaschool/elementpath/compare/v2.0.1...v2.0.2
 .. _v2.0.3: https://github.com/sissaschool/elementpath/compare/v2.0.2...v2.0.3
+.. _v2.0.4: https://github.com/sissaschool/elementpath/compare/v2.0.3...v2.0.4

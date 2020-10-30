@@ -129,4 +129,3 @@ def select(self, context=None):
 
 
 register = XPath1Parser.register('(end)')
-XPath1Parser.build()

@@ -576,6 +576,3 @@ def evaluate(self, context=None):
         return arg
     else:
         return self.cast(arg)
-
-
-XPath2Parser.build()  # XPath 2.0 definition complete, can build the parser class.

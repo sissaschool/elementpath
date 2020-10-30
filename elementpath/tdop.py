@@ -377,7 +377,7 @@ class Parser(metaclass=ParserMeta):
 
     def __init__(self):
         if self.tokenizer is None:
-            raise ValueError("The parser %r is not built!" % self.__class__)
+            self.build()
         self.source = ''
         self.tokens = iter(())
         self.match = None
