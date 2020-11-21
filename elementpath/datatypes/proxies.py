@@ -79,7 +79,10 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
 
     @classmethod
     def validate(cls, value):
-        if isinstance(value, (int, Decimal, Integer)) and not isinstance(value, bool):
+        if isinstance(value, Decimal):
+            if math.isnan(value) or math.isinf(value):
+                raise cls.invalid_value(value)
+        elif isinstance(value, (int, Integer)) and not isinstance(value, bool):
             return
         elif not isinstance(value, str):
             raise cls.invalid_type(value)
