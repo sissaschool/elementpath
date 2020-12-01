@@ -80,7 +80,7 @@ def evaluate(self, context=None):
         return
     elif not isinstance(qname, QName):
         raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
-    return AnyURI(qname.namespace or '')
+    return AnyURI(qname.uri or '')
 
 
 @method(function('namespace-uri-for-prefix', nargs=2))

@@ -972,7 +972,7 @@ def select(self, context=None):
                 context.item = None
             yield from self[0].select(context)
     else:
-        items = []
+        items = set()
         for _ in context.inner_focus_select(self[0]):
             if not is_xpath_node(context.item):
                 raise self.error('XPTY0019')
@@ -984,10 +984,10 @@ def select(self, context=None):
                     pass
                 elif isinstance(result, (TypedAttribute, TypedElement)):
                     if result[0] not in items:
-                        items.append(result)
+                        items.add(result)
                         yield result
                 else:
-                    items.append(result)
+                    items.add(result)
                     yield result
                     if isinstance(context, XPathSchemaContext):
                         self[1].add_xsd_type(result)

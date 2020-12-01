@@ -943,7 +943,7 @@ class XPathToken(Token):
         :param message_or_error: an optional custom additional message.
         """
         if isinstance(code, QName):
-            code, namespace = code.local_name, code.namespace
+            code, namespace = code.local_name, code.uri
         elif ':' not in code:
             namespace = None
         else:
