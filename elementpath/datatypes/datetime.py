@@ -13,7 +13,8 @@ import operator
 import re
 import datetime
 from calendar import isleap
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
+from typing import Union
 
 from .helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
@@ -57,8 +58,8 @@ class Timezone(datetime.tzinfo):
 
     @classmethod
     def fromduration(cls, duration):
-        if duration.seconds % 1 != 0:
-            raise ValueError("{!r} isn't an integral number of minutes".format(duration))
+        if duration.seconds % 60 != 0:
+            raise ValueError("{!r} has not an integral number of minutes".format(duration))
         return cls(datetime.timedelta(seconds=int(duration.seconds)))
 
     def __getinitargs__(self):
@@ -140,7 +141,7 @@ class AbstractDateTime(metaclass=AtomicTypeABCMeta):
             raise OverflowError("year overflow")
         else:
             self._year = year
-            if isleap(year + bool(self.version != '1.0')):
+            if isleap(year + bool(self.xsd_version != '1.0')):
                 self._dt = datetime.datetime(4, month, day, hour, minute,
                                              second, microsecond, tzinfo)
             else:
@@ -183,9 +184,9 @@ class AbstractDateTime(metaclass=AtomicTypeABCMeta):
         """The ISO string representation of the year field."""
         year = self.year
         if -9999 <= year < -1:
-            return '{:05}'.format(year if self.version == '1.0' else year + 1)
+            return '{:05}'.format(year if self.xsd_version == '1.0' else year + 1)
         elif year == -1:
-            return '-0001' if self.version == '1.0' else '0000'
+            return '-0001' if self.xsd_version == '1.0' else '0000'
         elif 0 <= year <= 9999:
             return '{:04}'.format(year)
         else:
@@ -251,12 +252,18 @@ class AbstractDateTime(metaclass=AtomicTypeABCMeta):
             kwargs['tzinfo'] = tzinfo
 
         if 'microsecond' in kwargs:
-            pow10 = 6 - len(match.groupdict()['microsecond'])
+            microseconds = match.groupdict()['microsecond']
+            pow10 = 6 - len(microseconds)
+            try:
+                zeros = min(k for k in range(len(microseconds)) if '0' != microseconds[k])
+            except ValueError:
+                zeros = 0
+
             if pow10 == 0:
                 pass
             elif pow10 > 0:
                 kwargs['microsecond'] = kwargs['microsecond'] * 10**pow10
-            elif kwargs['microsecond'] > 999999:
+            elif (kwargs['microsecond'] // 1 ** zeros) > 999999:
                 msg = "Invalid value {} for microsecond"
                 raise OverflowError(msg.format(kwargs['microsecond']))
             else:
@@ -269,7 +276,7 @@ class AbstractDateTime(metaclass=AtomicTypeABCMeta):
                       "exceeds 4 digits leading zeroes are not allowed)"
                 raise ValueError(msg.format(datetime_string, cls))
 
-            if cls.version == '1.0':
+            if cls.xsd_version == '1.0':
                 if kwargs['year'] == 0:
                     raise ValueError("year '0000' is an illegal value for XSD 1.0")
             elif kwargs['year'] <= 0:
@@ -523,7 +530,7 @@ class DateTime10(OrderedDateTime):
 class DateTime(DateTime10):
     """XSD 1.1 xs:dateTime builtin type"""
     name = 'dateTime'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
 class DateTimeStamp(DateTime):
@@ -554,7 +561,7 @@ class Date10(OrderedDateTime):
 class Date(Date10):
     """XSD 1.1 xs:date builtin type"""
     name = 'date'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
 class GregorianDay(OrderedDateTime):
@@ -612,7 +619,7 @@ class GregorianYear10(OrderedDateTime):
 class GregorianYear(GregorianYear10):
     """XSD 1.1 xs:gYear builtin type"""
     name = 'gYear'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
 class GregorianYearMonth10(OrderedDateTime):
@@ -631,7 +638,7 @@ class GregorianYearMonth10(OrderedDateTime):
 class GregorianYearMonth(GregorianYearMonth10):
     """XSD 1.1 xs:gYearMonth builtin type"""
     name = 'gYearMonth'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
 class Time(AbstractDateTime):
@@ -700,8 +707,8 @@ class Duration(AnyAtomicType):
     Base class for the XSD duration types.
 
     :param months: an integer value that represents years and months.
-    :param seconds: a Decimal instance that represents days, hours, minutes, \
-    seconds and fractions of seconds.
+    :param seconds: a decimal or an integer instance that represents \
+    days, hours, minutes, seconds and fractions of seconds.
     """
     name = 'duration'
     pattern = re.compile(
@@ -709,7 +716,7 @@ class Duration(AnyAtomicType):
         r'(?:T(?=[0-9])(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\.[0-9]+)?)S)?)?$'
     )
 
-    def __init__(self, months=0, seconds=0):
+    def __init__(self, months: int = 0, seconds: Union[Decimal, int] = 0):
         if seconds < 0 < months or months < 0 < seconds:
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         elif abs(months) > 2 ** 31:
@@ -718,10 +725,7 @@ class Duration(AnyAtomicType):
             raise OverflowError("seconds duration overflow")
 
         self.months = months
-        try:
-            self.seconds = Decimal(seconds).quantize(Decimal('1.000000'))
-        except InvalidOperation:
-            self.seconds = Decimal(seconds)
+        self.seconds = Decimal(seconds).quantize(Decimal('1.000000'))
 
     def __repr__(self):
         return '{}(months={!r}, seconds={})'.format(
@@ -864,7 +868,7 @@ class YearMonthDuration(Duration):
 
     name = 'yearMonthDuration'
 
-    def __init__(self, months=0):
+    def __init__(self, months: int = 0):
         super(YearMonthDuration, self).__init__(months, 0)
 
     def __repr__(self):
@@ -913,7 +917,7 @@ class DayTimeDuration(Duration):
 
     name = 'dayTimeDuration'
 
-    def __init__(self, seconds=0):
+    def __init__(self, seconds: Union[Decimal, int] = 0):
         super(DayTimeDuration, self).__init__(0, seconds)
 
     @classmethod
@@ -952,8 +956,7 @@ class DayTimeDuration(Duration):
             seconds = self.seconds * other
         else:
             seconds = self.seconds * Decimal.from_float(other)
-        if math.isinf(seconds):
-            raise OverflowError("overflow when multiplying a %r by a number" % type(self))
+
         return DayTimeDuration(seconds)
 
     def __truediv__(self, other):
@@ -968,6 +971,5 @@ class DayTimeDuration(Duration):
             seconds = self.seconds / other
         else:
             seconds = self.seconds / Decimal.from_float(other)
-        if math.isinf(seconds):
-            raise OverflowError("overflow when dividing a %r by a number" % type(self))
+
         return DayTimeDuration(seconds)

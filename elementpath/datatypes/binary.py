@@ -10,7 +10,6 @@
 from abc import abstractmethod
 import re
 import codecs
-import base64
 
 from .helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeABCMeta
@@ -47,6 +46,9 @@ class AbstractBinary(metaclass=AtomicTypeABCMeta):
     def __bytes__(self):
         return self.value
 
+    def __hash__(self):
+        return hash(self.value)
+
     def __str__(self):
         return self.value.decode('utf-8')
 
@@ -68,7 +70,8 @@ class AbstractBinary(metaclass=AtomicTypeABCMeta):
 class Base64Binary(AbstractBinary):
     name = 'base64Binary'
     pattern = re.compile(
-        r'((?:(?:[A-Za-z0-9+/] ?){4})*(?:(?:[A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|(?:[A-Za-z0-9+/] ?){2}'
+        r'((?:(?:[A-Za-z0-9+/] ?){4})*(?:(?:[A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|'
+        r'(?:[A-Za-z0-9+/] ?){2}'
         r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'
     )
 
@@ -82,17 +85,10 @@ class Base64Binary(AbstractBinary):
             raise cls.invalid_type(value)
 
         value = value.replace(' ', '')
-        if not value:
-            return True
-
-        match = cls.pattern.match(value)
-        if match is None or match.group(0) != value:
-            raise cls.invalid_value(value)
-
-        try:
-            base64.standard_b64decode(value)
-        except (ValueError, TypeError):
-            raise cls.invalid_value(value)
+        if value:
+            match = cls.pattern.match(value)
+            if match is None or match.group(0) != value:
+                raise cls.invalid_value(value)
 
     @staticmethod
     def encoder(value):
@@ -128,6 +124,9 @@ class HexBinary(AbstractBinary):
 
     def __str__(self):
         return self.value.decode('utf-8').upper()
+
+    def __hash__(self):
+        return hash(self.value)
 
     def __eq__(self, other):
         if isinstance(other, (AbstractBinary, UntypedAtomic)):

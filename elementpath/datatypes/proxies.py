@@ -70,8 +70,9 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
                 raise cls.invalid_value(value)
         try:
             return Decimal(value)
-        except ArithmeticError:
-            raise ArithmeticError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        except (ValueError, ArithmeticError):
+            msg = 'invalid value {!r} for xs:{}'
+            raise ArithmeticError(msg.format(value, cls.name)) from None
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -93,13 +94,13 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
 class DoubleProxy10(metaclass=AtomicTypeABCMeta):
     name = 'double'
     pattern = re.compile(
-        r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
+        r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value):
+    def __new__(cls, value: object) -> float:
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in {'INF', '-INF', 'NaN'} or cls.version != '1.0' and value == '+INF':
+            if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
                 pass
             elif value.lower() in {'inf', '+inf', '-inf', 'nan',
                                    'infinity', '+infinity', '-infinity'}:
@@ -122,7 +123,7 @@ class DoubleProxy10(metaclass=AtomicTypeABCMeta):
 
 class DoubleProxy(DoubleProxy10):
     name = 'double'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
 class StringProxy(metaclass=AtomicTypeABCMeta):

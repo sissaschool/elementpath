@@ -22,7 +22,7 @@ class Float10(float, AnyAtomicType):
     def __new__(cls, value):
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in {'INF', '-INF', 'NaN'} or cls.version != '1.0' and value == '+INF':
+            if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
                 pass
             elif value.lower() in {'inf', '+inf', '-inf', 'nan',
                                    'infinity', '+infinity', '-infinity'}:
@@ -32,11 +32,6 @@ class Float10(float, AnyAtomicType):
         if -1e-37 < value < 1e-37:
             return super().__new__(cls, 0.0)
         return value
-
-    def __init__(self, value, version='1.0'):
-        if version != '1.0':
-            self.version = version
-        super().__init__()
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -108,7 +103,7 @@ class Float10(float, AnyAtomicType):
 
 class Float(Float10):
     name = 'float'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
 class Integer(int, metaclass=AtomicTypeABCMeta):
@@ -133,8 +128,6 @@ class Integer(int, metaclass=AtomicTypeABCMeta):
     @classmethod
     def validate(cls, value):
         if isinstance(value, cls):
-            return
-        elif cls.name == 'integer' and isinstance(value, int) and not isinstance(value, bool):
             return
         elif not isinstance(value, str):
             raise cls.invalid_type(value)

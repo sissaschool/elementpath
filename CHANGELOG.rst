@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.0.5`_ (2020-12-02)
+======================
+* More tests and small fixes to XSD builtin datatypes
+
 `v2.0.4`_ (2020-10-30)
 ======================
 * Lazy tokenizer for parser classes in order to minimize import time
@@ -255,3 +259,4 @@ CHANGELOG
 .. _v2.0.2: https://github.com/sissaschool/elementpath/compare/v2.0.1...v2.0.2
 .. _v2.0.3: https://github.com/sissaschool/elementpath/compare/v2.0.2...v2.0.3
 .. _v2.0.4: https://github.com/sissaschool/elementpath/compare/v2.0.3...v2.0.4
+.. _v2.0.5: https://github.com/sissaschool/elementpath/compare/v2.0.4...v2.0.5
