@@ -103,6 +103,13 @@ class XPathContextTest(unittest.TestCase):
             id(context._parent_map), parent_map_id  # LRU cache prevents parent map rebuild
         )
 
+        document = ElementTree.ElementTree(root)
+        context = XPathContext(root=document)
+
+        self.assertEqual(context.get_parent(root[1]), root)
+        self.assertEqual(context.get_parent(root[2]), root)
+        self.assertEqual(context.get_parent(root[2][1]), root[2])
+
     def test_get_path(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
 
@@ -118,6 +125,11 @@ class XPathContextTest(unittest.TestCase):
         self.assertEqual(context.get_path(root[2][1]), '/A/B3/C2')
         context._elem = root[2][1]
         self.assertEqual(context.get_path(AttributeNode('max', '10')), '/A/B3/C2/@max')
+
+        document = ElementTree.ElementTree(root)
+        context = XPathContext(root=document)
+
+        self.assertEqual(context.get_path(root[2][0]), '/A/B3/C1')
 
         root = ElementTree.XML('<A><B1>10</B1><B2 min="1"/><B3/></A>')
         context = XPathContext(root)

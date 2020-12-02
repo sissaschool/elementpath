@@ -45,10 +45,7 @@ function('empty-sequence', nargs=0, label='sequence type')
 def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif context.item is None:
-        return context.root
-    else:
-        return context.item
+    return context.root if context.item is None else context.item
 
 
 ###
@@ -124,9 +121,7 @@ def select(self, context=None):
         # For lxml returns Element's prefixes
         if 'xml' not in elem.nsmap:
             yield 'xml'
-        for prefix in elem.nsmap:
-            if prefix:
-                yield prefix
+        yield from filter(lambda x: x, elem.nsmap)
     else:
         # For ElementTree returns module registered prefixes
         prefixes = {x for x in self.parser.namespaces if x}

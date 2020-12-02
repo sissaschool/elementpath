@@ -740,8 +740,18 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             self.assertNotIn('p1', prefixes)
             self.assertIn('p2', prefixes)
 
+            # Provides namespaces through the dynamic context
+            selector = Selector("fn:in-scope-prefixes(.)", parser=type(self.parser))
+            prefixes = selector.select(root, namespaces=namespaces)
+
+            self.assertIn('p0', prefixes)
+            self.assertNotIn('p1', prefixes)
+            self.assertIn('p2', prefixes)
+
         with self.assertRaises(TypeError):
             select(root, "fn:in-scope-prefixes('')", namespaces, parser=type(self.parser))
+
+
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""

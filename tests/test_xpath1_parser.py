@@ -1149,6 +1149,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             + [('tst', 'http://xpath.test/ns')]
         self.check_selector('/A/namespace::*', root, expected=set(namespaces),
                             namespaces=namespaces[-1:])
+        self.check_value('namespace::*', MissingContextError)
 
     def test_parent_shortcut_and_axis(self):
         root = self.etree.XML(
