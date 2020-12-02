@@ -14,6 +14,7 @@ import datetime
 import math
 import operator
 import pickle
+import platform
 import random
 from decimal import Decimal
 from calendar import isleap
@@ -1241,8 +1242,14 @@ class BinaryTypesTest(unittest.TestCase):
         self.assertEqual(Base64Binary(Base64Binary(b'YWxwaGE=')), b'YWxwaGE=')
         self.assertEqual(HexBinary(HexBinary(b'F859')), b'F859')
 
-        self.assertEqual(Base64Binary(HexBinary(b'F859')).decode(), HexBinary(b'F859').decode())
-        self.assertEqual(HexBinary(Base64Binary(b'YWxwaGE=')).decode(), b'alpha')
+        try:
+            self.assertEqual(Base64Binary(HexBinary(b'F859')).decode(),
+                             HexBinary(b'F859').decode())
+            self.assertEqual(HexBinary(Base64Binary(b'YWxwaGE=')).decode(), b'alpha')
+        except TypeError:
+            # Issue #3001 of pypy3.6 with codecs.decode(), fixed with PyPy 7.2.0.
+            if platform.python_implementation() != 'PyPy':
+                raise
 
     def test_string_representation(self):
         self.assertEqual(repr(Base64Binary(b'YWxwaGE=')), "Base64Binary(b'YWxwaGE=')")
@@ -1292,7 +1299,12 @@ class BinaryTypesTest(unittest.TestCase):
         self.assertEqual(Base64Binary.encoder(b'alpha'), b'YWxwaGE=')
 
     def test_decoder(self):
-        self.assertEqual(Base64Binary(b'YWxwaGE=').decode(), b'alpha')
+        try:
+            self.assertEqual(Base64Binary(b'YWxwaGE=').decode(), b'alpha')
+        except TypeError:
+            # Issue #3001 of pypy3.6 with codecs.decode(), fixed with PyPy 7.2.0.
+            if platform.python_implementation() != 'PyPy':
+                raise
 
 
 class QNameTypesTest(unittest.TestCase):

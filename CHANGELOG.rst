@@ -4,6 +4,7 @@ CHANGELOG
 
 `v2.0.5`_ (2020-12-02)
 ======================
+* Increase the speed of path step selection on large trees
 * More tests and small fixes to XSD builtin datatypes
 
 `v2.0.4`_ (2020-10-30)
