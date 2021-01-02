@@ -23,7 +23,7 @@ from ..namespaces import XSD_ANY_SIMPLE_TYPE, XML_NAMESPACE, XSD_NAMESPACE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import XPathToken
-from ..xpath_nodes import XPathNode, AttributeNode, TypedAttribute, TypedElement, \
+from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
     is_xpath_node, match_element_node, is_schema_node, is_document_node, \
     match_attribute_node, is_element_node, node_kind
 
@@ -982,8 +982,12 @@ def select(self, context=None):
                     yield result
                 elif result in items:
                     pass
-                elif isinstance(result, (TypedAttribute, TypedElement)):
-                    if result[0] not in items:
+                elif isinstance(result, TypedElement):
+                    if result.elem not in items:
+                        items.add(result)
+                        yield result
+                elif isinstance(result, TypedAttribute):
+                    if result.attribute not in items:
                         items.add(result)
                         yield result
                 else:

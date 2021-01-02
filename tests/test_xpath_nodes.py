@@ -74,13 +74,13 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
+            typed_root = TypedElement(elem=root, xsd_type=xsd_type, value='text1')
             self.assertListEqual(list(etree_iter_strings(typed_root)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
+            typed_root = TypedElement(elem=root, xsd_type=xsd_type, value='text1')
             self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
 
             comment = ElementTree.Comment('foo')
@@ -122,7 +122,7 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_elem = TypedElement(elem=elem, type=xsd_type, value='text1')
+            typed_elem = TypedElement(elem=elem, xsd_type=xsd_type, value='text1')
             self.assertTrue(match_element_node(typed_elem, '*'))
 
     def test_match_attribute_node_function(self):
@@ -235,10 +235,10 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            typed_elem = TypedElement(elem=elem, type=xsd_type, value=10)
+            typed_elem = TypedElement(elem=elem, xsd_type=xsd_type, value=10)
             self.assertEqual(node_name(typed_elem), 'root')
 
-            typed_attr = TypedAttribute(attribute=attr, type=xsd_type, value=20)
+            typed_attr = TypedAttribute(attribute=attr, xsd_type=xsd_type, value=20)
             self.assertEqual(node_name(typed_attr), 'a1')
 
 

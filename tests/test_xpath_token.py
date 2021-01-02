@@ -253,9 +253,9 @@ class XPath1TokenTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_elem = TypedElement(elem=element, type=xsd_type, value=10)
+            typed_elem = TypedElement(elem=element, xsd_type=xsd_type, value=10)
             self.assertEqual(token.string_value(typed_elem), '10')
-            typed_elem = TypedElement(elem=element, type=xsd_type, value=None)
+            typed_elem = TypedElement(elem=element, xsd_type=xsd_type, value=None)
             self.assertEqual(token.string_value(typed_elem), '')
 
     def test_number_value_function(self):
@@ -592,8 +592,8 @@ class XPath2TokenTest(XPath1TokenTest):
             context = XPathContext(root=schema.meta_schema, item=attribute, axis='self')
             obj = list(root_token.select_xsd_nodes(context, 'a'))
             self.assertIsInstance(obj[0], TypedAttribute)
-            self.assertEqual(obj[0][0], attribute)
-            self.assertIsInstance(obj[0][-1], str)
+            self.assertEqual(obj[0].attribute, attribute)
+            self.assertIsInstance(obj[0].value, str)
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['string']})
 
         finally:
@@ -702,8 +702,8 @@ class XPath2TokenTest(XPath1TokenTest):
             elem.text = '49'
             node = root_token.get_typed_node(elem)
             self.assertIsInstance(node, TypedElement)
-            self.assertIsInstance(node[1], xmlschema.XsdType)
-            self.assertEqual(node[2], 49)
+            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
+            self.assertEqual(node.value, 49)
 
             elem.text = 'beta'
             with self.assertRaises(TypeError) as err:
@@ -715,13 +715,13 @@ class XPath2TokenTest(XPath1TokenTest):
             elem.text = '36'
             node = root_token.get_typed_node(elem)
             self.assertIsInstance(node, TypedElement)
-            self.assertIsInstance(node[1], xmlschema.XsdType)
-            self.assertIsInstance(node[2], UntypedAtomic)
-            self.assertEqual(node[2], 36)
+            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
+            self.assertIsInstance(node.value, UntypedAtomic)
+            self.assertEqual(node.value, 36)
 
             root_token.xsd_types['root'] = schema.meta_schema.types['anyType']
             node = root_token.get_typed_node(elem)
-            self.assertIs(node[0], elem)
+            self.assertIs(node.elem, elem)
 
             root_token = self.parser.parse('@a')
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['int']})
@@ -729,15 +729,15 @@ class XPath2TokenTest(XPath1TokenTest):
             attribute = AttributeNode('a', '10')
             node = root_token[0].get_typed_node(attribute)
             self.assertIsInstance(node, TypedAttribute)
-            self.assertIsInstance(node[1], xmlschema.XsdType)
-            self.assertEqual(node[2], 10)
+            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
+            self.assertEqual(node.value, 10)
 
             root_token[0].xsd_types['a'] = schema.meta_schema.types['anyType']
             node = root_token[0].get_typed_node(attribute)
             self.assertIsInstance(node, TypedAttribute)
-            self.assertIsInstance(node[1], xmlschema.XsdType)
-            self.assertIsInstance(node[2], UntypedAtomic)
-            self.assertEqual(node[2], 10)
+            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
+            self.assertIsInstance(node.value, UntypedAtomic)
+            self.assertEqual(node.value, 10)
 
         finally:
             self.parser.schema = None

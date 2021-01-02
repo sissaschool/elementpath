@@ -11,7 +11,8 @@
 Helper functions for XPath nodes and basic data types.
 """
 from urllib.parse import urlparse
-from typing import Union, Any, NamedTuple, Optional
+from abc import ABC, abstractmethod
+from typing import Union, Any, Optional
 from xml.etree.ElementTree import Element
 
 from .namespaces import XML_BASE, XSI_NIL
@@ -20,9 +21,11 @@ from .exceptions import ElementPathValueError
 
 ###
 # Node types
-class XPathNode:
+class XPathNode(ABC):
 
-    def as_tuple(self):
+    @property
+    @abstractmethod
+    def kind(self):
         raise NotImplementedError
 
 
@@ -39,8 +42,15 @@ class AttributeNode(XPathNode):
         self.value = value
         self.parent = parent
 
-    def as_tuple(self):
+    @property
+    def kind(self):
+        return 'attribute'
+
+    def as_item(self):
         return self.name, self.value
+
+    def __repr__(self):
+        return '%s(name=%r)' % (self.__class__.__name__, self.name)
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and \
@@ -54,26 +64,40 @@ class AttributeNode(XPathNode):
 
 class TextNode(XPathNode):
     """
-    A class for processing XPath text nodes. A text node is the elem.text
-    value if it's not `None`, otherwise the element doesn't have a text node.
+    A class for processing XPath text nodes. An Element's property
+    (elem.text or elem.tail) with a `None` value is not a text node.
 
     :param value: a string value.
     :param parent: the parent element.
+    :param tail: provide `True` if the text node is the parent Element's tail.
     """
-    def __init__(self, value: Union[str, Any], parent: Optional[Element] = None):
+    _tail = False
+
+    def __init__(self, value: str, parent: Optional[Element] = None, tail=False):
         self.value = value
         self.parent = parent
+        if tail and parent is not None:
+            self._tail = True
 
-    def as_tuple(self):
-        return self.value,
+    @property
+    def kind(self):
+        return 'text'
+
+    def is_tail(self):
+        """Returns `True` if the node has a parent and represents the tail text."""
+        return self._tail
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and \
             self.value == other.value and \
-            self.parent is other.parent
+            self.parent is other.parent and \
+            self._tail is other._tail
 
     def __hash__(self):
-        return hash((self.value, self.parent))
+        return hash((self.value, self.parent, self._tail))
 
 
 class NamespaceNode(XPathNode):
@@ -89,8 +113,19 @@ class NamespaceNode(XPathNode):
         self.uri = uri
         self.parent = parent
 
-    def as_tuple(self):
+    @property
+    def kind(self):
+        return 'namespace'
+
+    @property
+    def value(self):
+        return self.uri
+
+    def as_item(self):
         return self.prefix, self.uri
+
+    def __repr__(self):
+        return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and \
@@ -102,25 +137,66 @@ class NamespaceNode(XPathNode):
         return hash((self.prefix, self.uri, self.parent))
 
 
-class TypedAttribute(NamedTuple):
-    """A namedtuple-based type for processing typed attribute nodes."""
-    attribute: AttributeNode
-    "the origin AttributeNode tuple"
-    type: Any
-    "the reference XSD type"
-    value: Any
-    "the decoded value"
+class TypedElement(XPathNode):
+    """
+    A class for processing typed element nodes.
+
+    :param elem: the linked element. Can be an Element, or an XSD element \
+    when XPath is applied on a schema.
+    :param xsd_type: the reference XSD type.
+    :param value: the decoded value. Can be `None` for empty or element-only elements."
+    """
+    def __init__(self, elem: Element, xsd_type: Any, value: Any):
+        self.elem = elem
+        self.xsd_type = xsd_type
+        self.value = value
+
+    @property
+    def kind(self):
+        return 'element'
+
+    def __repr__(self):
+        return '%s(tag=%r)' % (self.__class__.__name__, self.elem.tag)
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and \
+            self.elem is other.elem and \
+            self.value == other.value
+
+    def __hash__(self):
+        return hash((self.elem, self.value))
 
 
-class TypedElement(NamedTuple):
-    """A namedtuple-based type for processing typed element nodes."""
-    elem: Union[Element]
-    "the origin element. Can be an Element, or an XSD element " \
-        "when XPath is applied on a schema."
-    type: Any
-    "the reference XSD type."
-    value: Any
-    "the decoded value. Can be `None` for empty or element-only elements."
+class TypedAttribute(XPathNode):
+    """
+    A class for processing typed attribute nodes.
+
+    :param attribute: the origin AttributeNode tuple.
+    :param xsd_type: the reference XSD type.
+    :param value: the types value.
+    """
+    def __init__(self, attribute: AttributeNode, xsd_type: Any, value: Any):
+        self.attribute = attribute
+        self.xsd_type = xsd_type
+        self.value = value
+
+    @property
+    def kind(self):
+        return 'attribute'
+
+    def as_item(self):
+        return self.attribute.name, self.value
+
+    def __repr__(self):
+        return '%s(name=%r)' % (self.__class__.__name__, self.attribute.name)
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and \
+            self.attribute == other.attribute and \
+            self.value == other.value
+
+    def __hash__(self):
+        return hash((self.attribute, self.value))
 
 
 ###
@@ -143,14 +219,14 @@ def etree_iter_nodes(root, with_root=True, with_attributes=False):
         if e.text is not None:
             yield TextNode(e.text, e)
         if e.attrib and with_attributes:
-            yield from map(lambda x: AttributeNode(*x, e), e.attrib.items())
+            yield from map(lambda x: AttributeNode(*x, parent=e), e.attrib.items())
         if e.tail is not None and e is not root:
-            yield TextNode(e.tail, e)
+            yield TextNode(e.tail, e, True)
 
 
 def etree_iter_strings(elem):
     if isinstance(elem, TypedElement):
-        if elem.type.is_element_only():
+        if elem.xsd_type.is_element_only():
             # Element-only text content is normalized
             elem = elem.elem
             for e in elem.iter():
@@ -224,11 +300,18 @@ def match_element_node(obj, tag=None):
         except (ValueError, IndexError):
             raise ElementPathValueError("unexpected format %r for argument 'tag'" % tag)
         else:
-            return obj.tag.split('}')[1] == name if obj.tag[0] == '{' else obj.tag == name
+            if obj.tag[0] == '{':
+                return obj.tag.split('}')[1] == name
+            else:
+                return obj.tag == name
+
     elif tag[-1] == '*':
         if tag[0] != '{' or '}' not in tag:
             raise ElementPathValueError("unexpected format %r for argument 'tag'" % tag)
-        return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:] if obj.tag[0] == '{' else False
+        elif obj.tag[0] == '{':
+            return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:]
+        else:
+            return False
     else:
         return obj.tag == tag
 
@@ -255,19 +338,25 @@ def match_attribute_node(obj, name=None):
         except (ValueError, IndexError):
             raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
         else:
-            return obj.name.split('}')[1] == _name if obj.name[0] == '{' else obj.name == _name
+            if obj.name[0] == '{':
+                return obj.name.split('}')[1] == _name
+            else:
+                return obj.name == _name
+
     elif name[-1] == '*':
         if name[0] != '{' or '}' not in name:
             raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-        return obj.name.split('}')[0][1:] == name.split('}')[0][1:] if obj.name[0] == '{' else False
+        elif obj.name[0] == '{':
+            return obj.name.split('}')[0][1:] == name.split('}')[0][1:]
+        else:
+            return False
     else:
         return obj.name == name
 
 
 def is_element_node(obj):
-    if isinstance(obj, TypedElement):
-        return True
-    return hasattr(obj, 'tag') and not callable(obj.tag) and \
+    return isinstance(obj, TypedElement) or \
+        hasattr(obj, 'tag') and not callable(obj.tag) and \
         hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
@@ -337,13 +426,10 @@ def node_nilled(obj):
 
 
 def node_kind(obj):
-    if isinstance(obj, (tuple, XPathNode)):
-        if isinstance(obj, (AttributeNode, TypedAttribute)):
-            return 'attribute'
-        elif isinstance(obj, TextNode):
-            return 'text'
-        elif isinstance(obj, NamespaceNode):
-            return 'namespace'
+    if isinstance(obj, XPathNode):
+        return obj.kind
+    elif isinstance(obj, AttributeNode):
+        return 'attribute'
     elif is_element_node(obj):
         return 'element'
     elif is_document_node(obj):
@@ -363,8 +449,8 @@ def node_name(obj):
     elif isinstance(obj, AttributeNode):
         return obj.name
     elif isinstance(obj, TypedAttribute):
-        return obj[0].name
+        return obj.attribute.name
     elif isinstance(obj, TypedElement):
-        return obj[0].tag
+        return obj.elem.tag
     elif isinstance(obj, NamespaceNode):
         return obj.prefix
