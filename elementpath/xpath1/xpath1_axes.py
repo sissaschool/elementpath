@@ -49,7 +49,7 @@ def select(self, context=None):
             # noinspection PyUnresolvedReferences
             for prefix_, uri in elem.nsmap.items():
                 if prefix_ not in namespaces:
-                    context.item = NamespaceNode(prefix_, uri)
+                    context.item = NamespaceNode(prefix_, uri, elem)
                     yield context.item
 
 

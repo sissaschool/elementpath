@@ -155,10 +155,10 @@ class XPathContextTest(unittest.TestCase):
     def test_iter_product(self):
         context = XPathContext(self.root)
 
-        def sel1(context):
+        def sel1(_context):
             yield from range(2)
 
-        def sel2(context):
+        def sel2(_context):
             yield from range(3)
 
         expected = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
@@ -190,21 +190,17 @@ class XPathContextTest(unittest.TestCase):
 
     def test_iter_attributes(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
+        attributes = [AttributeNode(*x, parent=root) for x in root.attrib.items()]
         context = XPathContext(root)
-        self.assertListEqual(
-            sorted(list(context.iter_attributes()), key=lambda x: x[0]),
-            [AttributeNode(name='a1', value='10'), AttributeNode(name='a2', value='20')]
-        )
+        self.assertListEqual(list(context.iter_attributes()), attributes)
 
-        context.item = AttributeNode('a1', '10')
-        self.assertListEqual(list(context.iter_attributes()), [AttributeNode('a1', '10')])
+        context.item = AttributeNode('a1', '10', root)
+        self.assertListEqual(list(context.iter_attributes()),
+                             [AttributeNode('a1', '10', root)])
 
         with patch.object(DummyXsdType(), 'has_simple_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=TypedElement(root, xsd_type, ''))
-            self.assertListEqual(
-                sorted(list(context.iter_attributes()), key=lambda x: x[0]),
-                [AttributeNode(name='a1', value='10'), AttributeNode(name='a2', value='20')]
-            )
+            self.assertListEqual(list(context.iter_attributes()), attributes)
 
         context.item = None
         self.assertListEqual(list(context.iter_attributes()), [])
@@ -215,7 +211,8 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(list(context.iter_children_or_self()), [self.root])
 
         context.item = self.root
-        self.assertListEqual(list(context.iter_children_or_self()), [TextNode('Dickens')])
+        self.assertListEqual(list(context.iter_children_or_self()),
+                             [TextNode(self.root.text, self.root)])
 
         context.item = doc
         self.assertListEqual(list(context.iter_children_or_self()), [self.root])
@@ -326,7 +323,7 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         self.assertListEqual(list(context.iter_followings()), [])
 
-        context = XPathContext(root, item=AttributeNode('a', '1'))
+        context = XPathContext(root, item=AttributeNode('a', '1', root))
         self.assertListEqual(list(context.iter_followings()), [])
 
         context = XPathContext(root, item=root[2])
@@ -362,7 +359,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
             results = [
-                TypedAttribute(AttributeNode('max', '10'), xsd_type, 10),
+                TypedAttribute(AttributeNode('max', '10', root[2][1]), xsd_type, 10),
                 root[0]
             ]
             context = XPathContext(root)

@@ -29,7 +29,7 @@ import urllib.parse
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .xpath_nodes import AttributeNode, TextNode, NamespaceNode, TypedAttribute, \
+from .xpath_nodes import XPathNode, AttributeNode, TextNode, NamespaceNode, TypedAttribute, \
     TypedElement, is_etree_element, etree_iter_strings, is_comment_node, \
     is_processing_instruction_node, is_element_node, is_document_node, \
     is_xpath_node, is_schema_node
@@ -375,15 +375,17 @@ class XPathToken(Token):
         self.parser.check_variables(context.variables)
 
         for result in self.select(context):
-            if isinstance(result, (TypedElement, TextNode)):
+            if isinstance(result, TypedElement):
                 yield result[0]
-            elif isinstance(result, AttributeNode):
-                yield result[1]
+            elif isinstance(result, (TextNode, AttributeNode)):
+                yield result.value
             elif isinstance(result, TypedAttribute):
-                if is_schema_node(result[0][1]):
-                    yield result[0][1]
+                if is_schema_node(result[0].value):
+                    yield result[0].value
                 else:
-                    yield result[-1]
+                    yield result.value
+            elif isinstance(result, NamespaceNode):
+                yield result.prefix, result.uri
             else:
                 yield result
 
@@ -402,7 +404,8 @@ class XPathToken(Token):
             res = results[0]
             if isinstance(res, (bool, int, float, Decimal)):
                 return res
-            elif isinstance(res, tuple) or is_etree_element(res) or is_document_node(res):
+            elif isinstance(res, (tuple, XPathNode)) \
+                    or is_etree_element(res) or is_document_node(res):
                 return results
             elif is_schema_node(res):
                 return results
@@ -610,7 +613,7 @@ class XPathToken(Token):
 
             try:
                 if isinstance(xsd_node, AttributeNode):
-                    if xsd_node[1].is_matching(name):
+                    if xsd_node.value.is_matching(name):
                         if xsd_node.name is None:
                             # node is an XSD attribute wildcard
                             xsd_node = self.parser.schema.get_attribute(name)
@@ -678,7 +681,7 @@ class XPathToken(Token):
         elif isinstance(item, str):
             xsd_type = self.xsd_types.get(item)
         elif isinstance(item, AttributeNode):
-            xsd_type = self.xsd_types.get(item[0])
+            xsd_type = self.xsd_types.get(item.name)
         elif isinstance(item, (TypedAttribute, TypedElement)):
             return item.type
         else:
@@ -690,7 +693,7 @@ class XPathToken(Token):
             return xsd_type
         elif isinstance(item, AttributeNode):
             for x in xsd_type:
-                if x.is_valid(item[1]):
+                if x.is_valid(item.value):
                     return x
         elif not isinstance(item, str):
             for x in xsd_type:
@@ -723,7 +726,7 @@ class XPathToken(Token):
             return item
         elif xsd_type.name in XSD_SPECIAL_TYPES:
             if isinstance(item, AttributeNode):
-                return TypedAttribute(item, xsd_type, UntypedAtomic(item[1]))
+                return TypedAttribute(item, xsd_type, UntypedAtomic(item.value))
             return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
 
         elif xsd_type.has_mixed_content():
@@ -751,7 +754,7 @@ class XPathToken(Token):
 
             try:
                 if isinstance(item, AttributeNode):
-                    return TypedAttribute(item, xsd_type, builder(item[1]))
+                    return TypedAttribute(item, xsd_type, builder(item.value))
                 else:
                     return TypedElement(item, xsd_type, builder(item.text))
             except (TypeError, ValueError):
@@ -840,12 +843,16 @@ class XPathToken(Token):
         """
         if obj is None:
             return
-        elif isinstance(obj, tuple):
-            if isinstance(obj, (TypedElement, TypedAttribute)):
-                return obj[-1]
+        elif isinstance(obj, (tuple, XPathNode)):
+            if isinstance(obj, (AttributeNode, TextNode)):
+                return UntypedAtomic(obj.value)
+            elif isinstance(obj, (TypedElement, TypedAttribute)):
+                return obj.value
             elif isinstance(obj, NamespaceNode):
-                return obj[1]
-            return UntypedAtomic(obj[-1])
+                return obj.uri
+            else:
+                raise RuntimeError("invalid argument {!r} for fn:data".format(obj))
+
         elif is_schema_node(obj):
             return self.parser.get_atomic_value(obj.type)
         elif hasattr(obj, 'tag'):
@@ -867,15 +874,17 @@ class XPathToken(Token):
         """
         if obj is None:
             return ''
-        elif isinstance(obj, tuple):
+        elif isinstance(obj, (tuple, XPathNode)):
             if isinstance(obj, TypedElement):
-                if obj[-1] is None:
+                if obj.value is None:
                     return ''.join(etree_iter_strings(obj))
-                return str(obj[-1])
+                return str(obj.value)
             elif isinstance(obj, (AttributeNode, TypedAttribute)):
-                return str(obj[-1])
-            elif isinstance(obj, (TextNode, NamespaceNode)):
-                return obj[-1]
+                return str(obj.value)
+            elif isinstance(obj, TextNode):
+                return obj.value
+            elif isinstance(obj, NamespaceNode):
+                return obj.uri
         elif is_schema_node(obj):
             return str(self.parser.get_atomic_value(obj.type))
         elif hasattr(obj, 'tag'):

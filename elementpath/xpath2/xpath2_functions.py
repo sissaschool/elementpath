@@ -27,9 +27,9 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from ..xpath_context import XPathContext, XPathSchemaContext
-from ..xpath_nodes import AttributeNode, is_element_node, is_document_node, \
-    is_xpath_node, node_name, node_nilled, node_base_uri, node_document_uri, \
-    node_kind, etree_deep_equal
+from ..xpath_nodes import AttributeNode, NamespaceNode, is_element_node, \
+    is_document_node, is_xpath_node, node_name, node_nilled, node_base_uri, \
+    node_document_uri, node_kind, etree_deep_equal
 from ..regex import RegexError, translate_pattern
 from .xpath2_parser import XPath2Parser
 
@@ -652,11 +652,17 @@ def evaluate(self, context=None):
                     return False
             elif node_kind(value1) != node_kind(value2):
                 return False
-            elif not is_element_node(value1):
-                if value1 != value2:
+            elif is_element_node(value1):
+                if not etree_deep_equal(value1, value2):
                     return False
-            elif not etree_deep_equal(value1, value2):
+            elif value1.value != value2.value:
                 return False
+            elif isinstance(value1, AttributeNode):
+                if value1.name != value2.name:
+                    return False
+            elif isinstance(value1, NamespaceNode):
+                if value1.prefix != value2.prefix:
+                    return False
 
     seq1 = iter(self[0].select(copy(context)))
     seq2 = iter(self[1].select(copy(context)))
