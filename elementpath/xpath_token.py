@@ -24,15 +24,17 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
+from typing import Union
 import urllib.parse
+from xml.etree.ElementTree import Element
 
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .xpath_nodes import XPathNode, AttributeNode, TextNode, NamespaceNode, TypedAttribute, \
-    TypedElement, is_etree_element, etree_iter_strings, is_comment_node, \
-    is_processing_instruction_node, is_element_node, is_document_node, \
-    is_xpath_node, is_schema_node
+from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
+    NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
+    is_comment_node, is_processing_instruction_node, is_element_node, \
+    is_document_node, is_xpath_node, is_schema_node
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime, \
     AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName
@@ -376,12 +378,12 @@ class XPathToken(Token):
 
         for result in self.select(context):
             if isinstance(result, TypedElement):
-                yield result[0]
+                yield result.elem
             elif isinstance(result, (TextNode, AttributeNode)):
                 yield result.value
             elif isinstance(result, TypedAttribute):
-                if is_schema_node(result[0].value):
-                    yield result[0].value
+                if is_schema_node(result.attribute.value):
+                    yield result.attribute.value
                 else:
                     yield result.value
             elif isinstance(result, NamespaceNode):
@@ -648,9 +650,9 @@ class XPathToken(Token):
         if isinstance(item, AttributeNode):
             item = item.value
         elif isinstance(item, TypedAttribute):
-            item = item[0].value
+            item = item.attribute.value
         elif isinstance(item, TypedElement):
-            item = item[0]
+            item = item.elem
 
         if not is_schema_node(item):
             return
@@ -683,7 +685,7 @@ class XPathToken(Token):
         elif isinstance(item, AttributeNode):
             xsd_type = self.xsd_types.get(item.name)
         elif isinstance(item, (TypedAttribute, TypedElement)):
-            return item.type
+            return item.xsd_type
         else:
             xsd_type = self.xsd_types.get(item.tag)
 
@@ -695,7 +697,7 @@ class XPathToken(Token):
             for x in xsd_type:
                 if x.is_valid(item.value):
                     return x
-        elif not isinstance(item, str):
+        elif is_etree_element(item):
             for x in xsd_type:
                 if x.is_simple():
                     if x.is_valid(item.text):
@@ -705,7 +707,7 @@ class XPathToken(Token):
 
         return xsd_type[0]
 
-    def get_typed_node(self, item):
+    def get_typed_node(self, item: Union[Element, TypedElement, AttributeNode]):
         """
         Returns a typed node if the item is matching an XSD type.
 
@@ -715,8 +717,8 @@ class XPathToken(Token):
           https://www.w3.org/TR/xquery-semantics/
 
         :param item: an untyped attribute ot element.
-        :return: a TypedAttribute or a TypedElement, or the argument \
-        if it's not matching any associated XSD type.
+        :return: a typed AttributeNode/ElementNode if the argument is matching \
+        any associated XSD type.
         """
         if isinstance(item, (TypedAttribute, TypedElement)):
             return item
@@ -774,8 +776,8 @@ class XPathToken(Token):
 
         try:
             if isinstance(item, AttributeNode):
-                if xsd_type.is_valid(item[1]):
-                    return TypedAttribute(item, xsd_type, builder(item[1]))
+                if xsd_type.is_valid(item.value):
+                    return TypedAttribute(item, xsd_type, builder(item.value))
             elif xsd_type.is_valid(item.text):
                 return TypedElement(item, xsd_type, builder(item.text))
         except (TypeError, ValueError):

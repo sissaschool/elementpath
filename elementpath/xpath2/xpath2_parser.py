@@ -1224,7 +1224,7 @@ def select(self, context=None):
                 elif not type_name:
                     yield attribute.value
                 elif isinstance(attribute, TypedAttribute):
-                    if attribute.type.name == type_name:
+                    if attribute.xsd_type.name == type_name:
                         yield attribute.value
                 else:
                     xsd_type = self.get_xsd_type(attribute)

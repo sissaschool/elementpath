@@ -890,7 +890,7 @@ class Result(object):
             parts = []
             for item in result:
                 if isinstance(item, elementpath.TypedElement):
-                    parts.append(tostring(item[0]).decode('utf-8').strip())
+                    parts.append(tostring(item.elem).decode('utf-8').strip())
                 elif isinstance(item, tuple):
                     parts.append(str(item[-1]))
                 elif hasattr(item, 'tag'):
