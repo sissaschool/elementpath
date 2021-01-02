@@ -23,9 +23,9 @@ from ..namespaces import XSD_ANY_SIMPLE_TYPE, XML_NAMESPACE, XSD_NAMESPACE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import XPathToken
-from ..xpath_nodes import AttributeNode, TypedAttribute, TypedElement, \
-    is_etree_element, is_xpath_node, match_element_node, is_schema_node, \
-    is_document_node, match_attribute_node, is_element_node, node_kind
+from ..xpath_nodes import XPathNode, AttributeNode, TypedAttribute, TypedElement, \
+    is_xpath_node, match_element_node, is_schema_node, is_document_node, \
+    match_attribute_node, is_element_node, node_kind
 
 
 OPERATORS_MAP = {
@@ -611,7 +611,7 @@ def select(self, context=None):
     elif self.xsd_types is None:
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name):
-                yield item[-1]
+                yield item.value
             elif match_element_node(item, name):
                 yield item
     else:
@@ -671,7 +671,7 @@ def select(self, context=None):
                 pass  # '*' wildcard doesn't match document nodes
             elif context.axis == 'attribute':
                 if isinstance(item, (AttributeNode, TypedAttribute)):
-                    yield item[-1]
+                    yield item.value
             elif is_element_node(item):
                 yield item
 
@@ -978,7 +978,7 @@ def select(self, context=None):
                 raise self.error('XPTY0019')
 
             for result in self[1].select(context):
-                if not is_etree_element(result) and not isinstance(result, tuple):
+                if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
                     yield result
                 elif result in items:
                     pass

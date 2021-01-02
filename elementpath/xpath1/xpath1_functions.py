@@ -11,7 +11,7 @@ import math
 import decimal
 from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, StringProxy, AnyURI
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
-from ..xpath_nodes import TextNode, is_xpath_node, is_document_node, \
+from ..xpath_nodes import XPathNode, TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 
 from .xpath1_parser import XPath1Parser
@@ -322,7 +322,7 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+    values = [x.value if isinstance(x, (tuple, XPathNode)) else x for x in self[0].select(context)]
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero

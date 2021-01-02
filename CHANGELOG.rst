@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.1.0`_ (2020-12-xx)
+======================
+* Bind attribute nodes, text nodes and namespace nodes to parent element (issue #31)
+
 `v2.0.5`_ (2020-12-02)
 ======================
 * Increase the speed of path step selection on large trees
@@ -261,3 +265,4 @@ CHANGELOG
 .. _v2.0.3: https://github.com/sissaschool/elementpath/compare/v2.0.2...v2.0.3
 .. _v2.0.4: https://github.com/sissaschool/elementpath/compare/v2.0.3...v2.0.4
 .. _v2.0.5: https://github.com/sissaschool/elementpath/compare/v2.0.4...v2.0.5
+.. _v2.1.0: https://github.com/sissaschool/elementpath/compare/v2.0.5...v2.1.0

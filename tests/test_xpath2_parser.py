@@ -444,7 +444,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type("(1, 2) le (2, 3)", 'XPTY0004', 'sequence of length greater than one')
 
         root = self.etree.XML('<root min="10" max="7"/>')
-        self.check_value('@min', [AttributeNode('min', '10')], context=XPathContext(root=root))
+        attributes = [AttributeNode(*x, root) for x in root.attrib.items()]
+        self.check_value('@min', [attributes[0]], context=XPathContext(root=root))
         self.check_value('@min le @max', True, context=XPathContext(root=root))
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))

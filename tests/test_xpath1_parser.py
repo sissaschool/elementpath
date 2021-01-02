@@ -1013,6 +1013,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, item=root[0][0])
         self.check_value('/A', [], context=context)
 
+    def test_path_step_operator_with_duplicates(self):
+        root = self.etree.XML('<A>10<B a="2">11</B>10<B a="2"/>10<B>11</B></A>')
+
+        self.check_selector('/A/node()', root, ['10', root[0], '10', root[1], '10', root[2]])
+
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector('.', root, [root])

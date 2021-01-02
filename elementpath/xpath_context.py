@@ -155,10 +155,10 @@ class XPathContext(object):
         """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
         if isinstance(item, AttributeNode):
-            path.append('@%s' % item[0])
+            path.append('@%s' % item.name)
             item = self._elem
         elif isinstance(item, TypedAttribute):
-            path.append('@%s' % item[0][0])
+            path.append('@%s' % item[0].name)
             item = self._elem
 
         if item is None:
@@ -294,9 +294,8 @@ class XPathContext(object):
         if isinstance(self.item, TypedElement):
             self.item = self.item.elem
 
-        attributes = (AttributeNode(*x) for x in self.item.attrib.items())
-
-        for self.item in attributes:
+        elem = self.item
+        for self.item in (AttributeNode(*x, elem) for x in elem.attrib.items()):
             yield self.item
 
         self.item, self.axis = status
@@ -319,7 +318,7 @@ class XPathContext(object):
         elif is_etree_element(self.item):
             elem = self.item
             if elem.text is not None:
-                self.item = TextNode(elem.text)
+                self.item = TextNode(elem.text, elem)
                 yield self.item
 
             for child in elem:
@@ -327,7 +326,7 @@ class XPathContext(object):
                 yield child
 
                 if child.tail is not None:
-                    self.item = TextNode(child.tail)
+                    self.item = TextNode(child.tail, child)
                     yield self.item
 
         elif is_document_node(self.item):

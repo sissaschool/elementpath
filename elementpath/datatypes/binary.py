@@ -57,6 +57,10 @@ class AbstractBinary(metaclass=AtomicTypeABCMeta):
             return self.value == other.value
         return self.value == other
 
+    @classmethod
+    def validate(cls, value):
+        raise NotImplementedError()
+
     @staticmethod
     @abstractmethod
     def encoder(value):

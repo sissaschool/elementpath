@@ -48,8 +48,9 @@ class XPathNodesTest(unittest.TestCase):
     def test_elem_iter_nodes_function(self):
         root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')
 
-        result = [root, TextNode('text1\n'), root[0], TextNode('text2'),
-                  root[1], root[2], root[2][0], TextNode('text3')]
+        result = [root, TextNode('text1\n', root),
+                  root[0], TextNode('text2', root[0]), root[1],
+                  root[2], root[2][0], TextNode('text3', root[2][0])]
 
         self.assertListEqual(list(etree_iter_nodes(root)), result)
         self.assertListEqual(list(etree_iter_nodes(root, with_root=False)), result[1:])
@@ -59,7 +60,7 @@ class XPathNodesTest(unittest.TestCase):
             typed_root = TypedElement(root, xsd_type, 'text1')
             self.assertListEqual(list(etree_iter_nodes(typed_root)), result)
 
-        result = result[:4] + [AttributeNode('a', '10')] + result[4:]
+        result = result[:4] + [AttributeNode('a', '10', root[0])] + result[4:]
         self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
 
         comment = ElementTree.Comment('foo')
@@ -125,7 +126,7 @@ class XPathNodesTest(unittest.TestCase):
             self.assertTrue(match_element_node(typed_elem, '*'))
 
     def test_match_attribute_node_function(self):
-        attr = AttributeNode('a1', '10')
+        attr = AttributeNode('a1', '10', parent=None)
         self.assertTrue(match_attribute_node(attr, '*'))
         self.assertTrue(match_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
         with self.assertRaises(ValueError):
