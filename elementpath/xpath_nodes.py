@@ -23,6 +23,9 @@ from .exceptions import ElementPathValueError
 # Node types
 class XPathNode(ABC):
 
+    name = None
+    value = None
+
     @property
     @abstractmethod
     def kind(self):
@@ -118,6 +121,10 @@ class NamespaceNode(XPathNode):
         return 'namespace'
 
     @property
+    def name(self):
+        return self.prefix
+
+    @property
     def value(self):
         return self.uri
 
@@ -155,6 +162,10 @@ class TypedElement(XPathNode):
     def kind(self):
         return 'element'
 
+    @property
+    def name(self):
+        return self.elem.tag
+
     def __repr__(self):
         return '%s(tag=%r)' % (self.__class__.__name__, self.elem.tag)
 
@@ -171,7 +182,7 @@ class TypedAttribute(XPathNode):
     """
     A class for processing typed attribute nodes.
 
-    :param attribute: the origin AttributeNode tuple.
+    :param attribute: the origin AttributeNode instance.
     :param xsd_type: the reference XSD type.
     :param value: the types value.
     """
@@ -183,6 +194,10 @@ class TypedAttribute(XPathNode):
     @property
     def kind(self):
         return 'attribute'
+
+    @property
+    def name(self):
+        return self.attribute.name
 
     def as_item(self):
         return self.attribute.name, self.value
@@ -271,8 +286,8 @@ def etree_deep_equal(e1, e2):
 #  element, attribute, text, namespace, processing-instruction, comment, document
 #
 # Element-like objects are used for representing elements and comments,
-# ElementTree-like objects for documents. Generic tuples are used for
-# representing attributes and named-tuples for namespaces.
+# ElementTree-like objects for documents. XPathNode subclasses are used
+# for representing other node types and typed elements/attributes.
 ###
 def match_element_node(obj, tag=None):
     """
@@ -377,7 +392,7 @@ def is_document_node(obj):
 
 
 def is_xpath_node(obj):
-    return isinstance(obj, (tuple, XPathNode)) or \
+    return isinstance(obj, XPathNode) or \
         hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text') or \
         hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name') or \
         hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
@@ -428,8 +443,6 @@ def node_nilled(obj):
 def node_kind(obj):
     if isinstance(obj, XPathNode):
         return obj.kind
-    elif isinstance(obj, AttributeNode):
-        return 'attribute'
     elif is_element_node(obj):
         return 'element'
     elif is_document_node(obj):
@@ -441,16 +454,8 @@ def node_kind(obj):
 
 
 def node_name(obj):
-    if hasattr(obj, 'tag') and not callable(obj.tag) \
+    if isinstance(obj, XPathNode):
+        return obj.name
+    elif hasattr(obj, 'tag') and not callable(obj.tag) \
             and hasattr(obj, 'attrib') and hasattr(obj, 'text'):
         return obj.tag
-    elif not isinstance(obj, (tuple, XPathNode)):
-        return
-    elif isinstance(obj, AttributeNode):
-        return obj.name
-    elif isinstance(obj, TypedAttribute):
-        return obj.attribute.name
-    elif isinstance(obj, TypedElement):
-        return obj.elem.tag
-    elif isinstance(obj, NamespaceNode):
-        return obj.prefix

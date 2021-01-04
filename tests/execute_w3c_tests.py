@@ -29,7 +29,7 @@ from collections import OrderedDict
 from xml.etree import ElementTree
 import lxml.etree
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
 import elementpath
 import xmlschema
 
@@ -891,8 +891,8 @@ class Result(object):
             for item in result:
                 if isinstance(item, elementpath.TypedElement):
                     parts.append(tostring(item.elem).decode('utf-8').strip())
-                elif isinstance(item, tuple):
-                    parts.append(str(item[-1]))
+                elif isinstance(item, XPathNode):
+                    parts.append(str(item.value))
                 elif hasattr(item, 'tag'):
                     parts.append(tostring(item).decode('utf-8').strip())
                 else:

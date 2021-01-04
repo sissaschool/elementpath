@@ -21,8 +21,8 @@ from .exceptions import ElementPathError, MissingContextError, \
     ElementPathOverflowError, ElementPathZeroDivisionError
 
 from .xpath_context import XPathContext, XPathSchemaContext
-from .xpath_nodes import TypedElement, AttributeNode, TextNode, \
-    TypedAttribute, NamespaceNode
+from .xpath_nodes import XPathNode, AttributeNode, TextNode, \
+    NamespaceNode, TypedElement, TypedAttribute
 from .xpath_token import XPathToken
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
@@ -35,6 +35,6 @@ __all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
            'ElementPathKeyError', 'ElementPathLocaleError', 'ElementPathNameError',
            'ElementPathOverflowError', 'ElementPathValueError', 'ElementPathTypeError',
            'ElementPathZeroDivisionError', 'datatypes', 'XPathContext', 'XPathSchemaContext',
-           'TypedElement', 'AttributeNode', 'TextNode', 'TypedAttribute', 'TypedElement',
-           'NamespaceNode', 'XPathToken', 'XPath1Parser', 'XPath2Parser', 'select',
+           'XPathNode', 'AttributeNode', 'TextNode', 'NamespaceNode', 'TypedAttribute',
+           'TypedElement', 'XPathToken', 'XPath1Parser', 'XPath2Parser', 'select',
            'iter_select', 'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern']
