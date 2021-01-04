@@ -460,22 +460,28 @@ def select(self, context=None):
         # Try to match the type using the item's path
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, tag):
-                path = context.get_path(item)
-
-                xsd_node = self.parser.schema.find(path, self.parser.namespaces)
-                if xsd_node is not None:
-                    self.xsd_types = {tag: xsd_node.type}
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
                 else:
-                    self.xsd_types = self.parser.schema
+                    path = context.get_path(item)
 
-                context.item = self.get_typed_node(item)
-                yield context.item
+                    xsd_node = self.parser.schema.find(path, self.parser.namespaces)
+                    if xsd_node is not None:
+                        self.xsd_types = {tag: xsd_node.type}
+                    else:
+                        self.xsd_types = self.parser.schema
+
+                    context.item = self.get_typed_node(item)
+                    yield context.item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, tag):
-                context.item = self.get_typed_node(item)
-                yield context.item
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
+                else:
+                    context.item = self.get_typed_node(item)
+                    yield context.item
 
 
 ###
@@ -552,22 +558,28 @@ def select(self, context=None):
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, name):
-                path = context.get_path(item)
-                xsd_node = self.parser.schema.find(path, self.parser.namespaces)
-                if xsd_node is not None:
-                    self.add_xsd_type(xsd_node)
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
                 else:
-                    self.xsd_types = self.parser.schema
+                    path = context.get_path(item)
+                    xsd_node = self.parser.schema.find(path, self.parser.namespaces)
+                    if xsd_node is not None:
+                        self.add_xsd_type(xsd_node)
+                    else:
+                        self.xsd_types = self.parser.schema
 
-                context.item = self.get_typed_node(item)
-                yield context.item
+                    context.item = self.get_typed_node(item)
+                    yield context.item
 
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, name):
-                context.item = self.get_typed_node(item)
-                yield context.item
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
+                else:
+                    context.item = self.get_typed_node(item)
+                    yield context.item
 
 
 ###
@@ -618,8 +630,11 @@ def select(self, context=None):
         # XSD typed selection
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name) or match_element_node(item, name):
-                context.item = self.get_typed_node(item)
-                yield context.item
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
+                else:
+                    context.item = self.get_typed_node(item)
+                    yield context.item
 
 
 ###
@@ -678,11 +693,12 @@ def select(self, context=None):
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if context.item is None:
-                pass
-            elif context.is_principal_node_kind():
-                context.item = self.get_typed_node(item)
-                yield context.item
+            if context.item is not None and context.is_principal_node_kind():
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
+                else:
+                    context.item = self.get_typed_node(item)
+                    yield context.item
 
 
 @method(nullary('.'))

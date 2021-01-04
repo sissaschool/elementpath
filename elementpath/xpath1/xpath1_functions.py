@@ -322,7 +322,7 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [x.value if isinstance(x, (tuple, XPathNode)) else x for x in self[0].select(context)]
+    values = [x.value if isinstance(x, XPathNode) else x for x in self[0].select(context)]
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero

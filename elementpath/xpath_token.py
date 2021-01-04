@@ -16,7 +16,8 @@ In XPath there are 7 kinds of nodes:
     element, attribute, text, namespace, processing-instruction, comment, document
 
 Element-like objects are used for representing elements and comments, ElementTree-like objects
-for documents. Generic tuples are used for representing attributes and named-tuples for namespaces.
+for documents.
+XPathNode subclasses are used for representing other node types and typed elements/attributes.
 """
 import locale
 import contextlib
@@ -406,7 +407,7 @@ class XPathToken(Token):
             res = results[0]
             if isinstance(res, (bool, int, float, Decimal)):
                 return res
-            elif isinstance(res, (tuple, XPathNode)) \
+            elif isinstance(res, XPathNode) \
                     or is_etree_element(res) or is_document_node(res):
                 return results
             elif is_schema_node(res):
@@ -845,7 +846,7 @@ class XPathToken(Token):
         """
         if obj is None:
             return
-        elif isinstance(obj, (tuple, XPathNode)):
+        elif isinstance(obj, XPathNode):
             if isinstance(obj, (AttributeNode, TextNode)):
                 return UntypedAtomic(obj.value)
             elif isinstance(obj, (TypedElement, TypedAttribute)):
@@ -876,7 +877,7 @@ class XPathToken(Token):
         """
         if obj is None:
             return ''
-        elif isinstance(obj, (tuple, XPathNode)):
+        elif isinstance(obj, XPathNode):
             if isinstance(obj, TypedElement):
                 if obj.value is None:
                     return ''.join(etree_iter_strings(obj))

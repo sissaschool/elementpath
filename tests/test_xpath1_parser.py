@@ -25,7 +25,6 @@ import io
 import math
 import pickle
 from decimal import Decimal
-from collections import namedtuple
 from xml.etree import ElementTree
 
 try:
@@ -319,8 +318,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_types(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-        attribute = 'id', '0212349350'
-        namespace = namedtuple('Namespace', 'prefix uri')('xs', 'http://www.w3.org/2001/XMLSchema')
+        attribute = AttributeNode('id', '0212349350')
+        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
         comment = self.etree.Comment('nothing important')
         pi = self.etree.ProcessingInstruction('action', 'nothing to do')
         text = TextNode('aldebaran')
