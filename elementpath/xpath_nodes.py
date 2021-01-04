@@ -53,7 +53,11 @@ class AttributeNode(XPathNode):
         return self.name, self.value
 
     def __repr__(self):
-        return '%s(name=%r)' % (self.__class__.__name__, self.name)
+        if self.parent is not None:
+            return '%s(name=%r, value=%r, parent=%r)' % (
+                self.__class__.__name__, self.name, self.value, self.parent
+            )
+        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and \
@@ -91,6 +95,10 @@ class TextNode(XPathNode):
         return self._tail
 
     def __repr__(self):
+        if self.parent is not None:
+            return '%s(%r, parent=%r, tail=%r)' % (
+                self.__class__.__name__, self.value, self.parent, self._tail
+            )
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
     def __eq__(self, other):
@@ -132,6 +140,10 @@ class NamespaceNode(XPathNode):
         return self.prefix, self.uri
 
     def __repr__(self):
+        if self.parent is not None:
+            return '%s(prefix=%r, uri=%r, parent=%r)' % (
+                self.__class__.__name__, self.prefix, self.uri, self.parent
+            )
         return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
 
     def __eq__(self, other):
