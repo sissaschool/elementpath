@@ -42,7 +42,7 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
-from elementpath.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
+from elementpath.namespaces import XSI_NAMESPACE
 from elementpath.datatypes import DateTime10, DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
 
