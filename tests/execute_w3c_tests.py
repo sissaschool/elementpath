@@ -298,11 +298,12 @@ class TestCase(object):
     unicode_version = None
     unicode_normalization_form = None
     xml_version = None
-    xsd_version = None
 
     def __init__(self, elem, test_set, use_lxml=False):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
+        self.xsd_version = test_set.xsd_version
+
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
         self.test = elem.find('test', namespaces).text

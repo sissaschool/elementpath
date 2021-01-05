@@ -42,8 +42,8 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
-from elementpath.namespaces import XSI_NAMESPACE
-from elementpath.datatypes import DateTime, Date, Time, Timezone, \
+from elementpath.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
+from elementpath.datatypes import DateTime10, DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
 
 try:
@@ -638,11 +638,28 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:string(fn:QName("http://www.example.com/ns/", "xs:person"))',
                          'xs:person')
 
+        self.wrong_value('fn:QName("http://www.example.com/ns/", "@person")')
         self.wrong_type('fn:QName(1.0, "person")', 'XPTY0004', '1st argument has an invalid type')
         self.wrong_type('fn:QName("", 2)', 'XPTY0004', '2nd argument has an invalid type')
         self.wrong_value('fn:QName("", "3")', 'FOCA0002', 'invalid value')
         self.wrong_value('fn:QName("", "xs:int")', 'FOCA0002',
                          'cannot associate a non-empty prefix with no namespace')
+        self.wrong_type('fn:QName("http://www.example.com/ns/")',
+                        'XPST0017', '2nd argument missing')
+        self.wrong_type('fn:QName("http://www.example.com/ns/", "person"',
+                        'XPST0017', 'Wrong number of arguments')
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:tns="http://foo.test">
+                  <xs:element name="root"/>
+                </xs:schema>""")
+
+            with self.schema_bound_parser(schema.xpath_proxy):
+                context = self.parser.schema.get_context()
+                self.check_value('fn:QName("http://www.example.com/ns/", "@person")',
+                                 expected=ValueError, context=context)
 
     def test_prefix_from_qname_function(self):
         self.check_value(
@@ -751,8 +768,6 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         with self.assertRaises(TypeError):
             select(root, "fn:in-scope-prefixes('')", namespaces, parser=type(self.parser))
 
-
-
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
@@ -766,19 +781,30 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                 self.check_value("fn:in-scope-prefixes(.)", prefixes, context)
 
     def test_datetime_function(self):
-        tz0 = None
-        tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
+        tz = Timezone(datetime.timedelta(hours=5, minutes=24))
 
         self.check_value('fn:dateTime((), xs:time("24:00:00"))', [])
         self.check_value('fn:dateTime(xs:date("1999-12-31"), ())', [])
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))',
-                         datetime.datetime(1999, 12, 31, 12, 0, tzinfo=tz0))
+                         datetime.datetime(1999, 12, 31, 12, 0))
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("24:00:00"))',
-                         datetime.datetime(1999, 12, 31, 0, 0, tzinfo=tz0))
+                         datetime.datetime(1999, 12, 31, 0, 0))
         self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("13:00:00+05:24"))',
-                         datetime.datetime(1999, 12, 31, 13, 0, tzinfo=tz1))
+                         datetime.datetime(1999, 12, 31, 13, 0, tzinfo=tz))
         self.wrong_value('fn:dateTime(xs:date("1999-12-31+03:00"), xs:time("13:00:00+05:24"))',
                          'FORG0008', 'inconsistent timezones')
+
+        self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))', DateTime10)
+        with self.assertRaises(AssertionError):
+            self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))', DateTime)
+
+        self.parser._xsd_version = '1.1'
+        try:
+            self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))',
+                             DateTime(1999, 12, 31, 12))
+            self.check_value('fn:dateTime(xs:date("1999-12-31"), xs:time("12:00:00"))', DateTime)
+        finally:
+            self.parser._xsd_version = '1.0'
 
     def test_year_from_datetime_function(self):
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 1999)
@@ -904,9 +930,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
                               '<B2 /><B3>an ending text </B3></A>')
 
+        self.check_selector("/*/string()", root,
+                            [' a text, an inner text, a tail, an ending text '])
         self.check_selector("string(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, UntypedAtomic)
+        self.check_value("string()", MissingContextError)
 
         context = XPathContext(root=self.etree.XML('<A/>'))
         parser = XPath2Parser(base_uri='http://www.example.com/ns/')
