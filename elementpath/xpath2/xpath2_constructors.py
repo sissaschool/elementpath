@@ -16,9 +16,8 @@ from ..datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
     GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYear, \
     GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
     YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
-    Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy, ATOMIC_VALUES
+    Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy
 from ..xpath_token import XPathToken
-from ..xpath_context import XPathSchemaContext
 from .xpath2_functions import XPath2Parser
 
 
@@ -85,8 +84,6 @@ def cast(self, value):
             raise self.error('FORG0001', msg) from None
         raise self.error('FOCA0002', msg) from None
     except OverflowError as err:
-        if isinstance(value, (str, bytes, UntypedAtomic)):
-            raise self.error('FORG0001', err) from None
         raise self.error('FOCA0002', err) from None
 
 
@@ -276,7 +273,7 @@ def cast(self, value):
     except OverflowError as err:
         raise self.error('FODT0002', err) from None
     except ValueError as err:
-        raise self.error('FORG0001', err)
+        raise self.error('FORG0001', err) from None
 
 
 @constructor('dateTimeStamp')
@@ -287,9 +284,11 @@ def cast(self, value):
         value = str(value)
 
     try:
+        if isinstance(value, UntypedAtomic):
+            return DateTimeStamp.fromstring(value.value)
         return DateTimeStamp.fromstring(value)
     except ValueError as err:
-        raise self.error('FORG0001', err)
+        raise self.error('FORG0001', err) from None
 
 
 @method('dateTimeStamp')
@@ -298,12 +297,26 @@ def evaluate(self, context=None):
     if arg is None:
         return []
 
+    if isinstance(arg, UntypedAtomic):
+        return self.cast(arg.value)
+    return self.cast(str(arg))
+
+
+@method('dateTimeStamp')
+def nud(self):
+    if self.parser.xsd_version == '1.0':
+        raise self.wrong_syntax("xs:dateTimeStamp is not recognized unless XSD 1.1 is enabled")
+
     try:
-        if isinstance(arg, UntypedAtomic):
-            return self.cast(arg.value)
-        return self.cast(str(arg))
-    except TypeError as err:
-        raise self.error('FORG0006', err) from None
+        self.parser.advance('(')
+        self[0:] = self.parser.expression(5),
+        if self.parser.next_token.symbol == ',':
+            raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
+        self.parser.advance(')')
+        self.value = None
+    except SyntaxError:
+        raise self.error('XPST0017') from None
+    return self
 
 
 ###
@@ -315,8 +328,6 @@ def cast(self, value):
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
-        if isinstance(value, str):
-            raise self.error('FORG0006', err) from None
         raise self.error('XPTY0004', err) from None
 
 
@@ -327,8 +338,6 @@ def cast(self, value):
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
-        if isinstance(value, str):
-            raise self.error('FORG0006', err) from None
         raise self.error('XPTY0004', err) from None
 
 
@@ -344,13 +353,11 @@ def evaluate(self, context=None):
     except ElementPathError as err:
         err.token = self
         raise
-    except UnicodeEncodeError as err:
-        raise self.error('FORG0001', err) from None
 
 
 @constructor('NOTATION')
 def cast(self, value):
-    return value
+    raise NotImplementedError("No value is castable to xs:NOTATION")
 
 
 @method('NOTATION')
@@ -382,8 +389,6 @@ def cast(self, value):
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
-        if isinstance(value, str):
-            raise self.error('FORG0006', err) from None
         raise self.error('XPTY0004', err) from None
 
 
@@ -525,8 +530,6 @@ def evaluate(self, context=None):
         except TypeError as err:
             raise self.error('XPTY0004', err)
         except ValueError as err:
-            if isinstance(context, XPathSchemaContext):
-                return ATOMIC_VALUES['QName']
             raise self.error('FOCA0002', err)
 
 
