@@ -2,8 +2,9 @@
 CHANGELOG
 *********
 
-`v2.1.0`_ (2020-12-xx)
+`v2.1.0`_ (2021-01-05)
 ======================
+* Create custom class hierarchy for XPath nodes that replaces named-tuples
 * Bind attribute nodes, text nodes and namespace nodes to parent element (issue #31)
 
 `v2.0.5`_ (2020-12-02)
