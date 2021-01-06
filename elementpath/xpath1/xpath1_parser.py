@@ -19,8 +19,8 @@ from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDurati
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from ..xpath_context import XPathSchemaContext
 from ..tdop import Parser
-from ..namespaces import XSD_ANY_SIMPLE_TYPE, XML_NAMESPACE, XSD_NAMESPACE, \
-    XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
+from ..namespaces import XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XML_NAMESPACE, \
+    XSD_NAMESPACE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import XPathToken
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
@@ -175,7 +175,7 @@ class XPath1Parser(Parser):
             self.parser.advance('(')
             if nargs is None:
                 del self[:]
-                if self.parser.next_token.symbol == ')':
+                if self.parser.next_token.symbol in (')', '(end)'):
                     raise self.error(code, 'at least an argument is required')
                 while True:
                     self.append(self.parser.expression(5))
@@ -186,7 +186,9 @@ class XPath1Parser(Parser):
                 return self
             elif nargs == 0:
                 if self.parser.next_token.symbol != ')':
-                    raise self.error(code, '%s has no arguments' % str(self))
+                    if self.parser.next_token.symbol != '(end)':
+                        raise self.error(code, '%s has no arguments' % str(self))
+                    raise self.parser.next_token.wrong_syntax()
                 self.parser.advance()
                 return self
             elif isinstance(nargs, (tuple, list)):
@@ -196,7 +198,7 @@ class XPath1Parser(Parser):
 
             k = 0
             while k < min_args:
-                if self.parser.next_token.symbol == ')':
+                if self.parser.next_token.symbol in (')', '(end)'):
                     msg = 'Too few arguments: expected at least %s arguments' % min_args
                     raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
 
@@ -215,7 +217,7 @@ class XPath1Parser(Parser):
                 elif k == 0 and self.parser.next_token.symbol != ')':
                     self[k:] = self.parser.expression(5),
                 else:
-                    break
+                    break  # pragma: no cover
                 k += 1
 
             if self.parser.next_token.symbol == ',':
@@ -260,8 +262,12 @@ class XPath1Parser(Parser):
         if get_namespace(type_qname) == XSD_NAMESPACE:
             if type_qname == XSD_UNTYPED_ATOMIC:
                 return isinstance(obj, UntypedAtomic)
+            elif type_qname == XSD_ANY_ATOMIC_TYPE:
+                return isinstance(obj, AnyAtomicType)
             elif type_qname == XSD_ANY_SIMPLE_TYPE:
-                return isinstance(obj, (AnyAtomicType, list))
+                return isinstance(obj, AnyAtomicType) or \
+                    isinstance(obj, list) and \
+                    all(isinstance(x, AnyAtomicType) for x in obj)
 
             try:
                 if self.xsd_version == '1.1':
@@ -271,7 +277,11 @@ class XPath1Parser(Parser):
                 pass
 
         if self.schema is not None:
-            return self.schema.is_instance(obj, type_qname)
+            try:
+                return self.schema.is_instance(obj, type_qname)
+            except KeyError:
+                pass
+
         raise ElementPathKeyError("unknown type %r" % type_qname)
 
     def is_sequence_type(self, value):

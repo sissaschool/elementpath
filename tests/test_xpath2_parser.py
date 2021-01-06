@@ -112,6 +112,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertTrue(self.parser.is_sequence_type('item()?'))
         self.assertTrue(self.parser.is_sequence_type('xs:untypedAtomic+'))
         self.assertFalse(self.parser.is_sequence_type(10))
+        self.assertFalse(self.parser.is_sequence_type(''))
         self.assertFalse(self.parser.is_sequence_type('empty-sequence()*'))
         self.assertFalse(self.parser.is_sequence_type('unknown'))
         self.assertFalse(self.parser.is_sequence_type('unknown?'))
@@ -151,7 +152,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          {'values': 'xs:decimal+', 'myaddress': 'xs:string', 'word': 'xs:string'})
 
         self.assertIsNone(self.parser.check_variables(
-            {'values': 1, 'myaddress': 'info@example.com', 'word': ''}
+            {'values': [1, 2, -1], 'myaddress': 'info@example.com', 'word': ''}
         ))
 
         with self.assertRaises(NameError) as ctx:
@@ -946,6 +947,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         token = self.parser.parse('true()')
 
+        self.assertEqual(self.parser.get_atomic_value('xs:int'), 1)
+        self.assertEqual(self.parser.get_atomic_value('xs:unknown'), UntypedAtomic('1'))
         self.assertEqual(self.parser.get_atomic_value(schema.elements['d'].type),
                          UntypedAtomic('1'))
 
@@ -959,6 +962,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         try:
             with self.assertRaises(AttributeError) as err:
                 self.parser.get_atomic_value(schema)
+
+            value = self.parser.get_atomic_value('unknown')
+            self.assertIsInstance(value, UntypedAtomic)
+            self.assertEqual(value, UntypedAtomic(value='1'))
 
             value = self.parser.get_atomic_value(schema.elements['a'].type)
             self.assertIsInstance(value, UntypedAtomic)
