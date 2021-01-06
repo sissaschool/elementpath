@@ -32,8 +32,14 @@ try:
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+
 from elementpath import *
-from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+    XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_UNTYPED_ATOMIC
 
 try:
     from tests import xpath_test_class
@@ -241,6 +247,65 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.wrong_type("round(2.5, 1.7)")
         self.wrong_type("contains('XPath', 'XP', 20)")
         self.wrong_type("boolean(1, 5)")
+
+    def test_xsd_qname_method(self):
+        qname = self.parser.xsd_qname('string')
+        self.assertEqual(qname, 'xs:string')
+
+        parser = self.parser.__class__(namespaces={'xs': XSD_NAMESPACE})
+        parser.namespaces['xsd'] = parser.namespaces.pop('xs')
+        self.assertEqual(parser.xsd_qname('string'), 'xsd:string')
+
+        parser.namespaces.pop('xsd')
+        with self.assertRaises(NameError) as ctx:
+            parser.xsd_qname('string')
+        self.assertIn('XPST0081', str(ctx.exception))
+
+    def test_is_instance_method(self):
+        self.assertTrue(self.parser.is_instance(datatypes.UntypedAtomic(1),
+                                                XSD_UNTYPED_ATOMIC))
+        self.assertFalse(self.parser.is_instance(1, XSD_UNTYPED_ATOMIC))
+        self.assertTrue(self.parser.is_instance(1, XSD_ANY_ATOMIC_TYPE))
+        self.assertFalse(self.parser.is_instance([1], XSD_ANY_ATOMIC_TYPE))
+        self.assertTrue(self.parser.is_instance(1, XSD_ANY_SIMPLE_TYPE))
+        self.assertTrue(self.parser.is_instance([1], XSD_ANY_SIMPLE_TYPE))
+
+        self.assertTrue(self.parser.is_instance('foo', '{%s}string' % XSD_NAMESPACE))
+        self.assertFalse(self.parser.is_instance(1, '{%s}string' % XSD_NAMESPACE))
+        self.assertTrue(self.parser.is_instance(1.0, '{%s}double' % XSD_NAMESPACE))
+        self.assertFalse(self.parser.is_instance(1.0, '{%s}float' % XSD_NAMESPACE))
+
+        self.parser._xsd_version = '1.1'
+        try:
+            self.assertTrue(self.parser.is_instance(1.0, '{%s}double' % XSD_NAMESPACE))
+            self.assertFalse(self.parser.is_instance(1.0, '{%s}float' % XSD_NAMESPACE))
+        finally:
+            self.parser._xsd_version = '1.0'
+
+        with self.assertRaises(KeyError):
+            self.parser.is_instance('foo', '{%s}unknown' % XSD_NAMESPACE)
+
+        if xmlschema is not None and self.parser.version > '1.0':
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:simpleType name="myInt">
+                    <xs:restriction base="xs:int"/>
+                  </xs:simpleType>
+                </xs:schema>""")
+
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+            try:
+                self.assertFalse(self.parser.is_instance(1.0, 'myInt'))
+                self.assertTrue(self.parser.is_instance(1, 'myInt'))
+                with self.assertRaises(KeyError):
+                    self.parser.is_instance(1.0, 'dType')
+            finally:
+                self.parser.schema = None
+
+    def test_check_variables_method(self):
+        self.assertIsNone(self.parser.check_variables(
+            {'values': [1, 2, -1], 'myaddress': 'info@example.com', 'word': ''}
+        ))
 
     # XPath expression tests
     def test_node_selection(self):
@@ -735,6 +800,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("boolean('hello!')", True)
         self.check_value("boolean('   ')", True)
         self.check_value("boolean('')", False)
+
+        self.wrong_type("true(1)", 'XPST0017', "'true' function has no arguments")
+        self.wrong_syntax("true(", 'unexpected end of source')
 
         if self.parser.version == '1.0':
             self.wrong_syntax("boolean(())")
