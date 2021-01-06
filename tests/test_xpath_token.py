@@ -182,8 +182,11 @@ class XPath1TokenTest(unittest.TestCase):
         with token.use_locale(UNICODE_CODEPOINT_COLLATION):
             self.assertEqual(locale.getlocale(locale.LC_COLLATE), ('en_US', 'UTF-8'))
 
-        with token.use_locale('de_DE.UTF-8'):
-            self.assertEqual(locale.getlocale(locale.LC_COLLATE), ('de_DE', 'UTF-8'))
+        try:
+            with token.use_locale('de_DE.UTF-8'):
+                self.assertEqual(locale.getlocale(locale.LC_COLLATE), ('de_DE', 'UTF-8'))
+        except locale.Error:
+            pass  # Skip test if 'de_DE.UTF-8' is an unknown locale setting
 
         with self.assertRaises(TypeError) as cm:
             with token.use_locale(None):
