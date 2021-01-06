@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -656,6 +656,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.wrong_type('xs:NOTATION(())', 'XPST0017',
                         'no constructor function exists for xs:NOTATION')
         self.wrong_name('"A120" castable as xs:NOTATION', 'XPST0080')
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ConstructorsTest(XPath2ConstructorsTest):

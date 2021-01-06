@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.1.1`_ (2021-01-06)
+======================
+* Fix for issue #32 (test failure on missing locale setting)
+* Extend tests for XPath 1.0 with minor fixes
+
 `v2.1.0`_ (2021-01-05)
 ======================
 * Create custom class hierarchy for XPath nodes that replaces named-tuples
@@ -267,3 +272,4 @@ CHANGELOG
 .. _v2.0.4: https://github.com/sissaschool/elementpath/compare/v2.0.3...v2.0.4
 .. _v2.0.5: https://github.com/sissaschool/elementpath/compare/v2.0.4...v2.0.5
 .. _v2.1.0: https://github.com/sissaschool/elementpath/compare/v2.0.5...v2.1.0
+.. _v2.1.1: https://github.com/sissaschool/elementpath/compare/v2.1.0...v2.1.1
