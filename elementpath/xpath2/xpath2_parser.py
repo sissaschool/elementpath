@@ -448,6 +448,7 @@ unregister('lang')
 unregister('id')
 unregister('substring-before')
 unregister('substring-after')
+unregister('starts-with')
 
 ###
 # Symbols

@@ -10,7 +10,6 @@
 from ..xpath_nodes import NamespaceNode, is_element_node
 from .xpath1_functions import XPath1Parser
 
-
 method = XPath1Parser.method
 axis = XPath1Parser.axis
 
