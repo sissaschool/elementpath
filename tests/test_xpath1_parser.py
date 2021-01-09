@@ -983,6 +983,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("10div 3", SyntaxError)  # TODO: accepted syntax in XPath 1.0
         else:
             self.check_value("() div 2")
+            self.check_raise('1 div 0.0', ZeroDivisionError, 'FOAR0001', 'Division by zero')
 
     def test_numerical_add_operator(self):
         self.check_value("3 + 8", 11)
@@ -1036,6 +1037,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("11 mod 3", 2)
         self.check_value("4.5 mod 1.2", Decimal('0.9'))
         self.check_value("1.23E2 mod 0.6E1", 3.0E0)
+        self.check_value("10 mod 0e1", math.isnan)
+        self.check_raise('3 mod 0', ZeroDivisionError, 'FOAR0001')
 
         root = self.etree.XML(XML_DATA_TEST)
         if self.parser.version == '1.0':
@@ -1044,6 +1047,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.check_selector("/values/a mod 2", root, TypeError)
             self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
+            self.check_value("() mod 2e1")
+            self.check_value("2 mod xs:float('INF')", 2)
 
         self.check_selector("/values/d mod 3", root, 2)
 
@@ -1454,6 +1459,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("a[not(b)]", [], context=XPathContext(root, item=root[0]))
         self.check_value("a[not(b)]", [root[1][0]], context=XPathContext(root, item=root[1]))
 
+        self.check_raise('88[..]', TypeError, 'XPTY0020', 'Context item is not a node',
+                         context=XPathContext(root))
+
         self.check_tree("preceding::a[not(b)]", '([ (preceding (a)) (not (b)))')
 
         self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[0]))
@@ -1473,6 +1481,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/B2 | /A/*', root, root[:])
         self.check_selector('/A/B2 | /A/* | /A/B1', root, root[:])
         self.check_selector('/A/@min | /A/@max', root, {'1', '10'})
+        self.check_raise('1|2|3', TypeError, 'XPTY0004', 'only XPath nodes are allowed',
+                         context=XPathContext(root))
 
     def test_default_namespace(self):
         root = self.etree.XML('<foo>bar</foo>')

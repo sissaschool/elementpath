@@ -626,6 +626,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:yearMonthDuration("P1Y") * xs:double("INF")', OverflowError)
         self.wrong_value('xs:yearMonthDuration("P3Y") div xs:double("NaN")', 'FOCA0005')
 
+        self.check_raise('xs:yearMonthDuration("P3Y") div xs:yearMonthDuration("P0Y")',
+                         ZeroDivisionError, 'FOAR0001', 'Division by zero')
+        self.check_raise('xs:yearMonthDuration("P3Y36M") div 0', OverflowError, 'FODT0002')
+
     def test_day_time_duration_operators(self):
         self.check_value('xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")',
                          DayTimeDuration.fromstring('P8DT5M'))
