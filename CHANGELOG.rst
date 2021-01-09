@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.1.2`_ (2021-01-xx)
+======================
+* Extend tests for XPath 1.0/2.0 with minor fixes
+
 `v2.1.1`_ (2021-01-06)
 ======================
 * Fix for issue #32 (test failure on missing locale setting)
@@ -273,3 +277,4 @@ CHANGELOG
 .. _v2.0.5: https://github.com/sissaschool/elementpath/compare/v2.0.4...v2.0.5
 .. _v2.1.0: https://github.com/sissaschool/elementpath/compare/v2.0.5...v2.1.0
 .. _v2.1.1: https://github.com/sissaschool/elementpath/compare/v2.1.0...v2.1.1
+.. _v2.1.2: https://github.com/sissaschool/elementpath/compare/v2.1.1...v2.1.2

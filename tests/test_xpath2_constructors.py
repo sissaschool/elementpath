@@ -33,6 +33,9 @@ except ImportError:
 
 class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
+    def test_unknown_constructor(self):
+        self.wrong_type("xs:unknown('5')", 'XPST0017', 'unknown constructor function')
+
     def test_string_constructor(self):
         self.check_value("xs:string(5.0)", '5')
         self.check_value("xs:string(5.2)", '5.2')

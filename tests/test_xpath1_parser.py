@@ -25,6 +25,7 @@ import io
 import math
 import pickle
 from decimal import Decimal
+from typing import Optional, List, Tuple
 from xml.etree import ElementTree
 
 try:
@@ -303,9 +304,23 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                 self.parser.schema = None
 
     def test_check_variables_method(self):
-        self.assertIsNone(self.parser.check_variables(
-            {'values': [1, 2, -1], 'myaddress': 'info@example.com', 'word': ''}
-        ))
+        self.assertIsNone(self.parser.check_variables({
+            'values': [1, 2, -1],
+            'myaddress': 'info@example.com',
+            'word': ''
+        }))
+
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.check_variables({'values': [None, 2, -1]})
+        error_message = str(ctx.exception)
+        self.assertIn('XPDY0050', error_message)
+        self.assertIn('Unmatched sequence type', error_message)
+
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.check_variables({'other': None})
+        error_message = str(ctx.exception)
+        self.assertIn('XPDY0050', error_message)
+        self.assertIn('Unmatched sequence type', error_message)
 
     # XPath expression tests
     def test_node_selection(self):
@@ -366,6 +381,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.wrong_syntax("{%s" % XSD_NAMESPACE)
         self.wrong_syntax("{%s}1" % XSD_NAMESPACE)
         self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
+        self.check_value("string({%s}true())" % XPATH_FUNCTIONS_NAMESPACE, 'true')
 
         name = '{%s}alpha' % XPATH_FUNCTIONS_NAMESPACE
         self.check_value(name, name)  # it's not an error to use 'fn' namespace for a name
@@ -435,6 +451,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("/self::node()", expected=[], context=context)
         context.item = 1
         self.check_value("self::node()", expected=[], context=context)
+
+    def test_unknown_function(self):
+        self.wrong_type("unknown('5')", 'XPST0017', 'unknown function')
 
     def test_node_set_id_function(self):
         # XPath 1.0 id() function: https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id
@@ -918,6 +937,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("5 > 3", True)
         self.check_value("5 < 20.0", True)
         self.check_value("2 * 2 = 4", True)
+        self.wrong_syntax("5 > 3 < 4", "unexpected '<' operator")
 
         if self.parser.version == '1.0':
             self.check_value("false() = 1", False)
@@ -925,6 +945,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.wrong_type("false() = 1")
             self.wrong_type("0 = false()")
+            self.wrong_value('xs:untypedAtomic("1") = xs:dayTimeDuration("PT1S")',
+                             'FORG0001', "'1' is not an xs:duration value")
 
     def test_comparison_of_sequences(self):
         root = self.etree.XML('<table>'
@@ -979,6 +1001,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("/values/b + 2", ValueError, context=XPathContext(root))
             self.wrong_type("+'alpha'")
             self.wrong_type("3 + 'alpha'")
+            self.check_value("() + 81")
+            self.check_value("72 + ()")
+            self.check_value("+()")
+            self.wrong_type('xs:dayTimeDuration("P1D") + xs:duration("P6M")', 'XPTY0004')
 
         self.check_selector("/values/d + 3", root, 47)
 
@@ -999,6 +1025,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("/values/b - 2", ValueError, context=XPathContext(root))
             self.wrong_type("-'alpha'")
             self.wrong_type("3 - 'alpha'")
+            self.check_value("() - 6")
+            self.check_value("19 - ()")
+            self.check_value("-()")
+            self.wrong_type('xs:duration("P3Y") - xs:yearMonthDuration("P2Y3M")', 'XPTY0004')
 
         self.check_selector("/values/d - 3", root, 41)
 
@@ -1331,6 +1361,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/*/C2/parent::node()', root, [root[2]])
         self.check_selector('/A/*/*/parent::node()', root, [root[0], root[2], root[3]])
         self.check_selector('//C2/parent::node()', root, [root[2]])
+
+        self.check_selector('..', self.etree.ElementTree(root), [])
         self.check_value('..', MissingContextError)
         self.check_value('parent::*', MissingContextError)
 
@@ -1540,11 +1572,12 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
     def test_namespace_axis(self):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
-        namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) \
-            + [('tst', 'http://xpath.test/ns')]
+        namespaces: List[Tuple[Optional[str], str]] = []
+        namespaces.extend(self.parser.DEFAULT_NAMESPACES.items())
+        namespaces += [('tst', 'http://xpath.test/ns')]
+
         self.check_selector('/A/namespace::*', root, expected=set(namespaces),
                             namespaces=namespaces[-1:])
-
         self.check_selector('/A/namespace::*', root, expected=set(namespaces))
 
         root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" '

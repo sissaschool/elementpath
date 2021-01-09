@@ -521,9 +521,6 @@ def led(self, left):
 
     self[:] = left, self.parser.expression(90)
     self.value = '{}:{}'.format(self[0].value, self[1].value)
-
-    if self[1].symbol == ':':
-        raise self.wrong_syntax('{!r} is not a QName'.format(self.source))
     return self
 
 
@@ -547,13 +544,7 @@ def select(self, context=None):
     if self[0].value == '*':
         name = '*:%s' % self[1].value
     else:
-        try:
-            namespace = self.get_namespace(self[0].value)
-        except ElementPathKeyError:
-            msg = "prefix {!r} has not been declared".format(self[0].value)
-            raise self.error('XPST0081', msg) from None
-        else:
-            name = '{%s}%s' % (namespace, self[1].value)
+        name = '{%s}%s' % (self.get_namespace(self[0].value), self[1].value)
 
     if context is None:
         yield name
@@ -798,17 +789,15 @@ def evaluate(self, context=None):
         if op1 is not None:
             try:
                 return op1 + op2
-            except ValueError as err:
-                raise self.error('FORG0001', err) from None
             except TypeError as err:
-                raise self.error('XPTY0004', err)
+                raise self.error('XPTY0004', err) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', err)
+                    raise self.error('FODT0001', err) from None
                 elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', err)
+                    raise self.error('FODT0002', err) from None
                 else:
-                    raise self.error('FOAR0002', err)
+                    raise self.error('FOAR0002', err) from None
 
 
 @method(infix('-', bp=40))
@@ -826,11 +815,11 @@ def evaluate(self, context=None):
                 raise self.error('XPTY0004', err) from None
             except OverflowError as err:
                 if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', err)
+                    raise self.error('FODT0001', err) from None
                 elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', err)
+                    raise self.error('FODT0002', err) from None
                 else:
-                    raise self.error('FOAR0002', err)
+                    raise self.error('FOAR0002', err) from None
 
 
 @method(infix('*', bp=45))
@@ -843,17 +832,17 @@ def evaluate(self, context=None):
                     return op2 * op1
                 return op1 * op2
             except TypeError as err:
-                if isinstance(op1, float):
+                if isinstance(op1, (float, decimal.Decimal)):
                     if math.isnan(op1):
-                        raise self.error('FOCA0005', err) from None
+                        raise self.error('FOCA0005') from None
                     elif math.isinf(op1):
-                        raise self.error('FODT0002', err) from None
+                        raise self.error('FODT0002') from None
 
-                if isinstance(op2, float):
+                if isinstance(op2, (float, decimal.Decimal)):
                     if math.isnan(op2):
-                        raise self.error('FOCA0005', err) from None
+                        raise self.error('FOCA0005') from None
                     elif math.isinf(op2):
-                        raise self.error('FODT0002', err) from None
+                        raise self.error('FODT0002') from None
 
                 raise self.error('XPTY0004', err) from None
             except ValueError as err:

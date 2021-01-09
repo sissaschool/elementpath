@@ -530,6 +530,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:empty(("hello", "world"))', False)
         self.check_value('fn:empty(fn:remove(("hello", "world"), 1))', False)
         self.check_value('fn:empty(())', True)
+        self.check_value("empty(() * ())", True)
         self.check_value('fn:empty(fn:remove(("hello"), 1))', True)
         self.check_value('fn:empty((xs:double("0")))', False)
 
