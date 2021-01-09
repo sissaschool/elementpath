@@ -1052,9 +1052,9 @@ def select(self, context=None):
         raise self.missing_context()
 
     for _ in context.inner_focus_select(self[0]):
-        if self[1].label in ('axis', 'kind test') or self[1].symbol == '..':
-            if not is_xpath_node(context.item):
-                raise self.error('XPTY0020')
+        if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
+                and not is_xpath_node(context.item):
+            raise self.error('XPTY0020')
 
         predicate = [x for x in self[1].select(context.copy())]
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
