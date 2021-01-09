@@ -344,11 +344,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                    root[2][0], root[2][2], root[2][0], root[2][3], root[2][0]]
         )
 
-    def test_numerical_add_operator(self):
-        super(XPath2ParserTest, self).test_numerical_add_operator()
-        self.check_value("() + 81")
-        self.check_value("72 + ()")
-
     def test_idiv_operator(self):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
@@ -369,6 +364,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("false() eq 1", False)
         self.check_value("0 eq false()", True)
         self.check_value("2 * 2 eq 4", True)
+        self.check_value("() * 7")
+        self.check_value("() * ()")
 
         self.check_value("() le 4")
         self.check_value("4 gt ()")
@@ -607,6 +604,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:time("08:20:00-05:00") - xs:dayTimeDuration("P23DT10H10M")',
                          Time.fromstring('22:10:00-05:00'))
 
+    def test_duration_with_arithmetical_operators(self):
+        self.wrong_type('xs:duration("P1Y") * 3', 'XPTY0004', 'unsupported operand type(s)')
+        self.wrong_value('xs:duration("P1Y") * xs:float("NaN")', 'FOCA0005')
+        self.check_value('xs:duration("P1Y") * xs:float("INF")', OverflowError)
+        self.wrong_value('xs:float("NaN") * xs:duration("P1Y")', 'FOCA0005')
+        self.check_value('xs:float("INF") * xs:duration("P1Y")', OverflowError)
+        self.wrong_type('xs:duration("P3Y") div 3',  'XPTY0004', 'unsupported operand type(s)')
+
     def test_year_month_duration_operators(self):
         self.check_value('xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")',
                          YearMonthDuration(months=74))
@@ -617,6 +622,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5',
                          YearMonthDuration.fromstring('P1Y11M'))
         self.check_value('xs:yearMonthDuration("P3Y4M") div xs:yearMonthDuration("-P1Y4M")', -2.5)
+        self.wrong_value('xs:double("NaN") * xs:yearMonthDuration("P2Y")', 'FOCA0005')
+        self.check_value('xs:yearMonthDuration("P1Y") * xs:double("INF")', OverflowError)
+        self.wrong_value('xs:yearMonthDuration("P3Y") div xs:double("NaN")', 'FOCA0005')
 
     def test_day_time_duration_operators(self):
         self.check_value('xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")',
@@ -627,6 +635,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          DayTimeDuration.fromstring('PT4H33M'))
         self.check_value('xs:dayTimeDuration("P1DT2H30M10.5S") div 1.5',
                          DayTimeDuration.fromstring('PT17H40M7S'))
+        self.check_value('3 * xs:dayTimeDuration("P1D")',
+                         DayTimeDuration.fromstring('P3D'))
         self.check_value(
             'xs:dayTimeDuration("P2DT53M11S") div xs:dayTimeDuration("P1DT10H")',
             Decimal('1.437834967320261437908496732')
