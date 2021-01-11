@@ -27,6 +27,7 @@ import math
 import os
 import platform
 import time
+from textwrap import dedent
 from decimal import Decimal
 
 try:
@@ -42,7 +43,7 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
-from elementpath.namespaces import XSI_NAMESPACE
+from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE
 from elementpath.datatypes import DateTime10, DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
 
@@ -582,11 +583,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_insert_before_function(self):
         context = XPathContext(root=self.etree.XML('<root/>'),
                                variables={'x': ['a', 'b', 'c']})
-        self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context.copy())
-        self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context.copy())
-        self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context.copy())
-        self.check_value('fn:insert-before($x, 3, "z")', ['a', 'b', 'z', 'c'], context.copy())
-        self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context.copy())
+        self.check_value('fn:insert-before($x, 0, "z")', ['z', 'a', 'b', 'c'], context)
+        self.check_value('fn:insert-before($x, 1, "z")', ['z', 'a', 'b', 'c'], context)
+        self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context)
+        self.check_value('fn:insert-before($x, 3, "z")', ['a', 'b', 'z', 'c'], context)
+        self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context)
 
     def test_remove_function(self):
         context = XPathContext(root=self.etree.XML('<root/>'),
@@ -704,17 +705,24 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                               '</p1:A>')
         context = XPathContext(root=root)
 
-        self.check_value("fn:resolve-QName((), .)", context=context.copy())
-        self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context.copy())
+        self.check_value("fn:resolve-QName((), .)", context=context)
+        self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context)
         self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError, namespaces={'p3': ''})
-        self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError)
-        self.check_value("fn:resolve-QName(2, .)", TypeError, context=context.copy())
-        self.check_value("fn:resolve-QName('2', .)", ValueError, context=context.copy())
-        self.check_value("fn:resolve-QName((), 4)", context=context.copy())
+        self.check_raise("fn:resolve-QName('p3:C3', .)", KeyError, 'FONS0004',
+                         "no namespace found for prefix 'p3'", context=context)
+        self.check_value("fn:resolve-QName('C3', .)", QName('', 'C3'), context=context)
+
+        self.check_value("fn:resolve-QName(2, .)", TypeError, context=context)
+        self.check_value("fn:resolve-QName('2', .)", ValueError, context=context)
+        self.check_value("fn:resolve-QName((), 4)", context=context)
+        self.wrong_type("fn:resolve-QName('p3:C3', 4)", 'FORG0006',
+                        '2nd argument 4 is not an element node', context=context)
 
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
         self.check_selector("fn:resolve-QName('C3', .)", root,
                             [QName('', 'C3')], namespaces={'': ''})
+        self.check_selector("fn:resolve-QName('xml:lang', .)", root,
+                            [QName(XML_NAMESPACE, 'lang')])
 
     def test_namespace_uri_for_prefix_function(self):
 
@@ -724,22 +732,22 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                               '</p1:A>')
         context = XPathContext(root=root)
 
-        self.check_value("fn:namespace-uri-for-prefix('p1', .)", context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix(4, .)", TypeError, context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix('p1', 9)", TypeError, context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('p1', .)", context=context)
+        self.check_value("fn:namespace-uri-for-prefix(4, .)", TypeError, context=context)
+        self.check_value("fn:namespace-uri-for-prefix('p1', 9)", TypeError, context=context)
         self.check_value("fn:namespace-uri-for-prefix('eg', .)",
                          'http://www.example.com/ns/', context=context)
         self.check_selector("fn:namespace-uri-for-prefix('p3', .)",
                             root, NameError, namespaces={'p3': ''})
 
         # Note: default namespace for XPath 2 tests is 'http://www.example.com/ns/'
-        self.check_value("fn:namespace-uri-for-prefix('', .)", context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('', .)", context=context)
         self.check_value(
             'fn:namespace-uri-from-QName(fn:QName("http://www.example.com/ns/", "person"))',
             'http://www.example.com/ns/'
         )
-        self.check_value("fn:namespace-uri-for-prefix('', .)", context=context.copy())
-        self.check_value("fn:namespace-uri-for-prefix((), .)", context=context.copy())
+        self.check_value("fn:namespace-uri-for-prefix('', .)", context=context)
+        self.check_value("fn:namespace-uri-for-prefix((), .)", context=context)
 
     def test_in_scope_prefixes_function(self):
         root = self.etree.XML('<p1:A xmlns:p1="ns1" xmlns:p0="ns0">'
@@ -768,6 +776,18 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         with self.assertRaises(TypeError):
             select(root, "fn:in-scope-prefixes('')", namespaces, parser=type(self.parser))
+
+        root = self.etree.XML('<tns:A xmlns:tns="ns1" xmlns:xml="{}"/>'.format(XML_NAMESPACE))
+        namespaces = {'tns': 'ns1', 'xml': XML_NAMESPACE}
+        prefixes = select(root, "fn:in-scope-prefixes(.)", namespaces, parser=type(self.parser))
+        if self.etree is lxml_etree:
+            self.assertIn('tns', prefixes)
+            self.assertIn('xml', prefixes)
+            self.assertNotIn('fn', prefixes)
+        else:
+            self.assertIn('tns', prefixes)
+            self.assertIn('xml', prefixes)
+            self.assertIn('fn', prefixes)
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
@@ -921,11 +941,36 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_node_accessor_functions(self):
         root = self.etree.XML('<A xmlns:ns0="%s" id="10"><B1><C1 /><C2 ns0:nil="true" /></B1>'
                               '<B2 /><B3>simple text</B3></A>' % XSI_NAMESPACE)
+
         self.check_selector("node-name(.)", root, QName('', 'A'))
         self.check_selector("node-name(/A/B1)", root, QName('', 'B1'))
         self.check_selector("node-name(/A/*)", root, TypeError)  # Not allowed more than one item!
+
         self.check_selector("nilled(./B1/C1)", root, False)
         self.check_selector("nilled(./B1/C2)", root, True)
+        self.check_raise("nilled(.)", MissingContextError)
+
+        context = XPathContext(root)
+        self.check_value('nilled(())', context=context)
+        self.wrong_type('nilled(8)', 'XPTY0004', 'an XPath node required', context=context)
+
+        self.check_value('node-name(())', context=context)
+        self.wrong_type('node-name(8)', 'XPTY0004', 'an XPath node required', context=context)
+        self.check_value('node-name(.)', context=XPathContext(self.etree.ElementTree(root)))
+
+        root = self.etree.XML('<tst:root xmlns:tst="http://xpath.test/ns" tst:a="10"/>')
+        self.check_value('node-name(.)', QName('http://xpath.test/ns', 'root'),
+                         context=XPathContext(root))
+        self.check_value('node-name(./@tst:a)', QName('http://xpath.test/ns', 'a'),
+                         context=XPathContext(root))
+
+        root = self.etree.XML('<root a="10"/>')
+        self.check_value('node-name(./@a)', QName('', 'a'), context=XPathContext(root))
+
+        root = self.etree.XML('<tst0:root xmlns:tst0="http://xpath.test/ns0"/>')
+        self.check_raise('node-name(.)', KeyError, 'FONS0004',
+                         'no prefix found for namespace http://xpath.test/ns0',
+                         context=XPathContext(root))
 
     def test_string_and_data_functions(self):
         root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
@@ -936,11 +981,36 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("string(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, ' a text, an inner text, a tail, an ending text ')
         self.check_selector("data(.)", root, UntypedAtomic)
+        self.check_selector("data(())", root, [])
         self.check_value("string()", MissingContextError)
 
         context = XPathContext(root=self.etree.XML('<A/>'))
         parser = XPath2Parser(base_uri='http://www.example.com/ns/')
         self.assertEqual(parser.parse('data(fn:resolve-uri(()))').evaluate(context), [])
+
+    @unittest.skipIf(xmlschema is None, "The xmlschema library is not installed")
+    def test_data_function_with_typed_nodes(self):
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="child1" type="xs:int"/>
+                    <xs:element name="child2" type="xs:string"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:schema>"""))
+
+        self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+        try:
+            root = self.etree.XML('<root/>')
+            self.wrong_value("data(/root)", 'FOTY0012', 'node does not have a typed value',
+                             context=XPathContext(root))
+            self.wrong_value("data(.)", 'FOTY0012', 'node does not have a typed value',
+                             context=XPathContext(root))
+        finally:
+            self.parser.schema = None
 
     def test_node_set_id_function(self):
         root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
@@ -1161,16 +1231,31 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:base-uri(9)', MissingContextError)
         self.check_value('fn:base-uri(9)', TypeError, context=context)
         self.check_value('fn:base-uri()', context=context)
+        self.check_value('fn:base-uri(())', context=context)
 
         context = XPathContext(root=self.etree.XML('<A xml:base="/base_path/"/>'))
         self.check_value('fn:base-uri()', '/base_path/', context=context)
 
     def test_document_uri_function(self):
-        context = XPathContext(root=self.etree.parse(io.StringIO('<A/>')))
+        document = self.etree.parse(io.StringIO('<A/>'))
+        context = XPathContext(root=document)
         self.check_value('fn:document-uri(())', context=context)
         self.check_value('fn:document-uri(.)', context=context)
 
-        context = XPathContext(root=self.etree.parse(io.StringIO('<A xml:base="/base_path/"/>')))
+        context = XPathContext(root=document.getroot(), item=document,
+                               documents={'/base_path/': document})
+        self.check_value('fn:document-uri(.)', context=context)
+
+        context = XPathContext(root=document, documents={'/base_path/': document})
+        self.check_value('fn:document-uri(.)', '/base_path/', context=context)
+
+        context = XPathContext(root=document, documents={
+            '/base_path/': self.etree.parse(io.StringIO('<A/>')),
+        })
+        self.check_value('fn:document-uri(.)', context=context)
+
+        document = self.etree.parse(io.StringIO('<A xml:base="/base_path/"/>'))
+        context = XPathContext(root=document)
         self.check_value('fn:document-uri(.)', '/base_path/', context=context)
 
     def test_doc_functions(self):
@@ -1237,12 +1322,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertIn('XPTY0004', str(err.exception))
 
         context = XPathContext(root, variables={'elem': root[1]})
-        self.check_value("fn:root($elem)", root, context=context.copy())
+        self.check_value("fn:root($elem)", root, context=context)
 
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
 
         context = XPathContext(root, variables={'elem': doc[1]})
-        self.check_value("fn:root($elem)", context=context.copy())
+        self.check_value("fn:root($elem)", context=context)
 
         context = XPathContext(root, variables={'elem': doc[1]}, documents={'.': doc})
         self.check_value("root($elem)", doc, context=context)

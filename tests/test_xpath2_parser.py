@@ -465,9 +465,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 self.check_value('. le 20', True, context=XPathContext(root))
 
                 root = self.etree.XML('<root>eleven</root>')
-                with self.assertRaises(TypeError) as err:
-                    self.check_value('. le 10', context=XPathContext(root))
-                self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
+                self.wrong_type('. le 10', 'XPDY0050', 'does not match sequence type',
+                                context=XPathContext(root))
 
                 root = self.etree.XML('<value>12</value>')
                 with self.assertRaises(TypeError) as err:
@@ -974,7 +973,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
         try:
-            with self.assertRaises(AttributeError) as err:
+            with self.assertRaises(AttributeError):
                 self.parser.get_atomic_value(schema)
 
             value = self.parser.get_atomic_value('unknown')

@@ -497,8 +497,14 @@ class XPath2TokenTest(XPath1TokenTest):
                 'a3': schema.meta_schema.types['boolean'],
             })
 
+            # With the schema as base element all the global elements are added.
             root_token = self.parser.parse('.')
-            self.assertIsNone(root_token.xsd_types)
+            self.assertEqual(root_token.xsd_types, {
+                'a1': schema.meta_schema.types['int'],
+                'a2': schema.meta_schema.types['string'],
+                'a3': schema.meta_schema.types['boolean'],
+            })
+
             self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['a2'])
             root_token = self.parser.parse('.')
             self.assertEqual(root_token.xsd_types, {'a2': schema.meta_schema.types['string']})
@@ -621,7 +627,9 @@ class XPath2TokenTest(XPath1TokenTest):
 
         try:
             root_token = self.parser.parse('.')
-            self.assertIsNone(root_token.xsd_types)
+            self.assertEqual(root_token.xsd_types, {
+                'root': schema.elements['root'].type,
+            })
 
             context = XPathSchemaContext(root=schema, axis='self')
             self.assertListEqual(list(root_token.select_xsd_nodes(context, 'root')), [])
