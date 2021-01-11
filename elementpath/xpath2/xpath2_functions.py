@@ -119,17 +119,14 @@ def select(self, context=None):
         yield from self.parser.namespaces
     elif hasattr(elem, 'nsmap'):
         # For lxml returns Element's prefixes
-        if 'xml' not in elem.nsmap:
-            yield 'xml'
-        yield from filter(lambda x: x, elem.nsmap)
+        yield 'xml'
+        yield from filter(lambda x: x and x != 'xml', elem.nsmap)
     else:
         # For ElementTree returns module registered prefixes
-        prefixes = {x for x in self.parser.namespaces if x}
+        prefixes = {'xml'}  # 'xml' prefix is always registered
+        prefixes.update(x for x in self.parser.namespaces if x)
         if context.namespaces:
             prefixes.update(x for x in context.namespaces if x)
-
-        if 'xml' not in prefixes:
-            yield 'xml'
         yield from prefixes
 
 
@@ -187,26 +184,16 @@ def evaluate(self, context=None):
     name = node_name(arg)
     if name is None:
         return
-
-    if name.startswith('{'):
+    elif name.startswith('{'):
+        # name is a QName in extended format
         namespace, local_name = split_expanded_name(name)
         for pfx, uri in self.parser.namespaces.items():
             if uri == namespace:
-                if pfx:
-                    return QName(uri, '{}:{}'.format(pfx, local_name))
-                else:
-                    return QName(uri, local_name)
+                return QName(uri, '{}:{}'.format(pfx, local_name))
         raise self.error('FONS0004', 'no prefix found for namespace {}'.format(namespace))
-
-    try:
-        if ':' not in name:
-            return QName(self.parser.namespaces.get('', ''), name)
-        pfx, _ = name.strip().split(':')
-        return QName(self.parser.namespaces[pfx], name)
-    except ValueError:
-        raise self.error('FORG0001', 'invalid value {!r} for argument'.format(name.strip()))
-    except KeyError as err:
-        raise self.error('FONS0004', 'no namespace found for prefix {}'.format(err))
+    else:
+        # name is a local name
+        return QName(self.parser.namespaces.get('', ''), name)
 
 
 @method(function('nilled', nargs=1))

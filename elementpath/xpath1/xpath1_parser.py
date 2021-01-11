@@ -341,6 +341,8 @@ class XPath1Parser(Parser):
             except (KeyError, AttributeError):
                 return UntypedAtomic('1')
         else:
+            # returns an xs:untypedAtomic value also for element-only types
+            # (that should be None) because it is for static evaluation.
             return UntypedAtomic('1')
 
     def match_sequence_type(self, value, sequence_type, occurrence=None):
@@ -707,13 +709,33 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    for item in context.iter_self():
-        if item is not None:
+    elif isinstance(context, XPathSchemaContext):
+        for item in context.iter_self():
             if is_schema_node(item):
                 self.add_xsd_type(item)
+            elif item is context.root:
+                # item is the schema
+                for xsd_element in item:
+                    self.add_xsd_type(xsd_element)
             yield item
-        elif is_document_node(context.root):
-            yield context.root
+
+    elif self.xsd_types is None:
+        for item in context.iter_self():
+            if item is not None:
+                yield item
+            elif is_document_node(context.root):
+                yield context.root
+
+    else:
+        for item in context.iter_self():
+            if item is not None:
+                if isinstance(item, (TypedAttribute, TypedElement)):
+                    yield item
+                else:
+                    context.item = self.get_typed_node(item)
+                    yield context.item
+            elif is_document_node(context.root):
+                yield context.root
 
 
 @method(nullary('..'))
