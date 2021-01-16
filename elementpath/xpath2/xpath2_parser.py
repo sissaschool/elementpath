@@ -431,10 +431,7 @@ class XPath2Parser(XPath1Parser):
 # XPath 2.0 definitions
 register = XPath2Parser.register
 unregister = XPath2Parser.unregister
-literal = XPath2Parser.literal
-prefix = XPath2Parser.prefix
 infix = XPath2Parser.infix
-infixr = XPath2Parser.infixr
 method = XPath2Parser.method
 function = XPath2Parser.function
 

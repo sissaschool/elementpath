@@ -365,8 +365,6 @@ def evaluate(self, context=None):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item))
             float_class = float
-        elif isinstance(item, (DayTimeDuration, Date10, YearMonthDuration, str, int, Decimal)):
-            values.append(item)
         elif isinstance(item, float):
             values.append(item)
             if float_class is None:
@@ -375,6 +373,8 @@ def evaluate(self, context=None):
                 float_class = float
         elif isinstance(item, AnyURI):
             values.append(item.value)
+        elif isinstance(item, (DayTimeDuration, YearMonthDuration)):
+            values.append(item)
         elif isinstance(item, (Duration, QName)):
             raise self.error('FORG0006', "xs:{} is not an ordered type".format(type(item).name))
         else:
@@ -507,22 +507,16 @@ def select(self, context=None):
 
     if len(self) == 2:
         for pos, result in enumerate(self[0].select(context), start=1):
-            try:
-                if starting_loc <= pos:
-                    yield result
-            except TypeError as err:
-                raise self.error('XPTY0004', err) from None
+            if starting_loc <= pos:
+                yield result
     else:
         length = self.get_argument(context, 2, cls=NumericProxy)
         if not math.isnan(length) and not math.isinf(length):
             length = round(length)
 
         for pos, result in enumerate(self[0].select(context), start=1):
-            try:
-                if starting_loc <= pos < starting_loc + length:
-                    yield result
-            except TypeError as err:
-                raise self.error('XPTY0004', err) from None
+            if starting_loc <= pos < starting_loc + length:
+                yield result
 
 
 @method(function('unordered', nargs=1))
@@ -602,16 +596,14 @@ def evaluate(self, context=None):
                             return False
 
                     elif isinstance(value2, bool):
-                        if not isinstance(value1, bool) or value1 is not value2:
-                            return False
+                        return False
 
                     elif isinstance(value1, UntypedAtomic):
                         if not isinstance(value2, UntypedAtomic) or value1 != value2:
                             return False
 
                     elif isinstance(value2, UntypedAtomic):
-                        if not isinstance(value1, UntypedAtomic) or value1 != value2:
-                            return False
+                        return False
 
                     elif isinstance(value1, float):
                         if math.isnan(value1):
@@ -625,8 +617,7 @@ def evaluate(self, context=None):
 
                     elif isinstance(value2, float):
                         if math.isnan(value2):
-                            if not math.isnan(value1):
-                                return False
+                            return False
                         elif isinstance(value1, Decimal):
                             if value2 != float(value1):
                                 return False

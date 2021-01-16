@@ -796,10 +796,6 @@ def evaluate(self, context=None):
 
 ###
 # Numerical operators
-prefix('+', bp=40)
-prefix('-', bp=70)
-
-
 @method(infix('+', bp=40))
 def evaluate(self, context=None):
     if len(self) == 1:
@@ -842,6 +838,13 @@ def evaluate(self, context=None):
                     raise self.error('FODT0002', err) from None
                 else:
                     raise self.error('FOAR0002', err) from None
+
+
+@method('+')
+@method('-')
+def nud(self):
+    self[:] = self.parser.expression(rbp=70),
+    return self
 
 
 @method(infix('*', bp=45))
