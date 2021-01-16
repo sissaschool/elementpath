@@ -46,6 +46,7 @@ from elementpath import *
 from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE
 from elementpath.datatypes import DateTime10, DateTime, Date, Time, Timezone, \
     DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
+from elementpath.xpath_token import UNICODE_CODEPOINT_COLLATION
 
 try:
     from tests import test_xpath1_parser
@@ -114,11 +115,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_round_half_to_even_function(self):
         self.check_value("round-half-to-even(())")
         self.check_value("round-half-to-even(0.5)", 0)
+        self.check_value("round-half-to-even(1)", 1)
         self.check_value("round-half-to-even(1.5)", 2)
         self.check_value("round-half-to-even(2.5)", 2)
+        self.check_value("round-half-to-even(xs:float(2.5))", 2)
         self.check_value("round-half-to-even(3.567812E+3, 2)", 3567.81E0)
         self.check_value("round-half-to-even(4.7564E-3, 2)", 0.0E0)
         self.check_value("round-half-to-even(35612.25, -2)", 35600)
+        self.wrong_type('round-half-to-even(3.5, "2")', 'XPTY0004')
+        self.check_value('fn:round-half-to-even(xs:double("1.0E300"))', 1.0E300)
+        self.check_value('fn:round-half-to-even(4.8712122, 8328782878)', 4.8712122)
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root, item=float('nan'))
@@ -144,6 +150,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:avg(())")
         self.wrong_type("fn:avg('10')", 'FORG0006')
         self.check_value("fn:avg($seq3)", 4.0, context=context)
+        self.check_value('avg((xs:float(1), xs:untypedAtomic(2), xs:integer(0)))', 1)
+        self.check_value('avg((1.0, 2.0, 3.0))', 2)
+        self.wrong_type('avg((xs:float(1), true(), xs:integer(0)))', 'FORG0006')
+        self.wrong_type('avg((xs:untypedAtomic(3), xs:integer(3), "three"))',
+                        'FORG0006', 'unsupported operand')
 
         root_token = self.parser.parse("fn:avg((xs:float('INF'), xs:float('-INF')))")
         self.assertTrue(math.isnan(root_token.evaluate(context)))
@@ -155,10 +166,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector('avg(/a/b/number(text()))', root, 5)
 
     def test_max_function(self):
+        self.check_value("fn:max(())", [])
         self.check_value("fn:max((3,4,5))", 5)
         self.check_value("fn:max((3, 4, xs:float('NaN')))", float('nan'))
         self.check_value("fn:max((3,4,5), 'en_US.UTF-8')", 5)
         self.check_value("fn:max((5, 5.0e0))", 5.0e0)
+        self.check_value("fn:max((xs:float(1.0E0), xs:double(15.0)))", 15.0)
         self.wrong_type("fn:max((3,4,'Zero'))")
         dt = datetime.datetime.now()
         self.check_value('fn:max((fn:current-date(), xs:date("2001-01-01")))',
@@ -169,11 +182,24 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector('max(/a/b/number(text()))', root, 9)
         self.check_selector('max(/a/b)', root, 9)
 
+        self.check_value(
+            'max((xs:anyURI("http://xpath.test/ns0"), xs:anyURI("http://xpath.test/ns1")))',
+            datatypes.AnyURI("http://xpath.test/ns1")
+        )
+        self.check_value('max((xs:dayTimeDuration("P1D"), xs:dayTimeDuration("P2D")))',
+                         datatypes.DayTimeDuration(seconds=3600 * 48))
+        self.wrong_type('max(QName("http://xpath.test/ns", "foo"))',
+                        'FORG0006', 'xs:QName is not an ordered type')
+        self.wrong_type('max(xs:duration("P1Y"))', 'FORG0006',
+                        'xs:duration is not an ordered type')
+
     def test_min_function(self):
+        self.check_value("fn:min(())", [])
         self.check_value("fn:min((3,4,5))", 3)
         self.check_value("fn:min((3, 4, xs:float('NaN')))", float('nan'))
         self.check_value("fn:min((5, 5.0e0))", 5.0e0)
         self.check_value("fn:min((xs:float(0.0E0), xs:float(-0.0E0)))", 0.0)
+        self.check_value("fn:min((xs:float(1.0E0), xs:double(15.0)))", 1.0)
         self.check_value('fn:min((fn:current-date(), xs:date("2001-01-01")))',
                          Date.fromstring("2001-01-01"))
         self.check_value('fn:min(("a", "b", "c"))', 'a')
@@ -181,6 +207,15 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML('<a><b>1</b><b>9</b></a>')
         self.check_selector('min(/a/b/number(text()))', root, 1)
         self.check_selector('min(/a/b)', root, 1)
+
+        self.check_value(
+            'min((xs:anyURI("http://xpath.test/ns0"), xs:anyURI("http://xpath.test/ns1")))',
+            datatypes.AnyURI("http://xpath.test/ns0")
+        )
+        self.check_value('min((xs:dayTimeDuration("P1D"), xs:dayTimeDuration("P2D")))',
+                         datatypes.DayTimeDuration(seconds=3600 * 24))
+        self.wrong_type('min(QName("http://xpath.test/ns", "foo"))', 'FORG0006')
+        self.wrong_type('min(xs:duration("P1Y"))', 'FORG0006')
 
     ###
     # Functions on strings
@@ -561,10 +596,24 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertTrue(math.isnan(results[1]))
         self.assertEqual(results[2], 'bar')
 
+        root = self.etree.XML('<root/>')
+        self.check_selector(
+            "fn:distinct-values((xs:float('NaN'), xs:double('NaN'), xs:float('NaN')))",
+            root, math.isnan
+        )
+        self.check_value('fn:distinct-values((xs:float("0"), xs:float("0")))', [0.0])
+        self.check_value(
+            'fn:distinct-values("foo", "{}")'.format(UNICODE_CODEPOINT_COLLATION), ['foo']
+        )
+
     def test_index_of_function(self):
         self.check_value('fn:index-of ((10, 20, 30, 40), 35)', [])
+        self.wrong_type('fn:index-of ((10, 20, 30, 40), ())', 'XPTY0004')
         self.check_value('fn:index-of ((10, 20, 30, 30, 20, 10), 20)', [2, 5])
         self.check_value('fn:index-of (("a", "sport", "and", "a", "pastime"), "a")', [1, 4])
+        self.check_value(
+            'fn:index-of (("foo", "bar"), "bar", "{}")'.format(UNICODE_CODEPOINT_COLLATION), [2]
+        )
 
         # Issue #28
         root = self.etree.XML("""<root>
@@ -588,6 +637,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:insert-before($x, 2, "z")', ['a', 'z', 'b', 'c'], context)
         self.check_value('fn:insert-before($x, 3, "z")', ['a', 'b', 'z', 'c'], context)
         self.check_value('fn:insert-before($x, 4, "z")', ['a', 'b', 'c', 'z'], context)
+        self.wrong_type('fn:insert-before($x, "1", "z")', 'XPTY0004', context=context)
 
     def test_remove_function(self):
         context = XPathContext(root=self.etree.XML('<root/>'),
@@ -595,6 +645,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:remove($x, 0)', ['a', 'b', 'c'], context)
         self.check_value('fn:remove($x, 1)', ['b', 'c'], context)
         self.check_value('remove($x, 6)', ['a', 'b', 'c'], context)
+        self.wrong_type('remove($x, "6")', 'XPTY0004', context=context)
         self.check_value('fn:remove((), 3)', [])
 
     def test_reverse_function(self):
@@ -613,6 +664,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4)', [4, 5, 6, 7])
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 4, 2)', [4, 5])
         self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 3, 10)', [3, 4, 5, 6, 7])
+
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), xs:float("INF"))', [])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), xs:float("-INF"))',
+                         [1, 2, 3, 4, 5, 6, 7])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 5, xs:float("-INF"))', [])
+        self.check_value('fn:subsequence((1, 2, 3, 4, 5, 6, 7), 5, xs:float("INF"))', [5, 6, 7])
 
     def test_unordered_function(self):
         self.check_value('fn:unordered(())', [])
@@ -1113,11 +1170,42 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal($xt, $xt)', True, context=context)
 
         self.check_value('deep-equal((1, 2, 3), (1, 2, 3))', True)
+        self.check_value('deep-equal((1, 2, 3), (1, (), 3))', False)
+        self.check_value('deep-equal((true(), 2, 3), (1, 2, 3))', False)
+        self.check_value('deep-equal((true(), 2, 3), (true(), 2, 3))', True)
+        self.check_value('deep-equal((1, 2, 3), (true(), 2, 3))', False)
+
+        self.check_value('deep-equal((xs:untypedAtomic("1"), 2, 3), (1, 2, 3))', False)
+        self.check_value('deep-equal((1, 2, 3), (xs:untypedAtomic("1"), 2, 3))', False)
+        self.check_value(
+            'deep-equal((xs:untypedAtomic("1"), 2, 3), (xs:untypedAtomic("2"), 2, 3))', False
+        )
+        self.check_value(
+            'deep-equal((xs:untypedAtomic("1"), 2, 3), (xs:untypedAtomic("1"), 2, 3))', True
+        )
+
+        self.check_value('deep-equal((), (1, 2, 3))', False)
         self.check_value('deep-equal((1, 2, 3), (1, 2, 4))', False)
         self.check_value("deep-equal((1, 2, 3), (1, '2', 3))", False)
         self.check_value("deep-equal(('1', '2', '3'), ('1', '2', '3'))", True)
         self.check_value("deep-equal(('1', '2', '3'), ('1', '4', '3'))", False)
         self.check_value("deep-equal((1, 2, 3), (1, 2, 3), 'en_US.UTF-8')", True)
+
+        self.check_value('fn:deep-equal(xs:float("NaN"), xs:double("NaN"))', True)
+        self.check_value('fn:deep-equal(xs:float("NaN"), 1.0)', False)
+        self.check_value('fn:deep-equal(1.0, xs:double("NaN"))', False)
+
+        self.check_value('deep-equal((1.1E0, 2E0, 3), (1.1, 2.0, 3))', True)
+        self.check_value('deep-equal((1.1E0, 2E0, 3), (1.1, 2.1, 3))', False)
+        self.check_value('deep-equal((1E0, 2E0, 3), (1, 2, 3))', True)
+        self.check_value('deep-equal((1E0, 2E0, 3), (1, 4, 3))', False)
+
+        self.check_value('deep-equal((1.1, 2.0, 3), (1.1E0, 2E0, 3))', True)
+        self.check_value('deep-equal((1.1, 2.1, 3), (1.1E0, 2E0, 3))', False)
+        self.check_value('deep-equal((1, 2, 3), (1E0, 2E0, 3))', True)
+        self.check_value('deep-equal((1, 4, 3), (1E0, 2E0, 3))', False)
+
+        self.check_value('deep-equal(3.1, xs:anyURI("http://xpath.test"))   ', False)
 
     def test_adjust_datetime_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),

@@ -970,11 +970,33 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("8 - 5", 3)
         self.check_value("-8 - 5", -13)
         self.check_value("-3 * 7", -21)
-        self.check_value("9 - 1 + 6", 14)
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
         self.check_value('(2 + 4) * 5', 30)
         self.check_value('2 + 4 * 5', 22)
+
+    def test_addition_and_subtraction_operators(self):
+        # '+' and '-' are both prefix and infix operators. The binding
+        # power is equal to 40 but the nud() method is set with rbp=70.
+        self.check_value("9 + 1 + 6", 16)
+        self.check_tree("9 - 1 + 6", '(+ (- (9) (1)) (6))')
+        self.check_value("(9 - 1) + 6", 14)
+        self.check_value("9 - 1 + 6", 14)
+
+        self.check_tree('1 + 2 * 4 + (1 + 2 + 3 * 4)',
+                        '(+ (+ (1) (* (2) (4))) (+ (+ (1) (2)) (* (3) (4))))')
+        self.check_value('1 + 2 * 4 + (1 + 2 + 3 * 4)', 24)
+
+        self.check_tree('15 - 13.64 - 1.36', "(- (- (15) (Decimal('13.64'))) (Decimal('1.36')))")
+        self.check_tree('15 + 13.64 + 1.36', "(+ (+ (15) (Decimal('13.64'))) (Decimal('1.36')))")
+        self.check_value('15 - 13.64 - 1.36', 0)
+
+        if self.parser.version != '1.0':
+            self.check_tree('(5, 6) instance of xs:integer+',
+                            '(instance (, (5) (6)) (: (xs) (integer)) (+))')
+            self.check_tree('- 1 instance of xs:int', "(instance (- (1)) (: (xs) (int)))")
+            self.check_tree('+ 1 instance of xs:int', "(instance (+ (1)) (: (xs) (int)))")
+            self.wrong_type('2 - 1 instance of xs:int', 'XPTY0004')
 
     def test_div_operator(self):
         self.check_value("5 div 2", 2.5)
