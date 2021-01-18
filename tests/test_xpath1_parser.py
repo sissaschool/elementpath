@@ -689,8 +689,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.wrong_syntax("starts-with((), ())")
             self.check_value("starts-with('1999', 19)", True)
         else:
-            self.check_value('fn:starts-with("tattoo", "tat")', True)
-            self.check_value('fn:starts-with ( "tattoo", "att")', False)
+            self.check_value('fn:starts-with("tattoo", "tat", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', True)
+            self.check_value('fn:starts-with ("tattoo", "att", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', False)
             self.check_value('fn:starts-with ((), ())', True)
             self.wrong_type("starts-with('1999', 19)")
             self.parser.compatibility_mode = True
@@ -741,8 +743,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.wrong_syntax("contains((), ())")
             self.check_value("contains('XPath', 20)", False)
         else:
-            self.check_value('fn:contains ( "tattoo", "t")', True)
-            self.check_value('fn:contains ( "tattoo", "ttt")', False)
+            self.check_value('fn:contains ( "tattoo", "t", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', True)
+            self.check_value('fn:contains ( "tattoo", "ttt", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', False)
             self.check_value('fn:contains ( "", ())', True)
             self.wrong_type("contains('XPath', 20)")
             self.parser.compatibility_mode = True
@@ -767,9 +771,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("substring-before('2017-10-27', 10)", '2017-')
             self.wrong_syntax("fn:substring-before((), ())")
         else:
-            self.check_value('fn:substring-before ( "tattoo", "attoo")', 't')
-            self.check_value('fn:substring-before ( "tattoo", "tatto")', '')
+            self.check_value('fn:substring-before ( "tattoo", "attoo", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', 't')
+            self.check_value('fn:substring-before ( "tattoo", "tatto", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', '')
+
             self.check_value('fn:substring-before ((), ())', '')
+            self.check_value('fn:substring-before ((), "")', '')
             self.wrong_type("substring-before('2017-10-27', 10)")
             self.parser.compatibility_mode = True
             self.check_value("substring-before('2017-10-27', 10)", '2017-')
@@ -873,6 +881,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('lang("en")', root, True)
         if self.parser.version > '1.0':
             self.check_selector('para/lang("en")', root, True)
+            context = XPathContext(root)
+            self.check_value('for $x in . return $x/fn:lang(())',
+                             expected=[], context=context)
         else:
             context = XPathContext(document, item=root[0])
             self.check_value('lang("en")', True, context=context)
@@ -882,6 +893,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('lang("en")', root, False)
         if self.parser.version > '1.0':
             self.check_selector('b/c/lang("en")', root, False)
+            self.check_selector('b/c/lang("en", .)', root, False)
         else:
             context = XPathContext(root, item=root[0][0])
             self.check_value('lang("en")', False, context=context)
@@ -893,10 +905,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         document = self.etree.ElementTree(root)
         context = XPathContext(root=document)
-        if self.parser.version > '1.0':
-            self.check_value('lang("en")', expected=TypeError, context=context)
-        else:
+        if self.parser.version == '1.0':
             self.check_value('lang("en")', expected=False, context=context)
+        else:
+            self.check_value('lang("en")', expected=TypeError, context=context)
+            context.item = document
+            self.check_value('for $x in /a/b/c return $x/fn:lang("en")',
+                             expected=[False], context=context)
 
     def test_logical_and_operator(self):
         self.check_value("false() and true()", False)
