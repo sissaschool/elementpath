@@ -43,9 +43,9 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
-from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE
-from elementpath.datatypes import DateTime10, DateTime, Date, Time, Timezone, \
-    DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
+from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE, XML_ID
+from elementpath.datatypes import DateTime10, DateTime, Date10, Date, Time, \
+    Timezone, DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
 from elementpath.xpath_token import UNICODE_CODEPOINT_COLLATION
 
 try:
@@ -221,10 +221,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     # Functions on strings
     def test_codepoints_to_string_function(self):
         self.check_value("codepoints-to-string((2309, 2358, 2378, 2325))", 'अशॊक')
+        self.check_value("codepoints-to-string(2309)", 'अ')
+        self.wrong_value("codepoints-to-string((55296))", 'FOCH0001')
+        self.wrong_type("codepoints-to-string(('z'))", 'XPTY0004')
+        self.wrong_type("codepoints-to-string((2309.1))", 'FORG0006')
 
     def test_string_to_codepoints_function(self):
         self.check_value('string-to-codepoints("Thérèse")', [84, 104, 233, 114, 232, 115, 101])
         self.check_value('string-to-codepoints(())')
+        self.wrong_type('string-to-codepoints(84)', 'XPTY0004')
+        self.check_value('string-to-codepoints(("Thérèse"))', [84, 104, 233, 114, 232, 115, 101])
+        self.wrong_type('string-to-codepoints(("Thér", "èse"))', 'XPTY0004')
 
     def test_codepoint_equal_function(self):
         self.check_value("fn:codepoint-equal('abc', 'abc')", True)
@@ -300,7 +307,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                 self.check_value("fn:compare('Strasse', 'Straße', 'invalid_collation')")
             self.assertIn('FOCH0002', str(cm.exception))
 
-            self.wrong_type("fn:compare('Strasse', 111)")
+            self.wrong_type("fn:compare('Strasse', 111)", 'XPTY0004')
+            self.wrong_type('fn:compare("1234", 1234)', 'XPTY0004')
 
         finally:
             locale.setlocale(locale.LC_COLLATE, env_locale_setting)
@@ -312,6 +320,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.assertRaises(ElementPathValueError, self.parser.parse,
                           'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
+        self.check_value('fn:normalize-unicode("à", "")', 'à')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
         self.wrong_type('fn:normalize-unicode("à", ())', 'XPTY0004', "can't be an empty sequence")
 
@@ -466,6 +475,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.wrong_value('fn:matches("abracadabra", "bra", "k")')
         self.wrong_value('fn:matches("abracadabra", "[bra")')
+        self.wrong_value('fn:matches("abracadabra", "a{1,99999999999999999999999999}")',
+                         'FORX0002')
 
         if platform.python_implementation() != 'PyPy' or self.etree is not lxml_etree:
             poem_context = XPathContext(root=self.etree.XML(XML_POEM_TEST))
@@ -497,10 +508,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("//b[ends-with(., 't')]", root, [root[0][0]])
         self.check_selector("//none[ends-with(., 's')]", root, [])
 
-        self.check_value('fn:ends-with ( "tattoo", "tattoo")', True)
-        self.check_value('fn:ends-with ( "tattoo", "atto")', False)
-        if self.parser.version > '1.0':
-            self.check_value("ends-with((), ())", True)
+        self.check_value('fn:ends-with ( "tattoo", "tattoo", "http://www.w3.org/'
+                         '2005/xpath-functions/collation/codepoint")', True)
+        self.check_value('fn:ends-with ( "tattoo", "atto", "http://www.w3.org/'
+                         '2005/xpath-functions/collation/codepoint")', False)
+        self.check_value("ends-with((), ())", True)
 
     def test_replace_function(self):
         self.check_value('fn:replace("abracadabra", "bra", "*")', "a*cada*")
@@ -549,17 +561,24 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:resolve-uri("dir1/dir2", "file:///home/")', 'file:///home/dir1/dir2')
         self.wrong_value('fn:resolve-uri("dir1/dir2", "home/")', '')
         self.wrong_value('fn:resolve-uri("dir1/dir2")')
-        context = XPathContext(root=self.etree.XML('<A/>'))
-        parser = XPath2Parser(base_uri='http://www.example.com/ns/')
-        self.assertEqual(
-            parser.parse('fn:resolve-uri("dir1/dir2")').evaluate(context),
-            'http://www.example.com/ns/dir1/dir2'
-        )
-        self.assertEqual(parser.parse('fn:resolve-uri("/dir1/dir2")').evaluate(context),
-                         '/dir1/dir2')
-        self.assertEqual(parser.parse('fn:resolve-uri("file:text.txt")').evaluate(context),
-                         'file:text.txt')
-        self.assertIsNone(parser.parse('fn:resolve-uri(())').evaluate(context))
+        self.check_value('fn:resolve-uri((), "http://xpath.test")')
+
+        self.wrong_value('fn:resolve-uri("file:://file1.txt", "http://xpath.test")',
+                         'FORG0002', "'file:://file1.txt' is not a valid URI")
+        self.wrong_value('fn:resolve-uri("dir1/dir2", "http:://xpath.test")',
+                         'FORG0002', "'http:://xpath.test' is not a valid URI")
+
+        self.parser.base_uri = 'http://www.example.com/ns/'
+        try:
+            self.check_value('fn:resolve-uri("dir1/dir2")', 'http://www.example.com/ns/dir1/dir2')
+            self.check_value('fn:resolve-uri("/dir1/dir2")', '/dir1/dir2')
+            self.check_value('fn:resolve-uri("file:text.txt")', 'file:text.txt')
+            self.check_value('fn:resolve-uri(())')
+
+            self.wrong_value('fn:resolve-uri("http:://xpath.test")',
+                             'FORG0002', "'http:://xpath.test' is not a valid URI")
+        finally:
+            self.parser.base_uri = None
 
     def test_empty_function(self):
         # Test cases from https://www.w3.org/TR/xquery-operators/#general-seq-funcs
@@ -889,24 +908,25 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-05-31T21:30:00-05:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T19:20:00"))', 1999)
         self.check_value('fn:year-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 2000)
+        self.check_value('fn:year-from-dateTime(())')
 
     def test_month_from_datetime_function(self):
         self.check_value('fn:month-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 5)
         self.check_value('fn:month-from-dateTime(xs:dateTime("1999-12-31T19:20:00-05:00"))', 12)
-        # self.check_value('fn:month-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
-        #                 '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+        self.check_value('fn:month-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+                         '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
 
     def test_day_from_datetime_function(self):
         self.check_value('fn:day-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 31)
         self.check_value('fn:day-from-dateTime(xs:dateTime("1999-12-31T20:00:00-05:00"))', 31)
-        # self.check_value('fn:day-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
-        #                  '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
+        self.check_value('fn:day-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+                         '"1999-12-31T19:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 1)
 
     def test_hours_from_datetime_function(self):
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-05-31T08:20:00-05:00")) ', 8)
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T21:20:00-05:00"))', 21)
-        # self.check_value('fn:hours-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
-        #                  '"1999-12-31T21:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 2)
+        self.check_value('fn:hours-from-dateTime(fn:adjust-dateTime-to-timezone(xs:dateTime('
+                         '"1999-12-31T21:20:00-05:00"), xs:dayTimeDuration("PT0S")))', 2)
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T12:00:00")) ', 12)
         self.check_value('fn:hours-from-dateTime(xs:dateTime("1999-12-31T24:00:00"))', 0)
 
@@ -916,14 +936,18 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_seconds_from_datetime_function(self):
         self.check_value('fn:seconds-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))', 0)
+        self.check_value('seconds-from-dateTime(xs:dateTime("2001-02-03T08:23:12.43"))',
+                         Decimal('12.43'))
 
     def test_timezone_from_datetime_function(self):
         self.check_value('fn:timezone-from-dateTime(xs:dateTime("1999-05-31T13:20:00-05:00"))',
                          DayTimeDuration(seconds=-18000))
+        self.check_value('fn:timezone-from-dateTime(())')
 
     def test_year_from_date_function(self):
         self.check_value('fn:year-from-date(xs:date("1999-05-31"))', 1999)
         self.check_value('fn:year-from-date(xs:date("2000-01-01+05:00"))', 2000)
+        self.check_value('year-from-date(())')
 
     def test_month_from_date_function(self):
         self.check_value('fn:month-from-date(xs:date("1999-05-31-05:00"))', 5)
@@ -938,6 +962,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          DayTimeDuration.fromstring('-PT5H'))
         self.check_value('fn:timezone-from-date(xs:date("2000-06-12Z"))',
                          DayTimeDuration.fromstring('PT0H'))
+        self.check_value('fn:timezone-from-date(xs:date("2000-06-12"))')
 
     def test_hours_from_time_function(self):
         self.check_value('fn:hours-from-time(xs:time("11:23:00"))', 11)
@@ -959,6 +984,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
     def test_timezone_from_time_function(self):
         self.check_value('fn:timezone-from-time(xs:time("13:20:00-05:00"))',
                          DayTimeDuration.fromstring('-PT5H'))
+        self.check_value('timezone-from-time(())')
 
     def test_years_from_duration_function(self):
         self.check_value('fn:years-from-duration(())')
@@ -1135,16 +1161,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector("idref('ID21256')", root, [])
 
         context = XPathContext(doc, variables={'x': 11})
-        with self.assertRaises(TypeError) as err:
-            self.check_value("idref('ID21256', $x)", context=context)
-        self.assertIn('XPTY0004', str(err.exception))
-
-        context = XPathContext(doc, item=11, variables={'x': 11})
-        with self.assertRaises(TypeError) as err:
-            self.check_value("idref('ID21256', $x)", context=context)
-        self.assertIn('XPTY0004', str(err.exception))
+        self.wrong_type("idref('ID21256', $x)", 'XPTY0004', context=context)
 
         context = XPathContext(doc, item=root, variables={'x': root})
+        self.check_value("idref('ID21256', $x)", [], context=context)
+
+        attribute = AttributeNode(XML_ID, 'ID21256', parent=root[0])
+        context = XPathContext(doc, item=root, variables={'x': attribute})
+        self.check_value("idref('ID21256', $x)", [], context=context)
+
+        context = XPathContext(root, variables={'x': None})
+        context.item = None
         self.check_value("idref('ID21256', $x)", [], context=context)
 
     def test_deep_equal_function(self):
@@ -1206,6 +1233,24 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal((1, 4, 3), (1E0, 2E0, 3))', False)
 
         self.check_value('deep-equal(3.1, xs:anyURI("http://xpath.test"))   ', False)
+
+        variables = {'a': [TextNode('alpha')],
+                     'b': [TextNode('beta')]}
+        context = XPathContext(root, variables=variables)
+        self.check_value('deep-equal($a, $a)', True, context=context)
+        self.check_value('deep-equal($a, $b)', False, context=context)
+
+        variables = {'a': [AttributeNode('a', '10')],
+                     'b': [AttributeNode('b', '10')]}
+        context = XPathContext(root, variables=variables)
+        self.check_value('deep-equal($a, $a)', True, context=context)
+        self.check_value('deep-equal($a, $b)', False, context=context)
+
+        variables = {'a': [NamespaceNode('tns0', 'http://xpath.test/ns')],
+                     'b': [NamespaceNode('tns1', 'http://xpath.test/ns')]}
+        context = XPathContext(root, variables=variables)
+        self.check_value('deep-equal($a, $a)', True, context=context)
+        self.check_value('deep-equal($a, $b)', False, context=context)
 
     def test_adjust_datetime_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
@@ -1286,20 +1331,29 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         default_collation = self.parser.default_collation
         self.check_value('fn:default-collation()', default_collation)
 
-    def test_context_functions(self):
+    def test_context_datetime_functions(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
 
-        self.check_value('fn:current-dateTime()', DateTime.fromdatetime(context.current_dt),
-                         context=context)
+        self.check_value('fn:current-dateTime()', context=context,
+                         expected=DateTime10.fromdatetime(context.current_dt))
         self.check_value(path='fn:current-date()', context=context,
-                         expected=Date.fromdatetime(context.current_dt.date()),)
+                         expected=Date10.fromdatetime(context.current_dt.date()))
         self.check_value(path='fn:current-time()', context=context,
-                         expected=Time.fromdatetime(context.current_dt),)
+                         expected=Time.fromdatetime(context.current_dt))
         self.check_value(path='fn:implicit-timezone()', context=context,
                          expected=DayTimeDuration(seconds=time.timezone))
         context.timezone = Timezone.fromstring('-05:00')
         self.check_value(path='fn:implicit-timezone()', context=context,
                          expected=DayTimeDuration.fromstring('-PT5H'))
+
+        self.parser._xsd_version = '1.1'
+        try:
+            self.check_value('fn:current-dateTime()', context=context,
+                             expected=DateTime.fromdatetime(context.current_dt))
+            self.check_value(path='fn:current-date()', context=context,
+                             expected=Date.fromdatetime(context.current_dt.date()))
+        finally:
+            self.parser._xsd_version = '1.0'
 
     def test_static_base_uri_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'))
@@ -1353,6 +1407,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_value("fn:doc(())", context=context)
         self.check_value("fn:doc-available(())", False, context=context)
+        self.wrong_value('fn:doc-available(xs:untypedAtomic("2"))', 'FODC0002', context=context)
+        self.wrong_type('fn:doc-available(2)', 'XPTY0004', context=context)
 
         self.check_value("fn:doc('tns0')", doc, context=context)
         self.check_value("fn:doc-available('tns0')", True, context=context)
@@ -1368,13 +1424,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
         context = XPathContext(root, documents={'tns0': doc})
 
-        with self.assertRaises(TypeError) as err:
-            self.check_value("fn:doc('tns0')", context=context)
-        self.assertIn('XPDY0050', str(err.exception))
+        self.wrong_type("fn:doc('tns0')", 'XPDY0050', context=context)
+        self.wrong_type("fn:doc-available('tns0')", 'XPDY0050', context=context)
 
-        with self.assertRaises(TypeError) as err:
-            self.check_value("fn:doc-available('tns0')", context=context)
-        self.assertIn('XPDY0050', str(err.exception))
+        context = XPathContext(root, documents={'file.xml': None})
+        self.wrong_value("fn:doc('file.xml')", 'FODC0002', context=context)
+        self.wrong_value("fn:doc('unknown')", 'FODC0002', context=context)
+        self.check_value("fn:doc-available('unknown')", False, context=context)
+
+        dirpath = os.path.dirname(__file__)
+        self.wrong_value("fn:doc('{}')".format(dirpath), 'FODC0005', context=context)
 
     def test_collection_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
@@ -1396,6 +1455,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:collection()", TypeError, context=context)
         self.parser.default_collection_type = 'node()*'
 
+        context = XPathContext(root)
+        self.wrong_value("fn:collection('filepath')", 'FODC0002', context=context)
+        self.wrong_value("fn:collection('dirpath/')", 'FODC0003', context=context)
+
     def test_root_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
         self.check_value("root()", root, context=XPathContext(root))
@@ -1410,6 +1473,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertIn('XPTY0004', str(err.exception))
 
         context = XPathContext(root, variables={'elem': root[1]})
+        self.check_value("fn:root(())", context=context)
         self.check_value("fn:root($elem)", root, context=context)
 
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
@@ -1417,10 +1481,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, variables={'elem': doc[1]})
         self.check_value("fn:root($elem)", context=context)
 
+        context = XPathContext(root, variables={'elem': doc[1]}, documents={})
+        self.check_value("fn:root($elem)", context=context)
+
         context = XPathContext(root, variables={'elem': doc[1]}, documents={'.': doc})
         self.check_value("root($elem)", doc, context=context)
 
         doc2 = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
+
+        context = XPathContext(root, variables={'elem': doc2[1]}, documents={'.': doc})
+        self.check_value("root($elem)", context=context)
 
         context = XPathContext(root, variables={'elem': doc2[1]},
                                documents={'.': doc, 'doc2': doc2})
@@ -1460,6 +1530,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                 "'Missing schema')"
             )
         self.assertEqual(str(err.exception), '[err:XPST0001] Missing schema')
+
+    def test_trace_function(self):
+        self.check_value('trace((), "trace message")', [])
+        self.check_value('trace("foo", "trace message")', ['foo'])
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

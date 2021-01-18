@@ -21,7 +21,6 @@ from copy import copy
 from decimal import Decimal, DecimalException
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from ..exceptions import ElementPathTypeError
 from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy, NumericProxy
@@ -767,17 +766,20 @@ def evaluate(self, context=None):
 
 ###
 # String functions
-def xml10_chr(cp):
-    if cp in {0x9, 0xA, 0xD} \
-            or 0x20 <= cp <= 0xD7FF \
-            or 0xE000 <= cp <= 0xFFFD \
-            or 0x10000 <= cp <= 0x10FFFF:
-        return chr(cp)
-    raise ValueError("{} is not a valid XML 1.0 codepoint".format(cp))
-
 
 @method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
+
+    def xml10_chr(cp: int):
+        if not isinstance(cp, int):
+            raise TypeError("invalid type {} for codepoint {}".format(type(cp), cp))
+        elif cp in {0x9, 0xA, 0xD} \
+                or 0x20 <= cp <= 0xD7FF \
+                or 0xE000 <= cp <= 0xFFFD \
+                or 0x10000 <= cp <= 0x10FFFF:
+            return chr(cp)
+        raise ValueError("{} is not a valid XML 1.0 codepoint".format(cp))
+
     try:
         return ''.join(xml10_chr(cp) for cp in self[0].select(context))
     except TypeError as err:
@@ -799,14 +801,8 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     comp1 = self.get_argument(context, 0, cls=str, promote=(AnyURI, UntypedAtomic))
     comp2 = self.get_argument(context, 1, cls=str, promote=(AnyURI, UntypedAtomic))
-    if not isinstance(comp1, str):
-        if comp1 is None:
-            return
-        comp1 = str(comp1)
-    if not isinstance(comp2, str):
-        if comp2 is None:
-            return
-        comp2 = str(comp2)
+    if comp1 is None or comp2 is None:
+        return
 
     if len(self) < 3:
         value = locale.strcoll(comp1, comp2)
@@ -844,12 +840,7 @@ def evaluate(self, context=None):
 @method(function('string-join', nargs=(1, 2)))
 def evaluate(self, context=None):
     items = [self.string_value(s) for s in self[0].select(context)]
-    try:
-        return self.get_argument(context, 1, required=True, cls=str).join(items)
-    except ElementPathTypeError:
-        raise
-    except TypeError as err:
-        raise self.error('XPTY0004', "the values must be strings: %s" % err) from None
+    return self.get_argument(context, 1, required=True, cls=str).join(items)
 
 
 @method(function('normalize-unicode', nargs=(1, 2)))
@@ -938,8 +929,6 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
-    if arg1 is None:
-        return ''
 
     if len(self) < 3:
         index = arg1.find(arg2)
@@ -1231,11 +1220,8 @@ def evaluate(self, context=None):
 @method(function('element-with-id', nargs=(1, 2)))
 @method(function('id', nargs=(1, 2)))
 def select(self, context=None):
-    try:
-        idrefs = {x for item in self[0].select(copy(context))
-                  for x in self.string_value(item).split()}
-    except AttributeError:
-        raise self.error('XPTY0004', "1st argument must returns strings")
+    idrefs = {x for item in self[0].select(copy(context))
+              for x in self.string_value(item).split()}
 
     node = self.get_argument(context, index=1, default_to_context=True)
     if isinstance(context, XPathSchemaContext):
@@ -1419,7 +1405,7 @@ def evaluate(self, context=None):
 def select(self, context=None):
     label = self.get_argument(context, index=1, cls=str)
     for value in self[0].select(context):
-        '{} {}'.format(label, str(value).strip())  # TODO
+        '{} {}'.format(label, str(value).strip())  # TODO: trace dataset
         yield value
 
 
