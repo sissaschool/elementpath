@@ -23,6 +23,7 @@ import unittest
 import io
 import os
 from decimal import Decimal
+from textwrap import dedent
 
 try:
     import lxml.etree as lxml_etree
@@ -934,7 +935,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_atomic_value(self):
-        schema = xmlschema.XMLSchema("""
+        schema = xmlschema.XMLSchema(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="a" type="aType"/>
               <xs:complexType name="aType">
@@ -956,7 +957,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
               <xs:simpleType name="eType">
                 <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
               </xs:simpleType>
-            </xs:schema>""")
+            </xs:schema>"""))
 
         token = self.parser.parse('true()')
 
@@ -1006,6 +1007,87 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             self.assertEqual(value, UntypedAtomic(value='1'))
         finally:
             self.parser.schema = None
+
+    def test_auxiliary_tokens(self):
+        self.check_raise('as', MissingContextError)
+        self.check_raise('of', MissingContextError)
+
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.check_raise('as', MissingContextError, context=context)
+        self.check_raise('of', MissingContextError, context=context)
+
+    def test_function_namespace(self):
+        function_namespace = "http://xpath.test/fn/xpath-functions"
+        parser = self.parser.__class__(
+            namespaces={'fn2': function_namespace},
+            function_namespace=function_namespace
+        )
+        token = parser.parse('fn2:true()')
+        self.assertTrue(token.evaluate())
+
+    def test_invalid_schema_argument(self):
+        schema = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" />
+            </xs:schema>""")
+
+        with self.assertRaises(ElementPathTypeError) as ctx:
+            self.parser.__class__(schema=schema)
+        self.assertEqual(str(ctx.exception),
+                         "argument 'schema' must be an instance of AbstractSchemaProxy")
+
+        if xmlschema is not None:
+            with self.assertRaises(ElementPathTypeError):
+                self.parser.__class__(schema=xmlschema.XMLSchema(schema))
+
+    def test_variable_types_argument(self):
+        variable_types = {'a': 'item()', 'b': 'xs:integer'}
+        parser = self.parser.__class__(variable_types=variable_types)
+        self.assertEqual(variable_types, parser.variable_types)
+        self.assertIsNot(variable_types, parser.variable_types)
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(variable_types={'a': 'item()', 'b': 'xs:complex'})
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type for in-scope variable types")
+
+    def test_document_types_argument(self):
+        document_types = {'doc1': 'node()*', 'doc2': 'element()'}
+        parser = self.parser.__class__(document_types=document_types)
+        self.assertEqual(document_types, parser.document_types)
+        self.assertIs(document_types, parser.document_types)
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(document_types={'doc1': 'node()*', 'doc2': 'etree()'})
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type in document_types argument")
+
+    def test_collection_types_argument(self):
+        collection_types = {'col1': 'node()*', 'col2': 'element()*'}
+        parser = self.parser.__class__(collection_types=collection_types)
+        self.assertEqual(collection_types, parser.collection_types)
+        self.assertIs(collection_types, parser.collection_types)
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(collection_types={'doc1': 'node()*', 'doc2': 'etree()*'})
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type in collection_types argument")
+
+    def test_default_collection_type_argument(self):
+        parser = self.parser.__class__(default_collection_type='element()*')
+        self.assertEqual(parser.default_collection_type, 'element()*')
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(default_collection_type='elem()*')
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type for default_collection_type argument")
+
+    def test_default_collation_argument(self):
+        self.assertEqual(self.parser.__class__().default_collation,
+                         "http://www.w3.org/2005/xpath-functions/collation/codepoint")
+
+        parser = self.parser.__class__(default_collation='it_IT.UTF-8')
+        self.assertEqual(parser.default_collation, 'it_IT.UTF-8')
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
