@@ -19,8 +19,9 @@ from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDurati
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from ..xpath_context import XPathSchemaContext
 from ..tdop import Parser
-from ..namespaces import XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XML_NAMESPACE, \
-    XSD_NAMESPACE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
+from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
+    get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import XPathToken
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
@@ -104,6 +105,7 @@ class XPath1Parser(Parser):
     schema = None           # XPath 1.0 doesn't have schema bindings
     variable_types = None   # XPath 1.0 doesn't have in-scope variable types
     xsd_version = '1.0'     # Use XSD 1.0 datatypes for default
+    function_namespace = XPATH_FUNCTIONS_NAMESPACE
 
     def __init__(self, namespaces=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()

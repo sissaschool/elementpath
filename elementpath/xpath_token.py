@@ -30,7 +30,7 @@ import urllib.parse
 from xml.etree.ElementTree import Element
 
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
-from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
@@ -511,7 +511,7 @@ class XPathToken(Token):
         """
         if self.symbol in ('(name)', '*'):
             pass
-        elif namespace == XPATH_FUNCTIONS_NAMESPACE:
+        elif namespace == self.parser.function_namespace:
             if self.label != 'function':
                 msg = "a name, a wildcard or a function expected"
                 raise self.wrong_syntax(msg, code='XPST0017')

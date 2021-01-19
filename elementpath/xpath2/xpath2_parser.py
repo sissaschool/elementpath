@@ -199,9 +199,7 @@ class XPath2Parser(XPath1Parser):
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
 
-        if function_namespace is None:
-            self.function_namespace = XPATH_FUNCTIONS_NAMESPACE
-        else:
+        if function_namespace is not None:
             self.function_namespace = function_namespace
 
         if schema is None:
@@ -223,16 +221,17 @@ class XPath2Parser(XPath1Parser):
 
         if document_types:
             if any(not self.is_sequence_type(v) for v in document_types.values()):
-                raise ElementPathTypeError('invalid document_types')
+                raise ElementPathValueError('invalid sequence type in document_types argument')
         self.document_types = document_types
 
         if collection_types:
             if any(not self.is_sequence_type(v) for v in collection_types.values()):
-                raise ElementPathTypeError('invalid collection_types')
+                raise ElementPathValueError('invalid sequence type in collection_types argument')
         self.collection_types = collection_types
 
         if not self.is_sequence_type(default_collection_type):
-            raise ElementPathTypeError('invalid default_collection_type')
+            raise ElementPathValueError('invalid sequence type for '
+                                        'default_collection_type argument')
         self.default_collection_type = default_collection_type
 
     def __getstate__(self):
@@ -255,11 +254,8 @@ class XPath2Parser(XPath1Parser):
             return self._default_collation
 
         default_locale = locale.getdefaultlocale()
-        default_locale = '.'.join(default_locale) if default_locale[1] else default_locale[0]
-        if default_locale == 'en_US.UTF-8':
-            return UNICODE_CODEPOINT_COLLATION
-
-        return default_locale
+        collation = '.'.join(default_locale) if default_locale[1] else default_locale[0]
+        return collation if collation != 'en_US.UTF-8' else UNICODE_CODEPOINT_COLLATION
 
     @property
     def default_namespace(self):
@@ -288,7 +284,7 @@ class XPath2Parser(XPath1Parser):
                 self.advance_until('(:', ':)')
                 if self.next_token.symbol == ':)':
                     comment_level -= 1
-                elif self.next_token.symbol == '(:':
+                else:
                     comment_level += 1
             self.advance(':)')
             self.next_token.unexpected(':')
@@ -319,14 +315,10 @@ class XPath2Parser(XPath1Parser):
                 if isinstance(arg, UntypedAtomic):
                     return self.cast(arg.value)
                 return self.cast(arg)
-            except ElementPathError as err:
-                if err.token is None:
-                    err.token = self
+            except ElementPathError:
                 raise
-            except ValueError as err:
+            except (TypeError, ValueError) as err:
                 raise self.error('FORG0001', err) from None
-            except TypeError as err:
-                raise self.error('FORG0001', err)
 
         def cast_(value):
             raise NotImplementedError
