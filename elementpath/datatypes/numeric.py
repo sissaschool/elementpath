@@ -33,6 +33,9 @@ class Float10(float, AnyAtomicType):
             return super().__new__(cls, 0.0)
         return value
 
+    def __hash__(self):
+        return super(Float10, self).__hash__()
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             if super(Float10, self).__eq__(other):
