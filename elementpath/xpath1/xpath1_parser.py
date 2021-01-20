@@ -609,8 +609,7 @@ def nud(self):
 def evaluate(self, context=None):
     if self[1].label.endswith('function'):
         return self[1].evaluate(context)
-    else:
-        return '{%s}%s' % (self[0].value, self[1].value)
+    return [x for x in self.select(context)]
 
 
 @method('{')

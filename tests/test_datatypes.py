@@ -107,6 +107,9 @@ class FloatTypesTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Float10('inf')
 
+    def test_hash(self):
+        self.assertEqual(hash(Float10(892.1)), hash(892.1))
+
     def test_equivalence(self):
         self.assertEqual(Float10('10.1'), Float10('10.1'))
         self.assertEqual(Float10('10.1'), Float('10.1'))
@@ -1268,7 +1271,14 @@ class BinaryTypesTest(unittest.TestCase):
         self.assertEqual(hash(HexBinary(b'F859')), hash(b'F859'))
 
     def test_equality(self):
+        self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8a7f'))
+        self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8a7f'))
+
         self.assertEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'YWxwaGE='))
+        self.assertNotEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'ywxwaGE='))
+
         self.assertNotEqual(HexBinary(b'F859'), Base64Binary(b'YWxwaGE='))
         self.assertNotEqual(HexBinary(b'F859'), UntypedAtomic(HexBinary(b'F859')))
 

@@ -383,8 +383,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
         self.check_value("string({%s}true())" % XPATH_FUNCTIONS_NAMESPACE, 'true')
 
+        context = XPathContext(root)
         name = '{%s}alpha' % XPATH_FUNCTIONS_NAMESPACE
-        self.check_value(name, name)  # it's not an error to use 'fn' namespace for a name
+        self.check_value(name, [], context)  # it's not an error to use 'fn' namespace for a name
 
         self.parser.strict = True
         self.wrong_syntax('{%s}string' % XSD_NAMESPACE)
