@@ -1270,17 +1270,31 @@ class BinaryTypesTest(unittest.TestCase):
         self.assertEqual(hash(Base64Binary(b'YWxwaGE=')), hash(b'YWxwaGE='))
         self.assertEqual(hash(HexBinary(b'F859')), hash(b'F859'))
 
+    def test_length(self):
+        self.assertEqual(len(Base64Binary(b'ZQ==')), 1)
+        self.assertEqual(len(Base64Binary(b'YWxwaGE=')), 5)
+        self.assertEqual(len(Base64Binary(b'bGNlbmdnamh4eXBy')), 12)
+        self.assertEqual(len(HexBinary(b'F859')), 2)
+
     def test_equality(self):
         self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8A7F'))
         self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8a7f'))
         self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8A7F'))
         self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8a7f'))
 
+        self.assertEqual(b'8a7f', HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), b'8a7f')
+        self.assertEqual('8a7f', HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), '8a7f')
+
         self.assertEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'YWxwaGE='))
         self.assertNotEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'ywxwaGE='))
+        self.assertEqual(Base64Binary(b'YWxwaGE='), UntypedAtomic('YWxwaGE='))
+        self.assertEqual(Base64Binary(b'YWxwaGE='), 'YWxwaGE=')
+        self.assertEqual(Base64Binary('YWxwaGE='), b'YWxwaGE=')
 
         self.assertNotEqual(HexBinary(b'F859'), Base64Binary(b'YWxwaGE='))
-        self.assertNotEqual(HexBinary(b'F859'), UntypedAtomic(HexBinary(b'F859')))
+        self.assertEqual(HexBinary(b'F859'), UntypedAtomic(HexBinary(b'F859')))
 
     def test_validate(self):
         self.assertIsNone(Base64Binary.validate(Base64Binary(b'YWxwaGE=')))

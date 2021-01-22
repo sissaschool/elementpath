@@ -49,6 +49,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:string(())', [])
         self.wrong_syntax('xs:string(()', 'XPST0017')
 
+        # canonical string representation of xs:hexBinary
+        self.check_value('xs:string(xs:hexBinary("ef"))', 'EF')
+
     def test_normalized_string_constructor(self):
         self.check_value('xs:normalizedString("hello")', "hello")
         self.check_value('xs:normalizedString(" hello  ")', " hello  ")
