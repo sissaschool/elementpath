@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v2.1.2`_ (2021-01-xx)
+`v2.1.2`_ (2021-01-22)
 ======================
 * Extend tests for XPath 1.0/2.0 with minor fixes
+* Fix for +/- prefix operators
+* Fix for regex patterns anchors and binary datatypes
 
 `v2.1.1`_ (2021-01-06)
 ======================

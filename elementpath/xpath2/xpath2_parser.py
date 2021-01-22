@@ -490,9 +490,7 @@ def evaluate(self, context=None):
                     sequence_type = sequence_type[:-1]
 
                 if QName.pattern.match(sequence_type) is not None:
-                    value = self.parser.get_atomic_value(sequence_type)
-                    if value is not None:
-                        return value
+                    return self.parser.get_atomic_value(sequence_type)
                 return UntypedAtomic('')
 
     raise self.missing_name('unknown variable %r' % str(varname))

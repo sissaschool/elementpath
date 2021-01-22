@@ -42,6 +42,11 @@ class XMLSchemaProxyTest(unittest.TestCase):
           <xs:element name="b3" type="xs:float"/>
         </xs:schema>'''))
 
+        cls.schema2 = xmlschema.XMLSchema(dedent('''
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <xs:element name="root"/>
+        </xs:schema>'''))
+
     def test_name_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
         context = XMLSchemaContext(self.schema1)
@@ -152,6 +157,79 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(token[1].xsd_types, {'b1': elem_a.type.content[0].type,
                                               'b2': elem_a.type.content[1].type,
                                               '{http://xpath.test/ns}b3': elem_b3.type})
+
+    def test_dot_shortcut_token(self):
+        parser = XPath2Parser(default_namespace="http://xpath.test/ns")
+        context = XMLSchemaContext(self.schema1)
+
+        elem_a = self.schema1.elements['a']
+        elem_b3 = self.schema1.elements['b3']
+
+        token = parser.parse('.')
+        self.assertIsNone(token.xsd_types)
+        result = token.evaluate(context)
+        self.assertListEqual(result, [self.schema1])
+        self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
+                                           "{http://xpath.test/ns}b3": elem_b3.type})
+
+        context = XMLSchemaContext(self.schema1, item=self.schema1)
+        token = parser.parse('.')
+        self.assertIsNone(token.xsd_types)
+        result = token.evaluate(context)
+        self.assertListEqual(result, [self.schema1])
+        self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
+                                           "{http://xpath.test/ns}b3": elem_b3.type})
+
+        context = XMLSchemaContext(self.schema1, item=self.schema2)
+        token = parser.parse('.')
+        self.assertIsNone(token.xsd_types)
+        result = token.evaluate(context)
+        self.assertListEqual(result, [self.schema2])
+        self.assertIsNone(token.xsd_types)
+
+    def test_schema_variables(self):
+        variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}
+        parser = XPath2Parser(default_namespace="http://xpath.test/ns",
+                              variable_types=variable_types)
+        context = XMLSchemaContext(self.schema1)
+
+        token = parser.parse('$a')
+        result = token.evaluate(context)
+        self.assertIsInstance(result, UntypedAtomic)
+        self.assertEqual(result.value, '')
+
+        token = parser.parse('$b')
+        result = token.evaluate(context)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 1)
+
+        token = parser.parse('$c')
+        result = token.evaluate(context)
+        self.assertIsInstance(result, str)
+        self.assertEqual(result, '  alpha\t')
+
+        token = parser.parse('$z')
+        with self.assertRaises(NameError):
+            token.evaluate(context)
+
+    def test_not_applicable_functions(self):
+        parser = XPath2Parser(default_namespace="http://xpath.test/ns")
+        context = XMLSchemaContext(self.schema1)
+
+        token = parser.parse("fn:collection('filepath')")
+        self.assertIsNone(token.evaluate(context))
+
+        token = parser.parse("fn:doc-available('tns1')")
+        self.assertIsNone(token.evaluate(context))
+
+        token = parser.parse("fn:root(.)")
+        self.assertIsNone(token.evaluate(context))
+
+        token = parser.parse("fn:id('ID21256')")
+        self.assertListEqual(token.evaluate(context), [])
+
+        token = parser.parse("fn:idref('ID21256')")
+        self.assertListEqual(token.evaluate(context), [])
 
 
 if __name__ == '__main__':
