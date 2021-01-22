@@ -19,6 +19,7 @@ import os.path
 import unicodedata
 from copy import copy
 from decimal import Decimal, DecimalException
+from string import ascii_letters
 from urllib.parse import urlsplit, quote as urllib_quote
 
 from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
@@ -34,6 +35,11 @@ from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
 function = XPath2Parser.function
+
+
+def is_local_url_scheme(scheme):
+    return scheme in ('', 'file') or len(scheme) == 1 and scheme in ascii_letters
+
 
 ###
 # Sequence types (allowed only for type checking in treat-as/instance-of statements)
@@ -1321,7 +1327,8 @@ def evaluate(self, context=None):
         except (KeyError, TypeError):
             if self.symbol == 'doc':
                 url_parts = urlsplit(uri)
-                if url_parts.scheme in ('', 'file') and os.path.isdir(url_parts.path.lstrip(':')):
+                if is_local_url_scheme(url_parts.scheme) \
+                        and os.path.isdir(url_parts.path.lstrip(':')):
                     raise self.error('FODC0005', 'document URI is a directory')
                 raise self.error('FODC0002')
             return False
@@ -1360,7 +1367,7 @@ def evaluate(self, context=None):
             collection = context.collections[uri]
         except (KeyError, TypeError):
             url_parts = urlsplit(uri)
-            if url_parts.scheme in ('', 'file') and \
+            if is_local_url_scheme(url_parts.scheme) and \
                     not url_parts.path.startswith(':') and url_parts.path.endswith('/'):
                 raise self.error('FODC0003', 'collection URI is a directory')
             raise self.error('FODC0002', '{!r} collection not found'.format(uri)) from None
