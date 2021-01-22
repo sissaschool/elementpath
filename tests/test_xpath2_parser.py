@@ -21,6 +21,7 @@
 #
 import unittest
 import io
+import locale
 import os
 from decimal import Decimal
 from textwrap import dedent
@@ -1083,8 +1084,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          "invalid sequence type for default_collection_type argument")
 
     def test_default_collation_argument(self):
-        self.assertEqual(self.parser.__class__().default_collation,
-                         "http://www.w3.org/2005/xpath-functions/collation/codepoint")
+        default_locale = locale.getdefaultlocale()
+        collation = '.'.join(default_locale) if default_locale[1] else default_locale[0]
+
+        if collation == 'en_US.UTF-8':
+            collation = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+        self.assertEqual(self.parser.__class__().default_collation, collation)
 
         parser = self.parser.__class__(default_collation='it_IT.UTF-8')
         self.assertEqual(parser.default_collation, 'it_IT.UTF-8')
