@@ -46,17 +46,6 @@ class AbstractBinary(metaclass=AtomicTypeABCMeta):
     def __bytes__(self):
         return self.value
 
-    def __hash__(self):
-        return hash(self.value)
-
-    def __str__(self):
-        return self.value.decode('utf-8')
-
-    def __eq__(self, other):
-        if isinstance(other, (AbstractBinary, UntypedAtomic)):
-            return self.value == other.value
-        return self.value == other
-
     @classmethod
     def validate(cls, value):
         raise NotImplementedError()
@@ -94,6 +83,28 @@ class Base64Binary(AbstractBinary):
             if match is None or match.group(0) != value:
                 raise cls.invalid_value(value)
 
+    def __str__(self):
+        return self.value.decode('utf-8')
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def __len__(self):
+        if self.value[-2] == ord('='):
+            return len(self.value) // 4 * 3 - 2
+        elif self.value[-1] == ord('='):
+            return len(self.value) // 4 * 3 - 1
+        return len(self.value) // 4 * 3
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.value == other.value
+        elif isinstance(other, UntypedAtomic):
+            return self.value == self.__class__(other).value
+        elif isinstance(other, str):
+            return self.value == other.encode()
+        return isinstance(other, bytes) and self.value == other
+
     @staticmethod
     def encoder(value):
         return codecs.encode(value, 'base64').rstrip(b'\n')
@@ -130,9 +141,16 @@ class HexBinary(AbstractBinary):
         return self.value.decode('utf-8').upper()
 
     def __hash__(self):
-        return hash(self.value)
+        return hash(self.value.upper())
+
+    def __len__(self):
+        return len(self.value) // 2
 
     def __eq__(self, other):
-        if isinstance(other, (AbstractBinary, UntypedAtomic)):
-            return self.value.lower() == other.value.lower()
-        return isinstance(other, (str, bytes)) and self.value.lower() == other.lower()
+        if isinstance(other, self.__class__):
+            return self.value.upper() == other.value.upper()
+        elif isinstance(other, UntypedAtomic):
+            return self.value.upper() == self.__class__(other).value.upper()
+        elif isinstance(other, str):
+            return self.value.upper() == other.encode().upper()
+        return isinstance(other, bytes) and self.value.upper() == other.upper()

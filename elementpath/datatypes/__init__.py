@@ -26,7 +26,7 @@ from .numeric import Float10, Float, Integer, Int, NegativeInteger, \
 from .string import NormalizedString, XsdToken, Name, NCName, NMToken, Id, \
     Idref, Language, Entity
 from .uri import AnyURI
-from .binary import Base64Binary, HexBinary
+from .binary import AbstractBinary, Base64Binary, HexBinary
 from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Date10, Date, GregorianDay, GregorianMonth, GregorianYear, GregorianYear10, \
     GregorianMonthDay, GregorianYearMonth, GregorianYearMonth10, Time, Timezone, \
@@ -122,4 +122,4 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'ATOMIC_VALUES', 'XSD_BUI
            'Integer', 'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short',
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
-           'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic']
+           'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary']
