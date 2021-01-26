@@ -279,7 +279,7 @@ def evaluate(self, context=None):
         return float(round(Decimal.from_float(item), precision))
     except TypeError as err:
         raise self.error('XPTY0004', err)
-    except DecimalException:
+    except (DecimalException, OverflowError):
         if isinstance(item, Decimal):
             return Decimal.from_float(round(float(item), precision))
         return round(item, precision)
