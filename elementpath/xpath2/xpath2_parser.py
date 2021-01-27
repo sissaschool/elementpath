@@ -512,7 +512,7 @@ def select(self, context=None):
         raise self.missing_context()
 
     s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
-    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s1):
+    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s2):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
@@ -568,10 +568,9 @@ def nud(self):
             if tk[0].value == variable[0].value:
                 raise tk.error('XPST0008', 'loop variable in its range expression')
 
-        if self.parser.next_token.symbol == ',':
-            self.parser.advance()
-        else:
+        if self.parser.next_token.symbol != ',':
             break
+        self.parser.advance()
 
     self.parser.advance('satisfies')
     self.append(self.parser.expression(5))
@@ -616,10 +615,9 @@ def nud(self):
             if tk[0].value == variable[0].value:
                 raise tk.error('XPST0008', 'loop variable in its range expression')
 
-        if self.parser.next_token.symbol == ',':
-            self.parser.advance()
-        else:
+        if self.parser.next_token.symbol != ',':
             break
+        self.parser.advance()
 
     self.parser.advance('return')
     self.append(self.parser.expression(5))

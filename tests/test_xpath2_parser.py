@@ -146,6 +146,23 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertFalse(self.parser.match_sequence_type('1', 'xs:unknown'))
         self.assertFalse(self.parser.match_sequence_type('1', 'tns0:string'))
 
+    def test_variable_reference(self):
+        root = self.etree.XML('<a><b1/><b2/></a>')
+
+        context = XPathContext(root=root, variables={'var1': root[0]})
+        self.check_value('$var1', root[0], context=context)
+
+        context = XPathContext(root=root, variables={'tns:var1': root[0]})
+        self.check_raise('$tns:var1', NameError, 'XPST0081', context=context)
+
+        # Test dynamic evaluation error
+        parser = XPath2Parser(namespaces={'tns': 'http://xpath.test/ns'})
+        token = parser.parse('$tns:var1')
+        parser.namespaces.pop('tns')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate(context)
+        self.assertIn('XPST0081', str(ctx.exception))
+
     def test_check_variables_method(self):
         self.parser.variable_types.update(
             (k, get_sequence_type(v)) for k, v in self.variables.items()
@@ -292,6 +309,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
 
+        # From W3C XQuery/XPath tests
+        context = XPathContext(root=self.etree.XML('<dummy/>'),
+                               variables={'result': [43, 44, 45]})
+
+        self.check_value('some $i in $result satisfies $i = 44', True, context)
+        self.check_value('every $i in $result satisfies $i = 44', False, context)
+        self.check_raise('some $foo in (1, $foo) satisfies 1', NameError, 'XPST0008')
+
     def test_for_expressions(self):
         # Cases from XPath 2.0 examples
         context = XPathContext(root=self.etree.XML('<dummy/>'))
@@ -345,6 +370,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root, [root[0][1], root[1][1], root[0][0], root[1][0], root[2][1],
                    root[2][0], root[2][2], root[2][0], root[2][3], root[2][0]]
         )
+
+        # From W3C XQuery/XPath tests
+        context = XPathContext(root=self.etree.XML('<dummy/>'),
+                               variables={'result': [43, 44, 45]})
+
+        self.check_value('for $i in $result return $i + 10', [53, 54, 55], context)
+        self.check_raise('for $foo in (1, $foo) return 1', NameError, 'XPST0008')
 
     def test_idiv_operator(self):
         self.check_value("5 idiv 2", 2)
@@ -743,6 +775,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select('$seq2 intersect $seq3', root[1:2], context=context)
         self.check_select('$seq1 except $seq2', [], context=context)
         self.check_select('$seq2 except $seq3', root[:1], context=context)
+
+        self.wrong_type('1 intersect 1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('1 except $seq1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('1 union $seq1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('$seq1 intersect 1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('$seq1 union 1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
 
     def test_node_comparison_operators(self):
         # Test cases from https://www.w3.org/TR/xpath20/#id-node-comparisons
