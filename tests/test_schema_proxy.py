@@ -11,13 +11,14 @@
 import unittest
 import xml.etree.ElementTree as ElementTree
 import io
+from textwrap import dedent
 try:
     import lxml.etree as lxml_etree
 except ImportError:
     lxml_etree = None
 
 from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError
-from elementpath.namespaces import XML_LANG, XSD_NAMESPACE
+from elementpath.namespaces import XML_LANG, XSD_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_NOTATION
 from elementpath.schema_proxy import AbstractXsdSchema
 
 try:
@@ -122,22 +123,78 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.assertEqual(list(token.select(context)), [context.item])
 
     def test_bind_parser_method(self):
-        schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                            <xs:simpleType name="test_type">
-                              <xs:restriction base="xs:string"/>
-                            </xs:simpleType>
-                        </xs:schema>"""
+        schema_src = dedent("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="stringType">
+                    <xs:restriction base="xs:string"/>
+                </xs:simpleType>
+            </xs:schema>""")
         schema = xmlschema.XMLSchema(schema_src)
 
         schema_proxy = XMLSchemaProxy(schema=schema)
         parser = XPath2Parser(namespaces=self.namespaces)
+        self.assertFalse(parser.is_schema_bound())
+
         schema_proxy.bind_parser(parser)
+        self.assertTrue(parser.is_schema_bound())
         self.assertIs(schema_proxy, parser.schema)
+
+        # To test AbstractSchemaProxy.bind_parser()
         parser = XPath2Parser(namespaces=self.namespaces)
         super(XMLSchemaProxy, schema_proxy).bind_parser(parser)
         self.assertIs(schema_proxy, parser.schema)
         super(XMLSchemaProxy, schema_proxy).bind_parser(parser)
         self.assertIs(schema_proxy, parser.schema)
+
+    def test_schema_constructors(self):
+        schema_src = dedent("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="stringType">
+                    <xs:restriction base="xs:string"/>
+                </xs:simpleType>
+                <xs:simpleType name="intType">
+                    <xs:restriction base="xs:int"/>
+                </xs:simpleType>
+            </xs:schema>""")
+        schema = xmlschema.XMLSchema(schema_src)
+        schema_proxy = XMLSchemaProxy(schema=schema)
+        parser = XPath2Parser(namespaces=self.namespaces, schema=schema_proxy)
+
+        with self.assertRaises(NameError) as ctx:
+            parser.schema_constructor(XSD_ANY_ATOMIC_TYPE)
+        self.assertIn('XPST0080', str(ctx.exception))
+
+        with self.assertRaises(NameError) as ctx:
+            parser.schema_constructor(XSD_NOTATION)
+        self.assertIn('XPST0080', str(ctx.exception))
+
+        token = parser.parse('stringType("apple")')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), 'apple')
+
+        token = parser.parse('stringType(())')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), [])
+
+        token = parser.parse('stringType(10)')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), '10')
+
+        token = parser.parse('stringType(.)')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+
+        token = parser.parse('intType(10)')
+        self.assertEqual(token.symbol, 'intType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), 10)
+
+        with self.assertRaises(ValueError) as ctx:
+            parser.parse('intType(true())')
+        self.assertIn('FORG0001', str(ctx.exception))
 
     def test_get_context_method(self):
         schema_proxy = XMLSchemaProxy()
