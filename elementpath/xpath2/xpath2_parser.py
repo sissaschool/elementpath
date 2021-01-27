@@ -351,11 +351,15 @@ class XPath2Parser(XPath1Parser):
             return self_
 
         def evaluate_(self_, context=None):
-            item = self_.get_argument(context)
-            if item is None:
+            arg = self_.get_argument(context)
+            if arg is None:
                 return []
-            else:
-                return self_.parser.schema.cast_as(self_[0].evaluate(context), atomic_type)
+
+            value = self_.string_value(arg)
+            try:
+                return self_.parser.schema.cast_as(value, atomic_type)
+            except (TypeError, ValueError) as err:
+                raise self_.error('FORG0001', err)
 
         symbol = get_prefixed_name(atomic_type, self.namespaces)
         token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
