@@ -878,6 +878,25 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("5 instance of empty-sequence()", False)
         self.check_value("() instance of empty-sequence()", True)
 
+        self.wrong_syntax("5 instance of unknown()", 'XPST0003', "unknown function 'unknown'")
+        self.wrong_syntax("1e3 instance of empty-sequence()(",
+                          'XPST0003', "unexpected '(' operator")
+
+        # Test dynamic evaluation error on prefixed name
+        parser = XPath2Parser()
+        token = parser.parse('5 instance of xs:decimal')
+        parser.namespaces.pop('xs')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate()
+        self.assertIn('XPST0081', str(ctx.exception))
+
+        # From W3C XQuery/XPath tests
+        context = XPathContext(element)
+        self.check_value("not(1 instance of node())", True, context)
+        self.check_value("(1, 2, 3, 4, 5) instance of item()+", True, context)
+        self.check_value("(1, 2, 3, 4, 5) instance of item()", False, context)
+        self.wrong_name("3 instance of void")
+
     def test_treat_as_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
@@ -894,6 +913,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
         self.check_value("() treat as empty-sequence()", [])
+
+        # From W3C XQuery/XPath tests
+        self.check_value("3 treat as item()+", [3], context)
+        self.wrong_type("3 treat as node()+", 'XPDY0050', context=context)
+        self.check_value("(1, 2, 3) treat as item()+", [1, 2, 3], context)
+        self.wrong_type("(1, 2, 3) treat as item()", 'XPDY0050', context=context)
 
     def test_castable_expression(self):
         self.check_value("5 castable as xs:integer", True)

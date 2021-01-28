@@ -650,17 +650,13 @@ def led(self, left):
     try:
         self[:] = left, self.parser.expression(rbp=self.rbp)
     except ElementPathTypeError as err:
-        try:
-            raise err.token.wrong_syntax(err.message) from None
-        except AttributeError:
-            raise self.parser.next_token.wrong_syntax() from None
+        message = getattr(err, 'message', str(err))
+        raise self.error('XPST0003', message) from None
 
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
         self[2:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
         self.parser.advance()
-    elif next_symbol in {'('}:
-        raise self.error('XPST0051')
     return self
 
 
@@ -715,9 +711,9 @@ def evaluate(self, context=None):
             raise self.wrong_sequence_type()
     elif self[1].label in ('kind test', 'sequence type'):
         for position, item in enumerate(self[0].select(context)):
-            if self[1].evaluate(context) is None:
-                if context is not None and not isinstance(context, XPathSchemaContext):
-                    raise self.wrong_sequence_type()
+            result = self[1].evaluate(context)
+            if isinstance(result, list) and not result:
+                raise self.wrong_sequence_type()
             elif position and (occurs is None or occurs == '?'):
                 raise self.wrong_sequence_type("more than one item in sequence")
             castable_expr.append(item)
