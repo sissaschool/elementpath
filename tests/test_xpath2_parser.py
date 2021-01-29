@@ -232,6 +232,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_comma_operator(self):
         self.check_value("1, 2", [1, 2])
         self.check_value("(1, 2)", [1, 2])
+        self.check_value("(1, 2, ())", [1, 2])
+        self.check_value("(1, fn:round-half-to-even(()), 7)", [1, 7])
         self.check_value("(-9, 28, 10)", [-9, 28, 10])
         self.check_value("(1, 2)", [1, 2])
 
@@ -248,6 +250,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("10 to 10", [10])
         self.check_value("15 to 10", [])
         self.check_value("fn:reverse(10 to 15)", [15, 14, 13, 12, 11, 10])
+        self.wrong_syntax("1 to 10 to 20", 'XPST0003')
+
+        root = self.etree.XML('<root/>')
+        self.wrong_type("'1' to '10'", 'XPTY0004', context=XPathContext(root))
+        self.wrong_type("true() to 10", 'XPTY0004')
 
     def test_parenthesized_expressions(self):
         self.check_value("(1, 2, '10')", [1, 2, '10'])
@@ -382,8 +389,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
+        self.check_value('xs:float("-3.5") idiv xs:float("3")', -1)
         self.check_value("-3.5 idiv 0", ZeroDivisionError)
         self.check_value("xs:float('INF') idiv 2", OverflowError)
+        self.wrong_value("-3.5 idiv ()", 'XPST0005')
+        self.check_raise('xs:float("NaN") idiv 1', OverflowError, 'FOAR0002')
+        self.wrong_type("5 idiv '2'", 'XPTY0004')
 
     def test_comparison_operators(self):
         super(XPath2ParserTest, self).test_comparison_operators()
@@ -391,6 +402,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("19.03 ne 19.02999", True)
         self.check_value("-1.0 eq 1.0", False)
         self.check_value("1 le 2", True)
+        self.check_value("1e0 eq 1e2", False)
+        self.check_value("xs:float('1e0') eq 1e2", False)
+        self.check_value("1.0 lt 1e2", True)
+        self.check_value("1e2 lt 1000", True)
+
         self.check_value("3 le 2", False)
         self.check_value("5 ge 9", False)
         self.check_value("5 gt 3", True)
@@ -401,9 +417,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() * 7")
         self.check_value("() * ()")
 
+        self.check_value('xs:string("http://xpath.test") eq xs:anyURI("http://xpath.test")', True)
+
         self.check_value("() le 4")
         self.check_value("4 gt ()")
         self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
+        self.wrong_syntax('true() eq true() eq true()', 'XPST0003')
+
+        # From W3C XQuery/XPath tests
+        self.check_value('xs:duration("P31D") ne xs:yearMonthDuration("P1M")', True)
+        self.wrong_type('QName("", "ncname") le QName("", "ncname")', 'XPTY0004')
 
     def test_comparison_in_expression(self):
         context = XPathContext(self.etree.XML('<value>false</value>'))
@@ -692,6 +715,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("self::document-node(element(A))", document, [document])
         self.check_selector("self::document-node(element(B))", document, [])
 
+        context = XPathContext(root=document.getroot())
+        self.check_select("document-node()", [], context)
+        self.check_select("self::document-node()", [], context)
+        self.check_select("self::document-node(element(A))", [], context)
+
     def test_element_accessor(self):
         element = self.etree.Element('schema')
         context = XPathContext(root=element)
@@ -707,6 +735,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select("element(*)", root[:], context)
         self.check_select("element(B)", root[:], context)
         self.check_select("element(A)", [], context)
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema(dedent('''\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="root" type="xs:string"/>
+                </xs:schema>'''))
+
+            root = self.etree.XML('<root>hello</root>')
+            context = XPathContext(root)
+            with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
+                typed_element = TypedElement(root, schema.elements['root'], 'hello')
+                self.check_select("self::element(*, xs:string)", [typed_element], context)
+                self.check_select("self::element(*, xs:int)", [], context)
 
     def test_attribute_accessor(self):
         root = self.etree.XML('<A a="10" b="20">text<B/>tail<B/></A>')
@@ -802,6 +843,18 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector('/books/book[isbn="not a code"] is /books/book[call="QA76.9 C3847"]',
                             root, [])
 
+        context = XPathContext(root)
+        self.check_value('/books/book[isbn="1558604820"] is ()', context=context)
+        self.wrong_type('/books/book[isbn="1558604820"] is (1, 2)', 'XPTY0004', context=context)
+
+        self.check_value('/books/book[isbn="1558604820"] << /books/book[isbn="1558604820"]',
+                         False, context=context)
+
+        context = XPathContext(root, variables={'a': self.etree.Element('a'),
+                                                'b': self.etree.Element('b')})
+        self.wrong_value('$a << $b', 'FOCA0002', 'operands are not nodes of the XML tree',
+                         context=context)
+
         root = self.etree.XML('''
         <transactions>
             <purchase><parcel>28-451</parcel></purchase>
@@ -825,6 +878,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             '/transactions/purchase[parcel="10-639"] >> /transactions/sale[parcel="33-870"]',
             root, TypeError
         )
+
+        self.wrong_type('is ()', 'XPST0017')
+        self.wrong_syntax('is B', 'XPST0003')
+        self.wrong_syntax('A is B is C', 'XPST0003')
 
     def test_empty_sequence_type(self):
         self.check_value("() treat as empty-sequence()", [])
@@ -913,12 +970,23 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
         self.check_value("() treat as empty-sequence()", [])
+        self.check_value("() treat as xs:integer?", [])
+        self.wrong_type("() treat as xs:integer", 'XPDY0050')
+
+        # Test dynamic evaluation error on prefixed name
+        parser = XPath2Parser()
+        token = parser.parse('5 treat as xs:decimal')
+        parser.namespaces.pop('xs')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate()
+        self.assertIn('XPST0081', str(ctx.exception))
 
         # From W3C XQuery/XPath tests
         self.check_value("3 treat as item()+", [3], context)
         self.wrong_type("3 treat as node()+", 'XPDY0050', context=context)
         self.check_value("(1, 2, 3) treat as item()+", [1, 2, 3], context)
         self.wrong_type("(1, 2, 3) treat as item()", 'XPDY0050', context=context)
+        self.wrong_name("3 treat as xs:doesNotExist")
 
     def test_castable_expression(self):
         self.check_value("5 castable as xs:integer", True)
@@ -928,10 +996,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() castable as xs:integer", False)
         self.check_value("() castable as xs:integer?", True)
 
+        self.wrong_syntax("5 castable as empty-sequence()", 'XPST0003')
+        self.wrong_name("5 castable as void", 'XPST0051')
+        self.check_value("5 castable as xs:void", False)
+
         self.check_value("'NaN' castable as xs:double", True)
         self.check_value("'None' castable as xs:double", False)
         self.check_value("'NaN' castable as xs:float", True)
         self.check_value("'NaN' castable as xs:integer", False)
+
+        # From W3C XQuery/XPath tests
+        self.check_value("(1E3) castable as xs:double?", True)
 
     def test_cast_expression(self):
         self.check_value("5 cast as xs:integer", 5)
@@ -943,10 +1018,42 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('"1" cast as xs:boolean', True)
         self.check_value('"0" cast as xs:boolean', False)
 
+        self.check_value("xs:untypedAtomic('1E3') cast as xs:double", 1E3)
+        self.wrong_value("xs:untypedAtomic('x') cast as xs:double", 'FORG0001')
+
+        # Test dynamic evaluation error on prefixed name
+        parser = XPath2Parser()
+        token = parser.parse("() cast as xs:string?")
+        parser.namespaces.pop('xs')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate()
+        self.assertIn('XPST0081', str(ctx.exception))
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
+    def test_cast_or_castable_with_derived_type(self):
+        schema = xmlschema.XMLSchema(dedent("""\n
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="floatType">
+                    <xs:restriction base="xs:double"/>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        with self.schema_bound_parser(schema.xpath_proxy):
+            root = self.etree.XML('<root/>')
+            context = XPathContext(root)
+
+            self.check_value("'1E3' castable as floatType", True, context)
+            self.check_value("(1E3) castable as floatType", True, context)
+            self.check_value("xs:untypedAtomic('1E3') cast as floatType", 1E3)
+            self.check_value("xs:untypedAtomic('x') castable as floatType", False)
+            self.wrong_value("xs:untypedAtomic('x') cast as floatType", 'FORG0001')
+            self.wrong_value("'x' cast as floatType", 'FORG0001')
+            self.wrong_type("xs:anyURI('http://xpath.test') cast as floatType", 'XPTY0004')
+
     def test_logical_expressions_(self):
         super(XPath2ParserTest, self).test_logical_expressions()
 
-        if xmlschema is not None and xmlschema.__version__ >= '1.2.3':
+        if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                   <xs:element name="root">

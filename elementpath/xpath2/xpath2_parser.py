@@ -24,8 +24,8 @@ from ..exceptions import ElementPathError, ElementPathTypeError, \
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
-from ..datatypes import UntypedAtomic, QName, AnyURI, Duration
-from ..xpath_nodes import TypedAttribute, is_xpath_node, \
+from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
+from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_token import UNICODE_CODEPOINT_COLLATION
 from ..xpath1 import XPath1Parser
@@ -751,6 +751,7 @@ def evaluate(self, context=None):
 @method('cast', bp=63)
 def led(self, left):
     self.parser.advance('as')
+    self.parser.expected_name('(name)', ':')
     self[:] = left, self.parser.expression(rbp=self.rbp)
     if self.parser.next_token.symbol == '?':
         self[2:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
@@ -791,7 +792,7 @@ def evaluate(self, context=None):
     arg = self.data_value(result[0])
     try:
         if namespace != XSD_NAMESPACE:
-            value = self.parser.schema.cast_as(arg, atomic_type)
+            value = self.parser.schema.cast_as(self.string_value(arg), atomic_type)
         else:
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
@@ -801,28 +802,16 @@ def evaluate(self, context=None):
 
             token = token_class(self.parser)
             value = token.cast(arg)
+
     except ElementPathError:
         if self.symbol != 'cast':
             return False
         raise
-    except KeyError:
-        msg = "atomic type %r not found in the in-scope schema types"
-        self.unknown_atomic_type(msg % self[1].source)
-    except TypeError as err:
+    except (TypeError, ValueError) as err:
         if self.symbol != 'cast':
             return False
-        elif isinstance(arg, UntypedAtomic):
-            raise self.error('FORG0001', err)
-        elif self[0].symbol == ':' and self[0][1].symbol == 'string':
+        elif isinstance(arg, (UntypedAtomic, str)):
             raise self.error('FORG0001', err) from None
-
-        raise self.error('XPTY0004', err) from None
-    except ValueError as err:
-        if self.symbol != 'cast':
-            return False
-        elif self[0].symbol == ':' and self[0][1].symbol == 'string':
-            raise self.error('FORG0001', err) from None
-
         raise self.error('XPTY0004', err) from None
     else:
         return value if self.symbol == 'cast' else True
@@ -921,8 +910,6 @@ def evaluate(self, context=None):
             operands[0] = float(operands[0])
     elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
         pass
-    elif (issubclass(cls0, cls1) or issubclass(cls1, cls0)) and not issubclass(cls0, Duration):
-        pass
     else:
         msg = "cannot apply {} between {!r} and {!r}".format(self, *operands)
         raise self.error('XPTY0004', msg)
@@ -973,7 +960,7 @@ def evaluate(self, context=None):
     else:
         if left[0] is right[0]:
             return False
-        for item in context.root.iter():
+        for item in context.root.iter():  # pragma: no cover
             if left[0] is item:
                 return True if symbol == '<<' else False
             elif right[0] is item:
@@ -994,13 +981,11 @@ def led(self, left):
 
 @method('to')
 def evaluate(self, context=None):
-    start, stop = self.get_operands(context, cls=int)
+    start, stop = self.get_operands(context, cls=Integer)
     try:
         return [x for x in range(start, stop + 1)]
-    except TypeError as err:
-        if context is None or start is None or stop is None:
-            return []
-        raise self.error('FORG0006', err) from None
+    except TypeError:
+        return []
 
 
 @method('to')
@@ -1080,10 +1065,10 @@ def select(self, context=None):
         for item in self[0].select(context):
             if len(self) == 1:
                 yield item
-            elif self.xsd_types:
-                type_annotation = self[1].evaluate(context)
-                if self.xsd_types.is_matching(type_annotation, self.parser.default_namespace):
-                    yield context.item
+            elif isinstance(item, TypedElement):
+                for type_annotation in self[1].select():
+                    if type_annotation == item.xsd_type.name:
+                        yield item
 
 
 @method('element')
@@ -1209,9 +1194,6 @@ def select(self, context=None):
                     self.add_xsd_type(attribute)
                 elif not type_name:
                     yield attribute.value
-                elif isinstance(attribute, TypedAttribute):
-                    if attribute.xsd_type.name == type_name:
-                        yield attribute.value
                 else:
                     xsd_type = self.get_xsd_type(attribute)
                     if xsd_type is not None and xsd_type.name == type_name:
