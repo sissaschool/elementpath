@@ -27,7 +27,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.schema1 = xmlschema.XMLSchema(dedent('''
+        cls.schema1 = xmlschema.XMLSchema(dedent('''\
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
               xmlns="http://xpath.test/ns" targetNamespace="http://xpath.test/ns">
           <xs:element name="a">
@@ -42,9 +42,9 @@ class XMLSchemaProxyTest(unittest.TestCase):
           <xs:element name="b3" type="xs:float"/>
         </xs:schema>'''))
 
-        cls.schema2 = xmlschema.XMLSchema(dedent('''
+        cls.schema2 = xmlschema.XMLSchema(dedent('''\
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-          <xs:element name="root"/>
+          <xs:element name="root" type="xs:string"/>
         </xs:schema>'''))
 
     def test_name_token(self):

@@ -102,7 +102,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.wrong_syntax("schema-element(*)")
         self.wrong_name("schema-element(nil)")
         self.wrong_name("schema-element(xs:string)")
-        self.check_value("self::schema-element(xs:complexType)", MissingContextError)
+        self.check_value("schema-element(xs:complexType)", MissingContextError)
         self.check_value("self::schema-element(xs:complexType)", NameError, context)
         self.check_value("self::schema-element(xs:schema)", [context.item], context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
@@ -111,7 +111,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.wrong_syntax("schema-attribute(*)")
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")
-        self.check_value("self::schema-attribute(xml:lang)", MissingContextError)
+        self.check_value("schema-attribute(xml:lang)", MissingContextError)
         self.check_value("schema-attribute(xml:lang)", NameError, context)
         self.check_value("self::schema-attribute(xml:lang)", [context.item], context)
         self.check_tree("schema-attribute(xsi:schemaLocation)",
