@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.1.3`_ (2021-01-30)
+======================
+* Extend tests for XPath 2.0 with minor fixes
+* Fix fn:round-half-to-even (issue #33)
+
 `v2.1.2`_ (2021-01-22)
 ======================
 * Extend tests for XPath 1.0/2.0 with minor fixes
@@ -280,3 +285,4 @@ CHANGELOG
 .. _v2.1.0: https://github.com/sissaschool/elementpath/compare/v2.0.5...v2.1.0
 .. _v2.1.1: https://github.com/sissaschool/elementpath/compare/v2.1.0...v2.1.1
 .. _v2.1.2: https://github.com/sissaschool/elementpath/compare/v2.1.1...v2.1.2
+.. _v2.1.3: https://github.com/sissaschool/elementpath/compare/v2.1.2...v2.1.3
