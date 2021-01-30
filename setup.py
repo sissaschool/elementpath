@@ -26,7 +26,7 @@ setup(
     description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     python_requires='>=3.6',
-    extra_require={
+    extras_require={
         'dev': ['tox', 'coverage', 'lxml', 'xmlschema~=1.2.3', 'Sphinx']
     },
     classifiers=[
