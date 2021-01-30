@@ -1100,9 +1100,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_selector('element-with-id("foo")', root, [root[0]])
         self.check_selector('id("foo")', root, [root[0]])
 
-        doc = self.etree.parse(
-            io.StringIO('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
-        )
+        doc = self.etree.ElementTree(root)
         root = doc.getroot()
         self.check_selector('id("foo")', doc, [root[0]])
         self.check_selector('id("fox")', doc, [])
@@ -1122,6 +1120,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_selector("id('ID21256')", doc, [root])
         self.check_selector("id('E21256')", doc, [root[0]])
+        self.check_selector('element-with-id("ID21256")', doc, [root])
+        self.check_selector('element-with-id("E21256")', doc, [root])
+
         with self.assertRaises(MissingContextError) as err:
             self.check_value("id('ID21256')")
         self.assertIn('XPDY0002', str(err.exception))
@@ -1138,6 +1139,96 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(doc, item=root, variables={'x': root})
         self.check_value("id('ID21256', $x)", [root], context=context)
+
+        # Id on root element
+        root = self.etree.XML("<empnr>E21256</empnr>")
+        self.check_selector("id('E21256')", root, [root])
+        self.check_selector('element-with-id("E21256")', root, [])
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed ...")
+    def test_node_set_id_function_with_schema(self):
+        root = self.etree.XML(dedent("""\
+            <employee xml:id="ID21256">
+               <empnr>E21256</empnr>
+               <first>John</first>
+               <last>Brown</last>
+            </employee>"""))
+        doc = self.etree.ElementTree(root)
+
+        # Test with matching value of type xs:ID
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:import namespace="http://www.w3.org/XML/1998/namespace"/>
+              <xs:element name="employee">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="empnr" type="xs:ID"/>
+                    <xs:element name="first" type="xs:string"/>
+                    <xs:element name="last" type="xs:string"/>
+                  </xs:sequence>
+                  <xs:attribute ref="xml:id"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid(root))
+        with self.schema_bound_parser(schema.xpath_proxy):
+            context = XPathContext(doc)
+            self.check_select("id('ID21256')", [root], context)
+            self.check_select("id('E21256')", [root[0]], context)
+
+        # Test with matching value of type xs:string
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:import namespace="http://www.w3.org/XML/1998/namespace"/>
+              <xs:element name="employee">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="empnr" type="xs:string"/>
+                    <xs:element name="first" type="xs:string"/>
+                    <xs:element name="last" type="xs:string"/>
+                  </xs:sequence>
+                  <xs:attribute ref="xml:id"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid(root))
+        with self.schema_bound_parser(schema.xpath_proxy):
+            context = XPathContext(doc)
+            self.check_select("id('E21256')", [], context)
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed ...")
+    def test_node_set_id_function_with_wrong_schema(self):
+        root = self.etree.XML(dedent("""\
+            <employee xml:id="ID21256">
+               <empnr>E21256</empnr>
+               <first>John</first>
+               <last>Brown</last>
+            </employee>"""))
+        doc = self.etree.ElementTree(root)
+
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="empnr" type="xs:ID"/>
+            </xs:schema>"""))
+
+        self.assertFalse(schema.is_valid(root))
+        with self.schema_bound_parser(schema.xpath_proxy):
+            context = XPathContext(doc)
+            self.check_select("id('ID21256')", [], context)
+            self.check_select("id('E21256')", [], context)
+
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="employee" type="xs:string"/>
+            </xs:schema>"""))
+
+        self.assertFalse(schema.is_valid(root))
+        with self.schema_bound_parser(schema.xpath_proxy):
+            context = XPathContext(doc)
+            self.check_select("id('ID21256')", [], context)
+            self.check_select("id('E21256')", [], context)
 
     def test_node_set_idref_function(self):
         doc = self.etree.parse(io.StringIO("""
@@ -1497,11 +1588,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("root($elem)", doc2, context=context)
 
         if xmlschema is not None:
-            schema = xmlschema.XMLSchema("""
+            schema = xmlschema.XMLSchema(dedent("""\
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
                     xmlns:tns="http://foo.test">
                   <xs:element name="root"/>
-                </xs:schema>""")
+                </xs:schema>"""))
 
             with self.schema_bound_parser(schema.xpath_proxy):
                 context = self.parser.schema.get_context()
