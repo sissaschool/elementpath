@@ -1232,10 +1232,6 @@ def select(self, context=None):
     node = self.get_argument(context, index=1, default_to_context=True)
     if isinstance(context, XPathSchemaContext):
         return
-    elif context is None or node is not context.item:
-        pass
-    elif context.item is None:
-        node = context.root
 
     if not is_xpath_node(node):
         raise self.error('XPTY0004')
@@ -1258,7 +1254,7 @@ def select(self, context=None):
                 parent = context.get_parent(elem)
                 if parent is not None:
                     yield parent
-            continue
+            continue  # pragma: no cover
 
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
             if attr.value in idrefs:
@@ -1270,7 +1266,7 @@ def select(self, context=None):
 
                     xsd_attribute = xsd_element.attrib.get(attr.name)
                     if xsd_attribute is None or not xsd_attribute.type.is_key():
-                        continue
+                        continue  # pragma: no cover
 
                 idrefs.remove(attr.value)
                 yield elem
