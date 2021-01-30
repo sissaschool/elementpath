@@ -910,6 +910,8 @@ def evaluate(self, context=None):
             operands[0] = float(operands[0])
     elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
         pass
+    elif (issubclass(cls0, cls1) or issubclass(cls1, cls0)) and not issubclass(cls0, Duration):
+        pass
     else:
         msg = "cannot apply {} between {!r} and {!r}".format(self, *operands)
         raise self.error('XPTY0004', msg)

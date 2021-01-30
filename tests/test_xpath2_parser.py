@@ -428,6 +428,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:duration("P31D") ne xs:yearMonthDuration("P1M")', True)
         self.wrong_type('QName("", "ncname") le QName("", "ncname")', 'XPTY0004')
 
+        # From W3C XSD 1.1 tests
+        context = XPathContext(root=self.etree.XML('<root/>'),
+                               variables={'value': Date(9999, 10, 10)})
+        self.check_value('$value lt current-date()', False, context=context)
+
     def test_comparison_in_expression(self):
         context = XPathContext(self.etree.XML('<value>false</value>'))
         self.check_value("(. = 'false') = (. = 'false')", True, context)
