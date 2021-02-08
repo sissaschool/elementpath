@@ -9,10 +9,10 @@
 #
 import re
 from .helpers import NORMALIZE_PATTERN, collapse_white_spaces
-from .atomic_types import AtomicTypeABCMeta
+from .atomic_types import AtomicTypeMeta
 
 
-class NormalizedString(str, metaclass=AtomicTypeABCMeta):
+class NormalizedString(str, metaclass=AtomicTypeMeta):
     name = 'normalizedString'
     pattern = re.compile('^[^\t\r]*$')
 

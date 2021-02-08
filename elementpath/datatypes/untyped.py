@@ -9,10 +9,10 @@
 #
 import operator
 from decimal import Decimal
-from .atomic_types import AtomicTypeABCMeta, AnyAtomicType
+from .atomic_types import AtomicTypeMeta, AnyAtomicType
 
 
-class UntypedAtomic(metaclass=AtomicTypeABCMeta):
+class UntypedAtomic(metaclass=AtomicTypeMeta):
     """
     Class for xs:untypedAtomic data. Provides special methods for comparing
     and converting to basic data types.

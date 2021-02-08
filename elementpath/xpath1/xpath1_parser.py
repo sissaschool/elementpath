@@ -627,7 +627,7 @@ def select(self, context=None):
     elif self.xsd_types is None:
         for item in context.iter_children_or_self():
             if match_attribute_node(item, name):
-                yield item.value
+                yield item
             elif match_element_node(item, name):
                 yield item
     else:
@@ -690,7 +690,7 @@ def select(self, context=None):
                 pass  # '*' wildcard doesn't match document nodes
             elif context.axis == 'attribute':
                 if isinstance(item, (AttributeNode, TypedAttribute)):
-                    yield item.value
+                    yield item
             elif is_element_node(item):
                 yield item
 

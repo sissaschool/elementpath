@@ -8,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
-from .atomic_types import AtomicTypeABCMeta
+from .atomic_types import AtomicTypeMeta
 from .helpers import QNAME_PATTERN
 
 
-class AbstractQName(metaclass=AtomicTypeABCMeta):
+class AbstractQName(metaclass=AtomicTypeMeta):
     """
     XPath compliant QName, bound with a prefix and a namespace.
 

@@ -1274,6 +1274,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         parser = self.parser.__class__(default_collation='it_IT.UTF-8')
         self.assertEqual(parser.default_collation, 'it_IT.UTF-8')
 
+    def test_issue_35_getting_attribute_names(self):
+        root = self.etree.XML(dedent("""\
+            <!-- <?xml version="1.0" encoding="utf-8"?> --> 
+            <library attrib1="att11" attrib2="att22"> some text 
+              <book isbn="1111111111"> 
+                <title lang="en">T1 T1 T1 T1 T1</title> 
+              </book> 
+              <book isbn="2222222222"> 
+                <title lang="en">T2 T2 T2 T2 T2</title> 
+              </book> 
+            </library>"""))
+
+        result = ['attrib1', 'attrib2', 'isbn', 'lang', 'isbn', 'lang']
+        self.check_selector('//@*/local-name()', root, result)
+        self.check_selector('//@*/name()', root, result)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):
