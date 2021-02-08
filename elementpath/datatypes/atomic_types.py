@@ -25,7 +25,7 @@ xsd11_atomic_types = {}
 """Dictionary of builtin XSD 1.1 atomic types."""
 
 
-class AtomicTypeABCMeta(ABCMeta):
+class AtomicTypeMeta(ABCMeta):
     """
     Metaclass for creating XSD atomic types. The created classes
     are decorated with missing attributes and methods. When a name
@@ -43,7 +43,7 @@ class AtomicTypeABCMeta(ABCMeta):
         if name is not None and not isinstance(name, str):
             raise TypeError("attribute 'name' must be a string or None")
 
-        cls = super(AtomicTypeABCMeta, mcs).__new__(mcs, class_name, bases, dict_)
+        cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Add missing attributes and methods
         if not hasattr(cls, 'xsd_version'):
@@ -92,5 +92,5 @@ class AtomicTypeABCMeta(ABCMeta):
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))
 
 
-class AnyAtomicType(metaclass=AtomicTypeABCMeta):
+class AnyAtomicType(metaclass=AtomicTypeMeta):
     name = 'anyAtomicType'

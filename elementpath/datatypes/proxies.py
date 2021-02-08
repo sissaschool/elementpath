@@ -12,7 +12,7 @@ import math
 from decimal import Decimal
 
 from .helpers import collapse_white_spaces
-from .atomic_types import AtomicTypeABCMeta
+from .atomic_types import AtomicTypeMeta
 from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
 from .datetime import AbstractDateTime, Duration
@@ -22,7 +22,7 @@ from .datetime import AbstractDateTime, Duration
 # Type proxies for basic Python datatypes: a proxy class creates
 # and validates its Python datatype and virtual registered types.
 
-class BooleanProxy(metaclass=AtomicTypeABCMeta):
+class BooleanProxy(metaclass=AtomicTypeMeta):
     name = 'boolean'
     pattern = re.compile(r'^(?:true|false|1|0)$')
 
@@ -56,7 +56,7 @@ class BooleanProxy(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
-class DecimalProxy(metaclass=AtomicTypeABCMeta):
+class DecimalProxy(metaclass=AtomicTypeMeta):
     name = 'decimal'
     pattern = re.compile(r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))$')
 
@@ -91,7 +91,7 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
-class DoubleProxy10(metaclass=AtomicTypeABCMeta):
+class DoubleProxy10(metaclass=AtomicTypeMeta):
     name = 'double'
     pattern = re.compile(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
@@ -126,7 +126,7 @@ class DoubleProxy(DoubleProxy10):
     xsd_version = '1.1'
 
 
-class StringProxy(metaclass=AtomicTypeABCMeta):
+class StringProxy(metaclass=AtomicTypeMeta):
     name = 'string'
 
     def __new__(cls, *args, **kwargs):

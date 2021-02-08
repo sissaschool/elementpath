@@ -26,7 +26,7 @@ from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, \
     ArithmeticProxy, Id, is_idrefs, Notation, QName, Base64Binary, HexBinary, \
     NormalizedString, XsdToken, Language, Float, Float10, Integer, AnyURI, \
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy
-from elementpath.datatypes.atomic_types import AtomicTypeABCMeta
+from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.helpers import MONTH_DAYS, MONTH_DAYS_LEAP, \
     days_from_common_era, months2days, round_number
 from elementpath.datatypes.datetime import OrderedDateTime
@@ -37,11 +37,11 @@ class AnyAtomicTypeTest(unittest.TestCase):
     def test_invalid_type_name(self):
 
         with self.assertRaises(TypeError):
-            class InvalidAtomicType(metaclass=AtomicTypeABCMeta):
+            class InvalidAtomicType(metaclass=AtomicTypeMeta):
                 name = b'invalid'
 
     def test_validation(self):
-        class AnotherAtomicType(metaclass=AtomicTypeABCMeta):
+        class AnotherAtomicType(metaclass=AtomicTypeMeta):
             pass
 
         self.assertIsNone(AnotherAtomicType.validate(AnotherAtomicType()))

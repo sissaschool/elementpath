@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.1.4`_ (2021-02-09)
+======================
+* Fix wildcard selection of attributes (issue #35)
+
 `v2.1.3`_ (2021-01-30)
 ======================
 * Extend tests for XPath 2.0 with minor fixes
@@ -286,3 +290,4 @@ CHANGELOG
 .. _v2.1.1: https://github.com/sissaschool/elementpath/compare/v2.1.0...v2.1.1
 .. _v2.1.2: https://github.com/sissaschool/elementpath/compare/v2.1.1...v2.1.2
 .. _v2.1.3: https://github.com/sissaschool/elementpath/compare/v2.1.2...v2.1.3
+.. _v2.1.4: https://github.com/sissaschool/elementpath/compare/v2.1.3...v2.1.4

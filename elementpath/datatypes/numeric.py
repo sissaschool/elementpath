@@ -10,7 +10,7 @@
 import re
 import math
 from .helpers import collapse_white_spaces
-from .atomic_types import AtomicTypeABCMeta, AnyAtomicType
+from .atomic_types import AtomicTypeMeta, AnyAtomicType
 
 
 class Float10(float, AnyAtomicType):
@@ -109,7 +109,7 @@ class Float(Float10):
     xsd_version = '1.1'
 
 
-class Integer(int, metaclass=AtomicTypeABCMeta):
+class Integer(int, metaclass=AtomicTypeMeta):
     """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
     pattern = re.compile(r'^[\-+]?[0-9]+$')
