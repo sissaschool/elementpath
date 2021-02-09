@@ -4,6 +4,7 @@ CHANGELOG
 
 `v2.1.4`_ (2021-02-09)
 ======================
+* Add tests and apply small fixes to TDOP parser
 * Fix wildcard selection of attributes (issue #35)
 
 `v2.1.3`_ (2021-01-30)

@@ -991,6 +991,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('(2 + 4) * 5', 30)
         self.check_value('2 + 4 * 5', 22)
 
+        # From W3C XQuery/XPath test suite
+        self.wrong_syntax('1.1.1.E2')
+        self.wrong_syntax('.0.1')
+
     def test_addition_and_subtraction_operators(self):
         # '+' and '-' are both prefix and infix operators. The binding
         # power is equal to 40 but the nud() method is set with rbp=70.
