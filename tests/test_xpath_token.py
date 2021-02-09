@@ -87,6 +87,17 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(token.label, 'literal')
         self.assertEqual(token.source, '2.0')
 
+    def test_position(self):
+        parser = XPath2Parser()
+
+        token = parser.parse("(1, 2, 3, 4)")
+        self.assertEqual(token.symbol, '(')
+        self.assertEqual(token.position, (1, 1))
+
+        token = parser.parse("(: Comment line :)\n\n (1, 2, 3, 4)")
+        self.assertEqual(token.symbol, '(')
+        self.assertEqual(token.position, (3, 2))
+
     def test_iter_method(self):
         token = self.parser.parse('2 + 5')
         items = [tk for tk in token.iter()]

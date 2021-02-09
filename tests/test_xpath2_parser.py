@@ -229,6 +229,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \n'
                         'C1 (: last comment :)\t', '(/ (/ (/ (A)) (B1)) (C1))')
 
+        self.wrong_syntax("xs:(: invalid QName :)string")
+
     def test_comma_operator(self):
         self.check_value("1, 2", [1, 2])
         self.check_value("(1, 2)", [1, 2])
@@ -262,6 +264,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_if_expressions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
+
+        token = self.parser.parse("if (1) then 2 else 3")
+        self.assertEqual(len(token), 3)
+        self.assertEqual(token.source, 'if (1) then 2 else 3')
+
         self.check_value("if (1) then 2 else 3", 2)
         self.check_selector("if (true()) then /A/B1 else /A/B2", root, root[:1])
         self.check_selector("if (false()) then /A/B1 else /A/B2", root, root[1:2])

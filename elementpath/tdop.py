@@ -112,11 +112,11 @@ class MultiLabel(object):
     def __contains__(self, item):
         return any(item in v for v in self.values)
 
-    def startswith(self, string):
-        return any(v.startswith(string) for v in self.values)
+    def startswith(self, s):
+        return any(v.startswith(s) for v in self.values)
 
-    def endswith(self, string):
-        return any(v.endswith(string) for v in self.values)
+    def endswith(self, s):
+        return any(v.endswith(s) for v in self.values)
 
 
 class Token(MutableSequence):
@@ -163,7 +163,7 @@ class Token(MutableSequence):
         self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol
-        self._source = parser.source
+        self._source: str = parser.source
         try:
             self.span = parser.match.span()
         except AttributeError:
@@ -239,26 +239,22 @@ class Token(MutableSequence):
             if not length:
                 return symbol
             elif length == 1:
-                return u'%s %s' % (symbol, self[0].source)
+                if 'postfix' in self.label:
+                    return '%s %s' % (self[0].source, symbol)
+                return '%s %s' % (symbol, self[0].source)
             elif length == 2:
-                return u'%s %s %s' % (self[0].source, symbol, self[1].source)
+                return '%s %s %s' % (self[0].source, symbol, self[1].source)
             else:
-                return u'%s %s' % (symbol, ' '.join(item.source for item in self))
+                return '%s %s' % (symbol, ' '.join(item.source for item in self))
 
     @property
     def position(self):
         """A tuple with the position of the token in terms of line and column."""
-        if not isinstance(self._source, (str, bytes)):
-            return None, None
-
         token_index = self.span[0]
         line = self._source[:token_index].count('\n') + 1
         if line == 1:
-            column = token_index + 1
-        else:
-            column = token_index - self._source[:token_index].rindex('\n') + 1
-
-        return line, column + count_leading_spaces(self._source[column - 1:])
+            return 1, token_index + 1
+        return line, token_index - self._source[:token_index].rindex('\n')
 
     def nud(self):
         """Pratt's null denotation method"""
@@ -328,8 +324,7 @@ class ParserMeta(type):
         # Avoids more parsers definitions for a single module
         for k, v in sys.modules[cls.__module__].__dict__.items():
             if isinstance(v, ParserMeta) and v.__module__ == cls.__module__:
-                raise RuntimeError("Multiple parser class definitions per "
-                                   "module is not permitted: %r" % cls)
+                raise RuntimeError("Multiple parser class definitions per module are not allowed")
 
         # Checks and initializes class attributes
         if not hasattr(cls, 'token_base_class'):
@@ -385,14 +380,9 @@ class Parser(metaclass=ParserMeta):
         self.next_token = None
 
     def __eq__(self, other):
-        if self.token_base_class != other.token_base_class:
-            return False
-        elif self.SYMBOLS != other.SYMBOLS:
-            return False
-        elif self.symbol_table != other.symbol_table:
-            return False
-        else:
-            return True
+        return self.token_base_class is other.token_base_class and \
+            self.SYMBOLS == other.SYMBOLS and \
+            self.symbol_table == other.symbol_table
 
     def parse(self, source):
         """
@@ -481,7 +471,7 @@ class Parser(metaclass=ParserMeta):
                     self.next_token = self.symbol_table['(unknown)'](self, unknown)
                     raise self.next_token.wrong_syntax()
                 elif str(self.match.group()).strip():
-                    msg = "Unexpected matching %r: not compatible tokenizer."
+                    msg = "unexpected matching %r: incompatible tokenizer"
                     raise RuntimeError(msg % self.match.group())
         return self.next_token
 
@@ -517,10 +507,10 @@ class Parser(metaclass=ParserMeta):
                     else:
                         try:
                             self.next_token = self.symbol_table[symbol](self)
+                            break
                         except KeyError:
                             self.next_token = self.symbol_table['(unknown)'](self)
                             raise self.next_token.wrong_syntax()
-                        break
                 else:
                     source_chunk.append(self.match.group())
         return ''.join(source_chunk)
@@ -567,8 +557,12 @@ class Parser(metaclass=ParserMeta):
         if self.token is None:
             return True
         token_index = self.token.span[0]
-        line_start = self.source[0:token_index].rindex('\n') + 1
-        return not bool(self.source[line_start:token_index].strip())
+        try:
+            line_start = self.source[:token_index].rindex('\n') + 1
+        except ValueError:
+            return not bool(self.source[:token_index].strip())
+        else:
+            return not bool(self.source[line_start:token_index].strip())
 
     def is_spaced(self, before=True, after=True):
         """
@@ -582,10 +576,11 @@ class Parser(metaclass=ParserMeta):
         """
         if self.token is None:
             return False
+
         start, end = self.token.span
-        if before and start > 0 and self.source[start - 1] in ' \t\n':
-            return True
         try:
+            if before and start > 0 and self.source[start - 1] in ' \t\n':
+                return True
             return after and self.source[end] in ' \t\n'
         except IndexError:
             return False
@@ -609,16 +604,16 @@ class Parser(metaclass=ParserMeta):
 
             if s.isalpha():
                 s = r'\b%s\b(?![\-\.])' % s
-            elif s[-2:] == r'\(':
+            elif s[-3:] == r'\\(':
                 s = r'%s\s*%s' % (s[:-2], s[-2:])
-            elif s[-4:] == r'\:\:':
+            elif s[-6:] == r'\\:\\:':
                 s = r'%s\s*%s' % (s[:-4], s[-4:])
             return s
 
         try:
             try:
                 if ' ' in symbol:
-                    raise ValueError("%r: a symbol can't contains whitespaces." % symbol)
+                    raise ValueError("%r: a symbol can't contain whitespaces" % symbol)
             except TypeError:
                 assert isinstance(symbol, type) and issubclass(symbol, Token), \
                     "A %r subclass requested, not %r." % (Token, symbol)
@@ -708,7 +703,7 @@ class Parser(metaclass=ParserMeta):
         def nud(self):
             self[:] = self.parser.expression(rbp=bp),
             return self
-        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, nud=nud)
+        return cls.register(symbol, label='prefix operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
     def postfix(cls, symbol, bp=0):
@@ -716,7 +711,7 @@ class Parser(metaclass=ParserMeta):
         def led(self, left):
             self[:] = left,
             return self
-        return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
+        return cls.register(symbol, label='postfix operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
     def infix(cls, symbol, bp=0):

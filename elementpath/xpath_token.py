@@ -120,6 +120,8 @@ class XPathToken(Token):
             return '$%s' % self[0].source
         elif symbol == '{':
             return '{%s}%s' % (self[0].value, self[1].value)
+        elif symbol == 'if':
+            return 'if (%s) then %s else %s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'instance':
             return '%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
         elif symbol == 'treat':
