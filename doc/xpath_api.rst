@@ -108,9 +108,7 @@ implementing concrete interfaces to other types of XML Schema processors.
 XPath nodes
 ===========
 
-XPath nodes are processed using a set of namedtuple classes. The choice of
-a tuple-based processing is for speed and because these are only temporary
-containers, being that the final results are cleaned from intermediate tuples.
+XPath nodes are processed using a set of classes derived from :class:`XPathNode`:
 
 .. autoclass:: elementpath.AttributeNode
 .. autoclass:: elementpath.TextNode

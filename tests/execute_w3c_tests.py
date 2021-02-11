@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -29,7 +29,7 @@ from collections import OrderedDict
 from xml.etree import ElementTree
 import lxml.etree
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
 import elementpath
 import xmlschema
 
@@ -298,11 +298,12 @@ class TestCase(object):
     unicode_version = None
     unicode_normalization_form = None
     xml_version = None
-    xsd_version = None
 
     def __init__(self, elem, test_set, use_lxml=False):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
+        self.xsd_version = test_set.xsd_version
+
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
         self.test = elem.find('test', namespaces).text
@@ -890,9 +891,9 @@ class Result(object):
             parts = []
             for item in result:
                 if isinstance(item, elementpath.TypedElement):
-                    parts.append(tostring(item[0]).decode('utf-8').strip())
-                elif isinstance(item, tuple):
-                    parts.append(str(item[-1]))
+                    parts.append(tostring(item.elem).decode('utf-8').strip())
+                elif isinstance(item, XPathNode):
+                    parts.append(str(item.value))
                 elif hasattr(item, 'tag'):
                     parts.append(tostring(item).decode('utf-8').strip())
                 else:

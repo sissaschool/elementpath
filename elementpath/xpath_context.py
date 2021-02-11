@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -14,9 +14,9 @@ from itertools import chain
 
 from .exceptions import ElementPathTypeError
 from .datatypes import Timezone
-from .xpath_nodes import AttributeNode, TextNode, TypedAttribute, TypedElement, \
-    etree_iter_nodes, is_etree_element, is_lxml_etree_element, is_element_node, \
-    is_document_node, is_lxml_document_node
+from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, \
+    etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
+    is_schema_node, is_lxml_etree_element, is_lxml_document_node
 
 
 class XPathContext(object):
@@ -166,7 +166,7 @@ class XPathContext(object):
         map rebuilding for trees processed with an incremental parser.
         """
         if isinstance(elem, TypedElement):
-            elem = elem[0]
+            elem = elem.elem
         if elem is self.root:
             return
 
@@ -186,16 +186,16 @@ class XPathContext(object):
         """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
         if isinstance(item, AttributeNode):
-            path.append('@%s' % item[0])
+            path.append('@%s' % item.name)
             item = self._elem
         elif isinstance(item, TypedAttribute):
-            path.append('@%s' % item[0][0])
+            path.append('@%s' % item.attribute.name)
             item = self._elem
 
         if item is None:
             return '' if not path else path[0]
         elif isinstance(item, TypedElement):
-            item = item[0]
+            item = item.elem
 
         while True:
             try:
@@ -236,15 +236,15 @@ class XPathContext(object):
 
             elif isinstance(self.item, AttributeNode):
                 # Match XSD decoded attributes
-                for attr in filter(lambda x: isinstance(x, TypedAttribute), results):
-                    if attr[0] == self.item:
-                        yield attr
+                for typed_attribute in filter(lambda x: isinstance(x, TypedAttribute), results):
+                    if typed_attribute.attribute == self.item:
+                        yield typed_attribute
 
             elif is_etree_element(self.item):
                 # Match XSD decoded elements
-                for elem in filter(lambda x: isinstance(x, TypedElement), results):
-                    if elem[0] is self.item:
-                        yield elem
+                for typed_element in filter(lambda x: isinstance(x, TypedElement), results):
+                    if typed_element.elem is self.item:
+                        yield typed_element
 
         self.item = status
 
@@ -325,10 +325,14 @@ class XPathContext(object):
         if isinstance(self.item, TypedElement):
             self.item = self.item.elem
 
-        attributes = (AttributeNode(*x) for x in self.item.attrib.items())
-
-        for self.item in attributes:
-            yield self.item
+        elem = self.item
+        if is_schema_node(elem):
+            # TODO: for backward compatibility, to be removed in release 3.0.
+            for self.item in (AttributeNode(*x) for x in elem.attrib.items()):
+                yield self.item
+        else:
+            for self.item in (AttributeNode(*x, elem) for x in elem.attrib.items()):
+                yield self.item
 
         self.item, self.axis = status
 
@@ -342,7 +346,7 @@ class XPathContext(object):
         self.axis = 'child'
 
         if isinstance(self.item, TypedElement):
-            self.item = self.item[0]
+            self.item = self.item.elem
 
         if self.item is None:
             self.item = self.root.getroot() if is_document_node(self.root) else self.root
@@ -350,7 +354,7 @@ class XPathContext(object):
         elif is_etree_element(self.item):
             elem = self.item
             if elem.text is not None:
-                self.item = TextNode(elem.text)
+                self.item = TextNode(elem.text, elem)
                 yield self.item
 
             for child in elem:
@@ -358,7 +362,7 @@ class XPathContext(object):
                 yield child
 
                 if child.tail is not None:
-                    self.item = TextNode(child.tail)
+                    self.item = TextNode(child.tail, child, True)
                     yield self.item
 
         elif is_document_node(self.item):
@@ -370,7 +374,7 @@ class XPathContext(object):
     def iter_parent(self):
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, TypedElement):
-            parent = self.get_parent(self.item[0])
+            parent = self.get_parent(self.item.elem)
         else:
             parent = self.get_parent(self.item)
 
@@ -390,7 +394,7 @@ class XPathContext(object):
         :param axis: the context axis, default is 'following-sibling'.
         """
         if isinstance(self.item, TypedElement):
-            item = self.item[0]
+            item = self.item.elem
         elif not is_etree_element(self.item) or callable(self.item.tag):
             return
         else:
@@ -474,7 +478,7 @@ class XPathContext(object):
         self.axis = axis or 'ancestor'
 
         if isinstance(self.item, TypedElement):
-            self.item = self.item[0]
+            self.item = self.item.elem
 
         ancestors = [self.item] if self.axis == 'ancestor-or-self' else []
         parent = self.get_parent(self.item)
@@ -489,7 +493,7 @@ class XPathContext(object):
 
     def iter_preceding(self):
         """Iterator for 'preceding' reverse axis."""
-        item = self.item[0] if isinstance(self.item, TypedElement) else self.item
+        item = self.item.elem if isinstance(self.item, TypedElement) else self.item
         if not is_etree_element(item) or item is self.root or callable(item.tag):
             return
 
@@ -523,7 +527,7 @@ class XPathContext(object):
         if self.item is None or self.item is self.root:
             return
         elif isinstance(self.item, TypedElement):
-            self.item = self.item[0]
+            self.item = self.item.elem
         elif not is_etree_element(self.item) or callable(self.item.tag):
             return
 

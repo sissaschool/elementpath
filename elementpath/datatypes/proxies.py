@@ -12,7 +12,7 @@ import math
 from decimal import Decimal
 
 from .helpers import collapse_white_spaces
-from .atomic_types import AtomicTypeABCMeta
+from .atomic_types import AtomicTypeMeta
 from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
 from .datetime import AbstractDateTime, Duration
@@ -22,7 +22,7 @@ from .datetime import AbstractDateTime, Duration
 # Type proxies for basic Python datatypes: a proxy class creates
 # and validates its Python datatype and virtual registered types.
 
-class BooleanProxy(metaclass=AtomicTypeABCMeta):
+class BooleanProxy(metaclass=AtomicTypeMeta):
     name = 'boolean'
     pattern = re.compile(r'^(?:true|false|1|0)$')
 
@@ -56,7 +56,7 @@ class BooleanProxy(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
-class DecimalProxy(metaclass=AtomicTypeABCMeta):
+class DecimalProxy(metaclass=AtomicTypeMeta):
     name = 'decimal'
     pattern = re.compile(r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))$')
 
@@ -70,8 +70,9 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
                 raise cls.invalid_value(value)
         try:
             return Decimal(value)
-        except ArithmeticError:
-            raise ArithmeticError('invalid value {!r} for xs:{}'.format(value, cls.name))
+        except (ValueError, ArithmeticError):
+            msg = 'invalid value {!r} for xs:{}'
+            raise ArithmeticError(msg.format(value, cls.name)) from None
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -79,7 +80,10 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
 
     @classmethod
     def validate(cls, value):
-        if isinstance(value, (int, Decimal, Integer)) and not isinstance(value, bool):
+        if isinstance(value, Decimal):
+            if math.isnan(value) or math.isinf(value):
+                raise cls.invalid_value(value)
+        elif isinstance(value, (int, Integer)) and not isinstance(value, bool):
             return
         elif not isinstance(value, str):
             raise cls.invalid_type(value)
@@ -87,16 +91,16 @@ class DecimalProxy(metaclass=AtomicTypeABCMeta):
             raise cls.invalid_value(value)
 
 
-class DoubleProxy10(metaclass=AtomicTypeABCMeta):
+class DoubleProxy10(metaclass=AtomicTypeMeta):
     name = 'double'
     pattern = re.compile(
-        r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
+        r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value):
+    def __new__(cls, value: object) -> float:
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in {'INF', '-INF', 'NaN'} or cls.version != '1.0' and value == '+INF':
+            if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
                 pass
             elif value.lower() in {'inf', '+inf', '-inf', 'nan',
                                    'infinity', '+infinity', '-infinity'}:
@@ -119,10 +123,10 @@ class DoubleProxy10(metaclass=AtomicTypeABCMeta):
 
 class DoubleProxy(DoubleProxy10):
     name = 'double'
-    version = '1.1'
+    xsd_version = '1.1'
 
 
-class StringProxy(metaclass=AtomicTypeABCMeta):
+class StringProxy(metaclass=AtomicTypeMeta):
     name = 'string'
 
     def __new__(cls, *args, **kwargs):

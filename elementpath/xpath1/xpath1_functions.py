@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,11 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 import math
 import decimal
 from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, StringProxy, AnyURI
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
-from ..xpath_nodes import TextNode, is_xpath_node, is_document_node, \
+from ..xpath_nodes import XPathNode, TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 
 from .xpath1_parser import XPath1Parser
@@ -44,7 +45,12 @@ def select(self, context=None):
             yield context.item
         else:
             arg = self.get_argument(context, cls=str)
-            if context.item.tag == ' '.join(arg.strip().split()):
+            if hasattr(context.item, 'target'):
+                target = context.item.target
+            else:
+                target = context.item.text.split()[0] if context.item.text else ''
+
+            if target == ' '.join(arg.strip().split()):
                 yield context.item
 
 
@@ -136,7 +142,7 @@ def evaluate(self, context=None):
         return name if symbol == 'local-name' else ''
     elif symbol == 'local-name':
         return name.split('}')[1]
-    elif symbol == 'namespace-uri':
+    else:
         return name.split('}')[0][1:]
 
 
@@ -227,7 +233,7 @@ def evaluate(self, context=None):
         start = int(round(start)) - 1
 
     if len(self) == 2:
-        return '' if item is None else item[max(start, 0):]
+        return item[max(start, 0):]
     else:
         length = self.get_argument(context, index=2)
         try:
@@ -236,13 +242,11 @@ def evaluate(self, context=None):
         except TypeError:
             raise self.wrong_type("the third argument must be xs:numeric") from None
 
-        if item is None:
-            return ''
-        elif math.isinf(length):
+        if math.isinf(length):
             return item[max(start, 0):]
         else:
             stop = start + int(round(length))
-            return '' if item is None else item[slice(max(start, 0), max(stop, 0))]
+            return item[slice(max(start, 0), max(stop, 0))]
 
 
 @method(function('substring-before', nargs=2))
@@ -250,8 +254,6 @@ def evaluate(self, context=None):
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
-    if arg1 is None:
-        return ''
 
     index = arg1.find(arg2)
     if index < 0:
@@ -322,7 +324,7 @@ def evaluate(self, context=None):
 
 @method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
-    values = [x[-1] if isinstance(x, tuple) else x for x in self[0].select(context)]
+    values = [x.value if isinstance(x, XPathNode) else x for x in self[0].select(context)]
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero
@@ -331,7 +333,12 @@ def evaluate(self, context=None):
         return sum(values)
     elif all(isinstance(x, DayTimeDuration) for x in values) or \
             all(isinstance(x, YearMonthDuration) for x in values):
-        return sum(values[1:], start=values[0])
+        if sys.version_info >= (3, 8):
+            return sum(values[1:], start=values[0])
+        result = values[0]
+        for val in values[1:]:
+            result += val
+        return result
     elif any(isinstance(x, Duration) for x in values):
         raise self.error('FORG0006', 'invalid sum of duration values')
     elif any(isinstance(x, (StringProxy, AnyURI)) for x in values):
@@ -390,6 +397,8 @@ def evaluate(self, context=None):
     except TypeError as err:
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
+        if isinstance(arg, str):
+            raise self.error('XPTY0004') from None
         return round(arg)
     except decimal.DecimalException as err:
         raise self.error('FOCA0002', err) from None

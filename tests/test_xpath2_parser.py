@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -21,8 +21,10 @@
 #
 import unittest
 import io
+import locale
 import os
 from decimal import Decimal
+from textwrap import dedent
 
 try:
     import lxml.etree as lxml_etree
@@ -112,6 +114,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertTrue(self.parser.is_sequence_type('item()?'))
         self.assertTrue(self.parser.is_sequence_type('xs:untypedAtomic+'))
         self.assertFalse(self.parser.is_sequence_type(10))
+        self.assertFalse(self.parser.is_sequence_type(''))
         self.assertFalse(self.parser.is_sequence_type('empty-sequence()*'))
         self.assertFalse(self.parser.is_sequence_type('unknown'))
         self.assertFalse(self.parser.is_sequence_type('unknown?'))
@@ -143,6 +146,23 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertFalse(self.parser.match_sequence_type('1', 'xs:unknown'))
         self.assertFalse(self.parser.match_sequence_type('1', 'tns0:string'))
 
+    def test_variable_reference(self):
+        root = self.etree.XML('<a><b1/><b2/></a>')
+
+        context = XPathContext(root=root, variables={'var1': root[0]})
+        self.check_value('$var1', root[0], context=context)
+
+        context = XPathContext(root=root, variables={'tns:var1': root[0]})
+        self.check_raise('$tns:var1', NameError, 'XPST0081', context=context)
+
+        # Test dynamic evaluation error
+        parser = XPath2Parser(namespaces={'tns': 'http://xpath.test/ns'})
+        token = parser.parse('$tns:var1')
+        parser.namespaces.pop('tns')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate(context)
+        self.assertIn('XPST0081', str(ctx.exception))
+
     def test_check_variables_method(self):
         self.parser.variable_types.update(
             (k, get_sequence_type(v)) for k, v in self.variables.items()
@@ -151,7 +171,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          {'values': 'xs:decimal+', 'myaddress': 'xs:string', 'word': 'xs:string'})
 
         self.assertIsNone(self.parser.check_variables(
-            {'values': 1, 'myaddress': 'info@example.com', 'word': ''}
+            {'values': [1, 2, -1], 'myaddress': 'info@example.com', 'word': ''}
         ))
 
         with self.assertRaises(NameError) as ctx:
@@ -209,9 +229,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_tree(' (: initial comment :)/ (:2nd comment:)A/B1(: 3rd comment :)/ \n'
                         'C1 (: last comment :)\t', '(/ (/ (/ (A)) (B1)) (C1))')
 
+        self.wrong_syntax("xs:(: invalid QName :)string")
+
     def test_comma_operator(self):
         self.check_value("1, 2", [1, 2])
         self.check_value("(1, 2)", [1, 2])
+        self.check_value("(1, 2, ())", [1, 2])
+        self.check_value("(1, fn:round-half-to-even(()), 7)", [1, 7])
         self.check_value("(-9, 28, 10)", [-9, 28, 10])
         self.check_value("(1, 2)", [1, 2])
 
@@ -228,6 +252,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("10 to 10", [10])
         self.check_value("15 to 10", [])
         self.check_value("fn:reverse(10 to 15)", [15, 14, 13, 12, 11, 10])
+        self.wrong_syntax("1 to 10 to 20", 'XPST0003')
+
+        root = self.etree.XML('<root/>')
+        self.wrong_type("'1' to '10'", 'XPTY0004', context=XPathContext(root))
+        self.wrong_type("true() to 10", 'XPTY0004')
 
     def test_parenthesized_expressions(self):
         self.check_value("(1, 2, '10')", [1, 2, '10'])
@@ -235,6 +264,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_if_expressions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
+
+        token = self.parser.parse("if (1) then 2 else 3")
+        self.assertEqual(len(token), 3)
+        self.assertEqual(token.source, 'if (1) then 2 else 3')
+
         self.check_value("if (1) then 2 else 3", 2)
         self.check_selector("if (true()) then /A/B1 else /A/B2", root, root[:1])
         self.check_selector("if (false()) then /A/B1 else /A/B2", root, root[1:2])
@@ -288,6 +322,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
+
+        # From W3C XQuery/XPath tests
+        context = XPathContext(root=self.etree.XML('<dummy/>'),
+                               variables={'result': [43, 44, 45]})
+
+        self.check_value('some $i in $result satisfies $i = 44', True, context)
+        self.check_value('every $i in $result satisfies $i = 44', False, context)
+        self.check_raise('some $foo in (1, $foo) satisfies 1', NameError, 'XPST0008')
 
     def test_for_expressions(self):
         # Cases from XPath 2.0 examples
@@ -343,17 +385,23 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                    root[2][0], root[2][2], root[2][0], root[2][3], root[2][0]]
         )
 
-    def test_numerical_add_operator(self):
-        super(XPath2ParserTest, self).test_numerical_add_operator()
-        self.check_value("() + 81")
-        self.check_value("72 + ()")
+        # From W3C XQuery/XPath tests
+        context = XPathContext(root=self.etree.XML('<dummy/>'),
+                               variables={'result': [43, 44, 45]})
+
+        self.check_value('for $i in $result return $i + 10', [53, 54, 55], context)
+        self.check_raise('for $foo in (1, $foo) return 1', NameError, 'XPST0008')
 
     def test_idiv_operator(self):
         self.check_value("5 idiv 2", 2)
         self.check_value("-3.5 idiv -2", 1)
         self.check_value("-3.5 idiv 2", -1)
+        self.check_value('xs:float("-3.5") idiv xs:float("3")', -1)
         self.check_value("-3.5 idiv 0", ZeroDivisionError)
         self.check_value("xs:float('INF') idiv 2", OverflowError)
+        self.wrong_value("-3.5 idiv ()", 'XPST0005')
+        self.check_raise('xs:float("NaN") idiv 1', OverflowError, 'FOAR0002')
+        self.wrong_type("5 idiv '2'", 'XPTY0004')
 
     def test_comparison_operators(self):
         super(XPath2ParserTest, self).test_comparison_operators()
@@ -361,6 +409,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("19.03 ne 19.02999", True)
         self.check_value("-1.0 eq 1.0", False)
         self.check_value("1 le 2", True)
+        self.check_value("1e0 eq 1e2", False)
+        self.check_value("xs:float('1e0') eq 1e2", False)
+        self.check_value("1.0 lt 1e2", True)
+        self.check_value("1e2 lt 1000", True)
+
         self.check_value("3 le 2", False)
         self.check_value("5 ge 9", False)
         self.check_value("5 gt 3", True)
@@ -368,10 +421,24 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("false() eq 1", False)
         self.check_value("0 eq false()", True)
         self.check_value("2 * 2 eq 4", True)
+        self.check_value("() * 7")
+        self.check_value("() * ()")
+
+        self.check_value('xs:string("http://xpath.test") eq xs:anyURI("http://xpath.test")', True)
 
         self.check_value("() le 4")
         self.check_value("4 gt ()")
         self.check_value("() eq ()")  # Equality of empty sequences is also an empty sequence
+        self.wrong_syntax('true() eq true() eq true()', 'XPST0003')
+
+        # From W3C XQuery/XPath tests
+        self.check_value('xs:duration("P31D") ne xs:yearMonthDuration("P1M")', True)
+        self.wrong_type('QName("", "ncname") le QName("", "ncname")', 'XPTY0004')
+
+        # From W3C XSD 1.1 tests
+        context = XPathContext(root=self.etree.XML('<root/>'),
+                               variables={'value': Date(9999, 10, 10)})
+        self.check_value('$value lt current-date()', False, context=context)
 
     def test_comparison_in_expression(self):
         context = XPathContext(self.etree.XML('<value>false</value>'))
@@ -444,7 +511,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type("(1, 2) le (2, 3)", 'XPTY0004', 'sequence of length greater than one')
 
         root = self.etree.XML('<root min="10" max="7"/>')
-        self.check_value('@min', [AttributeNode('min', '10')], context=XPathContext(root=root))
+        attributes = [AttributeNode(*x, root) for x in root.attrib.items()]
+        self.check_value('@min', [attributes[0]], context=XPathContext(root=root))
         self.check_value('@min le @max', True, context=XPathContext(root=root))
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))
@@ -466,9 +534,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 self.check_value('. le 20', True, context=XPathContext(root))
 
                 root = self.etree.XML('<root>eleven</root>')
-                with self.assertRaises(TypeError) as err:
-                    self.check_value('. le 10', context=XPathContext(root))
-                self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
+                self.wrong_type('. le 10', 'XPDY0050', 'does not match sequence type',
+                                context=XPathContext(root))
 
                 root = self.etree.XML('<value>12</value>')
                 with self.assertRaises(TypeError) as err:
@@ -605,6 +672,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:time("08:20:00-05:00") - xs:dayTimeDuration("P23DT10H10M")',
                          Time.fromstring('22:10:00-05:00'))
 
+    def test_duration_with_arithmetical_operators(self):
+        self.wrong_type('xs:duration("P1Y") * 3', 'XPTY0004', 'unsupported operand type(s)')
+        self.wrong_value('xs:duration("P1Y") * xs:float("NaN")', 'FOCA0005')
+        self.check_value('xs:duration("P1Y") * xs:float("INF")', OverflowError)
+        self.wrong_value('xs:float("NaN") * xs:duration("P1Y")', 'FOCA0005')
+        self.check_value('xs:float("INF") * xs:duration("P1Y")', OverflowError)
+        self.wrong_type('xs:duration("P3Y") div 3',  'XPTY0004', 'unsupported operand type(s)')
+
     def test_year_month_duration_operators(self):
         self.check_value('xs:yearMonthDuration("P2Y11M") + xs:yearMonthDuration("P3Y3M")',
                          YearMonthDuration(months=74))
@@ -615,6 +690,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('xs:yearMonthDuration("P2Y11M") div 1.5',
                          YearMonthDuration.fromstring('P1Y11M'))
         self.check_value('xs:yearMonthDuration("P3Y4M") div xs:yearMonthDuration("-P1Y4M")', -2.5)
+        self.wrong_value('xs:double("NaN") * xs:yearMonthDuration("P2Y")', 'FOCA0005')
+        self.check_value('xs:yearMonthDuration("P1Y") * xs:double("INF")', OverflowError)
+        self.wrong_value('xs:yearMonthDuration("P3Y") div xs:double("NaN")', 'FOCA0005')
+
+        self.check_raise('xs:yearMonthDuration("P3Y") div xs:yearMonthDuration("P0Y")',
+                         ZeroDivisionError, 'FOAR0001', 'Division by zero')
+        self.check_raise('xs:yearMonthDuration("P3Y36M") div 0', OverflowError, 'FODT0002')
 
     def test_day_time_duration_operators(self):
         self.check_value('xs:dayTimeDuration("P2DT12H5M") + xs:dayTimeDuration("P5DT12H")',
@@ -625,6 +707,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          DayTimeDuration.fromstring('PT4H33M'))
         self.check_value('xs:dayTimeDuration("P1DT2H30M10.5S") div 1.5',
                          DayTimeDuration.fromstring('PT17H40M7S'))
+        self.check_value('3 * xs:dayTimeDuration("P1D")',
+                         DayTimeDuration.fromstring('P3D'))
         self.check_value(
             'xs:dayTimeDuration("P2DT53M11S") div xs:dayTimeDuration("P1DT10H")',
             Decimal('1.437834967320261437908496732')
@@ -643,6 +727,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("self::document-node(element(A))", document, [document])
         self.check_selector("self::document-node(element(B))", document, [])
 
+        context = XPathContext(root=document.getroot())
+        self.check_select("document-node()", [], context)
+        self.check_select("self::document-node()", [], context)
+        self.check_select("self::document-node(element(A))", [], context)
+
     def test_element_accessor(self):
         element = self.etree.Element('schema')
         context = XPathContext(root=element)
@@ -658,6 +747,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select("element(*)", root[:], context)
         self.check_select("element(B)", root[:], context)
         self.check_select("element(A)", [], context)
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema(dedent('''\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="root" type="xs:string"/>
+                </xs:schema>'''))
+
+            root = self.etree.XML('<root>hello</root>')
+            context = XPathContext(root)
+            with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
+                typed_element = TypedElement(root, schema.elements['root'], 'hello')
+                self.check_select("self::element(*, xs:string)", [typed_element], context)
+                self.check_select("self::element(*, xs:int)", [], context)
 
     def test_attribute_accessor(self):
         root = self.etree.XML('<A a="10" b="20">text<B/>tail<B/></A>')
@@ -727,6 +829,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_select('$seq1 except $seq2', [], context=context)
         self.check_select('$seq2 except $seq3', root[:1], context=context)
 
+        self.wrong_type('1 intersect 1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('1 except $seq1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('1 union $seq1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('$seq1 intersect 1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+        self.wrong_type('$seq1 union 1', 'XPTY0004',
+                        'only XPath nodes are allowed', context=context)
+
     def test_node_comparison_operators(self):
         # Test cases from https://www.w3.org/TR/xpath20/#id-node-comparisons
         root = self.etree.XML('''
@@ -741,6 +854,18 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                             root, False)
         self.check_selector('/books/book[isbn="not a code"] is /books/book[call="QA76.9 C3847"]',
                             root, [])
+
+        context = XPathContext(root)
+        self.check_value('/books/book[isbn="1558604820"] is ()', context=context)
+        self.wrong_type('/books/book[isbn="1558604820"] is (1, 2)', 'XPTY0004', context=context)
+
+        self.check_value('/books/book[isbn="1558604820"] << /books/book[isbn="1558604820"]',
+                         False, context=context)
+
+        context = XPathContext(root, variables={'a': self.etree.Element('a'),
+                                                'b': self.etree.Element('b')})
+        self.wrong_value('$a << $b', 'FOCA0002', 'operands are not nodes of the XML tree',
+                         context=context)
 
         root = self.etree.XML('''
         <transactions>
@@ -765,6 +890,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             '/transactions/purchase[parcel="10-639"] >> /transactions/sale[parcel="33-870"]',
             root, TypeError
         )
+
+        self.wrong_type('is ()', 'XPST0017')
+        self.wrong_syntax('is B', 'XPST0003')
+        self.wrong_syntax('A is B is C', 'XPST0003')
 
     def test_empty_sequence_type(self):
         self.check_value("() treat as empty-sequence()", [])
@@ -818,6 +947,25 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("5 instance of empty-sequence()", False)
         self.check_value("() instance of empty-sequence()", True)
 
+        self.wrong_syntax("5 instance of unknown()", 'XPST0003', "unknown function 'unknown'")
+        self.wrong_syntax("1e3 instance of empty-sequence()(",
+                          'XPST0003', "unexpected '(' operator")
+
+        # Test dynamic evaluation error on prefixed name
+        parser = XPath2Parser()
+        token = parser.parse('5 instance of xs:decimal')
+        parser.namespaces.pop('xs')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate()
+        self.assertIn('XPST0081', str(ctx.exception))
+
+        # From W3C XQuery/XPath tests
+        context = XPathContext(element)
+        self.check_value("not(1 instance of node())", True, context)
+        self.check_value("(1, 2, 3, 4, 5) instance of item()+", True, context)
+        self.check_value("(1, 2, 3, 4, 5) instance of item()", False, context)
+        self.wrong_name("3 instance of void")
+
     def test_treat_as_expression(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
@@ -834,6 +982,23 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
         self.check_value("() treat as empty-sequence()", [])
+        self.check_value("() treat as xs:integer?", [])
+        self.wrong_type("() treat as xs:integer", 'XPDY0050')
+
+        # Test dynamic evaluation error on prefixed name
+        parser = XPath2Parser()
+        token = parser.parse('5 treat as xs:decimal')
+        parser.namespaces.pop('xs')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate()
+        self.assertIn('XPST0081', str(ctx.exception))
+
+        # From W3C XQuery/XPath tests
+        self.check_value("3 treat as item()+", [3], context)
+        self.wrong_type("3 treat as node()+", 'XPDY0050', context=context)
+        self.check_value("(1, 2, 3) treat as item()+", [1, 2, 3], context)
+        self.wrong_type("(1, 2, 3) treat as item()", 'XPDY0050', context=context)
+        self.wrong_name("3 treat as xs:doesNotExist")
 
     def test_castable_expression(self):
         self.check_value("5 castable as xs:integer", True)
@@ -843,10 +1008,17 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() castable as xs:integer", False)
         self.check_value("() castable as xs:integer?", True)
 
+        self.wrong_syntax("5 castable as empty-sequence()", 'XPST0003')
+        self.wrong_name("5 castable as void", 'XPST0051')
+        self.check_value("5 castable as xs:void", False)
+
         self.check_value("'NaN' castable as xs:double", True)
         self.check_value("'None' castable as xs:double", False)
         self.check_value("'NaN' castable as xs:float", True)
         self.check_value("'NaN' castable as xs:integer", False)
+
+        # From W3C XQuery/XPath tests
+        self.check_value("(1E3) castable as xs:double?", True)
 
     def test_cast_expression(self):
         self.check_value("5 cast as xs:integer", 5)
@@ -858,10 +1030,42 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('"1" cast as xs:boolean', True)
         self.check_value('"0" cast as xs:boolean', False)
 
+        self.check_value("xs:untypedAtomic('1E3') cast as xs:double", 1E3)
+        self.wrong_value("xs:untypedAtomic('x') cast as xs:double", 'FORG0001')
+
+        # Test dynamic evaluation error on prefixed name
+        parser = XPath2Parser()
+        token = parser.parse("() cast as xs:string?")
+        parser.namespaces.pop('xs')
+        with self.assertRaises(NameError) as ctx:
+            token.evaluate()
+        self.assertIn('XPST0081', str(ctx.exception))
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
+    def test_cast_or_castable_with_derived_type(self):
+        schema = xmlschema.XMLSchema(dedent("""\n
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="floatType">
+                    <xs:restriction base="xs:double"/>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        with self.schema_bound_parser(schema.xpath_proxy):
+            root = self.etree.XML('<root/>')
+            context = XPathContext(root)
+
+            self.check_value("'1E3' castable as floatType", True, context)
+            self.check_value("(1E3) castable as floatType", True, context)
+            self.check_value("xs:untypedAtomic('1E3') cast as floatType", 1E3)
+            self.check_value("xs:untypedAtomic('x') castable as floatType", False)
+            self.wrong_value("xs:untypedAtomic('x') cast as floatType", 'FORG0001')
+            self.wrong_value("'x' cast as floatType", 'FORG0001')
+            self.wrong_type("xs:anyURI('http://xpath.test') cast as floatType", 'XPTY0004')
+
     def test_logical_expressions_(self):
         super(XPath2ParserTest, self).test_logical_expressions()
 
-        if xmlschema is not None and xmlschema.__version__ >= '1.2.3':
+        if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                   <xs:element name="root">
@@ -919,7 +1123,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_atomic_value(self):
-        schema = xmlschema.XMLSchema("""
+        schema = xmlschema.XMLSchema(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="a" type="aType"/>
               <xs:complexType name="aType">
@@ -941,10 +1145,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
               <xs:simpleType name="eType">
                 <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
               </xs:simpleType>
-            </xs:schema>""")
+            </xs:schema>"""))
 
         token = self.parser.parse('true()')
 
+        self.assertEqual(self.parser.get_atomic_value('xs:int'), 1)
+        self.assertEqual(self.parser.get_atomic_value('xs:unknown'), UntypedAtomic('1'))
         self.assertEqual(self.parser.get_atomic_value(schema.elements['d'].type),
                          UntypedAtomic('1'))
 
@@ -956,8 +1162,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
         try:
-            with self.assertRaises(AttributeError) as err:
+            with self.assertRaises(AttributeError):
                 self.parser.get_atomic_value(schema)
+
+            value = self.parser.get_atomic_value('unknown')
+            self.assertIsInstance(value, UntypedAtomic)
+            self.assertEqual(value, UntypedAtomic(value='1'))
 
             value = self.parser.get_atomic_value(schema.elements['a'].type)
             self.assertIsInstance(value, UntypedAtomic)
@@ -985,6 +1195,107 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             self.assertEqual(value, UntypedAtomic(value='1'))
         finally:
             self.parser.schema = None
+
+    def test_auxiliary_tokens(self):
+        self.check_raise('as', MissingContextError)
+        self.check_raise('of', MissingContextError)
+
+        context = XPathContext(self.etree.XML('<root/>'))
+        self.check_raise('as', MissingContextError, context=context)
+        self.check_raise('of', MissingContextError, context=context)
+
+    def test_function_namespace(self):
+        function_namespace = "http://xpath.test/fn/xpath-functions"
+        parser = self.parser.__class__(
+            namespaces={'fn2': function_namespace},
+            function_namespace=function_namespace
+        )
+        token = parser.parse('fn2:true()')
+        self.assertTrue(token.evaluate())
+
+    def test_invalid_schema_argument(self):
+        schema = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" />
+            </xs:schema>""")
+
+        with self.assertRaises(ElementPathTypeError) as ctx:
+            self.parser.__class__(schema=schema)
+        self.assertEqual(str(ctx.exception),
+                         "argument 'schema' must be an instance of AbstractSchemaProxy")
+
+        if xmlschema is not None:
+            with self.assertRaises(ElementPathTypeError):
+                self.parser.__class__(schema=xmlschema.XMLSchema(schema))
+
+    def test_variable_types_argument(self):
+        variable_types = {'a': 'item()', 'b': 'xs:integer'}
+        parser = self.parser.__class__(variable_types=variable_types)
+        self.assertEqual(variable_types, parser.variable_types)
+        self.assertIsNot(variable_types, parser.variable_types)
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(variable_types={'a': 'item()', 'b': 'xs:complex'})
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type for in-scope variable types")
+
+    def test_document_types_argument(self):
+        document_types = {'doc1': 'node()*', 'doc2': 'element()'}
+        parser = self.parser.__class__(document_types=document_types)
+        self.assertEqual(document_types, parser.document_types)
+        self.assertIs(document_types, parser.document_types)
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(document_types={'doc1': 'node()*', 'doc2': 'etree()'})
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type in document_types argument")
+
+    def test_collection_types_argument(self):
+        collection_types = {'col1': 'node()*', 'col2': 'element()*'}
+        parser = self.parser.__class__(collection_types=collection_types)
+        self.assertEqual(collection_types, parser.collection_types)
+        self.assertIs(collection_types, parser.collection_types)
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(collection_types={'doc1': 'node()*', 'doc2': 'etree()*'})
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type in collection_types argument")
+
+    def test_default_collection_type_argument(self):
+        parser = self.parser.__class__(default_collection_type='element()*')
+        self.assertEqual(parser.default_collection_type, 'element()*')
+
+        with self.assertRaises(ElementPathValueError) as ctx:
+            self.parser.__class__(default_collection_type='elem()*')
+        self.assertEqual(str(ctx.exception),
+                         "invalid sequence type for default_collection_type argument")
+
+    def test_default_collation_argument(self):
+        default_locale = locale.getdefaultlocale()
+        collation = '.'.join(default_locale) if default_locale[1] else default_locale[0]
+
+        if collation == 'en_US.UTF-8':
+            collation = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+        self.assertEqual(self.parser.__class__().default_collation, collation)
+
+        parser = self.parser.__class__(default_collation='it_IT.UTF-8')
+        self.assertEqual(parser.default_collation, 'it_IT.UTF-8')
+
+    def test_issue_35_getting_attribute_names(self):
+        root = self.etree.XML(dedent("""\
+            <!-- <?xml version="1.0" encoding="utf-8"?> --> 
+            <library attrib1="att11" attrib2="att22"> some text 
+              <book isbn="1111111111"> 
+                <title lang="en">T1 T1 T1 T1 T1</title> 
+              </book> 
+              <book isbn="2222222222"> 
+                <title lang="en">T2 T2 T2 T2 T2</title> 
+              </book> 
+            </library>"""))
+
+        result = ['attrib1', 'attrib2', 'isbn', 'lang', 'isbn', 'lang']
+        self.check_selector('//@*/local-name()', root, result)
+        self.check_selector('//@*/name()', root, result)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

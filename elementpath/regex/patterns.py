@@ -260,5 +260,5 @@ def translate_pattern(pattern, flags=0, xsd_version='1.0', back_references=True,
         raise RegexError("unterminated subpattern in expression: %r" % pattern)
 
     if not anchors:
-        regex.append(r')$')
+        regex.append(r')$(?!\n\Z)')
     return ''.join(regex)

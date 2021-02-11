@@ -2,6 +2,41 @@
 CHANGELOG
 *********
 
+`v2.1.4`_ (2021-02-09)
+======================
+* Add tests and apply small fixes to TDOP parser
+* Fix wildcard selection of attributes (issue #35)
+
+`v2.1.3`_ (2021-01-30)
+======================
+* Extend tests for XPath 2.0 with minor fixes
+* Fix fn:round-half-to-even (issue #33)
+
+`v2.1.2`_ (2021-01-22)
+======================
+* Extend tests for XPath 1.0/2.0 with minor fixes
+* Fix for +/- prefix operators
+* Fix for regex patterns anchors and binary datatypes
+
+`v2.1.1`_ (2021-01-06)
+======================
+* Fix for issue #32 (test failure on missing locale setting)
+* Extend tests for XPath 1.0 with minor fixes
+
+`v2.1.0`_ (2021-01-05)
+======================
+* Create custom class hierarchy for XPath nodes that replaces named-tuples
+* Bind attribute nodes, text nodes and namespace nodes to parent element (issue #31)
+
+`v2.0.5`_ (2020-12-02)
+======================
+* Increase the speed of path step selection on large trees
+* More tests and small fixes to XSD builtin datatypes
+
+`v2.0.4`_ (2020-10-30)
+======================
+* Lazy tokenizer for parser classes in order to minimize import time
+
 `v2.0.3`_ (2020-09-13)
 ======================
 * Fix context handling in cycle statements
@@ -250,3 +285,10 @@ CHANGELOG
 .. _v2.0.1: https://github.com/sissaschool/elementpath/compare/v2.0.0...v2.0.1
 .. _v2.0.2: https://github.com/sissaschool/elementpath/compare/v2.0.1...v2.0.2
 .. _v2.0.3: https://github.com/sissaschool/elementpath/compare/v2.0.2...v2.0.3
+.. _v2.0.4: https://github.com/sissaschool/elementpath/compare/v2.0.3...v2.0.4
+.. _v2.0.5: https://github.com/sissaschool/elementpath/compare/v2.0.4...v2.0.5
+.. _v2.1.0: https://github.com/sissaschool/elementpath/compare/v2.0.5...v2.1.0
+.. _v2.1.1: https://github.com/sissaschool/elementpath/compare/v2.1.0...v2.1.1
+.. _v2.1.2: https://github.com/sissaschool/elementpath/compare/v2.1.1...v2.1.2
+.. _v2.1.3: https://github.com/sissaschool/elementpath/compare/v2.1.2...v2.1.3
+.. _v2.1.4: https://github.com/sissaschool/elementpath/compare/v2.1.3...v2.1.4

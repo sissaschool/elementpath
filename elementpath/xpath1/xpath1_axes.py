@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,7 +9,6 @@
 #
 from ..xpath_nodes import NamespaceNode, is_element_node
 from .xpath1_functions import XPath1Parser
-
 
 method = XPath1Parser.method
 axis = XPath1Parser.axis
@@ -50,7 +49,7 @@ def select(self, context=None):
             # noinspection PyUnresolvedReferences
             for prefix_, uri in elem.nsmap.items():
                 if prefix_ not in namespaces:
-                    context.item = NamespaceNode(prefix_, uri)
+                    context.item = NamespaceNode(prefix_, uri, elem)
                     yield context.item
 
 
@@ -130,4 +129,3 @@ def select(self, context=None):
 
 
 register = XPath1Parser.register('(end)')
-XPath1Parser.build()
