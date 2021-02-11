@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -48,8 +48,9 @@ class XPathNodesTest(unittest.TestCase):
     def test_elem_iter_nodes_function(self):
         root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')
 
-        result = [root, TextNode('text1\n'), root[0], TextNode('text2'),
-                  root[1], root[2], root[2][0], TextNode('text3')]
+        result = [root, TextNode('text1\n', root),
+                  root[0], TextNode('text2', root[0]), root[1],
+                  root[2], root[2][0], TextNode('text3', root[2][0])]
 
         self.assertListEqual(list(etree_iter_nodes(root)), result)
         self.assertListEqual(list(etree_iter_nodes(root, with_root=False)), result[1:])
@@ -59,7 +60,7 @@ class XPathNodesTest(unittest.TestCase):
             typed_root = TypedElement(root, xsd_type, 'text1')
             self.assertListEqual(list(etree_iter_nodes(typed_root)), result)
 
-        result = result[:4] + [AttributeNode('a', '10')] + result[4:]
+        result = result[:4] + [AttributeNode('a', '10', root[0])] + result[4:]
         self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
 
         comment = ElementTree.Comment('foo')
@@ -73,13 +74,13 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
+            typed_root = TypedElement(elem=root, xsd_type=xsd_type, value='text1')
             self.assertListEqual(list(etree_iter_strings(typed_root)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = TypedElement(elem=root, type=xsd_type, value='text1')
+            typed_root = TypedElement(elem=root, xsd_type=xsd_type, value='text1')
             self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
 
             comment = ElementTree.Comment('foo')
@@ -121,11 +122,11 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_elem = TypedElement(elem=elem, type=xsd_type, value='text1')
+            typed_elem = TypedElement(elem=elem, xsd_type=xsd_type, value='text1')
             self.assertTrue(match_element_node(typed_elem, '*'))
 
     def test_match_attribute_node_function(self):
-        attr = AttributeNode('a1', '10')
+        attr = AttributeNode('a1', '10', parent=None)
         self.assertTrue(match_attribute_node(attr, '*'))
         self.assertTrue(match_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
         with self.assertRaises(ValueError):
@@ -137,6 +138,9 @@ class XPathNodesTest(unittest.TestCase):
         self.assertTrue(match_attribute_node(attr, '*:a1'))
         self.assertFalse(match_attribute_node(attr, '{foo}*'))
         self.assertTrue(match_attribute_node(AttributeNode('{foo}a1', '10'), '{foo}*'))
+
+        attr = AttributeNode('{http://xpath.test/ns}a1', '10', parent=None)
+        self.assertTrue(match_attribute_node(attr, '*:a1'))
 
     def test_is_comment_node_function(self):
         comment = ElementTree.Comment('nothing important')
@@ -186,6 +190,99 @@ class XPathNodesTest(unittest.TestCase):
         document = ElementTree.parse(io.StringIO(xml_test))
         self.assertIsNone(node_document_uri(document))
 
+    def test_attribute_nodes(self):
+        parent = ElementTree.Element('element')
+        attribute = AttributeNode('id', '0212349350')
+
+        self.assertEqual(repr(attribute),
+                         "AttributeNode(name='id', value='0212349350')")
+        self.assertEqual(attribute, AttributeNode('id', '0212349350'))
+        self.assertEqual(attribute.as_item(), ('id', '0212349350'))
+        self.assertNotEqual(attribute.as_item(), AttributeNode('id', '0212349350'))
+        self.assertNotEqual(attribute, AttributeNode('id', '0212349350', parent))
+
+        attribute = AttributeNode('id', '0212349350', parent)
+        self.assertEqual(attribute, AttributeNode('id', '0212349350', parent))
+        self.assertEqual(attribute.as_item(), ('id', '0212349350'))
+        self.assertNotEqual(attribute, AttributeNode('id', '0212349350'))
+        self.assertNotEqual(attribute, AttributeNode('id', '0212349350',
+                                                     parent=ElementTree.Element('element')))
+
+        attribute = AttributeNode('value', '10', parent)
+        self.assertEqual(repr(attribute)[:65],
+                         "AttributeNode(name='value', value='10', parent=<Element 'element'")
+
+        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
+            xsd_type = DummyXsdType()
+
+            typed_attribute = TypedAttribute(attribute, xsd_type, 10)
+            self.assertEqual(repr(typed_attribute), "TypedAttribute(name='value')")
+            self.assertEqual(typed_attribute.as_item(), ('value', 10))
+
+            self.assertEqual(typed_attribute, TypedAttribute(attribute, DummyXsdType(), 10))
+            self.assertEqual(typed_attribute, TypedAttribute(attribute, None, 10))
+            self.assertEqual(typed_attribute,
+                             TypedAttribute(AttributeNode('value', '10', parent), xsd_type, 10))
+            self.assertNotEqual(typed_attribute, TypedAttribute(attribute, xsd_type, '10'))
+            self.assertNotEqual(typed_attribute,
+                                TypedAttribute(AttributeNode('value', '10'), xsd_type, 10))
+
+    def test_typed_element_nodes(self):
+        element = ElementTree.Element('schema')
+
+        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
+            xsd_type = DummyXsdType()
+
+            typed_element = TypedElement(element, xsd_type, None)
+            self.assertEqual(repr(typed_element), "TypedElement(tag='schema')")
+
+    def test_text_nodes(self):
+        parent = ElementTree.Element('element')
+        self.assertEqual(TextNode('alpha'), TextNode('alpha'))
+        self.assertEqual(TextNode('alpha', parent), TextNode('alpha', parent))
+        self.assertEqual(TextNode('alpha', parent, tail=True),
+                         TextNode('alpha', parent, tail=True))
+        self.assertEqual(TextNode('alpha', tail=True), TextNode('alpha'))
+        self.assertNotEqual(TextNode('alpha', parent), TextNode('alpha'))
+        self.assertNotEqual(TextNode('alpha', parent, tail=True),
+                            TextNode('alpha', parent))
+        self.assertNotEqual(TextNode('alpha', parent),
+                            TextNode('alpha', parent=ElementTree.Element('element')))  # != id()
+
+        self.assertFalse(TextNode('alpha', parent).is_tail())
+        self.assertTrue(TextNode('alpha', parent, tail=True).is_tail())
+        self.assertFalse(TextNode('alpha', tail=True).is_tail())
+
+        self.assertEqual(repr(TextNode('alpha')), "TextNode('alpha')")
+        text = TextNode('alpha', parent)
+        self.assertTrue(repr(text).startswith("TextNode('alpha', parent=<Element "))
+        self.assertTrue(repr(text).endswith(", tail=False)"))
+        text = TextNode('alpha', parent, tail=True)
+        self.assertTrue(repr(text).endswith(", tail=True)"))
+
+    def test_namespace_nodes(self):
+        parent = ElementTree.Element('element')
+        namespace = NamespaceNode('tns', 'http://xpath.test/ns')
+
+        self.assertEqual(repr(namespace),
+                         "NamespaceNode(prefix='tns', uri='http://xpath.test/ns')")
+        self.assertEqual(namespace.value, 'http://xpath.test/ns')
+        self.assertEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
+        self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
+        self.assertNotEqual(namespace,
+                            NamespaceNode('tns', 'http://xpath.test/ns', parent))
+
+        namespace = NamespaceNode('tns', 'http://xpath.test/ns', parent)
+        self.assertEqual(repr(namespace)[:81],
+                         "NamespaceNode(prefix='tns', uri='http://xpath.test/ns', "
+                         "parent=<Element 'element'")
+
+        self.assertEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns', parent))
+        self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
+        self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
+        self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns',
+                                                     parent=ElementTree.Element('element')))
+
     def test_node_children_function(self):
         self.assertListEqual(list(node_children(self.elem)), [])
         elem = ElementTree.XML("<A><B1/><B2/></A>")
@@ -221,6 +318,15 @@ class XPathNodesTest(unittest.TestCase):
         self.assertIsNone(node_kind(None))
         self.assertIsNone(node_kind(10))
 
+        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
+            xsd_type = DummyXsdType()
+
+            typed_attribute = TypedAttribute(attribute, xsd_type, '0212349350')
+            self.assertEqual(node_kind(typed_attribute), 'attribute')
+
+            typed_element = TypedElement(element, xsd_type, None)
+            self.assertEqual(node_kind(typed_element), 'element')
+
     def test_node_name_function(self):
         elem = ElementTree.Element('root')
         attr = AttributeNode('a1', '20')
@@ -234,10 +340,10 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            typed_elem = TypedElement(elem=elem, type=xsd_type, value=10)
+            typed_elem = TypedElement(elem=elem, xsd_type=xsd_type, value=10)
             self.assertEqual(node_name(typed_elem), 'root')
 
-            typed_attr = TypedAttribute(attribute=attr, type=xsd_type, value=20)
+            typed_attr = TypedAttribute(attribute=attr, xsd_type=xsd_type, value=20)
             self.assertEqual(node_name(typed_attr), 'a1')
 
 

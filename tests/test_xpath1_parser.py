@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -25,7 +25,7 @@ import io
 import math
 import pickle
 from decimal import Decimal
-from collections import namedtuple
+from typing import Optional, List, Tuple
 from xml.etree import ElementTree
 
 try:
@@ -33,8 +33,14 @@ try:
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+
 from elementpath import *
-from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+    XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_UNTYPED_ATOMIC
 
 try:
     from tests import xpath_test_class
@@ -243,6 +249,79 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.wrong_type("contains('XPath', 'XP', 20)")
         self.wrong_type("boolean(1, 5)")
 
+    def test_xsd_qname_method(self):
+        qname = self.parser.xsd_qname('string')
+        self.assertEqual(qname, 'xs:string')
+
+        parser = self.parser.__class__(namespaces={'xs': XSD_NAMESPACE})
+        parser.namespaces['xsd'] = parser.namespaces.pop('xs')
+        self.assertEqual(parser.xsd_qname('string'), 'xsd:string')
+
+        parser.namespaces.pop('xsd')
+        with self.assertRaises(NameError) as ctx:
+            parser.xsd_qname('string')
+        self.assertIn('XPST0081', str(ctx.exception))
+
+    def test_is_instance_method(self):
+        self.assertTrue(self.parser.is_instance(datatypes.UntypedAtomic(1),
+                                                XSD_UNTYPED_ATOMIC))
+        self.assertFalse(self.parser.is_instance(1, XSD_UNTYPED_ATOMIC))
+        self.assertTrue(self.parser.is_instance(1, XSD_ANY_ATOMIC_TYPE))
+        self.assertFalse(self.parser.is_instance([1], XSD_ANY_ATOMIC_TYPE))
+        self.assertTrue(self.parser.is_instance(1, XSD_ANY_SIMPLE_TYPE))
+        self.assertTrue(self.parser.is_instance([1], XSD_ANY_SIMPLE_TYPE))
+
+        self.assertTrue(self.parser.is_instance('foo', '{%s}string' % XSD_NAMESPACE))
+        self.assertFalse(self.parser.is_instance(1, '{%s}string' % XSD_NAMESPACE))
+        self.assertTrue(self.parser.is_instance(1.0, '{%s}double' % XSD_NAMESPACE))
+        self.assertFalse(self.parser.is_instance(1.0, '{%s}float' % XSD_NAMESPACE))
+
+        self.parser._xsd_version = '1.1'
+        try:
+            self.assertTrue(self.parser.is_instance(1.0, '{%s}double' % XSD_NAMESPACE))
+            self.assertFalse(self.parser.is_instance(1.0, '{%s}float' % XSD_NAMESPACE))
+        finally:
+            self.parser._xsd_version = '1.0'
+
+        with self.assertRaises(KeyError):
+            self.parser.is_instance('foo', '{%s}unknown' % XSD_NAMESPACE)
+
+        if xmlschema is not None and self.parser.version > '1.0':
+            schema = xmlschema.XMLSchema("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:simpleType name="myInt">
+                    <xs:restriction base="xs:int"/>
+                  </xs:simpleType>
+                </xs:schema>""")
+
+            self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+            try:
+                self.assertFalse(self.parser.is_instance(1.0, 'myInt'))
+                self.assertTrue(self.parser.is_instance(1, 'myInt'))
+                with self.assertRaises(KeyError):
+                    self.parser.is_instance(1.0, 'dType')
+            finally:
+                self.parser.schema = None
+
+    def test_check_variables_method(self):
+        self.assertIsNone(self.parser.check_variables({
+            'values': [1, 2, -1],
+            'myaddress': 'info@example.com',
+            'word': ''
+        }))
+
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.check_variables({'values': [None, 2, -1]})
+        error_message = str(ctx.exception)
+        self.assertIn('XPDY0050', error_message)
+        self.assertIn('Unmatched sequence type', error_message)
+
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.check_variables({'other': None})
+        error_message = str(ctx.exception)
+        self.assertIn('XPDY0050', error_message)
+        self.assertIn('Unmatched sequence type', error_message)
+
     # XPath expression tests
     def test_node_selection(self):
         root = self.etree.XML('<A><B1/><B2/><B3/><B2/></A>')
@@ -302,9 +381,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.wrong_syntax("{%s" % XSD_NAMESPACE)
         self.wrong_syntax("{%s}1" % XSD_NAMESPACE)
         self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
+        self.check_value("string({%s}true())" % XPATH_FUNCTIONS_NAMESPACE, 'true')
 
+        context = XPathContext(root)
         name = '{%s}alpha' % XPATH_FUNCTIONS_NAMESPACE
-        self.check_value(name, name)  # it's not an error to use 'fn' namespace for a name
+        self.check_value(name, [], context)  # it's not an error to use 'fn' namespace for a name
 
         self.parser.strict = True
         self.wrong_syntax('{%s}string' % XSD_NAMESPACE)
@@ -319,24 +400,36 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_types(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-        attribute = 'id', '0212349350'
-        namespace = namedtuple('Namespace', 'prefix uri')('xs', 'http://www.w3.org/2001/XMLSchema')
+        attribute = AttributeNode('id', '0212349350')
+        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
         comment = self.etree.Comment('nothing important')
-        pi = self.etree.ProcessingInstruction('action', 'nothing to do')
+        pi = self.etree.ProcessingInstruction('action')
         text = TextNode('aldebaran')
+
         context = XPathContext(element)
         self.check_select("node()", [document.getroot()], context=XPathContext(document))
         self.check_selector("node()", element, [])
+
         context.item = attribute
         self.check_select("self::node()", [attribute], context)
+
         context.item = namespace
         self.check_select("self::node()", [namespace], context)
+
+        self.check_value("comment()", [], context=context)
         context.item = comment
         self.check_select("self::node()", [comment], context)
         self.check_select("self::comment()", [comment], context)
+        self.check_value("comment()", MissingContextError)
+
+        self.check_value("processing-instruction()", [], context=context)
         context.item = pi
         self.check_select("self::node()", [pi], context)
         self.check_select("self::processing-instruction()", [pi], context)
+        self.check_select("self::processing-instruction('action')", [pi], context)
+        self.check_select("self::processing-instruction('other')", [], context)
+        self.check_value("processing-instruction()", MissingContextError)
+
         context.item = text
         self.check_select("self::node()", [text], context)
         self.check_select("text()", [], context)  # Selects the children
@@ -349,12 +442,35 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             # self.check_value("//self::node()", [document, root, 'Dickens'], context=context)
             # Skip lxml test because lxml's XPath doesn't include document root
             self.check_selector("//self::node()", document, [document, root, 'Dickens'])
+            self.check_selector("/self::node()", document, [document])
+            self.check_selector("/self::node()", root, [root])
+
         self.check_selector("//self::text()", root, ['Dickens'])
+
+        context = XPathContext(root)
+        context.item = None
+        self.check_value("/self::node()", expected=[], context=context)
+        context.item = 1
+        self.check_value("self::node()", expected=[], context=context)
+
+    def test_unknown_function(self):
+        self.wrong_type("unknown('5')", 'XPST0017', 'unknown function')
 
     def test_node_set_id_function(self):
         # XPath 1.0 id() function: https://www.w3.org/TR/1999/REC-xpath-19991116/#function-id
         root = self.etree.XML('<A><B1 xml:id="foo"/><B2/><B3 xml:id="bar"/><B4 xml:id="baz"/></A>')
         self.check_selector('id("foo")', root, [root[0]])
+
+        context = XPathContext(root)
+        self.check_value('./B/@xml:id[id("bar")]', expected=[], context=context)
+
+        context.item = None
+        self.check_value('id("none")', expected=[], context=context)
+        self.check_value('id("foo")', expected=[root[0]], context=context)
+        self.check_value('id("bar")', expected=[root[2]], context=context)
+
+        context.item = self.etree.Comment('a comment')
+        self.check_value('id("foo")', expected=[], context=context)
 
     def test_node_set_functions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
@@ -371,6 +487,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         self.check_selector("name(.)", root, 'A')
         self.check_selector("name(A)", root, '')
+        self.check_selector("name(1.0)", root, TypeError)
         self.check_selector("local-name(A)", root, '')
         self.check_selector("namespace-uri(A)", root, '')
         self.check_selector("name(B2)", root, 'B2')
@@ -378,6 +495,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector("namespace-uri(B2)", root, '')
         if self.parser.version <= '1.0':
             self.check_selector("name(*)", root, 'B1')
+
+        context = XPathContext(root, item=self.etree.Comment('a comment'))
+        self.check_value("name()", '', context=context)
 
         root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns"><tst:B1/></tst:A>')
         self.check_selector("name(.)", root, 'tst:A', namespaces={'tst': "http://xpath.test/ns"})
@@ -389,11 +509,15 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                             namespaces={'tst': "http://xpath.test/ns", '': ''})
 
     def test_string_function(self):
+        self.check_value("string()", MissingContextError)
         self.check_value("string(10.0)", '10')
         if self.parser.version == '1.0':
             self.wrong_syntax("string(())")
         else:
             self.check_value("string(())", '')
+
+        root = self.etree.XML('<root>foo</root>')
+        self.check_value("string()", 'foo', context=XPathContext(root))
 
     def test_string_length_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
@@ -421,6 +545,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("string-length(12345)", 5)
             self.parser.compatibility_mode = False
 
+        root = self.etree.XML('<root>foo</root>')
+        self.check_value("string-length()", 3, context=XPathContext(root))
+
     def test_normalize_space_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
 
@@ -447,6 +574,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("translate('hello world!', 'hw', 'HW')", 'Hello World!')
         self.check_value("translate('hello world!', 'hwx', 'HW')", 'Hello World!')
         self.check_value("translate('hello world!', 'hw!', 'HW')", 'Hello World')
+        self.check_value("translate('hello world!', 'hw', 'HW!')", 'Hello World!')
         self.check_selector("a[translate(@id, 'id', 'no') = 'a_no']", root, [root[0]])
         self.check_selector("a[translate(@id, 'id', 'na') = 'a_no']", root, [])
         self.check_selector(
@@ -460,6 +588,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         if self.parser.version > '1.0':
             self.check_value("translate((), 'hw', 'HW')", '')
+            self.wrong_type("translate((), (), 'HW')", 'XPTY0004',
+                            '2nd argument', 'empty sequence')
+            self.wrong_type("translate((), 'hw', ())", 'XPTY0004',
+                            '3rd argument', 'empty sequence')
 
     def test_variable_substitution(self):
         root = self.etree.XML('<ups-units>'
@@ -558,8 +690,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.wrong_syntax("starts-with((), ())")
             self.check_value("starts-with('1999', 19)", True)
         else:
-            self.check_value('fn:starts-with("tattoo", "tat")', True)
-            self.check_value('fn:starts-with ( "tattoo", "att")', False)
+            self.check_value('fn:starts-with("tattoo", "tat", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', True)
+            self.check_value('fn:starts-with ("tattoo", "att", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', False)
             self.check_value('fn:starts-with ((), ())', True)
             self.wrong_type("starts-with('1999', 19)")
             self.parser.compatibility_mode = True
@@ -610,8 +744,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.wrong_syntax("contains((), ())")
             self.check_value("contains('XPath', 20)", False)
         else:
-            self.check_value('fn:contains ( "tattoo", "t")', True)
-            self.check_value('fn:contains ( "tattoo", "ttt")', False)
+            self.check_value('fn:contains ( "tattoo", "t", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', True)
+            self.check_value('fn:contains ( "tattoo", "ttt", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', False)
             self.check_value('fn:contains ( "", ())', True)
             self.wrong_type("contains('XPath', 20)")
             self.parser.compatibility_mode = True
@@ -636,9 +772,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("substring-before('2017-10-27', 10)", '2017-')
             self.wrong_syntax("fn:substring-before((), ())")
         else:
-            self.check_value('fn:substring-before ( "tattoo", "attoo")', 't')
-            self.check_value('fn:substring-before ( "tattoo", "tatto")', '')
+            self.check_value('fn:substring-before ( "tattoo", "attoo", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', 't')
+            self.check_value('fn:substring-before ( "tattoo", "tatto", "http://www.w3.org/'
+                             '2005/xpath-functions/collation/codepoint")', '')
+
             self.check_value('fn:substring-before ((), ())', '')
+            self.check_value('fn:substring-before ((), "")', '')
             self.wrong_type("substring-before('2017-10-27', 10)")
             self.parser.compatibility_mode = True
             self.check_value("substring-before('2017-10-27', 10)", '2017-')
@@ -689,6 +829,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("boolean('   ')", True)
         self.check_value("boolean('')", False)
 
+        self.wrong_type("true(1)", 'XPST0017', "'true' function has no arguments")
+        self.wrong_syntax("true(", 'unexpected end of source')
+
         if self.parser.version == '1.0':
             self.wrong_syntax("boolean(())")
         else:
@@ -731,11 +874,45 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_lang_function(self):
         # From https://www.w3.org/TR/1999/REC-xpath-19991116/#section-Boolean-Functions
-        self.check_selector('lang("en")', self.etree.XML('<para xml:lang="en"/>'), True)
-        self.check_selector('lang("en")', self.etree.XML('<div xml:lang="en"><para/></div>'), True)
+        root = self.etree.XML('<para xml:lang="en"/>')
+        self.check_selector('lang("en")', root, True)
+
+        root = self.etree.XML('<div xml:lang="en"><para/></div>')
+        document = self.etree.ElementTree(root)
+        self.check_selector('lang("en")', root, True)
+        if self.parser.version > '1.0':
+            self.check_selector('para/lang("en")', root, True)
+            context = XPathContext(root)
+            self.check_value('for $x in . return $x/fn:lang(())',
+                             expected=[], context=context)
+        else:
+            context = XPathContext(document, item=root[0])
+            self.check_value('lang("en")', True, context=context)
+            self.check_value('lang("it")', False, context=context)
+
+        root = self.etree.XML('<a><b><c/></b></a>')
+        self.check_selector('lang("en")', root, False)
+        if self.parser.version > '1.0':
+            self.check_selector('b/c/lang("en")', root, False)
+            self.check_selector('b/c/lang("en", .)', root, False)
+        else:
+            context = XPathContext(root, item=root[0][0])
+            self.check_value('lang("en")', False, context=context)
+
         self.check_selector('lang("en")', self.etree.XML('<para xml:lang="EN"/>'), True)
         self.check_selector('lang("en")', self.etree.XML('<para xml:lang="en-us"/>'), True)
         self.check_selector('lang("en")', self.etree.XML('<para xml:lang="it"/>'), False)
+        self.check_selector('lang("en")', self.etree.XML('<div/>'), False)
+
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+        if self.parser.version == '1.0':
+            self.check_value('lang("en")', expected=False, context=context)
+        else:
+            self.check_value('lang("en")', expected=TypeError, context=context)
+            context.item = document
+            self.check_value('for $x in /a/b/c return $x/fn:lang("en")',
+                             expected=[False], context=context)
 
     def test_logical_and_operator(self):
         self.check_value("false() and true()", False)
@@ -776,6 +953,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("5 > 3", True)
         self.check_value("5 < 20.0", True)
         self.check_value("2 * 2 = 4", True)
+        self.wrong_syntax("5 > 3 < 4", "unexpected '<' operator")
 
         if self.parser.version == '1.0':
             self.check_value("false() = 1", False)
@@ -783,6 +961,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.wrong_type("false() = 1")
             self.wrong_type("0 = false()")
+            self.wrong_value('xs:untypedAtomic("1") = xs:dayTimeDuration("PT1S")',
+                             'FORG0001', "'1' is not an xs:duration value")
 
     def test_comparison_of_sequences(self):
         root = self.etree.XML('<table>'
@@ -806,11 +986,37 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("8 - 5", 3)
         self.check_value("-8 - 5", -13)
         self.check_value("-3 * 7", -21)
-        self.check_value("9 - 1 + 6", 14)
         self.check_value("(5 * 7) + 9", 44)
         self.check_value("-3 * 7", -21)
         self.check_value('(2 + 4) * 5', 30)
         self.check_value('2 + 4 * 5', 22)
+
+        # From W3C XQuery/XPath test suite
+        self.wrong_syntax('1.1.1.E2')
+        self.wrong_syntax('.0.1')
+
+    def test_addition_and_subtraction_operators(self):
+        # '+' and '-' are both prefix and infix operators. The binding
+        # power is equal to 40 but the nud() method is set with rbp=70.
+        self.check_value("9 + 1 + 6", 16)
+        self.check_tree("9 - 1 + 6", '(+ (- (9) (1)) (6))')
+        self.check_value("(9 - 1) + 6", 14)
+        self.check_value("9 - 1 + 6", 14)
+
+        self.check_tree('1 + 2 * 4 + (1 + 2 + 3 * 4)',
+                        '(+ (+ (1) (* (2) (4))) (+ (+ (1) (2)) (* (3) (4))))')
+        self.check_value('1 + 2 * 4 + (1 + 2 + 3 * 4)', 24)
+
+        self.check_tree('15 - 13.64 - 1.36', "(- (- (15) (Decimal('13.64'))) (Decimal('1.36')))")
+        self.check_tree('15 + 13.64 + 1.36', "(+ (+ (15) (Decimal('13.64'))) (Decimal('1.36')))")
+        self.check_value('15 - 13.64 - 1.36', 0)
+
+        if self.parser.version != '1.0':
+            self.check_tree('(5, 6) instance of xs:integer+',
+                            '(instance (, (5) (6)) (: (xs) (integer)) (+))')
+            self.check_tree('- 1 instance of xs:int', "(instance (- (1)) (: (xs) (int)))")
+            self.check_tree('+ 1 instance of xs:int', "(instance (+ (1)) (: (xs) (int)))")
+            self.wrong_type('2 - 1 instance of xs:int', 'XPTY0004')
 
     def test_div_operator(self):
         self.check_value("5 div 2", 2.5)
@@ -819,6 +1025,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("10div 3", SyntaxError)  # TODO: accepted syntax in XPath 1.0
         else:
             self.check_value("() div 2")
+            self.check_raise('1 div 0.0', ZeroDivisionError, 'FOAR0001', 'Division by zero')
 
     def test_numerical_add_operator(self):
         self.check_value("3 + 8", 11)
@@ -837,6 +1044,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("/values/b + 2", ValueError, context=XPathContext(root))
             self.wrong_type("+'alpha'")
             self.wrong_type("3 + 'alpha'")
+            self.check_value("() + 81")
+            self.check_value("72 + ()")
+            self.check_value("+()")
+            self.wrong_type('xs:dayTimeDuration("P1D") + xs:duration("P6M")', 'XPTY0004')
 
         self.check_selector("/values/d + 3", root, 47)
 
@@ -857,6 +1068,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_value("/values/b - 2", ValueError, context=XPathContext(root))
             self.wrong_type("-'alpha'")
             self.wrong_type("3 - 'alpha'")
+            self.check_value("() - 6")
+            self.check_value("19 - ()")
+            self.check_value("-()")
+            self.wrong_type('xs:duration("P3Y") - xs:yearMonthDuration("P2Y3M")', 'XPTY0004')
 
         self.check_selector("/values/d - 3", root, 41)
 
@@ -864,6 +1079,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("11 mod 3", 2)
         self.check_value("4.5 mod 1.2", Decimal('0.9'))
         self.check_value("1.23E2 mod 0.6E1", 3.0E0)
+        self.check_value("10 mod 0e1", math.isnan)
+        self.check_raise('3 mod 0', ZeroDivisionError, 'FOAR0001')
 
         root = self.etree.XML(XML_DATA_TEST)
         if self.parser.version == '1.0':
@@ -872,6 +1089,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.check_selector("/values/a mod 2", root, TypeError)
             self.check_value("/values/b mod 2", TypeError, context=XPathContext(root))
+            self.check_value("() mod 2e1")
+            self.check_value("2 mod xs:float('INF')", 2)
 
         self.check_selector("/values/d mod 3", root, 2)
 
@@ -919,13 +1138,19 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML(XML_DATA_TEST)
         context = XPathContext(root, variables=self.variables)
         self.check_value("sum($values)", 35, context)
+        self.check_selector("sum(/values/a)", root, 13.299999999999999)
+        self.check_selector("sum(/values/*)", root, math.isnan)
+
         if self.parser.version == '1.0':
             self.wrong_syntax("sum(())")
         else:
             self.check_value("sum(())", 0)
             self.check_value("sum((), ())", [])
-            self.check_selector("sum(/values/a)", root, 13.299999999999999)
-            self.check_selector("sum(/values/*)", root, float('nan'))
+            self.check_value('sum((xs:yearMonthDuration("P2Y"), xs:yearMonthDuration("P1Y")))',
+                             datatypes.YearMonthDuration(months=36))
+            self.wrong_type('sum((xs:duration("P2Y"), xs:duration("P1Y")))', 'FORG0006')
+            self.wrong_type('sum(("P2Y", "P1Y"))', 'FORG0006')
+            self.check_value("sum((1.0, xs:float('NaN')))", math.isnan)
 
     def test_ceiling_function(self):
         root = self.etree.XML(XML_DATA_TEST)
@@ -938,6 +1163,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.check_value("ceiling(())", [])
             self.check_value("ceiling((10.5))", 11)
+            self.check_value("ceiling((xs:float('NaN')))", math.isnan)
             self.wrong_type("ceiling((10.5, 17.3))")
 
     def test_floor_function(self):
@@ -961,10 +1187,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("round(-2.5)", -2)
         if self.parser.version == '1.0':
             self.wrong_syntax("round(())")
+            self.check_value("round('foo')", math.isnan)
         else:
             self.check_value("round(())", [])
             self.check_value("round((10.5))", 11)
             self.wrong_type("round((2.5, 12.2))")
+            self.check_value("round(xs:double('NaN'))", math.isnan)
+            self.wrong_type("round('foo')", 'XPTY0004')
+            self.check_value('fn:round(xs:double("1E300"))', 1E300)
 
     def test_context_variables(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -1012,6 +1242,21 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root, item=root[0][0])
         self.check_value('/A', [], context=context)
+
+    def test_path_step_operator_with_duplicates(self):
+        root = self.etree.XML('<A>10<B a="2">11</B>10<B a="2"/>10<B>11</B></A>')
+        self.check_selector('/A/node()', root,
+                            ['10', root[0], '10', root[1], '10', root[2]])
+        self.check_selector('/A/node() | /A/node()', root,
+                            ['10', root[0], '10', root[1], '10', root[2]])
+        self.check_selector('/A/node() | /A/B/text()', root,
+                            ['10', root[0], '11', '10', root[1], '10', root[2], '11'])
+
+        root = self.etree.XML('<A a="2"><B1 a="2"/><B1 a="2"/><B1 a="3"/><B2 a="2"/></A>')
+        self.check_selector('/A/B1/@a', root, ['2', '2', '3'])
+        self.check_selector('/A/B1/@a | /A/B1/@a', root, ['2', '2', '3'])
+        self.check_selector('/A/B1/@a | /A/@a', root, ['2', '2', '2', '3'])
+        self.check_selector('/A/B1/@a | /A/B2/@a', root, ['2', '2', '3', '2'])
 
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -1115,6 +1360,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             root[1], root[2], root[2][0], root[2][1], root[3], root[3][0], root[3][0][0]
         ])
         self.check_selector('/A/B1/following::C1', root, [root[2][0], root[3][0]])
+        self.check_value('following::*', MissingContextError)
 
     def test_following_sibling_axis(self):
         root = self.etree.XML('<A><B1><C1 a="1"/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
@@ -1126,6 +1372,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         self.check_selector("/A/B1/C1/1/following-sibling::*", root, TypeError)
         self.check_selector("/A/B1/C1/@a/following-sibling::*", root, [])
+        self.check_value('following-sibling::*', MissingContextError)
 
     def test_attribute_abbreviation_and_axis(self):
         root = self.etree.XML('<A id="1" a="alpha">'
@@ -1144,11 +1391,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('@1', SyntaxError, context=XPathContext(root))
 
     def test_namespace_axis(self):
-        root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
+        root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns">10<tst:B1/></A>')
         namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) \
             + [('tst', 'http://xpath.test/ns')]
         self.check_selector('/A/namespace::*', root, expected=set(namespaces),
                             namespaces=namespaces[-1:])
+        self.check_value('namespace::*', MissingContextError)
+        self.check_value('./text()/namespace::*', [], context=XPathContext(root))
 
     def test_parent_shortcut_and_axis(self):
         root = self.etree.XML(
@@ -1159,7 +1408,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/*/C2/parent::node()', root, [root[2]])
         self.check_selector('/A/*/*/parent::node()', root, [root[0], root[2], root[3]])
         self.check_selector('//C2/parent::node()', root, [root[2]])
+
+        self.check_selector('..', self.etree.ElementTree(root), [])
         self.check_value('..', MissingContextError)
+        self.check_value('parent::*', MissingContextError)
 
     def test_ancestor_axes(self):
         root = self.etree.XML(
@@ -1172,6 +1424,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/*/C1/ancestor-or-self::*', root, [
             root, root[0], root[0][0], root[1], root[1][0], root[2], root[2][0]
         ])
+        self.check_value('ancestor-or-self::*', MissingContextError)
 
     def test_preceding_axis(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
@@ -1183,6 +1436,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         self.check_tree("/root/e/preceding::b", '(/ (/ (/ (root)) (e)) (preceding (b)))')
         self.check_selector('/root/e[2]/preceding::b', root, [root[0][0][0], root[0][1][0]])
+        self.check_value('preceding::*', MissingContextError)
+
+        root = self.etree.XML('<A>value</A>')
+        self.check_selector('./text()/preceding::*', root, [])
 
     def test_preceding_sibling_axis(self):
         root = self.etree.XML('<A><B1><C1/><C2/><C3/></B1><B2><C1/><C2/><C3/><C4/></B2></A>')
@@ -1244,6 +1501,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("a[not(b)]", [], context=XPathContext(root, item=root[0]))
         self.check_value("a[not(b)]", [root[1][0]], context=XPathContext(root, item=root[1]))
 
+        self.check_raise('88[..]', TypeError, 'XPTY0020', 'Context item is not a node',
+                         context=XPathContext(root))
+
         self.check_tree("preceding::a[not(b)]", '([ (preceding (a)) (not (b)))')
 
         self.check_value("a[preceding::a[not(b)]]", [], context=XPathContext(root, item=root[0]))
@@ -1263,6 +1523,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('/A/B2 | /A/*', root, root[:])
         self.check_selector('/A/B2 | /A/* | /A/B1', root, root[:])
         self.check_selector('/A/@min | /A/@max', root, {'1', '10'})
+        self.check_raise('1|2|3', TypeError, 'XPTY0004', 'only XPath nodes are allowed',
+                         context=XPathContext(root))
 
     def test_default_namespace(self):
         root = self.etree.XML('<foo>bar</foo>')
@@ -1362,11 +1624,12 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
     def test_namespace_axis(self):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
-        namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) \
-            + [('tst', 'http://xpath.test/ns')]
+        namespaces: List[Tuple[Optional[str], str]] = []
+        namespaces.extend(self.parser.DEFAULT_NAMESPACES.items())
+        namespaces += [('tst', 'http://xpath.test/ns')]
+
         self.check_selector('/A/namespace::*', root, expected=set(namespaces),
                             namespaces=namespaces[-1:])
-
         self.check_selector('/A/namespace::*', root, expected=set(namespaces))
 
         root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" '

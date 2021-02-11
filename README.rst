@@ -31,7 +31,7 @@ because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XP
 Installation and usage
 ======================
 
-You can install the package with *pip* in a Python 3.5+ environment::
+You can install the package with *pip* in a Python 3.6+ environment::
 
     pip install elementpath
 

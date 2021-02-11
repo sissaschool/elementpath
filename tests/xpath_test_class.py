@@ -21,6 +21,7 @@
 #
 import unittest
 import math
+from copy import copy
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
@@ -222,33 +223,45 @@ class XPathTestCase(unittest.TestCase):
             self.parser.schema = None
 
     # Wrong XPath expression checker shortcuts
-    def wrong_syntax(self, path, *message_parts):
-        with self.assertRaises(SyntaxError) as err:
-            self.parser.parse(path)
+    def check_raise(self, path, exception_class, *message_parts, context=None):
+        with self.assertRaises(exception_class) as error_context:
+            root_token = self.parser.parse(path)
+            root_token.evaluate(copy(context))
 
         for part in message_parts:
-            self.assertIn(part, str(err.exception))
+            self.assertIn(part, str(error_context.exception))
 
-    def wrong_value(self, path, *message_parts):
-        with self.assertRaises(ValueError) as err:
-            self.parser.parse(path)
-
-        for part in message_parts:
-            self.assertIn(part, str(err.exception))
-
-    def wrong_type(self, path, *message_parts):
-        with self.assertRaises(TypeError) as err:
-            self.parser.parse(path)
+    def wrong_syntax(self, path, *message_parts, context=None):
+        with self.assertRaises(SyntaxError) as error_context:
+            root_token = self.parser.parse(path)
+            root_token.evaluate(copy(context))
 
         for part in message_parts:
-            self.assertIn(part, str(err.exception))
+            self.assertIn(part, str(error_context.exception))
 
-    def wrong_name(self, path, *message_parts):
-        with self.assertRaises(NameError) as err:
-            self.parser.parse(path)
+    def wrong_value(self, path, *message_parts, context=None):
+        with self.assertRaises(ValueError) as error_context:
+            root_token = self.parser.parse(path)
+            root_token.evaluate(copy(context))
 
         for part in message_parts:
-            self.assertIn(part, str(err.exception))
+            self.assertIn(part, str(error_context.exception))
+
+    def wrong_type(self, path, *message_parts, context=None):
+        with self.assertRaises(TypeError) as error_context:
+            root_token = self.parser.parse(path)
+            root_token.evaluate(copy(context))
+
+        for part in message_parts:
+            self.assertIn(part, str(error_context.exception))
+
+    def wrong_name(self, path, *message_parts, context=None):
+        with self.assertRaises(NameError) as error_context:
+            root_token = self.parser.parse(path)
+            root_token.evaluate(copy(context))
+
+        for part in message_parts:
+            self.assertIn(part, str(error_context.exception))
 
 
 if __name__ == '__main__':

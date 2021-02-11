@@ -11,19 +11,49 @@
 import unittest
 import sys
 import datetime
+import math
 import operator
 import pickle
+import platform
 import random
 from decimal import Decimal
 from calendar import isleap
 from xml.etree import ElementTree
-from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, Timezone, Duration, \
-    DayTimeDuration, YearMonthDuration, UntypedAtomic, GregorianYear, GregorianYear10, \
-    GregorianYearMonth, GregorianYearMonth10, GregorianMonthDay, GregorianMonth, \
-    GregorianDay, AbstractDateTime, NumericProxy, ArithmeticProxy, Id, is_idrefs
+from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, \
+    Timezone, Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, \
+    GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
+    GregorianMonthDay, GregorianMonth, GregorianDay, AbstractDateTime, NumericProxy, \
+    ArithmeticProxy, Id, is_idrefs, Notation, QName, Base64Binary, HexBinary, \
+    NormalizedString, XsdToken, Language, Float, Float10, Integer, AnyURI, \
+    BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy
+from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.helpers import MONTH_DAYS, MONTH_DAYS_LEAP, \
-    days_from_common_era, months2days
+    days_from_common_era, months2days, round_number
 from elementpath.datatypes.datetime import OrderedDateTime
+
+
+class AnyAtomicTypeTest(unittest.TestCase):
+
+    def test_invalid_type_name(self):
+
+        with self.assertRaises(TypeError):
+            class InvalidAtomicType(metaclass=AtomicTypeMeta):
+                name = b'invalid'
+
+    def test_validation(self):
+        class AnotherAtomicType(metaclass=AtomicTypeMeta):
+            pass
+
+        self.assertIsNone(AnotherAtomicType.validate(AnotherAtomicType()))
+        self.assertIsNone(AnotherAtomicType.validate(''))
+
+        with self.assertRaises(TypeError) as ctx:
+            AnotherAtomicType.validate(10)
+        self.assertIn("invalid type <class 'int'> for <class", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            AnotherAtomicType.validate('x')
+        self.assertIn("invalid value 'x' for <class ", str(ctx.exception))
 
 
 class StringTypesTest(unittest.TestCase):
@@ -43,6 +73,98 @@ class StringTypesTest(unittest.TestCase):
         self.assertTrue(is_idrefs('alpha'))
         self.assertTrue(is_idrefs('alpha beta'))
         self.assertFalse(is_idrefs('12345'))
+
+    def test_new_instance(self):
+        self.assertEqual(NormalizedString('  a b\t c\n'), '  a b  c ')
+        self.assertEqual(NormalizedString(10.0), '10.0')
+        self.assertEqual(XsdToken(10), '10')
+        self.assertEqual(Language(True), 'true')
+
+        with self.assertRaises(ValueError) as ctx:
+            Language(10), '10'
+        self.assertEqual("invalid value '10' for xs:language", str(ctx.exception))
+
+
+class FloatTypesTest(unittest.TestCase):
+
+    def test_init(self):
+        self.assertEqual(Float10(10), 10.0)
+
+        self.assertTrue(math.isnan(Float10('NaN')))
+        self.assertTrue(math.isinf(Float10('INF')))
+        self.assertTrue(math.isinf(Float10('-INF')))
+        with self.assertRaises(ValueError):
+            Float10('+INF')
+
+        self.assertTrue(math.isnan(Float('NaN')))
+        self.assertTrue(math.isinf(Float('INF')))
+        self.assertTrue(math.isinf(Float('-INF')))
+        self.assertTrue(math.isinf(Float('+INF')))
+
+        with self.assertRaises(ValueError):
+            Float10('nan')
+
+        with self.assertRaises(ValueError):
+            Float10('inf')
+
+    def test_hash(self):
+        self.assertEqual(hash(Float10(892.1)), hash(892.1))
+
+    def test_equivalence(self):
+        self.assertEqual(Float10('10.1'), Float10('10.1'))
+        self.assertEqual(Float10('10.1'), Float('10.1'))
+        self.assertNotEqual(Float10('10.1001'), Float10('10.1'))
+        self.assertFalse(Float10('10.1001') == Float10('10.1'))
+        self.assertNotEqual(Float10('10.1001'), Float('10.1'))
+        self.assertFalse(Float10('10.1') != Float10('10.1'))
+        self.assertEqual(Float10('10.0'), 10)
+        self.assertNotEqual(Float10('10.0'), 11)
+
+    def test_addition(self):
+        self.assertEqual(Float10('10.1') + Float10('10.1'), 20.2)
+        self.assertEqual(Float('10.1') + Float10('10.1'), 20.2)
+        self.assertEqual(10.1 + Float10('10.1'), 20.2)
+
+    def test_subtraction(self):
+        self.assertEqual(Float10('10.1') - Float10('1.1'), 9.0)
+        self.assertEqual(Float('10.1') - Float10('1.1'), 9.0)
+        self.assertEqual(10.1 - Float10('1.1'), 9.0)
+        self.assertEqual(10 - Float10('1.1'), 8.9)
+
+    def test_multiplication(self):
+        self.assertEqual(Float10('10.1') * 2, 20.2)
+        self.assertEqual(Float('10.1') * 2.0, 20.2)
+        self.assertEqual(2 * Float10('10.1'), 20.2)
+        self.assertEqual(2.0 * Float('10.1'), 20.2)
+
+    def test_division(self):
+        self.assertEqual(Float10('20.2') / 2, 10.1)
+        self.assertEqual(Float('20.2') / 2.0, 10.1)
+        self.assertEqual(20.2 / Float10('2'), 10.1)
+        self.assertEqual(20 / Float('2'), 10.0)
+
+    def test_module(self):
+        self.assertEqual(Float10('20.2') % 3, 20.2 % 3)
+        self.assertEqual(Float('20.2') % 3.0, 20.2 % 3.0)
+        self.assertEqual(20.2 % Float10('3'), 20.2 % 3)
+        self.assertEqual(20 % Float('3.0'), 20 % 3.0)
+
+    def test_abs(self):
+        self.assertEqual(abs(Float10('-20.2')), 20.2)
+
+
+class IntegerTypesTest(unittest.TestCase):
+
+    def test_validate(self):
+        self.assertIsNone(Integer.validate(10))
+        self.assertIsNone(Integer.validate(Integer(10)))
+        self.assertIsNone(Integer.validate('10'))
+
+        with self.assertRaises(TypeError):
+            Integer.validate(True)
+
+        with self.assertRaises(ValueError):
+            Integer.validate('10.1')
 
 
 class UntypedAtomicTest(unittest.TestCase):
@@ -160,6 +282,10 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertEqual(hash(UntypedAtomic(12345)), hash('12345'))
         self.assertIsInstance(hash(UntypedAtomic('alpha')), int)
 
+    def test_validate(self):
+        self.assertIsNone(UntypedAtomic.validate('10'))
+        self.assertRaises(TypeError, UntypedAtomic.validate, 10)
+
 
 class DateTimeTypesTest(unittest.TestCase):
 
@@ -210,14 +336,29 @@ class DateTimeTypesTest(unittest.TestCase):
             DateTime.fromstring('2020-03-05 23:04:10.047')
         self.assertIn("Invalid datetime string", str(err.exception))
 
+        dt = DateTime.fromstring('2000-10-07T00:00:00.100000')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7, microsecond=100000))
+
+        with self.assertRaises(OverflowError) as ctx:
+            DateTime.fromstring('2000-10-07T00:00:00.1000000')
+        self.assertEqual("Invalid value 1000000 for microsecond", str(ctx.exception))
+
+        dt = DateTime.fromstring('2000-10-07T00:00:00.00090001')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7, microsecond=900))
+
     def test_date_fromstring(self):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('0000-02-29'), Date)
 
         with self.assertRaises(ValueError) as ctx:
-            Date.fromstring('01000-02-29')
+            Date10.fromstring('0000-02-29')
+        self.assertIn("year '0000' is an illegal value for XSD 1.0", str(ctx.exception))
 
+        with self.assertRaises(ValueError) as ctx:
+            Date.fromstring('01000-02-29')
         self.assertIn("when year exceeds 4 digits leading zeroes are not allowed",
                       str(ctx.exception))
 
@@ -226,6 +367,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(dt._dt.year, 6)
         self.assertEqual(dt._dt.month, 1)
         self.assertEqual(dt._dt.day, 1)
+        self.assertTrue(dt.bce)
 
     def test_fromdatetime(self):
         dt = datetime.datetime(2000, 1, 20)
@@ -751,12 +893,30 @@ class DurationTypesTest(unittest.TestCase):
         self.assertEqual(months2days(2000, 2, -12), -365)
         self.assertEqual(months2days(2000, 3, -12), -366)
 
+    def test_round_number_function(self):
+        self.assertTrue(math.isnan(round_number(float('NaN'))))
+        self.assertTrue(math.isinf(round_number(float('INF'))))
+        self.assertTrue(math.isinf(round_number(float('-INF'))))
+        self.assertEqual(round_number(10.1), 10)
+        self.assertEqual(round_number(9.5), 10)
+        self.assertEqual(round_number(-10.1), -10)
+        self.assertEqual(round_number(-9.5), -9)
+
     def test_init(self):
         self.assertIsInstance(Duration(months=1, seconds=37000), Duration)
 
         with self.assertRaises(ValueError) as err:
             Duration(months=-1, seconds=1)
         self.assertEqual(str(err.exception), "signs differ: (months=-1, seconds=1)")
+
+        seconds = Decimal('1.0100001')
+        self.assertNotEqual(Duration(seconds=seconds).seconds, seconds)
+
+        with self.assertRaises(OverflowError):
+            Duration(months=2 ** 32)
+
+        with self.assertRaises(OverflowError):
+            Duration(seconds=Decimal('1' * 40))
 
         self.assertEqual(DayTimeDuration(300).seconds, 300)
         self.assertEqual(YearMonthDuration(10).months, 10)
@@ -789,7 +949,7 @@ class DurationTypesTest(unittest.TestCase):
             YearMonthDuration.fromstring('P1YT10S')
         self.assertEqual(str(err.exception), "seconds must be 0 for 'YearMonthDuration'")
 
-    def test_repr(self):
+    def test_string_representation(self):
         self.assertEqual(repr(Duration(months=1, seconds=86400)),
                          'Duration(months=1, seconds=86400)')
         self.assertEqual(repr(Duration.fromstring('P3Y1D')),
@@ -808,6 +968,13 @@ class DurationTypesTest(unittest.TestCase):
         self.assertEqual(str(Duration.fromstring('-PT1H8S')), '-PT1H8S')
         self.assertEqual(str(Duration.fromstring('PT2H5M')), 'PT2H5M')
         self.assertEqual(str(Duration.fromstring('P0Y')), 'PT0S')
+
+        self.assertEqual(str(YearMonthDuration.fromstring('P3Y6M')), 'P3Y6M')
+        self.assertEqual(str(YearMonthDuration.fromstring('-P3Y6M')), '-P3Y6M')
+        self.assertEqual(str(YearMonthDuration.fromstring('P7M')), 'P7M')
+        self.assertEqual(str(YearMonthDuration.fromstring('P2Y')), 'P2Y')
+
+        self.assertEqual(str(DayTimeDuration.fromstring('P1DT6H')), 'P1DT6H')
 
     def test_eq(self):
         self.assertEqual(Duration.fromstring('PT147.5S'), (0, 147.5))
@@ -828,6 +995,9 @@ class DurationTypesTest(unittest.TestCase):
         self.assertEqual(Duration.fromstring('PT4500M70S'), (0, 4500 * 60 + 70))
         self.assertEqual(Duration.fromstring('PT5529615.3S'), (0, Decimal('5529615.3')))
 
+        self.assertEqual(Duration.fromstring('P3Y1D'), UntypedAtomic('P3Y1D'))
+        self.assertFalse(Duration.fromstring('P3Y1D') == UntypedAtomic('P3Y2D'))
+
     def test_ne(self):
         self.assertNotEqual(Duration.fromstring('PT147.3S'), None)
         self.assertNotEqual(Duration.fromstring('PT147.3S'), (0, 147.3))
@@ -836,6 +1006,9 @@ class DurationTypesTest(unittest.TestCase):
         self.assertNotEqual(Duration.fromstring('P3Y1D'), None)
         self.assertNotEqual(Duration.fromstring('P3Y1D'), Duration.fromstring('P3Y2D'))
         self.assertNotEqual(Duration.fromstring('P3Y1D'), YearMonthDuration.fromstring('P3Y'))
+
+        self.assertNotEqual(Duration.fromstring('P3Y1D'), UntypedAtomic('P3Y2D'))
+        self.assertFalse(Duration.fromstring('P3Y1D') != UntypedAtomic('P3Y1D'))
 
     def test_lt(self):
         self.assertTrue(Duration(months=15) < Duration(months=16))
@@ -889,9 +1062,13 @@ class DurationTypesTest(unittest.TestCase):
 
         self.assertEqual(daytime_duration('P2D') + daytime_duration('P1D'),
                          DayTimeDuration(seconds=86400 * 3))
+        self.assertEqual(daytime_duration('P2D') + Date10(1999, 8, 12),
+                         Date10(1999, 8, 14))
 
         self.assertEqual(year_month_duration('P2Y') + year_month_duration('P1Y'),
                          YearMonthDuration(months=36))
+        self.assertEqual(year_month_duration('P2Y') + Date10(1999, 8, 12),
+                         Date10(2001, 8, 12))
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P2Y') + daytime_duration('P1D')
@@ -928,10 +1105,16 @@ class DurationTypesTest(unittest.TestCase):
         year_month_duration = YearMonthDuration.fromstring
 
         self.assertEqual(daytime_duration('P1D') * 2, DayTimeDuration(seconds=86400 * 2))
+        self.assertEqual(daytime_duration('P2D') * 3.0, DayTimeDuration(seconds=86400 * 6))
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P1D') * '2'
         self.assertIn("cannot multiply", str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            _ = daytime_duration('P1D') * float('nan')
+        self.assertIn("cannot multiply", str(err.exception))
+        self.assertIn("by NaN", str(err.exception))
 
         self.assertEqual(year_month_duration('P1Y2M') * 2, YearMonthDuration(months=14 * 2))
 
@@ -944,16 +1127,22 @@ class DurationTypesTest(unittest.TestCase):
         year_month_duration = YearMonthDuration.fromstring
 
         self.assertEqual(daytime_duration('P4D') / 2, DayTimeDuration(seconds=86400 * 2))
+        self.assertEqual(daytime_duration('P1D') / 2.0, DayTimeDuration(86400 // 2))
 
         with self.assertRaises(TypeError) as err:
             _ = daytime_duration('P2D') / '2'
         self.assertIn("cannot divide", str(err.exception))
 
-        self.assertEqual(year_month_duration('P1Y2M') / 2, YearMonthDuration(months=14 / 2))
+        self.assertEqual(year_month_duration('P1Y2M') / 2, YearMonthDuration(months=14 // 2))
 
         with self.assertRaises(TypeError) as err:
             _ = year_month_duration('P1Y2M') / '2'
         self.assertIn("cannot divide", str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            daytime_duration('P1D') / float('nan')
+        self.assertIn("cannot divide", str(err.exception))
+        self.assertIn("by NaN", str(err.exception))
 
     def test_hashing(self):
         self.assertIsInstance(hash(Duration(16)), int)
@@ -977,11 +1166,16 @@ class TimezoneTypeTest(unittest.TestCase):
         self.assertEqual(Timezone.fromstring('+14:00').offset, datetime.timedelta(hours=14))
         self.assertEqual(Timezone.fromstring('-14:00').offset, datetime.timedelta(hours=-14))
 
+        self.assertRaises(TypeError, Timezone.fromstring, -15)
         self.assertRaises(ValueError, Timezone.fromstring, '-15:00')
         self.assertRaises(ValueError, Timezone.fromstring, '-14:01')
         self.assertRaises(ValueError, Timezone.fromstring, '+14:01')
         self.assertRaises(ValueError, Timezone.fromstring, '+10')
         self.assertRaises(ValueError, Timezone.fromstring, '+10:00:00')
+
+        with self.assertRaises(ValueError) as ctx:
+            Timezone.fromduration(Duration(seconds=3601))
+        self.assertIn("has not an integral number of minutes", str(ctx.exception))
 
     def test_init_timedelta(self):
         td0 = datetime.timedelta(0)
@@ -1042,6 +1236,236 @@ class TimezoneTypeTest(unittest.TestCase):
                              msg="Pickle load fails for protocol %d" % protocol)
 
 
+class BinaryTypesTest(unittest.TestCase):
+
+    def test_initialization(self):
+        self.assertEqual(Base64Binary(b'YWxwaGE='), b'YWxwaGE=')
+        self.assertEqual(HexBinary(b'F859'), b'F859')
+
+        self.assertEqual(Base64Binary(Base64Binary(b'YWxwaGE=')), b'YWxwaGE=')
+        self.assertEqual(HexBinary(HexBinary(b'F859')), b'F859')
+
+        try:
+            self.assertEqual(Base64Binary(HexBinary(b'F859')).decode(),
+                             HexBinary(b'F859').decode())
+            self.assertEqual(HexBinary(Base64Binary(b'YWxwaGE=')).decode(), b'alpha')
+        except TypeError:
+            # Issue #3001 of pypy3.6 with codecs.decode(), fixed with PyPy 7.2.0.
+            if platform.python_implementation() != 'PyPy':
+                raise
+
+    def test_string_representation(self):
+        self.assertEqual(repr(Base64Binary(b'YWxwaGE=')), "Base64Binary(b'YWxwaGE=')")
+        self.assertEqual(repr(HexBinary(b'F859')), "HexBinary(b'F859')")
+
+    def test_bytes_conversion(self):
+        self.assertEqual(bytes(Base64Binary(b'YWxwaGE=')), b'YWxwaGE=')
+        self.assertEqual(bytes(HexBinary(b'F859')), b'F859')
+
+    def test_unicode_string_conversion(self):
+        self.assertEqual(str(Base64Binary(b'YWxwaGE=')), 'YWxwaGE=')
+        self.assertEqual(str(HexBinary(b'F859')), 'F859')
+
+    def test_hash_value(self):
+        self.assertEqual(hash(Base64Binary(b'YWxwaGE=')), hash(b'YWxwaGE='))
+        self.assertEqual(hash(HexBinary(b'F859')), hash(b'F859'))
+
+    def test_length(self):
+        self.assertEqual(len(Base64Binary(b'ZQ==')), 1)
+        self.assertEqual(len(Base64Binary(b'YWxwaGE=')), 5)
+        self.assertEqual(len(Base64Binary(b'bGNlbmdnamh4eXBy')), 12)
+        self.assertEqual(len(HexBinary(b'F859')), 2)
+
+    def test_equality(self):
+        self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8a7f'))
+        self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8a7f'))
+
+        self.assertEqual(b'8a7f', HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), b'8a7f')
+        self.assertEqual('8a7f', HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), '8a7f')
+
+        self.assertEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'YWxwaGE='))
+        self.assertNotEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'ywxwaGE='))
+        self.assertEqual(Base64Binary(b'YWxwaGE='), UntypedAtomic('YWxwaGE='))
+        self.assertEqual(Base64Binary(b'YWxwaGE='), 'YWxwaGE=')
+        self.assertEqual(Base64Binary('YWxwaGE='), b'YWxwaGE=')
+
+        self.assertNotEqual(HexBinary(b'F859'), Base64Binary(b'YWxwaGE='))
+        self.assertEqual(HexBinary(b'F859'), UntypedAtomic(HexBinary(b'F859')))
+
+    def test_validate(self):
+        self.assertIsNone(Base64Binary.validate(Base64Binary(b'YWxwaGE=')))
+        self.assertIsNone(Base64Binary.validate(b'YWxwaGE='))
+
+        with self.assertRaises(TypeError):
+            Base64Binary.validate(67)
+
+        self.assertIsNone(Base64Binary.validate(b' '))
+
+        with self.assertRaises(ValueError):
+            Base64Binary.validate('FF')
+
+        self.assertIsNone(HexBinary.validate(HexBinary(b'F859')))
+        self.assertIsNone(HexBinary.validate(b'F859'))
+
+        with self.assertRaises(TypeError):
+            HexBinary.validate(67)
+
+        self.assertIsNone(HexBinary.validate(b' '))
+
+        with self.assertRaises(ValueError):
+            HexBinary.validate('XY')
+
+    def test_encoder(self):
+        self.assertEqual(Base64Binary.encoder(b'alpha'), b'YWxwaGE=')
+
+    def test_decoder(self):
+        try:
+            self.assertEqual(Base64Binary(b'YWxwaGE=').decode(), b'alpha')
+        except TypeError:
+            # Issue #3001 of pypy3.6 with codecs.decode(), fixed with PyPy 7.2.0.
+            if platform.python_implementation() != 'PyPy':
+                raise
+
+
+class QNameTypesTest(unittest.TestCase):
+
+    def test_initialization(self):
+        qname = QName(None, 'foo')
+        self.assertEqual(qname.namespace, '')
+        self.assertEqual(qname.local_name, 'foo')
+        self.assertIsNone(qname.prefix)
+        self.assertEqual(qname.expanded_name, 'foo')
+
+        with self.assertRaises(ValueError) as ctx:
+            QName(None, 'tns:foo')
+        self.assertIn('non-empty prefix with no namespace', str(ctx.exception))
+
+        with self.assertRaises(TypeError) as ctx:
+            QName(10, 'foo')
+        self.assertIn("invalid type <class 'int'>", str(ctx.exception))
+
+        qname = QName('http://xpath.test/ns', 'foo')
+        self.assertEqual(qname.namespace, 'http://xpath.test/ns')
+        self.assertEqual(qname.local_name, 'foo')
+        self.assertIsNone(qname.prefix)
+        self.assertEqual(qname.expanded_name, '{http://xpath.test/ns}foo')
+
+        qname = QName('http://xpath.test/ns', 'tst:foo')
+        self.assertEqual(qname.namespace, 'http://xpath.test/ns')
+        self.assertEqual(qname.local_name, 'foo')
+        self.assertEqual(qname.prefix, 'tst')
+        self.assertEqual(qname.expanded_name, '{http://xpath.test/ns}foo')
+
+    def test_string_representation(self):
+        qname = QName('http://xpath.test/ns', 'tst:foo')
+        self.assertEqual(repr(qname), "QName(uri='http://xpath.test/ns', qname='tst:foo')")
+
+        qname = QName(uri=None, qname='foo')
+        self.assertEqual(repr(qname), "QName(uri='', qname='foo')")
+
+        qname = QName(uri='', qname='foo')
+        self.assertEqual(repr(qname), "QName(uri='', qname='foo')")
+
+    def test_hash_value(self):
+        qname = QName('http://xpath.test/ns', 'tst:foo')
+        self.assertEqual(hash(qname), hash(('http://xpath.test/ns', 'foo')))
+
+    def test_equivalence(self):
+        qname1 = QName('http://xpath.test/ns1', 'tst1:foo')
+        qname2 = QName('http://xpath.test/ns1', 'tst2:foo')
+        qname3 = QName('http://xpath.test/ns2', 'tst2:foo')
+        self.assertEqual(qname1, qname2)
+        self.assertNotEqual(qname1, qname3)
+        self.assertNotEqual(qname2, qname3)
+
+        with self.assertRaises(TypeError) as ctx:
+            _ = qname1 == 'tst1:foo'
+        self.assertIn('cannot compare', str(ctx.exception))
+
+    def test_notation(self):
+        with self.assertRaises(TypeError):
+            Notation(None, 'foo')
+
+        class EffectiveNotation(Notation):
+            def __init__(self, uri, qname):
+                super().__init__(uri, qname)
+
+        notation = EffectiveNotation(None, 'foo')
+        self.assertEqual(notation, QName(None, 'foo'))
+
+        notation = EffectiveNotation('http://xpath.test/ns1', 'tst1:foo')
+        self.assertEqual(notation, QName('http://xpath.test/ns1', 'tst2:foo'))
+
+        self.assertEqual(hash(notation), hash(('http://xpath.test/ns1', 'foo')))
+
+
+class AnyUriTest(unittest.TestCase):
+
+    def test_init(self):
+        uri = AnyURI('http://xpath.test')
+        self.assertEqual(uri, 'http://xpath.test')
+        self.assertEqual(AnyURI(b'http://xpath.test'), 'http://xpath.test')
+        self.assertEqual(AnyURI(uri), uri)
+        self.assertEqual(AnyURI(UntypedAtomic('http://xpath.test')), uri)
+
+        with self.assertRaises(TypeError):
+            AnyURI(1)
+
+    def test_string_representation(self):
+        self.assertEqual(repr(AnyURI('http://xpath.test')), "AnyURI('http://xpath.test')")
+
+    def test_bool_value(self):
+        self.assertTrue(bool(AnyURI('http://xpath.test')))
+        self.assertFalse(bool(AnyURI('')))
+
+    def test_hash_value(self):
+        self.assertEqual(hash(AnyURI('http://xpath.test')), hash('http://xpath.test'))
+
+    def test_in_operator(self):
+        uri = AnyURI('http://xpath.test')
+        self.assertIn('xpath', uri)
+        self.assertNotIn('example', uri)
+
+    def test_comparison_operators(self):
+        uri = AnyURI('http://xpath.test')
+        self.assertTrue(uri != 'http://example.test')
+        self.assertTrue(uri != AnyURI('http://example.test'))
+
+        with self.assertRaises(TypeError):
+            _ = uri == 10
+
+        with self.assertRaises(TypeError):
+            _ = uri != 10
+
+        self.assertLess(AnyURI('1'), AnyURI('2'))
+        self.assertLess(AnyURI('1'), '2')
+
+        self.assertLessEqual(AnyURI('1'), AnyURI('1'))
+        self.assertLessEqual(AnyURI('1'), '1')
+
+        self.assertGreater(AnyURI('2'), AnyURI('1'))
+        self.assertGreater(AnyURI('2'), '1')
+
+        self.assertGreaterEqual(AnyURI('1'), AnyURI('1'))
+        self.assertGreaterEqual(AnyURI('1'), '1')
+
+    def test_validate(self):
+        uri = AnyURI('http://xpath.test')
+        self.assertIsNone(AnyURI.validate(uri))
+        self.assertIsNone(AnyURI.validate(b'http://xpath.test'))
+        self.assertIsNone(AnyURI.validate('http://xpath.test'))
+
+        with self.assertRaises(TypeError):
+            AnyURI.validate(1)
+
+        with self.assertRaises(ValueError):
+            AnyURI.validate('http:://xpath.test')
+
+
 class TypeProxiesTest(unittest.TestCase):
 
     def test_instance_check(self):
@@ -1075,6 +1499,87 @@ class TypeProxiesTest(unittest.TestCase):
         self.assertEqual(ArithmeticProxy(), 0.0)
         self.assertEqual(ArithmeticProxy(8.0), 8.0)
         self.assertEqual(ArithmeticProxy('81.0'), 81.0)
+
+    def test_boolean_proxy(self):
+        self.assertTrue(BooleanProxy(1))
+        self.assertFalse(BooleanProxy(float('nan')))
+
+        self.assertIsNone(BooleanProxy.validate(True))
+        self.assertIsNone(BooleanProxy.validate('true'))
+        self.assertIsNone(BooleanProxy.validate('1'))
+        self.assertIsNone(BooleanProxy.validate('false'))
+        self.assertIsNone(BooleanProxy.validate('0'))
+
+        with self.assertRaises(TypeError):
+            BooleanProxy.validate(1)
+
+        with self.assertRaises(ValueError):
+            BooleanProxy.validate('2')
+
+    def test_decimal_proxy(self):
+        self.assertIsInstance(DecimalProxy(20.0), Decimal)
+
+        self.assertEqual(Decimal('10'), DecimalProxy('10'))
+        self.assertEqual(Decimal('10'), DecimalProxy(Decimal('10')))
+        self.assertEqual(Decimal('10.0'), DecimalProxy(10.0))
+        self.assertEqual(Decimal(1), DecimalProxy(True))
+
+        with self.assertRaises(TypeError):
+            DecimalProxy(None)
+        with self.assertRaises(ArithmeticError):
+            DecimalProxy([])
+        with self.assertRaises(ValueError):
+            DecimalProxy('false')
+        with self.assertRaises(ValueError):
+            DecimalProxy('INF')
+        with self.assertRaises(ValueError):
+            DecimalProxy('NaN')
+        with self.assertRaises(ValueError):
+            DecimalProxy(float('nan'))
+        with self.assertRaises(ValueError):
+            DecimalProxy(float('inf'))
+
+        self.assertIsNone(DecimalProxy.validate(Decimal(-2.0)))
+        self.assertIsNone(DecimalProxy.validate(17))
+        self.assertIsNone(DecimalProxy.validate('17'))
+        with self.assertRaises(ValueError):
+            DecimalProxy.validate(Decimal('nan'))
+        with self.assertRaises(ValueError):
+            DecimalProxy.validate('alpha')
+        with self.assertRaises(TypeError):
+            DecimalProxy.validate(True)
+
+    def test_double_proxy(self):
+        self.assertIsInstance(DoubleProxy10(20), float)
+
+        self.assertEqual(DoubleProxy10('10'), 10.0)
+        self.assertTrue(math.isnan(DoubleProxy10('NaN')))
+        self.assertTrue(math.isinf(DoubleProxy10('INF')))
+        self.assertTrue(math.isinf(DoubleProxy10('-INF')))
+
+        # noinspection PyTypeChecker
+        self.assertTrue(math.isinf(DoubleProxy('+INF')))
+
+        with self.assertRaises(ValueError):
+            DoubleProxy10('+INF')
+        with self.assertRaises(ValueError):
+            DoubleProxy('nan')
+        with self.assertRaises(ValueError):
+            DoubleProxy('inf')
+
+        self.assertIsNone(DoubleProxy10.validate(1.9))
+        self.assertIsNone(DoubleProxy10.validate('1.9'))
+
+        with self.assertRaises(TypeError):
+            DoubleProxy10.validate(Float10('1.9'))
+        with self.assertRaises(ValueError):
+            DoubleProxy10.validate('six')
+
+    def test_string_proxy(self):
+        self.assertIsInstance(StringProxy(20), str)
+        self.assertIsNone(StringProxy.validate('alpha'))
+        with self.assertRaises(TypeError):
+            StringProxy.validate(b'alpha')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -24,8 +24,8 @@ from ..exceptions import ElementPathError, ElementPathTypeError, \
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
-from ..datatypes import UntypedAtomic, QName, AnyURI, Duration
-from ..xpath_nodes import TypedAttribute, is_xpath_node, \
+from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
+from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_token import UNICODE_CODEPOINT_COLLATION
 from ..xpath1 import XPath1Parser
@@ -199,9 +199,7 @@ class XPath2Parser(XPath1Parser):
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
 
-        if function_namespace is None:
-            self.function_namespace = XPATH_FUNCTIONS_NAMESPACE
-        else:
+        if function_namespace is not None:
             self.function_namespace = function_namespace
 
         if schema is None:
@@ -223,16 +221,17 @@ class XPath2Parser(XPath1Parser):
 
         if document_types:
             if any(not self.is_sequence_type(v) for v in document_types.values()):
-                raise ElementPathTypeError('invalid document_types')
+                raise ElementPathValueError('invalid sequence type in document_types argument')
         self.document_types = document_types
 
         if collection_types:
             if any(not self.is_sequence_type(v) for v in collection_types.values()):
-                raise ElementPathTypeError('invalid collection_types')
+                raise ElementPathValueError('invalid sequence type in collection_types argument')
         self.collection_types = collection_types
 
         if not self.is_sequence_type(default_collection_type):
-            raise ElementPathTypeError('invalid default_collection_type')
+            raise ElementPathValueError('invalid sequence type for '
+                                        'default_collection_type argument')
         self.default_collection_type = default_collection_type
 
     def __getstate__(self):
@@ -255,11 +254,8 @@ class XPath2Parser(XPath1Parser):
             return self._default_collation
 
         default_locale = locale.getdefaultlocale()
-        default_locale = '.'.join(default_locale) if default_locale[1] else default_locale[0]
-        if default_locale == 'en_US.UTF-8':
-            return UNICODE_CODEPOINT_COLLATION
-
-        return default_locale
+        collation = '.'.join(default_locale) if default_locale[1] else default_locale[0]
+        return collation if collation != 'en_US.UTF-8' else UNICODE_CODEPOINT_COLLATION
 
     @property
     def default_namespace(self):
@@ -288,7 +284,7 @@ class XPath2Parser(XPath1Parser):
                 self.advance_until('(:', ':)')
                 if self.next_token.symbol == ':)':
                     comment_level -= 1
-                elif self.next_token.symbol == '(:':
+                else:
                     comment_level += 1
             self.advance(':)')
             self.next_token.unexpected(':')
@@ -319,14 +315,10 @@ class XPath2Parser(XPath1Parser):
                 if isinstance(arg, UntypedAtomic):
                     return self.cast(arg.value)
                 return self.cast(arg)
-            except ElementPathError as err:
-                if err.token is None:
-                    err.token = self
+            except ElementPathError:
                 raise
-            except ValueError as err:
+            except (TypeError, ValueError) as err:
                 raise self.error('FORG0001', err) from None
-            except TypeError as err:
-                raise self.error('FORG0001', err)
 
         def cast_(value):
             raise NotImplementedError
@@ -359,11 +351,15 @@ class XPath2Parser(XPath1Parser):
             return self_
 
         def evaluate_(self_, context=None):
-            item = self_.get_argument(context)
-            if item is None:
+            arg = self_.get_argument(context)
+            if arg is None:
                 return []
-            else:
-                return self_.parser.schema.cast_as(self_[0].evaluate(context), atomic_type)
+
+            value = self_.string_value(arg)
+            try:
+                return self_.parser.schema.cast_as(value, atomic_type)
+            except (TypeError, ValueError) as err:
+                raise self_.error('FORG0001', err)
 
         symbol = get_prefixed_name(atomic_type, self.namespaces)
         token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
@@ -431,10 +427,7 @@ class XPath2Parser(XPath1Parser):
 # XPath 2.0 definitions
 register = XPath2Parser.register
 unregister = XPath2Parser.unregister
-literal = XPath2Parser.literal
-prefix = XPath2Parser.prefix
 infix = XPath2Parser.infix
-infixr = XPath2Parser.infixr
 method = XPath2Parser.method
 function = XPath2Parser.function
 
@@ -448,6 +441,7 @@ unregister('lang')
 unregister('id')
 unregister('substring-before')
 unregister('substring-after')
+unregister('starts-with')
 
 ###
 # Symbols
@@ -500,9 +494,7 @@ def evaluate(self, context=None):
                     sequence_type = sequence_type[:-1]
 
                 if QName.pattern.match(sequence_type) is not None:
-                    value = self.parser.get_atomic_value(sequence_type)
-                    if value is not None:
-                        return value
+                    return self.parser.get_atomic_value(sequence_type)
                 return UntypedAtomic('')
 
     raise self.missing_name('unknown variable %r' % str(varname))
@@ -520,7 +512,7 @@ def select(self, context=None):
         raise self.missing_context()
 
     s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
-    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s1):
+    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s2):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
@@ -576,10 +568,9 @@ def nud(self):
             if tk[0].value == variable[0].value:
                 raise tk.error('XPST0008', 'loop variable in its range expression')
 
-        if self.parser.next_token.symbol == ',':
-            self.parser.advance()
-        else:
+        if self.parser.next_token.symbol != ',':
             break
+        self.parser.advance()
 
     self.parser.advance('satisfies')
     self.append(self.parser.expression(5))
@@ -624,10 +615,9 @@ def nud(self):
             if tk[0].value == variable[0].value:
                 raise tk.error('XPST0008', 'loop variable in its range expression')
 
-        if self.parser.next_token.symbol == ',':
-            self.parser.advance()
-        else:
+        if self.parser.next_token.symbol != ',':
             break
+        self.parser.advance()
 
     self.parser.advance('return')
     self.append(self.parser.expression(5))
@@ -660,17 +650,13 @@ def led(self, left):
     try:
         self[:] = left, self.parser.expression(rbp=self.rbp)
     except ElementPathTypeError as err:
-        try:
-            raise err.token.wrong_syntax(err.message) from None
-        except AttributeError:
-            raise self.parser.next_token.wrong_syntax() from None
+        message = getattr(err, 'message', str(err))
+        raise self.error('XPST0003', message) from None
 
     next_symbol = self.parser.next_token.symbol
     if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
         self[2:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
         self.parser.advance()
-    elif next_symbol in {'('}:
-        raise self.error('XPST0051')
     return self
 
 
@@ -725,9 +711,9 @@ def evaluate(self, context=None):
             raise self.wrong_sequence_type()
     elif self[1].label in ('kind test', 'sequence type'):
         for position, item in enumerate(self[0].select(context)):
-            if self[1].evaluate(context) is None:
-                if context is not None and not isinstance(context, XPathSchemaContext):
-                    raise self.wrong_sequence_type()
+            result = self[1].evaluate(context)
+            if isinstance(result, list) and not result:
+                raise self.wrong_sequence_type()
             elif position and (occurs is None or occurs == '?'):
                 raise self.wrong_sequence_type("more than one item in sequence")
             castable_expr.append(item)
@@ -765,6 +751,7 @@ def evaluate(self, context=None):
 @method('cast', bp=63)
 def led(self, left):
     self.parser.advance('as')
+    self.parser.expected_name('(name)', ':')
     self[:] = left, self.parser.expression(rbp=self.rbp)
     if self.parser.next_token.symbol == '?':
         self[2:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
@@ -805,7 +792,7 @@ def evaluate(self, context=None):
     arg = self.data_value(result[0])
     try:
         if namespace != XSD_NAMESPACE:
-            value = self.parser.schema.cast_as(arg, atomic_type)
+            value = self.parser.schema.cast_as(self.string_value(arg), atomic_type)
         else:
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
@@ -815,28 +802,16 @@ def evaluate(self, context=None):
 
             token = token_class(self.parser)
             value = token.cast(arg)
+
     except ElementPathError:
         if self.symbol != 'cast':
             return False
         raise
-    except KeyError:
-        msg = "atomic type %r not found in the in-scope schema types"
-        self.unknown_atomic_type(msg % self[1].source)
-    except TypeError as err:
+    except (TypeError, ValueError) as err:
         if self.symbol != 'cast':
             return False
-        elif isinstance(arg, UntypedAtomic):
-            raise self.error('FORG0001', err)
-        elif self[0].symbol == ':' and self[0][1].symbol == 'string':
+        elif isinstance(arg, (UntypedAtomic, str)):
             raise self.error('FORG0001', err) from None
-
-        raise self.error('XPTY0004', err) from None
-    except ValueError as err:
-        if self.symbol != 'cast':
-            return False
-        elif self[0].symbol == ':' and self[0][1].symbol == 'string':
-            raise self.error('FORG0001', err) from None
-
         raise self.error('XPTY0004', err) from None
     else:
         return value if self.symbol == 'cast' else True
@@ -987,7 +962,7 @@ def evaluate(self, context=None):
     else:
         if left[0] is right[0]:
             return False
-        for item in context.root.iter():
+        for item in context.root.iter():  # pragma: no cover
             if left[0] is item:
                 return True if symbol == '<<' else False
             elif right[0] is item:
@@ -1008,13 +983,11 @@ def led(self, left):
 
 @method('to')
 def evaluate(self, context=None):
-    start, stop = self.get_operands(context, cls=int)
+    start, stop = self.get_operands(context, cls=Integer)
     try:
         return [x for x in range(start, stop + 1)]
-    except TypeError as err:
-        if context is None or start is None or stop is None:
-            return []
-        raise self.error('FORG0006', err) from None
+    except TypeError:
+        return []
 
 
 @method('to')
@@ -1094,10 +1067,10 @@ def select(self, context=None):
         for item in self[0].select(context):
             if len(self) == 1:
                 yield item
-            elif self.xsd_types:
-                type_annotation = self[1].evaluate(context)
-                if self.xsd_types.is_matching(type_annotation, self.parser.default_namespace):
-                    yield context.item
+            elif isinstance(item, TypedElement):
+                for type_annotation in self[1].select():
+                    if type_annotation == item.xsd_type.name:
+                        yield item
 
 
 @method('element')
@@ -1223,9 +1196,6 @@ def select(self, context=None):
                     self.add_xsd_type(attribute)
                 elif not type_name:
                     yield attribute.value
-                elif isinstance(attribute, TypedAttribute):
-                    if attribute.type.name == type_name:
-                        yield attribute.value
                 else:
                     xsd_type = self.get_xsd_type(attribute)
                     if xsd_type is not None and xsd_type.name == type_name:

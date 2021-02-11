@@ -25,7 +25,7 @@ xsd11_atomic_types = {}
 """Dictionary of builtin XSD 1.1 atomic types."""
 
 
-class AtomicTypeABCMeta(ABCMeta):
+class AtomicTypeMeta(ABCMeta):
     """
     Metaclass for creating XSD atomic types. The created classes
     are decorated with missing attributes and methods. When a name
@@ -40,34 +40,28 @@ class AtomicTypeABCMeta(ABCMeta):
         except KeyError:
             name = dict_['name'] = None  # do not inherit name
 
-        if isinstance(name, str):
-            expanded_name = dict_['expanded_name'] = '{%s}%s' % (XSD_NAMESPACE, name)
-        elif name is None:
-            expanded_name = dict_['expanded_name'] = None
-        else:
+        if name is not None and not isinstance(name, str):
             raise TypeError("attribute 'name' must be a string or None")
 
-        cls = super(AtomicTypeABCMeta, mcs).__new__(mcs, class_name, bases, dict_)
+        cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Add missing attributes and methods
-        if not hasattr(cls, 'version'):
-            cls.version = '1.0'
+        if not hasattr(cls, 'xsd_version'):
+            cls.xsd_version = '1.0'
         if not hasattr(cls, 'pattern'):
             cls.pattern = re.compile(r'^$')
-        if not hasattr(cls, 'validate'):
-            cls.validate = mcs.validate
 
         cls.is_valid = classmethod(mcs.is_valid)
         cls.invalid_type = classmethod(mcs.invalid_type)
         cls.invalid_value = classmethod(mcs.invalid_value)
 
-        # Register class if it's not already registered
-        if not name:
-            pass
-        elif cls.version == '1.0':
-            xsd10_atomic_types[name] = xsd10_atomic_types[expanded_name] = cls
-        else:
-            xsd11_atomic_types[name] = xsd11_atomic_types[expanded_name] = cls
+        # Register class with an name
+        if name:
+            expanded_name = '{%s}%s' % (XSD_NAMESPACE, name)
+            if cls.xsd_version == '1.0':
+                xsd10_atomic_types[name] = xsd10_atomic_types[expanded_name] = cls
+            else:
+                xsd11_atomic_types[name] = xsd11_atomic_types[expanded_name] = cls
 
         return cls
 
@@ -98,5 +92,5 @@ class AtomicTypeABCMeta(ABCMeta):
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))
 
 
-class AnyAtomicType(metaclass=AtomicTypeABCMeta):
+class AnyAtomicType(metaclass=AtomicTypeMeta):
     name = 'anyAtomicType'
