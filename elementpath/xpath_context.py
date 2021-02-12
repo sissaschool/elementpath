@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+import importlib
 import xml.etree.ElementTree as ElementTree
 from functools import lru_cache
 from itertools import chain
@@ -143,20 +144,12 @@ class XPathContext(object):
 
     @property
     def etree(self):
-        if self._etree is not None:
-            return self._etree
-        elif is_lxml_etree_element(self.root) or is_lxml_document_node(self.root):
-            try:
-                import lxml.etree as lxml_etree
-            except ImportError:
-                self._etree = ElementTree
-                return ElementTree
+        if self._etree is None:
+            if is_lxml_etree_element(self.root) or is_lxml_document_node(self.root):
+                self._etree = importlib.import_module('lxml.etree')
             else:
-                self._etree = lxml_etree
-                return lxml_etree
-        else:
-            self._etree = ElementTree
-            return ElementTree
+                self._etree = ElementTree
+        return self._etree
 
     @lru_cache(maxsize=1024)
     def get_parent(self, elem):
