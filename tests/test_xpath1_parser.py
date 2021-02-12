@@ -1338,6 +1338,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, item=root[0][0])
         self.check_value('//*', [], context=context)
 
+        root = self.etree.XML("<A><A><A><A><A/></A></A></A></A>")
+        context = XPathContext(root)
+        self.check_value('//A', list(root.iter()), context=context)
+
     def test_double_slash_shortcut_pr16(self):
         # Pull-Request #16
         root = self.etree.XML("""

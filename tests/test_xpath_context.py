@@ -11,6 +11,8 @@
 import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ElementTree
+import lxml.etree
+
 from elementpath import *
 from elementpath.schema_proxy import AbstractXsdType
 
@@ -49,6 +51,17 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root, axis='children')
         self.assertIsNone(context.copy().axis)
         self.assertEqual(context.copy(clear_axis=False).axis, 'children')
+
+    def test_etree_property(self):
+        root = ElementTree.XML('<root/>')
+        context = XPathContext(root)
+        self.assertEqual(context.etree.__name__, 'xml.etree.ElementTree')
+        self.assertEqual(context.etree.__name__, 'xml.etree.ElementTree')  # property caching
+
+        root = lxml.etree.XML('<root/>')
+        context = XPathContext(root)
+        self.assertEqual(context.etree.__name__, 'lxml.etree')
+        self.assertEqual(context.etree.__name__, 'lxml.etree')
 
     def test_parent_map(self):
         root = ElementTree.XML('<A><B1/><B2/></A>')
