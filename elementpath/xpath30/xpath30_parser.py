@@ -27,7 +27,7 @@ from ..xpath_nodes import etree_iterpath, is_xpath_node, \
     is_document_node, is_etree_element, TypedElement
 from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
-from ..datatypes import NumericProxy
+from ..datatypes import NumericProxy, QName
 from ..regex import translate_pattern, RegexError
 
 
@@ -63,8 +63,11 @@ class XPath30Parser(XPath2Parser):
         'parse-xml', 'parse-xml-fragment', 'serialize',
 
         # Higher-order functions
-        # 'function-lookup', 'function-name', 'function-arity',
+        'function-lookup', 'function-name', 'function-arity',
         # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+
+        # Reserved and node type functions
+        # 'function', 'namespace-node', 'switch',
     }
 
     DEFAULT_NAMESPACES = {
@@ -552,6 +555,26 @@ def evaluate(self, context=None):
             chunks.append(serialized_item)
 
     return b'\n'.join(chunks)
+
+
+# Higher-order functions
+# 'function-lookup', 'function-name', 'function-arity',
+# 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+
+@method(function('function-lookup', nargs=2))
+def evaluate(self, context=None):
+    name = self.get_argument(context, cls=QName)
+    arity = self.get_argument(context, index=1, cls=int)
+
+
+@method(function('function-name', nargs=1))
+def evaluate(self, context=None):
+    function = self.get_argument(context)
+
+
+@method(function('function-arity', nargs=1))
+def evaluate(self, context=None):
+    function = self.get_argument(context)
 
 
 XPath30Parser.build()

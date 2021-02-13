@@ -586,7 +586,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIn('context item is not a node', str(ctx.exception))
 
     def test_unparsed_text_function(self):
-        with self.assertRaises(TypeError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             self.parser.parse('fn:unparsed-text("alpha#fragment")').evaluate()
         self.assertIn('FOUT1170', str(ctx.exception))
 
