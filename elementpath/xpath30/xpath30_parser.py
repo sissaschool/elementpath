@@ -34,6 +34,10 @@ from ..regex import translate_pattern, RegexError
 class XPath30Parser(XPath2Parser):
     """
     XPath 3.0 expression parser class.
+
+    :param args: the same positional arguments of class :class:`XPath2Parser`.
+    :param decimal_formats: a mapping with statically known decimal formats.
+    :param kwargs: the same keyword arguments of class :class:`XPath2Parser`.
     """
     version = '3.0'
 
@@ -73,6 +77,10 @@ class XPath30Parser(XPath2Parser):
     DEFAULT_NAMESPACES = {
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
+
+    def __init__(self, *args, decimal_formats=None, **kwargs):
+        super(XPath30Parser, self).__init__(*args, **kwargs)
+        self.decimal_formats = decimal_formats if decimal_formats is not None else {}
 
 
 ##
