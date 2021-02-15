@@ -17,6 +17,8 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
+from textwrap import dedent
+
 
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
@@ -432,9 +434,8 @@ class Parser(metaclass=ParserMeta):
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, symbol, name, unknown = self.match.groups()
+                literal, symbol, call, name, unknown = self.match.groups()
                 if symbol is not None:
-                    symbol = symbol.strip()
                     try:
                         self.next_token = self.symbol_table[symbol](self)
                     except KeyError:
@@ -463,6 +464,12 @@ class Parser(metaclass=ParserMeta):
                             self.next_token = self.symbol_table['(decimal)'](self, value)
                     else:
                         self.next_token = self.symbol_table['(integer)'](self, int(literal))
+                    break
+                elif call is not None:
+                    try:
+                        self.next_token = self.symbol_table[call](self)
+                    except KeyError:
+                        self.next_token = self.symbol_table['(name)'](self, call)
                     break
                 elif name is not None:
                     self.next_token = self.symbol_table['(name)'](self, name)
@@ -769,16 +776,17 @@ class Parser(metaclass=ParserMeta):
 
         :param symbol_table: a dictionary containing the token classes of the formal language.
         """
-        tokenizer_pattern_template = r"""
-            (%s) |       # Literals
-            (%s|[%s]) |  # Symbols
-            (%s) |       # Names
+        tokenizer_pattern_template = dedent(r"""
+            ({0}) |       # Literals
+            ({1}|[{2}]) |  # Symbols
+            ({3}(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))) | # Function calls
+            ({3}) |       # Names
             (\S) |       # Unknown symbols
             \s+          # Skip extra spaces
-        """
+            """)
         patterns = [
             t.pattern.replace('#', r'\#') for s, t in symbol_table.items()
-            if s not in SPECIAL_SYMBOLS
+            if s not in SPECIAL_SYMBOLS and 'function' not in t.label
         ]
         string_patterns = []
         character_patterns = []
@@ -792,7 +800,7 @@ class Parser(metaclass=ParserMeta):
             else:
                 string_patterns.append(p)
 
-        pattern = tokenizer_pattern_template % (
+        pattern = tokenizer_pattern_template.format(
             cls.literals_pattern.pattern,
             '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
             ''.join(character_patterns),

@@ -11,16 +11,17 @@
 import unittest
 import re
 from collections import namedtuple
+from textwrap import dedent
 
 from elementpath.tdop import symbol_to_identifier, ParseError, Token, \
     ParserMeta, Parser, MultiLabel
 
 
-FakeToken = namedtuple('Token', 'symbol pattern')
+FakeToken = namedtuple('Token', 'symbol pattern label')
 
 
 def create_fake_tokens(symbols):
-    return {s: FakeToken(s, s) for s in symbols}
+    return {s: FakeToken(s, s, 'label') for s in symbols}
 
 
 class TdopParserTest(unittest.TestCase):
@@ -33,7 +34,8 @@ class TdopParserTest(unittest.TestCase):
             @classmethod
             def create_tokenizer(cls, symbol_table):
                 return re.compile(
-                    r'INCOMPATIBLE | (\d+)| (UNKNOWN|[+\-]) | (\w+) | (\S) | \s+',
+                    r'INCOMPATIBLE | (\d+)| (UNKNOWN|[+\-]) | '
+                    r'(\w+(?=\s+\((?!:))) | (\w+) | (\S) | \s+',
                     flags=re.VERBOSE
                 )
 
@@ -97,13 +99,14 @@ class TdopParserTest(unittest.TestCase):
 
     def test_create_tokenizer_method(self):
         pattern = Parser.create_tokenizer(create_fake_tokens(['(name)', 'call', '+']))
-        self.assertEqual(pattern.pattern, r"""
+        self.assertEqual(pattern.pattern, dedent(r"""
             ('[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |       # Literals
             (call|[+]) |  # Symbols
+            ([A-Za-z0-9_]+(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))) | # Function calls
             ([A-Za-z0-9_]+) |       # Names
             (\S) |       # Unknown symbols
             \s+          # Skip extra spaces
-        """)
+            """))
 
         with self.assertRaises(ValueError):
             Parser.create_tokenizer(create_fake_tokens(['(name)', 'wrong pattern', '+']))
@@ -120,13 +123,13 @@ class TdopParserTest(unittest.TestCase):
 
     def test_tokenizer_items(self):
         self.assertListEqual(self.parser.tokenizer.findall('5 56'),
-                             [('5', '', '', ''), ('', '', '', ''), ('56', '', '', '')])
+                             [('5', '', '', '', ''), ('', '', '', '', ''), ('56', '', '', '', '')])
         self.assertListEqual(self.parser.tokenizer.findall('5+56'),
-                             [('5', '', '', ''), ('', '+', '', ''), ('56', '', '', '')])
+                             [('5', '', '', '', ''), ('', '+', '', '', ''), ('56', '', '', '', '')])
         self.assertListEqual(self.parser.tokenizer.findall('xy'),
-                             [('', '', 'xy', '')])
+                             [('', '', '', 'xy', '')])
         self.assertListEqual(self.parser.tokenizer.findall('5x'),
-                             [('5', '', '', ''), ('', '', 'x', '')])
+                             [('5', '', '', '', ''), ('', '', '', 'x', '')])
 
     def test_incompatible_tokenizer(self):
         with self.assertRaises(RuntimeError) as ec:
