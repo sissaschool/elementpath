@@ -1113,13 +1113,28 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_tokenizer("/is-a", ['/', 'is-a'])
         self.check_tokenizer("/-is-a", ['/', '-', 'is-a'])
 
-    def test_token_ambiguity(self):
+    def test_operator_ambiguity(self):
         # Related to issue #27
         self.check_tokenizer("/is", ['/', 'is'])
         context = XPathContext(self.etree.XML('<root/>'))
         self.check_value('/is', [], context)
         context = XPathContext(self.etree.XML('<is/>'))
         self.check_value('/is', [context.root], context)
+
+        self.check_value('/and', [], context)
+        context = XPathContext(self.etree.XML('<and/>'))
+        self.check_value('/and', [context.root], context)
+
+        root = self.etree.XML('<and/>')
+        self.check_value('and', [root], XPathContext(self.etree.ElementTree(root)))
+        root = self.etree.XML('<eq/>')
+        self.check_value('eq', [root], XPathContext(self.etree.ElementTree(root)))
+        root = self.etree.XML('<union/>')
+        self.check_value('union', [root], XPathContext(self.etree.ElementTree(root)))
+
+    def test_statements_ambiguity(self):
+        root = self.etree.XML('<for/>')
+        self.check_value('for', [root], XPathContext(self.etree.ElementTree(root)))
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_atomic_value(self):

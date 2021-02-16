@@ -939,6 +939,16 @@ def evaluate(self, context=None):
             raise self.error('FOAR0001') from None
 
 
+# Resolve the intrinsic ambiguity of some infix operators
+@method('or')
+@method('and')
+@method('div')
+@method('mod')
+def nud(self):
+    token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+    return token.nud()
+
+
 ###
 # Union expressions
 @method('|', bp=50)

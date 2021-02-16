@@ -525,6 +525,10 @@ def select(self, context=None):
 # 'if' expression
 @method('if', bp=20)
 def nud(self):
+    if self.parser.next_token.symbol != '(':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
     self.parser.advance('(')
     self[:] = self.parser.expression(5),
     self.parser.advance(')')
@@ -557,6 +561,10 @@ def select(self, context=None):
 @method('every', bp=20)
 def nud(self):
     del self[:]
+    if self.parser.next_token.symbol != '$':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
     while True:
         self.parser.next_token.expected('$')
         variable = self.parser.expression(5)
@@ -604,6 +612,10 @@ def evaluate(self, context=None):
 @method('for', bp=20)
 def nud(self):
     del self[:]
+    if self.parser.next_token.symbol != '$':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
     while True:
         self.parser.next_token.expected('$')
         variable = self.parser.expression(5)
@@ -933,13 +945,6 @@ def led(self, left):
 
 
 @method('is')
-def nud(self):
-    if self.parser.next_token.symbol == '(':
-        raise self.error('XPST0017', '{} cannot have arguments'.format(self))
-    raise self.wrong_syntax()
-
-
-@method('is')
 @method(infix('<<', bp=30))
 @method(infix('>>', bp=30))
 def evaluate(self, context=None):
@@ -1021,6 +1026,28 @@ def evaluate(self, context=None):
             return int(result)
         else:
             return int(result) + 1
+
+
+# Resolve the intrinsic ambiguity of some infix operators
+@method('union')
+@method('intersect')
+@method('except')
+@method('eq')
+@method('ne')
+@method('lt')
+@method('gt')
+@method('le')
+@method('ge')
+@method('is')
+@method('to')
+@method('idiv')
+@method('instance')
+@method('treat')
+@method('castable')
+@method('cast')
+def nud(self):
+    token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+    return token.nud()
 
 
 ###
