@@ -323,7 +323,7 @@ class XPath2Parser(XPath1Parser):
         def cast_(value):
             raise NotImplementedError
 
-        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
+        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % cls.name_pattern.pattern
         token_class = cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp,
                                    nud=nud_, evaluate=evaluate_, cast=cast_)
 

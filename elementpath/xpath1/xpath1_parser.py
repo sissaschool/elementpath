@@ -158,7 +158,7 @@ class XPath1Parser(Parser):
             self[:] = self.parser.expression(rbp=bp),
             return self
 
-        pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % symbol
+        pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % cls.name_pattern.pattern
         return cls.register(
             symbol, pattern=pattern, label='axis',
             reverse_axis=reverse_axis, lbp=bp, rbp=bp, nud=nud_
@@ -229,7 +229,7 @@ class XPath1Parser(Parser):
             self.parser.advance(')')
             return self
 
-        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
+        pattern = r'\b%s(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))' % cls.name_pattern.pattern
         return cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp, nud=nud_)
 
     def parse(self, source):
