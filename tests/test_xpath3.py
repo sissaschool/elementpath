@@ -95,6 +95,10 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(token.evaluate(), math.pi)
         self.parser.strict = True
 
+    def test_concat_operator(self):
+        token = self.parser.parse("10 || '/' || 6")
+        self.assertEqual(token.evaluate(), "10/6")
+
     def test_pi_math_function(self):
         token = self.parser.parse('math:pi()')
         self.assertEqual(token.evaluate(), math.pi)
