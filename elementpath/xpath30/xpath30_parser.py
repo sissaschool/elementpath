@@ -43,6 +43,7 @@ class XPath30Parser(XPath2Parser):
 
     SYMBOLS = XPath2Parser.SYMBOLS | {
         'Q{',  # see BracedURILiteral rule
+        '||',  # concat operator
 
         # Math functions (trigonometric and exponential)
         'pi', 'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
@@ -95,6 +96,12 @@ method = XPath30Parser.method
 function = XPath30Parser.function
 
 XPath30Parser.duplicate('{', 'Q{')
+
+
+@method(infix('||', bp=32))
+def evaluate(self, context=None):
+    return self.string_value(self.get_argument(context)) + \
+        self.string_value(self.get_argument(context, index=1))
 
 
 ###
