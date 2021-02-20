@@ -1062,3 +1062,17 @@ class XPathToken(Token):
 
     def unknown_namespace(self, message=None):
         return self.error('XPST0081', message)
+
+
+class XPathFunction(XPathToken):
+    """
+    A token for processing XPath functions.
+    """
+    pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
+
+    def __call__(self, context=None):
+        return self.evaluate(context)
+
+    @property
+    def name(self):
+        return self.symbol

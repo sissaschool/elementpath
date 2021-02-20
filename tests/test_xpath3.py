@@ -90,10 +90,10 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         with self.assertRaises(SyntaxError):
             self.parser.parse('{http://www.w3.org/2005/xpath-functions/math}pi()')
 
-        self.parser.strict = False
-        token = self.parser.parse('{http://www.w3.org/2005/xpath-functions/math}pi()')
-        self.assertEqual(token.evaluate(), math.pi)
-        self.parser.strict = True
+        # self.parser.strict = False
+        # token = self.parser.parse('{http://www.w3.org/2005/xpath-functions/math}pi()')
+        # self.assertEqual(token.evaluate(), math.pi)
+        # self.parser.strict = True
 
     def test_concat_operator(self):
         token = self.parser.parse("10 || '/' || 6")
@@ -637,6 +637,33 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(self.parser.parse(path).evaluate(context))
         context = XPathContext(root=root, allow_environment=True)
         self.assertListEqual(self.parser.parse(path).evaluate(context), list(os.environ))
+
+    def test_inline_function_expression(self):
+        token = self.parser.parse("function() as xs:integer+ { 2, 3, 5, 7, 11, 13 }")
+        token = self.parser.parse(
+            "function($a as xs:double, $b as xs:double) as xs:double { $a * $b }")
+        token = self.parser.parse("function($a) { $a }")
+
+    @unittest.skip
+    def test_function_lookup(self):
+        token = self.parser.parse("fn:function-lookup(xs:QName('fn:substring'), 2)('abcd', 2)")
+        self.assertEqual(token.evaluate(), "bcd")
+
+        token = self.parser.parse("(fn:function-lookup(xs:QName('xs:dateTimeStamp'), 1), "
+                                  "xs:dateTime#1)[1] ('2011-11-11T11:11:11Z')")
+        self.assertEqual(token.evaluate(), "")
+
+    @unittest.skip
+    def test_function_name(self):
+        token = self.parser.parse("fn:function-name(fn:substring#2) ")
+        result = datatypes.QName("http://www.w3.org/2005/xpath-functions", "fn:substring")
+        token = self.parser.parse("fn:function-name(function($node){count($node/*)})")
+        result = []
+
+    def test_function_arity(self):
+        token = self.parser.parse("fn:function-arity(fn:substring#2)")
+        result = 2
+        token = self.parser.parse("fn:function-arity(function($node){name($node)})")
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

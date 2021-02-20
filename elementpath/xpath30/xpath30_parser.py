@@ -25,6 +25,7 @@ from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPA
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath_nodes import etree_iterpath, is_xpath_node, \
     is_document_node, is_etree_element, TypedElement
+from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy, QName
@@ -33,7 +34,9 @@ from ..regex import translate_pattern, RegexError
 
 class XPath30Parser(XPath2Parser):
     """
-    XPath 3.0 expression parser class.
+    XPath 3.0 expression parser class. Accepts all XPath 2.0 options as keyword
+    arguments, but the *strict* option is ignored because XPath 3.0+ has braced
+    URI literals and the expanded name syntax is not compatible.
 
     :param args: the same positional arguments of class :class:`XPath2Parser`.
     :param decimal_formats: a mapping with statically known decimal formats.
@@ -67,12 +70,13 @@ class XPath30Parser(XPath2Parser):
         # Parsing and serializing
         'parse-xml', 'parse-xml-fragment', 'serialize',
 
+
         # Higher-order functions
-        'function-lookup', 'function-name', 'function-arity',
+        'function-lookup', 'function-name', 'function-arity', '#',
         # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
-        # Reserved and node type functions
-        # 'function', 'namespace-node', 'switch',
+        # Expressions and node type functions
+        'function',  'let', ':=', # 'namespace-node', 'switch',
     }
 
     DEFAULT_NAMESPACES = {
@@ -80,6 +84,7 @@ class XPath30Parser(XPath2Parser):
     }
 
     def __init__(self, *args, decimal_formats=None, **kwargs):
+        kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
         self.decimal_formats = decimal_formats if decimal_formats is not None else {}
 
@@ -87,21 +92,88 @@ class XPath30Parser(XPath2Parser):
 ##
 # XPath 3.0 definitions
 register = XPath30Parser.register
-unregister = XPath30Parser.unregister
 literal = XPath30Parser.literal
-prefix = XPath30Parser.prefix
 infix = XPath30Parser.infix
-infixr = XPath30Parser.infixr
 method = XPath30Parser.method
 function = XPath30Parser.function
 
+register('#')
+register(':=')
+
+###
+# Braced/expanded QName(s)
 XPath30Parser.duplicate('{', 'Q{')
+XPath30Parser.unregister('{')
+XPath30Parser.unregister('}')
+register('{')
+register('}', bp=100)
 
 
 @method(infix('||', bp=32))
 def evaluate(self, context=None):
     return self.string_value(self.get_argument(context)) + \
         self.string_value(self.get_argument(context, index=1))
+
+
+###
+# 'let' expressions
+
+@method(register('let', bp=20, label='let expression'))
+def nud(self):
+    return self
+
+"""
+[11]    	LetExpr 	   ::=    	SimpleLetClause "return" ExprSingle
+[12]    	SimpleLetClause 	   ::=    	"let" SimpleLetBinding ("," SimpleLetBinding)*
+[13]    	SimpleLetBinding 	   ::=    	"$" VarName ":=" ExprSingle
+"""
+
+###
+# 'inline function' expression
+@method(register('function', bp=90, label='inline function'))
+def nud(self):
+    if self.parser.next_token.symbol != '(':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
+    self.parser.advance('(')
+    self.params = {}
+    while self.parser.next_token.symbol != ')':
+        self.parser.next_token.expected('$')
+        param = self.parser.expression(5)
+        self.append(param)
+        if self.parser.next_token.symbol == 'as':
+            self.parser.advance('as')
+            sequence_type = self.parser.expression(5)
+            self.append(sequence_type)
+
+        self.parser.next_token.expected(')', ',')
+        if self.parser.next_token.symbol == ',':
+            self.parser.advance()
+            self.parser.next_token.unexpected(')')
+
+    self.parser.advance(')')
+
+    if self.parser.next_token.symbol == 'as':
+        self.parser.advance('as')
+        if self.parser.next_token.label not in ('kind test', 'sequence type'):
+            self.parser.expected_name('(name)', ':')
+        sequence_type = self.parser.expression(rbp=90)
+
+        next_symbol = self.parser.next_token.symbol
+        if sequence_type.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
+            self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
+            self.parser.advance()
+
+    self.parser.advance('{')
+    self.expr = self.parser.expression()
+    self.parser.advance('}')
+    return self
+
+
+@method('function')
+def evaluate(self, context=None):
+    return self
 
 
 ###
@@ -572,9 +644,8 @@ def evaluate(self, context=None):
     return b'\n'.join(chunks)
 
 
+###
 # Higher-order functions
-# 'function-lookup', 'function-name', 'function-arity',
-# 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
 @method(function('function-lookup', nargs=2))
 def evaluate(self, context=None):
@@ -584,12 +655,16 @@ def evaluate(self, context=None):
 
 @method(function('function-name', nargs=1))
 def evaluate(self, context=None):
-    function = self.get_argument(context)
+    func = self.get_argument(context, cls=XPathFunction)
+    return [] if func.name is None else func.qname
 
 
 @method(function('function-arity', nargs=1))
 def evaluate(self, context=None):
-    function = self.get_argument(context)
+    func = self.get_argument(context)
+
+
+# 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
 
 XPath30Parser.build()
