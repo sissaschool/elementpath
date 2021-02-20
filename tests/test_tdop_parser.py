@@ -12,7 +12,7 @@ import unittest
 import re
 from collections import namedtuple
 
-from elementpath.tdop import symbol_to_identifier, ParseError, Token, \
+from elementpath.tdop import symbol_to_classname, ParseError, Token, \
     ParserMeta, Parser, MultiLabel
 
 
@@ -71,22 +71,22 @@ class TdopParserTest(unittest.TestCase):
         self.assertTrue(label.endswith('function'))
         self.assertFalse(label.endswith('constructor'))
 
-    def test_symbol_to_identifier_function(self):
-        self.assertEqual(symbol_to_identifier('_cat10'), '_cat10')
-        self.assertEqual(symbol_to_identifier('&'), 'Ampersand')
-        self.assertEqual(symbol_to_identifier('('), 'LeftParenthesis')
-        self.assertEqual(symbol_to_identifier(')'), 'RightParenthesis')
+    def test_symbol_to_classname_function(self):
+        self.assertEqual(symbol_to_classname('_cat10'), 'Cat10')
+        self.assertEqual(symbol_to_classname('&'), 'Ampersand')
+        self.assertEqual(symbol_to_classname('('), 'LeftParenthesis')
+        self.assertEqual(symbol_to_classname(')'), 'RightParenthesis')
 
-        self.assertEqual(symbol_to_identifier('(name)'), 'name')
-        self.assertEqual(symbol_to_identifier('(name'), 'LeftParenthesis_name')
+        self.assertEqual(symbol_to_classname('(name)'), 'Name')
+        self.assertEqual(symbol_to_classname('(name'), 'LeftParenthesisname')
 
-        self.assertEqual(symbol_to_identifier('-'), 'HyphenMinus')
-        self.assertEqual(symbol_to_identifier('_'), 'LowLine')
-        self.assertEqual(symbol_to_identifier('-_'), 'HyphenMinus_LowLine')
-        self.assertEqual(symbol_to_identifier('--'), 'HyphenMinus_HyphenMinus')
+        self.assertEqual(symbol_to_classname('-'), 'HyphenMinus')
+        self.assertEqual(symbol_to_classname('_'), 'LowLine')
+        self.assertEqual(symbol_to_classname('-_'), 'HyphenMinusLowLine')
+        self.assertEqual(symbol_to_classname('--'), 'HyphenMinusHyphenMinus')
 
-        self.assertEqual(symbol_to_identifier('my-api-call'), 'my_api_call')
-        self.assertEqual(symbol_to_identifier('call-'), 'call_')
+        self.assertEqual(symbol_to_classname('my-api-call'), 'MyApiCall')
+        self.assertEqual(symbol_to_classname('call-'), 'Call')
 
     def test_create_tokenizer_method(self):
         FakeToken = namedtuple('Token', 'symbol pattern label')

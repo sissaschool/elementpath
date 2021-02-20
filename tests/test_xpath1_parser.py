@@ -130,29 +130,29 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_tokenizer('./ /.', ['.', '/', '', '/', '.'])
         self.check_tokenizer('tns :*', ['tns', '', ':', '*'])
 
-    def test_tokens(self):
+    def test_token_classes(self):
         # Literals
         self.check_token('(string)', 'literal', "'hello' string",
-                         "_string_literal_token(value='hello')", 'hello')
+                         "_StringLiteral(value='hello')", 'hello')
         self.check_token('(integer)', 'literal', "1999 integer",
-                         "_integer_literal_token(value=1999)", 1999)
+                         "_IntegerLiteral(value=1999)", 1999)
         self.check_token('(float)', 'literal', "3.1415 float",
-                         "_float_literal_token(value=3.1415)", 3.1415)
+                         "_FloatLiteral(value=3.1415)", 3.1415)
         self.check_token('(decimal)', 'literal', "217.35 decimal",
-                         "_decimal_literal_token(value=217.35)", 217.35)
+                         "_DecimalLiteral(value=217.35)", 217.35)
         self.check_token('(name)', 'literal', "'schema' name",
-                         "_name_literal_token(value='schema')", 'schema')
+                         "_NameLiteral(value='schema')", 'schema')
 
         # Variables
         self.check_token('$', 'operator', "$ variable reference",
-                         "_DollarSign_operator_token()")
+                         "_DollarSignOperator()")
 
         # Axes
-        self.check_token('self', 'axis', "'self' axis", "_self_axis_token()")
-        self.check_token('child', 'axis', "'child' axis", "_child_axis_token()")
-        self.check_token('parent', 'axis', "'parent' axis", "_parent_axis_token()")
-        self.check_token('ancestor', 'axis', "'ancestor' axis", "_ancestor_axis_token()")
-        self.check_token('preceding', 'axis', "'preceding' axis", "_preceding_axis_token()")
+        self.check_token('self', 'axis', "'self' axis", "_SelfAxis()")
+        self.check_token('child', 'axis', "'child' axis", "_ChildAxis()")
+        self.check_token('parent', 'axis', "'parent' axis", "_ParentAxis()")
+        self.check_token('ancestor', 'axis', "'ancestor' axis", "_AncestorAxis()")
+        self.check_token('preceding', 'axis', "'preceding' axis", "_PrecedingAxis()")
         self.check_token('descendant-or-self', 'axis', "'descendant-or-self' axis")
         self.check_token('following-sibling', 'axis', "'following-sibling' axis")
         self.check_token('preceding-sibling', 'axis', "'preceding-sibling' axis")
@@ -165,15 +165,15 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         # Functions
         self.check_token(
-            'position', 'function', "'position' function", "_position_function_token()"
+            'position', 'function', "'position' function", "_PositionFunction()"
         )
 
         # Operators
-        self.check_token('and', 'operator', "'and' operator", "_and_operator_token()")
+        self.check_token('and', 'operator', "'and' operator", "_AndOperator()")
         if self.parser.version == '1.0':
-            self.check_token(',', 'symbol', "comma symbol", "_Comma_symbol_token()")
+            self.check_token(',', 'symbol', "comma symbol", "_CommaSymbol()")
         else:
-            self.check_token(',', 'operator', "comma operator", "_Comma_operator_token()")
+            self.check_token(',', 'operator', "comma operator", "_CommaOperator()")
 
     def test_token_tree(self):
         self.check_tree('child::B1', '(child (B1))')
@@ -200,11 +200,12 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_source(".//eg:a | .//eg:b", '. // eg:a | . // eg:b')
         self.check_source("/A/B[C]", '/ A / B[C]')
 
-        try:
-            self.parser.strict = False
-            self.check_source("{tns1}name", '{tns1}name')
-        finally:
-            self.parser.strict = True
+        if self.parser.version < '3.0':
+            try:
+                self.parser.strict = False
+                self.check_source("{tns1}name", '{tns1}name')
+            finally:
+                self.parser.strict = True
 
     def test_parser_position(self):
         self.assertEqual(self.parser.position, (1, 1))
@@ -364,7 +365,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         else:
             self.check_selector("./*:B2", root, [root[1], root[3]], namespaces=namespaces)
 
-    def test_qname_uri_references(self):
+    def test_braced_uri_literal(self):
         root = self.etree.XML("""
         <A xmlns:tst="http://xpath.test/ns">
             <tst:B1 b1="beta1"/>

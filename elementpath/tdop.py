@@ -55,7 +55,7 @@ def count_leading_spaces(s):
     return sum(1 for _ in takewhile(str.isspace, s))
 
 
-def symbol_to_identifier(symbol):
+def symbol_to_classname(symbol):
     """
     Converts a symbol string to an identifier (only alphanumeric and '_').
     """
@@ -66,19 +66,19 @@ def symbol_to_identifier(symbol):
             return '%s_' % unicode_name(str(c)).title()
 
     if symbol.isalnum():
-        return symbol
+        return symbol.title()
     elif symbol in SPECIAL_SYMBOLS:
-        return symbol[1:-1]
+        return symbol[1:-1].title()
     elif all(c in '-_' for c in symbol):
-        value = '_'.join(unicode_name(str(c)).title() for c in symbol)
-        return value.replace(' ', '').replace('-', '')
+        value = ' '.join(unicode_name(c) for c in symbol)
+        return value.title().replace(' ', '').replace('-', '').replace('_', '')
 
     value = symbol.replace('-', '_')
     if value.isidentifier():
-        return value
-    else:
-        value = ''.join(get_id_name(c) for c in symbol).replace(' ', '').replace('-', '')
-        return value[:-1] if value.endswith('_') else value
+        return value.title().replace('_', '')
+
+    value = ''.join(get_id_name(c) for c in symbol)
+    return value.replace(' ', '').replace('-', '').replace('_', '')
 
 
 class MultiLabel(object):
@@ -624,10 +624,10 @@ class Parser(metaclass=ParserMeta):
             if isinstance(label, tuple):
                 label = kwargs['label'] = MultiLabel(*label)
 
-            token_class_name = "_{}_{}_token".format(
-                symbol_to_identifier(symbol), str(label).replace(' ', '_')
+            token_class_name = "_{}{}".format(
+                symbol_to_classname(symbol), str(label).title().replace(' ', '')
             )
-            token_class_bases = (getattr(cls, 'token_base_class', object),)
+            token_class_bases = kwargs.get('bases', (cls.token_base_class,))
             kwargs.update({
                 '__module__': cls.__module__,
                 '__qualname__': token_class_name,

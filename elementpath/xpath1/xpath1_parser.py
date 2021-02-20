@@ -23,7 +23,7 @@ from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
     XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
     get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import XPathToken
+from ..xpath_token import XPathToken, XPathFunction
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
     is_xpath_node, match_element_node, is_schema_node, is_document_node, \
     match_attribute_node, is_element_node, node_kind
@@ -229,8 +229,9 @@ class XPath1Parser(Parser):
             self.parser.advance(')')
             return self
 
-        pattern = r'\b%s(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))' % cls.name_pattern.pattern
-        return cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp, nud=nud_)
+        return cls.register(
+            symbol, label=label, lbp=bp, rbp=bp, nud=nud_, bases=(XPathFunction,),
+        )
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
@@ -435,6 +436,11 @@ def nud(self):
         raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
     elif self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
+    elif self.parser.next_token.symbol == '#':
+        # XPath 3.0+ function reference
+        self.parser.advance()
+        self.parser.advance('(integer)')
+
     return self
 
 

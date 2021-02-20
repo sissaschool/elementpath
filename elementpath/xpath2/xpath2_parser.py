@@ -27,7 +27,7 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
 from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
-from ..xpath_token import UNICODE_CODEPOINT_COLLATION
+from ..xpath_token import UNICODE_CODEPOINT_COLLATION, XPathFunction
 from ..xpath1 import XPath1Parser
 from ..xpath_context import XPathSchemaContext
 from ..schema_proxy import AbstractSchemaProxy
@@ -323,9 +323,8 @@ class XPath2Parser(XPath1Parser):
         def cast_(value):
             raise NotImplementedError
 
-        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % cls.name_pattern.pattern
-        token_class = cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp,
-                                   nud=nud_, evaluate=evaluate_, cast=cast_)
+        token_class = cls.register(symbol, bases=(XPathFunction,), label=label, lbp=bp,
+                                   rbp=bp, nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
             assert func.__name__ == 'cast', \
@@ -362,7 +361,7 @@ class XPath2Parser(XPath1Parser):
                 raise self_.error('FORG0001', err)
 
         symbol = get_prefixed_name(atomic_type, self.namespaces)
-        token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
+        token_class_name = "_%sConstructorFunction" % symbol.replace(':', '_')
         kwargs = {
             'symbol': symbol,
             'label': 'constructor function',
@@ -375,7 +374,7 @@ class XPath2Parser(XPath1Parser):
             '__qualname__': token_class_name,
             '__return__': None
         }
-        token_class = ABCMeta(token_class_name, (self.token_base_class,), kwargs)
+        token_class = ABCMeta(token_class_name, (XPathFunction,), kwargs)
         MutableSequence.register(token_class)
         self.symbol_table[symbol] = token_class
         return token_class
