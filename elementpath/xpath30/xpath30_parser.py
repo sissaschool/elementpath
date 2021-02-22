@@ -83,6 +83,8 @@ class XPath30Parser(XPath2Parser):
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
 
+    function_signatures = XPath2Parser.function_signatures.copy()
+    
     def __init__(self, *args, decimal_formats=None, **kwargs):
         kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
