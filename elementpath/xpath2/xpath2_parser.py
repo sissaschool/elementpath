@@ -187,6 +187,8 @@ class XPath2Parser(XPath1Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
     }
 
+    function_signatures = XPath1Parser.function_signatures.copy()
+
     def __init__(self, namespaces=None, variable_types=None, strict=True, compatibility_mode=False,
                  default_collation=None, default_namespace=None, function_namespace=None,
                  xsd_version=None, schema=None, base_uri=None, document_types=None,
@@ -323,8 +325,8 @@ class XPath2Parser(XPath1Parser):
         def cast_(value):
             raise NotImplementedError
 
-        token_class = cls.register(symbol, bases=(XPathFunction,), label=label, lbp=bp,
-                                   rbp=bp, nud=nud_, evaluate=evaluate_, cast=cast_)
+        token_class = cls.register(symbol, nargs=1, label=label, bases=(XPathFunction,),
+                                   lbp=bp, rbp=bp, nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
             assert func.__name__ == 'cast', \
@@ -364,6 +366,7 @@ class XPath2Parser(XPath1Parser):
         token_class_name = "_%sConstructorFunction" % symbol.replace(':', '_')
         kwargs = {
             'symbol': symbol,
+            'nargs': 1,
             'label': 'constructor function',
             'pattern': r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol,
             'lbp': bp,

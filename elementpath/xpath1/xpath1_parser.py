@@ -106,6 +106,7 @@ class XPath1Parser(Parser):
     variable_types = None   # XPath 1.0 doesn't have in-scope variable types
     xsd_version = '1.0'     # Use XSD 1.0 datatypes for default
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
+    function_signatures = {}
 
     def __init__(self, namespaces=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
@@ -165,7 +166,7 @@ class XPath1Parser(Parser):
         )
 
     @classmethod
-    def function(cls, symbol, nargs=None, label='function', bp=90):
+    def function(cls, symbol, nargs=None, signatures=None, label='function', bp=90):
         """
         Registers a token class for a symbol that represents an XPath *callable* object.
         For default a callable labeled as *function* is registered but a different label
@@ -229,9 +230,20 @@ class XPath1Parser(Parser):
             self.parser.advance(')')
             return self
 
-        return cls.register(
-            symbol, label=label, lbp=bp, rbp=bp, nud=nud_, bases=(XPathFunction,),
-        )
+        if signatures and nargs is not None:
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:' + symbol)
+            if isinstance(nargs, int):
+                cls.function_signatures[(qname, nargs)] = signatures[0]
+            elif isinstance(nargs, (tuple, list)):
+                min_args_, max_args_ = nargs
+                if max_args_ is None:
+                    cls.function_signatures[(qname, min_args_)] = signatures[0]
+                else:
+                    for pos, nargs_ in enumerate(range(min_args_, max_args_ + 1)):
+                        cls.function_signatures[(qname, nargs_)] = signatures[pos]
+
+        return cls.register(symbol, nargs=nargs, label=label,
+                            bases=(XPathFunction,),  lbp=bp, rbp=bp, nud=nud_)
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
