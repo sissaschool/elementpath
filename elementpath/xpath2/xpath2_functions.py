@@ -35,6 +35,7 @@ from .xpath2_parser import XPath2Parser
 
 method = XPath2Parser.method
 function = XPath2Parser.function
+signature = XPath2Parser.signature
 
 
 def is_local_url_scheme(scheme):
@@ -1411,5 +1412,148 @@ def select(self, context=None):
         '{} {}'.format(label, str(value).strip())  # TODO: trace dataset
         yield value
 
+
+###
+# Register function signatures
+signature('function(node()?) as xs:QName?', 'node-name')
+signature('function(node()?) as xs:boolean?', 'nilled')
+signature('function() as xs:string', 'string')
+signature('function(item()?) as xs:string', 'string')
+signature('function(item()*) as xs:anyAtomicType*', 'data')
+
+signature('function() as none', 'error')
+signature('function(xs:QName) as none', 'error')
+signature('function(xs:QName?, xs:string) as none', 'error')
+signature('function(xs:QName?, xs:string, item()*) as none', 'error')
+
+signature('function(item()*, $label as xs:string) as item()*', 'trace')
+
+signature('function(xs:date?, xs:time?) as xs:dateTime?', 'dateTime')
+
+signature('function(numeric?) as numeric?', 'abs', 'ceiling',
+          'floor', 'round', 'round-half-to-even')
+signature('function(numeric?, xs:integer) as numeric?', 'round-half-to-even')
+
+signature('function(xs:integer*) as xs:string', 'codepoints-to-string')
+signature('function(xs:string?) as xs:integer*', 'string-to-codepoints')
+signature('function(xs:string?, xs:string?) as xs:integer?', 'compare')
+signature('function(xs:string?, xs:string?, xs:string) as xs:integer?', 'compare')
+signature('function(xs:string?, xs:string?) as xs:boolean?', 'codepoint-equal')
+
+# signature('function(xs:anyAtomicType?, xs:anyAtomicType?, ...) as xs:string', 'concat')
+signature('function(xs:string*, xs:string) as xs:string', 'string-join')
+signature('function(xs:string?, xs:double) as xs:string', 'substring')
+signature('function(xs:string?, xs:double, xs:double) as xs:string', 'substring')
+signature('function() as xs:integer', 'string-length', 'last', 'position')
+signature('function(xs:string?) as xs:integer', 'string-length')
+signature('function() as xs:string', 'normalize-space')
+signature('function(xs:string?) as xs:string',
+          'normalize-space', 'normalize-unicode', 'upper-case', 'lower-case',
+          'encode-for-uri', 'iri-to-uri', 'escape-html-uri')
+signature('function(xs:string?, xs:string) as xs:string', 'normalize-unicode')
+signature('function(xs:string?, xs:string, xs:string) as xs:string', 'translate')
+
+signature('function(xs:string?, xs:string?) as xs:boolean',
+          'contains', 'starts-with', 'ends-with', 'substring-before', 'substring-after')
+signature('function(xs:string?, xs:string?, xs:string) as xs:boolean',
+          'contains', 'starts-with', 'ends-with', 'substring-before', 'substring-after')
+
+signature('function(xs:string?, xs:string) as xs:boolean', 'matches')
+signature('function(xs:string?, xs:string, xs:string) as xs:boolean', 'matches')
+signature('function(xs:string?, xs:string, xs:string) as xs:string', 'replace')
+signature('function(xs:string?, xs:string, xs:string, xs:string) as xs:string', 'replace')
+signature('function(xs:string?, xs:string) as xs:string*', 'tokenize')
+signature('function(xs:string?, xs:string, xs:string) as xs:string*', 'tokenize')
+
+signature('function() as xs:boolean', 'true', 'false')
+signature('function(item()*) as xs:boolean', 'not', 'boolean', 'empty', 'exists')
+
+signature('function(xs:duration?) as xs:integer?', 'years-from-duration',
+          'months-from-duration', 'days-from-duration',
+          'hours-from-duration', 'minutes-from-duration')
+signature('function(xs:duration?) as xs:decimal?', 'seconds-from-duration')
+signature('function(xs:dateTime?) as xs:integer?', 'year-from-dateTime',
+          'month-from-dateTime', 'day-from-dateTime',
+          'hours-from-dateTime', 'minutes-from-dateTime')
+signature('function(xs:dateTime?) as xs:decimal?', 'seconds-from-dateTime')
+signature('function(xs:dateTime?) as xs:dayTimeDuration?', 'timezone-from-dateTime')
+signature('function(xs:date?) as xs:integer?',
+          'year-from-date', 'month-from-date', 'day-from-date')
+signature('function(xs:date?) as xs:dayTimeDuration?', 'timezone-from-date')
+signature('function(xs:time?) as xs:integer?', 'hours-from-time', 'minutes-from-time')
+signature('function(xs:time?) as xs:decimal?', 'seconds-from-time')
+signature('function(xs:time?) as xs:dayTimeDuration?', 'timezone-from-time')
+
+signature('function(xs:dateTime?) as xs:dateTime?', 'adjust-dateTime-to-timezone')
+signature('function(xs:dateTime?, xs:dayTimeDuration?) as xs:dateTime?',
+          'adjust-dateTime-to-timezone')
+signature('function(xs:date?) as xs:date?', 'adjust-date-to-timezone')
+signature('function(xs:date?, xs:dayTimeDuration?) as xs:date?', 'adjust-date-to-timezone')
+signature('function(xs:time?) as xs:time?', 'adjust-time-to-timezone')
+signature('function(xs:time?, xs:dayTimeDuration?) as xs:time?', 'adjust-time-to-timezone')
+
+signature('function(xs:string?, element()) as xs:QName?', 'resolve-QName')
+signature('function(xs:string?, xs:string) as xs:QName', 'QName')
+
+signature('function() as xs:string', 'name', 'local-name')
+signature('function(node()?) as xs:string', 'name', 'local-name')
+
+signature('function() as xs:anyURI?', 'base-uri', 'static-base-uri')
+signature('function(node()?) as xs:anyURI?', 'base-uri', 'document-uri')
+signature('function() as xs:anyURI', 'namespace-uri')
+signature('function(node()?) as xs:anyURI', 'namespace-uri')
+signature('function(xs:string?) as xs:anyURI?', 'resolve-uri')
+signature('function(xs:string?, xs:string) as xs:anyURI?', 'resolve-uri')
+
+signature('function() as xs:double', 'number')
+signature('function(xs:anyAtomicType?)) as xs:double', 'number')
+signature('function(xs:string?) as xs:boolean', 'lang')
+signature('function(xs:string?, node()) as xs:boolean', 'lang')
+
+signature('function() as node()', 'root')
+signature('function(node()?) as node()?', 'root')
+
+signature('function(xs:anyAtomicType*, xs:anyAtomicType) as xs:integer*', 'index-of')
+signature('function(xs:anyAtomicType*, xs:anyAtomicType, xs:string) as xs:integer*', 'index-of')
+
+signature('function(xs:anyAtomicType*) as xs:anyAtomicType*', 'distinct-values')
+signature('function(xs:anyAtomicType*, xs:string) as xs:anyAtomicType*', 'distinct-values')
+
+signature('function(item()*, xs:integer, item()*) as item()*', 'insert-before')
+signature('function(item()*, xs:integer) as item()*', 'remove')
+signature('function(item()*) as item()*', 'reverse', 'unordered')
+signature('function(item()*, xs:double) as item()*', 'subsequence')
+signature('function(item()*, xs:double, xs:double) as item()*', 'subsequence')
+
+signature('function(item()*) as item()?', 'zero-or-one')
+signature('function(item()*) as item()+', 'one-or-more')
+signature('function(item()*) as item()', 'exactly-one')
+
+signature('function(item()*, item()*) as xs:boolean', 'deep-equal')
+signature('function(item()*, item()*, xs:string) as xs:boolean', 'deep-equal')
+signature('function(node()*, node()*) as node()*', 'union', 'intersect', 'except')
+
+signature('function(item()*) as xs:integer', 'count')
+signature('function(xs:anyAtomicType*) as xs:anyAtomicType?', 'avg', 'max', 'min')
+signature('function(xs:anyAtomicType*, xs:string) as xs:anyAtomicType?', 'max', 'min')
+signature('function(xs:anyAtomicType*) as xs:anyAtomicType', 'sum')
+signature('function(xs:anyAtomicType*, xs:anyAtomicType?) as xs:anyAtomicType?', 'sum')
+
+signature('function(xs:string*) as element()*', 'id', 'element-with-id')
+signature('function(xs:string*, node()) as element()*', 'id', 'element-with-id')
+
+signature('function(xs:string*) as node()*', 'idref')
+signature('function(xs:string*, node()) as node()*', 'idref')
+signature('function(xs:string?) as document-node()?', 'doc')
+signature('function(xs:string?) as xs:boolean', 'doc-available')
+signature('function() as node()*', 'collection')
+signature('function(xs:string?) as node()*', 'collection')
+
+signature('function() as xs:dateTime', 'current-dateTime')
+signature('function() as xs:date', 'current-date')
+signature('function() as xs:time', 'current-time')
+
+signature('function() as xs:dayTimeDuration', 'implicit-timezone')
+signature('function() as xs:string', 'default-collation')
 
 # XPath 2.0 definitions continue into module xpath2_constructors

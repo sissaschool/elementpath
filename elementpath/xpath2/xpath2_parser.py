@@ -294,6 +294,14 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
+    def signature(cls, value, *symbols, prefix='fn:'):
+        arity = 0 if value.startswith('function()') else value.count(',') + 1
+
+        for symbol in symbols:
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, prefix + symbol)
+            cls.function_signatures[(qname, arity)] = value
+
+    @classmethod
     def constructor(cls, symbol, bp=0, label='constructor function'):
         """Creates a constructor token class."""
         def nud_(self):

@@ -148,9 +148,7 @@ def evaluate(self, context=None):
 
 ###
 # String functions
-@method(function('string', nargs=(0, 1),
-                 signatures=['function() as xs:string',
-                             'function(xs:string?) as xs:string']))
+@method(function('string', nargs=(0, 1)))
 def evaluate(self, context=None):
     if not self:
         if context is None:
@@ -159,8 +157,7 @@ def evaluate(self, context=None):
     return self.string_value(self.get_argument(context))
 
 
-@method(function('contains', nargs=2,
-                 signatures=['function(xs:string?, xs:string?) as xs:boolean)']))
+@method(function('contains', nargs=2))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
@@ -173,9 +170,7 @@ def evaluate(self, context=None):
                    for k in range(len(self)))
 
 
-@method(function('string-length', nargs=(0, 1),
-                 signatures=['function() as xs:integer',
-                             'function(xs:string?) as xs:integer']))
+@method(function('string-length', nargs=(0, 1)))
 def evaluate(self, context=None):
     if self:
         return len(self.get_argument(context, default_to_context=True, default='', cls=str))
@@ -186,9 +181,7 @@ def evaluate(self, context=None):
         raise self.missing_context() from None
 
 
-@method(function('normalize-space', nargs=(0, 1),
-                 signatures=['function() as xs:string',
-                             'function(xs:string?) as xs:string']))
+@method(function('normalize-space', nargs=(0, 1)))
 def evaluate(self, context=None):
     if self.parser.version == '1.0' or not self:
         arg = self.string_value(self.get_argument(context, default_to_context=True, default=''))
@@ -197,16 +190,14 @@ def evaluate(self, context=None):
     return ' '.join(arg.strip().split())
 
 
-@method(function('starts-with', nargs=2,
-                 signatures=['function(xs:string?, xs:string?) as xs:boolean']))
+@method(function('starts-with', nargs=2))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg1.startswith(arg2)
 
 
-@method(function('translate', nargs=3,
-                 signatures=['function(xs:string?, xs:string, xs:string) as xs:string']))
+@method(function('translate', nargs=3))
 def evaluate(self, context=None):
     arg = self.get_argument(context, default='', cls=str)
 
@@ -229,9 +220,7 @@ def evaluate(self, context=None):
         return arg.translate(str.maketrans(map_string, trans_string[:len(map_string)]))
 
 
-@method(function('substring', nargs=(2, 3),
-                 signatures=['function(xs:string?, xs:double) as xs:string',
-                             'function(xs:string?, xs:double, xs:double) as xs:string']))
+@method(function('substring', nargs=(2, 3)))
 def evaluate(self, context=None):
     item = self.get_argument(context, default='', cls=str)
     start = self.get_argument(context, index=1)
@@ -260,10 +249,8 @@ def evaluate(self, context=None):
             return item[slice(max(start, 0), max(stop, 0))]
 
 
-@method(function('substring-before', nargs=2,
-                 signatures=['function(xs:string?, xs:string?) as xs:string']))
-@method(function('substring-after', nargs=2,
-                 signatures=['function(xs:string?, xs:string?) as xs:string']))
+@method(function('substring-before', nargs=2))
+@method(function('substring-after', nargs=2))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
@@ -279,27 +266,27 @@ def evaluate(self, context=None):
 
 ###
 # Boolean functions
-@method(function('boolean', nargs=1, signatures=['function(item()*) as xs:boolean']))
+@method(function('boolean', nargs=1))
 def evaluate(self, context=None):
     return self.boolean_value([x for x in self[0].select(context)])
 
 
-@method(function('not', nargs=1, signatures=['function(item()*) as xs:boolean']))
+@method(function('not', nargs=1))
 def evaluate(self, context=None):
     return not self.boolean_value([x for x in self[0].select(context)])
 
 
-@method(function('true', nargs=0, signatures=['function() as xs:boolean']))
+@method(function('true', nargs=0))
 def evaluate(self, context=None):
     return True
 
 
-@method(function('false', nargs=0, signatures=['function() as xs:boolean']))
+@method(function('false', nargs=0))
 def evaluate(self, context=None):
     return False
 
 
-@method(function('lang', nargs=1, signatures=['function(xs:string?) as xs:boolean']))
+@method(function('lang', nargs=1))
 def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -326,9 +313,7 @@ def evaluate(self, context=None):
 
 ###
 # Number functions
-@method(function('number', nargs=(0, 1),
-                 signatures=['function() as xs:double',
-                             'function(xs:anyAtomicType?) as xs:double']))
+@method(function('number', nargs=(0, 1)))
 def evaluate(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     try:
@@ -337,11 +322,7 @@ def evaluate(self, context=None):
         return float('nan')
 
 
-@method(function('sum', nargs=(1, 2),
-                 signatures=[
-                     'function(xs:anyAtomicType*) as xs:anyAtomicType',
-                     'function(xs:anyAtomicType*, xs:anyAtomicType?) as xs:anyAtomicType'
-                 ]))
+@method(function('sum', nargs=(1, 2)))
 def evaluate(self, context=None):
     values = [x.value if isinstance(x, XPathNode) else x for x in self[0].select(context)]
     if not values:
@@ -373,8 +354,8 @@ def evaluate(self, context=None):
         raise self.error('FORG0006') from None
 
 
-@method(function('ceiling', nargs=1, signatures=['function(numeric?) as numeric?']))
-@method(function('floor', nargs=1, signatures=['function(numeric?) as numeric?']))
+@method(function('ceiling', nargs=1))
+@method(function('floor', nargs=1))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
@@ -396,7 +377,7 @@ def evaluate(self, context=None):
         raise self.error('FORG0006', err) from None
 
 
-@method(function('round', nargs=1, signatures=['function(numeric?) as numeric?']))
+@method(function('round', nargs=1))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
