@@ -231,7 +231,7 @@ class XPath1Parser(Parser):
             return self
 
         return cls.register(symbol, nargs=nargs, label=label,
-                            bases=(XPathFunction,),  lbp=bp, rbp=bp, nud=nud_)
+                            bases=(XPathFunction,), lbp=bp, rbp=bp, nud=nud_)
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
