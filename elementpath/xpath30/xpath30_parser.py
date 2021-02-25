@@ -84,7 +84,7 @@ class XPath30Parser(XPath2Parser):
     }
 
     function_signatures = XPath2Parser.function_signatures.copy()
-    
+
     def __init__(self, *args, decimal_formats=None, **kwargs):
         kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
@@ -98,6 +98,7 @@ literal = XPath30Parser.literal
 infix = XPath30Parser.infix
 method = XPath30Parser.method
 function = XPath30Parser.function
+signature = XPath30Parser.signature
 
 register('#')
 register(':=')
@@ -122,13 +123,13 @@ def evaluate(self, context=None):
 
 @method(register('let', bp=20, label='let expression'))
 def nud(self):
+    """
+    [11]    	LetExpr 	   ::=    	SimpleLetClause "return" ExprSingle
+    [12]    	SimpleLetClause 	   ::=    	"let" SimpleLetBinding ("," SimpleLetBinding)*
+    [13]    	SimpleLetBinding 	   ::=    	"$" VarName ":=" ExprSingle
+    """
     return self
 
-"""
-[11]    	LetExpr 	   ::=    	SimpleLetClause "return" ExprSingle
-[12]    	SimpleLetClause 	   ::=    	"let" SimpleLetBinding ("," SimpleLetBinding)*
-[13]    	SimpleLetBinding 	   ::=    	"$" VarName ":=" ExprSingle
-"""
 
 ###
 # 'inline function' expression
@@ -668,5 +669,54 @@ def evaluate(self, context=None):
 
 # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
+###
+# Math functions signatures
+#
+signature('function() as xs:double', 'pi', prefix='math')
+signature('function(xs:double?) as xs:double?', 'exp', 'exp10', 'log', 'log10',
+          'sqrt', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', prefix='math')
+signature('function(xs:double?, numeric) as xs:double?', 'pow', prefix='math')
+signature('function(xs:double, xs:double) as xs:double', 'atan2', prefix='math')
 
-XPath30Parser.build()
+signature('function(xs:integer?, xs:string) as xs:string', 'format-integer')
+signature('function(xs:integer?, xs:string, xs:string?) as xs:string', 'format-integer')
+signature('function(numeric?, xs:string) as xs:string', 'format-number')
+signature('function(numeric?, xs:string, xs:string?) as xs:string', 'format-number')
+signature('function(xs:dateTime?, xs:string) as xs:string?',
+          'format-dateTime', 'format-date', 'format-time')
+signature('function(xs:dateTime?, xs:string, xs:string?, xs:string?, xs:string?) as xs:string?',
+          'format-dateTime', 'format-date', 'format-time')
+
+signature('function(xs:string?, xs:string) as element(fn:analyze-string-result)',
+          'analyze-string')
+signature('function(xs:string?, xs:string, xs:string) as element(fn:analyze-string-result)',
+          'analyze-string')
+
+signature('function() as xs:string?', 'path')
+signature('function(node()?) as xs:string?', 'path')
+
+signature('function() as xs:boolean', 'has-children')
+signature('function(node()?) as xs:boolean', 'has-children')
+signature('function(node()*) as node()*', 'innermost', 'outermost')
+signature('function(item()*) as item()?', 'head', 'tail')
+signature('function() as xs:string', 'generate-id')
+signature('function(node()?) as xs:string', 'generate-id')
+
+signature('function() as xs:anyURI*', 'uri-collection')
+signature('function(xs:string?) as xs:anyURI*', 'uri-collection')
+
+signature('function(xs:string?) as xs:string?', 'unparsed-text')
+signature('function(xs:string?, xs:string) as xs:string?', 'unparsed-text')
+signature('function(xs:string?) as xs:string*', 'unparsed-text-lines')
+signature('function(xs:string?, xs:string) as xs:string*', 'unparsed-text-lines')
+signature('function(xs:string?) as xs:boolean', 'unparsed-text-available')
+signature('function(xs:string?, xs:string) as xs:boolean', 'unparsed-text-available')
+
+signature('function(xs:string) as xs:string?', 'environment-variable')
+signature('function() as xs:string*', 'available-environment-variables')
+
+signature('function(xs:string?) as document-node(element(*))?', 'parse-xml')
+signature('function(xs:string?) as document-node()?', 'parse-xml-fragment')
+signature('function(item()*) as xs:string', 'serialize')
+signature('function(item()*, element(output:serialization-parameters)?) as xs:string',
+          'serialize')

@@ -294,12 +294,17 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
-    def signature(cls, value, *symbols, prefix='fn:'):
+    def signature(cls, value, *symbols, prefix=None):
         arity = 0 if value.startswith('function()') else value.count(',') + 1
-
-        for symbol in symbols:
-            qname = QName(XPATH_FUNCTIONS_NAMESPACE, prefix + symbol)
-            cls.function_signatures[(qname, arity)] = value
+        if not prefix:
+            for symbol in symbols:
+                qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
+                cls.function_signatures[(qname, arity)] = value
+        else:
+            namespace = cls.DEFAULT_NAMESPACES[prefix]
+            for symbol in symbols:
+                qname = QName(namespace, '%s:%s' % (prefix, symbol))
+                cls.function_signatures[(qname, arity)] = value
 
     @classmethod
     def constructor(cls, symbol, bp=0, label='constructor function'):

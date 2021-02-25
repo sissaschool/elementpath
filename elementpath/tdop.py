@@ -395,12 +395,12 @@ class Parser(metaclass=ParserMeta):
         """
         try:
             try:
-                self.source = source
                 self.tokens = iter(self.tokenizer.finditer(source))
             except TypeError as err:
                 token = self.symbol_table['(invalid)'](self, type(source))
                 raise token.wrong_syntax('invalid source type, {}'.format(err))
 
+            self.source = source
             self.advance()
             root_token = self.expression()
             self.next_token.expected('(end)')

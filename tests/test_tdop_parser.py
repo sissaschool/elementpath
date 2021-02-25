@@ -10,6 +10,7 @@
 #
 import unittest
 import re
+import sys
 from collections import namedtuple
 
 from elementpath.tdop import symbol_to_classname, ParseError, Token, \
@@ -104,7 +105,10 @@ class TdopParserTest(unittest.TestCase):
         tk = FakeToken('{http://www.w3.org/2000/09/xmldsig#}CryptoBinary', None, 'constructor')
         tokens.add(tk)
         pattern = Parser.create_tokenizer({t.symbol: t for t in tokens})
-        self.assertIn(r"(\{http://www\.w3\.org/2000/09/xmldsig\#\}", pattern.pattern)
+        if sys.version_info >= (3, 7):
+            self.assertIn(r"(\{http://www\.w3\.org/2000/09/xmldsig\#\}", pattern.pattern)
+        else:
+            self.assertIn(r"(\{http\:\/\/www\.w3\.org\/2000\/09\/xmldsig\#\}", pattern.pattern)
 
     def test_tokenizer_items(self):
         self.assertListEqual(self.parser.tokenizer.findall('5 56'),
