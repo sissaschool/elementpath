@@ -376,11 +376,6 @@ def nud(self):
         raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
     elif self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
-    elif self.parser.next_token.symbol == '#':
-        # XPath 3.0+ function reference
-        self.parser.advance()
-        self.parser.advance('(integer)')
-
     return self
 
 

@@ -100,7 +100,6 @@ method = XPath30Parser.method
 function = XPath30Parser.function
 signature = XPath30Parser.signature
 
-register('#')
 register(':=')
 
 ###
@@ -133,7 +132,7 @@ def nud(self):
 
 ###
 # 'inline function' expression
-@method(register('function', bp=90, label='inline function'))
+@method(register('function', bp=90, label='inline function', bases=(XPathFunction,)))
 def nud(self):
     if self.parser.next_token.symbol != '(':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
@@ -176,7 +175,7 @@ def nud(self):
 
 @method('function')
 def evaluate(self, context=None):
-    return self
+    return self.expr.evaluate(context)
 
 
 ###
@@ -652,19 +651,54 @@ def evaluate(self, context=None):
 
 @method(function('function-lookup', nargs=2))
 def evaluate(self, context=None):
-    name = self.get_argument(context, cls=QName)
+    qname = self.get_argument(context, cls=QName)
     arity = self.get_argument(context, index=1, cls=int)
+
+    if (qname, arity) not in self.parser.function_signatures:
+        raise self.error('XPST0017')
+    return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
 
 
 @method(function('function-name', nargs=1))
 def evaluate(self, context=None):
-    func = self.get_argument(context, cls=XPathFunction)
-    return [] if func.name is None else func.qname
+    if isinstance(self[0], XPathFunction):
+        func = self[0]
+    else:
+        func = self.get_argument(context, cls=XPathFunction)
+
+    return [] if func.name is None else func.name
 
 
 @method(function('function-arity', nargs=1))
 def evaluate(self, context=None):
-    func = self.get_argument(context)
+    if isinstance(self[0], XPathFunction):
+        return self[0].arity
+
+    func = self.get_argument(context, cls=XPathFunction)
+    return func.arity
+
+
+@method('#', bp=50)
+def led(self, left):
+    left.expected(':', '(name)')
+    self[:] = left, self.parser.expression(rbp=50)
+    self[1].expected('(integer)')
+    return self
+
+
+@method('#')
+def evaluate(self, context=None):
+    if self[0].symbol == ':':
+        func_name = self[0][1].value
+        qname = QName(self[0][1].namespace, self[0].value)
+    else:
+        func_name = self[0][1].value
+        qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
+    arity = self[1].value
+
+    if (qname, arity) not in self.parser.function_signatures:
+        raise self.error('XPST0017')
+    return self.parser.symbol_table[func_name](self.parser, nargs=arity)
 
 
 # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',

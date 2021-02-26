@@ -31,8 +31,8 @@ from xml.etree.ElementTree import Element
 
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
-    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_TYPE, \
-    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
     is_comment_node, is_processing_instruction_node, is_element_node, \
@@ -1070,6 +1070,7 @@ class XPathFunction(XPathToken):
     """
     pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
     nargs = None
+    _name = None
 
     def __init__(self, parser, nargs=None):
         super().__init__(parser)
@@ -1079,15 +1080,25 @@ class XPathFunction(XPathToken):
             elif isinstance(self.nargs, int) or isinstance(self.nargs, (tuple, list)) and \
                     (self.nargs[0] > nargs or self.nargs[1] and self.nargs[1] < nargs):
                 raise ElementPathValueError('incongruent number of arguments')
-
-            self.nargs = nargs
+            else:
+                self.nargs = nargs
 
     def __call__(self, context=None):
         return self.evaluate(context)
 
     @property
     def name(self):
-        return self.symbol
+        if self.symbol == 'function':
+            return
+        elif self._name is None:
+            if not self.namespace or self.namespace == XPATH_FUNCTIONS_NAMESPACE:
+                self._name = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
+            elif self.namespace == XSD_NAMESPACE:
+                self._name = QName(XSD_NAMESPACE, 'xs:%s' % self.symbol)
+            elif self.namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
+                self._name = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
+
+        return self._name
 
     @property
     def arity(self):

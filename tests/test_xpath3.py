@@ -640,9 +640,21 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_inline_function_expression(self):
         token = self.parser.parse("function() as xs:integer+ { 2, 3, 5, 7, 11, 13 }")
+        self.assertListEqual(token.evaluate(), [2, 3, 5, 7, 11, 13])
+
         token = self.parser.parse(
             "function($a as xs:double, $b as xs:double) as xs:double { $a * $b }")
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root, variables={'a': 9.0, 'b': 3.0})
+        self.assertEqual(token.evaluate(context), 27.0)
+
         token = self.parser.parse("function($a) { $a }")
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+        self.assertEqual(token.evaluate(context), 9.0)
 
     @unittest.skip
     def test_function_lookup(self):
@@ -653,17 +665,30 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
                                   "xs:dateTime#1)[1] ('2011-11-11T11:11:11Z')")
         self.assertEqual(token.evaluate(), "")
 
-    @unittest.skip
     def test_function_name(self):
         token = self.parser.parse("fn:function-name(fn:substring#2) ")
         result = datatypes.QName("http://www.w3.org/2005/xpath-functions", "fn:substring")
+        self.assertEqual(token.evaluate(), result)
+
         token = self.parser.parse("fn:function-name(function($node){count($node/*)})")
-        result = []
+
+        # Context is not used if the argument is a function
+        self.assertEqual(token.evaluate(), [])
+        root = self.etree.XML('<root><c1/><c2/><c3/></root>')
+        context = XPathContext(root=root, variables={'node': root})
+        self.assertEqual(token.evaluate(context), [])
 
     def test_function_arity(self):
         token = self.parser.parse("fn:function-arity(fn:substring#2)")
-        result = 2
+        self.assertEqual(token.evaluate(), 2)
+
         token = self.parser.parse("fn:function-arity(function($node){name($node)})")
+
+        # Context is not used if the argument is a function
+        self.assertEqual(token.evaluate(), 1)
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root, variables={'node': root})
+        self.assertEqual(token.evaluate(context), 1)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
