@@ -1069,6 +1069,18 @@ class XPathFunction(XPathToken):
     A token for processing XPath functions.
     """
     pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
+    nargs = None
+
+    def __init__(self, parser, nargs=None):
+        super().__init__(parser)
+        if isinstance(nargs, int) and nargs != self.nargs:
+            if nargs < 0:
+                raise ElementPathValueError('number of arguments must be non negative')
+            elif isinstance(self.nargs, int) or isinstance(self.nargs, (tuple, list)) and \
+                    (self.nargs[0] > nargs or self.nargs[1] and self.nargs[1] < nargs):
+                raise ElementPathValueError('incongruent number of arguments')
+
+            self.nargs = nargs
 
     def __call__(self, context=None):
         return self.evaluate(context)
@@ -1076,3 +1088,65 @@ class XPathFunction(XPathToken):
     @property
     def name(self):
         return self.symbol
+
+    @property
+    def arity(self):
+        return self.nargs if isinstance(self.nargs, int) else len(self)
+
+    def nud(self):
+        code = 'XPST0017' if self.label == 'function' else 'XPST0003'
+        self.value = None
+        self.parser.advance('(')
+        if self.nargs is None:
+            del self[:]
+            if self.parser.next_token.symbol in (')', '(end)'):
+                raise self.error(code, 'at least an argument is required')
+            while True:
+                self.append(self.parser.expression(5))
+                if self.parser.next_token.symbol != ',':
+                    break
+                self.parser.advance()
+            self.parser.advance(')')
+            return self
+        elif self.nargs == 0:
+            if self.parser.next_token.symbol != ')':
+                if self.parser.next_token.symbol != '(end)':
+                    raise self.error(code, '%s has no arguments' % str(self))
+                raise self.parser.next_token.wrong_syntax()
+            self.parser.advance()
+            return self
+        elif isinstance(self.nargs, (tuple, list)):
+            min_args, max_args = self.nargs
+        else:
+            min_args = max_args = self.nargs
+
+        k = 0
+        while k < min_args:
+            if self.parser.next_token.symbol in (')', '(end)'):
+                msg = 'Too few arguments: expected at least %s arguments' % min_args
+                raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+
+            self[k:] = self.parser.expression(5),
+            k += 1
+            if k < min_args:
+                if self.parser.next_token.symbol == ')':
+                    msg = 'Too few arguments: expected at least %s arguments' % min_args
+                    raise self.error(code, msg if min_args > 1 else msg[:-1])
+                self.parser.advance(',')
+
+        while max_args is None or k < max_args:
+            if self.parser.next_token.symbol == ',':
+                self.parser.advance(',')
+                self[k:] = self.parser.expression(5),
+            elif k == 0 and self.parser.next_token.symbol != ')':
+                self[k:] = self.parser.expression(5),
+            else:
+                break  # pragma: no cover
+            k += 1
+
+        if self.parser.next_token.symbol == ',':
+            msg = 'Too many arguments: expected at most %s arguments' % max_args
+            raise self.error(code, msg if max_args > 1 else msg[:-1])
+
+        self.parser.advance(')')
+        return self
