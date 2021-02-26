@@ -168,70 +168,10 @@ class XPath1Parser(Parser):
     @classmethod
     def function(cls, symbol, nargs=None, label='function', bp=90):
         """
-        Registers a token class for a symbol that represents an XPath *callable* object.
-        For default a callable labeled as *function* is registered but a different label
-        can be provided.
+        Registers a token class for a symbol that represents an XPath function.
         """
-        def nud_(self):
-            code = 'XPST0017' if self.label == 'function' else 'XPST0003'
-            self.value = None
-            self.parser.advance('(')
-            if nargs is None:
-                del self[:]
-                if self.parser.next_token.symbol in (')', '(end)'):
-                    raise self.error(code, 'at least an argument is required')
-                while True:
-                    self.append(self.parser.expression(5))
-                    if self.parser.next_token.symbol != ',':
-                        break
-                    self.parser.advance()
-                self.parser.advance(')')
-                return self
-            elif nargs == 0:
-                if self.parser.next_token.symbol != ')':
-                    if self.parser.next_token.symbol != '(end)':
-                        raise self.error(code, '%s has no arguments' % str(self))
-                    raise self.parser.next_token.wrong_syntax()
-                self.parser.advance()
-                return self
-            elif isinstance(nargs, (tuple, list)):
-                min_args, max_args = nargs
-            else:
-                min_args = max_args = nargs
-
-            k = 0
-            while k < min_args:
-                if self.parser.next_token.symbol in (')', '(end)'):
-                    msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
-
-                self[k:] = self.parser.expression(5),
-                k += 1
-                if k < min_args:
-                    if self.parser.next_token.symbol == ')':
-                        msg = 'Too few arguments: expected at least %s arguments' % min_args
-                        raise self.error(code, msg if min_args > 1 else msg[:-1])
-                    self.parser.advance(',')
-
-            while max_args is None or k < max_args:
-                if self.parser.next_token.symbol == ',':
-                    self.parser.advance(',')
-                    self[k:] = self.parser.expression(5),
-                elif k == 0 and self.parser.next_token.symbol != ')':
-                    self[k:] = self.parser.expression(5),
-                else:
-                    break  # pragma: no cover
-                k += 1
-
-            if self.parser.next_token.symbol == ',':
-                msg = 'Too many arguments: expected at most %s arguments' % max_args
-                raise self.error(code, msg if max_args > 1 else msg[:-1])
-
-            self.parser.advance(')')
-            return self
-
         return cls.register(symbol, nargs=nargs, label=label,
-                            bases=(XPathFunction,), lbp=bp, rbp=bp, nud=nud_)
+                            bases=(XPathFunction,), lbp=bp, rbp=bp)
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
