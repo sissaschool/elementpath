@@ -10,7 +10,7 @@
 from abc import ABCMeta
 import re
 
-from ..namespaces import XSD_NAMESPACE
+XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 
 ###
 # Classes for XSD built-in atomic types. All defined classes use a

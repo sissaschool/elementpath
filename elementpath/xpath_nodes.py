@@ -10,6 +10,7 @@
 """
 Helper functions for XPath nodes and basic data types.
 """
+from collections import Counter
 from urllib.parse import urlparse
 from abc import ABC, abstractmethod
 from typing import Union, Any, Optional
@@ -232,6 +233,10 @@ def is_etree_element(obj):
     return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
+def is_lxml_etree_element(obj):
+    return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
+
+
 def etree_iter_nodes(root, with_root=True, with_attributes=False):
     if isinstance(root, TypedElement):
         root = root.elem
@@ -288,6 +293,28 @@ def etree_deep_equal(e1, e2):
     elif len(e1) != len(e2):
         return False
     return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
+
+
+def etree_iterpath(elem, path='.'):
+    yield elem, path
+    children_tags = Counter([e.tag for e in elem])
+    positions = Counter([t for t in children_tags if children_tags[t] > 1])
+
+    for child in elem:
+        if callable(child.tag):
+            continue  # Skip lxml comments
+        elif path == '/':
+            child_path = '/%s' % child.tag
+        elif path:
+            child_path = '/'.join((path, child.tag))
+        else:
+            child_path = child.tag
+
+        if child.tag in positions:
+            child_path += '[%d]' % positions[child.tag]
+            positions[child.tag] += 1
+
+        yield from etree_iterpath(child, child_path)
 
 
 ###
@@ -401,6 +428,10 @@ def is_processing_instruction_node(obj):
 
 def is_document_node(obj):
     return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
+
+
+def is_lxml_document_node(obj):
+    return is_document_node(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
 
 
 def is_xpath_node(obj):

@@ -253,21 +253,9 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
 
         if 'microsecond' in kwargs:
             microseconds = match.groupdict()['microsecond']
-            pow10 = 6 - len(microseconds)
-            try:
-                zeros = min(k for k in range(len(microseconds)) if '0' != microseconds[k])
-            except ValueError:
-                zeros = 0
-
-            if pow10 == 0:
-                pass
-            elif pow10 > 0:
-                kwargs['microsecond'] = kwargs['microsecond'] * 10**pow10
-            elif (kwargs['microsecond'] // 1 ** zeros) > 999999:
-                msg = "Invalid value {} for microsecond"
-                raise OverflowError(msg.format(kwargs['microsecond']))
-            else:
-                kwargs['microsecond'] = int(match.groupdict()['microsecond'][:6])
+            if len(microseconds) != 6:
+                microseconds += '0' * (6 - len(microseconds))
+                kwargs['microsecond'] = int(microseconds[:6])
 
         if 'year' in kwargs:
             year_digits = match.groupdict()['year'].lstrip('-')

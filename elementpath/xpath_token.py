@@ -31,6 +31,7 @@ from xml.etree.ElementTree import Element
 
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
+    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
@@ -525,6 +526,12 @@ class XPathToken(Token):
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'constructor function'
+        elif namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
+            if self.label != 'math function':
+                msg = "a name, a wildcard or a math function expected"
+                raise self.wrong_syntax(msg, code='XPST0017')
+            elif isinstance(self.label, MultiLabel):
+                self.label = 'math function'
         else:
             raise self.wrong_syntax("a name, a wildcard or a function expected")
 
@@ -1055,3 +1062,111 @@ class XPathToken(Token):
 
     def unknown_namespace(self, message=None):
         return self.error('XPST0081', message)
+
+
+class XPathFunction(XPathToken):
+    """
+    A token for processing XPath functions.
+    """
+    pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
+    nargs = None
+    _name = None
+
+    def __init__(self, parser, nargs=None):
+        super().__init__(parser)
+        if isinstance(nargs, int) and nargs != self.nargs:
+            if nargs < 0:
+                raise ElementPathValueError('number of arguments must be non negative')
+            elif isinstance(self.nargs, int) or isinstance(self.nargs, (tuple, list)) and \
+                    (self.nargs[0] > nargs or self.nargs[1] and self.nargs[1] < nargs):
+                raise ElementPathValueError('incongruent number of arguments')
+            else:
+                self.nargs = nargs
+
+    def __call__(self, context=None, argument_list=None):
+        self.clear()
+        if isinstance(argument_list, (list, tuple)):
+            for token in argument_list:
+                self.append(token)
+        elif isinstance(argument_list, XPathToken):
+            for token in argument_list.iter():
+                if token.symbol not in ('(', ','):
+                    self.append(token)
+
+        return self.evaluate(context)
+
+    @property
+    def name(self):
+        if self.symbol == 'function':
+            return
+        elif self._name is None:
+            if not self.namespace or self.namespace == XPATH_FUNCTIONS_NAMESPACE:
+                self._name = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
+            elif self.namespace == XSD_NAMESPACE:
+                self._name = QName(XSD_NAMESPACE, 'xs:%s' % self.symbol)
+            elif self.namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
+                self._name = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
+
+        return self._name
+
+    @property
+    def arity(self):
+        return self.nargs if isinstance(self.nargs, int) else len(self)
+
+    def nud(self):
+        code = 'XPST0017' if self.label == 'function' else 'XPST0003'
+        self.value = None
+        self.parser.advance('(')
+        if self.nargs is None:
+            del self[:]
+            if self.parser.next_token.symbol in (')', '(end)'):
+                raise self.error(code, 'at least an argument is required')
+            while True:
+                self.append(self.parser.expression(5))
+                if self.parser.next_token.symbol != ',':
+                    break
+                self.parser.advance()
+            self.parser.advance(')')
+            return self
+        elif self.nargs == 0:
+            if self.parser.next_token.symbol != ')':
+                if self.parser.next_token.symbol != '(end)':
+                    raise self.error(code, '%s has no arguments' % str(self))
+                raise self.parser.next_token.wrong_syntax()
+            self.parser.advance()
+            return self
+        elif isinstance(self.nargs, (tuple, list)):
+            min_args, max_args = self.nargs
+        else:
+            min_args = max_args = self.nargs
+
+        k = 0
+        while k < min_args:
+            if self.parser.next_token.symbol in (')', '(end)'):
+                msg = 'Too few arguments: expected at least %s arguments' % min_args
+                raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+
+            self[k:] = self.parser.expression(5),
+            k += 1
+            if k < min_args:
+                if self.parser.next_token.symbol == ')':
+                    msg = 'Too few arguments: expected at least %s arguments' % min_args
+                    raise self.error(code, msg if min_args > 1 else msg[:-1])
+                self.parser.advance(',')
+
+        while max_args is None or k < max_args:
+            if self.parser.next_token.symbol == ',':
+                self.parser.advance(',')
+                self[k:] = self.parser.expression(5),
+            elif k == 0 and self.parser.next_token.symbol != ')':
+                self[k:] = self.parser.expression(5),
+            else:
+                break  # pragma: no cover
+            k += 1
+
+        if self.parser.next_token.symbol == ',':
+            msg = 'Too many arguments: expected at most %s arguments' % max_args
+            raise self.error(code, msg if max_args > 1 else msg[:-1])
+
+        self.parser.advance(')')
+        return self

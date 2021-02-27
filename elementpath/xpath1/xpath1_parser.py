@@ -23,7 +23,7 @@ from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
     XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
     get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import XPathToken
+from ..xpath_token import XPathToken, XPathFunction
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
     is_xpath_node, match_element_node, is_schema_node, is_document_node, \
     match_attribute_node, is_element_node, node_kind
@@ -106,6 +106,7 @@ class XPath1Parser(Parser):
     variable_types = None   # XPath 1.0 doesn't have in-scope variable types
     xsd_version = '1.0'     # Use XSD 1.0 datatypes for default
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
+    function_signatures = {}
 
     def __init__(self, namespaces=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
@@ -158,7 +159,7 @@ class XPath1Parser(Parser):
             self[:] = self.parser.expression(rbp=bp),
             return self
 
-        pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % symbol
+        pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % cls.name_pattern.pattern
         return cls.register(
             symbol, pattern=pattern, label='axis',
             reverse_axis=reverse_axis, lbp=bp, rbp=bp, nud=nud_
@@ -167,70 +168,10 @@ class XPath1Parser(Parser):
     @classmethod
     def function(cls, symbol, nargs=None, label='function', bp=90):
         """
-        Registers a token class for a symbol that represents an XPath *callable* object.
-        For default a callable labeled as *function* is registered but a different label
-        can be provided.
+        Registers a token class for a symbol that represents an XPath function.
         """
-        def nud_(self):
-            code = 'XPST0017' if self.label == 'function' else 'XPST0003'
-            self.value = None
-            self.parser.advance('(')
-            if nargs is None:
-                del self[:]
-                if self.parser.next_token.symbol in (')', '(end)'):
-                    raise self.error(code, 'at least an argument is required')
-                while True:
-                    self.append(self.parser.expression(5))
-                    if self.parser.next_token.symbol != ',':
-                        break
-                    self.parser.advance()
-                self.parser.advance(')')
-                return self
-            elif nargs == 0:
-                if self.parser.next_token.symbol != ')':
-                    if self.parser.next_token.symbol != '(end)':
-                        raise self.error(code, '%s has no arguments' % str(self))
-                    raise self.parser.next_token.wrong_syntax()
-                self.parser.advance()
-                return self
-            elif isinstance(nargs, (tuple, list)):
-                min_args, max_args = nargs
-            else:
-                min_args = max_args = nargs
-
-            k = 0
-            while k < min_args:
-                if self.parser.next_token.symbol in (')', '(end)'):
-                    msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
-
-                self[k:] = self.parser.expression(5),
-                k += 1
-                if k < min_args:
-                    if self.parser.next_token.symbol == ')':
-                        msg = 'Too few arguments: expected at least %s arguments' % min_args
-                        raise self.error(code, msg if min_args > 1 else msg[:-1])
-                    self.parser.advance(',')
-
-            while max_args is None or k < max_args:
-                if self.parser.next_token.symbol == ',':
-                    self.parser.advance(',')
-                    self[k:] = self.parser.expression(5),
-                elif k == 0 and self.parser.next_token.symbol != ')':
-                    self[k:] = self.parser.expression(5),
-                else:
-                    break  # pragma: no cover
-                k += 1
-
-            if self.parser.next_token.symbol == ',':
-                msg = 'Too many arguments: expected at most %s arguments' % max_args
-                raise self.error(code, msg if max_args > 1 else msg[:-1])
-
-            self.parser.advance(')')
-            return self
-
-        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
-        return cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp, nud=nud_)
+        return cls.register(symbol, nargs=nargs, label=label,
+                            bases=(XPathFunction,), lbp=bp, rbp=bp)
 
     def parse(self, source):
         root_token = super(XPath1Parser, self).parse(source)
@@ -430,9 +371,12 @@ literal('(unknown)')
 @method(register('(name)', bp=10, label='literal'))
 def nud(self):
     if self.parser.next_token.symbol == '(':
-        if self.namespace == XSD_NAMESPACE:
+        if self.parser.version >= '3.0':
+            pass
+        elif self.namespace == XSD_NAMESPACE:
             raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
-        raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
+        else:
+            raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
     elif self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
     return self
@@ -591,7 +535,7 @@ def select(self, context=None):
 # Namespace URI as in ElementPath
 @method('{', bp=95)
 def nud(self):
-    if self.parser.strict:
+    if self.parser.strict and self.symbol == '{':
         raise self.wrong_syntax("not allowed symbol if parser has strict=True")
 
     namespace = self.parser.next_token.value + self.parser.advance_until('}')
@@ -937,6 +881,16 @@ def evaluate(self, context=None):
             raise self.error('FORG0006', err) from None
         except (ZeroDivisionError, decimal.InvalidOperation):
             raise self.error('FOAR0001') from None
+
+
+# Resolve the intrinsic ambiguity of some infix operators
+@method('or')
+@method('and')
+@method('div')
+@method('mod')
+def nud(self):
+    token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+    return token.nud()
 
 
 ###

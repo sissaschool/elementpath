@@ -18,6 +18,7 @@ from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
 
+
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
@@ -36,7 +37,7 @@ from collections.abc import MutableSequence
 # for a fully implementation example of a real parser.
 #
 
-# Parser special symbols set, that includes the TDOP's special symbols plus two
+# Parser special symbols set, that includes the special symbols of TDOP plus two
 # additional special symbols for managing invalid literals and unknown symbols.
 SPECIAL_SYMBOLS = frozenset((
     '(string)', '(float)', '(decimal)', '(integer)',
@@ -54,7 +55,7 @@ def count_leading_spaces(s):
     return sum(1 for _ in takewhile(str.isspace, s))
 
 
-def symbol_to_identifier(symbol):
+def symbol_to_classname(symbol):
     """
     Converts a symbol string to an identifier (only alphanumeric and '_').
     """
@@ -65,19 +66,19 @@ def symbol_to_identifier(symbol):
             return '%s_' % unicode_name(str(c)).title()
 
     if symbol.isalnum():
-        return symbol
+        return symbol.title()
     elif symbol in SPECIAL_SYMBOLS:
-        return symbol[1:-1]
+        return symbol[1:-1].title()
     elif all(c in '-_' for c in symbol):
-        value = '_'.join(unicode_name(str(c)).title() for c in symbol)
-        return value.replace(' ', '').replace('-', '')
+        value = ' '.join(unicode_name(c) for c in symbol)
+        return value.title().replace(' ', '').replace('-', '').replace('_', '')
 
     value = symbol.replace('-', '_')
     if value.isidentifier():
-        return value
-    else:
-        value = ''.join(get_id_name(c) for c in symbol).replace(' ', '').replace('-', '')
-        return value[:-1] if value.endswith('_') else value
+        return value.title().replace('_', '')
+
+    value = ''.join(get_id_name(c) for c in symbol)
+    return value.replace(' ', '').replace('-', '').replace('_', '')
 
 
 class MultiLabel(object):
@@ -153,10 +154,10 @@ class Token(MutableSequence):
     covers multiple roles (eg. as XPath function or axis). In those cases the definitive \
     role is defined at parse time (nud and/or led methods) after the token instance creation.
     """
-    symbol = None     # the token identifier, key in the token table.
+    symbol = None     # the token identifier
     lbp = 0           # left binding power
     rbp = 0           # right binding power
-    pattern = None    # the token regex pattern, for building the tokenizer.
+    pattern = None    # a custom regex pattern for building the tokenizer
     label = 'symbol'  # optional label
 
     def __init__(self, parser, value=None):
@@ -394,12 +395,12 @@ class Parser(metaclass=ParserMeta):
         """
         try:
             try:
-                self.source = source
                 self.tokens = iter(self.tokenizer.finditer(source))
             except TypeError as err:
                 token = self.symbol_table['(invalid)'](self, type(source))
                 raise token.wrong_syntax('invalid source type, {}'.format(err))
 
+            self.source = source
             self.advance()
             root_token = self.expression()
             self.next_token.expected('(end)')
@@ -434,12 +435,13 @@ class Parser(metaclass=ParserMeta):
             else:
                 literal, symbol, name, unknown = self.match.groups()
                 if symbol is not None:
-                    symbol = symbol.strip()
                     try:
                         self.next_token = self.symbol_table[symbol](self)
                     except KeyError:
-                        self.next_token = self.symbol_table['(unknown)'](self, symbol)
-                        raise self.next_token.wrong_syntax()
+                        if self.name_pattern.match(symbol) is None:
+                            self.next_token = self.symbol_table['(unknown)'](self, symbol)
+                            raise self.next_token.wrong_syntax()
+                        self.next_token = self.symbol_table['(name)'](self, symbol)
                     break
                 elif literal is not None:
                     if literal[0] in '\'"':
@@ -598,18 +600,6 @@ class Parser(metaclass=ParserMeta):
         :param kwargs: Optional attributes/methods for the token class.
         :return: A token class.
         """
-        def symbol_escape(s):
-            s = re.escape(s)
-            s.replace(r'\ ', r'\s+')
-
-            if s.isalpha():
-                s = r'\b%s\b(?![\-\.])' % s
-            elif s[-3:] == r'\\(':
-                s = r'%s\s*%s' % (s[:-2], s[-2:])
-            elif s[-6:] == r'\\:\\:':
-                s = r'%s\s*%s' % (s[:-4], s[-4:])
-            return s
-
         try:
             try:
                 if ' ' in symbol:
@@ -630,18 +620,14 @@ class Parser(metaclass=ParserMeta):
                 raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
             kwargs['symbol'] = symbol
-            if 'pattern' not in kwargs:
-                pattern = symbol_escape(symbol) if len(symbol) > 1 else re.escape(symbol)
-                kwargs['pattern'] = pattern
-
             label = kwargs.get('label', 'symbol')
             if isinstance(label, tuple):
                 label = kwargs['label'] = MultiLabel(*label)
 
-            token_class_name = "_{}_{}_token".format(
-                symbol_to_identifier(symbol), str(label).replace(' ', '_')
+            token_class_name = "_{}{}".format(
+                symbol_to_classname(symbol), str(label).title().replace(' ', '')
             )
-            token_class_bases = (getattr(cls, 'token_base_class', object),)
+            token_class_bases = kwargs.get('bases', (cls.token_base_class,))
             kwargs.update({
                 '__module__': cls.__module__,
                 '__qualname__': token_class_name,
@@ -685,7 +671,7 @@ class Parser(metaclass=ParserMeta):
         def nud(self):
             return self
 
-        def evaluate(self, *args, **kwargs):
+        def evaluate(self, *_args, **_kwargs):
             return self.value
 
         return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
@@ -769,33 +755,38 @@ class Parser(metaclass=ParserMeta):
 
         :param symbol_table: a dictionary containing the token classes of the formal language.
         """
-        tokenizer_pattern_template = r"""
-            (%s) |       # Literals
-            (%s|[%s]) |  # Symbols
-            (%s) |       # Names
-            (\S) |       # Unknown symbols
-            \s+          # Skip extra spaces
-        """
-        patterns = [
-            t.pattern.replace('#', r'\#') for s, t in symbol_table.items()
-            if s not in SPECIAL_SYMBOLS
-        ]
-        string_patterns = []
         character_patterns = []
+        string_patterns = []
+        name_patterns = []
+        custom_patterns = set()
 
-        for p in patterns:
-            if ' ' in p:
-                raise ValueError('pattern %r contains spaces' % p)
-            length = len(p)
-            if length == 1 or length == 2 and p[0] == '\\':
-                character_patterns.append(p)
+        for symbol, token_class in symbol_table.items():
+            if symbol in SPECIAL_SYMBOLS:
+                continue
+            elif token_class.pattern is not None:
+                custom_patterns.add(token_class.pattern)
+            elif cls.name_pattern.match(symbol) is not None:
+                name_patterns.append(re.escape(symbol))
+            elif len(symbol) == 1:
+                character_patterns.append(re.escape(symbol))
             else:
-                string_patterns.append(p)
+                string_patterns.append(re.escape(symbol))
 
-        pattern = tokenizer_pattern_template % (
+        symbols_patterns = []
+        if string_patterns:
+            symbols_patterns.append('|'.join(sorted(string_patterns, key=lambda x: -len(x))))
+        if character_patterns:
+            symbols_patterns.append('[{}]'.format(''.join(character_patterns)))
+        if name_patterns:
+            symbols_patterns.append(r'\b(?:{})\b(?![\-\.])'.format(
+                '|'.join(sorted(name_patterns, key=lambda x: -len(x)))
+            ))
+        if custom_patterns:
+            symbols_patterns.append('|'.join(custom_patterns))
+
+        tokenizer_pattern = r"({})|({})|({})|(\S)|\s+".format(
             cls.literals_pattern.pattern,
-            '|'.join(sorted(string_patterns, key=lambda x: -len(x))),
-            ''.join(character_patterns),
+            '|'.join(symbols_patterns),
             cls.name_pattern.pattern
         )
-        return re.compile(pattern, re.VERBOSE)
+        return re.compile(tokenizer_pattern)

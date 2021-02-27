@@ -10,17 +10,11 @@
 #
 import unittest
 import re
+import sys
 from collections import namedtuple
 
-from elementpath.tdop import symbol_to_identifier, ParseError, Token, \
+from elementpath.tdop import symbol_to_classname, ParseError, Token, \
     ParserMeta, Parser, MultiLabel
-
-
-FakeToken = namedtuple('Token', 'symbol pattern')
-
-
-def create_fake_tokens(symbols):
-    return {s: FakeToken(s, s) for s in symbols}
 
 
 class TdopParserTest(unittest.TestCase):
@@ -33,7 +27,7 @@ class TdopParserTest(unittest.TestCase):
             @classmethod
             def create_tokenizer(cls, symbol_table):
                 return re.compile(
-                    r'INCOMPATIBLE | (\d+)| (UNKNOWN|[+\-]) | (\w+) | (\S) | \s+',
+                    r'INCOMPATIBLE | (\d+) | (UNKNOWN|[+\-]) | (\w+) | (\S)| \s+',
                     flags=re.VERBOSE
                 )
 
@@ -78,45 +72,43 @@ class TdopParserTest(unittest.TestCase):
         self.assertTrue(label.endswith('function'))
         self.assertFalse(label.endswith('constructor'))
 
-    def test_symbol_to_identifier_function(self):
-        self.assertEqual(symbol_to_identifier('_cat10'), '_cat10')
-        self.assertEqual(symbol_to_identifier('&'), 'Ampersand')
-        self.assertEqual(symbol_to_identifier('('), 'LeftParenthesis')
-        self.assertEqual(symbol_to_identifier(')'), 'RightParenthesis')
+    def test_symbol_to_classname_function(self):
+        self.assertEqual(symbol_to_classname('_cat10'), 'Cat10')
+        self.assertEqual(symbol_to_classname('&'), 'Ampersand')
+        self.assertEqual(symbol_to_classname('('), 'LeftParenthesis')
+        self.assertEqual(symbol_to_classname(')'), 'RightParenthesis')
 
-        self.assertEqual(symbol_to_identifier('(name)'), 'name')
-        self.assertEqual(symbol_to_identifier('(name'), 'LeftParenthesis_name')
+        self.assertEqual(symbol_to_classname('(name)'), 'Name')
+        self.assertEqual(symbol_to_classname('(name'), 'LeftParenthesisname')
 
-        self.assertEqual(symbol_to_identifier('-'), 'HyphenMinus')
-        self.assertEqual(symbol_to_identifier('_'), 'LowLine')
-        self.assertEqual(symbol_to_identifier('-_'), 'HyphenMinus_LowLine')
-        self.assertEqual(symbol_to_identifier('--'), 'HyphenMinus_HyphenMinus')
+        self.assertEqual(symbol_to_classname('-'), 'HyphenMinus')
+        self.assertEqual(symbol_to_classname('_'), 'LowLine')
+        self.assertEqual(symbol_to_classname('-_'), 'HyphenMinusLowLine')
+        self.assertEqual(symbol_to_classname('--'), 'HyphenMinusHyphenMinus')
 
-        self.assertEqual(symbol_to_identifier('my-api-call'), 'my_api_call')
-        self.assertEqual(symbol_to_identifier('call-'), 'call_')
+        self.assertEqual(symbol_to_classname('my-api-call'), 'MyApiCall')
+        self.assertEqual(symbol_to_classname('call-'), 'Call')
 
     def test_create_tokenizer_method(self):
-        pattern = Parser.create_tokenizer(create_fake_tokens(['(name)', 'call', '+']))
-        self.assertEqual(pattern.pattern, r"""
-            ('[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?) |       # Literals
-            (call|[+]) |  # Symbols
-            ([A-Za-z0-9_]+) |       # Names
-            (\S) |       # Unknown symbols
-            \s+          # Skip extra spaces
-        """)
-
-        with self.assertRaises(ValueError):
-            Parser.create_tokenizer(create_fake_tokens(['(name)', 'wrong pattern', '+']))
+        FakeToken = namedtuple('Token', 'symbol pattern label')
+        tokens = {
+            FakeToken(symbol='(name)', pattern=None, label='literal'),
+            FakeToken('call', pattern=r'\bcall\b(?=\s+\()', label='function'),
+            FakeToken('+', pattern=None, label='operator'),
+        }
+        pattern = Parser.create_tokenizer({t.symbol: t for t in tokens})
+        self.assertEqual(pattern.pattern,
+                         '(\'[^\']*\'|"[^"]*"|(?:\\d+|\\.\\d+)(?:\\.\\d*)?(?:[Ee][+-]?\\d+)?)|'
+                         '([\\+]|\\bcall\\b(?=\\s+\\())|([A-Za-z0-9_]+)|(\\S)|\\s+')
 
         # Check fix for issue #10
-        pattern = Parser.create_tokenizer(create_fake_tokens(
-            ['(name)', 'call', '+', '{http://www.w3.org/2000/09/xmldsig#}CryptoBinary']
-        ))
-        self.assertTrue(
-            pattern.pattern.split('\n')[2].strip().startswith(
-                r"({http://www.w3.org/2000/09/xmldsig\#}"
-            )
-        )
+        tk = FakeToken('{http://www.w3.org/2000/09/xmldsig#}CryptoBinary', None, 'constructor')
+        tokens.add(tk)
+        pattern = Parser.create_tokenizer({t.symbol: t for t in tokens})
+        if sys.version_info >= (3, 7):
+            self.assertIn(r"(\{http://www\.w3\.org/2000/09/xmldsig\#\}", pattern.pattern)
+        else:
+            self.assertIn(r"(\{http\:\/\/www\.w3\.org\/2000\/09\/xmldsig\#\}", pattern.pattern)
 
     def test_tokenizer_items(self):
         self.assertListEqual(self.parser.tokenizer.findall('5 56'),
@@ -168,7 +160,7 @@ class TdopParserTest(unittest.TestCase):
 
         with self.assertRaises(ParseError) as ec:
             self.parser.parse('UNKNOWN')
-        self.assertEqual(str(ec.exception), "unknown symbol 'UNKNOWN'")
+        self.assertEqual(str(ec.exception), "unexpected name 'UNKNOWN'")
 
     def test_invalid_source(self):
         with self.assertRaises(ParseError) as ec:
