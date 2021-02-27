@@ -688,6 +688,16 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         context.variables['f'] = [1, context.variables['f']]
         self.assertEqual(token.evaluate(context), 'Hi there')
 
+        context.variables['f'] = self.parser.symbol_table['true'](self.parser, nargs=0)
+        token = self.parser.parse('$f()[2]')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        self.assertEqual(token.evaluate(context), [])
+        token = self.parser.parse('$f()[1]')
+        self.assertTrue(token.evaluate(context))
+
     def test_function_lookup(self):
         token = self.parser.parse("fn:function-lookup(xs:QName('fn:substring'), 2)('abcd', 2)")
         self.assertEqual(token.evaluate(), "bcd")
@@ -727,6 +737,16 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'node': root})
         self.assertEqual(token.evaluate(context), 1)
+
+    def test_let_expression(self):
+        token = self.parser.parse('let $x := 4, $y := 3 return $x + $y')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertEqual(token.evaluate(context), [7])
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

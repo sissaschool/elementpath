@@ -19,6 +19,7 @@ import re
 import codecs
 import math
 import xml.etree.ElementTree as ElementTree
+from copy import copy
 from urllib.parse import urlsplit
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
@@ -69,7 +70,6 @@ class XPath30Parser(XPath2Parser):
 
         # Parsing and serializing
         'parse-xml', 'parse-xml-fragment', 'serialize',
-
 
         # Higher-order functions
         'function-lookup', 'function-name', 'function-arity', '#',
@@ -128,6 +128,8 @@ def led(self, left):
         raise self.error('XPST0017', 'unknown function {!r}'.format(left.value))
     if self.parser.next_token.symbol != ')':
         self[:] = left, self.parser.expression()
+    else:
+        self[:] = left,
     self.parser.advance(')')
     return self
 
@@ -171,14 +173,40 @@ def evaluate(self, context=None):
 ###
 # 'let' expressions
 
-@method(register('let', bp=20, label='let expression'))
+@method(register('let', lbp=20, rbp=20, label='let expression'))
 def nud(self):
-    """
-    [11]    	LetExpr 	   ::=    	SimpleLetClause "return" ExprSingle
-    [12]    	SimpleLetClause 	   ::=    	"let" SimpleLetBinding ("," SimpleLetBinding)*
-    [13]    	SimpleLetBinding 	   ::=    	"$" VarName ":=" ExprSingle
-    """
+    del self[:]
+    if self.parser.next_token.symbol != '$':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
+    while True:
+        self.parser.next_token.expected('$')
+        variable = self.parser.expression(5)
+        self.append(variable)
+        self.parser.advance(':=')
+        expr = self.parser.expression(5)
+        self.append(expr)
+        if self.parser.next_token.symbol != ',':
+            break
+        self.parser.advance()
+
+    self.parser.advance('return')
+    self.append(self.parser.expression(5))
     return self
+
+
+@method('let')
+def select(self, context=None):
+    if context is None:
+        raise self.missing_context()
+
+    context = copy(context)
+    varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
+    values = [self[k].evaluate(copy(context)) for k in range(1, len(self) - 1, 2)]
+
+    context.variables.update(x for x in zip(varnames, values))
+    yield from self[-1].select(context)
 
 
 ###
