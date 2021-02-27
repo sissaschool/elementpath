@@ -16,7 +16,8 @@ axis = XPath1Parser.axis
 
 @method('@', bp=80)
 def nud(self):
-    self.parser.expected_name('*', '(name)', ':', '{', message="invalid attribute specification")
+    self.parser.expected_name(
+        '*', '(name)', ':', '{', 'Q{', message="invalid attribute specification")
     self[:] = self.parser.expression(rbp=80),
     return self
 

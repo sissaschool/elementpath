@@ -21,8 +21,14 @@ XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
+
+# XPath/XQuery namespaces
 XPATH_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions"
 XQT_ERRORS_NAMESPACE = "http://www.w3.org/2005/xqt-errors"
+XPATH_MATH_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions/math"
+XPATH_MAP_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions/map"
+XPATH_ARRAY_FUNCTIONS_NAMESPACE = "http://www.w3.org/2005/xpath-functions/array"
+XSLT_XQUERY_SERIALIZATION_NAMESPACE = "http://www.w3.org/2010/xslt-xquery-serialization "
 
 # XML namespace attributes
 XML_BASE = '{%s}base' % XML_NAMESPACE
@@ -73,9 +79,12 @@ def get_prefixed_name(qname, namespaces):
     :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     """
     try:
-        if qname[0] != '{':
+        if qname[0] == '{':
+            ns_uri, local_name = qname[1:].split('}')
+        elif qname[1] == '{' and qname[0] == 'Q':
+            ns_uri, local_name = qname[2:].split('}')
+        else:
             return qname
-        ns_uri, local_name = qname[1:].split('}')
     except IndexError:
         return qname
     except (ValueError, TypeError):
@@ -98,7 +107,7 @@ def get_expanded_name(qname, namespaces):
     :return: the expanded format of a QName or a local name.
     """
     try:
-        if qname[0] == '{':
+        if qname[0] == '{' or qname[1] == '{' and qname[0] == 'Q':
             return qname
     except IndexError:
         return qname

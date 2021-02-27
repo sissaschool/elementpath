@@ -30,6 +30,7 @@ class NamespacesTest(unittest.TestCase):
     def test_qname_to_prefixed_function(self):
         self.assertEqual(get_prefixed_name('{ns}foo', {'bar': 'ns'}), 'bar:foo')
         self.assertEqual(get_prefixed_name('{ns}foo', {'': 'ns'}), 'foo')
+        self.assertEqual(get_prefixed_name('Q{ns}foo', {'': 'ns'}), 'foo')
         self.assertEqual(get_prefixed_name('foo', {'': 'ns'}), 'foo')
         self.assertEqual(get_prefixed_name('', {'': 'ns'}), '')
         self.assertEqual(get_prefixed_name('{ns}foo', {}), '{ns}foo')

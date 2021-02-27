@@ -27,7 +27,7 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
 from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
-from ..xpath_token import UNICODE_CODEPOINT_COLLATION
+from ..xpath_token import UNICODE_CODEPOINT_COLLATION, XPathFunction
 from ..xpath1 import XPath1Parser
 from ..xpath_context import XPathSchemaContext
 from ..schema_proxy import AbstractSchemaProxy
@@ -187,6 +187,8 @@ class XPath2Parser(XPath1Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
     }
 
+    function_signatures = XPath1Parser.function_signatures.copy()
+
     def __init__(self, namespaces=None, variable_types=None, strict=True, compatibility_mode=False,
                  default_collation=None, default_namespace=None, function_namespace=None,
                  xsd_version=None, schema=None, base_uri=None, document_types=None,
@@ -292,6 +294,19 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
+    def signature(cls, value, *symbols, prefix=None):
+        arity = 0 if value.startswith('function()') else value.count(',') + 1
+        if not prefix:
+            for symbol in symbols:
+                qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
+                cls.function_signatures[(qname, arity)] = value
+        else:
+            namespace = cls.DEFAULT_NAMESPACES[prefix]
+            for symbol in symbols:
+                qname = QName(namespace, '%s:%s' % (prefix, symbol))
+                cls.function_signatures[(qname, arity)] = value
+
+    @classmethod
     def constructor(cls, symbol, bp=0, label='constructor function'):
         """Creates a constructor token class."""
         def nud_(self):
@@ -323,9 +338,8 @@ class XPath2Parser(XPath1Parser):
         def cast_(value):
             raise NotImplementedError
 
-        pattern = r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol
-        token_class = cls.register(symbol, pattern=pattern, label=label, lbp=bp, rbp=bp,
-                                   nud=nud_, evaluate=evaluate_, cast=cast_)
+        token_class = cls.register(symbol, nargs=1, label=label, bases=(XPathFunction,),
+                                   lbp=bp, rbp=bp, nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
             assert func.__name__ == 'cast', \
@@ -362,9 +376,10 @@ class XPath2Parser(XPath1Parser):
                 raise self_.error('FORG0001', err)
 
         symbol = get_prefixed_name(atomic_type, self.namespaces)
-        token_class_name = str("_%s_constructor_token" % symbol.replace(':', '_'))
+        token_class_name = "_%sConstructorFunction" % symbol.replace(':', '_')
         kwargs = {
             'symbol': symbol,
+            'nargs': 1,
             'label': 'constructor function',
             'pattern': r'\b%s(?=\s*\(|\s*\(\:.*\:\)\()' % symbol,
             'lbp': bp,
@@ -375,7 +390,7 @@ class XPath2Parser(XPath1Parser):
             '__qualname__': token_class_name,
             '__return__': None
         }
-        token_class = ABCMeta(token_class_name, (self.token_base_class,), kwargs)
+        token_class = ABCMeta(token_class_name, (XPathFunction,), kwargs)
         MutableSequence.register(token_class)
         self.symbol_table[symbol] = token_class
         return token_class
@@ -525,6 +540,10 @@ def select(self, context=None):
 # 'if' expression
 @method('if', bp=20)
 def nud(self):
+    if self.parser.next_token.symbol != '(':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
     self.parser.advance('(')
     self[:] = self.parser.expression(5),
     self.parser.advance(')')
@@ -557,6 +576,10 @@ def select(self, context=None):
 @method('every', bp=20)
 def nud(self):
     del self[:]
+    if self.parser.next_token.symbol != '$':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
     while True:
         self.parser.next_token.expected('$')
         variable = self.parser.expression(5)
@@ -604,6 +627,10 @@ def evaluate(self, context=None):
 @method('for', bp=20)
 def nud(self):
     del self[:]
+    if self.parser.next_token.symbol != '$':
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        return token.nud()
+
     while True:
         self.parser.next_token.expected('$')
         variable = self.parser.expression(5)
@@ -839,7 +866,7 @@ def select(self, context=None):
 
 ###
 # Parenthesized expressions: XPath 2.0 admits the empty case ().
-@method('(')
+@method('(', bp=100)
 def nud(self):
     if self.parser.next_token.symbol != ')':
         self[:] = self.parser.expression(),
@@ -849,18 +876,12 @@ def nud(self):
 
 @method('(')
 def evaluate(self, context=None):
-    if not self:
-        return []
-    else:
-        return self[0].evaluate(context)
+    return self[0].evaluate(context) if self else []
 
 
 @method('(')
 def select(self, context=None):
-    if self:
-        return self[0].select(context)
-    else:
-        return iter(())
+    return self[0].select(context) if self else iter(())
 
 
 ###
@@ -930,13 +951,6 @@ def led(self, left):
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=30)
     return self
-
-
-@method('is')
-def nud(self):
-    if self.parser.next_token.symbol == '(':
-        raise self.error('XPST0017', '{} cannot have arguments'.format(self))
-    raise self.wrong_syntax()
 
 
 @method('is')
@@ -1021,6 +1035,28 @@ def evaluate(self, context=None):
             return int(result)
         else:
             return int(result) + 1
+
+
+# Resolve the intrinsic ambiguity of some infix operators
+@method('union')
+@method('intersect')
+@method('except')
+@method('eq')
+@method('ne')
+@method('lt')
+@method('gt')
+@method('le')
+@method('ge')
+@method('is')
+@method('to')
+@method('idiv')
+@method('instance')
+@method('treat')
+@method('castable')
+@method('cast')
+def nud(self):
+    token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+    return token.nud()
 
 
 ###

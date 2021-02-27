@@ -8,13 +8,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+import importlib
+import xml.etree.ElementTree as ElementTree
 from functools import lru_cache
 from itertools import chain
 
 from .exceptions import ElementPathTypeError
 from .datatypes import Timezone
 from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, \
-    etree_iter_nodes, is_etree_element, is_element_node, is_document_node, is_schema_node
+    etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
+    is_schema_node, is_lxml_etree_element, is_lxml_document_node
 
 
 class XPathContext(object):
@@ -40,20 +43,29 @@ class XPathContext(object):
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
-    :param documents: available documents. This is a dictionary from absolute URIs \
-    onto document nodes. Used by the function fn:doc.
-    :param collections: available collections. This is a dictionary from absolute \
-    URIs onto sequences of nodes. Used by the function fn:collection.
+    :param documents: available documents. This is a mapping of absolute URI \
+    strings onto document nodes. Used by the function fn:doc.
+    :param collections: available collections. This is a mapping of absolute URI \
+    strings onto sequences of nodes. Used by the XPath 2.0+ function fn:collection.
     :param default_collection: this is the sequence of nodes used when fn:collection \
     is called with no arguments.
+    :param resource_collections: available URI collections. This is a mapping of absolute \
+    URI strings to sequences of URIs. Used by the XPath 3.0+ function fn:uri-collection.
+    :param default_resource_collection: this is the sequence of URIs used when \
+    fn:uri-collection is called with no arguments.
+    :param allow_environment: defines if the access to system environment is allowed, \
+    for default is `False`. Used by the XPath 3.0+ functions fn:environment-variable \
+    and fn:available-environment-variables.
     """
     _iter_nodes = staticmethod(etree_iter_nodes)
     _parent_map = None
     _elem = None
+    _etree = None
 
     def __init__(self, root, namespaces=None, item=None, position=1, size=1, axis=None,
                  variables=None, current_dt=None, timezone=None, documents=None,
-                 collections=None, default_collection=None):
+                 collections=None, default_collection=None, resource_collections=None,
+                 default_resource_collection=None, allow_environment=False):
         self.root = root
         self.namespaces = namespaces
 
@@ -88,6 +100,9 @@ class XPathContext(object):
         self.documents = documents
         self.collections = collections
         self.default_collection = default_collection
+        self.resource_collections = resource_collections
+        self.default_resource_collection = default_resource_collection
+        self.allow_environment = allow_environment
 
     def __repr__(self):
         return '%s(root=%r, item=%r)' % (self.__class__.__name__, self.root, self.item)
@@ -126,6 +141,15 @@ class XPathContext(object):
         if self._parent_map is None:
             self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
         return self._parent_map
+
+    @property
+    def etree(self):
+        if self._etree is None:
+            if is_lxml_etree_element(self.root) or is_lxml_document_node(self.root):
+                self._etree = importlib.import_module('lxml.etree')
+            else:
+                self._etree = ElementTree
+        return self._etree
 
     @lru_cache(maxsize=1024)
     def get_parent(self, elem):

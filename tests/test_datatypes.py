@@ -340,13 +340,29 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIsInstance(dt, DateTime)
         self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7, microsecond=100000))
 
-        with self.assertRaises(OverflowError) as ctx:
-            DateTime.fromstring('2000-10-07T00:00:00.1000000')
-        self.assertEqual("Invalid value 1000000 for microsecond", str(ctx.exception))
-
+    def test_issue_36_fromstring_with_more_microseconds_digits(self):
         dt = DateTime.fromstring('2000-10-07T00:00:00.00090001')
         self.assertIsInstance(dt, DateTime)
         self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7, microsecond=900))
+
+        dt = DateTime.fromstring('2000-10-07T00:00:00.0009009999')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7, microsecond=900))
+
+        dt = DateTime.fromstring('2000-10-07T00:00:00.1000000')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2000, 10, 7, microsecond=100000))
+
+        # Regression test of issue #36
+        tz = Timezone.fromstring('+01:00')
+        dt = DateTime.fromstring('2021-02-21T21:43:03.1121296+01:00')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(2021, 2, 21, 21, 43, 3, 112129, tz))
+
+        # From W3C's XQuery/XPath tests
+        dt = DateTime.fromstring('9999-12-31T23:59:59.9999999')
+        self.assertIsInstance(dt, DateTime)
+        self.assertEqual(dt._dt, datetime.datetime(9999, 12, 31, 23, 59, 59, 999999))
 
     def test_date_fromstring(self):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)

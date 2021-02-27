@@ -58,6 +58,10 @@ class ElementPathOverflowError(ElementPathError, OverflowError):
     pass
 
 
+class ElementPathRuntimeError(ElementPathError, RuntimeError):
+    pass
+
+
 class ElementPathSyntaxError(ElementPathError, SyntaxError):
     pass
 
@@ -136,6 +140,24 @@ XPATH_ERROR_CODES = {
     'FORX0003': (ElementPathValueError, 'Regular expression matches zero-length string'),
     'FORX0004': (ElementPathValueError, 'Invalid replacement string'),
     'FOTY0012': (ElementPathValueError, 'Argument node does not have a typed value'),
+
+    # XPath 3.0 errors
+    'FOTY0013': (ElementPathTypeError, 'The argument to fn:data() contains a function item'),
+    'FOTY0014': (ElementPathTypeError, 'The argument to fn:string() is a function item'),
+    'FOTY0015': (ElementPathTypeError,
+                 'An argument to fn:deep-equal() contains a function item'),
+    'FODC0006': (ElementPathValueError,
+                 'String passed to fn:parse-xml is not a well-formed XML document'),
+    'FODC0010': (ElementPathRuntimeError,
+                 'The processor does not support serialization'),
+    'FOUT1170': (ElementPathValueError, 'Invalid $href argument to fn:unparsed-text()'),
+    'FOUT1190': (ElementPathValueError,
+                 'Cannot decode resource retrieved by fn:unparsed-text()'),
+    'FOUT1200': (ElementPathValueError,
+                 'Cannot infer encoding of resource retrieved by fn:unparsed-text()'),
+    'FOFD1340': (ElementPathValueError, 'Invalid date/time formatting parameters'),
+    'FOFD1350': (ElementPathValueError, 'Invalid date/time formatting component'),
+
 }
 
 

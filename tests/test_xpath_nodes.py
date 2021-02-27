@@ -17,7 +17,8 @@ from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     TypedElement, NamespaceNode, is_etree_element, etree_iter_strings, \
     etree_deep_equal, match_element_node, match_attribute_node, is_comment_node, \
     is_document_node, is_processing_instruction_node, node_attributes, node_base_uri, \
-    node_document_uri, node_children, node_nilled, node_kind, node_name, etree_iter_nodes
+    node_document_uri, node_children, node_nilled, node_kind, node_name, \
+    etree_iter_nodes, etree_iterpath
 from elementpath.schema_proxy import AbstractXsdType
 
 
@@ -345,6 +346,28 @@ class XPathNodesTest(unittest.TestCase):
 
             typed_attr = TypedAttribute(attribute=attr, xsd_type=xsd_type, value=20)
             self.assertEqual(node_name(typed_attr), 'a1')
+
+    def test_etree_iterpath(self):
+        root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+        root[2].append(ElementTree.Comment('a comment'))
+        root[2].append(ElementTree.Element('c3'))  # duplicated tag
+
+        items = list(etree_iterpath(root))
+        self.assertListEqual(items, [
+            (root, '.'), (root[0], './b1'), (root[0][0], './b1/c1'),
+            (root[0][1], './b1/c2'), (root[1], './b2'), (root[2], './b3'),
+            (root[2][0], './b3/c3[1]'), (root[2][2], './b3/c3[2]')
+        ])
+        self.assertListEqual(list(etree_iterpath(root, path='')), [
+            (root, ''), (root[0], 'b1'), (root[0][0], 'b1/c1'),
+            (root[0][1], 'b1/c2'), (root[1], 'b2'), (root[2], 'b3'),
+            (root[2][0], 'b3/c3[1]'), (root[2][2], 'b3/c3[2]')
+        ])
+        self.assertListEqual(list(etree_iterpath(root, path='/')), [
+            (root, '/'), (root[0], '/b1'), (root[0][0], '/b1/c1'),
+            (root[0][1], '/b1/c2'), (root[1], '/b2'), (root[2], '/b3'),
+            (root[2][0], '/b3/c3[1]'), (root[2][2], '/b3/c3[2]')
+        ])
 
 
 if __name__ == '__main__':
