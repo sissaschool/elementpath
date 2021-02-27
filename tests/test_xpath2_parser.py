@@ -948,8 +948,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() instance of empty-sequence()", True)
 
         self.wrong_syntax("5 instance of unknown()", 'XPST0003', "unknown function 'unknown'")
-        self.wrong_syntax("1e3 instance of empty-sequence()(",
-                          'XPST0003', "unexpected '(' operator")
+        self.wrong_syntax("1e3 instance of empty-sequence()(", 'XPST0003')
 
         # Test dynamic evaluation error on prefixed name
         parser = XPath2Parser()

@@ -371,9 +371,12 @@ literal('(unknown)')
 @method(register('(name)', bp=10, label='literal'))
 def nud(self):
     if self.parser.next_token.symbol == '(':
-        if self.namespace == XSD_NAMESPACE:
+        if self.parser.version >= '3.0':
+            pass
+        elif self.namespace == XSD_NAMESPACE:
             raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
-        raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
+        else:
+            raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
     elif self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
     return self
