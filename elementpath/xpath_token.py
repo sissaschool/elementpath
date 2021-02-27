@@ -1083,7 +1083,16 @@ class XPathFunction(XPathToken):
             else:
                 self.nargs = nargs
 
-    def __call__(self, context=None):
+    def __call__(self, context=None, argument_list=None):
+        self.clear()
+        if isinstance(argument_list, (list, tuple)):
+            for token in argument_list:
+                self.append(token)
+        elif isinstance(argument_list, XPathToken):
+            for token in argument_list.iter():
+                if token.symbol not in ('(', ','):
+                    self.append(token)
+
         return self.evaluate(context)
 
     @property

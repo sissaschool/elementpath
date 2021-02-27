@@ -11,7 +11,7 @@
 XPath 3.1 implementation
 """
 from ..namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
-    XPATH_ARRAY_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE
+    XPATH_ARRAY_FUNCTIONS_NAMESPACE  # , XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath30 import XPath30Parser
 
 
@@ -44,9 +44,6 @@ class XPath31Parser(XPath30Parser):
         'array': XPATH_ARRAY_FUNCTIONS_NAMESPACE,
         **XPath30Parser.DEFAULT_NAMESPACES
     }
-
-
-
 
 
 ##

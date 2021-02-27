@@ -76,7 +76,7 @@ class XPath30Parser(XPath2Parser):
         # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
         # Expressions and node type functions
-        'function',  'let', ':=', # 'namespace-node', 'switch',
+        'function', 'let', ':=',  # 'namespace-node', 'switch',
     }
 
     DEFAULT_NAMESPACES = {
@@ -109,6 +109,57 @@ XPath30Parser.unregister('{')
 XPath30Parser.unregister('}')
 register('{')
 register('}', bp=100)
+
+
+XPath30Parser.unregister('(')
+
+
+@method(register('(', lbp=80, rpb=80, label='expression'))
+def nud(self):
+    if self.parser.next_token.symbol != ')':
+        self[:] = self.parser.expression(),
+    self.parser.advance(')')
+    return self
+
+
+@method('(')
+def led(self, left):
+    if left.symbol == '(name)' or left.symbol == ':' and left[1].symbol == '(name)':
+        raise self.error('XPST0017', 'unknown function {!r}'.format(left.value))
+    if self.parser.next_token.symbol != ')':
+        self[:] = left, self.parser.expression()
+    self.parser.advance(')')
+    return self
+
+
+@method('(')
+def evaluate(self, context=None):
+    if len(self) < 2:
+        return self[0].evaluate(context) if self else []
+
+    result = self[0].evaluate(context)
+    if isinstance(result, list) and len(result) == 1:
+        result = result[0]
+
+    if not isinstance(result, XPathFunction):
+        raise self.error('XPST0017', 'an XPath function expected, not {!r}'.format(type(result)))
+    return result(context, self[1])
+
+
+@method('(')
+def select(self, context=None):
+    if len(self) < 2:
+        yield from self[0].select(context) if self else iter(())
+    else:
+
+        value = self[0].evaluate(context)
+        if not isinstance(value, XPathFunction):
+            raise self.error('XPST0017', 'an XPath function expected, not {!r}'.format(type(value)))
+        result = value(context, self[1])
+        if isinstance(result, list):
+            yield from result
+        else:
+            yield result
 
 
 @method(infix('||', bp=32))
@@ -654,9 +705,14 @@ def evaluate(self, context=None):
     qname = self.get_argument(context, cls=QName)
     arity = self.get_argument(context, index=1, cls=int)
 
-    if (qname, arity) not in self.parser.function_signatures:
-        raise self.error('XPST0017')
-    return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
+    # TODO: complete function signatures
+    # if (qname, arity) not in self.parser.function_signatures:
+    #    raise self.error('XPST0017')
+
+    try:
+        return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
+    except KeyError:
+        raise self.error('XPST0017', "unknown function {}".format(qname.local_name))
 
 
 @method(function('function-name', nargs=1))
@@ -689,16 +745,19 @@ def led(self, left):
 @method('#')
 def evaluate(self, context=None):
     if self[0].symbol == ':':
-        func_name = self[0][1].value
         qname = QName(self[0][1].namespace, self[0].value)
     else:
-        func_name = self[0][1].value
         qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
     arity = self[1].value
 
-    if (qname, arity) not in self.parser.function_signatures:
-        raise self.error('XPST0017')
-    return self.parser.symbol_table[func_name](self.parser, nargs=arity)
+    # TODO: complete function signatures
+    # if (qname, arity) not in self.parser.function_signatures:
+    #    raise self.error('XPST0017')
+
+    try:
+        return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
+    except KeyError:
+        raise self.error('XPST0017', "unknown function {}".format(qname.local_name))
 
 
 # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
