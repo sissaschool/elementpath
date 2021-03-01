@@ -769,6 +769,79 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse('fn:for-each(("23", "29"), xs:int#1)')
         self.assertListEqual(token.evaluate(context), [23, 29])
 
+    def test_filter(self):
+        token = self.parser.parse('fn:filter(1 to 10, function($a) {$a mod 2 = 0})')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertListEqual(token.evaluate(context), [2, 4, 6, 8, 10])
+
+    def test_fold_left(self):
+        token = self.parser.parse('fn:fold-left(1 to 5, 0, function($a, $b) { $a + $b })')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertListEqual(token.evaluate(context), [15])
+
+        token = self.parser.parse('fn:fold-left((2,3,5,7), 1, function($a, $b) { $a * $b })')
+        self.assertListEqual(token.evaluate(context), [210])
+
+        token = self.parser.parse(
+            'fn:fold-left((true(), false(), false()), false(), function($a, $b) { $a or $b })')
+        self.assertListEqual(token.evaluate(context), [True])
+
+        token = self.parser.parse(
+            'fn:fold-left((true(), false(), false()), false(), function($a, $b) { $a and $b })')
+        self.assertListEqual(token.evaluate(context), [False])
+
+        token = self.parser.parse(
+            'fn:fold-left(1 to 5, (), function($a, $b) {($b, $a)})')
+        self.assertListEqual(token.evaluate(context), [5,4,3,2,1])
+
+        token = self.parser.parse(
+            'fn:fold-left(1 to 5, "", fn:concat(?, ".", ?))')
+        self.assertListEqual(token.evaluate(context), [".1.2.3.4.5"])
+
+        token = self.parser.parse(
+            'fn:fold-left(1 to 5, "$zero", fn:concat("$f(", ?, ", ", ?, ")"))')
+        self.assertListEqual(token.evaluate(context), ["$f($f($f($f($f($zero, 1), 2), 3), 4), 5)"])
+
+    def test_fold_right(self):
+        token = self.parser.parse('fn:fold-right(1 to 5, 0, function($a, $b) { $a + $b })')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertListEqual(token.evaluate(context), [15])
+
+        token = self.parser.parse('fn:fold-right(1 to 5, "", fn:concat(?, ".", ?))')
+        self.assertListEqual(token.evaluate(context), ["1.2.3.4.5."])
+
+        token = self.parser.parse(
+            'fn:fold-right(1 to 5, "$zero", concat("$f(", ?, ", ", ?, ")"))')
+        self.assertListEqual(token.evaluate(context), ["$f(1, $f(2, $f(3, $f(4, $f(5, $zero)))))"])
+
+    def test_for_each_pair(self):
+        token = self.parser.parse('fn:for-each-pair(("a", "b", "c"), ("x", "y", "z"), concat#2)')
+        self.assertListEqual(token.evaluate(), ["ax", "by", "cz"])
+
+        token = self.parser.parse('fn:for-each-pair(1 to 5, 1 to 5, function($a, $b){10*$a + $b})')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertListEqual(token.evaluate(context), [11, 22, 33, 44, 55])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath3ParserTest(XPath30ParserTest):
