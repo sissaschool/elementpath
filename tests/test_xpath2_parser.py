@@ -273,6 +273,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("if (true()) then /A/B1 else /A/B2", root, root[:1])
         self.check_selector("if (false()) then /A/B1 else /A/B2", root, root[1:2])
 
+        token = self.parser.parse("if")
+        self.assertEqual(token.symbol, '(name)')
+        self.assertEqual(token.value, 'if')
+
         # Cases from XPath 2.0 examples
         root = self.etree.XML('<part discounted="false"><wholesale/><retail/></part>')
         self.check_selector(
@@ -322,6 +326,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
+
+        token = self.parser.parse("some")
+        self.assertEqual(token.symbol, '(name)')
+        self.assertEqual(token.value, 'some')
 
         # From W3C XQuery/XPath tests
         context = XPathContext(root=self.etree.XML('<dummy/>'),

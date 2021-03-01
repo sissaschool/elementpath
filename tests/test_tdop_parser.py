@@ -91,6 +91,16 @@ class TdopParserTest(unittest.TestCase):
 
     def test_create_tokenizer_method(self):
         FakeToken = namedtuple('Token', 'symbol pattern label')
+
+        tokens = {
+            FakeToken(symbol='(name)', pattern=None, label='literal'),
+            FakeToken('call', pattern=r'\bcall\b(?=\s+\()', label='function'),
+        }
+        pattern = Parser.create_tokenizer({t.symbol: t for t in tokens})
+        self.assertEqual(pattern.pattern,
+                         '(\'[^\']*\'|"[^"]*"|(?:\\d+|\\.\\d+)(?:\\.\\d*)?(?:[Ee][+-]?\\d+)?)|'
+                         '(\\bcall\\b(?=\\s+\\())|([A-Za-z0-9_]+)|(\\S)|\\s+')
+
         tokens = {
             FakeToken(symbol='(name)', pattern=None, label='literal'),
             FakeToken('call', pattern=r'\bcall\b(?=\s+\()', label='function'),
@@ -161,6 +171,14 @@ class TdopParserTest(unittest.TestCase):
         with self.assertRaises(ParseError) as ec:
             self.parser.parse('UNKNOWN')
         self.assertEqual(str(ec.exception), "unexpected name 'UNKNOWN'")
+
+        parser = self.parser.__class__()
+        parser.build()
+        parser.symbol_table.pop('+')
+
+        with self.assertRaises(ParseError) as ec:
+            parser.parse('+')
+        self.assertEqual(str(ec.exception), "unknown symbol '+'")
 
     def test_invalid_source(self):
         with self.assertRaises(ParseError) as ec:

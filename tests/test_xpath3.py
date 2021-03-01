@@ -23,6 +23,7 @@ import unittest
 import os
 import math
 import pathlib
+import platform
 import xml.etree.ElementTree as ElementTree
 
 try:
@@ -596,18 +597,19 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         self.assertIsNone(self.parser.parse('fn:unparsed-text(())').evaluate())
 
-        filepath = pathlib.Path(__file__).absolute().parent.joinpath('resources/sample.xml')
-        path = 'fn:unparsed-text("file://{}")'.format(str(filepath))
-        result = self.parser.parse(path).evaluate()
-        result = [x.strip() for x in result.strip().split('\n')]
-        self.assertListEqual(
-            result, ['<?xml version="1.0" encoding="UTF-8"?>', '<root>abc àèéìù</root>']
-        )
+        if platform.system() != 'Windows':
+            filepath = pathlib.Path(__file__).absolute().parent.joinpath('resources/sample.xml')
+            path = 'fn:unparsed-text("file://{}")'.format(str(filepath))
+            result = self.parser.parse(path).evaluate()
+            result = [x.strip() for x in result.strip().split('\n')]
+            self.assertListEqual(
+                result, ['<?xml version="1.0" encoding="UTF-8"?>', '<root>abc àèéìù</root>']
+            )
 
-        path = 'fn:unparsed-text("file://{}", "unknown")'.format(str(filepath))
-        with self.assertRaises(ValueError) as ctx:
-            self.parser.parse(path).evaluate()
-        self.assertIn('FOUT1190', str(ctx.exception))
+            path = 'fn:unparsed-text("file://{}", "unknown")'.format(str(filepath))
+            with self.assertRaises(ValueError) as ctx:
+                self.parser.parse(path).evaluate()
+            self.assertIn('FOUT1190', str(ctx.exception))
 
     def test_environment_variable_function(self):
         with self.assertRaises(MissingContextError):

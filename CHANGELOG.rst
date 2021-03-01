@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v2.2.0`_ (2021-03-01)
+======================
+* Optimize TDOP parser's tokenizer
+* Resolve ambiguities with operators and statements that are also names
+* Merge with XPath 3.0/3.1 develop (to be completed)
+
 `v2.1.4`_ (2021-02-09)
 ======================
 * Add tests and apply small fixes to TDOP parser
@@ -292,3 +298,4 @@ CHANGELOG
 .. _v2.1.2: https://github.com/sissaschool/elementpath/compare/v2.1.1...v2.1.2
 .. _v2.1.3: https://github.com/sissaschool/elementpath/compare/v2.1.2...v2.1.3
 .. _v2.1.4: https://github.com/sissaschool/elementpath/compare/v2.1.3...v2.1.4
+.. _v2.2.0: https://github.com/sissaschool/elementpath/compare/v2.1.4...v2.2.0
