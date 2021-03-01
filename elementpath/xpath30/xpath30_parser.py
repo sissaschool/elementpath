@@ -26,7 +26,7 @@ from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPA
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath_nodes import etree_iterpath, is_xpath_node, \
     is_document_node, is_etree_element, TypedElement
-from ..xpath_token import XPathFunction
+from ..xpath_token import ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy, QName
@@ -72,8 +72,8 @@ class XPath30Parser(XPath2Parser):
         'parse-xml', 'parse-xml-fragment', 'serialize',
 
         # Higher-order functions
-        'function-lookup', 'function-name', 'function-arity', '#',
-        'for-each',  # 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+        'function-lookup', 'function-name', 'function-arity', '#', '?',
+        'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
         # Expressions and node type functions
         'function', 'let', ':=',  # 'namespace-node', 'switch',
@@ -101,6 +101,16 @@ function = XPath30Parser.function
 signature = XPath30Parser.signature
 
 register(':=')
+
+
+XPath30Parser.unregister('?')
+register('?', bases=(ValueToken,))
+
+
+@method('?')
+def nud(self):
+    return self
+
 
 ###
 # Braced/expanded QName(s)
@@ -377,7 +387,7 @@ def evaluate(self, context):
 
 
 ###
-# Formatting functions
+# TODO: Formatting functions
 @method(function('format-integer', nargs=(2, 3)))
 def evaluate(self, context):
     value = self.get_argument(context, cls=NumericProxy)
@@ -792,7 +802,7 @@ def evaluate(self, context=None):
 
 @method(function('for-each', nargs=2))
 def select(self, context=None):
-    func = self[1]
+    func = self[1][1] if self[1].symbol == ':' else self[1]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=1, cls=XPathFunction)
 
@@ -804,8 +814,65 @@ def select(self, context=None):
             yield result
 
 
-# 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+@method(function('filter', nargs=2))
+def select(self, context=None):
+    func = self[1][1] if self[1].symbol == ':' else self[1]
+    if not isinstance(func, XPathFunction):
+        func = self.get_argument(context, index=1, cls=XPathFunction)
 
+    for item in self[0].select(copy(context)):
+        if self.boolean_value(func(context, argument_list=[item])):
+            yield item
+
+
+@method(function('fold-left', nargs=3))
+def select(self, context=None):
+    func = self[2][1] if self[2].symbol == ':' else self[2]
+    if not isinstance(func, XPathFunction):
+        func = self.get_argument(context, index=2, cls=XPathFunction)
+    zero = self.get_argument(context, index=1)
+
+    result = zero
+    for item in self[0].select(copy(context)):
+        result = func(context, argument_list=[result, item])
+
+    if isinstance(result, list):
+        yield from result
+    else:
+        yield result
+
+
+@method(function('fold-right', nargs=3))
+def select(self, context=None):
+    func = self[2][1] if self[2].symbol == ':' else self[2]
+    if not isinstance(func, XPathFunction):
+        func = self.get_argument(context, index=2, cls=XPathFunction)
+    zero = self.get_argument(context, index=1)
+
+    result = zero
+    sequence = [x for x in self[0].select(copy(context))]
+
+    for item in reversed(sequence):
+        result = func(context, argument_list=[item, result])
+
+    if isinstance(result, list):
+        yield from result
+    else:
+        yield result
+
+
+@method(function('for-each-pair', nargs=3))
+def select(self, context=None):
+    func = self[2][1] if self[2].symbol == ':' else self[2]
+    if not isinstance(func, XPathFunction):
+        func = self.get_argument(context, index=2, cls=XPathFunction)
+
+    for item1, item2 in zip(self[0].select(copy(context)), self[1].select(copy(context))):
+        result = func(context, argument_list=[item1, item2])
+        if isinstance(result, list):
+            yield from result
+        else:
+            yield result
 
 
 ###

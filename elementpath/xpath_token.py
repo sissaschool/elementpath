@@ -1077,7 +1077,6 @@ class ValueToken(XPathToken):
         yield self.value
 
 
-
 class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
@@ -1114,6 +1113,9 @@ class XPathFunction(XPathToken):
 
             for variable, value in zip(self, args):
                 context.variables[variable[0].value] = value
+        elif any(tk.symbol == '?' for tk in self):
+            for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
+                tk.value = value
         else:
             self.clear()
             for value in args:
