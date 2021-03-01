@@ -1064,6 +1064,20 @@ class XPathToken(Token):
         return self.error('XPST0081', message)
 
 
+class ValueToken(XPathToken):
+    """
+    A dummy token for encapsulating a value.
+    """
+    symbol = '(value)'
+
+    def evaluate(self, context=None):
+        return self.value
+
+    def select(self, context=None):
+        yield self.value
+
+
+
 class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
@@ -1084,14 +1098,29 @@ class XPathFunction(XPathToken):
                 self.nargs = nargs
 
     def __call__(self, context=None, argument_list=None):
-        self.clear()
+        args = []
         if isinstance(argument_list, (list, tuple)):
             for token in argument_list:
-                self.append(token)
+                args.append(token)
         elif isinstance(argument_list, XPathToken):
             for token in argument_list.iter():
                 if token.symbol not in ('(', ','):
-                    self.append(token)
+                    args.append(token)
+
+        context = copy(context)
+        if self.symbol == 'function':
+            if context is None:
+                raise self.missing_context()
+
+            for variable, value in zip(self, args):
+                context.variables[variable[0].value] = value
+        else:
+            self.clear()
+            for value in args:
+                if isinstance(value, XPathToken):
+                    self.append(value)
+                else:
+                    self.append(ValueToken(self.parser, value=value))
 
         return self.evaluate(context)
 
