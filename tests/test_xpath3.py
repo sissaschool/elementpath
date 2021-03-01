@@ -640,7 +640,12 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_inline_function_expression(self):
         token = self.parser.parse("function() as xs:integer+ { 2, 3, 5, 7, 11, 13 }")
-        self.assertListEqual(token.evaluate(), [2, 3, 5, 7, 11, 13])
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root, variables={'a': 9.0, 'b': 3.0})
+        self.assertListEqual(token.evaluate(context), [2, 3, 5, 7, 11, 13])
 
         token = self.parser.parse(
             "function($a as xs:double, $b as xs:double) as xs:double { $a * $b }")
@@ -747,6 +752,22 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
         self.assertEqual(token.evaluate(context), [7])
+
+    def test_for_each(self):
+        token = self.parser.parse('fn:for-each(1 to 5, function($a) { $a * $a })')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertListEqual(token.evaluate(context), [1, 4, 9, 16, 25])
+
+        token = self.parser.parse('fn:for-each(("john", "jane"), fn:string-to-codepoints#1)')
+        self.assertListEqual(token.evaluate(context), [106, 111, 104, 110, 106, 97, 110, 101])
+
+        token = self.parser.parse('fn:for-each(("23", "29"), xs:int#1)')
+        self.assertListEqual(token.evaluate(context), [23, 29])
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

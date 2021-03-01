@@ -73,7 +73,7 @@ class XPath30Parser(XPath2Parser):
 
         # Higher-order functions
         'function-lookup', 'function-name', 'function-arity', '#',
-        # 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+        'for-each',  # 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
         # Expressions and node type functions
         'function', 'let', ':=',  # 'namespace-node', 'switch',
@@ -254,6 +254,8 @@ def nud(self):
 
 @method('function')
 def evaluate(self, context=None):
+    if context is None:
+        raise self.missing_context()
     return self.expr.evaluate(context)
 
 
@@ -739,7 +741,7 @@ def evaluate(self, context=None):
 
     try:
         return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
-    except KeyError:
+    except (KeyError, TypeError):
         raise self.error('XPST0017', "unknown function {}".format(qname.local_name))
 
 
@@ -784,11 +786,27 @@ def evaluate(self, context=None):
 
     try:
         return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
-    except KeyError:
+    except (KeyError, TypeError):
         raise self.error('XPST0017', "unknown function {}".format(qname.local_name))
 
 
-# 'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+@method(function('for-each', nargs=2))
+def select(self, context=None):
+    func = self[1]
+    if not isinstance(func, XPathFunction):
+        func = self.get_argument(context, index=1, cls=XPathFunction)
+
+    for item in self[0].select(copy(context)):
+        result = func(context, argument_list=[item])
+        if isinstance(result, list):
+            yield from result
+        else:
+            yield result
+
+
+# 'filter', 'fold-left', 'fold-right', 'for-each-pair',
+
+
 
 ###
 # Math functions signatures
@@ -841,3 +859,5 @@ signature('function(xs:string?) as document-node()?', 'parse-xml-fragment')
 signature('function(item()*) as xs:string', 'serialize')
 signature('function(item()*, element(output:serialization-parameters)?) as xs:string',
           'serialize')
+
+signature('function(item()*, function(item()) as item()*) as item()*', 'for-each')
