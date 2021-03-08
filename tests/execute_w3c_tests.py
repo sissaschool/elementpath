@@ -39,8 +39,8 @@ DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
                     'xml-version', 'xsd-version', 'unicode-version',
                     'unicode-normalization-form'}
 
-IGNORE_SPECS = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30',
-                'XQ30+', 'XP31', 'XP31+', 'XQ31', 'XQ31+'}
+IGNORE_SPECS = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30', 'XQ30+',
+                'XP31', 'XP31+', 'XQ31', 'XQ31+', 'XT30+'}
 
 SKIP_TESTS = [
     'fn-subsequence__cbcl-subsequence-010',
@@ -80,6 +80,7 @@ SKIP_TESTS = [
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
 ]
 
+xpath_parser = XPath2Parser
 
 QT3_NAMESPACE = "http://www.w3.org/2010/09/qt-fots-catalog"
 
@@ -417,7 +418,7 @@ class TestCase(object):
                 schema = xmlschema.XMLSchema(environment.schema.filepath)
                 schema_proxy = schema.xpath_proxy
 
-        parser = XPath2Parser(
+        parser = xpath_parser(
             namespaces=test_namespaces,
             xsd_version=self.xsd_version,
             schema=schema_proxy,
@@ -453,7 +454,7 @@ class TestCase(object):
 
             for param in environment.params:
                 name = param['name']
-                value = XPath2Parser().parse(param['select']).evaluate()
+                value = xpath_parser().parse(param['select']).evaluate()
                 variables[name] = value
 
             for source in environment.sources.values():
@@ -517,7 +518,7 @@ class Result(object):
     :param test_case: the test-case that the result validator belongs to.
     """
     # Validation helper tokens
-    parser = XPath2Parser()
+    parser = xpath_parser()
     string_token = parser.parse('fn:string($result)')
     string_join_token = parser.parse('fn:string-join($result, " ")')
 
@@ -619,7 +620,7 @@ class Result(object):
         if isinstance(result, list) and len(result) == 1:
             result = result[0]
 
-        parser = XPath2Parser()
+        parser = xpath_parser()
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"))
         expected_result = root_node.evaluate(context)
@@ -807,7 +808,7 @@ class Result(object):
             return False
 
         variables = {'result': result}
-        parser = XPath2Parser()
+        parser = xpath_parser()
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.boolean_value(root_node.evaluate(context)) is True:
@@ -826,7 +827,7 @@ class Result(object):
         expression = "fn:deep-equal($result, (%s))" % self.value
         variables = {'result': result}
 
-        parser = XPath2Parser()
+        parser = xpath_parser()
         root_node = parser.parse(expression)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.evaluate(context) is True:
@@ -956,6 +957,8 @@ def main():
                         help="run only test cases that have a specific XPath expression")
     parser.add_argument('-i', dest='ignore_case', action='store_true', default=False,
                         help="ignore character case for regex pattern matching")
+    parser.add_argument('--xp30', action='store_true', default=False,
+                        help="test XPath 3.0 parser")
     parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
                         help="use lxml.etree for environment sources (default is ElementTree)")
     parser.add_argument('-v', dest='verbose', action='count', default=1,
@@ -978,6 +981,14 @@ def main():
     if not os.path.isfile(catalog_file):
         print("Error: catalog file %s does not exist" % args.catalog)
         sys.exit(1)
+
+    if args.xp30:
+        from elementpath.xpath30 import XPath30Parser
+
+        global xpath_parser
+        xpath_parser = XPath30Parser
+        IGNORE_SPECS.remove('XP30')
+        IGNORE_SPECS.remove('XP30+')
 
     with working_directory(dirpath=os.path.dirname(catalog_file)):
         catalog_xml = ElementTree.parse(catalog_file)
@@ -1002,7 +1013,7 @@ def main():
 
         for test_set in test_sets.values():
             # ignore test cases for XQuery, and 3.0
-            ignore_all_in_test_set = any(
+            ignore_all_in_test_set = test_set.specs and all(
                 dep in IGNORE_SPECS for dep in test_set.specs
             )
 
@@ -1014,7 +1025,7 @@ def main():
                     continue
 
                 # ignore test cases for XQuery, and 3.0
-                if any(dep in IGNORE_SPECS for dep in test_case.specs):
+                if test_case.specs and all(dep in IGNORE_SPECS for dep in test_case.specs):
                     count_skip += 1
                     continue
 
