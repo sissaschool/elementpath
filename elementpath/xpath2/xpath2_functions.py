@@ -776,24 +776,23 @@ def evaluate(self, context=None):
 
 @method(function('codepoints-to-string', nargs=1))
 def evaluate(self, context=None):
+    result = []
+    for value in self[0].select(context):
+        if not isinstance(value, int):
+            msg = "invalid type {} for codepoint {}".format(type(value), value)
+            if isinstance(value, str):
+                raise self.error('XPTY0004', msg)
+            raise self.error('FORG0006', msg)
+        elif value in {0x9, 0xA, 0xD} \
+                or 0x20 <= value <= 0xD7FF \
+                or 0xE000 <= value <= 0xFFFD \
+                or 0x10000 <= value <= 0x10FFFF:
+            result.append(chr(value))
+        else:
+            msg = "{} is not a valid XML 1.0 codepoint".format(value)
+            raise self.error('FOCH0001', msg)
 
-    def xml10_chr(cp: int):
-        if not isinstance(cp, int):
-            raise TypeError("invalid type {} for codepoint {}".format(type(cp), cp))
-        elif cp in {0x9, 0xA, 0xD} \
-                or 0x20 <= cp <= 0xD7FF \
-                or 0xE000 <= cp <= 0xFFFD \
-                or 0x10000 <= cp <= 0x10FFFF:
-            return chr(cp)
-        raise ValueError("{} is not a valid XML 1.0 codepoint".format(cp))
-
-    try:
-        return ''.join(xml10_chr(cp) for cp in self[0].select(context))
-    except TypeError as err:
-        code = 'XPTY0004' if "'str'" in str(err) else 'FORG0006'
-        raise self.error(code, err) from None
-    except ValueError as err:
-        raise self.error('FOCH0001', err) from None  # Code point not valid
+    return ''.join(result)
 
 
 @method(function('string-to-codepoints', nargs=1))

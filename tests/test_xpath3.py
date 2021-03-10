@@ -21,6 +21,7 @@
 #
 import unittest
 import os
+import re
 import math
 import pathlib
 import platform
@@ -39,6 +40,7 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import *
+from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import is_document_node, is_lxml_document_node, \
     is_etree_element, is_lxml_etree_element
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
@@ -342,10 +344,11 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse(r'fn:analyze-string("2008-12-03", "^(\d+)\-(\d+)\-(\d+)$")')
         root = token.evaluate()
         self.assertEqual(len(root), 1)
-        ElementTree.register_namespace('', 'http://www.w3.org/2005/xpath-functions')
+
+        ElementTree.register_namespace('', XPATH_FUNCTIONS_NAMESPACE)
         self.assertEqual(
             ElementTree.tostring(root, encoding='utf-8').decode('utf-8'),
-            ANALYZE_STRING_1
+            re.sub(r'\n\s*', '', ANALYZE_STRING_1)
         )
 
         token = self.parser.parse('fn:analyze-string("A1,C15,,D24, X50,", "([A-Z])([0-9]+)")')
@@ -353,7 +356,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(len(root), 8)
         self.assertEqual(
             ElementTree.tostring(root, encoding='utf-8').decode('utf-8'),
-            ANALYZE_STRING_2
+            re.sub(r'\n\s*', '', ANALYZE_STRING_2)
         )
 
     def test_has_children_function(self):
@@ -804,7 +807,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         token = self.parser.parse(
             'fn:fold-left(1 to 5, (), function($a, $b) {($b, $a)})')
-        self.assertListEqual(token.evaluate(context), [5,4,3,2,1])
+        self.assertListEqual(token.evaluate(context), [5, 4, 3, 2, 1])
 
         token = self.parser.parse(
             'fn:fold-left(1 to 5, "", fn:concat(?, ".", ?))')
