@@ -310,7 +310,7 @@ def evaluate(self, context):
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     if x is not None:
         if not x and y < 0:
-            return float('inf')
+            return math.copysign(float('inf'), x) if (y % 2) == 1 else float('inf')
 
         try:
             return float(x ** y)
