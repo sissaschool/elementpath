@@ -446,6 +446,29 @@ def evaluate(self, context=None):
     except OverflowError as err:
         raise self.error('FORX0002', err) from None
 
+    if compiled_pattern.match('') is not None:
+        raise self.error('FORX0003', "pattern matches a zero-length string")
+
+    level = 0
+    escaped = False
+    char_class = False
+    group_levels = [0]
+    for s in compiled_pattern.pattern:
+        if escaped:
+            escaped = False
+        elif s == '\\':
+            escaped = True
+        elif char_class:
+            if s == ']':
+                char_class = False
+        elif s == '[':
+            char_class = True
+        elif s == '(':
+            group_levels.append(level)
+            level += 1
+        elif s == ')':
+            level -= 1
+
     etree = ElementTree if context is None else context.etree
     lines = ['<analyze-string-result xmlns="{}">'.format(XPATH_FUNCTIONS_NAMESPACE)]
     k = 0
@@ -453,32 +476,66 @@ def evaluate(self, context=None):
     while k < len(input_string):
         match = compiled_pattern.search(input_string, k)
         if match is None:
-            lines.append('  <non-match>{}</non-match>'.format(input_string[k:]))
+            lines.append('<non-match>{}</non-match>'.format(input_string[k:]))
             break
         elif not match.groups():
             start, stop = match.span()
             if start > k:
-                lines.append('  <non-match>{}</non-match>'.format(input_string[k:start]))
-            lines.append('  <match>{}</match>'.format(input_string[start:stop]))
+                lines.append('<non-match>{}</non-match>'.format(input_string[k:start]))
+            lines.append('<match>{}</match>'.format(input_string[start:stop]))
             k = stop
         else:
             start, stop = match.span()
             if start > k:
-                lines.append('  <non-match>{}</non-match>'.format(input_string[k:start]))
+                lines.append('<non-match>{}</non-match>'.format(input_string[k:start]))
                 k = start
 
-            group_string = []
-            group_tmpl = '<group nr="{}">{}</group>'
-            for idx in range(1, len(match.groups()) + 1):
+            match_items = []
+            group_tmpl = '<group nr="{}">{}'
+            empty_group_tmpl = '<group nr="{}"/>'
+            unclosed_groups = 0
+
+            for idx in range(1, compiled_pattern.groups + 1):
                 start, stop = match.span(idx)
-                if start > k:
-                    group_string.append(input_string[k:start])
-                group_string.append(group_tmpl.format(idx, input_string[start:stop]))
-                k = stop
-            lines.append('  <match>{}</match>'.format(''.join(group_string)))
+                if start < 0:
+                    continue
+                elif start > k:
+                    if unclosed_groups:
+                        for _ in range(unclosed_groups):
+                            match_items.append('</group>')
+                        unclosed_groups = 0
+
+                    match_items.append(input_string[k:start])
+
+                if start == stop:
+                    if group_levels[idx] <= group_levels[idx - 1]:
+                        for _ in range(unclosed_groups):
+                            match_items.append('</group>')
+                        unclosed_groups = 0
+                    match_items.append(empty_group_tmpl.format(idx))
+                    k = stop
+                elif idx == compiled_pattern.groups:
+                    k = stop
+                    match_items.append(group_tmpl.format(idx, input_string[start:k]))
+                    match_items.append('</group>')
+                else:
+                    next_start = match.span(idx + 1)[0]
+                    if next_start < 0 or stop < next_start or stop == next_start \
+                            and group_levels[idx + 1] <= group_levels[idx]:
+                        k = stop
+                        match_items.append(group_tmpl.format(idx, input_string[start:k]))
+                        match_items.append('</group>')
+                    else:
+                        k = next_start
+                        match_items.append(group_tmpl.format(idx, input_string[start:k]))
+                        unclosed_groups += 1
+
+            for _ in range(unclosed_groups):
+                match_items.append('</group>')
+            lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
-    return etree.XML('\n'.join(lines))
+    return etree.XML(''.join(lines))
 
 
 ###

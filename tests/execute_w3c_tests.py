@@ -71,6 +71,7 @@ SKIP_TESTS = [
 
     # For XP30+
     'fn-root__K-NodeRootFunc-2',  # includes a XPath 3.0 fn:generate-id()
+    'fn-codepoints-to-string__cbcl-codepoints-to-string-021',  # Too long ...
 
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
@@ -677,13 +678,19 @@ class Result(object):
             type_check = isinstance(result, int) and not isinstance(result, bool)
         elif self.value == 'document-node()*':
             type_check = isinstance(result, list) and all(hasattr(x, 'getroot') for x in result)
+        elif self.value == 'document-node()':
+            type_check = hasattr(result, 'getroot')
         elif self.value.startswith('element('):
             tag = self.value[8:self.value.index(')')]
             type_check = hasattr(result, 'tag') and result.tag == tag
+        elif self.value.startswith('node()'):
+            print(self.value)
+            type_check = True
         else:
             msg = "unknown type in assert_type: %s (result type is %s), test-case %s"
             print(msg % (self.value, str(type(result)), self.test_case.name))
-            sys.exit(1)
+            type_check = False
+            # sys.exit(1)
 
         if not type_check:
             self.report_failure(
@@ -887,6 +894,9 @@ class Result(object):
 
                 for prefix, uri in environment.namespaces.items():
                     ElementTree.register_namespace(prefix, uri)
+            else:
+                for prefix, uri in self.parser.namespaces.items():
+                    ElementTree.register_namespace(prefix, uri)
 
         if type(result) == list:
             parts = []
@@ -901,7 +911,18 @@ class Result(object):
                     parts.append(str(item))
             xml_str = ''.join(parts)
         else:
-            xml_str = tostring(result.getroot()).decode('utf-8').strip()
+            try:
+                root = result.getroot()
+            except AttributeError:
+                root = result
+
+            xml_str = tostring(root).decode('utf-8').strip()
+
+        # Remove character data from result
+        xml_str = '>'.join(s.lstrip() for s in xml_str.split('>\n'))
+
+        # Adapt empty element ending as used for results
+        xml_str = xml_str.replace(' />', '/>')
 
         # Strip the tail from serialized result
         if '>' in xml_str:
