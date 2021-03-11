@@ -24,7 +24,7 @@ from urllib.parse import urlsplit
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..xpath_nodes import etree_iterpath, is_xpath_node, \
+from ..xpath_nodes import etree_iterpath, is_xpath_node, is_element_node, \
     is_document_node, is_etree_element, TypedElement
 from ..xpath_token import ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
@@ -596,8 +596,8 @@ def evaluate(self, context=None):
             raise self.error('XPTY0004', 'argument must be a node')
 
     return is_document_node(item) or \
-        is_etree_element(item) and len(item) > 0 or \
-        isinstance(item, TypedElement) and len(item.elem) > 0
+        is_element_node(item) and (len(item) > 0 or item.text is not None) or \
+        isinstance(item, TypedElement) and (len(item.elem) > 0 or item.elem.text is not None)
 
 
 @method(function('innermost', nargs=1))
@@ -791,7 +791,7 @@ def evaluate(self, context=None):
 
             chunks.append(serialized_item)
 
-    return b'\n'.join(chunks)
+    return (b'\n'.join(chunks)).decode('utf-8')
 
 
 ###
@@ -923,6 +923,11 @@ def select(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=2, cls=XPathFunction)
+
+    if not isinstance(func, XPathFunction):
+        raise self.error('XPTY0004', "invalid type for 3rd argument {!r}".format(func))
+    elif func.arity != 2:
+        raise self.error('XPTY0004', "function arity of 3rd argument must be 2")
 
     for item1, item2 in zip(self[0].select(copy(context)), self[1].select(copy(context))):
         result = func(context, argument_list=[item1, item2])
