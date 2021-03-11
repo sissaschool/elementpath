@@ -555,7 +555,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         )
         context.variables['data'] = self.etree.XML("<a b='3'/>")
         result = self.parser.parse('fn:serialize($data, $params)').evaluate(context)
-        self.assertEqual(result.replace(b' />', b'/>'), b'<a b="3"/>')
+        self.assertEqual(result.replace(' />', '/>'), '<a b="3"/>')
 
     def test_head_function(self):
         self.assertEqual(self.parser.parse('fn:head(1 to 5)').evaluate(), 1)

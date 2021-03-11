@@ -29,9 +29,11 @@ from collections import OrderedDict
 from xml.etree import ElementTree
 import lxml.etree
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
 import elementpath
 import xmlschema
+
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
+from elementpath.xpath_token import XPathFunction
 
 
 DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
@@ -644,53 +646,17 @@ class Result(object):
         if isinstance(result, list) and len(result) == 1:
             result = result[0]
 
-        if self.value == 'xs:anyURI':
-            type_check = isinstance(result, str)
-        elif self.value == 'xs:boolean':
-            type_check = isinstance(result, bool)
-        elif self.value == 'xs:date':
-            type_check = isinstance(result, elementpath.datatypes.Date10)
-        elif self.value == 'xs:double':
-            type_check = isinstance(result, float)
-        elif self.value == 'xs:dateTime':
-            type_check = isinstance(result, elementpath.datatypes.DateTime10)
-        elif self.value == 'xs:dayTimeDuration':
-            type_check = isinstance(result, elementpath.datatypes.DayTimeDuration)
-        elif self.value == 'xs:decimal':
-            type_check = isinstance(result, (int, decimal.Decimal)) and not isinstance(result, bool)
-        elif self.value == 'xs:float':
-            type_check = isinstance(result, float)
-        elif self.value == 'xs:integer':
-            type_check = isinstance(result, int) and not isinstance(result, bool)
-        elif self.value == 'xs:NCName':
-            type_check = isinstance(result, str)
-        elif self.value == 'xs:nonNegativeInteger':
-            type_check = isinstance(result, int) and not isinstance(result, bool)
-        elif self.value == 'xs:positiveInteger':
-            type_check = isinstance(result, int) and not isinstance(result, bool)
-        elif self.value == 'xs:string':
-            type_check = isinstance(result, str)
-        elif self.value == 'xs:time':
-            type_check = isinstance(result, elementpath.datatypes.Time)
-        elif self.value == 'xs:token':
-            type_check = isinstance(result, str)
-        elif self.value == 'xs:unsignedShort':
-            type_check = isinstance(result, int) and not isinstance(result, bool)
-        elif self.value == 'document-node()*':
-            type_check = isinstance(result, list) and all(hasattr(x, 'getroot') for x in result)
-        elif self.value == 'document-node()':
-            type_check = hasattr(result, 'getroot')
-        elif self.value.startswith('element('):
+        if self.value == 'function(*)':
+            type_check = isinstance(result, XPathFunction)
+        elif self.value.startswith('element(') and self.value[8] != ')':
             tag = self.value[8:self.value.index(')')]
             type_check = hasattr(result, 'tag') and result.tag == tag
-        elif self.value.startswith('node()'):
-            print(self.value)
-            type_check = True
-        else:
-            msg = "unknown type in assert_type: %s (result type is %s), test-case %s"
-            print(msg % (self.value, str(type(result)), self.test_case.name))
+        elif not self.parser.is_sequence_type(self.value):
+            msg = " test-case {}: {!r} is not a valid sequence type"
+            print(msg.format(self.test_case.name, self.value))
             type_check = False
-            # sys.exit(1)
+        else:
+            type_check = self.parser.match_sequence_type(result, self.value)
 
         if not type_check:
             self.report_failure(
@@ -898,6 +864,12 @@ class Result(object):
                 for prefix, uri in self.parser.namespaces.items():
                     ElementTree.register_namespace(prefix, uri)
 
+        if self.value is not None:
+            expected = self.value
+        else:
+            with open(self.attrib['file']) as fp:
+                expected = fp.read()
+
         if type(result) == list:
             parts = []
             for item in result:
@@ -918,8 +890,9 @@ class Result(object):
 
             xml_str = tostring(root).decode('utf-8').strip()
 
-        # Remove character data from result
-        xml_str = '>'.join(s.lstrip() for s in xml_str.split('>\n'))
+        # Remove character data from result if expected result is serialized
+        if '\n' not in expected:
+            xml_str = '>'.join(s.lstrip() for s in xml_str.split('>\n'))
 
         # Adapt empty element ending as used for results
         xml_str = xml_str.replace(' />', '/>')
@@ -929,12 +902,6 @@ class Result(object):
             tail_pos = xml_str.rindex('>') + 1
             if tail_pos < len(xml_str):
                 xml_str = xml_str[:tail_pos]
-
-        if self.value is not None:
-            expected = self.value
-        else:
-            with open(self.attrib['file']) as fp:
-                expected = fp.read()
 
         if xml_str == expected:
             return True
@@ -1042,6 +1009,11 @@ def main():
                 count_read += 1
 
                 if ignore_all_in_test_set:
+                    count_skip += 1
+                    continue
+
+                # ignore test cases for XML version 1.1 (not yet supported by Python's libraries)
+                if test_case.xml_version == '1.1':
                     count_skip += 1
                     continue
 

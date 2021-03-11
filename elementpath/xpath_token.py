@@ -226,7 +226,7 @@ class XPathToken(Token):
                     raise self.error('XPTY0004', msg.format(ord_arg))
 
         # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
-        if cls is not None and not isinstance(item, cls):
+        if cls is not None and not isinstance(item, cls) and not issubclass(cls, XPathToken):
             if promote and isinstance(item, promote):
                 return cls(item)
 
@@ -1089,10 +1089,10 @@ class XPathFunction(XPathToken):
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:
             if nargs < 0:
-                raise ElementPathValueError('number of arguments must be non negative')
+                raise self.error('XPST0017', 'number of arguments must be non negative')
             elif isinstance(self.nargs, int) or isinstance(self.nargs, (tuple, list)) and \
                     (self.nargs[0] > nargs or self.nargs[1] and self.nargs[1] < nargs):
-                raise ElementPathValueError('incongruent number of arguments')
+                raise self.error('XPST0017', 'incongruent number of arguments')
             else:
                 self.nargs = nargs
 
