@@ -13,6 +13,7 @@ import decimal
 import operator
 from copy import copy
 
+from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, xpath_error
 from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, QName, \
@@ -230,8 +231,8 @@ class XPath1Parser(Parser):
     def is_sequence_type(self, value):
         """Checks is a string is a sequence type specification."""
         try:
-            value = value.strip()
-        except AttributeError:
+            value = normalize_sequence_type(value)
+        except TypeError:
             return False
 
         if not value:
@@ -241,9 +242,25 @@ class XPath1Parser(Parser):
         elif value[-1] in ('?', '+', '*'):
             value = value[:-1]
 
-        if value in {'untypedAtomic', 'attribute()', 'element()', 'text()', 'document-node()',
-                     'comment()', 'processing-instruction()', 'item()', 'node()'}:
+        if value in {'untypedAtomic', 'attribute()', 'attribute(*)', 'element()',
+                     'element(*)', 'text()', 'document-node()', 'comment()',
+                     'processing-instruction()', 'item()', 'node()'}:
             return True
+        elif value.startswith('element(') and value.endswith(')'):
+            if ',' not in value:
+                return EQNAME_PATTERN.match(value[8:-1]) is not None
+
+            try:
+                arg1, arg2 = value[8:-1].split(', ')
+            except ValueError:
+                return False
+            else:
+                return (arg1 == '*' or EQNAME_PATTERN.match(arg1) is not None) \
+                    and EQNAME_PATTERN.match(arg2) is not None
+        elif value.startswith('function(') and self.version >= '3.0':
+            if value == 'function(*)':
+                return True
+            return False  # TODO: other cases ...
         elif QName.pattern.match(value) is None:
             return False
 
@@ -325,15 +342,10 @@ class XPath1Parser(Parser):
     def check_variables(self, values):
         """Checks the sequence types of the XPath dynamic context's variables."""
         for varname, value in values.items():
-            if isinstance(value, list):
-                if self.match_sequence_type(value, 'item()', occurrence='*'):
-                    continue
-            else:
-                if self.match_sequence_type(value, 'item()'):
-                    continue
-
-            message = "Unmatched sequence type for variable {!r}".format(varname)
-            raise xpath_error('XPDY0050', message)
+            if not self.match_sequence_type(
+                    value, 'item()', occurrence='*' if isinstance(value, list) else None):
+                message = "Unmatched sequence type for variable {!r}".format(varname)
+                raise xpath_error('XPDY0050', message)
 
 
 ##

@@ -113,12 +113,26 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertTrue(self.parser.is_sequence_type('element()*'))
         self.assertTrue(self.parser.is_sequence_type('item()?'))
         self.assertTrue(self.parser.is_sequence_type('xs:untypedAtomic+'))
+
         self.assertFalse(self.parser.is_sequence_type(10))
         self.assertFalse(self.parser.is_sequence_type(''))
         self.assertFalse(self.parser.is_sequence_type('empty-sequence()*'))
         self.assertFalse(self.parser.is_sequence_type('unknown'))
         self.assertFalse(self.parser.is_sequence_type('unknown?'))
         self.assertFalse(self.parser.is_sequence_type('tns0:unknown'))
+
+        self.assertTrue(self.parser.is_sequence_type(' element( ) '))
+        self.assertTrue(self.parser.is_sequence_type(' element( * ) '))
+        self.assertFalse(self.parser.is_sequence_type(' element( *, * ) '))
+        self.assertTrue(self.parser.is_sequence_type('element(A)'))
+        self.assertTrue(self.parser.is_sequence_type('element(A, xs:date)'))
+        self.assertTrue(self.parser.is_sequence_type('element(*, xs:date)'))
+        self.assertFalse(self.parser.is_sequence_type('element(A, B, xs:date)'))
+
+        if self.parser.version >= '3.0':
+            self.assertTrue(self.parser.is_sequence_type('function(*)'))
+        else:
+            self.assertFalse(self.parser.is_sequence_type('function(*)'))
 
     def test_match_sequence_type_method(self):
         self.assertTrue(self.parser.match_sequence_type(None, 'empty-sequence()'))

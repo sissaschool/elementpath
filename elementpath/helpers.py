@@ -40,6 +40,17 @@ def is_idrefs(value):
 
 
 ###
+# Sequence type checking
+SEQUENCE_TYPE_PATTERN = re.compile(r'\s?([()?*+,])\s?')
+
+
+def normalize_sequence_type(sequence_type):
+    sequence_type = WHITESPACES_PATTERN.sub(' ', sequence_type).strip()
+    sequence_type = SEQUENCE_TYPE_PATTERN.sub(r'\1', sequence_type)
+    return sequence_type.replace(',', ', ').replace(')as', ') as')
+
+
+###
 # Date/Time helpers
 MONTH_DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 MONTH_DAYS_LEAP = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]

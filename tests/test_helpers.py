@@ -12,7 +12,7 @@ import unittest
 import math
 from xml.etree import ElementTree
 from elementpath.helpers import days_from_common_era, months2days, \
-    round_number, is_idrefs, collapse_white_spaces
+    round_number, is_idrefs, collapse_white_spaces, normalize_sequence_type
 
 
 class HelperFunctionsTest(unittest.TestCase):
@@ -131,6 +131,21 @@ class HelperFunctionsTest(unittest.TestCase):
         self.assertEqual(round_number(9.5), 10)
         self.assertEqual(round_number(-10.1), -10)
         self.assertEqual(round_number(-9.5), -9)
+
+    def test_collapse_white_spaces_function(self):
+        self.assertEqual(collapse_white_spaces('  ab  c  '), 'ab c')
+        self.assertEqual(collapse_white_spaces('  ab\t\nc  '), 'ab c')
+
+    def test_normalize_sequence_type_function(self):
+        self.assertEqual(normalize_sequence_type(' xs:integer + '), 'xs:integer+')
+        self.assertEqual(normalize_sequence_type(' xs :integer + '), 'xs :integer+')  # Invalid
+        self.assertEqual(normalize_sequence_type(' element( * ) '), 'element(*)')
+        self.assertEqual(normalize_sequence_type(' element( *,xs:int ) '), 'element(*, xs:int)')
+        self.assertEqual(normalize_sequence_type(' \nfunction  ( * )\t '), 'function(*)')
+        self.assertEqual(
+            normalize_sequence_type(' \nfunction  ( item( ) * ) as  xs:integer\t '),
+            'function(item()*) as xs:integer'
+        )
 
 
 if __name__ == '__main__':

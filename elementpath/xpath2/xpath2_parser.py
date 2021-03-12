@@ -19,6 +19,7 @@ from copy import copy
 from decimal import Decimal, DivisionByZero
 from urllib.parse import urlparse
 
+from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
@@ -215,7 +216,9 @@ class XPath2Parser(XPath1Parser):
         if not variable_types:
             self.variable_types = {}
         elif all(self.is_sequence_type(v) for v in variable_types.values()):
-            self.variable_types = variable_types.copy()
+            self.variable_types = {
+                k: normalize_sequence_type(v) for k, v in variable_types.items()
+            }
         else:
             raise ElementPathValueError('invalid sequence type for in-scope variable types')
 
@@ -427,15 +430,9 @@ class XPath2Parser(XPath1Parser):
             except KeyError:
                 sequence_type = 'item()*' if isinstance(value, list) else 'item()'
 
-            if sequence_type[-1] in ('?', '+', '*'):
-                if self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1]):
-                    continue
-            else:
-                if self.match_sequence_type(value, sequence_type):
-                    continue
-
-            message = "Unmatched sequence type for variable {!r}".format(varname)
-            raise xpath_error('XPDY0050', message)
+            if not self.match_sequence_type(value, sequence_type):
+                message = "Unmatched sequence type for variable {!r}".format(varname)
+                raise xpath_error('XPDY0050', message)
 
 
 ##
