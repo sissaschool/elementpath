@@ -11,7 +11,7 @@ import re
 import math
 from decimal import Decimal
 
-from .helpers import collapse_white_spaces
+from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
 from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
