@@ -8,7 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from .helpers import NORMALIZE_PATTERN, collapse_white_spaces
+
+from ..helpers import NORMALIZE_PATTERN, collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
 
 

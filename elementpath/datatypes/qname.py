@@ -8,8 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
+
+from ..helpers import QNAME_PATTERN
 from .atomic_types import AtomicTypeMeta
-from .helpers import QNAME_PATTERN
 
 
 class AbstractQName(metaclass=AtomicTypeMeta):

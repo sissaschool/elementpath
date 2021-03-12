@@ -22,9 +22,10 @@ from decimal import Decimal, DecimalException
 from string import ascii_letters
 from urllib.parse import urlsplit, quote as urllib_quote
 
+from ..helpers import is_idrefs
 from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
-    UntypedAtomic, AnyURI, QName, NCName, Id, is_idrefs, ArithmeticProxy, NumericProxy
+    UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from ..xpath_context import XPathContext, XPathSchemaContext
 from ..xpath_nodes import AttributeNode, NamespaceNode, is_element_node, \

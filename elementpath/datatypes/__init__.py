@@ -14,7 +14,8 @@ exceptions in order to be reusable in other packages.
 """
 from decimal import Decimal
 
-from .helpers import is_idrefs, QNAME_PATTERN
+from ..helpers import QNAME_PATTERN  # For backward compatibility
+
 from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType
 from .untyped import UntypedAtomic
 from .qname import Notation, QName
@@ -110,10 +111,10 @@ ATOMIC_VALUES = {
 }
 
 __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES',
-           'is_idrefs', 'NumericProxy', 'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType',
+           'NumericProxy', 'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType',
            'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
-           'Date', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay', 'GregorianYear10',
-           'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth', 'Time',
+           'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
+           'GregorianYear10', 'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth',
            'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
            'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',
            'Entity', 'NMToken', 'Base64Binary', 'HexBinary', 'Float10', 'Float',

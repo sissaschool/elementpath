@@ -11,7 +11,7 @@ from abc import abstractmethod
 import re
 import codecs
 
-from .helpers import collapse_white_spaces
+from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
 from .untyped import UntypedAtomic
 
