@@ -833,8 +833,8 @@ def evaluate(self, context=None):
 
 @method('#', bp=50)
 def led(self, left):
-    left.expected(':', '(name)')
-    self[:] = left, self.parser.expression(rbp=50)
+    left.expected(':', '(name)', 'Q{')
+    self[:] = left, self.parser.expression(rbp=90)
     self[1].expected('(integer)')
     return self
 
@@ -843,6 +843,8 @@ def led(self, left):
 def evaluate(self, context=None):
     if self[0].symbol == ':':
         qname = QName(self[0][1].namespace, self[0].value)
+    elif self[0].symbol == 'Q{':
+        qname = QName(self[0][0].value, self[0][1].value)
     else:
         qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
     arity = self[1].value
