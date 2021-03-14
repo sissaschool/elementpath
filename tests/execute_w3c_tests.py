@@ -623,7 +623,7 @@ class Result(object):
         if isinstance(result, list) and len(result) == 1:
             result = result[0]
 
-        parser = xpath_parser()
+        parser = xpath_parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"))
         expected_result = root_node.evaluate(context)
@@ -781,7 +781,7 @@ class Result(object):
             return False
 
         variables = {'result': result}
-        parser = xpath_parser()
+        parser = xpath_parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.boolean_value(root_node.evaluate(context)) is True:
@@ -800,7 +800,7 @@ class Result(object):
         expression = "fn:deep-equal($result, (%s))" % self.value
         variables = {'result': result}
 
-        parser = xpath_parser()
+        parser = xpath_parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(expression)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.evaluate(context) is True:

@@ -558,6 +558,11 @@ def nud(self):
 
     self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), \
         self.parser.expression(90)
+
+    if self[1].value is None:
+        self.value = None
+    else:
+        self.value = '{%s}%s' % (self[0].value, self[1].value)
     return self
 
 
@@ -576,20 +581,19 @@ def select(self, context=None):
     elif context is None:
         raise self.missing_context()
 
-    name = '{%s}%s' % (self[0].value, self[1].value)
     if isinstance(context, XPathSchemaContext):
-        yield from self.select_xsd_nodes(context, name)
+        yield from self.select_xsd_nodes(context, self.value)
 
     elif self.xsd_types is None:
         for item in context.iter_children_or_self():
-            if match_attribute_node(item, name):
+            if match_attribute_node(item, self.value):
                 yield item
-            elif match_element_node(item, name):
+            elif match_element_node(item, self.value):
                 yield item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if match_attribute_node(item, name) or match_element_node(item, name):
+            if match_attribute_node(item, self.value) or match_element_node(item, self.value):
                 if isinstance(item, (TypedAttribute, TypedElement)):
                     yield item
                 else:
