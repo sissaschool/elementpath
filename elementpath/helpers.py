@@ -130,3 +130,10 @@ def round_number(value):
 def normalized_seconds(seconds):
     # Decimal.normalize() does not remove exp every time: eg. Decimal('1E+1')
     return '{:.6f}'.format(seconds).rstrip('0').rstrip('.')
+
+
+def is_xml_codepoint(cp):
+    return cp in {0x9, 0xA, 0xD} or \
+        0x20 <= cp <= 0xD7FF or \
+        0xE000 <= cp <= 0xFFFD or \
+        0x10000 <= cp <= 0x10FFFF
