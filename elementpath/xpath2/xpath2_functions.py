@@ -22,7 +22,7 @@ from decimal import Decimal, DecimalException
 from string import ascii_letters
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from ..helpers import is_idrefs
+from ..helpers import is_idrefs, is_xml_codepoint
 from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
@@ -784,10 +784,7 @@ def evaluate(self, context=None):
             if isinstance(value, str):
                 raise self.error('XPTY0004', msg)
             raise self.error('FORG0006', msg)
-        elif value in {0x9, 0xA, 0xD} \
-                or 0x20 <= value <= 0xD7FF \
-                or 0xE000 <= value <= 0xFFFD \
-                or 0x10000 <= value <= 0x10FFFF:
+        elif is_xml_codepoint(value):
             result.append(chr(value))
         else:
             msg = "{} is not a valid XML 1.0 codepoint".format(value)

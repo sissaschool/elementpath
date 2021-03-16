@@ -74,6 +74,8 @@ SKIP_TESTS = [
     # For XP30+
     'fn-root__K-NodeRootFunc-2',  # includes a XPath 3.0 fn:generate-id()
     'fn-codepoints-to-string__cbcl-codepoints-to-string-021',  # Too long ...
+    'fn-unparsed-text__fn-unparsed-text-038',  # Typo in filename
+    'fn-unparsed-text-lines__fn-unparsed-text-lines-038',  # Typo in filename
 
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
@@ -88,6 +90,9 @@ xpath_parser = XPath2Parser
 QT3_NAMESPACE = "http://www.w3.org/2010/09/qt-fots-catalog"
 
 namespaces = {'': QT3_NAMESPACE}
+
+INVALID_BASE_URL = 'http://www.w3.org/fots/unparsed-text/'
+effective_base_url = None
 
 
 @contextlib.contextmanager
@@ -255,6 +260,7 @@ class TestSet(object):
         full_path = os.path.abspath(self.file)
         directory = os.path.dirname(full_path)
         filename = os.path.basename(full_path)
+
         with working_directory(directory):
             xml_root = ElementTree.parse(filename).getroot()
 
@@ -421,6 +427,11 @@ class TestCase(object):
                 schema = xmlschema.XMLSchema(environment.schema.filepath)
                 schema_proxy = schema.xpath_proxy
 
+        if not static_base_uri:
+            pass
+        elif static_base_uri.startswith(INVALID_BASE_URL):
+            static_base_uri = static_base_uri.replace(INVALID_BASE_URL, effective_base_url)
+
         parser = xpath_parser(
             namespaces=test_namespaces,
             xsd_version=self.xsd_version,
@@ -428,8 +439,13 @@ class TestCase(object):
             base_uri=static_base_uri,
         )
 
+        if self.test is not None:
+            xpath_expression = self.test.replace(INVALID_BASE_URL, effective_base_url)
+        else:
+            xpath_expression = None
+
         try:
-            root_node = parser.parse(self.test)  # static evaluation
+            root_node = parser.parse(xpath_expression)  # static evaluation
         except Exception as err:
             if isinstance(err, ElementPathError):
                 raise
@@ -797,6 +813,9 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
+        if isinstance(result, (str, bytes)):
+            result = result.strip()
+
         expression = "fn:deep-equal($result, (%s))" % self.value
         variables = {'result': result}
 
@@ -980,6 +999,9 @@ def main():
 
     with working_directory(dirpath=os.path.dirname(catalog_file)):
         catalog_xml = ElementTree.parse(catalog_file)
+
+        global effective_base_url
+        effective_base_url = 'file://{}/fn/unparsed-text/'.format(os.getcwd())
 
         environments = {}
         for child in catalog_xml.getroot().iterfind("environment", namespaces):

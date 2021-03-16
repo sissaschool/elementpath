@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ElementTree
 from copy import copy
 from urllib.parse import urlsplit
 
+from ..helpers import is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath_nodes import etree_iterpath, is_xpath_node, is_element_node, \
@@ -689,9 +690,9 @@ def evaluate(self, context=None):
 
 @method(function('unparsed-text', nargs=(1, 2)))
 @method(function('unparsed-text-lines', nargs=(1, 2)))
-@method(function('unparsed-text-available', nargs=(1, 2)))
 def evaluate(self, context=None):
     from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
+    from urllib.error import URLError
 
     href = self.get_argument(context, cls=str)
     if href is None:
@@ -704,16 +705,77 @@ def evaluate(self, context=None):
     else:
         encoding = 'UTF-8'
 
-    uri = self.get_absolute_uri(href)
+    try:
+        uri = self.get_absolute_uri(href)
+    except ValueError:
+        raise self.error('FOUT1170') from None
+
     try:
         codecs.lookup(encoding)
     except LookupError:
         raise self.error('FOUT1190') from None
 
-    with urlopen(uri) as rp:
-        obj = rp.read()
+    try:
+        with urlopen(uri) as rp:
+            obj = rp.read()
+    except (ValueError, URLError) as err:
+        message = str(err)
+        if 'No such file' in message or \
+                'unknown url type' in message or 'HTTP Error 404' in message:
+            raise self.error('FOUT1170') from None
+        raise self.error('FOUT1190') from None
 
-    return codecs.decode(obj, encoding)
+    try:
+        text = codecs.decode(obj, encoding)
+    except UnicodeDecodeError:
+        if len(self) > 1:
+            raise self.error('FOUT1190') from None
+
+        try:
+            text = codecs.decode(obj, 'UTF-16')
+        except UnicodeDecodeError:
+            raise self.error('FOUT1190') from None
+
+    if not all(is_xml_codepoint(ord(s)) for s in text):
+        raise self.error('FOUT1190')
+
+    return text
+
+
+@method(function('unparsed-text-available', nargs=(1, 2)))
+def evaluate(self, context=None):
+    from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
+    from urllib.error import URLError
+
+    href = self.get_argument(context, cls=str)
+    if href is None:
+        return False
+    elif urlsplit(href).fragment:
+        return False
+
+    if len(self) > 1:
+        encoding = self.get_argument(context, index=1, required=True, cls=str)
+    else:
+        encoding = 'UTF-8'
+
+    try:
+        uri = self.get_absolute_uri(href)
+        codecs.lookup(encoding)
+        with urlopen(uri) as rp:
+            obj = rp.read()
+    except (ValueError, URLError, LookupError):
+        return False
+
+    try:
+        return all(is_xml_codepoint(ord(s)) for s in codecs.decode(obj, encoding))
+    except UnicodeDecodeError:
+        if len(self) > 1:
+            return False
+
+        try:
+            return all(is_xml_codepoint(ord(s)) for s in codecs.decode(obj, 'UTF-16'))
+        except UnicodeDecodeError:
+            return False
 
 
 @method(function('environment-variable', nargs=1))
