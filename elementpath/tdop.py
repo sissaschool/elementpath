@@ -213,17 +213,20 @@ class Token(MutableSequence):
     @property
     def tree(self):
         """Returns a tree representation string."""
-        symbol, length = self.symbol, len(self)
-        if symbol == '(name)':
-            return u'(%s)' % self.value
-        elif symbol in SPECIAL_SYMBOLS:
-            return u'(%r)' % self.value
-        elif symbol == '(':
-            return '()' if not self else self[0].tree
-        elif not length:
-            return u'(%s)' % symbol
+        if self.symbol == '(name)':
+            return '(%s)' % self.value
+        elif self.symbol in SPECIAL_SYMBOLS:
+            return '(%r)' % self.value
+        elif self.symbol == '(':
+            if not self:
+                return '()'
+            elif len(self) == 1:
+                return self[0].tree
+            return '(%s)' % ' '.join(item.tree for item in self)
+        elif not self:
+            return '(%s)' % self.symbol
         else:
-            return u'(%s %s)' % (symbol, ' '.join(item.tree for item in self))
+            return '(%s %s)' % (self.symbol, ' '.join(item.tree for item in self))
 
     @property
     def source(self):

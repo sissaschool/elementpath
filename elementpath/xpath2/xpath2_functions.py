@@ -841,7 +841,7 @@ def evaluate(self, context=None):
         return all(ord(c1) == ord(c2) for c1, c2 in zip(comp1, comp2))
 
 
-@method(function('string-join', nargs=(1, 2)))
+@method(function('string-join', nargs=2))
 def evaluate(self, context=None):
     items = [self.string_value(s) for s in self[0].select(context)]
     return self.get_argument(context, 1, required=True, cls=str).join(items)
