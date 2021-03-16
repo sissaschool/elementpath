@@ -200,7 +200,7 @@ class XPathToken(Token):
                 msg = "missing %s argument" % ordinal(index + 1)
                 raise self.error('XPST0017', msg) from None
             else:
-                return
+                return default
         else:
             item = None
             for k, result in enumerate(selector(copy(context))):
@@ -1102,9 +1102,12 @@ class XPathFunction(XPathToken):
             for token in argument_list:
                 args.append(token)
         elif isinstance(argument_list, XPathToken):
-            for token in argument_list.iter():
-                if token.symbol not in ('(', ','):
-                    args.append(token)
+            if argument_list.symbol == '(':
+                args.append(argument_list)
+            else:
+                for token in argument_list.iter():
+                    if token.symbol not in ('(', ','):
+                        args.append(token)
 
         context = copy(context)
         if self.symbol == 'function':

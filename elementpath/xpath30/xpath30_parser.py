@@ -1002,6 +1002,17 @@ def select(self, context=None):
 
 
 ###
+# Redefined or extended functions
+XPath30Parser.unregister('string-join')
+
+
+@method(function('string-join', nargs=(1, 2)))
+def evaluate(self, context=None):
+    items = [self.string_value(s) for s in self[0].select(context)]
+    return self.get_argument(context, 1, default='', cls=str).join(items)
+
+
+###
 # Math functions signatures
 #
 signature('function() as xs:double', 'pi', prefix='math')
