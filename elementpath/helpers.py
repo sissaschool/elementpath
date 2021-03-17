@@ -28,6 +28,7 @@ EQNAME_PATTERN = re.compile(
     r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
 )
 WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-F\d]{2})')
+XML_NEWLINES_PATTERN = re.compile('\r\n|\r|\n')
 
 
 def collapse_white_spaces(s):

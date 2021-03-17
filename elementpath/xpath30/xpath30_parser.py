@@ -22,11 +22,11 @@ import xml.etree.ElementTree as ElementTree
 from copy import copy
 from urllib.parse import urlsplit
 
-from ..helpers import is_xml_codepoint
+from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath_nodes import etree_iterpath, is_xpath_node, is_element_node, \
-    is_document_node, is_etree_element, TypedElement
+    is_document_node, is_etree_element, TypedElement, TypedAttribute, XPathNode
 from ..xpath_token import ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
@@ -49,6 +49,7 @@ class XPath30Parser(XPath2Parser):
     SYMBOLS = XPath2Parser.SYMBOLS | {
         'Q{',  # see BracedURILiteral rule
         '||',  # concat operator
+        '!',   # Simple map operator
 
         # Math functions (trigonometric and exponential)
         'pi', 'exp', 'exp10', 'log', 'log10', 'pow', 'sqrt',
@@ -179,6 +180,25 @@ def select(self, context=None):
 def evaluate(self, context=None):
     return self.string_value(self.get_argument(context)) + \
         self.string_value(self.get_argument(context, index=1))
+
+
+@method(infix('!', bp=72))
+def select(self, context=None):
+    if context is None:
+        raise self.missing_context()
+
+    for context.item in context.inner_focus_select(self[0]):
+        for result in self[1].select(copy(context)):
+            if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
+                yield result
+            elif isinstance(result, TypedElement):
+                yield result
+            elif isinstance(result, TypedAttribute):
+                yield result
+            else:
+                yield result
+                if isinstance(context, XPathSchemaContext):
+                    self[1].add_xsd_type(result)
 
 
 ###
@@ -738,6 +758,12 @@ def evaluate(self, context=None):
 
     if not all(is_xml_codepoint(ord(s)) for s in text):
         raise self.error('FOUT1190')
+
+    text = text.lstrip('\ufeff')
+
+    if self.symbol == 'unparsed-text-lines':
+        lines = XML_NEWLINES_PATTERN.split(text)
+        return lines[:-1] if lines[-1] == '' else lines
 
     return text
 
