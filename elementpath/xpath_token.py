@@ -621,7 +621,7 @@ class XPathToken(Token):
                     if xsd_node.value.is_matching(name):
                         if xsd_node.name is None:
                             # node is an XSD attribute wildcard
-                            xsd_node = self.parser.schema.get_attribute(name)
+                            xsd_node = schema_context.root.maps.attributes.get(name)
                             if xsd_node is None:
                                 continue
 
@@ -632,7 +632,7 @@ class XPathToken(Token):
                 elif xsd_node.is_matching(name, self.parser.default_namespace):
                     if xsd_node.name is None:
                         # node is an XSD element wildcard
-                        xsd_node = self.parser.schema.get_element(name)
+                        xsd_node = schema_context.root.maps.elements.get(name)
                         if xsd_node is None:
                             continue
 

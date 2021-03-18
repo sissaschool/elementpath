@@ -19,7 +19,7 @@ except ImportError:
 
 from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_NOTATION
-from elementpath.schema_proxy import AbstractXsdSchema
+from elementpath.schema_proxy import AbstractGlobalMaps, AbstractXsdSchema
 
 try:
     # noinspection PyPackageRequirements
@@ -61,13 +61,25 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema_proxy)
 
     def test_abstract_xsd_schema(self):
+        class GlobalMaps(AbstractGlobalMaps):
+            types = {}
+            attributes = {}
+            elements = {}
+            substitution_groups = {}
+
         class XsdSchema(AbstractXsdSchema):
+            xsd_version = '1.1'
+            maps = GlobalMaps()
+
             @property
             def attrib(self):
                 return {}
 
             def __iter__(self):
                 return iter(())
+
+            def find(self, path, namespaces=None):
+                return
 
         schema = XsdSchema()
         self.assertEqual(schema.tag, '{http://www.w3.org/2001/XMLSchema}schema')
@@ -225,8 +237,9 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         any_simple_type = schema_proxy.get_type('{%s}anySimpleType' % XSD_NAMESPACE)
         self.assertEqual(schema_proxy.get_primitive_type(any_simple_type), any_simple_type)
 
-    @unittest.skipIf(xmlschema is None or xmlschema.__version__ < '1.2.3',
-                     "Old find API does not work")
+    def test_xsd_version_api(self):
+        self.assertEqual(self.schema_proxy.xsd_version, '1.0')
+
     def test_find_api(self):
         schema_src = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                             <xs:element name="test_element" type="xs:string"/>
@@ -234,6 +247,21 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         schema = xmlschema.XMLSchema(schema_src)
         schema_proxy = XMLSchemaProxy(schema=schema)
         self.assertEqual(schema_proxy.find('/test_element'), schema.elements['test_element'])
+
+    def test_get_attribute_api(self):
+        self.assertIs(
+            self.schema_proxy.get_attribute("{http://xpath.test/ns}test_attribute"),
+            self.schema_proxy._schema.maps.attributes["{http://xpath.test/ns}test_attribute"]
+        )
+
+    def test_get_element_api(self):
+        self.assertIs(
+            self.schema_proxy.get_element("{http://xpath.test/ns}test_element"),
+            self.schema_proxy._schema.maps.elements["{http://xpath.test/ns}test_element"]
+        )
+
+    def test_get_substitution_group_api(self):
+        self.assertIsNone(self.schema_proxy.get_substitution_group('x'))
 
     def test_is_instance_api(self):
         self.assertFalse(self.schema_proxy.is_instance(True, '{%s}integer' % XSD_NAMESPACE))
