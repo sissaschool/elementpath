@@ -70,9 +70,48 @@ class AbstractEtreeElement(metaclass=ABCMeta):
     def __iter__(self):
         """Iterate over element's children."""
 
+    @abstractmethod
+    def find(self, path, namespaces=None):
+        """
+        Find the first item selected by an XPath expression.
+
+        :param path: an XPath expression.
+        :param namespaces: an optional mapping from namespace prefix to namespace URI.
+        :return: The first selected item or ``None`` if there is no match.
+        """
+
+
+class AbstractGlobalMaps(metaclass=ABCMeta):
+    """Interface for XSD global components."""
+
+    @property
+    @abstractmethod
+    def types(self) -> dict:
+        """A mapping to XSD global types."""
+
+    @property
+    @abstractmethod
+    def attributes(self) -> dict:
+        """A mapping to XSD global attributes."""
+
+    @property
+    @abstractmethod
+    def elements(self) -> dict:
+        """A mapping to XSD global elements."""
+
+    @property
+    @abstractmethod
+    def substitution_groups(self) -> dict:
+        """A mapping to XSD substitution groups."""
+
 
 class AbstractXsdSchema(AbstractEtreeElement):
     """Interface for XSD schemas."""
+
+    @property
+    @abstractmethod
+    def xsd_version(self) -> str:
+        """The XSD version, returns '1.0' or '1.1'."""
 
     @property
     def tag(self):
@@ -81,7 +120,7 @@ class AbstractXsdSchema(AbstractEtreeElement):
     @property
     @abstractmethod
     def attrib(self):
-        """The global attributes of the schema."""
+        """A mapping containing the global attributes of the schema."""
 
     @property
     def text(self):
@@ -91,9 +130,14 @@ class AbstractXsdSchema(AbstractEtreeElement):
     def __iter__(self):
         """Iterate over global elements of the schema."""
 
+    @property
+    @abstractmethod
+    def maps(self) -> AbstractGlobalMaps:
+        """Shared global maps of loaded XSD components."""
+
 
 class AbstractXsdElement(AbstractXsdComponent, AbstractEtreeElement):
-    """Interface for XSD attribute."""
+    """Interface for XSD elements."""
 
     @property
     @abstractmethod
@@ -102,7 +146,7 @@ class AbstractXsdElement(AbstractXsdComponent, AbstractEtreeElement):
 
 
 class AbstractXsdAttribute(AbstractXsdComponent):
-    """Interface for XSD attribute."""
+    """Interface for XSD attributes."""
 
     @property
     @abstractmethod
@@ -228,13 +272,13 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: The first matching schema component, or ``None`` if there is no match.
         """
+        return self._schema.find(path, namespaces)
 
     @property
-    def xsd_version(self):
+    def xsd_version(self) -> str:
         """The XSD version, returns '1.0' or '1.1'."""
-        raise NotImplementedError()
+        return self._schema.xsd_version
 
-    @abstractmethod
     def get_type(self, qname):
         """
         Get the XSD global type from the schema's scope. A concrete implementation must
@@ -244,8 +288,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the type to retrieve.
         :returns: an object that represents an XSD type or `None`.
         """
+        return self._schema.maps.types.get(qname)
 
-    @abstractmethod
     def get_attribute(self, qname):
         """
         Get the XSD global attribute from the schema's scope. A concrete implementation must
@@ -255,8 +299,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the attribute to retrieve.
         :returns: an object that represents an XSD attribute or `None`.
         """
+        return self._schema.maps.attributes.get(qname)
 
-    @abstractmethod
     def get_element(self, qname):
         """
         Get the XSD global element from the schema's scope. A concrete implementation must
@@ -266,8 +310,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the element to retrieve.
         :returns: an object that represents an XSD element or `None`.
         """
+        return self._schema.maps.elements.get(qname)
 
-    @abstractmethod
     def get_substitution_group(self, qname):
         """
         Get a substitution group. A concrete implementation must returns a list containing
@@ -277,6 +321,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the substitution group to retrieve.
         :returns: a list containing substitution elements or `None`.
         """
+        return self._schema.maps.substitution_groups.get(qname)
 
     @abstractmethod
     def is_instance(self, obj, type_qname):
@@ -317,5 +362,6 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
 
-__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractXsdSchema',
-           'AbstractXsdAttribute', 'AbstractXsdElement', 'AbstractXsdType', 'AbstractSchemaProxy']
+__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractGlobalMaps',
+           'AbstractXsdSchema', 'AbstractXsdAttribute', 'AbstractXsdElement',
+           'AbstractXsdType', 'AbstractSchemaProxy']
