@@ -167,11 +167,11 @@ class XPath1Parser(Parser):
         )
 
     @classmethod
-    def function(cls, symbol, nargs=None, label='function', bp=90):
+    def function(cls, symbol, nargs=None, sequence_types=(), label='function', bp=90):
         """
         Registers a token class for a symbol that represents an XPath function.
         """
-        return cls.register(symbol, nargs=nargs, label=label,
+        return cls.register(symbol, nargs=nargs, sequence_types=sequence_types, label=label,
                             bases=(XPathFunction,), lbp=bp, rbp=bp)
 
     def parse(self, source):

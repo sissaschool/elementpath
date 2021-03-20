@@ -464,7 +464,8 @@ def evaluate(self, context=None):
 # In those cases the label at parse time is set by the nud method, in dependence
 # of the number of args.
 #
-@constructor('QName', bp=90, label=('function', 'constructor function'))
+@constructor('QName', bp=90, label=('function', 'constructor function'),
+             sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
 def cast(self, value):
     if isinstance(value, QName):
         return value
@@ -476,7 +477,8 @@ def cast(self, value):
         raise self.error('XPTY0004', 'the argument has an invalid type %r' % type(value))
 
 
-@constructor('dateTime', bp=90, label=('function', 'constructor function'))
+@constructor('dateTime', bp=90, label=('function', 'constructor function'),
+             sequence_types=('xs:date?', 'xs:time?', 'xs:dateTime?'))
 def cast(self, value):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
