@@ -1081,9 +1081,14 @@ class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
     """
-    pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
-    nargs = None
     _name = None
+    pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
+
+    sequence_types = ()
+    "Sequence types of arguments and of the return value of the function."
+
+    nargs = None
+    "Number of arguments: a single value or a couple with None that means unbounded."
 
     def __init__(self, parser, nargs=None):
         super().__init__(parser)
@@ -1114,7 +1119,10 @@ class XPathFunction(XPathToken):
             if context is None:
                 raise self.missing_context()
 
-            for variable, value in zip(self, args):
+            for variable, sequence_type, value in zip(self, self.sequence_types, args):
+                if not self.parser.match_sequence_type(value, sequence_type):
+                    msg = "invalid type for argument {!r}"
+                    raise self.error('XPTY0004', msg.format(variable[0].value))
                 context.variables[variable[0].value] = value
         elif any(tk.symbol == '?' for tk in self):
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):

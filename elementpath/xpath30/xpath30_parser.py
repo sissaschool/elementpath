@@ -249,15 +249,20 @@ def nud(self):
         return token.nud()
 
     self.parser.advance('(')
-    self.params = {}
+    self.sequence_types = []
     while self.parser.next_token.symbol != ')':
         self.parser.next_token.expected('$')
         param = self.parser.expression(5)
         self.append(param)
         if self.parser.next_token.symbol == 'as':
             self.parser.advance('as')
-            sequence_type = self.parser.expression(5)
-            self.append(sequence_type)
+            token = self.parser.expression(5)
+            sequence_type = token.source
+            if not self.parser.is_sequence_type(sequence_type):
+                raise token.error('XPST0003', "a sequence type expected")
+            self.sequence_types.append(sequence_type)
+        else:
+            self.sequence_types.append('item()*')
 
         self.parser.next_token.expected(')', ',')
         if self.parser.next_token.symbol == ',':
@@ -266,16 +271,26 @@ def nud(self):
 
     self.parser.advance(')')
 
-    if self.parser.next_token.symbol == 'as':
+    # Add function return type
+    if self.parser.next_token.symbol != 'as':
+        self.sequence_types.append('item()')
+    else:
         self.parser.advance('as')
         if self.parser.next_token.label not in ('kind test', 'sequence type'):
             self.parser.expected_name('(name)', ':')
-        sequence_type = self.parser.expression(rbp=90)
+        token = self.parser.expression(rbp=90)
 
         next_symbol = self.parser.next_token.symbol
-        if sequence_type.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
+        if token.symbol != 'empty-sequence' and next_symbol in {'?', '*', '+'}:
             self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
             self.parser.advance()
+            sequence_type = token.source + next_symbol
+        else:
+            sequence_type = token.source
+
+        if not self.parser.is_sequence_type(sequence_type):
+            raise token.error('XPST0003', "a sequence type expected")
+        self.sequence_types.append(sequence_type)
 
     self.parser.advance('{')
     self.expr = self.parser.expression()
