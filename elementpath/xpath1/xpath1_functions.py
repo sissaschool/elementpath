@@ -85,26 +85,26 @@ def select(self, context=None):
 
 ###
 # Node set functions
-@method(function('last', nargs=0))
+@method(function('last', nargs=0, sequence_types=('xs:integer',)))
 def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
     return context.size
 
 
-@method(function('position', nargs=0))
+@method(function('position', nargs=0, sequence_types=('xs:integer',)))
 def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
     return context.position
 
 
-@method(function('count', nargs=1))
+@method(function('count', nargs=1, sequence_types=('item()*', 'xs:integer')))
 def evaluate(self, context=None):
     return len([x for x in self[0].select(context)])
 
 
-@method(function('id', nargs=1))
+@method(function('id', nargs=1, sequence_types=('xs:string*', 'element()*')))
 def select(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -118,9 +118,9 @@ def select(self, context=None):
             yield from filter(lambda e: e.get(XML_ID) == value, item.iter())
 
 
-@method(function('name', nargs=(0, 1)))
-@method(function('local-name', nargs=(0, 1)))
-@method(function('namespace-uri', nargs=(0, 1)))
+@method(function('name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
+@method(function('local-name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
+@method(function('namespace-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI')))
 def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -148,7 +148,7 @@ def evaluate(self, context=None):
 
 ###
 # String functions
-@method(function('string', nargs=(0, 1)))
+@method(function('string', nargs=(0, 1), sequence_types=('item()?', 'xs:string')))
 def evaluate(self, context=None):
     if not self:
         if context is None:
@@ -157,20 +157,22 @@ def evaluate(self, context=None):
     return self.string_value(self.get_argument(context))
 
 
-@method(function('contains', nargs=2))
+@method(function('contains', nargs=2,
+                 sequence_types=('xs:string?', 'xs:string?', 'xs:boolean')))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg2 in arg1
 
 
-@method(function('concat', nargs=(2, None)))
+@method(function('concat', nargs=(2, None),
+                 sequence_types=('xs:anyAtomicType?', 'xs:anyAtomicType?', 'xs:string')))
 def evaluate(self, context=None):
     return ''.join(self.string_value(self.get_argument(context, index=k))
                    for k in range(len(self)))
 
 
-@method(function('string-length', nargs=(0, 1)))
+@method(function('string-length', nargs=(0, 1), sequence_types=('xs:string?', 'xs:integer')))
 def evaluate(self, context=None):
     if self:
         return len(self.get_argument(context, default_to_context=True, default='', cls=str))
@@ -181,7 +183,7 @@ def evaluate(self, context=None):
         raise self.missing_context() from None
 
 
-@method(function('normalize-space', nargs=(0, 1)))
+@method(function('normalize-space', nargs=(0, 1), sequence_types=('xs:string?', 'xs:string')))
 def evaluate(self, context=None):
     if self.parser.version == '1.0' or not self:
         arg = self.string_value(self.get_argument(context, default_to_context=True, default=''))
@@ -190,14 +192,16 @@ def evaluate(self, context=None):
     return ' '.join(arg.strip().split())
 
 
-@method(function('starts-with', nargs=2))
+@method(function('starts-with', nargs=2,
+                 sequence_types=('xs:string?', 'xs:string?', 'xs:boolean')))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
     return arg1.startswith(arg2)
 
 
-@method(function('translate', nargs=3))
+@method(function('translate', nargs=3,
+                 sequence_types=('xs:string?', 'xs:string', 'xs:string', 'xs:string')))
 def evaluate(self, context=None):
     arg = self.get_argument(context, default='', cls=str)
 
@@ -220,7 +224,8 @@ def evaluate(self, context=None):
         return arg.translate(str.maketrans(map_string, trans_string[:len(map_string)]))
 
 
-@method(function('substring', nargs=(2, 3)))
+@method(function('substring', nargs=(2, 3),
+                 sequence_types=('xs:string?', 'xs:double', 'xs:double', 'xs:string')))
 def evaluate(self, context=None):
     item = self.get_argument(context, default='', cls=str)
     start = self.get_argument(context, index=1)
@@ -249,8 +254,10 @@ def evaluate(self, context=None):
             return item[slice(max(start, 0), max(stop, 0))]
 
 
-@method(function('substring-before', nargs=2))
-@method(function('substring-after', nargs=2))
+@method(function('substring-before', nargs=2,
+                 sequence_types=('xs:string?', 'xs:string?', 'xs:string')))
+@method(function('substring-after', nargs=2,
+                 sequence_types=('xs:string?', 'xs:string?', 'xs:string')))
 def evaluate(self, context=None):
     arg1 = self.get_argument(context, default='', cls=str)
     arg2 = self.get_argument(context, index=1, default='', cls=str)
@@ -266,27 +273,27 @@ def evaluate(self, context=None):
 
 ###
 # Boolean functions
-@method(function('boolean', nargs=1))
+@method(function('boolean', nargs=1, sequence_types=('item()*', 'xs:boolean')))
 def evaluate(self, context=None):
     return self.boolean_value([x for x in self[0].select(context)])
 
 
-@method(function('not', nargs=1))
+@method(function('not', nargs=1, sequence_types=('item()*', 'xs:boolean')))
 def evaluate(self, context=None):
     return not self.boolean_value([x for x in self[0].select(context)])
 
 
-@method(function('true', nargs=0))
+@method(function('true', nargs=0, sequence_types=('xs:boolean',)))
 def evaluate(self, context=None):
     return True
 
 
-@method(function('false', nargs=0))
+@method(function('false', nargs=0, sequence_types=('xs:boolean',)))
 def evaluate(self, context=None):
     return False
 
 
-@method(function('lang', nargs=1))
+@method(function('lang', nargs=1, sequence_types=('xs:string?', 'xs:boolean')))
 def evaluate(self, context=None):
     if context is None:
         raise self.missing_context()
@@ -313,7 +320,7 @@ def evaluate(self, context=None):
 
 ###
 # Number functions
-@method(function('number', nargs=(0, 1)))
+@method(function('number', nargs=(0, 1), sequence_types=('xs:anyAtomicType?', 'xs:double')))
 def evaluate(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     try:
@@ -322,7 +329,8 @@ def evaluate(self, context=None):
         return float('nan')
 
 
-@method(function('sum', nargs=(1, 2)))
+@method(function('sum', nargs=(1, 2),
+                 sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyAtomicType?')))
 def evaluate(self, context=None):
     values = [x.value if isinstance(x, XPathNode) else x for x in self[0].select(context)]
     if not values:
@@ -354,8 +362,8 @@ def evaluate(self, context=None):
         raise self.error('FORG0006') from None
 
 
-@method(function('ceiling', nargs=1))
-@method(function('floor', nargs=1))
+@method(function('ceiling', nargs=1, sequence_types=('numeric?', 'numeric?')))
+@method(function('floor', nargs=1, sequence_types=('numeric?', 'numeric?')))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
@@ -377,7 +385,7 @@ def evaluate(self, context=None):
         raise self.error('FORG0006', err) from None
 
 
-@method(function('round', nargs=1))
+@method(function('round', nargs=1, sequence_types=('numeric?', 'numeric?')))
 def evaluate(self, context=None):
     arg = self.get_argument(context)
     if arg is None:

@@ -310,7 +310,7 @@ class XPath2Parser(XPath1Parser):
                 cls.function_signatures[(qname, arity)] = value
 
     @classmethod
-    def constructor(cls, symbol, bp=0, label='constructor function'):
+    def constructor(cls, symbol, bp=0, nargs=1, sequence_types=(), label='constructor function'):
         """Creates a constructor token class."""
         def nud_(self):
             try:
@@ -341,8 +341,9 @@ class XPath2Parser(XPath1Parser):
         def cast_(value):
             raise NotImplementedError
 
-        token_class = cls.register(symbol, nargs=1, label=label, bases=(XPathFunction,),
-                                   lbp=bp, rbp=bp, nud=nud_, evaluate=evaluate_, cast=cast_)
+        token_class = cls.register(symbol, nargs=nargs, sequence_types=sequence_types,
+                                   label=label, bases=(XPathFunction,), lbp=bp, rbp=bp,
+                                   nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
             assert func.__name__ == 'cast', \
