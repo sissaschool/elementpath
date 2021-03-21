@@ -1139,7 +1139,7 @@ def evaluate(self, context=None):
 
 
 @method(function('adjust-time-to-timezone', nargs=(1, 2),
-                 sequence_types=('xs:time?', 'xs:dayTimeDuration?', 'as xs:time?')))
+                 sequence_types=('xs:time?', 'xs:dayTimeDuration?', 'xs:time?')))
 def evaluate(self, context=None):
     return self.adjust_datetime(context, Time)
 

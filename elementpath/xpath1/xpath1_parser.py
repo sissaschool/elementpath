@@ -21,8 +21,8 @@ from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDurati
 from ..xpath_context import XPathSchemaContext
 from ..tdop import Parser
 from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, \
-    get_expanded_name, split_expanded_name
+    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
+    XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import XPathToken, XPathFunction
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
@@ -171,6 +171,32 @@ class XPath1Parser(Parser):
         """
         Registers a token class for a symbol that represents an XPath function.
         """
+        if sequence_types and 'function' in label:
+            # Register function signature(s)
+            if label == 'math function':
+                qname = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % symbol)
+            else:
+                qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
+
+            if nargs is None:
+                pass  # pragma: no cover
+            elif isinstance(nargs, int):
+                assert len(sequence_types) == nargs + 1
+                cls.function_signatures[(qname, nargs)] = 'function({}) as {}'.format(
+                    ', '.join(sequence_types[:-1]), sequence_types[-1]
+                )
+            elif nargs[1] is None:
+                assert len(sequence_types) == nargs[0] + 1
+                cls.function_signatures[(qname, nargs[0])] = 'function({}, ...) as {}'.format(
+                    ', '.join(sequence_types[:-1]), sequence_types[-1]
+                )
+            else:
+                assert len(sequence_types) == nargs[1] + 1
+                for arity in range(nargs[0], nargs[1] + 1):
+                    cls.function_signatures[(qname, arity)] = 'function({}) as {}'.format(
+                        ', '.join(sequence_types[:arity]), sequence_types[-1]
+                    )
+
         return cls.register(symbol, nargs=nargs, sequence_types=sequence_types, label=label,
                             bases=(XPathFunction,), lbp=bp, rbp=bp)
 
@@ -237,15 +263,16 @@ class XPath1Parser(Parser):
 
         if not value:
             return False
-        elif value == 'empty-sequence()':
+        elif value == 'empty-sequence()' or value == 'none':
             return True
-        elif value[-1] in ('?', '+', '*'):
+        elif value[-1] in {'?', '+', '*'}:
             value = value[:-1]
 
         if value in {'untypedAtomic', 'attribute()', 'attribute(*)', 'element()',
                      'element(*)', 'text()', 'document-node()', 'comment()',
-                     'processing-instruction()', 'item()', 'node()'}:
+                     'processing-instruction()', 'item()', 'node()', 'numeric'}:
             return True
+
         elif value.startswith('element(') and value.endswith(')'):
             if ',' not in value:
                 return EQNAME_PATTERN.match(value[8:-1]) is not None
@@ -257,10 +284,39 @@ class XPath1Parser(Parser):
             else:
                 return (arg1 == '*' or EQNAME_PATTERN.match(arg1) is not None) \
                     and EQNAME_PATTERN.match(arg2) is not None
-        elif value.startswith('function(') and self.version >= '3.0':
-            if value == 'function(*)':
+
+        elif value.startswith('document-node(') and value.endswith(')'):
+            if not value.startswith('document-node(element('):
+                return False
+            return self.is_sequence_type(value[14:-1])
+
+        elif value.startswith('function('):
+            if value == 'function(*)' and self.version >= '3.0':
                 return True
-            return False  # TODO: other cases ...
+
+            try:
+                value, return_type = value.rsplit(' as ', 1)
+            except ValueError:
+                return False
+            else:
+                if not self.is_sequence_type(return_type):
+                    return False
+                elif value == 'function()':
+                    return True
+
+                value = value[9:-1]
+                if value.endswith(', ...'):
+                    value = value[:-5]
+
+                if 'function(' not in value:
+                    return all(self.is_sequence_type(x) for x in value.split(', '))
+
+                # Cover only if function() spec is the last argument
+                k = value.index('function(')
+                if not self.is_sequence_type(value[k:]):
+                    return False
+                return all(self.is_sequence_type(x) for x in value[:k].split(', ') if x)
+
         elif QName.pattern.match(value) is None:
             return False
 

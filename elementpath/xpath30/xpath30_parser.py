@@ -452,7 +452,7 @@ def evaluate(self, context):
         return ''
 
 
-@method(function('format-dateTime', nargs=(2, 3),
+@method(function('format-dateTime', nargs=(2, 5),
                  sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate(self, context):
@@ -470,7 +470,7 @@ def evaluate(self, context):
         return None
 
 
-@method(function('format-time', nargs=(2, 3),
+@method(function('format-time', nargs=(2, 5),
                  sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate(self, context):
