@@ -17,7 +17,6 @@ from ..datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
     GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
     YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
     Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy
-from ..xpath_token import XPathToken
 from .xpath2_functions import XPath2Parser
 
 
@@ -382,7 +381,7 @@ def nud(self):
 unregister('boolean')
 
 
-@constructor('boolean', bp=90, label=('function', 'constructor function'))
+@constructor('boolean', label=('function', 'constructor function'))
 def cast(self, value):
     try:
         return BooleanProxy(value)
@@ -425,8 +424,11 @@ def evaluate(self, context=None):
 ###
 # Case 2: In XPath 2.0 the 'string' keyword is used both for fn:string() and xs:string().
 unregister('string')
-register('string', lbp=90, rbp=90, label=('function', 'constructor function'),  # pragma: no cover
-         pattern=r'\bstring(?=\s*\(|\s*\(\:.*\:\)\()', cast=XPathToken.string_value)
+
+
+@constructor('string', label=('function', 'constructor function'))
+def cast(self, value):
+    return self.string_value(value)
 
 
 @method('string')

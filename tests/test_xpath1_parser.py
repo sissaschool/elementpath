@@ -40,7 +40,8 @@ except ImportError:
 
 from elementpath import *
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_UNTYPED_ATOMIC
+    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE, \
+    XSD_UNTYPED_ATOMIC
 
 try:
     from tests import xpath_test_class
@@ -1558,45 +1559,40 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             # XPath 1.0 ignores the default namespace declarations
             self.check_selector("name(B1)", root, '', namespaces={'': "http://xpath.test/ns"})
 
-    @unittest.skipIf(lxml_etree is None, 'lxml is not installed')
-    def test_issue_25_with_count_function(self):
-        root = lxml_etree.fromstring("""
-            <line>
-                <text size="12.482">C</text>
-                <text size="12.333">A</text>
-                <text size="12.333">P</text>
-                <text size="12.333">I</text>
-                <text size="12.482">T</text>
-                <text size="12.482">O</text>
-                <text size="12.482">L</text>
-                <text size="12.482">O</text>
-                <text></text>
-                <text size="12.482">I</text>
-                <text size="12.482">I</text>
-                <text size="12.482">I</text>
-                <text></text>
-            </line>""")
+    def test_function_signatures(self):
+        function_names = []
+        for tk in self.parser.symbol_table.values():
+            if issubclass(tk, XPathFunction) and 'function' in tk.label:
+                function_names.append(tk.symbol)
+                for st in tk.sequence_types:
+                    self.assertTrue(self.parser.is_sequence_type(st))
 
-        path = '//text/preceding-sibling::text'
-        self.check_selector(path, root, root[:-1])
+        if self.parser.version == '1.0':
+            self.assertEqual(len(self.parser.function_signatures), 36)
+        elif self.parser.version == '2.0':
+            self.assertEqual(len(self.parser.function_signatures), 150)
+        else:
+            self.assertEqual(len(self.parser.function_signatures), 215)
 
-        self.check_tree('//text[7]/preceding-sibling::text[1]',
-                        '(/ (// ([ (text) (7))) ([ (preceding-sibling (text)) (1)))')
+        for key, value in self.parser.function_signatures.items():
+            self.assertIsInstance(key, tuple)
+            self.assertEqual(len(key), 2)
+            self.assertIsInstance(key[0], datatypes.QName)
+            self.assertIsInstance(key[1], int)
+            self.assertIn(key[0].local_name, function_names)
 
-        if self.parser.version != '1.0':
-            self.check_tree('//text[7]/(preceding-sibling::text)[1]',
-                            '(/ (// ([ (text) (7))) ([ (preceding-sibling (text)) (1)))')
-            path = '//text[7]/(preceding-sibling::text)[2]'
-            self.check_selector(path, root, [root[1]])
+            if self.parser.version <= '2.0':
+                self.assertIn(key[0].namespace, XPATH_FUNCTIONS_NAMESPACE)
+            else:
+                self.assertIn(key[0].namespace, {XPATH_FUNCTIONS_NAMESPACE,
+                                                 XPATH_MATH_FUNCTIONS_NAMESPACE})
 
-        path = '//text[7]/preceding-sibling::text[2]'
-        self.check_selector(path, root, [root[4]])
-
-        path = 'count(//text[@size="12.482"][not(preceding-sibling::text[1][@size="12.482"])])'
-        self.check_selector(path, root, 3)
-
-        path = '//text[@size="12.482"][not(preceding-sibling::text[1][@size="12.482"])]'
-        self.check_selector(path, root, [root[0], root[4], root[9]])
+            self.assertIsInstance(value, str)
+            self.assertTrue(value.startswith('function('))
+            if not self.parser.is_sequence_type(value):
+                print(repr(value))
+            else:
+                self.assertTrue(self.parser.is_sequence_type(value))
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
@@ -1642,6 +1638,45 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         namespaces.append((None, 'http://xpath.test/ns'))
         self.check_selector('/tst:A/namespace::*', root, set(namespaces),
                             namespaces=namespaces[-2:-1])
+
+    def test_issue_25_with_count_function(self):
+        root = lxml_etree.fromstring("""
+            <line>
+                <text size="12.482">C</text>
+                <text size="12.333">A</text>
+                <text size="12.333">P</text>
+                <text size="12.333">I</text>
+                <text size="12.482">T</text>
+                <text size="12.482">O</text>
+                <text size="12.482">L</text>
+                <text size="12.482">O</text>
+                <text></text>
+                <text size="12.482">I</text>
+                <text size="12.482">I</text>
+                <text size="12.482">I</text>
+                <text></text>
+            </line>""")
+
+        path = '//text/preceding-sibling::text'
+        self.check_selector(path, root, root[:-1])
+
+        self.check_tree('//text[7]/preceding-sibling::text[1]',
+                        '(/ (// ([ (text) (7))) ([ (preceding-sibling (text)) (1)))')
+
+        if self.parser.version != '1.0':
+            self.check_tree('//text[7]/(preceding-sibling::text)[1]',
+                            '(/ (// ([ (text) (7))) ([ (preceding-sibling (text)) (1)))')
+            path = '//text[7]/(preceding-sibling::text)[2]'
+            self.check_selector(path, root, [root[1]])
+
+        path = '//text[7]/preceding-sibling::text[2]'
+        self.check_selector(path, root, [root[4]])
+
+        path = 'count(//text[@size="12.482"][not(preceding-sibling::text[1][@size="12.482"])])'
+        self.check_selector(path, root, 3)
+
+        path = '//text[@size="12.482"][not(preceding-sibling::text[1][@size="12.482"])]'
+        self.check_selector(path, root, [root[0], root[4], root[9]])
 
 
 if __name__ == '__main__':
