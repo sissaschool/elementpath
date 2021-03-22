@@ -913,16 +913,13 @@ class Result(object):
         if '\n' not in expected:
             xml_str = '>'.join(s.lstrip() for s in xml_str.split('>\n'))
 
-        # Adapt empty element ending as used for results
-        xml_str = xml_str.replace(' />', '/>')
-
         # Strip the tail from serialized result
         if '>' in xml_str:
             tail_pos = xml_str.rindex('>') + 1
             if tail_pos < len(xml_str):
                 xml_str = xml_str[:tail_pos]
 
-        if xml_str == expected:
+        if xml_str == expected or xml_str.replace(' />', '/>') == expected:
             return True
 
         # 2nd tentative (expected result from a serialization)

@@ -468,13 +468,15 @@ class XPathToken(Token):
 
         return op1, op2
 
-    def get_absolute_uri(self, uri, base_uri=None):
+    def get_absolute_uri(self, uri, base_uri=None, as_string=True):
         """
         Obtains an absolute URI from the argument and the static context.
 
         :param uri: a string representing an URI.
         :param base_uri: an alternative base URI, otherwise the base_uri \
         of the static context is used.
+        :param as_string: if `True` then returns the URI as a string, otherwise \
+        returns the URI as xs:anyURI instance.
         :returns: the argument if it's an absolute URI. Otherwise returns the URI
         obtained by the join o the base_uri of the static context with the
         argument. Returns the argument if the base_uri is `None'.
@@ -486,14 +488,16 @@ class XPathToken(Token):
         if url_parts.scheme or url_parts.netloc \
                 or url_parts.path.startswith('/') \
                 or base_uri is None:
-            return uri
+            return uri if as_string else AnyURI(uri)
 
         url_parts = urllib.parse.urlsplit(base_uri)
         if url_parts.fragment or not url_parts.scheme and \
                 not url_parts.netloc and not url_parts.path.startswith('/'):
             raise self.error('FORG0002', '{!r} is not suitable as base URI'.format(base_uri))
 
-        return urllib.parse.urljoin(base_uri, uri)
+        if as_string:
+            return urllib.parse.urljoin(base_uri, uri)
+        return AnyURI(urllib.parse.urljoin(base_uri, uri))
 
     def get_namespace(self, prefix):
         """
@@ -1135,7 +1139,12 @@ class XPathFunction(XPathToken):
                 else:
                     self.append(ValueToken(self.parser, value=value))
 
-        return self.evaluate(context)
+        result = self.evaluate(context)
+        if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
+            msg = "{!r} does not match sequence type {}"
+            raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
+
+        return result
 
     @property
     def name(self):

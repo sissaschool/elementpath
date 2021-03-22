@@ -328,6 +328,10 @@ class XPath2Parser(XPath1Parser):
         def cast_(value):
             raise NotImplementedError
 
+        if not sequence_types:
+            assert nargs == 1
+            sequence_types = ('xs:anyAtomicType?', 'xs:%s?' % symbol)
+
         token_class = cls.register(symbol, nargs=nargs, sequence_types=sequence_types,
                                    label=label, bases=(XPathFunction,), lbp=bp, rbp=bp,
                                    nud=nud_, evaluate=evaluate_, cast=cast_)

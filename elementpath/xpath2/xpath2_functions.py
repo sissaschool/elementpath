@@ -237,7 +237,9 @@ def evaluate(self, context=None):
     elif not is_xpath_node(item):
         raise self.wrong_context_type("context item is not a node")
     else:
-        return node_base_uri(item)
+        uri = node_base_uri(item)
+        if uri is not None:
+            return AnyURI(uri)
 
 
 @method(function('document-uri', nargs=1, sequence_types=('node()?', 'xs:anyURI?')))
@@ -251,12 +253,12 @@ def evaluate(self, context=None):
 
     uri = node_document_uri(arg)
     if uri is not None:
-        return uri
+        return AnyURI(uri)
     elif is_document_node(context.root):
         try:
             for uri, doc in context.documents.items():
                 if doc is context.root:
-                    return uri
+                    return AnyURI(uri)
         except AttributeError:
             pass
 
@@ -775,7 +777,7 @@ def evaluate(self, context=None):
         elif not AnyURI.is_valid(relative):
             raise self.error('FORG0002', '{!r} is not a valid URI'.format(relative))
         else:
-            return self.get_absolute_uri(relative)
+            return self.get_absolute_uri(relative, as_string=False)
 
     base_uri = self.get_argument(context, index=1, required=True, cls=str)
     if not AnyURI.is_valid(base_uri):
@@ -785,7 +787,7 @@ def evaluate(self, context=None):
     elif not AnyURI.is_valid(relative):
         raise self.error('FORG0002', '{!r} is not a valid URI'.format(relative))
     else:
-        return self.get_absolute_uri(relative, base_uri)
+        return self.get_absolute_uri(relative, base_uri, as_string=False)
 
 
 ###
@@ -1153,7 +1155,8 @@ def evaluate(self, context=None):
 
 @method(function('static-base-uri', nargs=0, sequence_types=('xs:anyURI?',)))
 def evaluate(self, context=None):
-    return self.parser.base_uri
+    if self.parser.base_uri is not None:
+        return AnyURI(self.parser.base_uri)
 
 
 ###
