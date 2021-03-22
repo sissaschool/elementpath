@@ -14,7 +14,8 @@ import operator
 from copy import copy
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
-from ..exceptions import MissingContextError, ElementPathKeyError, xpath_error
+from ..exceptions import MissingContextError, ElementPathKeyError, \
+    ElementPathValueError, xpath_error
 from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
@@ -109,6 +110,13 @@ class XPath1Parser(Parser):
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures = {}
 
+    # https://www.w3.org/TR/xpath-3/#id-reserved-fn-names
+    RESERVED_FUNCTION_NAMES = {
+        'array', 'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
+        'function', 'if', 'item', 'map', 'namespace-node', 'node', 'processing-instruction',
+        'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
+    }
+
     def __init__(self, namespaces=None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = self.DEFAULT_NAMESPACES.copy()
@@ -171,7 +179,11 @@ class XPath1Parser(Parser):
         """
         Registers a token class for a symbol that represents an XPath function.
         """
-        if sequence_types and 'function' in label:
+        if 'function' not in label:
+            pass
+        elif symbol in cls.RESERVED_FUNCTION_NAMES:
+            raise ElementPathValueError(f'{symbol!r} is a reserved function name')
+        elif sequence_types:
             # Register function signature(s)
             if label == 'math function':
                 qname = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % symbol)
@@ -445,8 +457,15 @@ def nud(self):
             pass
         elif self.namespace == XSD_NAMESPACE:
             raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
-        else:
+        elif self.value not in self.parser.RESERVED_FUNCTION_NAMES:
             raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
+        elif self.value == 'typeswitch':
+            msg = 'improper use of XQuery reserved name {!r}'
+            raise self.error('XPST0003', msg.format(self.value))
+        else:
+            msg = 'improper use of XPath reserved name {!r}'
+            raise self.error('XPST0017', msg.format(self.value))
+
     elif self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
     return self
