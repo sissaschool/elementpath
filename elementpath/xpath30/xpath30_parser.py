@@ -272,7 +272,7 @@ def nud(self):
 
     # Add function return type
     if self.parser.next_token.symbol != 'as':
-        self.sequence_types.append('item()')
+        self.sequence_types.append('item()*')
     else:
         self.parser.advance('as')
         if self.parser.next_token.label not in ('kind test', 'sequence type'):

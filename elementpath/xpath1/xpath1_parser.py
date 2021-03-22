@@ -384,6 +384,8 @@ class XPath1Parser(Parser):
                 return all(self.match_sequence_type(x, sequence_type) for x in value)
         elif sequence_type == 'item()':
             return is_xpath_node(value) or isinstance(value, (AnyAtomicType, list))
+        elif sequence_type == 'numeric':
+            return isinstance(value, NumericProxy)
 
         value_kind = node_kind(value)
         if value_kind is not None:

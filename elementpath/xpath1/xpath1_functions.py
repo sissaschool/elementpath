@@ -138,12 +138,12 @@ def evaluate(self, context=None):
     symbol = self.symbol
     if symbol == 'name':
         return get_prefixed_name(name, self.parser.namespaces)
-    elif not name or name[0] != '{':
-        return name if symbol == 'local-name' else ''
     elif symbol == 'local-name':
-        return name.split('}')[1]
+        return name if not name or name[0] != '{' else name.split('}')[1]
+    elif self.parser.version == '1.0':
+        return '' if not name or name[0] != '{' else name.split('}')[0][1:]
     else:
-        return name.split('}')[0][1:]
+        return AnyURI('') if not name or name[0] != '{' else AnyURI(name.split('}')[0][1:])
 
 
 ###

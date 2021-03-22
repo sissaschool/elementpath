@@ -712,16 +712,17 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse("fn:function-lookup(xs:QName('fn:substring'), 2)('abcd', 2)")
         self.assertEqual(token.evaluate(), "bcd")
 
-        token = self.parser.parse("(fn:function-lookup(xs:QName('xs:dateTimeStamp'), 1), "
-                                  "xs:dateTime#1)[1] ('2011-11-11T11:11:11Z')")
+        with self.xsd_version_parser('1.1'):
+            token = self.parser.parse("(fn:function-lookup(xs:QName('xs:dateTimeStamp'), 1), "
+                                      "xs:dateTime#1)[1] ('2011-11-11T11:11:11Z')")
 
-        with self.assertRaises(MissingContextError):
-            token.evaluate()  # Context is required by predicate selector [1]
+            with self.assertRaises(MissingContextError):
+                token.evaluate()  # Context is required by predicate selector [1]
 
-        root = self.etree.XML('<root/>')
-        context = XPathContext(root=root)
-        dts = datatypes.DateTimeStamp.fromstring('2011-11-11T11:11:11Z')
-        self.assertEqual(token.evaluate(context), dts)
+            root = self.etree.XML('<root/>')
+            context = XPathContext(root=root)
+            dts = datatypes.DateTimeStamp.fromstring('2011-11-11T11:11:11Z')
+            self.assertEqual(token.evaluate(context), dts)
 
     def test_function_name(self):
         token = self.parser.parse("fn:function-name(fn:substring#2) ")

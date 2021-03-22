@@ -222,6 +222,14 @@ class XPathTestCase(unittest.TestCase):
         finally:
             self.parser.schema = None
 
+    @contextmanager
+    def xsd_version_parser(self, xsd_version):
+        xsd_version, self.parser._xsd_version = self.parser._xsd_version, xsd_version
+        try:
+            yield self.parser
+        finally:
+            self.parser._xsd_version = xsd_version
+
     # Wrong XPath expression checker shortcuts
     def check_raise(self, path, exception_class, *message_parts, context=None):
         with self.assertRaises(exception_class) as error_context:

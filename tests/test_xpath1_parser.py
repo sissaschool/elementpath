@@ -1565,7 +1565,12 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             if issubclass(tk, XPathFunction) and 'function' in tk.label:
                 function_names.append(tk.symbol)
                 for st in tk.sequence_types:
-                    self.assertTrue(self.parser.is_sequence_type(st))
+                    if 'dateTimeStamp' in st:
+                        self.assertFalse(self.parser.is_sequence_type(st), msg=st)
+                        with self.xsd_version_parser('1.1'):
+                            self.assertTrue(self.parser.is_sequence_type(st), msg=st)
+                    else:
+                        self.assertTrue(self.parser.is_sequence_type(st), msg=st)
 
         if self.parser.version == '1.0':
             self.assertEqual(len(self.parser.function_signatures), 36)
