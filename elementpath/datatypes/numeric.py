@@ -30,8 +30,12 @@ class Float10(float, AnyAtomicType):
                 raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
 
         value = super().__new__(cls, value)
-        if -1e-37 < value < 1e-37:
-            return super().__new__(cls, 0.0)
+        if value > 3.4028235E38:
+            return super().__new__(cls, 'INF')
+        elif value < -3.4028235E38:
+            return super().__new__(cls, '-INF')
+        elif -1e-37 < value < 1e-37:
+            return super().__new__(cls, -0.0 if str(value).startswith('-') else 0.0)
         return value
 
     def __hash__(self):

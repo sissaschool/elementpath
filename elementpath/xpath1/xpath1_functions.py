@@ -10,14 +10,14 @@
 import sys
 import math
 import decimal
-from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, StringProxy, AnyURI
+from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
+    StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
 from ..xpath_nodes import XPathNode, TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 
 from .xpath1_parser import XPath1Parser
 
-register = XPath1Parser.register
 method = XPath1Parser.method
 function = XPath1Parser.function
 
@@ -338,7 +338,7 @@ def evaluate(self, context=None):
         return [] if zero is None else zero
 
     if all(isinstance(x, (decimal.Decimal, int)) for x in values):
-        return sum(values)
+        return sum(values) if len(values) > 1 else values[0]
     elif all(isinstance(x, DayTimeDuration) for x in values) or \
             all(isinstance(x, YearMonthDuration) for x in values):
         if sys.version_info >= (3, 8):
@@ -353,6 +353,8 @@ def evaluate(self, context=None):
         raise self.error('FORG0006', 'cannot apply fn:sum() to string-based types')
     elif any(isinstance(x, float) and math.isnan(x) for x in values):
         return float('nan')
+    elif all(isinstance(x, Float10) for x in values):
+        return sum(values)
 
     try:
         return sum(self.number_value(x) for x in values)
