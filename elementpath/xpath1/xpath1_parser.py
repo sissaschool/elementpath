@@ -558,6 +558,10 @@ def led(self, left):
 
     self[:] = left, self.parser.expression(90)
     self.value = '{}:{}'.format(self[0].value, self[1].value)
+
+    if self.parser.next_token.symbol == ':':
+        raise self.wrong_syntax()
+
     return self
 
 
