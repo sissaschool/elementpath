@@ -242,12 +242,11 @@ class XPathToken(Token):
                 value = self.data_value(item)
                 if isinstance(value, cls):
                     return value
+                elif isinstance(value, AnyURI) and issubclass(cls, str):
+                    return cls(value)
                 elif isinstance(value, UntypedAtomic):
                     try:
-                        if issubclass(cls, str):
-                            return str(value)
-                        else:
-                            return cls(value)
+                        return cls(value)
                     except (TypeError, ValueError):
                         pass
 

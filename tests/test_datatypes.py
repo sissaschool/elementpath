@@ -275,7 +275,8 @@ class UntypedAtomicTest(unittest.TestCase):
         self.assertIsInstance(hash(UntypedAtomic('alpha')), int)
 
     def test_validate(self):
-        self.assertIsNone(UntypedAtomic.validate('10'))
+        self.assertIsNone(UntypedAtomic.validate(UntypedAtomic('10')))
+        self.assertRaises(TypeError, UntypedAtomic.validate, '10')
         self.assertRaises(TypeError, UntypedAtomic.validate, 10)
 
 

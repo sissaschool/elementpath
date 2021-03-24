@@ -23,7 +23,7 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
 
     @classmethod
     def validate(cls, value):
-        if not isinstance(value, (cls, str)):
+        if not isinstance(value, cls):
             raise cls.invalid_type(value)
 
     def __init__(self, value):
