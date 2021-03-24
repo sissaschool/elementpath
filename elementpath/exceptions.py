@@ -158,6 +158,14 @@ XPATH_ERROR_CODES = {
     'FOFD1340': (ElementPathValueError, 'Invalid date/time formatting parameters'),
     'FOFD1350': (ElementPathValueError, 'Invalid date/time formatting component'),
 
+    # XSLT and XQuery Serialization errors
+    # (the complete list: https://www.w3.org/TR/xslt-xquery-serialization/#id-errors)
+    'SENR0001': (ElementPathTypeError, 'item is an attribute node or a namespace node'),
+    'SEPM0016': (ElementPathValueError, 'parameter value is invalid for the defined domain'),
+    'SEPM0017': (ElementPathValueError, 'error during extraction of serialization parameters'),
+    'SEPM0018': (ElementPathValueError, 'use-character-maps serialization parameter in '
+                                        'a sequence of length greater than one'),
+    'SEPM0019': (ElementPathValueError, 'same serialization parameter appears more than once'),
 }
 
 

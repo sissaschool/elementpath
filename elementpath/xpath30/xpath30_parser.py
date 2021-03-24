@@ -26,12 +26,27 @@ from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from ..xpath_nodes import etree_iterpath, is_xpath_node, is_element_node, \
-    is_document_node, is_etree_element, TypedElement, TypedAttribute, XPathNode
+    is_document_node, is_etree_element, is_schema_node, TypedElement, \
+    TextNode, AttributeNode, TypedAttribute, NamespaceNode, XPathNode
 from ..xpath_token import ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..xpath2 import XPath2Parser
-from ..datatypes import NumericProxy, QName
+from ..datatypes import NumericProxy, QName, Date10, DateTime10, Time
 from ..regex import translate_pattern, RegexError
+
+
+# XSLT and XQuery Serialization parameters
+SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_OMIT_XML_DECLARATION = '{%s}omit-xml-declaration' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_USE_CHARACTER_MAPS = '{%s}use-character-maps' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_CHARACTER_MAP = '{%s}character-map' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_METHOD = '{%s}method' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_INDENT = '{%s}indent' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_VERSION = '{%s}version' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_CDATA = '{%s}cdata-section-elements' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_NO_INDENT = '{%s}suppress-indentation' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_STANDALONE = '{%s}standalone' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
+SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 
 
 class XPath30Parser(XPath2Parser):
@@ -440,14 +455,27 @@ def evaluate(self, context):
                  sequence_types=('xs:integer?', 'xs:string', 'xs:string?', 'xs:string')))
 def evaluate(self, context):
     value = self.get_argument(context, cls=NumericProxy)
+    picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return ''
+
+    if ';' not in picture:
+        fmt_token, fmt_modifier = picture, ''
+    else:
+        fmt_token, fmt_modifier = picture.rsplit(';', 1)
+
+    if len(fmt_token) == 1:
+        if value > 0:
+            return chr(ord(fmt_token) + value - 1)
+        else:
+            return '-{}'.format(chr(ord(fmt_token) + value))
 
 
 @method(function('format-number', nargs=(2, 3),
                  sequence_types=('numeric?', 'xs:string', 'xs:string?', 'xs:string')))
 def evaluate(self, context):
     value = self.get_argument(context, cls=NumericProxy)
+    # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return ''
 
@@ -456,25 +484,28 @@ def evaluate(self, context):
                  sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate(self, context):
-    value = self.get_argument(context, cls=NumericProxy)
+    value = self.get_argument(context, cls=DateTime10)
+    # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return ''
 
 
 @method(function('format-date', nargs=(2, 5),
-                 sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
+                 sequence_types=('xs:date?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate(self, context):
-    value = self.get_argument(context, cls=NumericProxy)
+    value = self.get_argument(context, cls=Date10)
+    # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return None
 
 
 @method(function('format-time', nargs=(2, 5),
-                 sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
+                 sequence_types=('xs:time?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate(self, context):
-    value = self.get_argument(context, cls=NumericProxy)
+    value = self.get_argument(context, cls=Time)
+    # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return ''
 
@@ -903,28 +934,120 @@ def evaluate(self, context=None):
     if params is None:
         tmpl = '<output:serialization-parameters xmlns:output="{}"/>'
         params = ElementTree.XML(tmpl.format(XSLT_XQUERY_SERIALIZATION_NAMESPACE))
+    elif not is_etree_element(params):
+        pass
+    elif params.tag != SERIALIZATION_PARAMS:
+        raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
+
+    if context is None:
+        etree = ElementTree
+    else:
+        etree = context.etree
+        if context.namespaces:
+            for pfx, uri in context.namespaces.items():
+                etree.register_namespace(pfx, uri)
+        else:
+            for pfx, uri in self.parser.namespaces.items():
+                etree.register_namespace(pfx, uri)
+
+    item_separator = '\n'
+    kwargs = {}
+    character_map = {}
+    if len(params):
+        if len(params) > len({e.tag for e in params}):
+            raise self.error('SEPM0019')
+
+        for child in params:
+            if child.tag == SER_PARAM_OMIT_XML_DECLARATION:
+                value = child.get('value')
+                if value not in {'yes', 'no'} or len(child.attrib) > 1:
+                    raise self.error('SEPM0017')
+                elif value == 'no':
+                    kwargs['xml_declaration'] = True
+
+            elif child.tag == SER_PARAM_USE_CHARACTER_MAPS:
+                if len(child.attrib):
+                    raise self.error('SEPM0017')
+
+                for e in child:
+                    if e.tag != SER_PARAM_CHARACTER_MAP:
+                        raise self.error('SEPM0017')
+
+                    try:
+                        character = e.attrib['character']
+                        if character in character_map:
+                            msg = 'duplicate character {!r} in character map'
+                            raise self.error('SEPM0018', msg.format(character))
+                        elif len(character) != 1:
+                            msg = 'invalid character {!r} in character map'
+                            raise self.error('SEPM0017', msg.format(character))
+
+                        character_map[character] = e.attrib['map-string']
+                    except KeyError as key:
+                        msg = "missing {} in character map"
+                        raise self.error('SEPM0017', msg.format(key)) from None
+                    else:
+                        if len(e.attrib) > 2:
+                            msg = "invalid attribute in character map"
+                            raise self.error('SEPM0017', msg)
+
+            elif child.tag == SER_PARAM_METHOD:
+                value = child.get('value')
+                if value not in {'html', 'xml', 'xhtml', 'text'} or len(child.attrib) > 1:
+                    raise self.error('SEPM0017')
+                kwargs['method'] = value if value != 'xhtml' else 'html'
+
+            elif child.tag == SER_PARAM_INDENT:
+                value = child.get('value')
+                if value not in {'yes', 'no'} or len(child.attrib) > 1:
+                    raise self.error('SEPM0017')
+
+            elif child.tag == SER_PARAM_ITEM_SEPARATOR:
+                try:
+                    item_separator = child.attrib['value']
+                except KeyError:
+                    raise self.error('SEPM0017') from None
+
+            # TODO params
+            elif child.tag == SER_PARAM_CDATA:
+                pass
+            elif child.tag == SER_PARAM_NO_INDENT:
+                pass
+            elif child.tag == SER_PARAM_STANDALONE:
+                pass
+
+            elif child.tag.startswith(f'{{{XSLT_XQUERY_SERIALIZATION_NAMESPACE}'):
+                raise self.error('SEPM0017')
 
     chunks = []
-    etree = ElementTree if context is None else context.etree
-    kwargs = {}
-
-    child = params.find(
-        'output:serialization-parameters/omit-xml-declaration',
-        namespaces={'output': XSLT_XQUERY_SERIALIZATION_NAMESPACE},
-    )
-    if child is not None and child.get('value') in ('yes',):
-        kwargs['xml_declaration'] = True
-
     for item in self[0].select(context):
-        if is_etree_element(item):
-            try:
-                serialized_item = etree.tostring(item, encoding='utf-8', **kwargs)
-            except TypeError:
-                serialized_item = etree.tostring(item, encoding='utf-8')
+        if is_document_node(item):
+            item = item.getroot()
+        elif isinstance(item, TypedElement):
+            item = item.elem
+        elif isinstance(item, (AttributeNode, TypedAttribute, NamespaceNode)):
+            raise self.error('SENR0001')
+        elif isinstance(item, TextNode):
+            chunks.append(item.value)
+            continue
+        elif not is_etree_element(item):
+            chunks.append(str(item))
+            continue
+        elif hasattr(item, 'xsd_version') or is_schema_node(item):
+            continue  # XSD schema or schema node
 
-            chunks.append(serialized_item)
+        try:
+            chunks.append(etree.tostring(item, encoding='utf-8', **kwargs).decode('utf-8'))
+        except TypeError:
+            chunks.append(etree.tostring(item, encoding='utf-8').decode('utf-8'))
 
-    return (b'\n'.join(chunks)).decode('utf-8')
+    if not character_map:
+        return item_separator.join(chunks)
+
+    result = item_separator.join(chunks)
+    for character, map_string in character_map.items():
+        result = result.replace(character, map_string)
+    return result
 
 
 ###

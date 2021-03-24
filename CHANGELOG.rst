@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.2.1`_ (2021-03-24)
+======================
+* Add function signatures at token registration
+* Some fixes to XPath tokens and more XPath 3.0 implementations
+
 `v2.2.0`_ (2021-03-01)
 ======================
 * Optimize TDOP parser's tokenizer
@@ -299,3 +304,4 @@ CHANGELOG
 .. _v2.1.3: https://github.com/sissaschool/elementpath/compare/v2.1.2...v2.1.3
 .. _v2.1.4: https://github.com/sissaschool/elementpath/compare/v2.1.3...v2.1.4
 .. _v2.2.0: https://github.com/sissaschool/elementpath/compare/v2.1.4...v2.2.0
+.. _v2.2.1: https://github.com/sissaschool/elementpath/compare/v2.2.0...v2.2.1

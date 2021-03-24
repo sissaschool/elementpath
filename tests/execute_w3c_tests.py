@@ -45,7 +45,7 @@ DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
 IGNORE_SPECS = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30', 'XQ30+',
                 'XP31', 'XP31+', 'XQ31', 'XQ31+', 'XT30+'}
 
-SKIP_TESTS = [
+SKIP_TESTS = {
     'fn-subsequence__cbcl-subsequence-010',
     'fn-subsequence__cbcl-subsequence-011',
     'fn-subsequence__cbcl-subsequence-012',
@@ -77,6 +77,7 @@ SKIP_TESTS = [
     'fn-codepoints-to-string__cbcl-codepoints-to-string-021',  # Too long ...
     'fn-unparsed-text__fn-unparsed-text-038',  # Typo in filename
     'fn-unparsed-text-lines__fn-unparsed-text-lines-038',  # Typo in filename
+    'fn-serialize__serialize-xml-015b',  # Do not raise, attribute is good
 
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
@@ -84,7 +85,7 @@ SKIP_TESTS = [
 
     # IMHO incorrect tests
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
-]
+}
 
 xpath_parser = XPath2Parser
 
@@ -1088,6 +1089,14 @@ def main():
                 if args.xpath and test_case.test != args.xpath:
                     count_skip += 1
                     continue
+
+                if args.xp30 and test_case.test:
+                    if 'parse-json' in test_case.test:
+                        count_skip += 1
+                        continue
+                    elif 'map {' in test_case.test:
+                        count_skip += 1
+                        continue
 
                 count_run += 1
                 try:
