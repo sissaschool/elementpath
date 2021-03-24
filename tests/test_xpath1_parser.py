@@ -1400,8 +1400,15 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns">10<tst:B1/></A>')
         namespaces = list(self.parser.DEFAULT_NAMESPACES.items()) \
             + [('tst', 'http://xpath.test/ns')]
-        self.check_selector('/A/namespace::*', root, expected=set(namespaces),
-                            namespaces=namespaces[-1:])
+
+        if self.parser.version == '1.0':
+            self.check_selector('/A/namespace::*', root, expected=set(namespaces),
+                                namespaces=namespaces[-1:])
+        else:
+            self.check_selector('/A/namespace::*', root,
+                                expected=set(x[1] for x in namespaces),
+                                namespaces=namespaces[-1:])
+
         self.check_value('namespace::*', MissingContextError)
         self.check_value('./text()/namespace::*', [], context=XPathContext(root))
 

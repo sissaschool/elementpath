@@ -549,6 +549,8 @@ def led(self, left):
         try:
             namespace = self.get_namespace(left.value)
         except ElementPathKeyError:
+            self.parser.advance()  # Assure there isn't a following incomplete comment
+            self[:] = left, self.parser.token
             msg = "prefix {!r} is not declared".format(left.value)
             raise self.error('XPST0081', msg) from None
         else:

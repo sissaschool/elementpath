@@ -34,6 +34,7 @@ import xmlschema
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
 from elementpath.xpath_token import XPathFunction
+from elementpath.datatypes import AnyAtomicType
 
 
 DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
@@ -155,9 +156,18 @@ class Source(object):
                 self.xml = lxml.etree.parse(self.file)
             else:
                 self.xml = ElementTree.parse(self.file)
-                self.namespaces = {
-                    k: v for _, (k, v) in ElementTree.iterparse(self.file, events=('start-ns',))
-                }
+                self.namespaces = {}
+                dup_index = 1
+
+                for _, (prefix, uri) in ElementTree.iterparse(self.file, events=('start-ns',)):
+                    if prefix not in self.namespaces:
+                        self.namespaces[prefix] = uri
+                    elif prefix:
+                        self.namespaces[f'{prefix}{dup_index}'] = uri
+                        dup_index += 1
+                    else:
+                        self.namespaces[f'default{dup_index}'] = uri
+                        dup_index += 1
 
         except (ElementTree.ParseError, lxml.etree.XMLSyntaxError):
             self.xml = None
@@ -397,7 +407,7 @@ class TestCase(object):
             print()
         return self.result.validate(verbose)
 
-    def run_xpath_test(self, verbose=1, with_context=True):
+    def run_xpath_test(self, verbose=1, with_context=True, with_xpath_nodes=False):
         """
         Helper function to parse and evaluate tests with elementpath.
 
@@ -498,7 +508,10 @@ class TestCase(object):
             context = XPathContext(root=root, **kwargs)
 
         try:
-            result = root_node.evaluate(context)
+            if with_xpath_nodes:
+                result = root_node.evaluate(context)
+            else:
+                result = root_node.get_results(context)
         except Exception as err:
             if isinstance(err, ElementPathError):
                 raise
@@ -770,14 +783,17 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
-        try:
-            length = 1 if isinstance(result, (str, bytes)) else len(result)
-        except TypeError as err:
-            self.report_failure(verbose, error=err)
-            return False
+        if isinstance(result, AnyAtomicType):
+            length = 1
         else:
-            if int(self.value) == length:
-                return True
+            try:
+                length = len(result)
+            except TypeError as err:
+                self.report_failure(verbose, error=err)
+                return False
+
+        if int(self.value) == length:
+            return True
 
         self.report_failure(
             verbose, expected=int(self.value), value=length, xpath_result=result
@@ -791,7 +807,7 @@ class Result(object):
         the original test.
         """
         try:
-            result = self.test_case.run_xpath_test(verbose)
+            result = self.test_case.run_xpath_test(verbose, with_xpath_nodes=True)
         except (ElementPathError, ParseError, EvaluateError) as err:
             self.report_failure(verbose, error=err)
             return False
@@ -898,6 +914,8 @@ class Result(object):
                     parts.append(str(item.value))
                 elif hasattr(item, 'tag'):
                     parts.append(tostring(item).decode('utf-8').strip())
+                elif hasattr(item, 'getroot'):
+                    parts.append(tostring(item.getroot()).decode('utf-8').strip())
                 else:
                     parts.append(str(item))
             xml_str = ''.join(parts)
