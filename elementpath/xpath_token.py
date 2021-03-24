@@ -378,7 +378,8 @@ class XPathToken(Token):
 
         :param context: the XPath dynamic context.
         """
-        self.parser.check_variables(context.variables)
+        if context is not None:
+            self.parser.check_variables(context.variables)
 
         for result in self.select(context):
             if not isinstance(result, XPathNode):
@@ -393,7 +394,10 @@ class XPathToken(Token):
                 else:
                     yield result.value
             elif isinstance(result, NamespaceNode):  # pragma: no cover
-                yield result.prefix, result.uri
+                if self.parser.compatibility_mode:
+                    yield result.prefix, result.uri
+                else:
+                    yield result.uri
 
     def get_results(self, context):
         """
