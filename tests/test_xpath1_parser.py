@@ -752,9 +752,15 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                              '2005/xpath-functions/collation/codepoint")', False)
             self.check_value('fn:contains ( "", ())', True)
             self.wrong_type("contains('XPath', 20)")
+
+            self.check_value('fn:contains(xs:untypedAtomic("abcde"), "bcd")', True)
+            self.check_value('fn:contains(xs:anyURI("http://xpath.test"), "th")', True)
+
             self.parser.compatibility_mode = True
-            self.check_value("contains('XPath', 20)", False)
-            self.parser.compatibility_mode = False
+            try:
+                self.check_value("contains('XPath', 20)", False)
+            finally:
+                self.parser.compatibility_mode = False
 
     def test_substring_before_function(self):
         root = self.etree.XML(XML_GENERIC_TEST)
