@@ -32,7 +32,7 @@ from xml.etree.ElementTree import Element
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
     is_comment_node, is_processing_instruction_node, is_element_node, \
@@ -726,7 +726,7 @@ class XPathToken(Token):
           https://www.w3.org/TR/xpath20/#id-static-analysis
           https://www.w3.org/TR/xquery-semantics/
 
-        :param item: an untyped attribute ot element.
+        :param item: an untyped attribute or element.
         :return: a typed AttributeNode/ElementNode if the argument is matching \
         any associated XSD type.
         """
@@ -741,12 +741,16 @@ class XPathToken(Token):
                 return TypedAttribute(item, xsd_type, UntypedAtomic(item.value))
             return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
 
+        elif isinstance(item, AttributeNode):
+            pass
         elif xsd_type.has_mixed_content():
             value = UntypedAtomic(item.text or '')
             return TypedElement(item, xsd_type, value)
         elif xsd_type.is_element_only():
             return TypedElement(item, xsd_type, None)
         elif xsd_type.is_empty():
+            return TypedElement(item, xsd_type, None)
+        elif item.get(XSI_NIL) and getattr(xsd_type.parent, 'nillable', None):
             return TypedElement(item, xsd_type, None)
 
         if self.parser.xsd_version == '1.0':
