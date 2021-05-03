@@ -44,6 +44,8 @@ from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import is_document_node, is_lxml_document_node, \
     is_etree_element, is_lxml_etree_element
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
+from elementpath.xpath30.xpath30_formats import PICTURE_PATTERN, \
+    int_to_roman, int_to_alphabetic, int_to_words
 
 try:
     from tests import test_xpath2_parser
@@ -847,6 +849,65 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
         self.assertListEqual(token.evaluate(context), [11, 22, 33, 44, 55])
+
+    def test_picture_pattern(self):
+        self.assertListEqual(PICTURE_PATTERN.findall(''), [])
+        self.assertListEqual(PICTURE_PATTERN.findall('a'), [])
+        self.assertListEqual(PICTURE_PATTERN.findall('[y]'), ['[y]'])
+        self.assertListEqual(PICTURE_PATTERN.findall('[h01][m01][z,2-6]'),
+                             ['[h01]', '[m01]', '[z,2-6]'])
+        self.assertListEqual(PICTURE_PATTERN.findall('[H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
+                             ['[H٠]', '[m٠]', '[s٠٠]', '[f٠٠٠]'])
+        self.assertListEqual(PICTURE_PATTERN.split(' [H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
+                             [' ', ':', ':', ':', ''])
+        self.assertListEqual(PICTURE_PATTERN.findall('[y'), [])
+        self.assertListEqual(PICTURE_PATTERN.findall('[[y]'), [])
+
+    def test_int_to_roman(self):
+        self.assertRaises(TypeError, int_to_roman, 3.0)
+        self.assertEqual(int_to_roman(0), '0')
+        self.assertEqual(int_to_roman(3), 'III')
+        self.assertEqual(int_to_roman(4), 'IV')
+        self.assertEqual(int_to_roman(5), 'V')
+        self.assertEqual(int_to_roman(7), 'VII')
+        self.assertEqual(int_to_roman(9), 'IX')
+        self.assertEqual(int_to_roman(10), 'X')
+        self.assertEqual(int_to_roman(11), 'XI')
+        self.assertEqual(int_to_roman(19), 'XIX')
+        self.assertEqual(int_to_roman(20), 'XX')
+        self.assertEqual(int_to_roman(49), 'XLIX')
+        self.assertEqual(int_to_roman(100), 'C')
+        self.assertEqual(int_to_roman(489), 'CDLXXXIX')
+        self.assertEqual(int_to_roman(2999), 'MMCMXCIX')
+
+    def test_int_to_alphabetic(self):
+        self.assertEqual(int_to_alphabetic(4), 'd')
+        self.assertEqual(int_to_alphabetic(7), 'g')
+        self.assertEqual(int_to_alphabetic(25), 'y')
+        self.assertEqual(int_to_alphabetic(26), 'z')
+        self.assertEqual(int_to_alphabetic(27), 'aa')
+        self.assertEqual(int_to_alphabetic(-29), '-ac')
+        self.assertEqual(int_to_alphabetic(890), 'ahf')
+
+    def test_int_to_words(self):
+        self.assertEqual(int_to_words(1), 'one')
+        self.assertEqual(int_to_words(4), 'four')
+
+    def test_format_integer(self):
+        self.check_value("format-integer(57, 'I')", 'LVII')
+        self.check_value("format-integer(594, 'i')", 'dxciv')
+
+        self.check_value("format-integer(7, 'a')", 'g')
+        self.check_value("format-integer(-90956, 'A')", '-EDNH')
+
+        self.check_value("format-integer(123, 'w')",
+                         'one hundred and twenty-three')
+        self.check_value("format-integer(-8912, 'W')",
+                         "-EIGHT THOUSAND NINE HUNDRED AND TWELVE")
+        self.check_value("format-integer(17089674, 'Ww')",
+                         "Seventeen Million Eighty-Nine Thousand Six Hundred And Seventy-Four")
+
+        self.check_value("format-integer(123, '0000')", '0123')
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ElementTree
 from copy import copy
 from urllib.parse import urlsplit
 
+from ..exceptions import ElementPathError
 from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -34,6 +35,9 @@ from ..xpath2 import XPath2Parser
 from ..datatypes import NumericProxy, QName, Date10, DateTime10, Time
 from ..regex import translate_pattern, RegexError
 
+from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
+    MODIFIER_PATTERN, int_to_roman, int_to_alphabetic, int_to_numeric, \
+    int_to_words, parse_datetime_picture
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -322,13 +326,13 @@ def evaluate(self, context=None):
 ###
 # Mathematical functions
 @method(function('pi', label='math function', nargs=0, sequence_types=('xs:double',)))
-def evaluate(self, context):
+def evaluate(self, context=None):
     return math.pi
 
 
 @method(function('exp', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return math.exp(arg)
@@ -336,7 +340,7 @@ def evaluate(self, context):
 
 @method(function('exp10', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return float(10 ** arg)
@@ -344,7 +348,7 @@ def evaluate(self, context):
 
 @method(function('log', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log(arg)
@@ -352,7 +356,7 @@ def evaluate(self, context):
 
 @method(function('log10', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log10(arg)
@@ -360,7 +364,7 @@ def evaluate(self, context):
 
 @method(function('pow', label='math function', nargs=2,
                  sequence_types=('xs:double?', 'numeric', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     if x is not None:
@@ -375,7 +379,7 @@ def evaluate(self, context):
 
 @method(function('sqrt', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < 0:
@@ -385,7 +389,7 @@ def evaluate(self, context):
 
 @method(function('sin', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
@@ -395,7 +399,7 @@ def evaluate(self, context):
 
 @method(function('cos', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
@@ -405,7 +409,7 @@ def evaluate(self, context):
 
 @method(function('tan', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
@@ -415,7 +419,7 @@ def evaluate(self, context):
 
 @method(function('asin', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < -1 or arg > 1:
@@ -425,7 +429,7 @@ def evaluate(self, context):
 
 @method(function('acos', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < -1 or arg > 1:
@@ -435,7 +439,7 @@ def evaluate(self, context):
 
 @method(function('atan', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return math.atan(arg)
@@ -443,19 +447,20 @@ def evaluate(self, context):
 
 @method(function('atan2', label='math function', nargs=2,
                  sequence_types=('xs:double', 'xs:double', 'xs:double')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     return math.atan2(x, y)
 
 
 ###
-# TODO: Formatting functions
+# Formatting functions
 @method(function('format-integer', nargs=(2, 3),
                  sequence_types=('xs:integer?', 'xs:string', 'xs:string?', 'xs:string')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
     picture = self.get_argument(context, index=1, required=True, cls=str)
+    lang = self.get_argument(context, index=2, cls=str)
     if value is None:
         return ''
 
@@ -464,50 +469,131 @@ def evaluate(self, context):
     else:
         fmt_token, fmt_modifier = picture.rsplit(';', 1)
 
-    if len(fmt_token) == 1:
-        if value > 0:
-            return chr(ord(fmt_token) + value - 1)
+    if MODIFIER_PATTERN.match(fmt_modifier) is None:
+        raise self.error('FODF1310')
+
+    if not fmt_token:
+        raise self.error('FODF1310')
+    elif fmt_token in {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}:
+        if fmt_token == 'a':
+            result = int_to_alphabetic(value, lang)
+        elif fmt_token == 'A':
+            result = int_to_alphabetic(value, lang).upper()
+        elif fmt_token == 'i':
+            result = int_to_roman(value).lower()
+        elif fmt_token == 'I':
+            result = int_to_roman(value)
+        elif fmt_token == 'w':
+            return int_to_words(value, lang, fmt_modifier)
+        elif fmt_token == 'W':
+            return int_to_words(value, lang, fmt_modifier).upper()
         else:
-            return '-{}'.format(chr(ord(fmt_token) + value))
+            return int_to_words(value, lang, fmt_modifier).title()
+
+    else:
+        if UNICODE_DIGIT_PATTERN.search(fmt_token) is None:
+            base_char = '1'
+            for base_char in fmt_token:
+                if base_char.isalpha():
+                    break
+            result = int_to_alphabetic(value, base_char)
+
+        elif DECIMAL_DIGIT_PATTERN.match(fmt_token) is None:
+            msg = 'picture argument has an invalid primary format token'
+            raise self.error('FODF1310', msg)
+        else:
+            digits = UNICODE_DIGIT_PATTERN.findall(fmt_token)
+            cp = ord(digits[0])
+            if any((ord(ch) - cp) > 10 for ch in digits[1:]):
+                msg = "picture argument mixes digits from different digit families"
+                raise self.error('FODF1310', msg)
+            elif fmt_token[0].isdigit():
+                if '#' in fmt_token:
+                    msg = 'picture argument has an invalid primary format token'
+                    raise self.error('FODF1310', msg)
+            elif fmt_token[0] != '#':
+                raise self.error('FODF1310', "invalid grouping in picture argument")
+
+            result = int_to_numeric(value, digits[0], fmt_token)
+
+    if fmt_modifier.startswith('o'):
+        if not value or abs(value) > 3:
+            return '{}th'.format(result)
+        elif abs(value) == 1:
+            return '{}st'.format(result)
+        elif abs(value) == 2:
+            return '{}nd'.format(result)
+        else:
+            return '{}rd'.format(result)
+    return result
 
 
+# TODO
 @method(function('format-number', nargs=(2, 3),
                  sequence_types=('numeric?', 'xs:string', 'xs:string?', 'xs:string')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
     # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return ''
 
 
+# TODO
 @method(function('format-dateTime', nargs=(2, 5),
                  sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     value = self.get_argument(context, cls=DateTime10)
     # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return ''
 
 
+# TODO
 @method(function('format-date', nargs=(2, 5),
                  sequence_types=('xs:date?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     value = self.get_argument(context, cls=Date10)
     # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
         return None
 
 
+# TODO
 @method(function('format-time', nargs=(2, 5),
                  sequence_types=('xs:time?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate(self, context):
+def evaluate(self, context=None):
     value = self.get_argument(context, cls=Time)
-    # picture = self.get_argument(context, index=1, required=True, cls=str)
+    picture = self.get_argument(context, index=1, required=True, cls=str)
+    # language = self.get_argument(context, index=2, cls=str)
+    # calendar = self.get_argument(context, index=3, cls=str)
+    # place = self.get_argument(context, index=4, cls=str)
+
+    try:
+        literals, markers = parse_datetime_picture(picture)
+    except ElementPathError as err:
+        err.token = self
+        raise
+
+    for value in markers:
+        if value[1] in 'YMDdFWw':
+            msg = 'Invalid time formatting component {!r}'.format(value[1])
+            raise self.error('FOFD1350', msg)
+
     if value is None:
         return ''
+
+    result = []
+    for k in range(len(markers)):
+        result.append(literals[k])
+        component = markers[k][0]
+        if component == 'f':
+            pass  # TODO
+
+    result.append(literals[-1])
+    return ''.join(result)
 
 
 ###

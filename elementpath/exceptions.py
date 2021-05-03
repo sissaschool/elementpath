@@ -155,6 +155,8 @@ XPATH_ERROR_CODES = {
                  'Cannot decode resource retrieved by fn:unparsed-text()'),
     'FOUT1200': (ElementPathValueError,
                  'Cannot infer encoding of resource retrieved by fn:unparsed-text()'),
+    'FODF1280': (ElementPathValueError, 'Invalid decimal format name'),
+    'FODF1310': (ElementPathValueError, 'Invalid decimal format picture string'),
     'FOFD1340': (ElementPathValueError, 'Invalid date/time formatting parameters'),
     'FOFD1350': (ElementPathValueError, 'Invalid date/time formatting component'),
 
