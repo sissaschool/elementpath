@@ -3,7 +3,7 @@ setuptools
 tox
 coverage
 lxml
-xmlschema~=1.2.3
+xmlschema>=1.2.3
 Sphinx
 memory-profiler
 -e .

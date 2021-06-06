@@ -27,7 +27,7 @@ setup(
     long_description=long_description,
     python_requires='>=3.6',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema~=1.2.3', 'Sphinx']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.2.3', 'Sphinx']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

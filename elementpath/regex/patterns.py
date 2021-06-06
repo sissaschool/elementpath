@@ -39,7 +39,7 @@ def translate_pattern(pattern, flags=0, xsd_version='1.0', back_references=True,
     :param flags: regex flags as represented by Python's re module.
     :param xsd_version: apply regex rules of a specific XSD version, '1.0' for default.
     :param back_references: if `True` supports back-references and capturing groups.
-    :param lazy_quantifiers: if `True` supports lazy quantifiers (*?, +?).
+    :param lazy_quantifiers: if `True` supports lazy quantifiers (\\*?, +?).
     :param anchors: if `True` supports ^ and $ anchors, otherwise the translated \
     pattern is anchored to its boundaries and anchors are treated as normal characters.
     """
