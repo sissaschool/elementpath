@@ -85,6 +85,8 @@ class CharacterClass(MutableSet):
     _re_char_set = re.compile(r'(?<!.-)(\\[nrt|.\-^?*+{}()\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([\w\d-]+)}')
 
+    __slots__ = 'xsd_version', 'positive', 'negative'
+
     def __init__(self, charset=None, xsd_version='1.0'):
         self.xsd_version = xsd_version
         self.positive = UnicodeSubset()

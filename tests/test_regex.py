@@ -592,14 +592,14 @@ class TestPatterns(unittest.TestCase):
     def test_issue_079(self):
         # Do not escape special characters in character class
         regex = translate_pattern('[^\n\t]+', anchors=False)
-        self.assertEqual(regex, '^([^\t\n]+)$(?!\\n\Z)')
+        self.assertEqual(regex, '^([^\t\n]+)$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('first\tsecond\tthird'))
         self.assertEqual(pattern.search('first second third').group(0), 'first second third')
 
     def test_dot_wildcard(self):
         regex = translate_pattern('.+', anchors=False)
-        self.assertEqual(regex, '^([^\r\n]+)$(?!\\n\Z)')
+        self.assertEqual(regex, '^([^\r\n]+)$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('line1\rline2\r'))
         self.assertIsNone(pattern.search('line1\nline2'))
@@ -608,7 +608,7 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('abc').group(0), 'abc')
 
         regex = translate_pattern('.+T.+(Z|[+-].+)', anchors=False)
-        self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\\+\\-][^\r\n]+))$(?!\\n\Z)')
+        self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\\+\\-][^\r\n]+))$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12T0A3+36').group(0), '12T0A3+36')
         self.assertEqual(pattern.search('12T0A3Z').group(0), '12T0A3Z')
@@ -619,7 +619,7 @@ class TestPatterns(unittest.TestCase):
         regex = translate_pattern(r"[\S' ']{1,10}", anchors=False)
         if sys.version_info >= (3,):
             self.assertEqual(
-                regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\U0010ffff ']{1,10})$(?!\\n\Z)"
+                regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\U0010ffff ']{1,10})$(?!\\n\\Z)"
             )
 
         pattern = re.compile(regex)
@@ -667,7 +667,7 @@ class TestPatterns(unittest.TestCase):
 
     def test_character_class_reordering(self):
         regex = translate_pattern('[A-Z ]', anchors=False)
-        self.assertEqual(regex, '^([ A-Z])$(?!\\n\Z)')
+        self.assertEqual(regex, '^([ A-Z])$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('A').group(0), 'A')
         self.assertEqual(pattern.search('Z').group(0), 'Z')
@@ -685,7 +685,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('C'))
 
         regex = translate_pattern('[^: \n\r\t]+', anchors=False)
-        self.assertEqual(regex, '^([^\t\n\r :]+)$(?!\\n\Z)')
+        self.assertEqual(regex, '^([^\t\n\r :]+)$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('56,41').group(0), '56,41')
         self.assertIsNone(pattern.search('56,41\n'))
@@ -713,7 +713,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search(''))
 
         regex = translate_pattern('[A-Za-z]+:[A-Za-z][A-Za-z0-9\\-]+', anchors=False)
-        self.assertEqual(regex, '^([A-Za-z]+:[A-Za-z][\\-0-9A-Za-z]+)$(?!\\n\Z)')
+        self.assertEqual(regex, '^([A-Za-z]+:[A-Za-z][\\-0-9A-Za-z]+)$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('zk:xy-9s').group(0), 'zk:xy-9s')
         self.assertIsNone(pattern.search('xx:y'))
@@ -752,7 +752,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('90.%'))
 
         regex = translate_pattern('([ -~]|\n|\r|\t)*', anchors=False)
-        self.assertEqual(regex, '^(([ -~]|\n|\r|\t)*)$(?!\\n\Z)')
+        self.assertEqual(regex, '^(([ -~]|\n|\r|\t)*)$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('ciao\t-~ ').group(0), 'ciao\t-~ ')
         self.assertEqual(pattern.search('\r\r').group(0), '\r\r')
@@ -866,13 +866,13 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(regex, 'a^b')
 
         regex = translate_pattern('a^b', anchors=False)
-        self.assertEqual(regex, '^(a\\^b)$(?!\\n\Z)')
+        self.assertEqual(regex, '^(a\\^b)$(?!\\n\\Z)')
 
         regex = translate_pattern('ab$')
         self.assertEqual(regex, 'ab$(?!\\n\\Z)')
 
         regex = translate_pattern('ab$', anchors=False)
-        self.assertEqual(regex, '^(ab\\$)$(?!\\n\Z)')
+        self.assertEqual(regex, '^(ab\\$)$(?!\\n\\Z)')
 
     def test_lazy_quantifiers(self):
         regex = translate_pattern('.*?')
@@ -995,7 +995,4 @@ class TestPatterns(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
-
-    print_test_header()
     unittest.main()

@@ -122,6 +122,7 @@ class UnicodeSubset(MutableSet):
     :param codepoints: a sequence of integer values and ranges, another UnicodeSubset \
     instance ora a string equivalent of a regex character set.
     """
+    __slots__ = '_codepoints',
 
     def __init__(self, codepoints=None):
         if not codepoints:
