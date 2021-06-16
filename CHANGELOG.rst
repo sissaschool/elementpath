@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.2.3`_ (2021-06-16)
+======================
+* Add Python 3.10 in Tox and CI tests
+* Apply __slots__ to TDOP and regex classes
+
 `v2.2.2`_ (2021-05-03)
 ======================
 * Fix issue sissaschool/xmlschema#243 (assert with xsi:nil usage)
@@ -311,3 +316,4 @@ CHANGELOG
 .. _v2.2.0: https://github.com/sissaschool/elementpath/compare/v2.1.4...v2.2.0
 .. _v2.2.1: https://github.com/sissaschool/elementpath/compare/v2.2.0...v2.2.1
 .. _v2.2.2: https://github.com/sissaschool/elementpath/compare/v2.2.1...v2.2.2
+.. _v2.2.3: https://github.com/sissaschool/elementpath/compare/v2.2.2...v2.2.3
