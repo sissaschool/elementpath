@@ -160,6 +160,8 @@ class Token(MutableSequence):
     pattern = None    # a custom regex pattern for building the tokenizer
     label = 'symbol'  # optional label
 
+    __slots__ = '_items', 'parser', 'value', '_source', 'span'
+
     def __init__(self, parser, value=None):
         self._items = []
         self.parser = parser
@@ -373,6 +375,8 @@ class Parser(metaclass=ParserMeta):
     token_base_class = Token
     tokenizer = None
     symbol_table = {}
+
+    __slots__ = 'source', 'tokens', 'match', 'token', 'next_token'
 
     def __init__(self):
         if self.tokenizer is None:
