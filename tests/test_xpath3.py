@@ -604,12 +604,16 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         if platform.system() != 'Windows':
             filepath = pathlib.Path(__file__).absolute().parent.joinpath('resources/sample.xml')
+            file_lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<root>abc àèéìù</root>']
+
+            # Checks before that the resource text file is accessible and its content is as expected
+            with filepath.open() as fp:
+                text = fp.read()
+            self.assertListEqual([x.strip() for x in text.strip().split('\n')], file_lines)
+
             path = 'fn:unparsed-text("file://{}")'.format(str(filepath))
-            result = self.parser.parse(path).evaluate()
-            result = [x.strip() for x in result.strip().split('\n')]
-            self.assertListEqual(
-                result, ['<?xml version="1.0" encoding="UTF-8"?>', '<root>abc àèéìù</root>']
-            )
+            text = self.parser.parse(path).evaluate()
+            self.assertListEqual([x.strip() for x in text.strip().split('\n')], file_lines)
 
             path = 'fn:unparsed-text("file://{}", "unknown")'.format(str(filepath))
             with self.assertRaises(ValueError) as ctx:
