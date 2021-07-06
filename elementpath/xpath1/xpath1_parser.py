@@ -1008,7 +1008,7 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    results = {item for k in range(2) for item in self[k].select(context.copy())}
+    results = {item for k in range(2) for item in self[k].select(copy(context))}
     if any(not is_xpath_node(x) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif not self.cut_and_sort:
@@ -1135,7 +1135,7 @@ def select(self, context=None):
                 and not is_xpath_node(context.item):
             raise self.error('XPTY0020')
 
-        predicate = [x for x in self[1].select(context.copy())]
+        predicate = [x for x in self[1].select(copy(context))]
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
                 yield context.item

@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+from copy import copy
 from unittest.mock import patch
 import xml.etree.ElementTree as ElementTree
 
@@ -49,8 +50,8 @@ class XPathContextTest(unittest.TestCase):
     def test_copy(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root)
-        self.assertIsInstance(context.copy(), XPathContext)
-        self.assertIsNot(context.copy(), context)
+        self.assertIsInstance(copy(context), XPathContext)
+        self.assertIsNot(copy(context), context)
 
         context = XPathContext(root, axis='children')
         self.assertIsNone(context.copy().axis)
