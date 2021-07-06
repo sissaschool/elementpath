@@ -780,7 +780,7 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    context = context.copy()
+    context = copy(context)
     nodes = [e for e in self[0].select(context)]
     if any(not is_xpath_node(x) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
@@ -794,7 +794,7 @@ def select(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    context = context.copy()
+    context = copy(context)
     nodes = {e for e in self[0].select(context)}
     if any(not is_xpath_node(x) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')

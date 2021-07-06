@@ -10,6 +10,7 @@
 import datetime
 import importlib
 import xml.etree.ElementTree as ElementTree
+from copy import copy
 from functools import lru_cache
 from itertools import chain
 
@@ -65,7 +66,8 @@ class XPathContext(object):
     def __init__(self, root, namespaces=None, item=None, position=1, size=1, axis=None,
                  variables=None, current_dt=None, timezone=None, documents=None,
                  collections=None, default_collection=None, resource_collections=None,
-                 default_resource_collection=None, allow_environment=False):
+                 default_resource_collection=None, allow_environment=False,
+                 default_language=None, default_calendar=None, default_place=None):
         self.root = root
         self.namespaces = namespaces
 
@@ -103,38 +105,28 @@ class XPathContext(object):
         self.resource_collections = resource_collections
         self.default_resource_collection = default_resource_collection
         self.allow_environment = allow_environment
+        self.default_language = default_language
+        self.default_calendar = default_calendar
+        self.default_place = default_place
 
     def __repr__(self):
         return '%s(root=%r, item=%r)' % (self.__class__.__name__, self.root, self.item)
 
     def __copy__(self):
-        obj = type(self)(
-            root=self.root,
-            namespaces=self.namespaces,
-            item=self.item,
-            position=self.position,
-            size=self.size,
-            axis=None,
-            variables=self.variables,
-            current_dt=self.current_dt,
-            timezone=self.timezone,
-            documents=self.documents,
-            collections=self.collections,
-            default_collection=self.default_collection,
-        )
-        if self.item is None:
-            obj.item = None
-        obj._elem = self._elem
-        obj._parent_map = self._parent_map
+        obj = object.__new__(self.__class__)
+        obj.__dict__.update(self.__dict__)
+        obj.axis = None
+        obj.variables = {k: v for k, v in self.variables.items()}
         return obj
 
     def copy(self, clear_axis=True):
+        # Unused, so it could be deprecated in the future.
+        obj = object.__new__(self.__class__)
+        obj.__dict__.update(self.__dict__)
         if clear_axis:
-            return self.__copy__()
-        else:
-            obj = self.__copy__()
-            obj.axis = self.axis
-            return obj
+            obj.axis = None
+        obj.variables = {k: v for k, v in self.variables.items()}
+        return obj
 
     @property
     def parent_map(self):
@@ -244,7 +236,7 @@ class XPathContext(object):
     def inner_focus_select(self, token):
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position
-        results = [x for x in token.select(self.copy())]
+        results = [x for x in token.select(copy(self))]
 
         if token.label == 'axis' and token.reverse_axis:
             self.size = self.position = len(results)

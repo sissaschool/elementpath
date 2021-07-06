@@ -124,8 +124,7 @@ class XPathTestCase(unittest.TestCase):
         the evaluate method.
         :param context: an optional `XPathContext` instance to be passed to evaluate method.
         """
-        if context is not None:
-            context = context.copy()
+        context = copy(context)
         try:
             root_token = self.parser.parse(path)
         except ElementPathError as err:
@@ -169,7 +168,8 @@ class XPathTestCase(unittest.TestCase):
         if context is None:
             context = XPathContext(root=self.etree.Element(u'dummy_root'))
         else:
-            context = context.copy()
+            context = copy(context)
+
         root_token = self.parser.parse(path)
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.select, context)
