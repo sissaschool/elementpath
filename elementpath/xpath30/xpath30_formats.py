@@ -207,7 +207,7 @@ NUM_TO_WORD_MAPS = {
         15: 'quindici',
         14: 'quattordici',
         13: 'tredici',
-        12: 'docici',
+        12: 'dodici',
         11: 'undici',
         10: 'dieci',
         9: 'nove',
@@ -234,40 +234,44 @@ def to_cardinal_en(num_as_words):
     elif num_as_words.endswith('y'):
         return num_as_words[:-1] + 'ieth'
     elif num_as_words.endswith('e'):
-        return num_as_words[:-1] + 'fth'
+        return num_as_words[:-2] + 'fth'
     else:
         return num_as_words + 'th'
 
 
-def to_cardinal_it(num_as_words, feminine=False):
-    if num_as_words not in {'zero', 'uno', 'due', 'tre', 'quattro', 'cinque',
-                            'sei', 'sette', 'otto', 'nove', 'dieci'}:
-        if num_as_words[-1] in 'eo':
-            return num_as_words[:-1] + ('esima' if feminine else 'esimo')
-        return num_as_words + ('esima' if feminine else 'esimo')
-
-    elif num_as_words == 'uno':
-        return 'prima' if feminine else 'primo'
-    elif num_as_words == 'due':
-        return 'seconda' if feminine else 'secondo'
-    elif num_as_words == 'tre':
-        return 'terza' if feminine else 'terzo'
-    elif num_as_words == 'quattro':
-        return 'quarta' if feminine else 'quarto'
-    elif num_as_words == 'cinque':
-        return 'quinta' if feminine else 'quinto'
-    elif num_as_words == 'sei':
-        return 'sesta' if feminine else 'sesto'
-    elif num_as_words == 'sette':
-        return 'settima' if feminine else 'settimo'
-    elif num_as_words == 'otto':
-        return 'ottava' if feminine else 'ottavo'
-    elif num_as_words == 'nove':
-        return 'nona' if feminine else 'nono'
-    elif num_as_words == 'dieci':
-        return 'decima' if feminine else 'decimo'
+def to_cardinal_it(num_as_words, fmt_modifier):
+    if '%spellout-ordinal-feminine' in fmt_modifier:
+        suffix = 'a'
+    elif fmt_modifier.startswith('o(-'):
+        suffix = fmt_modifier[3:-1]
     else:
-        return ''
+        suffix = ''
+
+    ordinal_map = {
+        'zero': '',
+        'uno': 'primo',
+        'due': 'secondo',
+        'tre': 'terzo',
+        'quattro': 'quarto',
+        'cinque': 'quinto',
+        'sei': 'sesto',
+        'sette': 'settimo',
+        'otto': 'ottavo',
+        'nove': 'nono',
+        'dieci': 'decimo',
+    }
+
+    try:
+        value = ordinal_map[num_as_words]
+    except KeyError:
+        if num_as_words[-1] in 'eo':
+            value = num_as_words[:-1] + 'esimo'
+        else:
+            value = num_as_words + 'esimo'
+
+    if value and suffix:
+        return value[:-1] + suffix
+    return value
 
 
 def int_to_words(num, lang=None, fmt_modifier=''):
@@ -296,14 +300,11 @@ def int_to_words(num, lang=None, fmt_modifier=''):
                     else:
                         yield ' '
 
-    if lang is None:
-        lang = 'en'
-
     try:
         num_map = NUM_TO_WORD_MAPS[lang]
     except KeyError:
-        msg = "formatting for language {!r} is not supported"
-        raise NotImplementedError(msg.format(lang))
+        lang = 'en'
+        num_map = NUM_TO_WORD_MAPS[lang]
 
     if num < 0:
         result = '-' + ''.join(x for x in word_num(abs(num)))
@@ -312,10 +313,11 @@ def int_to_words(num, lang=None, fmt_modifier=''):
 
     if not fmt_modifier.startswith('o'):
         return result
-    elif lang == 'en':
+
+    if lang == 'en':
         return to_cardinal_en(result)
     elif lang == 'it':
-        return to_cardinal_it(result, '%spellout-ordinal-feminine' in fmt_modifier)
+        return to_cardinal_it(result, fmt_modifier)
     else:
         return result
 
