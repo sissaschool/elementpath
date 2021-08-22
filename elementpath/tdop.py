@@ -17,6 +17,7 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
+from typing import Dict, Type, Union
 
 
 #
@@ -51,11 +52,11 @@ class ParseError(SyntaxError):
     """An error when parsing source with TDOP parser."""
 
 
-def count_leading_spaces(s):
+def count_leading_spaces(s: str) -> int:
     return sum(1 for _ in takewhile(str.isspace, s))
 
 
-def symbol_to_classname(symbol):
+def symbol_to_classname(symbol: str) -> str:
     """
     Converts a symbol string to an identifier (only alphanumeric and '_').
     """
@@ -81,7 +82,7 @@ def symbol_to_classname(symbol):
     return value.replace(' ', '').replace('-', '').replace('_', '')
 
 
-class MultiLabel(object):
+class MultiLabel:
     """
     Helper class for defining multi-value label for tokens. Useful when a symbol has more roles.
     A label of this type has equivalence with each of its values.
@@ -92,7 +93,7 @@ class MultiLabel(object):
         label == 'function'  # True
         label == 'operator'  # True
     """
-    def __init__(self, *values):
+    def __init__(self, *values: str):
         self.values = values
 
     def __eq__(self, other):
@@ -110,13 +111,13 @@ class MultiLabel(object):
     def __hash__(self):
         return hash(self.values)
 
-    def __contains__(self, item):
+    def __contains__(self, item: str):
         return any(item in v for v in self.values)
 
-    def startswith(self, s):
+    def startswith(self, s: str):
         return any(v.startswith(s) for v in self.values)
 
-    def endswith(self, s):
+    def endswith(self, s: str):
         return any(v.endswith(s) for v in self.values)
 
 
@@ -337,7 +338,7 @@ class ParserMeta(type):
             cls.token_base_class = Token
         if not hasattr(cls, 'literals_pattern'):
             cls.literals_pattern = re.compile(
-                r"""'[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
+                    r"""'[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
             )
         if not hasattr(cls, 'name_pattern'):
             cls.name_pattern = re.compile(r'[A-Za-z0-9_]+')
@@ -374,7 +375,7 @@ class Parser(metaclass=ParserMeta):
     SYMBOLS = SPECIAL_SYMBOLS
     token_base_class = Token
     tokenizer = None
-    symbol_table = {}
+    symbol_table: Dict[str, Union[ABCMeta, Type[Token]]] = {}
 
     __slots__ = 'source', 'tokens', 'match', 'token', 'next_token'
 
@@ -657,12 +658,12 @@ class Parser(metaclass=ParserMeta):
         return token_class
 
     @classmethod
-    def unregister(cls, symbol):
+    def unregister(cls, symbol: str):
         """Unregister a token class from the symbol table."""
         del cls.symbol_table[symbol.strip()]
 
     @classmethod
-    def duplicate(cls, symbol, new_symbol, **kwargs):
+    def duplicate(cls, symbol: str, new_symbol: str, **kwargs):
         """Duplicate a token class with a new symbol."""
         token_class = cls.symbol_table[symbol]
         new_token_class = cls.register(new_symbol, **kwargs)
@@ -731,9 +732,10 @@ class Parser(metaclass=ParserMeta):
         token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
         def bind(func):
-            assert callable(getattr(token_class, func.__name__, None)), \
-                "The name %r does not match with a callable of %r." % (func.__name__, token_class)
-            setattr(token_class, func.__name__, func)
+            method_name = func.__name__.partition('_')[0]
+            if not callable(getattr(token_class, method_name)):
+                raise TypeError(f"The attribute {method_name!r} is not a callable of {token_class}")
+            setattr(token_class, method_name, func)
             return func
         return bind
 

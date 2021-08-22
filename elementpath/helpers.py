@@ -11,11 +11,12 @@ import re
 import math
 from calendar import isleap, leapdays
 from decimal import Decimal
+from typing import Optional, Pattern, Union
 
 ###
 # Data validation helpers
 
-NORMALIZE_PATTERN = re.compile(r'[^\S\xa0]')
+NORMALIZE_PATTERN: Pattern[str] = re.compile(r'[^\S\xa0]')
 WHITESPACES_PATTERN = re.compile(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
 QNAME_PATTERN = re.compile(
@@ -31,11 +32,11 @@ WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-F\d]{2})')
 XML_NEWLINES_PATTERN = re.compile('\r\n|\r|\n')
 
 
-def collapse_white_spaces(s):
+def collapse_white_spaces(s: str) -> str:
     return WHITESPACES_PATTERN.sub(' ', s).strip(' ')
 
 
-def is_idrefs(value):
+def is_idrefs(value: Optional[str]) -> bool:
     return isinstance(value, str) and \
         all(NCNAME_PATTERN.match(x) is not None for x in value.split())
 
@@ -45,7 +46,7 @@ def is_idrefs(value):
 SEQUENCE_TYPE_PATTERN = re.compile(r'\s?([()?*+,])\s?')
 
 
-def normalize_sequence_type(sequence_type):
+def normalize_sequence_type(sequence_type: str) -> str:
     sequence_type = WHITESPACES_PATTERN.sub(' ', sequence_type).strip()
     sequence_type = SEQUENCE_TYPE_PATTERN.sub(r'\1', sequence_type)
     return sequence_type.replace(',', ', ').replace(')as', ') as')
@@ -57,7 +58,7 @@ MONTH_DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 MONTH_DAYS_LEAP = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 
-def adjust_day(year, month, day):
+def adjust_day(year: int, month: int, day: int):
     if month in {1, 3, 5, 7, 8, 10, 12}:
         return day
     elif month in {4, 6, 9, 11}:
@@ -66,7 +67,7 @@ def adjust_day(year, month, day):
         return min(day, 29) if isleap(year) else min(day, 28)
 
 
-def days_from_common_era(year):
+def days_from_common_era(year: int) -> int:
     """
     Returns the number of days from from 0001-01-01 to the provided year. For a
     common era year the days are counted until the last day of December, for a
@@ -86,7 +87,7 @@ DAYS_IN_100Y = days_from_common_era(100)
 DAYS_IN_400Y = days_from_common_era(400)
 
 
-def months2days(year, month, months_delta):
+def months2days(year: int, month: int, months_delta: int) -> int:
     """
     Converts a delta of months to a delta of days, counting from the 1st day of the month,
     relative to the year and the month passed as arguments.
@@ -117,7 +118,7 @@ def months2days(year, month, months_delta):
         return y_days - m_days if y_days >= 0 else y_days - m_days
 
 
-def round_number(value):
+def round_number(value: Union[float, int, Decimal]) -> Union[float, int, Decimal]:
     if math.isnan(value) or math.isinf(value):
         return value
 
@@ -128,12 +129,12 @@ def round_number(value):
         return type(value)(number.quantize(Decimal('1'), rounding='ROUND_HALF_DOWN'))
 
 
-def normalized_seconds(seconds):
+def normalized_seconds(seconds: Decimal) -> str:
     # Decimal.normalize() does not remove exp every time: eg. Decimal('1E+1')
     return '{:.6f}'.format(seconds).rstrip('0').rstrip('.')
 
 
-def is_xml_codepoint(cp):
+def is_xml_codepoint(cp: int) -> bool:
     return cp in {0x9, 0xA, 0xD} or \
         0x20 <= cp <= 0xD7FF or \
         0xE000 <= cp <= 0xFFFD or \
