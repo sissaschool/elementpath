@@ -38,7 +38,7 @@ constructor = XPath2Parser.constructor
 @constructor('IDREF')
 @constructor('ENTITY')
 @constructor('anyURI')
-def cast(self, value):
+def cast_string_based_types(self, value):
     try:
         return xsd10_atomic_types[self.symbol](value)
     except ValueError as err:
@@ -50,7 +50,7 @@ def cast(self, value):
 @constructor('decimal')
 @constructor('double')
 @constructor('float')
-def cast(self, value):
+def cast_numeric_types(self, value):
     try:
         if self.parser.xsd_version == '1.0':
             return xsd10_atomic_types[self.symbol](value)
@@ -74,7 +74,7 @@ def cast(self, value):
 @constructor('unsignedInt')
 @constructor('unsignedShort')
 @constructor('unsignedByte')
-def cast(self, value):
+def cast_integer_types(self, value):
     try:
         return xsd10_atomic_types[self.symbol](value)
     except ValueError:
@@ -89,7 +89,7 @@ def cast(self, value):
 ###
 # Constructors for datetime XSD types
 @constructor('date')
-def cast(self, value):
+def cast_date_type(self, value):
     cls = Date if self.parser.xsd_version == '1.1' else Date10
     if isinstance(value, cls):
         return value
@@ -107,7 +107,7 @@ def cast(self, value):
 
 
 @constructor('gDay')
-def cast(self, value):
+def cast_gregorian_day_type(self, value):
     if isinstance(value, GregorianDay):
         return value
 
@@ -122,7 +122,7 @@ def cast(self, value):
 
 
 @constructor('gMonth')
-def cast(self, value):
+def cast_gregorian_month_type(self, value):
     if isinstance(value, GregorianMonth):
         return value
 
@@ -137,7 +137,7 @@ def cast(self, value):
 
 
 @constructor('gMonthDay')
-def cast(self, value):
+def cast_gregorian_month_day_type(self, value):
     if isinstance(value, GregorianMonthDay):
         return value
 
@@ -152,7 +152,7 @@ def cast(self, value):
 
 
 @constructor('gYear')
-def cast(self, value):
+def cast_gregorian_year_type(self, value):
     cls = GregorianYear if self.parser.xsd_version == '1.1' else GregorianYear10
     if isinstance(value, cls):
         return value
@@ -170,7 +170,7 @@ def cast(self, value):
 
 
 @constructor('gYearMonth')
-def cast(self, value):
+def cast_gregorian_year_month_type(self, value):
     cls = GregorianYearMonth \
         if self.parser.xsd_version == '1.1' else GregorianYearMonth10
     if isinstance(value, cls):
@@ -189,7 +189,7 @@ def cast(self, value):
 
 
 @constructor('time')
-def cast(self, value):
+def cast_time_type(self, value):
     if isinstance(value, Time):
         return value
 
@@ -211,7 +211,7 @@ def cast(self, value):
 @method('gYear')
 @method('gYearMonth')
 @method('time')
-def evaluate(self, context=None):
+def evaluate_other_datetime_types(self, context=None):
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []
@@ -227,7 +227,7 @@ def evaluate(self, context=None):
 ###
 # Constructors for time durations XSD types
 @constructor('duration')
-def cast(self, value):
+def cast_duration_type(self, value):
     if isinstance(value, Duration):
         return value
 
@@ -242,7 +242,7 @@ def cast(self, value):
 
 
 @constructor('yearMonthDuration')
-def cast(self, value):
+def cast_year_month_duration_type(self, value):
     if isinstance(value, YearMonthDuration):
         return value
     elif isinstance(value, Duration):
@@ -259,7 +259,7 @@ def cast(self, value):
 
 
 @constructor('dayTimeDuration')
-def cast(self, value):
+def cast_day_time_duration_type(self, value):
     if isinstance(value, DayTimeDuration):
         return value
     elif isinstance(value, Duration):
@@ -276,7 +276,7 @@ def cast(self, value):
 
 
 @constructor('dateTimeStamp')
-def cast(self, value):
+def cast_datetime_stamp_type(self, value):
     if isinstance(value, DateTimeStamp):
         return value
     elif isinstance(value, DateTime10):
@@ -291,7 +291,7 @@ def cast(self, value):
 
 
 @method('dateTimeStamp')
-def evaluate(self, context=None):
+def evaluate_datetime_stamp_type(self, context=None):
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []
@@ -302,7 +302,7 @@ def evaluate(self, context=None):
 
 
 @method('dateTimeStamp')
-def nud(self):
+def nud_datetime_stamp_type(self):
     if self.parser.xsd_version == '1.0':
         raise self.wrong_syntax("xs:dateTimeStamp is not recognized unless XSD 1.1 is enabled")
 
@@ -321,7 +321,7 @@ def nud(self):
 ###
 # Constructors for binary XSD types
 @constructor('base64Binary')
-def cast(self, value):
+def cast_base64_binary_type(self, value):
     try:
         return Base64Binary(value)
     except ValueError as err:
@@ -331,7 +331,7 @@ def cast(self, value):
 
 
 @constructor('hexBinary')
-def cast(self, value):
+def cast_hex_binary_type(self, value):
     try:
         return HexBinary(value)
     except ValueError as err:
@@ -342,7 +342,7 @@ def cast(self, value):
 
 @method('base64Binary')
 @method('hexBinary')
-def evaluate(self, context=None):
+def evaluate_binary_types(self, context=None):
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []
@@ -355,12 +355,12 @@ def evaluate(self, context=None):
 
 
 @constructor('NOTATION')
-def cast(self, value):
+def cast_notation_type(self, value):
     raise NotImplementedError("No value is castable to xs:NOTATION")
 
 
 @method('NOTATION')
-def nud(self):
+def nud_notation_type(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
         raise self.error('XPST0017', 'expected exactly one argument')
@@ -382,7 +382,7 @@ unregister('boolean')
 
 
 @constructor('boolean', label=('function', 'constructor function'))
-def cast(self, value):
+def cast_boolean_type(self, value):
     try:
         return BooleanProxy(value)
     except ValueError as err:
@@ -392,7 +392,7 @@ def cast(self, value):
 
 
 @method('boolean')
-def nud(self):
+def nud_boolean_type_and_function(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
         raise self.wrong_nargs('Too few arguments: expected at least 1 argument')
@@ -405,7 +405,7 @@ def nud(self):
 
 
 @method('boolean')
-def evaluate(self, context=None):
+def evaluate_boolean_type_and_function(self, context=None):
     if self.label == 'function':
         return self.boolean_value([x for x in self[0].select(context)])
 
@@ -427,12 +427,12 @@ unregister('string')
 
 
 @constructor('string', label=('function', 'constructor function'))
-def cast(self, value):
+def cast_string_type(self, value):
     return self.string_value(value)
 
 
 @method('string')
-def nud(self):
+def nud_string_type_and_function(self):
     try:
         self.parser.advance('(')
         if self.label != 'function' or self.parser.next_token.symbol != ')':
@@ -447,7 +447,7 @@ def nud(self):
 
 
 @method('string')
-def evaluate(self, context=None):
+def evaluate_string_type_and_function(self, context=None):
     if self.label == 'function':
         if not self:
             if context is None:
@@ -468,7 +468,7 @@ def evaluate(self, context=None):
 #
 @constructor('QName', bp=90, label=('function', 'constructor function'),
              sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
-def cast(self, value):
+def cast_qname_type(self, value):
     if isinstance(value, QName):
         return value
     elif isinstance(value, UntypedAtomic):
@@ -481,7 +481,7 @@ def cast(self, value):
 
 @constructor('dateTime', bp=90, label=('function', 'constructor function'),
              sequence_types=('xs:date?', 'xs:time?', 'xs:dateTime?'))
-def cast(self, value):
+def cast_datetime_type(self, value):
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
         return value
@@ -500,7 +500,7 @@ def cast(self, value):
 
 @method('QName')
 @method('dateTime')
-def nud(self):
+def nud_qname_and_datetime(self):
     try:
         self.parser.advance('(')
         self[0:] = self.parser.expression(5),
@@ -522,7 +522,7 @@ def nud(self):
 
 
 @method('QName')
-def evaluate(self, context=None):
+def evaluate_qname_type_and_function(self, context=None):
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         return [] if arg is None else self.cast(arg)
@@ -538,7 +538,7 @@ def evaluate(self, context=None):
 
 
 @method('dateTime')
-def evaluate(self, context=None):
+def evaluate_datetime_type_and_function(self, context=None):
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         if arg is None:
@@ -570,12 +570,12 @@ def evaluate(self, context=None):
 
 
 @constructor('untypedAtomic')
-def cast(self, value):
+def cast_untyped_atomic(self, value):
     return UntypedAtomic(value)
 
 
 @method('untypedAtomic')
-def evaluate(self, context=None):
+def evaluate_untyped_atomic(self, context=None):
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []

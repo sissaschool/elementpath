@@ -31,7 +31,7 @@ from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     GregorianMonthDay, GregorianYearMonth, GregorianYearMonth10, Time, Timezone, \
     Duration, DayTimeDuration, YearMonthDuration
 from .proxies import BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
-    StringProxy, DoubleProxy10, NumericProxy, ArithmeticProxy
+    StringProxy, NumericProxy, ArithmeticProxy
 
 ##
 # Register not derived XSD primitive types as virtual subclasses of AnyAtomicType

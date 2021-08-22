@@ -128,7 +128,7 @@ register('?', bases=(ValueToken,))
 
 
 @method('?')
-def nud(self):
+def nud_optional_symbol(self):
     return self
 
 
@@ -145,7 +145,7 @@ XPath30Parser.unregister('(')
 
 
 @method(register('(', lbp=80, rpb=80, label='expression'))
-def nud(self):
+def nud_parenthesized_expression(self):
     if self.parser.next_token.symbol != ')':
         self[:] = self.parser.expression(),
     self.parser.advance(')')
@@ -153,7 +153,7 @@ def nud(self):
 
 
 @method('(')
-def led(self, left):
+def led_parenthesized_expression(self, left):
     if left.symbol == '(name)' or left.symbol == ':' and left[1].symbol == '(name)':
         raise self.error('XPST0017', 'unknown function {!r}'.format(left.value))
     if self.parser.next_token.symbol != ')':
@@ -165,7 +165,7 @@ def led(self, left):
 
 
 @method('(')
-def evaluate(self, context=None):
+def evaluate_parenthesized_expression(self, context=None):
     if len(self) < 2:
         return self[0].evaluate(context) if self else []
 
@@ -179,7 +179,7 @@ def evaluate(self, context=None):
 
 
 @method('(')
-def select(self, context=None):
+def select_parenthesized_expression(self, context=None):
     if len(self) < 2:
         yield from self[0].select(context) if self else iter(())
     else:
@@ -195,13 +195,13 @@ def select(self, context=None):
 
 
 @method(infix('||', bp=32))
-def evaluate(self, context=None):
+def evaluate_union_operator(self, context=None):
     return self.string_value(self.get_argument(context)) + \
         self.string_value(self.get_argument(context, index=1))
 
 
 @method(infix('!', bp=72))
-def select(self, context=None):
+def select_simple_map_operator(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -223,7 +223,7 @@ def select(self, context=None):
 # 'let' expressions
 
 @method(register('let', lbp=20, rbp=20, label='let expression'))
-def nud(self):
+def nud_let_expression(self):
     del self[:]
     if self.parser.next_token.symbol != '$':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
@@ -246,7 +246,7 @@ def nud(self):
 
 
 @method('let')
-def select(self, context=None):
+def select_let_expression(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -261,7 +261,7 @@ def select(self, context=None):
 ###
 # 'inline function' expression
 @method(register('function', bp=90, label='inline function', bases=(XPathFunction,)))
-def nud(self):
+def nud_inline_function(self):
     if self.parser.next_token.symbol != '(':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
         return token.nud()
@@ -317,7 +317,7 @@ def nud(self):
 
 
 @method('function')
-def evaluate(self, context=None):
+def evaluate_inline_function(self, context=None):
     if context is None:
         raise self.missing_context()
     return self.expr.evaluate(context)
@@ -326,13 +326,13 @@ def evaluate(self, context=None):
 ###
 # Mathematical functions
 @method(function('pi', label='math function', nargs=0, sequence_types=('xs:double',)))
-def evaluate(self, context=None):
+def evaluate_pi_function(self, context=None):
     return math.pi
 
 
 @method(function('exp', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_exp_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return math.exp(arg)
@@ -340,7 +340,7 @@ def evaluate(self, context=None):
 
 @method(function('exp10', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_exp10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return float(10 ** arg)
@@ -348,7 +348,7 @@ def evaluate(self, context=None):
 
 @method(function('log', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_log_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log(arg)
@@ -356,7 +356,7 @@ def evaluate(self, context=None):
 
 @method(function('log10', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_log10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log10(arg)
@@ -364,7 +364,7 @@ def evaluate(self, context=None):
 
 @method(function('pow', label='math function', nargs=2,
                  sequence_types=('xs:double?', 'numeric', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_pow_function(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     if x is not None:
@@ -379,7 +379,7 @@ def evaluate(self, context=None):
 
 @method(function('sqrt', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_sqrt_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < 0:
@@ -389,7 +389,7 @@ def evaluate(self, context=None):
 
 @method(function('sin', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_sin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
@@ -399,7 +399,7 @@ def evaluate(self, context=None):
 
 @method(function('cos', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_cos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
@@ -409,7 +409,7 @@ def evaluate(self, context=None):
 
 @method(function('tan', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_tan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
@@ -419,7 +419,7 @@ def evaluate(self, context=None):
 
 @method(function('asin', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_asin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < -1 or arg > 1:
@@ -429,7 +429,7 @@ def evaluate(self, context=None):
 
 @method(function('acos', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_acos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < -1 or arg > 1:
@@ -439,7 +439,7 @@ def evaluate(self, context=None):
 
 @method(function('atan', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
-def evaluate(self, context=None):
+def evaluate_atan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         return math.atan(arg)
@@ -447,7 +447,7 @@ def evaluate(self, context=None):
 
 @method(function('atan2', label='math function', nargs=2,
                  sequence_types=('xs:double', 'xs:double', 'xs:double')))
-def evaluate(self, context=None):
+def evaluate_atan2_function(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
     return math.atan2(x, y)
@@ -457,7 +457,7 @@ def evaluate(self, context=None):
 # Formatting functions
 @method(function('format-integer', nargs=(2, 3),
                  sequence_types=('xs:integer?', 'xs:string', 'xs:string?', 'xs:string')))
-def evaluate(self, context=None):
+def evaluate_format_integer_function(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
     picture = self.get_argument(context, index=1, required=True, cls=str)
     lang = self.get_argument(context, index=2, cls=str)
@@ -531,7 +531,7 @@ def evaluate(self, context=None):
 # TODO
 @method(function('format-number', nargs=(2, 3),
                  sequence_types=('numeric?', 'xs:string', 'xs:string?', 'xs:string')))
-def evaluate(self, context=None):
+def evaluate_format_number_function(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
     # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
@@ -542,7 +542,7 @@ def evaluate(self, context=None):
 @method(function('format-dateTime', nargs=(2, 5),
                  sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate(self, context=None):
+def evaluate_format_datetime_function(self, context=None):
     value = self.get_argument(context, cls=DateTime10)
     # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
@@ -553,7 +553,7 @@ def evaluate(self, context=None):
 @method(function('format-date', nargs=(2, 5),
                  sequence_types=('xs:date?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate(self, context=None):
+def evaluate_format_date_function(self, context=None):
     value = self.get_argument(context, cls=Date10)
     # picture = self.get_argument(context, index=1, required=True, cls=str)
     if value is None:
@@ -564,7 +564,7 @@ def evaluate(self, context=None):
 @method(function('format-time', nargs=(2, 5),
                  sequence_types=('xs:time?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate(self, context=None):
+def evaluate_format_time_function(self, context=None):
     value = self.get_argument(context, cls=Time)
     picture = self.get_argument(context, index=1, required=True, cls=str)
     # language = self.get_argument(context, index=2, cls=str)
@@ -577,20 +577,30 @@ def evaluate(self, context=None):
         err.token = self
         raise
 
-    for value in markers:
-        if value[1] in 'YMDdFWw':
-            msg = 'Invalid time formatting component {!r}'.format(value[1])
+    for mrk in markers:
+        if mrk[1] in 'YMDdFWw':
+            msg = 'Invalid time formatting component {!r}'.format(mrk)
             raise self.error('FOFD1350', msg)
 
     if value is None:
         return ''
 
+    print(value, literals, markers)
+
     result = []
     for k in range(len(markers)):
         result.append(literals[k])
-        component = markers[k][0]
+        component = markers[k][1]
         if component == 'f':
-            pass  # TODO
+            fmt_token = markers[k][2:-1]
+            item_value = value.microsecond
+            if not fmt_token:
+                result.append(str(item_value).strip('0'))
+            elif fmt_token.isdigit():
+                if fmt_token.startswith('0'):
+                    result.append(str(value.microsecond).lstrip('0')[:len(fmt_token)])
+                else:
+                    result.append(str(value.microsecond).strip('0'))
 
     result.append(literals[-1])
     return ''.join(result)
@@ -601,7 +611,7 @@ def evaluate(self, context=None):
 @method(function('analyze-string', nargs=(2, 3),
                  sequence_types=('xs:string?', 'xs:string', 'xs:string',
                                  'element(fn:analyze-string-result)')))
-def evaluate(self, context=None):
+def evaluate_analyze_string_function(self, context=None):
     input_string = self.get_argument(context, default='', cls=str)
     pattern = self.get_argument(context, 1, required=True, cls=str)
     flags = 0
@@ -716,7 +726,7 @@ def evaluate(self, context=None):
 ###
 # Functions and operators on nodes
 @method(function('path', nargs=(0, 1), sequence_types=('node()?', 'xs:string?')))
-def evaluate(self, context=None):
+def evaluate_path_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
@@ -753,7 +763,7 @@ def evaluate(self, context=None):
 
 
 @method(function('has-children', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean')))
-def evaluate(self, context=None):
+def evaluate_has_children_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
@@ -776,7 +786,7 @@ def evaluate(self, context=None):
 
 
 @method(function('innermost', nargs=1, sequence_types=('node()*', 'node()*')))
-def select(self, context=None):
+def select_innermost_function(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -790,7 +800,7 @@ def select(self, context=None):
 
 
 @method(function('outermost', nargs=1, sequence_types=('node()*', 'node()*')))
-def select(self, context=None):
+def select_outermost_function(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -808,20 +818,20 @@ def select(self, context=None):
 ##
 # Functions and operators on sequences
 @method(function('head', nargs=1, sequence_types=('item()*', 'item()?')))
-def evaluate(self, context=None):
+def evaluate_head_function(self, context=None):
     for item in self[0].select(context):
         return item
 
 
 @method(function('tail', nargs=1, sequence_types=('item()*', 'item()?')))
-def select(self, context=None):
+def select_tail_function(self, context=None):
     for k, item in enumerate(self[0].select(context)):
         if k:
             yield item
 
 
 @method(function('generate-id', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
-def evaluate(self, context=None):
+def evaluate_generate_id_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
         return ''
@@ -835,7 +845,7 @@ def evaluate(self, context=None):
 
 @method(function('uri-collection', nargs=(0, 1),
                  sequence_types=('xs:string?', 'xs:anyURI*')))
-def evaluate(self, context=None):
+def evaluate_uri_collection_function(self, context=None):
     uri = self.get_argument(context)
     if context is None:
         raise self.missing_context()
@@ -866,7 +876,7 @@ def evaluate(self, context=None):
                  sequence_types=('xs:string?', 'xs:string', 'xs:string?')))
 @method(function('unparsed-text-lines', nargs=(1, 2),
                  sequence_types=('xs:string?', 'xs:string', 'xs:string*')))
-def evaluate(self, context=None):
+def evaluate_unparsed_text_functions(self, context=None):
     from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
     from urllib.error import URLError
 
@@ -926,7 +936,7 @@ def evaluate(self, context=None):
 
 @method(function('unparsed-text-available', nargs=(1, 2),
                  sequence_types=('xs:string?', 'xs:string', 'xs:boolean')))
-def evaluate(self, context=None):
+def evaluate_unparsed_text_available_function(self, context=None):
     from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
     from urllib.error import URLError
 
@@ -963,7 +973,7 @@ def evaluate(self, context=None):
 
 @method(function('environment-variable', nargs=1,
                  sequence_types=('xs:string', 'xs:string?')))
-def evaluate(self, context=None):
+def evaluate_environment_variable_function(self, context=None):
     name = self.get_argument(context, required=True, cls=str)
     if context is None:
         raise self.missing_context()
@@ -975,7 +985,7 @@ def evaluate(self, context=None):
 
 @method(function('available-environment-variables', nargs=0,
                  sequence_types=('xs:string*',)))
-def evaluate(self, context=None):
+def evaluate_available_environment_variables_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not context.allow_environment:
@@ -990,7 +1000,7 @@ def evaluate(self, context=None):
                  sequence_types=('xs:string?', 'document-node(element(*))?')))
 @method(function('parse-xml-fragment', nargs=1,
                  sequence_types=('xs:string?', 'document-node()?')))
-def evaluate(self, context=None):
+def evaluate_parse_xml_functions(self, context=None):
     # TODO: resolve relative entity references with static base URI
     arg = self.get_argument(context, cls=str)
     if arg is None:
@@ -1012,7 +1022,7 @@ def evaluate(self, context=None):
 
 @method(function('serialize', nargs=(1, 2), sequence_types=(
         'item()*', 'element(output:serialization-parameters)?', 'xs:string')))
-def evaluate(self, context=None):
+def evaluate_serialize_function(self, context=None):
     # TODO full implementation of serialization with
     #  https://www.w3.org/TR/xpath-functions-30/#xslt-xquery-serialization-30
 
@@ -1141,7 +1151,7 @@ def evaluate(self, context=None):
 
 @method(function('function-lookup', nargs=2,
                  sequence_types=('xs:QName', 'xs:integer', 'function(*)?')))
-def evaluate(self, context=None):
+def evaluate_function_lookup_function(self, context=None):
     qname = self.get_argument(context, cls=QName)
     arity = self.get_argument(context, index=1, cls=int)
 
@@ -1156,7 +1166,7 @@ def evaluate(self, context=None):
 
 
 @method(function('function-name', nargs=1, sequence_types=('function(*)', 'xs:QName?')))
-def evaluate(self, context=None):
+def evaluate_function_name_function(self, context=None):
     if isinstance(self[0], XPathFunction):
         func = self[0]
     else:
@@ -1166,7 +1176,7 @@ def evaluate(self, context=None):
 
 
 @method(function('function-arity', nargs=1, sequence_types=('function(*)', 'xs:integer')))
-def evaluate(self, context=None):
+def evaluate_function_arity_function(self, context=None):
     if isinstance(self[0], XPathFunction):
         return self[0].arity
 
@@ -1175,7 +1185,7 @@ def evaluate(self, context=None):
 
 
 @method('#', bp=50)
-def led(self, left):
+def led_function_reference(self, left):
     left.expected(':', '(name)', 'Q{')
     self[:] = left, self.parser.expression(rbp=90)
     self[1].expected('(integer)')
@@ -1183,7 +1193,7 @@ def led(self, left):
 
 
 @method('#')
-def evaluate(self, context=None):
+def evaluate_function_reference(self, context=None):
     if self[0].symbol == ':':
         qname = QName(self[0][1].namespace, self[0].value)
     elif self[0].symbol == 'Q{':
@@ -1204,7 +1214,7 @@ def evaluate(self, context=None):
 
 @method(function('for-each', nargs=2,
                  sequence_types=('item()*', 'function(item()) as item()*', 'item()*')))
-def select(self, context=None):
+def select_for_each_function(self, context=None):
     func = self[1][1] if self[1].symbol == ':' else self[1]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=1, cls=XPathFunction)
@@ -1219,7 +1229,7 @@ def select(self, context=None):
 
 @method(function('filter', nargs=2,
                  sequence_types=('item()*', 'function(item()) as xs:boolean', 'item()*')))
-def select(self, context=None):
+def select_filter_function(self, context=None):
     func = self[1][1] if self[1].symbol == ':' else self[1]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=1, cls=XPathFunction)
@@ -1232,7 +1242,7 @@ def select(self, context=None):
 @method(function('fold-left', nargs=3,
                  sequence_types=('item()*', 'item()*',
                                  'function(item()*, item()) as item()*', 'item()*')))
-def select(self, context=None):
+def select_fold_left_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=2, cls=XPathFunction)
@@ -1251,7 +1261,7 @@ def select(self, context=None):
 @method(function('fold-right', nargs=3,
                  sequence_types=('item()*', 'item()*',
                                  'function(item()*, item()) as item()*', 'item()*')))
-def select(self, context=None):
+def select_fold_right_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=2, cls=XPathFunction)
@@ -1272,7 +1282,7 @@ def select(self, context=None):
 @method(function('for-each-pair', nargs=3,
                  sequence_types=('item()*', 'item()*',
                                  'function(item(), item()) as item()*', 'item()*')))
-def select(self, context=None):
+def select_for_each_pair_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=2, cls=XPathFunction)
@@ -1297,6 +1307,6 @@ XPath30Parser.unregister('string-join')
 
 @method(function('string-join', nargs=(1, 2),
                  sequence_types=('xs:string*', 'xs:string', 'xs:string')))
-def evaluate(self, context=None):
+def evaluate_string_join_function(self, context=None):
     items = [self.string_value(s) for s in self[0].select(context)]
     return self.get_argument(context, 1, default='', cls=str).join(items)
