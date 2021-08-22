@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='2.2.3',
+    version='2.3.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     author='Davide Brunato',
     author_email='brunato@sissa.it',
