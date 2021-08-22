@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
+from typing import Dict, Tuple
 
 # Regex patterns related to names and namespaces
 NAMESPACE_URI_PATTERN = re.compile(r'{([^}]+)}')
@@ -56,14 +57,14 @@ XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
 XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
 
 
-def get_namespace(name):
+def get_namespace(name: str) -> str:
     try:
-        return NAMESPACE_URI_PATTERN.match(name).group(1)
+        return NAMESPACE_URI_PATTERN.match(name).group(1)  # type: ignore[union-attr]
     except AttributeError:
         return ''
 
 
-def split_expanded_name(name):
+def split_expanded_name(name: str) -> Tuple[str, str]:
     match = EXPANDED_NAME_PATTERN.match(name)
     if match is None:
         raise ValueError("{!r} is not an expanded QName".format(name))
@@ -71,7 +72,7 @@ def split_expanded_name(name):
     return namespace or '', local_name
 
 
-def get_prefixed_name(qname, namespaces):
+def get_prefixed_name(qname: str, namespaces: Dict[str, str]) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
 
@@ -97,7 +98,7 @@ def get_prefixed_name(qname, namespaces):
         return qname
 
 
-def get_expanded_name(qname, namespaces):
+def get_expanded_name(qname: str, namespaces: Dict[str, str]) -> str:
     """
     Get the expanded form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
@@ -122,9 +123,9 @@ def get_expanded_name(qname, namespaces):
         except KeyError:
             return qname
         else:
-            return u'{%s}%s' % (uri, qname) if uri else qname
+            return '{%s}%s' % (uri, qname) if uri else qname
     else:
         if not prefix or not local_name:
             raise ValueError("wrong format for reference name %r" % qname)
         uri = namespaces[prefix]
-        return u'{%s}%s' % (uri, local_name) if uri else local_name
+        return '{%s}%s' % (uri, local_name) if uri else local_name
