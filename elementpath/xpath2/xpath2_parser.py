@@ -337,9 +337,10 @@ class XPath2Parser(XPath1Parser):
                                    nud=nud_, evaluate=evaluate_, cast=cast_)
 
         def bind(func):
-            assert func.__name__ == 'cast', \
-                "The function name must be 'cast', not %r." % func.__name__
-            setattr(token_class, func.__name__, func)
+            method_name = func.__name__.partition('_')[0]
+            if method_name != 'cast':
+                raise ValueError("The function name must be 'cast' or starts with 'cast_'")
+            setattr(token_class, method_name, func)
             return func
         return bind
 
@@ -461,21 +462,21 @@ register(':)')
 
 @method('as')
 @method('of')
-def nud(self):
+def nud_as_and_of_symbols(self):
     raise self.error('XPDY0002')  # Dynamic context required
 
 
 ###
 # Variables
 @method('$', bp=90)
-def nud(self):
+def nud_variable_reference(self):
     self.parser.expected_name('(name)')
     self[:] = self.parser.expression(rbp=90),
     return self
 
 
 @method('$')
-def evaluate(self, context=None):
+def evaluate_variable_reference(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -511,7 +512,7 @@ XPath2Parser.duplicate('|', 'union')
 
 @method(infix('intersect', bp=55))
 @method(infix('except', bp=55))
-def select(self, context=None):
+def select_intersect_and_except_operators(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -528,7 +529,7 @@ def select(self, context=None):
 ###
 # 'if' expression
 @method('if', bp=20)
-def nud(self):
+def nud_if_expression(self):
     if self.parser.next_token.symbol != '(':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
         return token.nud()
@@ -544,7 +545,7 @@ def nud(self):
 
 
 @method('if')
-def evaluate(self, context=None):
+def evaluate_if_expression(self, context=None):
     if self.boolean_value(self[0].evaluate(copy(context))):
         return self[1].evaluate(context)
     else:
@@ -552,7 +553,7 @@ def evaluate(self, context=None):
 
 
 @method('if')
-def select(self, context=None):
+def select_if_expression(self, context=None):
     if self.boolean_value([x for x in self[0].select(copy(context))]):
         yield from self[1].select(context)
     else:
@@ -563,7 +564,7 @@ def select(self, context=None):
 # Quantified expressions
 @method('some', bp=20)
 @method('every', bp=20)
-def nud(self):
+def nud_quantified_expressions(self):
     del self[:]
     if self.parser.next_token.symbol != '$':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
@@ -591,7 +592,7 @@ def nud(self):
 
 @method('some')
 @method('every')
-def evaluate(self, context=None):
+def evaluate_quantified_expressions(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -614,7 +615,7 @@ def evaluate(self, context=None):
 ###
 # 'for' expressions
 @method('for', bp=20)
-def nud(self):
+def nud_for_expression(self):
     del self[:]
     if self.parser.next_token.symbol != '$':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
@@ -641,7 +642,7 @@ def nud(self):
 
 
 @method('for')
-def select(self, context=None):
+def select_for_expression(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -658,7 +659,7 @@ def select(self, context=None):
 # Sequence type based
 @method('instance', bp=60)
 @method('treat', bp=61)
-def led(self, left):
+def led_sequence_type_based_expressions(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
     if self.parser.next_token.label not in ('kind test', 'sequence type'):
         self.parser.expected_name('(name)', ':')
@@ -677,7 +678,7 @@ def led(self, left):
 
 
 @method('instance')
-def evaluate(self, context=None):
+def evaluate_instance_expression(self, context=None):
     occurs = self[2].symbol if len(self) > 2 else None
     position = None
 
@@ -718,7 +719,7 @@ def evaluate(self, context=None):
 
 
 @method('treat')
-def evaluate(self, context=None):
+def evaluate_treat_expression(self, context=None):
     occurs = self[2].symbol if len(self) > 2 else None
     position = None
     castable_expr = []
@@ -765,7 +766,7 @@ def evaluate(self, context=None):
 # Simple type based
 @method('castable', bp=62)
 @method('cast', bp=63)
-def led(self, left):
+def led_cast_expressions(self, left):
     self.parser.advance('as')
     self.parser.expected_name('(name)', ':')
     self[:] = left, self.parser.expression(rbp=self.rbp)
@@ -777,7 +778,7 @@ def led(self, left):
 
 @method('castable')
 @method('cast')
-def evaluate(self, context=None):
+def evaluate_cast_expressions(self, context=None):
     try:
         atomic_type = get_expanded_name(self[1].source, namespaces=self.parser.namespaces)
     except KeyError as err:
@@ -836,7 +837,7 @@ def evaluate(self, context=None):
 ###
 # Comma operator - concatenate items or sequences
 @method(infix(',', bp=5))
-def evaluate(self, context=None):
+def evaluate_comma_operator(self, context=None):
     results = []
     for op in self:
         result = op.evaluate(context)
@@ -848,15 +849,15 @@ def evaluate(self, context=None):
 
 
 @method(',')
-def select(self, context=None):
+def select_comma_operator(self, context=None):
     for op in self:
         yield from op.select(context=copy(context))
 
 
 ###
-# Parenthesized expressions: XPath 2.0 admits the empty case ().
+# Parenthesized expression: XPath 2.0 admits the empty case ().
 @method('(', bp=100)
-def nud(self):
+def nud_parenthesized_expression(self):
     if self.parser.next_token.symbol != ')':
         self[:] = self.parser.expression(),
     self.parser.advance(')')
@@ -864,12 +865,12 @@ def nud(self):
 
 
 @method('(')
-def evaluate(self, context=None):
+def evaluate_parenthesized_expression(self, context=None):
     return self[0].evaluate(context) if self else []
 
 
 @method('(')
-def select(self, context=None):
+def select_parenthesized_expression(self, context=None):
     return self[0].select(context) if self else iter(())
 
 
@@ -884,7 +885,7 @@ def select(self, context=None):
 @method('gt', bp=30)
 @method('le', bp=30)
 @method('ge', bp=30)
-def led(self, left):
+def led_value_comparison_operators(self, left):
     if left.symbol in {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}:
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=30)
@@ -897,7 +898,7 @@ def led(self, left):
 @method('gt')
 @method('le')
 @method('ge')
-def evaluate(self, context=None):
+def evaluate_value_comparison_operators(self, context=None):
     operands = [self[0].get_atomized_operand(context=copy(context)),
                 self[1].get_atomized_operand(context=copy(context))]
 
@@ -935,7 +936,7 @@ def evaluate(self, context=None):
 ###
 # Node comparison
 @method('is', bp=30)
-def led(self, left):
+def led_node_comparison(self, left):
     if left.symbol == 'is':
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=30)
@@ -945,7 +946,7 @@ def led(self, left):
 @method('is')
 @method(infix('<<', bp=30))
 @method(infix('>>', bp=30))
-def evaluate(self, context=None):
+def evaluate_node_comparison(self, context=None):
     symbol = self.symbol
 
     left = [x for x in self[0].select(context)]
@@ -977,7 +978,7 @@ def evaluate(self, context=None):
 ###
 # Range expression
 @method('to', bp=35)
-def led(self, left):
+def led_range_expression(self, left):
     if left.symbol == 'to':
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=35)
@@ -985,7 +986,7 @@ def led(self, left):
 
 
 @method('to')
-def evaluate(self, context=None):
+def evaluate_range_expression(self, context=None):
     start, stop = self.get_operands(context, cls=Integer)
     try:
         return [x for x in range(start, stop + 1)]
@@ -994,14 +995,14 @@ def evaluate(self, context=None):
 
 
 @method('to')
-def select(self, context=None):
+def select_range_expression(self, context=None):
     yield from self.evaluate(context)
 
 
 ###
 # Numerical operators
 @method(infix('idiv', bp=45))
-def evaluate(self, context=None):
+def evaluate_idiv_operator(self, context=None):
     op1, op2 = self.get_operands(context)
     if op1 is None or op2 is None:
         raise self.error('XPST0005')
@@ -1043,7 +1044,7 @@ def evaluate(self, context=None):
 @method('treat')
 @method('castable')
 @method('cast')
-def nud(self):
+def nud_disambiguation_of_infix_operators(self):
     token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
     return token.nud()
 
@@ -1051,7 +1052,7 @@ def nud(self):
 ###
 # Kind tests (sequence types that can appear also in XPath expressions)
 @method(function('document-node', nargs=(0, 1), label='kind test'))
-def select(self, context=None):
+def select_document_node_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
@@ -1067,7 +1068,7 @@ def select(self, context=None):
 
 
 @method('document-node')
-def nud(self):
+def nud_document_node_kind_test(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol in ('element', 'schema-element'):
         self[0:] = self.parser.expression(5),
@@ -1081,7 +1082,7 @@ def nud(self):
 
 
 @method(function('element', nargs=(0, 2), label='kind test'))
-def select(self, context=None):
+def select_element_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
@@ -1099,7 +1100,7 @@ def select(self, context=None):
 
 
 @method('element')
-def nud(self):
+def nud_element_kind_test(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol != ')':
         self.parser.expected_name('(name)', ':', '*', message='a QName or a wildcard expected')
@@ -1114,7 +1115,7 @@ def nud(self):
 
 
 @method(function('schema-attribute', nargs=1, label='kind test'))
-def select(self, context=None):
+def select_schema_attribute_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -1133,7 +1134,7 @@ def select(self, context=None):
 
 
 @method(function('schema-element', nargs=1, label='kind test'))
-def select(self, context=None):
+def select_schema_element_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -1154,7 +1155,7 @@ def select(self, context=None):
 
 @method('schema-attribute')
 @method('schema-element')
-def nud(self):
+def nud_schema_node_kind_test(self):
     self.parser.advance('(')
     self.parser.expected_name('(name)', ':', message='a QName expected')
     self[0:] = self.parser.expression(5),
@@ -1177,7 +1178,7 @@ register('attribute', lbp=90, rbp=90, label=('kind test', 'axis'),
 
 
 @method('attribute')
-def nud(self):
+def nud_attribute_kind_test_or_axis(self):
     if self.parser.next_token.symbol == '::':
         self.parser.advance('::')
         self.parser.expected_name(
@@ -1199,7 +1200,7 @@ def nud(self):
 
 
 @method('attribute')
-def select(self, context=None):
+def select_attribute_kind_test_or_axis(self, context=None):
     if context is None:
         raise self.missing_context()
     elif self.label == 'axis':

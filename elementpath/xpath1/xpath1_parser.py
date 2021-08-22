@@ -12,6 +12,7 @@ import math
 import decimal
 import operator
 from copy import copy
+from typing import Dict, Tuple
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -108,7 +109,7 @@ class XPath1Parser(Parser):
     variable_types = None   # XPath 1.0 doesn't have in-scope variable types
     xsd_version = '1.0'     # Use XSD 1.0 datatypes for default
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
-    function_signatures = {}
+    function_signatures: Dict[Tuple[QName, int], str] = {}
 
     # https://www.w3.org/TR/xpath-3/#id-reserved-fn-names
     RESERVED_FUNCTION_NAMES = {
@@ -451,7 +452,7 @@ literal('(unknown)')
 
 
 @method(register('(name)', bp=10, label='literal'))
-def nud(self):
+def nud_name_literal(self):
     if self.parser.next_token.symbol == '(':
         if self.parser.version >= '3.0':
             pass
@@ -472,12 +473,12 @@ def nud(self):
 
 
 @method('(name)')
-def evaluate(self, context=None):
+def evaluate_name_literal(self, context=None):
     return [x for x in self.select(context)]
 
 
 @method('(name)')
-def select(self, context=None):
+def select_name_literal(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -534,7 +535,7 @@ def select(self, context=None):
 ###
 # Namespace prefix reference
 @method(':', bp=95)
-def led(self, left):
+def led_namespace_prefix(self, left):
     if self.parser.version == '1.0':
         left.expected('(name)')
     else:
@@ -568,14 +569,14 @@ def led(self, left):
 
 
 @method(':')
-def evaluate(self, context=None):
+def evaluate_namespace_prefix(self, context=None):
     if self[1].label.endswith('function'):
         return self[1].evaluate(context)
     return [x for x in self.select(context)]
 
 
 @method(':')
-def select(self, context=None):
+def select_namespace_prefix(self, context=None):
     if self[1].label.endswith('function'):
         value = self[1].evaluate(context)
         if isinstance(value, list):
@@ -629,7 +630,7 @@ def select(self, context=None):
 ###
 # Namespace URI as in ElementPath
 @method('{', bp=95)
-def nud(self):
+def nud_namespace_uri(self):
     if self.parser.strict and self.symbol == '{':
         raise self.wrong_syntax("not allowed symbol if parser has strict=True")
 
@@ -650,14 +651,14 @@ def nud(self):
 
 
 @method('{')
-def evaluate(self, context=None):
+def evaluate_namespace_uri(self, context=None):
     if self[1].label.endswith('function'):
         return self[1].evaluate(context)
     return [x for x in self.select(context)]
 
 
 @method('{')
-def select(self, context=None):
+def select_namespace_uri(self, context=None):
     if self[1].label.endswith('function'):
         yield self[1].evaluate(context)
         return
@@ -687,7 +688,7 @@ def select(self, context=None):
 ###
 # Variables
 @method('$', bp=90)
-def nud(self):
+def nud_variable_reference(self):
     self.parser.expected_name('(name)')
     self[:] = self.parser.expression(rbp=90),
     if ':' in self[0].value:
@@ -696,7 +697,7 @@ def nud(self):
 
 
 @method('$')
-def evaluate(self, context=None):
+def evaluate_variable_reference(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -709,7 +710,7 @@ def evaluate(self, context=None):
 ###
 # Nullary operators (use only the context)
 @method(nullary('*'))
-def select(self, context=None):
+def select_wildcard(self, context=None):
     if self:
         # Product operator
         item = self.evaluate(context)
@@ -749,7 +750,7 @@ def select(self, context=None):
 
 
 @method(nullary('.'))
-def select(self, context=None):
+def select_self_shortcut(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -783,7 +784,7 @@ def select(self, context=None):
 
 
 @method(nullary('..'))
-def select(self, context=None):
+def select_parent_shortcut(self, context=None):
     if context is None:
         raise self.missing_context()
     else:
@@ -796,13 +797,13 @@ def select(self, context=None):
 ###
 # Logical Operators
 @method(infix('or', bp=20))
-def evaluate(self, context=None):
+def evaluate_or_operator(self, context=None):
     return self.boolean_value(self[0].evaluate(copy(context))) or \
         self.boolean_value(self[1].evaluate(copy(context)))
 
 
 @method(infix('and', bp=25))
-def evaluate(self, context=None):
+def evaluate_and_operator(self, context=None):
     return self.boolean_value(self[0].evaluate(copy(context))) and \
         self.boolean_value(self[1].evaluate(copy(context)))
 
@@ -815,7 +816,7 @@ def evaluate(self, context=None):
 @method('>', bp=30)
 @method('<=', bp=30)
 @method('>=', bp=30)
-def led(self, left):
+def led_comparison_operators(self, left):
     if left.symbol in OPERATORS_MAP:
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=30)
@@ -828,7 +829,7 @@ def led(self, left):
 @method('>')
 @method('<=')
 @method('>=')
-def evaluate(self, context=None):
+def evaluate_comparison_operators(self, context=None):
     op = OPERATORS_MAP[self.symbol]
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
@@ -841,7 +842,7 @@ def evaluate(self, context=None):
 ###
 # Numerical operators
 @method(infix('+', bp=40))
-def evaluate(self, context=None):
+def evaluate_plus_operator(self, context=None):
     if len(self) == 1:
         arg = self.get_argument(context, cls=NumericProxy)
         if arg is not None:
@@ -863,7 +864,7 @@ def evaluate(self, context=None):
 
 
 @method(infix('-', bp=40))
-def evaluate(self, context=None):
+def evaluate_minus_operator(self, context=None):
     if len(self) == 1:
         arg = self.get_argument(context, cls=NumericProxy)
         if arg is not None:
@@ -886,13 +887,13 @@ def evaluate(self, context=None):
 
 @method('+')
 @method('-')
-def nud(self):
+def nud_plus_minus_operators(self):
     self[:] = self.parser.expression(rbp=70),
     return self
 
 
 @method(infix('*', bp=45))
-def evaluate(self, context=None):
+def evaluate_multiply_operator(self, context=None):
     if self:
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is not None:
@@ -929,7 +930,7 @@ def evaluate(self, context=None):
 
 
 @method(infix('div', bp=45))
-def evaluate(self, context=None):
+def evaluate_div_operator(self, context=None):
     dividend, divisor = self.get_operands(context, cls=ArithmeticProxy)
     if dividend is None:
         return
@@ -964,7 +965,7 @@ def evaluate(self, context=None):
 
 
 @method(infix('mod', bp=45))
-def evaluate(self, context=None):
+def evaluate_mod_operator(self, context=None):
     op1, op2 = self.get_operands(context, cls=NumericProxy)
     if op1 is not None:
         if op2 == 0 and isinstance(op2, float):
@@ -987,7 +988,7 @@ def evaluate(self, context=None):
 @method('and')
 @method('div')
 @method('mod')
-def nud(self):
+def nud_logical_div_mod_operators(self):
     token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
     return token.nud()
 
@@ -995,7 +996,7 @@ def nud(self):
 ###
 # Union expressions
 @method('|', bp=50)
-def led(self, left):
+def led_union_operator(self, left):
     self.cut_and_sort = True
     if left.symbol in {'|', 'union'}:
         left.cut_and_sort = False
@@ -1004,7 +1005,7 @@ def led(self, left):
 
 
 @method('|')
-def select(self, context=None):
+def select_union_operator(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -1020,7 +1021,7 @@ def select(self, context=None):
 ###
 # Path expressions
 @method('//', bp=75)
-def nud(self):
+def nud_descendant_path(self):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
 
@@ -1029,7 +1030,7 @@ def nud(self):
 
 
 @method('/', bp=75)
-def nud(self):
+def nud_child_path(self):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         try:
             self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
@@ -1042,7 +1043,7 @@ def nud(self):
 
 @method('//')
 @method('/')
-def led(self, left):
+def led_child_or_descendant_path(self, left):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
 
@@ -1051,7 +1052,7 @@ def led(self, left):
 
 
 @method('/')
-def select(self, context=None):
+def select_child_path(self, context=None):
     """
     Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
@@ -1092,7 +1093,7 @@ def select(self, context=None):
 
 
 @method('//')
-def select(self, context=None):
+def select_descendant_path(self, context=None):
     # Note: // is short for /descendant-or-self::node()/, so the axis
     #   is left to None. Use descendant:: only if next-step uses child
     #   axis, to preserve document order.
@@ -1119,14 +1120,14 @@ def select(self, context=None):
 ###
 # Predicate filters
 @method('[', bp=80)
-def led(self, left):
+def led_predicate(self, left):
     self[:] = left, self.parser.expression()
     self.parser.advance(']')
     return self
 
 
 @method('[')
-def select(self, context=None):
+def select_predicate(self, context=None):
     if context is None:
         raise self.missing_context()
 
@@ -1146,17 +1147,17 @@ def select(self, context=None):
 ###
 # Parenthesized expressions
 @method('(', bp=100)
-def nud(self):
+def nud_parenthesized_expr(self):
     self[:] = self.parser.expression(),
     self.parser.advance(')')
     return self
 
 
 @method('(')
-def evaluate(self, context=None):
+def evaluate_parenthesized_expr(self, context=None):
     return self[0].evaluate(context)
 
 
 @method('(')
-def select(self, context=None):
+def select_parenthesized_expr(self, context=None):
     return self[0].select(context)
