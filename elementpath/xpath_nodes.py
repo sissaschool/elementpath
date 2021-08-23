@@ -24,8 +24,8 @@ from .exceptions import ElementPathValueError
 # Node types
 class XPathNode(ABC):
 
-    name = None
-    value = None
+    name: Optional[str] = None
+    value: Optional[str] = None
 
     @property
     @abstractmethod

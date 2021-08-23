@@ -99,7 +99,7 @@ class XPath1Parser(Parser):
     """
 
     # Labels and symbols admitted after a path step
-    PATH_STEP_LABELS = ('axis', 'kind test')
+    PATH_STEP_LABELS: Tuple[str, ...] = ('axis', 'kind test')
     PATH_STEP_SYMBOLS = {
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '{'
     }

@@ -336,6 +336,10 @@ class UnicodeSubset(MutableSet):
             self.add(cp)
         return self
 
+    def __or__(self, other):
+        obj = self.copy()
+        return obj.__ior__(other)
+
     def __isub__(self, other):
         if not isinstance(other, Iterable):
             return NotImplemented
@@ -361,6 +365,10 @@ class UnicodeSubset(MutableSet):
             self.discard(value)
         return self
 
+    def __and__(self, other):
+        obj = self.copy()
+        return obj.__iand__(other)
+
     def __ixor__(self, other):
         if other is self:
             self.clear()
@@ -376,6 +384,10 @@ class UnicodeSubset(MutableSet):
             else:
                 self.add(value)
         return self
+
+    def __xor__(self, other):
+        obj = self.copy()
+        return obj.__ixor__(other)
 
 
 UNICODE_CATEGORIES = {k: UnicodeSubset(v) for k, v in RAW_UNICODE_CATEGORIES.items()}
