@@ -709,7 +709,7 @@ class Duration(AnyAtomicType):
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         elif abs(months) > 2 ** 31:
             raise OverflowError("months duration overflow")
-        elif abs(seconds) > 2 ** 63:
+        elif abs(seconds) > 2 ** 63:  # type: ignore[operator]
             raise OverflowError("seconds duration overflow")
 
         self.months = months

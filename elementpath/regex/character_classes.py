@@ -139,6 +139,10 @@ class CharacterClass(MutableSet):
         self.positive -= other.positive
         return self
 
+    def __sub__(self, other):
+        obj = self.copy()
+        return obj.__isub__(other)
+
     def add(self, charset):
         for part in self._re_char_set.split(charset):
             if part in CHARACTER_ESCAPES:

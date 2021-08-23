@@ -9,6 +9,7 @@
 #
 import re
 import math
+from typing import Optional
 
 from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta, AnyAtomicType
@@ -118,7 +119,8 @@ class Integer(int, metaclass=AtomicTypeMeta):
     """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
     pattern = re.compile(r'^[\-+]?[0-9]+$')
-    lower_bound, higher_bound = None, None
+    lower_bound: Optional[int] = None
+    higher_bound: Optional[int] = None
 
     def __init__(self, value):
         if self.lower_bound is not None and self < self.lower_bound:
@@ -175,7 +177,8 @@ class Byte(Short):
 
 class NonNegativeInteger(Integer):
     name = 'nonNegativeInteger'
-    lower_bound, higher_bound = 0, None
+    lower_bound = 0
+    higher_bound: Optional[int] = None
 
 
 class PositiveInteger(NonNegativeInteger):

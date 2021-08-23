@@ -17,7 +17,7 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
-from typing import Dict, Type, Union
+from typing import Dict, Type, Union, Optional
 
 
 #
@@ -155,11 +155,11 @@ class Token(MutableSequence):
     covers multiple roles (eg. as XPath function or axis). In those cases the definitive \
     role is defined at parse time (nud and/or led methods) after the token instance creation.
     """
-    symbol = None     # the token identifier
-    lbp = 0           # left binding power
-    rbp = 0           # right binding power
-    pattern = None    # a custom regex pattern for building the tokenizer
-    label = 'symbol'  # optional label
+    lbp = 0  # left binding power
+    rbp = 0  # right binding power
+    symbol: Optional[str] = None   # the token identifier
+    pattern: Optional[str] = None  # a custom regex pattern for building the tokenizer
+    label = 'symbol'               # optional label
 
     __slots__ = '_items', 'parser', 'value', '_source', 'span'
 
