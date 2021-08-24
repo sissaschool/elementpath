@@ -28,7 +28,7 @@ FORBIDDEN_ESCAPES_REF_PATTERN = re.compile(
 )
 
 
-def translate_pattern(pattern, flags=0, xsd_version='1.0', back_references=True,
+def translate_pattern(pattern: str, flags=0, xsd_version='1.0', back_references=True,
                       lazy_quantifiers=True, anchors=True):
     """
     Translates a pattern regex expression to a Python regex pattern. With default
@@ -198,7 +198,7 @@ def translate_pattern(pattern, flags=0, xsd_version='1.0', back_references=True,
                 regex.append('\\')
             elif pattern[pos].isdigit():
                 regex.append('\\%s' % pattern[pos])
-                reference = DIGITS_PATTERN.match(pattern[pos:]).group()
+                reference = DIGITS_PATTERN.match(pattern[pos:]).group()  # type: ignore[union-attr]
                 if len(reference) > 1:
                     k = 0
                     for k in range(1, len(reference)):

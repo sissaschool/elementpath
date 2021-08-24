@@ -11,22 +11,25 @@
 This module defines Unicode code points helper functions.
 """
 from sys import maxunicode
+from typing import Iterable, Iterator, Optional, Set, Tuple, Union
 
-CHARACTER_CLASS_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]\\'}
+CHARACTER_CLASS_ESCAPED: Set[int] = {ord(c) for c in r'-|.^?*+{}()[]\\'}
 """Code Points of escaped chars in a character class."""
 
+CodePoint = Union[int, Tuple[int, int]]
 
-def code_point_order(cp):
+
+def code_point_order(cp: CodePoint) -> int:
     """Ordering function for code points."""
     return cp if isinstance(cp, int) else cp[0]
 
 
-def code_point_reverse_order(cp):
+def code_point_reverse_order(cp: CodePoint) -> int:
     """Reverse ordering function for code points."""
     return cp if isinstance(cp, int) else cp[1] - 1
 
 
-def iter_code_points(code_points, reverse=False):
+def iter_code_points(code_points: Iterable[CodePoint], reverse=False) -> Iterator[CodePoint]:
     """
     Iterates a code points sequence. Three ore more consecutive
     code points are merged in a range.
@@ -35,7 +38,7 @@ def iter_code_points(code_points, reverse=False):
     :param reverse: if `True` reverses the order of the sequence.
     :return: yields code points or code point ranges.
     """
-    start_cp = end_cp = None
+    start_cp = end_cp = 0
     if reverse:
         code_points = sorted(code_points, key=code_point_reverse_order, reverse=True)
     else:
@@ -45,7 +48,7 @@ def iter_code_points(code_points, reverse=False):
         if isinstance(cp, int):
             cp = cp, cp + 1
 
-        if start_cp is None:
+        if not end_cp:
             start_cp, end_cp = cp
             continue
         elif reverse:
@@ -62,14 +65,14 @@ def iter_code_points(code_points, reverse=False):
             yield start_cp
         start_cp, end_cp = cp
     else:
-        if start_cp is not None:
+        if end_cp:
             if end_cp > start_cp + 1:
                 yield start_cp, end_cp
             else:
                 yield start_cp
 
 
-def get_code_point_range(cp):
+def get_code_point_range(cp: CodePoint) -> Optional[CodePoint]:
     """
     Returns a code point range.
 
@@ -88,8 +91,10 @@ def get_code_point_range(cp):
         except (IndexError, TypeError):
             pass
 
+    return None
 
-def code_point_repr(cp):
+
+def code_point_repr(cp: CodePoint) -> str:
     """
     Returns the string representation of a code point.
 
