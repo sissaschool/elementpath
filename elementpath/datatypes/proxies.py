@@ -10,7 +10,7 @@
 import re
 import math
 from decimal import Decimal
-from typing import Any, Union, SupportsIndex, SupportsFloat
+from typing import Any, Union, SupportsFloat
 
 from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
@@ -100,7 +100,7 @@ class DoubleProxy10(metaclass=AtomicTypeMeta):
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value: Union[SupportsFloat, SupportsIndex, str, bytes]):
+    def __new__(cls, value: Union[SupportsFloat, str]):
         if isinstance(value, str):
             value = collapse_white_spaces(value)
             if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':

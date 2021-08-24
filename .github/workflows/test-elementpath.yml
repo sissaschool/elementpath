@@ -37,10 +37,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-          pip install flake8
       - name: Lint with flake8
         run: |
-          flake8 elementpath --ignore=F811 --max-line-length=100 --statistics
+          flake8 elementpath --max-line-length=100 --statistics
+      - name: Lint with mypy
+        run: |
+          mypy --show-error-codes --warn-unused-ignores elementpath
       - name: Test with unittest
         run: |
           python -m unittest
