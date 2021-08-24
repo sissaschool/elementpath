@@ -7,8 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from abc import abstractmethod
-
 from ..helpers import QNAME_PATTERN
 from .atomic_types import AtomicTypeMeta
 
@@ -23,7 +21,11 @@ class AbstractQName(metaclass=AtomicTypeMeta):
     """
     pattern = QNAME_PATTERN
 
-    @abstractmethod
+    def __new__(cls, *args, **kwargs):
+        if cls.__name__ == 'Notation':
+            raise TypeError("can't instantiate xs:NOTATION objects")
+        return super().__new__(cls)
+
     def __init__(self, uri, qname):
         if uri is None:
             self.uri = ''
@@ -70,22 +72,8 @@ class AbstractQName(metaclass=AtomicTypeMeta):
 
 
 class QName(AbstractQName):
-    """
-    XPath compliant QName, bound with a prefix and a namespace.
-
-    :param uri: the bound namespace URI, must be a not empty \
-    URI if a prefixed name is provided for the 2nd argument.
-    :param qname: the prefixed name or a local name.
-    """
     name = 'QName'
-
-    def __init__(self, uri, qname):
-        super().__init__(uri, qname)
 
 
 class Notation(AbstractQName):
     name = 'NOTATION'
-
-    @abstractmethod
-    def __init__(self, uri, qname):
-        super().__init__(uri, qname)

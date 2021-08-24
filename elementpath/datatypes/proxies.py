@@ -10,6 +10,7 @@
 import re
 import math
 from decimal import Decimal
+from typing import Any, Union, SupportsIndex, SupportsFloat
 
 from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
@@ -22,11 +23,12 @@ from .datetime import AbstractDateTime, Duration
 # Type proxies for basic Python datatypes: a proxy class creates
 # and validates its Python datatype and virtual registered types.
 
+
 class BooleanProxy(metaclass=AtomicTypeMeta):
     name = 'boolean'
     pattern = re.compile(r'^(?:true|false|1|0)$')
 
-    def __new__(cls, value):
+    def __new__(cls, value: Any):
         if isinstance(value, bool):
             return value
         elif isinstance(value, (int, float, Decimal)):
@@ -58,9 +60,9 @@ class BooleanProxy(metaclass=AtomicTypeMeta):
 
 class DecimalProxy(metaclass=AtomicTypeMeta):
     name = 'decimal'
-    pattern = re.compile(r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))$')
+    pattern = re.compile(r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$')
 
-    def __new__(cls, value):
+    def __new__(cls, value: Any):
         if isinstance(value, (str, UntypedAtomic)):
             value = collapse_white_spaces(str(value)).replace(' ', '')
             if cls.pattern.match(value) is None:
@@ -93,11 +95,12 @@ class DecimalProxy(metaclass=AtomicTypeMeta):
 
 class DoubleProxy10(metaclass=AtomicTypeMeta):
     name = 'double'
+    xsd_version = '1.0'
     pattern = re.compile(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value: object) -> float:
+    def __new__(cls, value: Union[SupportsFloat, SupportsIndex, str, bytes]):
         if isinstance(value, str):
             value = collapse_white_spaces(value)
             if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
