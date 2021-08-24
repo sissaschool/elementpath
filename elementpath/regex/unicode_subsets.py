@@ -12,9 +12,10 @@ This module defines Unicode character categories and blocks.
 """
 from sys import maxunicode
 from collections.abc import Iterable, MutableSet
+from typing import Iterator, List
 
 from .unicode_categories import RAW_UNICODE_CATEGORIES
-from .codepoints import code_point_order, code_point_repr, iter_code_points, get_code_point_range
+from .codepoints import CodePoint, code_point_order, code_point_repr, iter_code_points, get_code_point_range
 
 
 class RegexError(Exception):
@@ -25,7 +26,7 @@ class RegexError(Exception):
     """
 
 
-def iterparse_character_subset(s, expand_ranges=False):
+def iterparse_character_subset(s: str, expand_ranges=False) -> Iterator[CodePoint]:
     """
     Parses a regex character subset, generating a sequence of code points
     and code points ranges. An unescaped hyphen (-) that is not at the
@@ -37,7 +38,7 @@ def iterparse_character_subset(s, expand_ranges=False):
     """
     escaped = False
     on_range = False
-    char = None
+    char = ''
     length = len(s)
     subset_index_iterator = iter(range(len(s)))
     for k in subset_index_iterator:
@@ -123,6 +124,7 @@ class UnicodeSubset(MutableSet):
     instance ora a string equivalent of a regex character set.
     """
     __slots__ = '_codepoints',
+    _codepoints: List[CodePoint]
 
     def __init__(self, codepoints=None):
         if not codepoints:
@@ -140,7 +142,7 @@ class UnicodeSubset(MutableSet):
         return self._codepoints
 
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, str(self))
+        return '%s(%r)' % (self.__class__.__name__, str(self))
 
     def __str__(self):
         return ''.join(code_point_repr(cp) for cp in self._codepoints)
