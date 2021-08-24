@@ -1288,8 +1288,9 @@ class QNameTypesTest(unittest.TestCase):
         self.assertIn('cannot compare', str(ctx.exception))
 
     def test_notation(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(TypeError) as ec:
             Notation(None, 'foo')
+        self.assertEqual(str(ec.exception), "can't instantiate xs:NOTATION objects")
 
         class EffectiveNotation(Notation):
             def __init__(self, uri, qname):
