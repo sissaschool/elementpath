@@ -17,6 +17,7 @@ setup(
     name='elementpath',
     version='2.3.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
+    include_package_data=True,
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/sissaschool/elementpath',

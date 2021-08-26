@@ -8,7 +8,7 @@ include requirements-dev.txt
 include tox.ini
 include doc/*
 
-recursive-include elementpath *.py
-recursive-include tests *.py
+recursive-include elementpath *
+recursive-include tests *
 
 global-exclude *.py[cod]
