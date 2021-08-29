@@ -13,7 +13,7 @@ Helper functions for XPath nodes and basic data types.
 import sys
 from collections import Counter
 from urllib.parse import urlparse
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from .namespaces import XML_BASE, XSI_NIL
@@ -27,25 +27,26 @@ from .exceptions import ElementPathValueError
 # use the same class, so they are indistinguishable with a
 # class check.
 
-if not TYPE_CHECKING or sys.version_info <= (3, 8):
+if not TYPE_CHECKING or sys.version_info < (3, 8):
     ElementNode = Any
     DocumentNode = Any
 else:
-    from typing import Dict, Generator, Iterable, Protocol
+    from typing import Iterable, Protocol, Sized
 
-    class ElementNode(Iterable['ElementNode'], Protocol):
+    class ElementNode(Iterable['ElementNode'], Sized, Protocol):
         tag: str
         attrib: Dict[str, str]
         text: Optional[str]
         tail: Optional[str]
 
         def find(self, path: str, namespaces: Optional[Dict[str, str]] = ...) -> Optional['ElementNode']: ...
+        def iter(self, tag: Optional[str] = ...) -> Iterator['ElementNode']: ...
 
 
     class DocumentNode(Iterable[ElementNode], Protocol):
         def getroot(self) -> ElementNode: ...
         def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementNode: ...
-        def iter(self, tag: Optional[str] = ...) -> Generator[ElementNode, None, None]: ...
+        def iter(self, tag: Optional[str] = ...) -> Iterator[ElementNode]: ...
 
 
 ###
@@ -70,8 +71,8 @@ class AttributeNode(XPathNode):
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
     :param parent: the parent element.
     """
-    def __init__(self, name: str, value: Union[str, Any], parent: Optional[Element] = None):
-        self.name = name
+    def __init__(self, name: str, value: Union[str, Any], parent: Optional[ElementNode] = None):
+        self.name: str = name
         self.value = value
         self.parent = parent
 
@@ -110,7 +111,7 @@ class TextNode(XPathNode):
     """
     _tail = False
 
-    def __init__(self, value: str, parent: Optional[Element] = None, tail=False):
+    def __init__(self, value: str, parent: Optional[ElementNode] = None, tail=False):
         self.value = value
         self.parent = parent
         if tail and parent is not None:
@@ -149,7 +150,7 @@ class NamespaceNode(XPathNode):
     :param uri: the namespace URI.
     :param parent: the parent element.
     """
-    def __init__(self, prefix: str, uri: str, parent: Optional[Element] = None):
+    def __init__(self, prefix: str, uri: str, parent: Optional[ElementNode] = None):
         self.prefix = prefix
         self.uri = uri
         self.parent = parent
@@ -266,7 +267,9 @@ def is_lxml_etree_element(obj):
     return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
 
 
-def etree_iter_nodes(root, with_root=True, with_attributes=False):
+def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
+                     with_root=True, with_attributes=False
+                     ) -> Iterator[Union[ElementNode, DocumentNode, AttributeNode, TextNode]]:
     if isinstance(root, TypedElement):
         root = root.elem
     elif is_document_node(root) and with_root:
@@ -280,12 +283,15 @@ def etree_iter_nodes(root, with_root=True, with_attributes=False):
         if e.text is not None:
             yield TextNode(e.text, e)
         if e.attrib and with_attributes:
-            yield from map(lambda x: AttributeNode(*x, parent=e), e.attrib.items())
+            for name, value in e.attrib.items():
+                yield AttributeNode(name, value, e)
         if e.tail is not None and e is not root:
             yield TextNode(e.tail, e, True)
 
 
-def etree_iter_strings(elem):
+def etree_iter_strings(elem: Union[DocumentNode, ElementNode, TypedElement]) -> Iterator[str]:
+    e: ElementNode
+
     if isinstance(elem, TypedElement):
         if elem.xsd_type.is_element_only():
             # Element-only text content is normalized
@@ -310,7 +316,7 @@ def etree_iter_strings(elem):
             yield e.tail
 
 
-def etree_deep_equal(e1, e2):
+def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
     if e1.tag != e2.tag:
         return False
     elif (e1.text or '').strip() != (e2.text or '').strip():
@@ -324,7 +330,7 @@ def etree_deep_equal(e1, e2):
     return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
 
-def etree_iterpath(elem, path='.'):
+def etree_iter_paths(elem: ElementNode, path='.') -> Iterator[Tuple[ElementNode, str]]:
     yield elem, path
     children_tags = Counter([e.tag for e in elem])
     positions = Counter([t for t in children_tags if children_tags[t] > 1])
@@ -343,7 +349,7 @@ def etree_iterpath(elem, path='.'):
             child_path += '[%d]' % positions[child.tag]
             positions[child.tag] += 1
 
-        yield from etree_iterpath(child, child_path)
+        yield from etree_iter_paths(child, child_path)
 
 
 ###
@@ -357,7 +363,7 @@ def etree_iterpath(elem, path='.'):
 # ElementTree-like objects for documents. XPathNode subclasses are used
 # for representing other node types and typed elements/attributes.
 ###
-def match_element_node(obj, tag=None):
+def match_element_node(obj: Any, tag: Optional[str] = None) -> bool:
     """
     Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
     Raises a ValueError if the argument tag has to be used but it's in a wrong format.
@@ -399,7 +405,7 @@ def match_element_node(obj, tag=None):
         return obj.tag == tag
 
 
-def match_attribute_node(obj, name=None):
+def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
     """
     Returns `True` if the first argument is an attribute node matching the name, `False` otherwise.
     Raises a ValueError if the argument name has to be used but it's in a wrong format.
@@ -415,13 +421,15 @@ def match_attribute_node(obj, name=None):
     elif isinstance(obj, TypedAttribute):
         obj = obj.attribute
 
-    if name[0] == '*':
+    if not name:
+        return not obj.name
+    elif name[0] == '*':
         try:
             _, _name = name.split(':')
         except (ValueError, IndexError):
             raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
         else:
-            if obj.name[0] == '{':
+            if obj.name.startswith('{'):
                 return obj.name.split('}')[1] == _name
             else:
                 return obj.name == _name
@@ -429,7 +437,7 @@ def match_attribute_node(obj, name=None):
     elif name[-1] == '*':
         if name[0] != '{' or '}' not in name:
             raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-        elif obj.name[0] == '{':
+        elif obj.name.startswith('{'):
             return obj.name.split('}')[0][1:] == name.split('}')[0][1:]
         else:
             return False
@@ -473,22 +481,22 @@ def is_xpath_node(obj):
 ###
 # Node accessors: in this implementation node accessors return None instead of empty sequence.
 # Ref: https://www.w3.org/TR/xpath-datamodel-31/#dm-document-uri
-def node_attributes(obj):
-    if is_element_node(obj):
-        return obj.attrib
+def node_attributes(obj) -> Optional[Dict[str, Any]]:
+    return obj.attrib if is_element_node(obj) else None
 
 
-def node_base_uri(obj):
+def node_base_uri(obj) -> Optional[str]:
     try:
         if is_element_node(obj):
             return obj.attrib[XML_BASE]
         elif is_document_node(obj):
             return obj.getroot().attrib[XML_BASE]
+        return None
     except KeyError:
-        pass
+        return None
 
 
-def node_document_uri(obj):
+def node_document_uri(obj) -> Optional[str]:
     if is_document_node(obj):
         try:
             uri = obj.getroot().attrib[XML_BASE]
@@ -498,21 +506,25 @@ def node_document_uri(obj):
         else:
             if parts.scheme and parts.netloc or parts.path.startswith('/'):
                 return uri
+    return None
 
 
-def node_children(obj):
+def node_children(obj) -> Optional[Iterator[ElementNode]]:
     if is_element_node(obj):
         return (child for child in obj)
     elif is_document_node(obj):
         return (child for child in [obj.getroot()])
+    else:
+        return None
 
 
-def node_nilled(obj):
+def node_nilled(obj) -> Optional[bool]:
     if is_element_node(obj):
         return obj.get(XSI_NIL) in ('true', '1')
+    return None
 
 
-def node_kind(obj):
+def node_kind(obj) -> Optional[str]:
     if isinstance(obj, XPathNode):
         return obj.kind
     elif is_element_node(obj):
@@ -523,9 +535,11 @@ def node_kind(obj):
         return 'comment'
     elif is_processing_instruction_node(obj):
         return 'processing-instruction'
+    else:
+        return None
 
 
-def node_name(obj):
+def node_name(obj) -> Optional[str]:
     if isinstance(obj, XPathNode):
         return obj.name
     elif hasattr(obj, 'tag') and not callable(obj.tag) \

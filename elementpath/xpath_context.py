@@ -16,7 +16,7 @@ from types import ModuleType
 from typing import Dict, Any, List, Optional, Union
 
 from .exceptions import ElementPathTypeError
-from .datatypes import Timezone
+from .datatypes import AnyAtomicType, Timezone
 from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, \
     etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
     is_schema_node, is_lxml_etree_element, is_lxml_document_node, XPathNode, \
@@ -24,7 +24,7 @@ from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, 
 
 
 ContextRootType = Union[ElementNode, DocumentNode]
-ContextItemType = Optional[Union[ContextRootType, XPathNode]]
+ContextItemType = Optional[Union[ElementNode, DocumentNode, XPathNode, AnyAtomicType]]
 
 
 class XPathContext:
