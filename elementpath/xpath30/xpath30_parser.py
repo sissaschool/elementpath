@@ -26,7 +26,7 @@ from ..exceptions import ElementPathError
 from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..xpath_nodes import etree_iterpath, is_xpath_node, is_element_node, \
+from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
     is_document_node, is_etree_element, is_schema_node, TypedElement, \
     TextNode, AttributeNode, TypedAttribute, NamespaceNode, XPathNode
 from ..xpath_token import ValueToken, XPathFunction
@@ -757,7 +757,7 @@ def evaluate_path_function(self, context=None):
     else:
         path = '/%s' % root.tag
 
-    for e, path in etree_iterpath(root, path):
+    for e, path in etree_iter_paths(root, path):
         if e is elem:
             return path
 
