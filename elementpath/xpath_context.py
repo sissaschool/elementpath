@@ -9,19 +9,25 @@
 #
 import datetime
 import importlib
-import xml.etree.ElementTree as ElementTree
 from copy import copy
 from functools import lru_cache
 from itertools import chain
+from types import ModuleType
+from typing import Dict, Any, List, Optional, Union
 
 from .exceptions import ElementPathTypeError
 from .datatypes import Timezone
 from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, \
     etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
-    is_schema_node, is_lxml_etree_element, is_lxml_document_node
+    is_schema_node, is_lxml_etree_element, is_lxml_document_node, XPathNode, \
+    ElementNode, DocumentNode
 
 
-class XPathContext(object):
+ContextRootType = Union[ElementNode, DocumentNode]
+ContextItemType = Optional[Union[ContextRootType, XPathNode]]
+
+
+class XPathContext:
     """
     The XPath dynamic context. The static context is provided by the parser.
 
@@ -59,25 +65,36 @@ class XPathContext(object):
     and fn:available-environment-variables.
     """
     _iter_nodes = staticmethod(etree_iter_nodes)
-    _parent_map = None
-    _elem = None
-    _etree = None
+    _parent_map: Optional[Dict[ElementNode, ElementNode]] = None
+    _etree: Optional[ModuleType] = None
+    root: ContextRootType
+    item: Optional[ContextItemType]
 
-    def __init__(self, root, namespaces=None, item=None, position=1, size=1, axis=None,
-                 variables=None, current_dt=None, timezone=None, documents=None,
-                 collections=None, default_collection=None, resource_collections=None,
-                 default_resource_collection=None, allow_environment=False,
-                 default_language=None, default_calendar=None, default_place=None):
+    def __init__(self,
+                 root: ContextRootType,
+                 namespaces: Optional[Dict[str, str]] = None,
+                 item: Optional[ContextItemType] = None,
+                 position: int = 1,
+                 size: int = 1,
+                 axis: Optional[str] = None,
+                 variables: Optional[Dict[str, Any]] = None,
+                 current_dt: Optional[datetime.datetime] = None,
+                 timezone: Optional[Timezone] = None,
+                 documents: Optional[DocumentNode] = None,
+                 collections: Optional[ElementNode] = None,
+                 default_collection: Optional[str] = None,
+                 resource_collections: Optional[Dict[str, List[str]]] = None,
+                 default_resource_collection: Optional[str] = None,
+                 allow_environment: bool = False,
+                 default_language: Optional[str] = None,
+                 default_calendar: Optional[str] = None,
+                 default_place=None):
+
         self.root = root
         self.namespaces = namespaces
 
-        if is_etree_element(root) and not callable(root.tag):
-            if item is None:
-                self.item = self._elem = root
-            elif is_etree_element(item) and not callable(root.tag):
-                self.item = self._elem = item
-            else:
-                self.item, self._elem = item, root
+        if is_element_node(root):
+            self.item = root if item is None else item
         elif is_document_node(root):
             self.item = item
         else:
@@ -140,7 +157,7 @@ class XPathContext(object):
             if is_lxml_etree_element(self.root) or is_lxml_document_node(self.root):
                 self._etree = importlib.import_module('lxml.etree')
             else:
-                self._etree = ElementTree
+                self._etree = importlib.import_module('xml.etree.ElementTree')
         return self._etree
 
     @lru_cache(maxsize=1024)
@@ -165,17 +182,17 @@ class XPathContext(object):
             try:
                 return self._parent_map[elem]
             except KeyError:
-                return
+                return None
 
     def get_path(self, item):
         """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
         if isinstance(item, AttributeNode):
             path.append('@%s' % item.name)
-            item = self._elem
+            item = item.parent
         elif isinstance(item, TypedAttribute):
             path.append('@%s' % item.attribute.name)
-            item = self._elem
+            item = item.attribute.parent
 
         if item is None:
             return '' if not path else path[0]
@@ -316,7 +333,7 @@ class XPathContext(object):
             for self.item in (AttributeNode(*x) for x in elem.attrib.items()):
                 yield self.item
         else:
-            for self.item in (AttributeNode(*x, elem) for x in elem.attrib.items()):
+            for self.item in (AttributeNode(*x, parent=elem) for x in elem.attrib.items()):
                 yield self.item
 
         self.item, self.axis = status

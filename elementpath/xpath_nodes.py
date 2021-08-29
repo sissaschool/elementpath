@@ -10,10 +10,10 @@
 """
 Helper functions for XPath nodes and basic data types.
 """
+import sys
 from collections import Counter
 from urllib.parse import urlparse
-from abc import ABC, abstractmethod
-from typing import Union, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 from xml.etree.ElementTree import Element
 
 from .namespaces import XML_BASE, XSI_NIL
@@ -21,14 +21,43 @@ from .exceptions import ElementPathValueError
 
 
 ###
-# Node types
-class XPathNode(ABC):
+# Elements and document nodes are processed on duck typing
+# bases and mypy checks them using structural subtyping.
+# In ElementTree element nodes, comment nodes and PI nodes
+# use the same class, so they are indistinguishable with a
+# class check.
+
+if not TYPE_CHECKING or sys.version_info <= (3, 8):
+    ElementNode = Any
+    DocumentNode = Any
+else:
+    from typing import Dict, Generator, Iterable, Protocol
+
+    class ElementNode(Iterable['ElementNode'], Protocol):
+        tag: str
+        attrib: Dict[str, str]
+        text: Optional[str]
+        tail: Optional[str]
+
+        def find(self, path: str, namespaces: Optional[Dict[str, str]] = ...) -> Optional['ElementNode']: ...
+
+
+    class DocumentNode(Iterable[ElementNode], Protocol):
+        def getroot(self) -> ElementNode: ...
+        def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementNode: ...
+        def iter(self, tag: Optional[str] = ...) -> Generator[ElementNode, None, None]: ...
+
+
+###
+# Other node types, based on a class hierarchy. These nodes
+# include also wrappers for element and attribute nodes that
+# associated with an XSD type.
+class XPathNode:
 
     name: Optional[str] = None
     value: Optional[str] = None
 
     @property
-    @abstractmethod
     def kind(self):
         raise NotImplementedError
 
@@ -502,3 +531,5 @@ def node_name(obj):
     elif hasattr(obj, 'tag') and not callable(obj.tag) \
             and hasattr(obj, 'attrib') and hasattr(obj, 'text'):
         return obj.tag
+    else:
+        return None

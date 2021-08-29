@@ -142,8 +142,10 @@ class XPathContextTest(unittest.TestCase):
         self.assertEqual(context.get_path(root[2]), '/A/B3')
         self.assertEqual(context.get_path(root[2][0]), '/A/B3/C1')
         self.assertEqual(context.get_path(root[2][1]), '/A/B3/C2')
-        context._elem = root[2][1]
-        self.assertEqual(context.get_path(AttributeNode('max', '10')), '/A/B3/C2/@max')
+
+        self.assertEqual(context.get_path(AttributeNode('max', '10')), '@max')
+        attr = AttributeNode('max', '10', parent=root[2][1])
+        self.assertEqual(context.get_path(attr), '/A/B3/C2/@max')
 
         document = ElementTree.ElementTree(root)
         context = XPathContext(root=document)
@@ -156,7 +158,7 @@ class XPathContextTest(unittest.TestCase):
             self.assertEqual(context.get_path(TypedElement(root[0], xsd_type, 10)), '/A/B1')
 
         with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
-            attr = TypedAttribute(AttributeNode('min', '1'), xsd_type, 1)
+            attr = TypedAttribute(AttributeNode('min', '1', root[1]), xsd_type, 1)
             context = XPathContext(root)
             context._elem = root[1]
             self.assertEqual(context.get_path(attr), '/A/B2/@min')
