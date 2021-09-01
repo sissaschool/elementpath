@@ -10,14 +10,14 @@
 """
 Helper functions for XPath nodes and basic data types.
 """
-import sys
 from collections import Counter
 from urllib.parse import urlparse
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
+from .protocols import ElementProtocol, DocumentProtocol
 
 
 ###
@@ -26,33 +26,14 @@ from .exceptions import ElementPathValueError
 # In ElementTree element nodes, comment nodes and PI nodes
 # use the same class, so they are indistinguishable with a
 # class check.
-
-if not TYPE_CHECKING or sys.version_info < (3, 8):
-    ElementNode = Any
-    DocumentNode = Any
-else:
-    from typing import Iterable, Protocol, Sized
-
-    class ElementNode(Iterable['ElementNode'], Sized, Protocol):
-        tag: str
-        attrib: Dict[str, str]
-        text: Optional[str]
-        tail: Optional[str]
-
-        def find(self, path: str, namespaces: Optional[Dict[str, str]] = ...) -> Optional['ElementNode']: ...
-        def iter(self, tag: Optional[str] = ...) -> Iterator['ElementNode']: ...
-
-
-    class DocumentNode(Iterable[ElementNode], Protocol):
-        def getroot(self) -> ElementNode: ...
-        def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementNode: ...
-        def iter(self, tag: Optional[str] = ...) -> Iterator[ElementNode]: ...
+ElementNode = ElementProtocol
+DocumentNode = DocumentProtocol
 
 
 ###
 # Other node types, based on a class hierarchy. These nodes
 # include also wrappers for element and attribute nodes that
-# associated with an XSD type.
+# are associated with an XSD type.
 class XPathNode:
 
     name: Optional[str] = None

@@ -19,22 +19,21 @@ from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     is_document_node, is_processing_instruction_node, node_attributes, node_base_uri, \
     node_document_uri, node_children, node_nilled, node_kind, node_name, \
     etree_iter_nodes, etree_iter_paths
-from elementpath.schema_proxy import AbstractXsdType
 
 
-class DummyXsdType(AbstractXsdType):
+class DummyXsdType:
     name = local_name = None
 
-    def is_matching(self, name, default_namespace): return False
-    def is_empty(self): return False
-    def is_simple(self): return False
-    def has_simple_content(self): return False
-    def has_mixed_content(self): return False
-    def is_element_only(self): return False
-    def is_key(self): return False
-    def is_qname(self): return False
-    def is_notation(self): return False
-    def decode(self, obj, *args, **kwargs): return None
+    def is_matching(self, name, default_namespace): pass
+    def is_empty(self): pass
+    def is_simple(self): pass
+    def has_simple_content(self): pass
+    def has_mixed_content(self): pass
+    def is_element_only(self): pass
+    def is_key(self): pass
+    def is_qname(self): pass
+    def is_notation(self): pass
+    def decode(self, obj, *args, **kwargs): pass
     def validate(self, obj, *args, **kwargs): pass
 
 

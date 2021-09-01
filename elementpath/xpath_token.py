@@ -49,7 +49,7 @@ UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 
-def ordinal(n):
+def ordinal(n: int) -> str:
     if n in {11, 12, 13}:
         return '%dth' % n
 
