@@ -23,7 +23,7 @@ from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, 
     ElementNode, DocumentNode
 
 if TYPE_CHECKING:
-    from .xpath_token import XPathToken
+    from .xpath_token import XPathToken, XPathAxis
 
 ContextRootType = Union[ElementNode, DocumentNode]
 ContextItemType = Optional[Union[ElementNode, DocumentNode, XPathNode, AnyAtomicType]]
@@ -250,12 +250,12 @@ class XPathContext:
 
         self.item = status
 
-    def inner_focus_select(self, token: 'XPathToken'):
+    def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']):
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position
         results = [x for x in token.select(copy(self))]
 
-        if token.label == 'axis' and token.reverse_axis:
+        if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
             self.size = self.position = len(results)
             for self.item in results:
                 yield self.item
