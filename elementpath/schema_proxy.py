@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,27 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from typing import Optional
+from typing import Any, Dict, List, Optional, Iterator
 
 from .exceptions import ElementPathTypeError
-from .protocols import ElementProtocol
+from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
+    XsdElementProtocol, XsdSchemaProtocol
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
-
-####
-# Interfaces for XSD components
-#
-# Following interfaces can be used for defining XSD components into alternative
-# schema proxies. Anyway no type-checking is done on XSD components returned by
-# schema proxy instances, so one could decide to implement XSD components without
-# the usage of these interfaces.
-#
-
-
-####
-# Schema proxy class:
-#
 
 class AbstractSchemaProxy(metaclass=ABCMeta):
     """
@@ -37,7 +24,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
     :param base_element: the schema element used as base item for static analysis.
     """
-    def __init__(self, schema, base_element: Optional[ElementProtocol   ] = None):
+    def __init__(self, schema: XsdSchemaProtocol, base_element: Optional[ElementProtocol] = None):
         if not is_etree_element(schema):
             raise ElementPathTypeError(
                 "argument {!r} is not a compatible schema instance".format(schema)
@@ -48,7 +35,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
             )
 
         self._schema = schema
-        self._base_element = base_element
+        self._base_element: Optional[ElementProtocol] = base_element
 
     def bind_parser(self, parser):
         """
@@ -73,7 +60,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return XPathSchemaContext(root=self._schema, item=self._base_element)
 
-    def find(self, path, namespaces=None):
+    def find(self, path: str, namespaces: Optional[Dict[str, str]] = None):
         """
         Find a schema element or attribute using an XPath expression.
 
@@ -84,14 +71,14 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         return self._schema.find(path, namespaces)
 
     @property
-    def xsd_version(self) -> str:
+    def xsd_version(self):
         """The XSD version, returns '1.0' or '1.1'."""
         return self._schema.xsd_version
 
-    def get_type(self, qname):
+    def get_type(self, qname: str) -> Optional[XsdTypeProtocol]:
         """
         Get the XSD global type from the schema's scope. A concrete implementation must
-        returns an object that implements the `AbstractXsdType` interface, or `None` if
+        return an object that supports the protocols `XsdTypeProtocol`, or `None` if
         the global type is not found.
 
         :param qname: the fully qualified name of the type to retrieve.
@@ -99,10 +86,10 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return self._schema.maps.types.get(qname)
 
-    def get_attribute(self, qname):
+    def get_attribute(self, qname: str) -> Optional[XsdAttributeProtocol]:
         """
         Get the XSD global attribute from the schema's scope. A concrete implementation must
-        returns an object that implements the `AbstractXsdAttribute` interface, or `None` if
+        return an object that supports the protocol `XsdAttributeProtocol`, or `None` if
         the global attribute is not found.
 
         :param qname: the fully qualified name of the attribute to retrieve.
@@ -110,18 +97,18 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return self._schema.maps.attributes.get(qname)
 
-    def get_element(self, qname):
+    def get_element(self, qname: str) -> Optional[XsdElementProtocol]:
         """
         Get the XSD global element from the schema's scope. A concrete implementation must
-        returns an object that implements the `AbstractXsdElement` interface or `None` if
-        the global element is not found.
+        return an object that supports the protocol `XsdElementProtocol` interface, or
+        `None` if the global element is not found.
 
         :param qname: the fully qualified name of the element to retrieve.
         :returns: an object that represents an XSD element or `None`.
         """
         return self._schema.maps.elements.get(qname)
 
-    def get_substitution_group(self, qname):
+    def get_substitution_group(self, qname: str) -> Optional[List[XsdElementProtocol]]:
         """
         Get a substitution group. A concrete implementation must returns a list containing
         substitution elements or `None` if the substitution group is not found. Moreover each item
@@ -133,7 +120,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         return self._schema.maps.substitution_groups.get(qname)
 
     @abstractmethod
-    def is_instance(self, obj, type_qname):
+    def is_instance(self, obj: Any, type_qname: str) -> bool:
         """
         Returns `True` if *obj* is an instance of the XSD global type, `False` if not.
 
@@ -142,7 +129,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def cast_as(self, obj, type_qname):
+    def cast_as(self, obj: Any, type_qname: str) -> XsdTypeProtocol:
         """
         Converts *obj* to the Python type associated with an XSD global type. A concrete
         implementation must raises a `ValueError` or `TypeError` in case of a decoding
@@ -153,14 +140,14 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def iter_atomic_types(self):
+    def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
         """
         Returns an iterator for not builtin atomic types defined in the schema's scope. A concrete
-        implementation must yields objects that implement the `AbstractXsdType` interface.
+        implementation must yields objects that implement the protocol `XsdTypeProtocol`.
         """
 
     @abstractmethod
-    def get_primitive_type(self, xsd_type):
+    def get_primitive_type(self, xsd_type: XsdTypeProtocol) -> XsdTypeProtocol:
         """
         Returns the type at base of the definition of an XSD type. For an atomic type
         is effectively the primitive type. For a list is the primitive type of the item.
