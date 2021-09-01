@@ -28,7 +28,8 @@ setup(
     long_description=long_description,
     python_requires='>=3.6',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.2.3', 'Sphinx']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.2.3',
+                'Sphinx', 'memory-profiler', 'flake8', 'mypy']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -44,6 +45,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Software Development :: Libraries',
