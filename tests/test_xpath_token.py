@@ -29,7 +29,8 @@ from elementpath.datatypes import UntypedAtomic
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, TypedAttribute, \
     TypedElement, NamespaceNode, TextNode
-from elementpath.xpath_token import ordinal, UNICODE_CODEPOINT_COLLATION
+from elementpath.xpath_token import UNICODE_CODEPOINT_COLLATION
+from elementpath.helpers import ordinal
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.xpath1 import XPath1Parser
 from elementpath.xpath2 import XPath2Parser
