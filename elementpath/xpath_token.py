@@ -30,6 +30,7 @@ import urllib.parse
 from xml.etree.ElementTree import Element
 
 from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
+from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
@@ -47,21 +48,6 @@ from .xpath_context import XPathSchemaContext
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
-
-
-def ordinal(n: int) -> str:
-    if n in {11, 12, 13}:
-        return '%dth' % n
-
-    least_significant_digit = n % 10
-    if least_significant_digit == 1:
-        return '%dst' % n
-    elif least_significant_digit == 2:
-        return '%dnd' % n
-    elif least_significant_digit == 3:
-        return '%drd' % n
-    else:
-        return '%dth' % n
 
 
 class XPathToken(Token):

@@ -17,7 +17,7 @@ from xml.etree.ElementTree import Element
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, DocumentProtocol
+from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol
 
 
 ###
@@ -37,10 +37,10 @@ DocumentNode = DocumentProtocol
 class XPathNode:
 
     name: Optional[str] = None
-    value: Optional[str] = None
+    value: Any = None
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         raise NotImplementedError
 
 
@@ -52,9 +52,10 @@ class AttributeNode(XPathNode):
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
     :param parent: the parent element.
     """
-    def __init__(self, name: str, value: Union[str, Any], parent: Optional[ElementNode] = None):
+    def __init__(self, name: str, value: Union[str, XsdAttributeProtocol],
+                 parent: Optional[ElementNode] = None):
         self.name: str = name
-        self.value = value
+        self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
 
     @property

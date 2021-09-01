@@ -52,7 +52,8 @@ else:
         name: Optional[str]
         local_name:  Optional[str]
 
-        def is_matching(self, name: Optional[str], default_namespace: Optional[str]) -> bool: ...
+        def is_matching(self, name: Optional[str],
+                        default_namespace: Optional[str] = None) -> bool: ...
 
 
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):

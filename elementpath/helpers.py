@@ -139,3 +139,18 @@ def is_xml_codepoint(cp: int) -> bool:
         0x20 <= cp <= 0xD7FF or \
         0xE000 <= cp <= 0xFFFD or \
         0x10000 <= cp <= 0x10FFFF
+
+
+def ordinal(n: int) -> str:
+    if n in {11, 12, 13}:
+        return '%dth' % n
+
+    least_significant_digit = n % 10
+    if least_significant_digit == 1:
+        return '%dst' % n
+    elif least_significant_digit == 2:
+        return '%dnd' % n
+    elif least_significant_digit == 3:
+        return '%drd' % n
+    else:
+        return '%dth' % n
