@@ -8,6 +8,7 @@
 .project
 .ipynb_checkpoints/
 .tox/
+.mypy_cache/
 .coverage*
 !.coveragerc
 doc/_*

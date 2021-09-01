@@ -15,7 +15,8 @@ from collections.abc import Iterable, MutableSet
 from typing import Iterator, List
 
 from .unicode_categories import RAW_UNICODE_CATEGORIES
-from .codepoints import CodePoint, code_point_order, code_point_repr, iter_code_points, get_code_point_range
+from .codepoints import CodePoint, code_point_order, code_point_repr, \
+    iter_code_points, get_code_point_range
 
 
 class RegexError(Exception):

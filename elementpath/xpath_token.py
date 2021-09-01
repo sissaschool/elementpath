@@ -1061,6 +1061,22 @@ class XPathToken(Token):
         return self.error('XPST0081', message)
 
 
+class XPathAxis(XPathToken):
+    pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)'
+    label = 'axis'
+    reverse_axis = False
+
+    def nud(self):
+        self.parser.advance('::')
+        self.parser.expected_name(
+            '(name)', '*', 'text', 'node', 'document-node',
+            'comment', 'processing-instruction', 'attribute',
+            'schema-attribute', 'element', 'schema-element'
+        )
+        self[:] = self.parser.expression(rbp=self.rbp),
+        return self
+
+
 class ValueToken(XPathToken):
     """
     A dummy token for encapsulating a value.

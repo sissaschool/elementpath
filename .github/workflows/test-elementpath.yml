@@ -42,7 +42,7 @@ jobs:
           flake8 elementpath --max-line-length=100 --statistics
       - name: Lint with mypy
         run: |
-          mypy --show-error-codes --warn-unused-ignores elementpath
+          mypy --show-error-codes elementpath
       - name: Test with unittest
         run: |
           python -m unittest

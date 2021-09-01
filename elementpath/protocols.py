@@ -29,7 +29,6 @@ else:
     from typing import Dict, Iterator, Iterable, List, Literal, \
         NoReturn, Optional, Protocol, Sized
 
-
     class ElementProtocol(Iterable['ElementProtocol'], Sized, Protocol):
         tag: str
         attrib: Dict[str, str]
@@ -41,12 +40,10 @@ else:
 
         def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
 
-
     class DocumentProtocol(Iterable[ElementProtocol], Protocol):
         def getroot(self) -> ElementProtocol: ...
         def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementProtocol: ...
         def iter(self, tag: Optional[str] = ...) -> Iterator[ElementProtocol]: ...
-
 
     class XsdComponentProtocol(Protocol):
         name: Optional[str]
@@ -54,7 +51,6 @@ else:
 
         def is_matching(self, name: Optional[str],
                         default_namespace: Optional[str] = None) -> bool: ...
-
 
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         """Interface for XSD types."""
@@ -107,21 +103,17 @@ else:
             or a `TypeError` compatible exception if the argument it's not valid.
             """
 
-
     class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
         type: XsdTypeProtocol
 
-
     class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
         type: XsdTypeProtocol
-
 
     class GlobalMapsProtocol(Protocol):
         types: Dict[str, XsdTypeProtocol]
         attributes: Dict[str, XsdAttributeProtocol]
         elements: Dict[str, XsdElementProtocol]
         substitution_groups: Dict[str, List[XsdElementProtocol]]
-
 
     class XsdSchemaProtocol(ElementProtocol, Protocol):
         xsd_version: Literal['1.0', '1.1']

@@ -26,7 +26,7 @@ from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import XPathToken, XPathFunction
+from ..xpath_token import XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
     is_xpath_node, match_element_node, is_schema_node, is_document_node, \
     match_attribute_node, is_element_node, node_kind
@@ -159,21 +159,8 @@ class XPath1Parser(Parser):
     @classmethod
     def axis(cls, symbol, reverse_axis=False, bp=80):
         """Register a token for a symbol that represents an XPath *axis*."""
-        def nud_(self):
-            self.parser.advance('::')
-            self.parser.expected_name(
-                '(name)', '*', 'text', 'node', 'document-node',
-                'comment', 'processing-instruction', 'attribute',
-                'schema-attribute', 'element', 'schema-element'
-            )
-            self[:] = self.parser.expression(rbp=bp),
-            return self
-
-        pattern = r'\b%s(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)' % cls.name_pattern.pattern
-        return cls.register(
-            symbol, pattern=pattern, label='axis',
-            reverse_axis=reverse_axis, lbp=bp, rbp=bp, nud=nud_
-        )
+        return cls.register(symbol, label='axis', bases=(XPathAxis,),
+                            reverse_axis=reverse_axis, lbp=bp, rbp=bp)
 
     @classmethod
     def function(cls, symbol, nargs=None, sequence_types=(), label='function', bp=90):
