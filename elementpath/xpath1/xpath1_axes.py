@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from ..exceptions import ElementPathTypeError
 from ..xpath_nodes import NamespaceNode, is_element_node
 from .xpath1_functions import XPath1Parser
 
@@ -29,7 +30,10 @@ def select_attribute_reference_or_axis(self, context=None):
         raise self.missing_context()
 
     for _ in context.iter_attributes():
-        yield from self[0].select(context)
+        try:
+            yield from self[0].select(context)
+        except ElementPathTypeError:
+            pass
 
 
 @method(axis('namespace'))
