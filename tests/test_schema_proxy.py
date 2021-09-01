@@ -19,7 +19,6 @@ except ImportError:
 
 from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_NOTATION
-from elementpath.schema_proxy import AbstractGlobalMaps, AbstractXsdSchema
 
 try:
     # noinspection PyPackageRequirements
@@ -61,15 +60,17 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.parser = XPath2Parser(namespaces=self.namespaces, schema=self.schema_proxy)
 
     def test_abstract_xsd_schema(self):
-        class GlobalMaps(AbstractGlobalMaps):
+        class GlobalMaps:
             types = {}
             attributes = {}
             elements = {}
             substitution_groups = {}
 
-        class XsdSchema(AbstractXsdSchema):
+        class XsdSchema:
+            tag = '{%s}schema' % XSD_NAMESPACE
             xsd_version = '1.1'
             maps = GlobalMaps()
+            text = None
 
             @property
             def attrib(self):

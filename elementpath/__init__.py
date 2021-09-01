@@ -20,14 +20,14 @@ from .exceptions import ElementPathError, MissingContextError, \
     ElementPathTypeError, ElementPathLocaleError, ElementPathValueError, \
     ElementPathOverflowError, ElementPathZeroDivisionError
 
-from .xpath_context import XPathContext, XPathSchemaContext
+from .xpath_context import XPathContext
 from .xpath_nodes import XPathNode, AttributeNode, TextNode, \
     NamespaceNode, TypedElement, TypedAttribute
 from .xpath_token import XPathToken, XPathFunction
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
-from .schema_proxy import AbstractSchemaProxy
+from .schema_proxy import XPathSchemaContext, AbstractSchemaProxy
 from .regex import RegexError, translate_pattern
 
 

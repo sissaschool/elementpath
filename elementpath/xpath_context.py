@@ -13,7 +13,7 @@ from copy import copy
 from functools import lru_cache
 from itertools import chain
 from types import ModuleType
-from typing import Dict, Any, List, Optional, Union
+from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterable, Iterator, Optional, Union
 
 from .exceptions import ElementPathTypeError
 from .datatypes import AnyAtomicType, Timezone
@@ -22,6 +22,8 @@ from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, 
     is_schema_node, is_lxml_etree_element, is_lxml_document_node, XPathNode, \
     ElementNode, DocumentNode
 
+if TYPE_CHECKING:
+    from .xpath_token import XPathToken
 
 ContextRootType = Union[ElementNode, DocumentNode]
 ContextItemType = Optional[Union[ElementNode, DocumentNode, XPathNode, AnyAtomicType]]
@@ -65,7 +67,7 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _iter_nodes = staticmethod(etree_iter_nodes)
-    _parent_map: Optional[Dict[ElementNode, ElementNode]] = None
+    _parent_map: Optional[Dict[ElementNode, ContextRootType]] = None
     _etree: Optional[ModuleType] = None
     root: ContextRootType
     item: Optional[ContextItemType]
@@ -146,14 +148,19 @@ class XPathContext:
         return obj
 
     @property
-    def parent_map(self):
+    def parent_map(self) -> Dict[ElementNode, ContextRootType]:
         if self._parent_map is None:
+            self._parent_map: Dict[ElementNode, ContextRootType]
             self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
+            if is_document_node(self.root):
+                self._parent_map[cast(DocumentNode, self.root).getroot()] = self.root
+
         return self._parent_map
 
     @property
-    def etree(self):
+    def etree(self) -> ModuleType:
         if self._etree is None:
+            self._etree: ModuleType
             if is_lxml_etree_element(self.root) or is_lxml_document_node(self.root):
                 self._etree = importlib.import_module('lxml.etree')
             else:
@@ -161,7 +168,7 @@ class XPathContext:
         return self._etree
 
     @lru_cache(maxsize=1024)
-    def get_parent(self, elem):
+    def get_parent(self, elem: Union[ElementNode, TypedElement]):
         """
         Returns the parent element or `None` for root element and for elements
         that are not included in the tree. Uses a LRU cache to minimize parent
@@ -170,28 +177,21 @@ class XPathContext:
         if isinstance(elem, TypedElement):
             elem = elem.elem
         if elem is self.root:
-            return
+            return None
 
         try:
-            return self._parent_map[elem]
-        except (KeyError, TypeError):
-            self._parent_map = {child: e for e in self.root.iter() for child in e}
-            if is_document_node(self.root):
-                self._parent_map[self.root.getroot()] = self.root
+            return self.parent_map[elem]
+        except KeyError:
+            return None
 
-            try:
-                return self._parent_map[elem]
-            except KeyError:
-                return None
-
-    def get_path(self, item):
+    def get_path(self, item: Any) -> str:
         """Cached path resolver for elements and attributes. Returns absolute paths."""
         path = []
         if isinstance(item, AttributeNode):
-            path.append('@%s' % item.name)
+            path.append(f'@{item.name}')
             item = item.parent
         elif isinstance(item, TypedAttribute):
-            path.append('@%s' % item.attribute.name)
+            path.append(f'@{item.attribute.name}')
             item = item.attribute.parent
 
         if item is None:
@@ -216,15 +216,15 @@ class XPathContext:
         else:
             return is_element_node(self.item)
 
-    def iter(self):
+    def iter(self) -> Iterator[Union[ElementNode, DocumentNode, AttributeNode, TextNode]]:
         """Iterates context nodes, including text and attribute nodes."""
         root = self.root
         if is_document_node(root):
             yield root
-            root = root.getroot()
+            root = cast(DocumentNode, root).getroot()
         yield from self._iter_nodes(root, with_attributes=True)
 
-    def iter_results(self, results):
+    def iter_results(self, results: Iterable) -> Iterator[ContextItemType]:
         """
         Iterates results in document order.
 
@@ -250,7 +250,7 @@ class XPathContext:
 
         self.item = status
 
-    def inner_focus_select(self, token):
+    def inner_focus_select(self, token: 'XPathToken'):
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position
         results = [x for x in token.select(copy(self))]
@@ -310,8 +310,10 @@ class XPathContext:
         yield self.item
         self.axis = status
 
-    def iter_attributes(self):
+    def iter_attributes(self) -> Iterator[Union[AttributeNode, TypedAttribute]]:
         """Iterator for 'attribute' axis and '@' shortcut."""
+        status: Any
+
         if isinstance(self.item, (AttributeNode, TypedAttribute)):
             status = self.axis
             self.axis = 'attribute'
@@ -327,13 +329,13 @@ class XPathContext:
         if isinstance(self.item, TypedElement):
             self.item = self.item.elem
 
-        elem = self.item
+        elem = cast(ElementNode, self.item)
         if is_schema_node(elem):
             # TODO: for backward compatibility, to be removed in release 3.0.
             for self.item in (AttributeNode(*x) for x in elem.attrib.items()):
                 yield self.item
         else:
-            for self.item in (AttributeNode(*x, parent=elem) for x in elem.attrib.items()):
+            for self.item in (AttributeNode(x[0], x[1], parent=elem) for x in elem.attrib.items()):
                 yield self.item
 
         self.item, self.axis = status

@@ -8,8 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
+from typing import Optional
+
 from .exceptions import ElementPathTypeError
-from .namespaces import XSD_NAMESPACE
+from .protocols import ElementProtocol
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
@@ -23,212 +25,19 @@ from .xpath_context import XPathSchemaContext
 # the usage of these interfaces.
 #
 
-class AbstractXsdComponent(metaclass=ABCMeta):
-    """Interface for XSD components."""
-
-    @property
-    @abstractmethod
-    def name(self):
-        """The XSD component's name. It's `None` for a local type definition."""
-
-    @property
-    @abstractmethod
-    def local_name(self):
-        """The local part of the XSD component's name. It's `None` for a local type definition."""
-
-    @abstractmethod
-    def is_matching(self, name, default_namespace):
-        """
-        Returns `True` if the component name is matching the name provided as argument,
-        `False` otherwise.
-
-        :param name: a local or fully-qualified name.
-        :param default_namespace: used if it's not None and not empty for completing \
-        the name argument in case it's a local name.
-        """
-
-
-class AbstractEtreeElement(metaclass=ABCMeta):
-    """Interface for ElementTree compatible elements."""
-
-    @property
-    @abstractmethod
-    def tag(self):
-        """The element tag."""
-
-    @property
-    @abstractmethod
-    def attrib(self):
-        """The element's attributes dictionary."""
-
-    @property
-    @abstractmethod
-    def text(self):
-        """The element text."""
-
-    @abstractmethod
-    def __iter__(self):
-        """Iterate over element's children."""
-
-    @abstractmethod
-    def find(self, path, namespaces=None):
-        """
-        Find the first item selected by an XPath expression.
-
-        :param path: an XPath expression.
-        :param namespaces: an optional mapping from namespace prefix to namespace URI.
-        :return: The first selected item or ``None`` if there is no match.
-        """
-
-
-class AbstractGlobalMaps(metaclass=ABCMeta):
-    """Interface for XSD global components."""
-
-    @property
-    @abstractmethod
-    def types(self) -> dict:
-        """A mapping to XSD global types."""
-
-    @property
-    @abstractmethod
-    def attributes(self) -> dict:
-        """A mapping to XSD global attributes."""
-
-    @property
-    @abstractmethod
-    def elements(self) -> dict:
-        """A mapping to XSD global elements."""
-
-    @property
-    @abstractmethod
-    def substitution_groups(self) -> dict:
-        """A mapping to XSD substitution groups."""
-
-
-class AbstractXsdSchema(AbstractEtreeElement):
-    """Interface for XSD schemas."""
-
-    @property
-    @abstractmethod
-    def xsd_version(self) -> str:
-        """The XSD version, returns '1.0' or '1.1'."""
-
-    @property
-    def tag(self):
-        return '{%s}schema' % XSD_NAMESPACE
-
-    @property
-    @abstractmethod
-    def attrib(self):
-        """A mapping containing the global attributes of the schema."""
-
-    @property
-    def text(self):
-        return
-
-    @abstractmethod
-    def __iter__(self):
-        """Iterate over global elements of the schema."""
-
-    @property
-    @abstractmethod
-    def maps(self) -> AbstractGlobalMaps:
-        """Shared global maps of loaded XSD components."""
-
-
-class AbstractXsdElement(AbstractXsdComponent, AbstractEtreeElement):
-    """Interface for XSD elements."""
-
-    @property
-    @abstractmethod
-    def type(self):
-        """The element's XSD type."""
-
-
-class AbstractXsdAttribute(AbstractXsdComponent):
-    """Interface for XSD attributes."""
-
-    @property
-    @abstractmethod
-    def type(self):
-        """The attribute's XSD type."""
-
-
-class AbstractXsdType(AbstractXsdComponent):
-    """Interface for XSD types."""
-
-    @abstractmethod
-    def is_simple(self):
-        """Returns `True` if it's a simpleType instance, `False` if it's a complexType."""
-
-    @abstractmethod
-    def is_empty(self):
-        """
-        Returns `True` if it's a simpleType instance or a complexType with empty content,
-        `False` otherwise.
-        """
-
-    @abstractmethod
-    def has_simple_content(self):
-        """
-        Returns `True` if it's a simpleType instance or a complexType with simple content,
-        `False` otherwise.
-        """
-
-    @abstractmethod
-    def has_mixed_content(self):
-        """
-        Returns `True` if it's a complexType with mixed content, `False` otherwise.
-        """
-
-    @abstractmethod
-    def is_element_only(self):
-        """
-        Returns `True` if it's a complexType with element-only content, `False` otherwise.
-        """
-
-    @abstractmethod
-    def is_key(self):
-        """Returns `True` if it's a simpleType derived from xs:ID, `False` otherwise."""
-
-    @abstractmethod
-    def is_qname(self):
-        """Returns `True` if it's a simpleType derived from xs:QName, `False` otherwise."""
-
-    @abstractmethod
-    def is_notation(self):
-        """Returns `True` if it's a simpleType derived from xs:NOTATION, `False` otherwise."""
-
-    @abstractmethod
-    def validate(self, obj, *args, **kwargs):
-        """
-        Validates an XML object node using the XSD type. The argument *obj* is an element
-        for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
-        compatible exception (a `ValueError` or a subclass of it) if the argument is not valid.
-        """
-
-    @abstractmethod
-    def decode(self, obj, *args, **kwargs):
-        """
-        Decodes an XML object node using the XSD type. The argument *obj* is an element
-        for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
-        or a `TypeError` compatible exception if the argument it's not valid.
-        """
-
 
 ####
-# Schema proxy classes
+# Schema proxy class:
 #
 
 class AbstractSchemaProxy(metaclass=ABCMeta):
     """
-    Abstract class for defining schema proxies.
+    Abstract base class for defining schema proxies.
 
     :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
-    :param base_element: the schema element used as base item for static analysis. It must \
-    implements the `AbstractXsdElement` interface.
+    :param base_element: the schema element used as base item for static analysis.
     """
-    def __init__(self, schema, base_element=None):
+    def __init__(self, schema, base_element: Optional[ElementProtocol   ] = None):
         if not is_etree_element(schema):
             raise ElementPathTypeError(
                 "argument {!r} is not a compatible schema instance".format(schema)
@@ -362,6 +171,4 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
 
-__all__ = ['AbstractXsdComponent', 'AbstractEtreeElement', 'AbstractGlobalMaps',
-           'AbstractXsdSchema', 'AbstractXsdAttribute', 'AbstractXsdElement',
-           'AbstractXsdType', 'AbstractSchemaProxy']
+__all__ = ['AbstractSchemaProxy']

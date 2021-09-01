@@ -19,14 +19,22 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import *
-from elementpath.schema_proxy import AbstractXsdType
 
 
-DummyXsdType = type(
-    'XsdType', (AbstractXsdType,),
-    dict(name=None, local_name=None, is_matching=lambda x: False, **{
-        k: lambda x: None for k in AbstractXsdType.__dict__ if k[0] != '_'
-    }))
+class DummyXsdType:
+    name = local_name = None
+
+    def is_matching(self, name, default_namespace): pass
+    def is_empty(self): pass
+    def is_simple(self): pass
+    def has_simple_content(self): pass
+    def has_mixed_content(self): pass
+    def is_element_only(self): pass
+    def is_key(self): pass
+    def is_qname(self): pass
+    def is_notation(self): pass
+    def decode(self, obj, *args, **kwargs): pass
+    def validate(self, obj, *args, **kwargs): pass
 
 
 class XPathContextTest(unittest.TestCase):
@@ -114,7 +122,7 @@ class XPathContextTest(unittest.TestCase):
             self.assertEqual(id(context._parent_map), parent_map_id)
 
         self.assertIsNone(context.get_parent(AttributeNode('max', '10')))
-        self.assertNotEqual(id(context._parent_map), parent_map_id)
+        self.assertEqual(id(context._parent_map), parent_map_id)
 
         parent_map_id = id(context._parent_map)
         self.assertIsNone(context.get_parent(AttributeNode('max', '10')))
