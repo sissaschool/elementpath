@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.3.0`_ (2021-09-01)
+======================
+* Add inline type annotations check support
+* Add structural Protocol based type checks (effective for Python 3.8+)
+
 `v2.2.3`_ (2021-06-16)
 ======================
 * Add Python 3.10 in Tox and CI tests
@@ -317,3 +322,4 @@ CHANGELOG
 .. _v2.2.1: https://github.com/sissaschool/elementpath/compare/v2.2.0...v2.2.1
 .. _v2.2.2: https://github.com/sissaschool/elementpath/compare/v2.2.1...v2.2.2
 .. _v2.2.3: https://github.com/sissaschool/elementpath/compare/v2.2.2...v2.2.3
+.. _v2.3.0: https://github.com/sissaschool/elementpath/compare/v2.2.3...v2.3.0
