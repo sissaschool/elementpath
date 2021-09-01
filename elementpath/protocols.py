@@ -26,7 +26,8 @@ if not TYPE_CHECKING or sys.version_info < (3, 8):
     GlobalMapsProtocol = Any
     XsdSchemaProtocol = Any
 else:
-    from typing import Dict, Iterator, Iterable, Literal, NoReturn, Optional, Protocol, Sized
+    from typing import Dict, Iterator, Iterable, List, Literal, \
+        NoReturn, Optional, Protocol, Sized
 
 
     class ElementProtocol(Iterable['ElementProtocol'], Sized, Protocol):
@@ -118,7 +119,7 @@ else:
         types: Dict[str, XsdTypeProtocol]
         attributes: Dict[str, XsdAttributeProtocol]
         elements: Dict[str, XsdElementProtocol]
-        substitution_groups: Dict[str, XsdElementProtocol]
+        substitution_groups: Dict[str, List[XsdElementProtocol]]
 
 
     class XsdSchemaProtocol(ElementProtocol, Protocol):
@@ -127,3 +128,7 @@ else:
         attrib: Dict[str, Any]
         text: None
         maps: GlobalMapsProtocol
+
+
+__all__ = ['ElementProtocol', 'DocumentProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
+           'XsdElementProtocol', 'XsdAttributeProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol']
