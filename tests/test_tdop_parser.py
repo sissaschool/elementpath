@@ -38,11 +38,11 @@ class TdopParserTest(unittest.TestCase):
         ExpressionParser.register('(unknown)')
 
         @ExpressionParser.method(ExpressionParser.infix('+', bp=40))
-        def evaluate(self, context=None):
+        def evaluate_plus(self, context=None):
             return self[0].evaluate(context) + self[1].evaluate(context)
 
         @ExpressionParser.method(ExpressionParser.infix('-', bp=40))
-        def evaluate(self, context=None):
+        def evaluate_minus(self, context=None):
             return self[0].evaluate(context) - self[1].evaluate(context)
 
         cls.parser = ExpressionParser()
@@ -173,6 +173,7 @@ class TdopParserTest(unittest.TestCase):
         self.assertEqual(str(ec.exception), "unexpected name 'UNKNOWN'")
 
         parser = self.parser.__class__()
+        parser.symbol_table = parser.symbol_table.copy()
         parser.build()
         parser.symbol_table.pop('+')
 
@@ -336,25 +337,25 @@ class TdopParserTest(unittest.TestCase):
         ExpressionParser.postfix('+')
 
         @ExpressionParser.method(ExpressionParser.prefix('++', bp=90))
-        def evaluate(self_, context=None):
+        def evaluate_increment(self_, context=None):
             return self_[0].evaluate(context) + 1
 
         @ExpressionParser.method(ExpressionParser.postfix('+', bp=90))
-        def evaluate(self_, context=None):
+        def evaluate_plus(self_, context=None):
             return self_[0].evaluate(context) + 1
 
         @ExpressionParser.method(ExpressionParser.infixr('-', bp=50))
-        def evaluate(self_, context=None):
+        def evaluate_minus(self_, context=None):
             return self_[0].evaluate(context) - self_[1].evaluate(context)
 
         @ExpressionParser.method('*', bp=70)
-        def nud(self_):
+        def nud_mul(self_):
             for _ in range(3):
                 self_.append(self_.parser.expression(rbp=70))
             return self_
 
         @ExpressionParser.method('*', bp=70)
-        def evaluate(self_, context=None):
+        def evaluate_mul(self_, context=None):
             return self_[0].evaluate(context) * \
                 self_[1].evaluate(context) * self_[2].evaluate(context)
 
