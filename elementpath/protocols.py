@@ -30,15 +30,18 @@ else:
         NoReturn, Optional, Protocol, Sized
 
     class ElementProtocol(Iterable['ElementProtocol'], Sized, Protocol):
+        def find(
+            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+        ) -> Optional['ElementProtocol']: ...
+        def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
         tag: str
         attrib: Dict[str, str]
         text: Optional[str]
         tail: Optional[str]
 
-        def find(self, path: str, namespaces: Optional[Dict[str, str]] = ...) \
-            -> Optional['ElementProtocol']: ...
-
-        def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
+    class LxmlElementProtocol(ElementProtocol, Protocol):
+        def getparent(self) -> Optional['LxmlElementProtocol']: ...
+        nsmap: Dict[Optional[str], str]
 
     class DocumentProtocol(Iterable[ElementProtocol], Protocol):
         def getroot(self) -> ElementProtocol: ...
@@ -46,56 +49,44 @@ else:
         def iter(self, tag: Optional[str] = ...) -> Iterator[ElementProtocol]: ...
 
     class XsdComponentProtocol(Protocol):
+        def is_matching(self, name: Optional[str],
+                        default_namespace: Optional[str] = None) -> bool: ...
         name: Optional[str]
         local_name:  Optional[str]
 
-        def is_matching(self, name: Optional[str],
-                        default_namespace: Optional[str] = None) -> bool: ...
-
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):
-        """Interface for XSD types."""
-
         def is_simple(self) -> bool:
             """Returns `True` if it's a simpleType instance, `False` if it's a complexType."""
-
         def is_empty(self) -> bool:
             """
             Returns `True` if it's a simpleType instance or a complexType with empty content,
             `False` otherwise.
             """
-
         def has_simple_content(self) -> bool:
             """
             Returns `True` if it's a simpleType instance or a complexType with simple content,
             `False` otherwise.
             """
-
         def has_mixed_content(self) -> bool:
             """
             Returns `True` if it's a complexType with mixed content, `False` otherwise.
             """
-
         def is_element_only(self) -> bool:
             """
             Returns `True` if it's a complexType with element-only content, `False` otherwise.
             """
-
         def is_key(self) -> bool:
             """Returns `True` if it's a simpleType derived from xs:ID, `False` otherwise."""
-
         def is_qname(self) -> bool:
             """Returns `True` if it's a simpleType derived from xs:QName, `False` otherwise."""
-
         def is_notation(self) -> bool:
             """Returns `True` if it's a simpleType derived from xs:NOTATION, `False` otherwise."""
-
         def validate(self, obj, *args, **kwargs) -> NoReturn:
             """
             Validates an XML object node using the XSD type. The argument *obj* is an element
             for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
             compatible exception (a `ValueError` or a subclass of it) if the argument is not valid.
             """
-
         def decode(self, obj, *args, **kwargs) -> Any:
             """
             Decodes an XML object node using the XSD type. The argument *obj* is an element
@@ -123,5 +114,6 @@ else:
         maps: GlobalMapsProtocol
 
 
-__all__ = ['ElementProtocol', 'DocumentProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
-           'XsdElementProtocol', 'XsdAttributeProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol']
+__all__ = ['ElementProtocol', 'LxmlElementProtocol', 'DocumentProtocol',
+           'XsdComponentProtocol', 'XsdTypeProtocol', 'XsdElementProtocol',
+           'XsdAttributeProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol']
