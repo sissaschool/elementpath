@@ -12,7 +12,7 @@ import math
 import decimal
 import operator
 from copy import copy
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple, Type, MutableMapping
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -26,7 +26,7 @@ from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import XPathToken, XPathAxis, XPathFunction
+from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
     is_xpath_node, match_element_node, is_schema_node, is_document_node, \
     match_attribute_node, is_element_node, node_kind
@@ -42,7 +42,7 @@ OPERATORS_MAP = {
 }
 
 
-class XPath1Parser(Parser):
+class XPath1Parser(Parser[XPathToken]):
     """
     XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
     mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`
@@ -105,6 +105,10 @@ class XPath1Parser(Parser):
     }
 
     # Class attributes for compatibility with XPath 2.0+
+    schema: Optional[AbstractSchemaProxy]
+    variable_types: Optional[Dict[str, str]]
+    symbol_table: MutableMapping[str, Type[XPathToken]]
+
     schema = None           # XPath 1.0 doesn't have schema bindings
     variable_types = None   # XPath 1.0 doesn't have in-scope variable types
     xsd_version = '1.0'     # Use XSD 1.0 datatypes for default
@@ -118,7 +122,7 @@ class XPath1Parser(Parser):
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 
-    def __init__(self, namespaces=None, strict=True, *args, **kwargs):
+    def __init__(self, namespaces: Optional[Dict[str, str]] = None, strict=True, *args, **kwargs):
         super(XPath1Parser, self).__init__()
         self.namespaces = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
@@ -126,19 +130,19 @@ class XPath1Parser(Parser):
         self.strict = strict
 
     @property
-    def compatibility_mode(self):
+    def compatibility_mode(self) -> bool:
         """XPath 1.0 compatibility mode."""
         return True
 
     @property
-    def default_namespace(self):
+    def default_namespace(self) -> Optional[str]:
         """
         The default namespace. For XPath 1.0 this value is always `None` because the default
         namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
         """
-        return
+        return None
 
-    def xsd_qname(self, local_name):
+    def xsd_qname(self, local_name: str) -> str:
         """Returns a prefixed QName string for XSD namespace."""
         if self.namespaces.get('xs') == XSD_NAMESPACE:
             return 'xs:%s' % local_name
@@ -150,25 +154,27 @@ class XPath1Parser(Parser):
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
 
     @staticmethod
-    def unescape(string_literal):
+    def unescape(string_literal: str) -> str:
         if string_literal.startswith("'"):
             return string_literal[1:-1].replace("''", "'")
         else:
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
-    def axis(cls, symbol, reverse_axis=False, bp=80):
+    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> XPathAxis:
         """Register a token for a symbol that represents an XPath *axis*."""
         return cls.register(symbol, label='axis', bases=(XPathAxis,),
                             reverse_axis=reverse_axis, lbp=bp, rbp=bp)
 
     @classmethod
-    def function(cls, symbol, nargs=None, sequence_types=(), label='function', bp=90):
+    def function(cls, symbol: str, nargs: NargsType = None,
+                 sequence_types: Tuple[str, ...] = (),
+                 label: str = 'function', bp: int = 90):
         """
         Registers a token class for a symbol that represents an XPath function.
         """
         if 'function' not in label:
-            pass
+            pass  # kind test or sequence type
         elif symbol in cls.RESERVED_FUNCTION_NAMES:
             raise ElementPathValueError(f'{symbol!r} is a reserved function name')
         elif sequence_types:
@@ -200,7 +206,7 @@ class XPath1Parser(Parser):
         return cls.register(symbol, nargs=nargs, sequence_types=sequence_types, label=label,
                             bases=(XPathFunction,), lbp=bp, rbp=bp)
 
-    def parse(self, source):
+    def parse(self, source: str):
         root_token = super(XPath1Parser, self).parse(source)
         try:
             root_token.evaluate()  # Static context evaluation
@@ -418,6 +424,16 @@ method = XPath1Parser.method
 function = XPath1Parser.function
 axis = XPath1Parser.axis
 
+###
+# Special symbols
+register('(start)')
+register('(end)')
+literal('(string)')
+literal('(float)')
+literal('(decimal)')
+literal('(integer)')
+literal('(invalid)')
+literal('(unknown)')
 
 ###
 # Simple symbols
@@ -426,16 +442,6 @@ register(')', bp=100)
 register(']')
 register('::')
 register('}')
-
-
-###
-# Literals
-literal('(string)')
-literal('(float)')
-literal('(decimal)')
-literal('(integer)')
-literal('(invalid)')
-literal('(unknown)')
 
 
 @method(register('(name)', bp=10, label='literal'))

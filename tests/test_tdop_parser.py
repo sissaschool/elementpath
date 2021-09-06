@@ -194,17 +194,17 @@ class TdopParserTest(unittest.TestCase):
         parser = type(self.parser)()
         parser.source = '   7 +\n 8 '
         parser.tokens = iter(parser.tokenizer.finditer(parser.source))
-        self.assertIsNone(parser.token)
+        self.assertEqual(parser.token.symbol, '(start)')
 
         parser.advance()
-        self.assertIsNone(parser.token)
+        self.assertEqual(parser.token.symbol, '(start)')
         self.assertEqual(parser.position, (1, 4))
         self.assertTrue(parser.is_source_start())
         self.assertTrue(parser.is_line_start())
         self.assertFalse(parser.is_spaced())
 
         parser.advance()
-        self.assertIsNotNone(parser.token)
+        self.assertNotEqual(parser.token.symbol, '(start)')
         self.assertEqual(parser.token.value, 7)
         self.assertEqual(parser.position, (1, 4))
         self.assertTrue(parser.is_source_start())
