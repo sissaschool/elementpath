@@ -17,8 +17,8 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
-from typing import Dict, Type, Union, Optional
-
+from typing import cast, Type, Optional, Tuple, MutableMapping, TypeVar, Generic
+from typing import Pattern, Match
 
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
@@ -39,10 +39,11 @@ from typing import Dict, Type, Union, Optional
 #
 
 # Parser special symbols set, that includes the special symbols of TDOP plus two
-# additional special symbols for managing invalid literals and unknown symbols.
+# additional special symbols for managing invalid literals and unknown symbols
+# and source start.
 SPECIAL_SYMBOLS = frozenset((
-    '(string)', '(float)', '(decimal)', '(integer)',
-    '(name)', '(end)', '(invalid)', '(unknown)'
+    '(start)', '(end)', '(string)', '(float)', '(decimal)',
+    '(integer)', '(name)', '(invalid)', '(unknown)',
 ))
 
 SPACE_PATTERN = re.compile(r'\s')
@@ -199,9 +200,9 @@ class Token(MutableSequence):
     def __repr__(self):
         symbol, value = self.symbol, self.value
         if value != symbol:
-            return u'%s(value=%r)' % (self.__class__.__name__, value)
+            return '%s(value=%r)' % (self.__class__.__name__, value)
         else:
-            return u'%s()' % self.__class__.__name__
+            return '%s()' % self.__class__.__name__
 
     def __eq__(self, other):
         try:
@@ -311,7 +312,7 @@ class Token(MutableSequence):
             return ParseError('unexpected name %r' % self.value)
         elif self.symbol != '(end)':
             return ParseError('unexpected literal %r' % self.value)
-        elif self.parser.token is None:
+        elif self.parser.token.symbol == '(start)':
             return ParseError('source is empty')
         else:
             return ParseError('unexpected end of source')
@@ -321,6 +322,9 @@ class Token(MutableSequence):
 
     def wrong_value(self, message='invalid value'):
         return ValueError(message)
+
+
+TokenType = TypeVar('TokenType', bound='Token')
 
 
 class ParserMeta(type):
@@ -359,7 +363,7 @@ class ParserMeta(type):
         return cls
 
 
-class Parser(metaclass=ParserMeta):
+class Parser(Generic[TokenType], metaclass=ParserMeta):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
 
@@ -374,8 +378,12 @@ class Parser(metaclass=ParserMeta):
     """
     SYMBOLS = SPECIAL_SYMBOLS
     token_base_class = Token
-    tokenizer = None
-    symbol_table: Dict[str, Union[ABCMeta, Type[Token]]] = {}
+    tokenizer: Optional[Pattern] = None
+    symbol_table: MutableMapping[str, Type[TokenType]] = {}
+
+    token: TokenType
+    next_token: TokenType
+    name_pattern: Pattern
 
     __slots__ = 'source', 'tokens', 'match', 'token', 'next_token'
 
@@ -384,16 +392,15 @@ class Parser(metaclass=ParserMeta):
             self.build()
         self.source = ''
         self.tokens = iter(())
-        self.match = None
-        self.token = None
-        self.next_token = None
+        self.match: Optional[Match] = None
+        self.token = self.next_token = self.symbol_table['(start)'](self)
 
     def __eq__(self, other):
         return self.token_base_class is other.token_base_class and \
             self.SYMBOLS == other.SYMBOLS and \
             self.symbol_table == other.symbol_table
 
-    def parse(self, source):
+    def parse(self, source: str) -> TokenType:
         """
         Parses a source code of the formal language. This is the main method that has to be
         called for a parser's instance.
@@ -403,7 +410,7 @@ class Parser(metaclass=ParserMeta):
         """
         try:
             try:
-                self.tokens = iter(self.tokenizer.finditer(source))
+                self.tokens = iter(self.tokenizer.finditer(source))  # type: ignore[union-attr]
             except TypeError as err:
                 token = self.symbol_table['(invalid)'](self, type(source))
                 raise token.wrong_syntax('invalid source type, {}'.format(err))
@@ -416,10 +423,9 @@ class Parser(metaclass=ParserMeta):
         finally:
             self.tokens = iter(())
             self.match = None
-            self.token = None
-            self.next_token = None
+            self.token = self.next_token = self.symbol_table['(start)'](self)
 
-    def advance(self, *symbols):
+    def advance(self, *symbols: Tuple[str]) -> TokenType:
         """
         The Pratt's function for advancing to next token.
 
@@ -428,7 +434,7 @@ class Parser(metaclass=ParserMeta):
         parse error.
         :return: The next token instance.
         """
-        if self.next_token is not None:
+        if self.next_token.symbol != '(start)':
             if self.next_token.symbol == '(end)' or \
                     symbols and self.next_token.symbol not in symbols:
                 raise self.next_token.wrong_syntax()
@@ -436,7 +442,7 @@ class Parser(metaclass=ParserMeta):
         self.token = self.next_token
         while True:
             try:
-                self.match = next(self.tokens)
+                self.match = cast(Match, next(self.tokens))
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
@@ -525,7 +531,7 @@ class Parser(metaclass=ParserMeta):
                     source_chunk.append(self.match.group())
         return ''.join(source_chunk)
 
-    def expression(self, rbp=0):
+    def expression(self, rbp: int = 0) -> TokenType:
         """
         Pratt's function for parsing an expression. It calls token.nud() and then advances
         until the right binding power is less the left binding power of the next
@@ -546,7 +552,7 @@ class Parser(metaclass=ParserMeta):
     @property
     def position(self):
         """Property that returns the current line and column indexes."""
-        if self.token is None:
+        if self.token.symbol == '(start)':
             return 1, 1 + count_leading_spaces(self.source)
         return self.token.position
 
@@ -555,7 +561,7 @@ class Parser(metaclass=ParserMeta):
         Returns `True` if the parser is positioned at the start
         of the source, ignoring the spaces.
         """
-        if self.token is None:
+        if self.token.symbol == '(start)':
             return True
         return not bool(self.source[0:self.token.span[0]].strip())
 
@@ -564,7 +570,7 @@ class Parser(metaclass=ParserMeta):
         Returns `True` if the parser is positioned at the start
         of a source line, ignoring the spaces.
         """
-        if self.token is None:
+        if self.token.symbol == '(start)':
             return True
         token_index = self.token.span[0]
         try:
@@ -584,7 +590,7 @@ class Parser(metaclass=ParserMeta):
         :param after: if `True` considers also the extra spaces after \
         the current token symbol.
         """
-        if self.token is None:
+        if self.token.symbol == '(start)':
             return False
 
         start, end = self.token.span
@@ -625,7 +631,8 @@ class Parser(metaclass=ParserMeta):
             # Register a new symbol and create a new custom class. The new class
             # name is registered at parser class's module level.
             if symbol not in cls.SYMBOLS:
-                raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
+                if symbol != '(start)':  # for backward compatibility
+                    raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
             kwargs['symbol'] = symbol
             label = kwargs.get('label', 'symbol')
@@ -745,6 +752,10 @@ class Parser(metaclass=ParserMeta):
         Builds the parser class. Checks if all declared symbols are defined
         and builds a the regex tokenizer using the symbol related patterns.
         """
+        # For backward compatibility with external defined parsers
+        if '(start)' not in cls.symbol_table:
+            cls.register('(start)')
+
         if not cls.SYMBOLS.issubset(cls.symbol_table.keys()):
             unregistered = [s for s in cls.SYMBOLS if s not in cls.symbol_table]
             raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))

@@ -25,7 +25,7 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import Union
+from typing import Optional, Tuple, Union
 import urllib.parse
 from xml.etree.ElementTree import Element
 
@@ -46,8 +46,10 @@ from .tdop import Token, MultiLabel
 from .xpath_context import XPathSchemaContext
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+
+# Type annotations aliases
+NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 
 
 class XPathToken(Token):
@@ -1094,13 +1096,13 @@ class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
     """
-    _name = None
+    _name: Optional[QName] = None
     pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
 
-    sequence_types = ()
+    sequence_types: Tuple[str, ...] = ()
     "Sequence types of arguments and of the return value of the function."
 
-    nargs = None
+    nargs: NargsType = None
     "Number of arguments: a single value or a couple with None that means unbounded."
 
     def __init__(self, parser, nargs=None):

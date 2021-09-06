@@ -11,12 +11,12 @@ import re
 import math
 from calendar import isleap, leapdays
 from decimal import Decimal
-from typing import Optional, Pattern, Union
+from typing import Optional, Union
 
 ###
 # Data validation helpers
 
-NORMALIZE_PATTERN: Pattern[str] = re.compile(r'[^\S\xa0]')
+NORMALIZE_PATTERN = re.compile(r'[^\S\xa0]')
 WHITESPACES_PATTERN = re.compile(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
 QNAME_PATTERN = re.compile(

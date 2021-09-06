@@ -130,6 +130,3 @@ def select_preceding_axis(self, context=None):
     elif is_element_node(context.item):
         for _ in context.iter_preceding():
             yield from self[0].select(context)
-
-
-register = XPath1Parser.register('(end)')
