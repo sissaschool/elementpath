@@ -434,10 +434,9 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
         parse error.
         :return: The next token instance.
         """
-        if self.next_token.symbol != '(start)':
-            if self.next_token.symbol == '(end)' or \
-                    symbols and self.next_token.symbol not in symbols:
-                raise self.next_token.wrong_syntax()
+        if self.next_token.symbol == '(end)' or \
+                symbols and self.next_token.symbol not in symbols:
+            raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
         while True:
@@ -552,8 +551,6 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
     @property
     def position(self):
         """Property that returns the current line and column indexes."""
-        if self.token.symbol == '(start)':
-            return 1, 1 + count_leading_spaces(self.source)
         return self.token.position
 
     def is_source_start(self):
@@ -561,8 +558,6 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
         Returns `True` if the parser is positioned at the start
         of the source, ignoring the spaces.
         """
-        if self.token.symbol == '(start)':
-            return True
         return not bool(self.source[0:self.token.span[0]].strip())
 
     def is_line_start(self):
@@ -570,8 +565,6 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
         Returns `True` if the parser is positioned at the start
         of a source line, ignoring the spaces.
         """
-        if self.token.symbol == '(start)':
-            return True
         token_index = self.token.span[0]
         try:
             line_start = self.source[:token_index].rindex('\n') + 1
@@ -590,9 +583,6 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
         :param after: if `True` considers also the extra spaces after \
         the current token symbol.
         """
-        if self.token.symbol == '(start)':
-            return False
-
         start, end = self.token.span
         try:
             if before and start > 0 and self.source[start - 1] in ' \t\n':

@@ -198,10 +198,10 @@ class TdopParserTest(unittest.TestCase):
 
         parser.advance()
         self.assertEqual(parser.token.symbol, '(start)')
-        self.assertEqual(parser.position, (1, 4))
+        self.assertEqual(parser.position, (1, 1))
         self.assertTrue(parser.is_source_start())
         self.assertTrue(parser.is_line_start())
-        self.assertFalse(parser.is_spaced())
+        self.assertTrue(parser.is_spaced())
 
         parser.advance()
         self.assertNotEqual(parser.token.symbol, '(start)')
