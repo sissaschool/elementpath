@@ -17,7 +17,7 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
-from typing import cast, ClassVar, Dict, Optional, Tuple, Type
+from typing import cast, ClassVar, Callable, Dict, List, Optional, Union, Type
 from typing import Pattern, Match
 
 #
@@ -378,11 +378,13 @@ class Parser(metaclass=ParserMeta):
     tokenizer: Optional[Pattern] = None
     symbol_table: ClassVar[Dict[str, Type[Token]]] = {}
 
+    _start_token: Token
     token: Token
     next_token: Token
+    literals_pattern: Pattern
     name_pattern: Pattern
 
-    __slots__ = 'source', 'tokens', 'match', 'token', 'next_token'
+    __slots__ = 'source', 'tokens', 'match', '_start_token', 'token', 'next_token'
 
     def __init__(self):
         if self.tokenizer is None:
@@ -390,7 +392,8 @@ class Parser(metaclass=ParserMeta):
         self.source = ''
         self.tokens = iter(())
         self.match: Optional[Match] = None
-        self.token = self.next_token = self.symbol_table['(start)'](self)
+        self._start_token = self.symbol_table['(start)'](self)
+        self.token = self.next_token = self._start_token
 
     def __eq__(self, other):
         return self.token_base_class is other.token_base_class and \
@@ -420,9 +423,9 @@ class Parser(metaclass=ParserMeta):
         finally:
             self.tokens = iter(())
             self.match = None
-            self.token = self.next_token = self.symbol_table['(start)'](self)
+            self.token = self.next_token = self._start_token
 
-    def advance(self, *symbols: Tuple[str]) -> Token:
+    def advance(self, *symbols: str) -> Token:
         """
         The Pratt's function for advancing to next token.
 
@@ -487,7 +490,7 @@ class Parser(metaclass=ParserMeta):
                     raise RuntimeError(msg % self.match.group())
         return self.next_token
 
-    def advance_until(self, *stop_symbols):
+    def advance_until(self, *stop_symbols: str) -> str:
         """
         Advances until one of the symbols is found or the end of source is reached,
         returning the raw source string placed before. Useful for raw parsing of
@@ -503,10 +506,10 @@ class Parser(metaclass=ParserMeta):
             raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
-        source_chunk = []
+        source_chunk: List[str] = []
         while True:
             try:
-                self.match = next(self.tokens)
+                self.match = cast(Match, next(self.tokens))
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
@@ -593,7 +596,7 @@ class Parser(metaclass=ParserMeta):
         return string_literal[1:-1].replace("\\'", "'").replace('\\"', '"')
 
     @classmethod
-    def register(cls, symbol, **kwargs):
+    def register(cls, symbol, **kwargs) -> Type[Token]:
         """
         Register/update a token class in the symbol table.
 
@@ -635,7 +638,7 @@ class Parser(metaclass=ParserMeta):
                 '__qualname__': token_class_name,
                 '__return__': None
             })
-            token_class = ABCMeta(token_class_name, token_class_bases, kwargs)
+            token_class = cast(Type[Token], ABCMeta(token_class_name, token_class_bases, kwargs))
             cls.symbol_table[symbol] = token_class
             MutableSequence.register(token_class)
             setattr(sys.modules[cls.__module__], token_class_name, token_class)
@@ -657,7 +660,7 @@ class Parser(metaclass=ParserMeta):
         del cls.symbol_table[symbol.strip()]
 
     @classmethod
-    def duplicate(cls, symbol: str, new_symbol: str, **kwargs):
+    def duplicate(cls, symbol: str, new_symbol: str, **kwargs) -> Type[Token]:
         """Duplicate a token class with a new symbol."""
         token_class = cls.symbol_table[symbol]
         new_token_class = cls.register(new_symbol, **kwargs)
@@ -668,7 +671,7 @@ class Parser(metaclass=ParserMeta):
         return new_token_class
 
     @classmethod
-    def literal(cls, symbol, bp=0):
+    def literal(cls, symbol: str, bp: int = 0):
         """Register a token for a symbol that represents a *literal*."""
         def nud(self):
             return self
@@ -679,14 +682,14 @@ class Parser(metaclass=ParserMeta):
         return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
 
     @classmethod
-    def nullary(cls, symbol, bp=0):
+    def nullary(cls, symbol: str, bp: int = 0):
         """Register a token for a symbol that represents a *nullary* operator."""
         def nud(self):
             return self
         return cls.register(symbol, label='operator', lbp=bp, nud=nud)
 
     @classmethod
-    def prefix(cls, symbol, bp=0):
+    def prefix(cls, symbol: str, bp: int = 0):
         """Register a token for a symbol that represents a *prefix* unary operator."""
         def nud(self):
             self[:] = self.parser.expression(rbp=bp),
@@ -694,7 +697,7 @@ class Parser(metaclass=ParserMeta):
         return cls.register(symbol, label='prefix operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
-    def postfix(cls, symbol, bp=0):
+    def postfix(cls, symbol: str, bp: int = 0):
         """Register a token for a symbol that represents a *postfix* unary operator."""
         def led(self, left):
             self[:] = left,
@@ -702,7 +705,7 @@ class Parser(metaclass=ParserMeta):
         return cls.register(symbol, label='postfix operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infix(cls, symbol, bp=0):
+    def infix(cls, symbol: str, bp: int = 0):
         """Register a token for a symbol that represents an *infix* binary operator."""
         def led(self, left):
             self[:] = left, self.parser.expression(rbp=bp)
@@ -710,7 +713,7 @@ class Parser(metaclass=ParserMeta):
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infixr(cls, symbol, bp=0):
+    def infixr(cls, symbol: str, bp: int = 0):
         """Register a token for a symbol that represents an *infixr* binary operator."""
         def led(self, left):
             self[:] = left, self.parser.expression(rbp=bp - 1)
@@ -718,7 +721,7 @@ class Parser(metaclass=ParserMeta):
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp - 1, led=led)
 
     @classmethod
-    def method(cls, symbol, bp=0):
+    def method(cls, symbol: Union[str, Type[Token]], bp: int = 0) -> Callable:
         """
         Register a token for a symbol that represents a custom operator or redefine
         a method for an existing token.
@@ -751,7 +754,7 @@ class Parser(metaclass=ParserMeta):
     build_tokenizer = build  # For backward compatibility
 
     @classmethod
-    def create_tokenizer(cls, symbol_table):
+    def create_tokenizer(cls, symbol_table: Dict[str, Type[Token]]) -> Pattern:
         """
         Returns a regex based tokenizer built from a symbol table of token classes.
         The returned tokenizer skips extra spaces between symbols.
@@ -779,7 +782,7 @@ class Parser(metaclass=ParserMeta):
             else:
                 string_patterns.append(re.escape(symbol))
 
-        symbols_patterns = []
+        symbols_patterns: List[str] = []
         if string_patterns:
             symbols_patterns.append('|'.join(sorted(string_patterns, key=lambda x: -len(x))))
         if character_patterns:

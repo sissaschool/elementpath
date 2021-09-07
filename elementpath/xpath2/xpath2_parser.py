@@ -18,6 +18,7 @@ from collections.abc import MutableSequence
 from copy import copy
 from decimal import Decimal, DivisionByZero
 from urllib.parse import urlparse
+from typing import cast
 
 from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
@@ -28,7 +29,7 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
 from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
-from ..xpath_token import UNICODE_CODEPOINT_COLLATION, XPathFunction
+from ..xpath_token import XPathToken, UNICODE_CODEPOINT_COLLATION, XPathFunction
 from ..xpath1 import XPath1Parser
 from ..xpath_context import XPathSchemaContext
 from ..schema_proxy import AbstractSchemaProxy
@@ -395,7 +396,7 @@ class XPath2Parser(XPath1Parser):
         return 'symbol_table' in self.__dict__
 
     def parse(self, source):
-        root_token = super(XPath1Parser, self).parse(source)
+        root_token = cast(XPathToken, super(XPath1Parser, self).parse(source))
         if root_token.label == 'sequence type':
             raise root_token.error('XPST0003', "not allowed in XPath expression")
 
