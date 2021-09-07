@@ -493,7 +493,7 @@ class DateTime10(OrderedDateTime):
     """XSD 1.0 xs:dateTime builtin type"""
     name = 'dateTime'
     pattern = re.compile(
-        r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+        r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
@@ -525,7 +525,7 @@ class DateTimeStamp(DateTime):
     """XSD 1.1 xs:dateTimeStamp builtin type"""
     name = 'dateTimeStamp'
     pattern = re.compile(
-        r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+        r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
         r'(T(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):'
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$')
@@ -534,7 +534,7 @@ class DateTimeStamp(DateTime):
 class Date10(OrderedDateTime):
     """XSD 1.0 xs:date builtin type"""
     name = 'date'
-    pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+    pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, day, tzinfo=None):
@@ -594,7 +594,7 @@ class GregorianMonthDay(OrderedDateTime):
 class GregorianYear10(OrderedDateTime):
     """XSD 1.0 xs:gYear builtin type"""
     name = 'gYear'
-    pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})'
+    pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, tzinfo=None):
@@ -613,7 +613,7 @@ class GregorianYear(GregorianYear10):
 class GregorianYearMonth10(OrderedDateTime):
     """XSD 1.0 xs:gYearMonth builtin type"""
     name = 'gYearMonth'
-    pattern = re.compile(r'^(?P<year>(?:-)?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
+    pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
     def __init__(self, year, month, tzinfo=None):
@@ -700,7 +700,7 @@ class Duration(AnyAtomicType):
     """
     name = 'duration'
     pattern = re.compile(
-        r'^(-)?P(?=(?:[0-9]|T))(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
+        r'^(-)?P(?=[0-9]|T)(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)D)?'
         r'(?:T(?=[0-9])(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\.[0-9]+)?)S)?)?$'
     )
 
