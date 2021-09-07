@@ -17,7 +17,7 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
-from typing import cast, Type, Optional, Tuple, MutableMapping, TypeVar, Generic
+from typing import cast, ClassVar, Dict, Optional, Tuple, Type
 from typing import Pattern, Match
 
 #
@@ -324,9 +324,6 @@ class Token(MutableSequence):
         return ValueError(message)
 
 
-TokenType = TypeVar('TokenType', bound='Token')
-
-
 class ParserMeta(type):
 
     def __new__(mcs, name, bases, namespace):
@@ -363,7 +360,7 @@ class ParserMeta(type):
         return cls
 
 
-class Parser(Generic[TokenType], metaclass=ParserMeta):
+class Parser(metaclass=ParserMeta):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
 
@@ -379,10 +376,10 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
     SYMBOLS = SPECIAL_SYMBOLS
     token_base_class = Token
     tokenizer: Optional[Pattern] = None
-    symbol_table: MutableMapping[str, Type[TokenType]] = {}
+    symbol_table: ClassVar[Dict[str, Type[Token]]] = {}
 
-    token: TokenType
-    next_token: TokenType
+    token: Token
+    next_token: Token
     name_pattern: Pattern
 
     __slots__ = 'source', 'tokens', 'match', 'token', 'next_token'
@@ -400,7 +397,7 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
             self.SYMBOLS == other.SYMBOLS and \
             self.symbol_table == other.symbol_table
 
-    def parse(self, source: str) -> TokenType:
+    def parse(self, source: str) -> Token:
         """
         Parses a source code of the formal language. This is the main method that has to be
         called for a parser's instance.
@@ -425,7 +422,7 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
             self.match = None
             self.token = self.next_token = self.symbol_table['(start)'](self)
 
-    def advance(self, *symbols: Tuple[str]) -> TokenType:
+    def advance(self, *symbols: Tuple[str]) -> Token:
         """
         The Pratt's function for advancing to next token.
 
@@ -530,7 +527,7 @@ class Parser(Generic[TokenType], metaclass=ParserMeta):
                     source_chunk.append(self.match.group())
         return ''.join(source_chunk)
 
-    def expression(self, rbp: int = 0) -> TokenType:
+    def expression(self, rbp: int = 0) -> Token:
         """
         Pratt's function for parsing an expression. It calls token.nud() and then advances
         until the right binding power is less the left binding power of the next
