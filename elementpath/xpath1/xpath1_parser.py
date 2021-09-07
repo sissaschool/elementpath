@@ -12,7 +12,7 @@ import math
 import decimal
 import operator
 from copy import copy
-from typing import Dict, Optional, Tuple
+from typing import cast, Dict, Optional, Tuple
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -21,7 +21,7 @@ from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDurati
     YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from ..xpath_context import XPathSchemaContext
-from ..tdop import Token, Parser
+from ..tdop import Parser
 from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
@@ -162,7 +162,7 @@ class XPath1Parser(Parser):
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
-    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> XPathAxis:
+    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80):
         """Register a token for a symbol that represents an XPath *axis*."""
         return cls.register(symbol, label='axis', bases=(XPathAxis,),
                             reverse_axis=reverse_axis, lbp=bp, rbp=bp)
@@ -208,7 +208,7 @@ class XPath1Parser(Parser):
                             bases=(XPathFunction,), lbp=bp, rbp=bp)
 
     def parse(self, source: str):
-        root_token = super(XPath1Parser, self).parse(source)
+        root_token = cast(XPathToken, super(XPath1Parser, self).parse(source))
         try:
             root_token.evaluate()  # Static context evaluation
         except MissingContextError:

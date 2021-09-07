@@ -18,6 +18,7 @@ if not TYPE_CHECKING or sys.version_info < (3, 8):
     # For runtime or for Python < 3.8 fallback to typing.Any
 
     ElementProtocol = Any
+    LxmlElementProtocol: Any
     DocumentProtocol = Any
     XsdComponentProtocol = Any
     XsdTypeProtocol = Any
