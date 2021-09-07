@@ -12,7 +12,7 @@ import math
 import decimal
 import operator
 from copy import copy
-from typing import Dict, Optional, Tuple, Type, MutableMapping
+from typing import Dict, Optional, Tuple
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -21,7 +21,7 @@ from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDurati
     YearMonthDuration, NumericProxy, ArithmeticProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from ..xpath_context import XPathSchemaContext
-from ..tdop import Parser
+from ..tdop import Token, Parser
 from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
@@ -42,7 +42,7 @@ OPERATORS_MAP = {
 }
 
 
-class XPath1Parser(Parser[XPathToken]):
+class XPath1Parser(Parser):
     """
     XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
     mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`
@@ -107,7 +107,8 @@ class XPath1Parser(Parser[XPathToken]):
     # Class attributes for compatibility with XPath 2.0+
     schema: Optional[AbstractSchemaProxy]
     variable_types: Optional[Dict[str, str]]
-    symbol_table: MutableMapping[str, Type[XPathToken]]
+    token: XPathToken
+    next_token: XPathToken
 
     schema = None           # XPath 1.0 doesn't have schema bindings
     variable_types = None   # XPath 1.0 doesn't have in-scope variable types
