@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.3.1`_ (2021-09-07)
+======================
+* Add LxmlElementProtocol
+* Add pytest env to tox.ini (test issue #39)
+
 `v2.3.0`_ (2021-09-01)
 ======================
 * Add inline type annotations check support
@@ -323,3 +328,4 @@ CHANGELOG
 .. _v2.2.2: https://github.com/sissaschool/elementpath/compare/v2.2.1...v2.2.2
 .. _v2.2.3: https://github.com/sissaschool/elementpath/compare/v2.2.2...v2.2.3
 .. _v2.3.0: https://github.com/sissaschool/elementpath/compare/v2.2.3...v2.3.0
+.. _v2.3.1: https://github.com/sissaschool/elementpath/compare/v2.3.0...v2.3.1
