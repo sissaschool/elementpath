@@ -36,7 +36,7 @@ DocumentNode = DocumentProtocol
 # are associated with an XSD type.
 class XPathNode:
 
-    name: Optional[str] = None
+    name: Any = None
     value: Any = None
 
     @property
@@ -52,33 +52,35 @@ class AttributeNode(XPathNode):
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
     :param parent: the parent element.
     """
+    name: str
+
     def __init__(self, name: str, value: Union[str, XsdAttributeProtocol],
-                 parent: Optional[ElementNode] = None):
-        self.name: str = name
+                 parent: Optional[ElementNode] = None) -> None:
+        self.name = name
         self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         return 'attribute'
 
-    def as_item(self):
+    def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
         return self.name, self.value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.parent is not None:
             return '%s(name=%r, value=%r, parent=%r)' % (
                 self.__class__.__name__, self.name, self.value, self.parent
             )
         return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
             self.name == other.name and \
             self.value == other.value and \
             self.parent is other.parent
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.name, self.value, self.parent))
 
 
@@ -91,36 +93,38 @@ class TextNode(XPathNode):
     :param parent: the parent element.
     :param tail: provide `True` if the text node is the parent Element's tail.
     """
+    text: None
     _tail = False
 
-    def __init__(self, value: str, parent: Optional[ElementNode] = None, tail=False):
+    def __init__(self, value: str, parent: Optional[ElementNode] = None,
+                 tail: bool = False) -> None:
         self.value = value
         self.parent = parent
         if tail and parent is not None:
             self._tail = True
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         return 'text'
 
-    def is_tail(self):
+    def is_tail(self) -> bool:
         """Returns `True` if the node has a parent and represents the tail text."""
         return self._tail
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.parent is not None:
             return '%s(%r, parent=%r, tail=%r)' % (
                 self.__class__.__name__, self.value, self.parent, self._tail
             )
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
             self.value == other.value and \
             self.parent is other.parent and \
             self._tail is other._tail
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.value, self.parent, self._tail))
 
 
@@ -132,40 +136,40 @@ class NamespaceNode(XPathNode):
     :param uri: the namespace URI.
     :param parent: the parent element.
     """
-    def __init__(self, prefix: str, uri: str, parent: Optional[ElementNode] = None):
+    def __init__(self, prefix: str, uri: str, parent: Optional[ElementNode] = None) -> None:
         self.prefix = prefix
         self.uri = uri
         self.parent = parent
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         return 'namespace'
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.prefix
 
     @property
-    def value(self):
+    def value(self) -> str:
         return self.uri
 
-    def as_item(self):
+    def as_item(self) -> Tuple[str, str]:
         return self.prefix, self.uri
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.parent is not None:
             return '%s(prefix=%r, uri=%r, parent=%r)' % (
                 self.__class__.__name__, self.prefix, self.uri, self.parent
             )
         return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
             self.prefix == other.prefix and \
             self.uri == other.uri and \
             self.parent is other.parent
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.prefix, self.uri, self.parent))
 
 
@@ -178,28 +182,28 @@ class TypedElement(XPathNode):
     :param xsd_type: the reference XSD type.
     :param value: the decoded value. Can be `None` for empty or element-only elements."
     """
-    def __init__(self, elem: Element, xsd_type: Any, value: Any):
+    def __init__(self, elem: Element, xsd_type: Any, value: Any) -> None:
         self.elem = elem
         self.xsd_type = xsd_type
         self.value = value
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         return 'element'
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.elem.tag
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(tag=%r)' % (self.__class__.__name__, self.elem.tag)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
             self.elem is other.elem and \
             self.value == other.value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.elem, self.value))
 
 
@@ -211,46 +215,46 @@ class TypedAttribute(XPathNode):
     :param xsd_type: the reference XSD type.
     :param value: the types value.
     """
-    def __init__(self, attribute: AttributeNode, xsd_type: Any, value: Any):
+    def __init__(self, attribute: AttributeNode, xsd_type: Any, value: Any) -> None:
         self.attribute = attribute
         self.xsd_type = xsd_type
         self.value = value
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         return 'attribute'
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.attribute.name
 
-    def as_item(self):
+    def as_item(self) -> Tuple[str, Any]:
         return self.attribute.name, self.value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(name=%r)' % (self.__class__.__name__, self.attribute.name)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
             self.attribute == other.attribute and \
             self.value == other.value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.attribute, self.value))
 
 
 ###
 # Utility functions for ElementTree's Element instances
-def is_etree_element(obj):
+def is_etree_element(obj: Any) -> bool:
     return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
-def is_lxml_etree_element(obj):
+def is_lxml_etree_element(obj: Any) -> bool:
     return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
 
 
 def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
-                     with_root=True, with_attributes=False
+                     with_root: bool = True, with_attributes: bool = False
                      ) -> Iterator[Union[ElementNode, DocumentNode, AttributeNode, TextNode]]:
     if isinstance(root, TypedElement):
         root = root.elem
@@ -312,7 +316,7 @@ def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
     return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
 
-def etree_iter_paths(elem: ElementNode, path='.') -> Iterator[Tuple[ElementNode, str]]:
+def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[ElementNode, str]]:
     yield elem, path
     children_tags = Counter([e.tag for e in elem])
     positions = Counter([t for t in children_tags if children_tags[t] > 1])
@@ -345,7 +349,7 @@ def etree_iter_paths(elem: ElementNode, path='.') -> Iterator[Tuple[ElementNode,
 # ElementTree-like objects for documents. XPathNode subclasses are used
 # for representing other node types and typed elements/attributes.
 ###
-def match_element_node(obj: Any, tag: Optional[str] = None) -> bool:
+def match_element_node(obj: Any, tag: Optional[str] = None) -> Any:
     """
     Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
     Raises a ValueError if the argument tag has to be used but it's in a wrong format.
@@ -427,33 +431,33 @@ def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
         return obj.name == name
 
 
-def is_element_node(obj):
+def is_element_node(obj: Any) -> bool:
     return isinstance(obj, TypedElement) or \
         hasattr(obj, 'tag') and not callable(obj.tag) and \
         hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
 
-def is_schema_node(obj):
+def is_schema_node(obj: Any) -> bool:
     return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
 
 
-def is_comment_node(obj):
+def is_comment_node(obj: Any) -> bool:
     return hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'Comment'
 
 
-def is_processing_instruction_node(obj):
+def is_processing_instruction_node(obj: Any) -> bool:
     return hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
 
 
-def is_document_node(obj):
+def is_document_node(obj: Any) -> bool:
     return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
-def is_lxml_document_node(obj):
+def is_lxml_document_node(obj: Any) -> bool:
     return is_document_node(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
 
 
-def is_xpath_node(obj):
+def is_xpath_node(obj: Any) -> bool:
     return isinstance(obj, XPathNode) or \
         hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text') or \
         hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name') or \
@@ -463,11 +467,11 @@ def is_xpath_node(obj):
 ###
 # Node accessors: in this implementation node accessors return None instead of empty sequence.
 # Ref: https://www.w3.org/TR/xpath-datamodel-31/#dm-document-uri
-def node_attributes(obj) -> Optional[Dict[str, Any]]:
+def node_attributes(obj: Any) -> Optional[Dict[str, Any]]:
     return obj.attrib if is_element_node(obj) else None
 
 
-def node_base_uri(obj) -> Optional[str]:
+def node_base_uri(obj: Any) -> Any:
     try:
         if is_element_node(obj):
             return obj.attrib[XML_BASE]
@@ -478,7 +482,7 @@ def node_base_uri(obj) -> Optional[str]:
         return None
 
 
-def node_document_uri(obj) -> Optional[str]:
+def node_document_uri(obj: Any) -> Any:
     if is_document_node(obj):
         try:
             uri = obj.getroot().attrib[XML_BASE]
@@ -491,7 +495,7 @@ def node_document_uri(obj) -> Optional[str]:
     return None
 
 
-def node_children(obj) -> Optional[Iterator[ElementNode]]:
+def node_children(obj: Any) -> Optional[Iterator[ElementNode]]:
     if is_element_node(obj):
         return (child for child in obj)
     elif is_document_node(obj):
@@ -500,13 +504,13 @@ def node_children(obj) -> Optional[Iterator[ElementNode]]:
         return None
 
 
-def node_nilled(obj) -> Optional[bool]:
+def node_nilled(obj: Any) -> Optional[bool]:
     if is_element_node(obj):
         return obj.get(XSI_NIL) in ('true', '1')
     return None
 
 
-def node_kind(obj) -> Optional[str]:
+def node_kind(obj: Any) -> Optional[str]:
     if isinstance(obj, XPathNode):
         return obj.kind
     elif is_element_node(obj):
@@ -521,7 +525,7 @@ def node_kind(obj) -> Optional[str]:
         return None
 
 
-def node_name(obj) -> Optional[str]:
+def node_name(obj: Any) -> Any:
     if isinstance(obj, XPathNode):
         return obj.name
     elif hasattr(obj, 'tag') and not callable(obj.tag) \
