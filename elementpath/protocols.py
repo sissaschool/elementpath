@@ -11,12 +11,11 @@
 Define type hints protocols for XPath related objects.
 """
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 
-if not TYPE_CHECKING or sys.version_info < (3, 8):
-    # For runtime or for Python < 3.8 fallback to typing.Any
-
+if sys.version_info < (3, 8):
+    # for Python < 3.8 fallback to typing.Any
     ElementProtocol = Any
     LxmlElementProtocol: Any
     DocumentProtocol = Any
@@ -28,8 +27,9 @@ if not TYPE_CHECKING or sys.version_info < (3, 8):
     XsdSchemaProtocol = Any
 else:
     from typing import Dict, Iterator, Iterable, List, Literal, \
-        NoReturn, Optional, Protocol, Sized
+        NoReturn, Optional, Protocol, Sized, runtime_checkable
 
+    @runtime_checkable
     class ElementProtocol(Iterable['ElementProtocol'], Sized, Protocol):
         def find(
             self, path: str, namespaces: Optional[Dict[str, str]] = ...
@@ -40,6 +40,7 @@ else:
         text: Optional[str]
         tail: Optional[str]
 
+    @runtime_checkable
     class LxmlElementProtocol(ElementProtocol, Protocol):
         def getparent(self) -> Optional['LxmlElementProtocol']: ...
         nsmap: Dict[Optional[str], str]
