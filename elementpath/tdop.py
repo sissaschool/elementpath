@@ -17,8 +17,8 @@ from decimal import Decimal, DecimalException
 from itertools import takewhile
 from abc import ABCMeta
 from collections.abc import MutableSequence
-from typing import cast, ClassVar, Callable, Dict, List, Optional, Union, Type
-from typing import Pattern, Match
+from typing import Any, cast, ClassVar, Callable, Dict, List, Optional, \
+    Union, Tuple, Type, Pattern, Match
 
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
@@ -156,25 +156,26 @@ class Token(MutableSequence):
     covers multiple roles (eg. as XPath function or axis). In those cases the definitive \
     role is defined at parse time (nud and/or led methods) after the token instance creation.
     """
-    lbp = 0  # left binding power
-    rbp = 0  # right binding power
-    symbol: Optional[str] = None   # the token identifier
+    lbp: int = 0           # left binding power
+    rbp: int = 0           # right binding power
+    symbol: str = ''       # the token identifier
+    label: str = 'symbol'  # optional label
     pattern: Optional[str] = None  # a custom regex pattern for building the tokenizer
-    label = 'symbol'               # optional label
 
     __slots__ = '_items', 'parser', 'value', '_source', 'span'
 
-    def __init__(self, parser, value=None):
+    _items: List[Any]
+    parser: 'Parser'
+    value: Any
+    _source: str
+    span: Tuple[int, int]
+
+    def __init__(self, parser: 'Parser', value: Optional[Any] = None) -> None:
         self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol
-        self._source: str = parser.source
-        try:
-            self.span = parser.match.span()
-        except AttributeError:
-            # If the token is created outside the parsing phase and then
-            # the source string is the empty string and match is None
-            self.span = (0, 0)
+        self._source = parser.source
+        self.span = (0, 0) if parser.next_match is None else parser.next_match.span()
 
     def __getitem__(self, i):
         return self._items[i]
@@ -191,7 +192,7 @@ class Token(MutableSequence):
     def insert(self, i, item):
         self._items.insert(i, item)
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.symbol in SPECIAL_SYMBOLS:
             return '%r %s' % (self.value, self.symbol[1:-1])
         else:
@@ -211,11 +212,11 @@ class Token(MutableSequence):
             return False
 
     @property
-    def arity(self):
+    def arity(self) -> int:
         return len(self)
 
     @property
-    def tree(self):
+    def tree(self) -> str:
         """Returns a tree representation string."""
         if self.symbol == '(name)':
             return '(%s)' % self.value
@@ -233,7 +234,7 @@ class Token(MutableSequence):
             return '(%s %s)' % (self.symbol, ' '.join(item.tree for item in self))
 
     @property
-    def source(self):
+    def source(self) -> str:
         """Returns the source representation string."""
         symbol = self.symbol
         if symbol == '(name)':
@@ -256,7 +257,7 @@ class Token(MutableSequence):
                 return '%s %s' % (symbol, ' '.join(item.source for item in self))
 
     @property
-    def position(self):
+    def position(self) -> Tuple[int, int]:
         """A tuple with the position of the token in terms of line and column."""
         token_index = self.span[0]
         line = self._source[:token_index].count('\n') + 1
@@ -272,8 +273,9 @@ class Token(MutableSequence):
         """Pratt's left denotation method"""
         raise self.wrong_syntax()
 
-    def evaluate(self, *args, **kwargs):
+    def evaluate(self):
         """Evaluation method"""
+        return self.value
 
     def iter(self, *symbols):
         """Returns a generator for iterating the token's tree."""
@@ -381,17 +383,18 @@ class Parser(metaclass=ParserMeta):
     _start_token: Token
     token: Token
     next_token: Token
+    next_match: Optional[Match]
     literals_pattern: Pattern
     name_pattern: Pattern
 
-    __slots__ = 'source', 'tokens', 'match', '_start_token', 'token', 'next_token'
+    __slots__ = 'source', 'tokens', 'next_match', '_start_token', 'token', 'next_token'
 
     def __init__(self):
         if self.tokenizer is None:
             self.build()
         self.source = ''
         self.tokens = iter(())
-        self.match: Optional[Match] = None
+        self.next_match = None
         self._start_token = self.symbol_table['(start)'](self)
         self.token = self.next_token = self._start_token
 
@@ -422,7 +425,7 @@ class Parser(metaclass=ParserMeta):
             return root_token
         finally:
             self.tokens = iter(())
-            self.match = None
+            self.next_match = None
             self.token = self.next_token = self._start_token
 
     def advance(self, *symbols: str) -> Token:
@@ -441,12 +444,12 @@ class Parser(metaclass=ParserMeta):
         self.token = self.next_token
         while True:
             try:
-                self.match = cast(Match, next(self.tokens))
+                self.next_match = cast(Match, next(self.tokens))
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                literal, symbol, name, unknown = self.match.groups()
+                literal, symbol, name, unknown = self.next_match.groups()
                 if symbol is not None:
                     try:
                         self.next_token = self.symbol_table[symbol](self)
@@ -485,9 +488,9 @@ class Parser(metaclass=ParserMeta):
                 elif unknown is not None:
                     self.next_token = self.symbol_table['(unknown)'](self, unknown)
                     raise self.next_token.wrong_syntax()
-                elif str(self.match.group()).strip():
+                elif str(self.next_match.group()).strip():
                     msg = "unexpected matching %r: incompatible tokenizer"
-                    raise RuntimeError(msg % self.match.group())
+                    raise RuntimeError(msg % self.next_match.group())
         return self.next_token
 
     def advance_until(self, *stop_symbols: str) -> str:
@@ -509,12 +512,12 @@ class Parser(metaclass=ParserMeta):
         source_chunk: List[str] = []
         while True:
             try:
-                self.match = cast(Match, next(self.tokens))
+                self.next_match = cast(Match, next(self.tokens))
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
             else:
-                symbol = self.match.group(2)
+                symbol = self.next_match.group(2)
                 if symbol is not None:
                     symbol = symbol.strip()
                     if symbol not in stop_symbols:
@@ -527,7 +530,7 @@ class Parser(metaclass=ParserMeta):
                             self.next_token = self.symbol_table['(unknown)'](self)
                             raise self.next_token.wrong_syntax()
                 else:
-                    source_chunk.append(self.match.group())
+                    source_chunk.append(self.next_match.group())
         return ''.join(source_chunk)
 
     def expression(self, rbp: int = 0) -> Token:

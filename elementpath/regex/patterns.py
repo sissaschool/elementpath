@@ -28,8 +28,9 @@ FORBIDDEN_ESCAPES_REF_PATTERN = re.compile(
 )
 
 
-def translate_pattern(pattern: str, flags=0, xsd_version='1.0', back_references=True,
-                      lazy_quantifiers=True, anchors=True):
+def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
+                      back_references: bool = True, lazy_quantifiers: bool = True,
+                      anchors: bool = True) -> str:
     """
     Translates a pattern regex expression to a Python regex pattern. With default
     options the translator processes XPath 2.0/XQuery 1.0 regex patterns. For XML

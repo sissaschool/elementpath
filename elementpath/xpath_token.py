@@ -25,7 +25,7 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, List, Tuple, Union, Any, Iterator
 import urllib.parse
 from xml.etree.ElementTree import Element
 
@@ -34,7 +34,7 @@ from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
-from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
+from .xpath_nodes import XPathNode, ElementNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
     is_comment_node, is_processing_instruction_node, is_element_node, \
     is_document_node, is_xpath_node, is_schema_node
@@ -43,7 +43,10 @@ from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime,
     Integer, DoubleProxy10, DoubleProxy, QName
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
-from .xpath_context import XPathSchemaContext
+from .xpath_context import XPathContext, XPathSchemaContext
+
+if TYPE_CHECKING:
+    from .xpath1 import XPath1Parser
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
@@ -57,7 +60,9 @@ class XPathToken(Token):
     xsd_types = None  # for XPath 2.0+ schema types labeling
     namespace = None  # for namespace binding of names and wildcards
 
-    def evaluate(self, context=None):
+    parser: 'XPath1Parser'
+
+    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         """
         Evaluate default method for XPath tokens.
 
@@ -65,7 +70,7 @@ class XPathToken(Token):
         """
         return [x for x in self.select(context)]
 
-    def select(self, context=None):
+    def select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
         """
         Select operator that generates XPath results.
 
@@ -80,7 +85,7 @@ class XPathToken(Token):
                     context.item = item
                 yield item
 
-    def __str__(self):
+    def __str__(self) -> str:
         symbol, label = self.symbol, self.label
         if symbol == '$':
             return '$%s variable reference' % (self[0].value if self._items else '')
@@ -91,7 +96,7 @@ class XPathToken(Token):
         return super(XPathToken, self).__str__()
 
     @property
-    def source(self):
+    def source(self) -> str:
         symbol, label = self.symbol, self.label
         if label == 'axis':
             return '%s::%s' % (self.symbol, self[0].source)
@@ -124,7 +129,7 @@ class XPathToken(Token):
         return super(XPathToken, self).source
 
     @property
-    def child_axis(self):
+    def child_axis(self) -> bool:
         """Is `True` if the token apply child axis for default, `False` otherwise."""
         if self.symbol not in {'*', 'node', 'child', 'text', '(name)', ':',
                                'document-node', 'element', 'schema-element'}:
@@ -135,7 +140,7 @@ class XPathToken(Token):
 
     ###
     # Tokens tree analysis methods
-    def iter_leaf_elements(self):
+    def iter_leaf_elements(self) -> Iterator[ElementNode]:
         """
         Iterates through the leaf elements of the token tree if there are any,
         returning QNames in prefixed format. A leaf element is an element
@@ -359,7 +364,7 @@ class XPathToken(Token):
                 raise TypeError(msg.format(type(values[0]), type(values[1])))
             yield values
 
-    def select_results(self, context):
+    def select_results(self, context: Optional[XPathContext]) -> Iterator[Any]:
         """
         Generates formatted XPath results.
 
@@ -541,6 +546,8 @@ class XPathToken(Token):
         :return: an empty list if there is only one argument that is the empty sequence \
         or the adjusted XSD datetime instance.
         """
+        timezone: Optional[Any]
+
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
             if item is None:
@@ -726,6 +733,8 @@ class XPathToken(Token):
             return item
         elif xsd_type.name in XSD_SPECIAL_TYPES:
             if isinstance(item, AttributeNode):
+                if not isinstance(item.value, str):
+                    return TypedAttribute(item, xsd_type, UntypedAtomic(''))
                 return TypedAttribute(item, xsd_type, UntypedAtomic(item.value))
             return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
 
@@ -765,16 +774,19 @@ class XPathToken(Token):
                 msg = "Type {!r} does not match sequence type of {!r}"
                 raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
 
-        try:
-            primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-            builder = atomic_types[primitive_type.name]
-        except (KeyError, AttributeError):
+        if self.parser.schema is None:
             builder = UntypedAtomic
         else:
-            if isinstance(builder, (AbstractDateTime, Duration)):
-                builder = builder.fromstring
-            elif issubclass(builder, QName):
-                builder = self.cast_to_qname
+            try:
+                primitive_type = self.parser.schema.get_primitive_type(xsd_type)
+                builder = atomic_types[primitive_type.name]
+            except KeyError:
+                builder = UntypedAtomic
+            else:
+                if isinstance(builder, (AbstractDateTime, Duration)):
+                    builder = builder.fromstring
+                elif issubclass(builder, QName):
+                    builder = self.cast_to_qname
 
         try:
             if isinstance(item, AttributeNode):
@@ -931,7 +943,7 @@ class XPathToken(Token):
 
     ###
     # Error handling helpers
-    def error_code(self, code):
+    def error_code(self, code: str) -> str:
         """Returns a prefixed error code."""
         if self.parser.namespaces.get('err') == XQT_ERRORS_NAMESPACE:
             return 'err:%s' % code
@@ -942,7 +954,8 @@ class XPathToken(Token):
 
         return code  # returns an unprefixed code (without prefix the namespace is not checked)
 
-    def error(self, code, message_or_error=None):
+    def error(self, code: Union[str, QName],
+              message_or_error: Optional[str] = None) -> ElementPathError:
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
         alphanumeric token starting with four uppercase letters and ending with four digits.
@@ -950,8 +963,11 @@ class XPathToken(Token):
         :param code: the error code as QName or string.
         :param message_or_error: an optional custom additional message.
         """
+        namespace: Optional[str]
+
         if isinstance(code, QName):
-            code, namespace = code.local_name, code.uri
+            namespace = code.uri
+            code = code.local_name
         elif ':' not in code:
             namespace = None
         else:
@@ -1066,7 +1082,7 @@ class XPathToken(Token):
 class XPathAxis(XPathToken):
     pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*\:\:|\s*\(\:.*\:\)\s*\:\:)'
     label = 'axis'
-    reverse_axis = False
+    reverse_axis: bool = False
 
     def nud(self):
         self.parser.advance('::')
@@ -1085,10 +1101,10 @@ class ValueToken(XPathToken):
     """
     symbol = '(value)'
 
-    def evaluate(self, context=None):
+    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         return self.value
 
-    def select(self, context=None):
+    def select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
         yield self.value
 
 
@@ -1105,18 +1121,24 @@ class XPathFunction(XPathToken):
     nargs: NargsType = None
     "Number of arguments: a single value or a couple with None that means unbounded."
 
-    def __init__(self, parser, nargs=None):
+    def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:
             if nargs < 0:
                 raise self.error('XPST0017', 'number of arguments must be non negative')
-            elif isinstance(self.nargs, int) or isinstance(self.nargs, (tuple, list)) and \
-                    (self.nargs[0] > nargs or self.nargs[1] and self.nargs[1] < nargs):
+            elif self.nargs is None:
+                self.nargs = nargs
+            elif isinstance(self.nargs, int):
+                raise self.error('XPST0017', 'incongruent number of arguments')
+            elif self.nargs[0] > nargs or self.nargs[1] is not None and self.nargs[1] < nargs:
                 raise self.error('XPST0017', 'incongruent number of arguments')
             else:
                 self.nargs = nargs
 
-    def __call__(self, context=None, argument_list=None):
+    def __call__(self, context: Optional[XPathContext] = None,
+                 argument_list: Optional[Union[
+                     XPathToken, List[XPathToken], Tuple[XPathToken, ...]
+                 ]] = None) -> Any:
         args = []
         if isinstance(argument_list, (list, tuple)):
             for token in argument_list:

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,11 +7,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .xpath_context import XPathContext
-from .xpath2 import XPath2Parser as XPath2Parser
+from typing import Any, Dict, Optional, Iterator, Type
+
+from .namespaces import NamespacesType
+from .xpath_context import ContextRootType, XPathContext
+from .xpath1 import XPath1Parser
+from .xpath2 import XPath2Parser
+
+ParserType = Optional[Type[XPath1Parser]]
 
 
-def select(root, path, namespaces=None, parser=None, **kwargs):
+def select(root: ContextRootType, path: str, namespaces: NamespacesType = None,
+           parser: ParserType = None, **kwargs: Any) -> Any:
     """
     XPath selector function that apply a *path* expression on *root* Element.
 
@@ -32,13 +39,14 @@ def select(root, path, namespaces=None, parser=None, **kwargs):
         'current_dt': kwargs.pop('current_dt', None),
         'timezone': kwargs.pop('timezone', None),
     }
-    parser = (parser or XPath2Parser)(namespaces, **kwargs)
-    root_token = parser.parse(path)
+    _parser = (parser or XPath2Parser)(namespaces, **kwargs)
+    root_token = _parser.parse(path)
     context = XPathContext(root, **context_kwargs)
     return root_token.get_results(context)
 
 
-def iter_select(root, path, namespaces=None, parser=None, **kwargs):
+def iter_select(root: ContextRootType, path: str, namespaces: NamespacesType = None,
+                parser: ParserType = None, **kwargs: Any) -> Iterator[Any]:
     """
     A function that creates an XPath selector generator for apply a *path* expression
     on *root* Element.
@@ -59,8 +67,8 @@ def iter_select(root, path, namespaces=None, parser=None, **kwargs):
         'current_dt': kwargs.pop('current_dt', None),
         'timezone': kwargs.pop('timezone', None),
     }
-    parser = (parser or XPath2Parser)(namespaces, **kwargs)
-    root_token = parser.parse(path)
+    _parser = (parser or XPath2Parser)(namespaces, **kwargs)
+    root_token = _parser.parse(path)
     context = XPathContext(root, **context_kwargs)
     return root_token.select_results(context)
 
@@ -82,23 +90,24 @@ class Selector(object):
     :ivar root_token: the root of tokens tree compiled from path.
     :vartype root_token: XPathToken
     """
-    def __init__(self, path, namespaces=None, parser=None, **kwargs):
+    def __init__(self, path: str, namespaces: NamespacesType = None,
+                 parser: ParserType = None, **kwargs: Any) -> None:
         self._variables = kwargs.pop('variables', None)  # For backward compatibility
         self.parser = (parser or XPath2Parser)(namespaces, **kwargs)
         self.path = path
         self.root_token = self.parser.parse(path)
 
-    def __repr__(self):
-        return u'%s(path=%r, parser=%s)' % (
+    def __repr__(self) -> str:
+        return '%s(path=%r, parser=%s)' % (
             self.__class__.__name__, self.path, self.parser.__class__.__name__
         )
 
     @property
-    def namespaces(self):
+    def namespaces(self) -> Dict[str, str]:
         """A dictionary with mapping from namespace prefixes into URIs."""
         return self.parser.namespaces
 
-    def select(self, root, **kwargs):
+    def select(self, root: ContextRootType, **kwargs: Any) -> Any:
         """
         Applies the instance's XPath expression on *root* Element.
 
@@ -113,7 +122,7 @@ class Selector(object):
         context = XPathContext(root, **kwargs)
         return self.root_token.get_results(context)
 
-    def iter_select(self, root, **kwargs):
+    def iter_select(self, root: ContextRootType, **kwargs: Any) -> Iterator[Any]:
         """
         Creates an XPath selector generator for apply the instance's XPath expression
         on *root* Element.
