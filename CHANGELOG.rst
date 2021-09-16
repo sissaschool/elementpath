@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.3.2`_ (2021-09-16)
+======================
+* Make ElementProtocol and LxmlElementProtocol runtime checkable (only for Python 3.8+)
+* Type annotations for all package public APIs
+
 `v2.3.1`_ (2021-09-07)
 ======================
 * Add LxmlElementProtocol
@@ -329,3 +334,4 @@ CHANGELOG
 .. _v2.2.3: https://github.com/sissaschool/elementpath/compare/v2.2.2...v2.2.3
 .. _v2.3.0: https://github.com/sissaschool/elementpath/compare/v2.2.3...v2.3.0
 .. _v2.3.1: https://github.com/sissaschool/elementpath/compare/v2.3.0...v2.3.1
+.. _v2.3.2: https://github.com/sissaschool/elementpath/compare/v2.3.1...v2.3.2
