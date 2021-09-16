@@ -14,7 +14,7 @@ import re
 import datetime
 from calendar import isleap
 from decimal import Decimal
-from typing import Union
+from typing import Dict, Optional, Union
 
 from ..helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
@@ -33,7 +33,7 @@ class Timezone(datetime.tzinfo):
     _maxoffset = datetime.timedelta(hours=14, minutes=0)
     _minoffset = -_maxoffset
 
-    def __init__(self, offset):
+    def __init__(self, offset: datetime.timedelta) -> None:
         super(Timezone, self).__init__()
         if not isinstance(offset, datetime.timedelta):
             raise TypeError("offset must be a datetime.timedelta")
@@ -42,7 +42,7 @@ class Timezone(datetime.tzinfo):
         self.offset = offset
 
     @classmethod
-    def fromstring(cls, text):
+    def fromstring(cls, text: str) -> 'Timezone':
         try:
             hours, minutes = text.strip().split(':')
             if hours.startswith('-'):
@@ -57,7 +57,7 @@ class Timezone(datetime.tzinfo):
             raise ValueError("%r: not an XSD timezone formatted string" % text) from None
 
     @classmethod
-    def fromduration(cls, duration):
+    def fromduration(cls, duration: 'Duration') -> 'Timezone':
         if duration.seconds % 60 != 0:
             raise ValueError("{!r} has not an integral number of minutes".format(duration))
         return cls(datetime.timedelta(seconds=int(duration.seconds)))
@@ -119,16 +119,20 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
     A class for representing XSD date/time objects. It uses and internal datetime.datetime
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.
     """
+    xsd_version = '1.0'
+    pattern = re.compile(r'^$')
     _utc_timezone = Timezone(datetime.timedelta(0))
     _year = None
 
-    def __init__(self, year=2000, month=1, day=1, hour=0, minute=0,
-                 second=0, microsecond=0, tzinfo=None):
+    def __init__(self, year: int = 2000, month: int = 1, day: int = 1, hour: int = 0,
+                 minute: int = 0, second: int = 0, microsecond: int = 0,
+                 tzinfo: Optional[datetime.tzinfo] = None) -> None:
+
         if hour == 24 and minute == second == microsecond == 0:
             delta = datetime.timedelta(days=1)
             hour = 0
         else:
-            delta = 0
+            delta = datetime.timedelta(0)
 
         if 1 <= year <= 9999:
             self._dt = datetime.datetime(year, month, day, hour, minute,
@@ -225,7 +229,8 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
         self._dt = self._dt.replace(tzinfo=tz)
 
     @classmethod
-    def fromstring(cls, datetime_string, tzinfo=None):
+    def fromstring(cls, datetime_string: str, tzinfo: Optional[Timezone] = None) \
+            -> 'AbstractDateTime':
         """
         Creates an XSD date/time instance from a string formatted value.
 
@@ -245,20 +250,22 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
             msg = 'Invalid datetime string {!r} for {!r}'
             raise ValueError(msg.format(datetime_string, cls))
 
-        kwargs = {k: int(v) if k != 'tzinfo' else Timezone.fromstring(v)
-                  for k, v in match.groupdict().items() if v is not None}
+        match_dict = match.groupdict()
+        kwargs: Dict[str, int] = {
+            k: int(v) for k, v in match_dict.items() if k != 'tzinfo' and v is not None
+        }
 
-        if 'tzinfo' not in kwargs and tzinfo is not None:
-            kwargs['tzinfo'] = tzinfo
+        if match_dict['tzinfo'] is not None:
+            tzinfo = Timezone.fromstring(match_dict['tzinfo'])
 
         if 'microsecond' in kwargs:
-            microseconds = match.groupdict()['microsecond']
+            microseconds = match_dict['microsecond']
             if len(microseconds) != 6:
                 microseconds += '0' * (6 - len(microseconds))
                 kwargs['microsecond'] = int(microseconds[:6])
 
         if 'year' in kwargs:
-            year_digits = match.groupdict()['year'].lstrip('-')
+            year_digits = match_dict['year'].lstrip('-')
             if year_digits.startswith('0') and len(year_digits) > 4:
                 msg = "Invalid datetime string {!r} for {!r} (when year " \
                       "exceeds 4 digits leading zeroes are not allowed)"
@@ -270,10 +277,11 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
             elif kwargs['year'] <= 0:
                 kwargs['year'] -= 1
 
-        return cls(**kwargs)
+        return cls(tzinfo=tzinfo, **kwargs)
 
     @classmethod
-    def fromdatetime(cls, dt, year=None):
+    def fromdatetime(cls, dt: Union[datetime.datetime, datetime.date, datetime.time],
+                     year: Optional[int] = None) -> 'AbstractDateTime':
         """
         Creates an XSD date/time instance from a datetime.datetime/date/time instance.
 
@@ -331,7 +339,8 @@ class OrderedDateTime(AbstractDateTime):
         raise NotImplementedError()
 
     @classmethod
-    def fromdelta(cls, delta, adjust_timezone=False):
+    def fromdelta(cls, delta: datetime.timedelta, adjust_timezone: bool = False) \
+            -> 'OrderedDateTime':
         """
         Creates an XSD dateTime/date instance from a datetime.timedelta related to
         0001-01-01T00:00:00 CE. In case of a date the time part is not counted.
@@ -402,7 +411,7 @@ class OrderedDateTime(AbstractDateTime):
         return cls(year, dt.month, dt.day, dt.hour, dt.minute,
                    dt.second, dt.microsecond, dt.tzinfo)
 
-    def todelta(self):
+    def todelta(self) -> datetime.timedelta:
         """Returns the datetime.timedelta from 0001-01-01T00:00:00 CE."""
         if self._year is None:
             return operator.sub(*self._get_operands(datetime.datetime(1, 1, 1)))
@@ -498,7 +507,9 @@ class DateTime10(OrderedDateTime):
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?)'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
+    def __init__(self, year: int, month: int, day: int, hour: int = 0,
+                 minute: int = 0, second: int = 0, microsecond: int = 0,
+                 tzinfo: Optional[datetime.tzinfo] = None) -> None:
         super(DateTime10, self).__init__(
             year, month, day, hour, minute, second, microsecond, tzinfo
         )
@@ -537,7 +548,8 @@ class Date10(OrderedDateTime):
     pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, year, month, day, tzinfo=None):
+    def __init__(self, year: int, month: int, day: int,
+                 tzinfo: Optional[datetime.tzinfo] = None) -> None:
         super(Date10, self).__init__(year, month, day, tzinfo=tzinfo)
 
     def __str__(self):
@@ -558,7 +570,7 @@ class GregorianDay(OrderedDateTime):
     pattern = re.compile(r'^---(?P<day>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, day, tzinfo=None):
+    def __init__(self, day: int, tzinfo: Optional[Timezone] = None) -> None:
         super(GregorianDay, self).__init__(day=day, tzinfo=tzinfo)
 
     def __str__(self):
@@ -571,7 +583,7 @@ class GregorianMonth(OrderedDateTime):
     pattern = re.compile(r'^--(?P<month>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, month, tzinfo=None):
+    def __init__(self, month: int, tzinfo: Optional[Timezone] = None) -> None:
         super(GregorianMonth, self).__init__(month=month, tzinfo=tzinfo)
 
     def __str__(self):
@@ -584,7 +596,7 @@ class GregorianMonthDay(OrderedDateTime):
     pattern = re.compile(r'^--(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, month, day, tzinfo=None):
+    def __init__(self, month: int, day: int, tzinfo: Optional[Timezone] = None) -> None:
         super(GregorianMonthDay, self).__init__(month=month, day=day, tzinfo=tzinfo)
 
     def __str__(self):
@@ -597,7 +609,7 @@ class GregorianYear10(OrderedDateTime):
     pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, year, tzinfo=None):
+    def __init__(self, year: int, tzinfo: Optional[Timezone] = None) -> None:
         super(GregorianYear10, self).__init__(year, tzinfo=tzinfo)
 
     def __str__(self):
@@ -616,7 +628,7 @@ class GregorianYearMonth10(OrderedDateTime):
     pattern = re.compile(r'^(?P<year>-?[0-9]*[0-9]{4})-(?P<month>[0-9]{2})'
                          r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, year, month, tzinfo=None):
+    def __init__(self, year: int, month: int, tzinfo: Optional[Timezone] = None) -> None:
         super(GregorianYearMonth10, self).__init__(year, month, tzinfo=tzinfo)
 
     def __str__(self):
@@ -637,7 +649,8 @@ class Time(AbstractDateTime):
         r'(?P<second>[0-9]{2})(?:\.(?P<microsecond>[0-9]+))?'
         r'(?P<tzinfo>Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))?$')
 
-    def __init__(self, hour=0, minute=0, second=0, microsecond=0, tzinfo=None):
+    def __init__(self, hour: int = 0, minute: int = 0, second: int = 0,
+                 microsecond: int = 0, tzinfo: Optional[Timezone] = None) -> None:
         if hour == 24 and minute == second == microsecond == 0:
             hour = 0
         super(Time, self).__init__(
@@ -704,7 +717,7 @@ class Duration(AnyAtomicType):
         r'(?:T(?=[0-9])(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\.[0-9]+)?)S)?)?$'
     )
 
-    def __init__(self, months: int = 0, seconds: Union[Decimal, int] = 0):
+    def __init__(self, months: int = 0, seconds: Union[Decimal, int] = 0) -> None:
         if seconds < 0 < months or months < 0 < seconds:
             raise ValueError('signs differ: (months=%d, seconds=%d)' % (months, seconds))
         elif abs(months) > 2 ** 31:
@@ -752,7 +765,7 @@ class Duration(AnyAtomicType):
         return value
 
     @classmethod
-    def fromstring(cls, text):
+    def fromstring(cls, text: str) -> 'Duration':
         """
         Creates a Duration instance from a formatted XSD duration string.
 
@@ -767,15 +780,15 @@ class Duration(AnyAtomicType):
         if match is None:
             raise ValueError('%r is not an xs:duration value' % text)
 
-        sign, years, months, days, hours, minutes, seconds = match.groups()
-        seconds = Decimal(seconds or 0)
-        minutes = int(minutes or 0) + int(seconds // 60)
+        sign, y, mo, d, h, mi, s = match.groups()
+        seconds = Decimal(s or 0)
+        minutes = int(mi or 0) + int(seconds // 60)
         seconds = seconds % 60
-        hours = int(hours or 0) + minutes // 60
+        hours = int(h or 0) + minutes // 60
         minutes = minutes % 60
-        days = int(days or 0) + hours // 24
+        days = int(d or 0) + hours // 24
         hours = hours % 24
-        months = int(months or 0) + 12 * int(years or 0)
+        months = int(mo or 0) + 12 * int(y or 0)
 
         if sign is None:
             seconds = seconds + (days * 24 + hours) * 3600 + minutes * 60
@@ -856,7 +869,7 @@ class YearMonthDuration(Duration):
 
     name = 'yearMonthDuration'
 
-    def __init__(self, months: int = 0):
+    def __init__(self, months: int = 0) -> None:
         super(YearMonthDuration, self).__init__(months, 0)
 
     def __repr__(self):
@@ -905,7 +918,7 @@ class DayTimeDuration(Duration):
 
     name = 'dayTimeDuration'
 
-    def __init__(self, seconds: Union[Decimal, int] = 0):
+    def __init__(self, seconds: Union[Decimal, int] = 0) -> None:
         super(DayTimeDuration, self).__init__(0, seconds)
 
     @classmethod

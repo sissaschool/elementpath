@@ -9,7 +9,7 @@
 #
 import re
 import math
-from typing import Optional
+from typing import Optional, SupportsFloat, SupportsInt, Union
 
 from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta, AnyAtomicType
@@ -17,11 +17,12 @@ from .atomic_types import AtomicTypeMeta, AnyAtomicType
 
 class Float10(float, AnyAtomicType):
     name = 'float'
+    xsd_version = '1.0'
     pattern = re.compile(
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)? |[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value):
+    def __new__(cls, value: Union[str, SupportsFloat]) -> 'Float10':
         if isinstance(value, str):
             value = collapse_white_spaces(value)
             if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
@@ -122,7 +123,7 @@ class Integer(int, metaclass=AtomicTypeMeta):
     lower_bound: Optional[int] = None
     higher_bound: Optional[int] = None
 
-    def __init__(self, value):
+    def __init__(self, value: Union[str, SupportsInt]) -> None:
         if self.lower_bound is not None and self < self.lower_bound:
             raise ValueError("value {} is too low for {!r}".format(value, self.__class__))
         elif self.higher_bound is not None and self >= self.higher_bound:

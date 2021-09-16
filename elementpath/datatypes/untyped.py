@@ -9,6 +9,7 @@
 #
 import operator
 from decimal import Decimal
+from typing import Union
 from .atomic_types import AtomicTypeMeta, AnyAtomicType
 
 
@@ -20,13 +21,15 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
     :param value: the untyped value, usually a string.
     """
     name = 'untypedAtomic'
+    value: str
 
     @classmethod
     def validate(cls, value):
         if not isinstance(value, cls):
             raise cls.invalid_type(value)
 
-    def __init__(self, value):
+    def __init__(self, value: Union[str, bytes, bool, float, Decimal,
+                                    'UntypedAtomic', AnyAtomicType]) -> None:
         if isinstance(value, str):
             self.value = value
         elif isinstance(value, bytes):

@@ -9,6 +9,7 @@
 #
 from decimal import Decimal
 from urllib.parse import urlparse
+from typing import Union
 
 from ..helpers import collapse_white_spaces, WRONG_ESCAPE_PATTERN
 from .atomic_types import AnyAtomicType
@@ -24,7 +25,7 @@ class AnyURI(AnyAtomicType):
     """
     name = 'anyURI'
 
-    def __init__(self, value):
+    def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']):
         if isinstance(value, str):
             self.value = collapse_white_spaces(value)
         elif isinstance(value, bytes):

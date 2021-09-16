@@ -132,7 +132,7 @@ class DoubleProxy(DoubleProxy10):
 class StringProxy(metaclass=AtomicTypeMeta):
     name = 'string'
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any):
         return str(*args, **kwargs)
 
     @classmethod

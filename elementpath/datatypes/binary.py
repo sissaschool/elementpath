@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
+from typing import Union
 import re
 import codecs
 
@@ -22,7 +23,9 @@ class AbstractBinary(metaclass=AtomicTypeMeta):
 
     :param value: a string or a binary data or an untyped atomic instance.
     """
-    def __init__(self, value):
+    value: bytes
+
+    def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary']) -> None:
         if isinstance(value, self.__class__):
             self.value = value.value
         elif isinstance(value, AbstractBinary):

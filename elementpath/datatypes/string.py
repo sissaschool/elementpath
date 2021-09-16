@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
+from typing import Any
 
 from ..helpers import NORMALIZE_PATTERN, collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
@@ -17,7 +18,7 @@ class NormalizedString(str, metaclass=AtomicTypeMeta):
     name = 'normalizedString'
     pattern = re.compile('^[^\t\r]*$')
 
-    def __new__(cls, obj):
+    def __new__(cls, obj: Any) -> 'NormalizedString':
         try:
             return super().__new__(cls, NORMALIZE_PATTERN.sub(' ', obj))
         except TypeError:
@@ -28,7 +29,7 @@ class XsdToken(NormalizedString):
     name = 'token'
     pattern = re.compile(r'^[\S\xa0]*(?: [\S\xa0]+)*$')
 
-    def __new__(cls, value):
+    def __new__(cls, value: Any) -> 'XsdToken':
         if not isinstance(value, str):
             value = str(value)
         else:
@@ -44,7 +45,7 @@ class Language(XsdToken):
     name = 'language'
     pattern = re.compile(r'^[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*$')
 
-    def __new__(cls, value):
+    def __new__(cls, value: Any) -> 'Language':
         if isinstance(value, bool):
             value = 'true' if value else 'false'
         elif not isinstance(value, str):

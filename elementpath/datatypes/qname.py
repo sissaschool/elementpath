@@ -7,6 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from typing import Optional
+
 from ..helpers import QNAME_PATTERN
 from .atomic_types import AtomicTypeMeta
 
@@ -26,7 +28,7 @@ class AbstractQName(metaclass=AtomicTypeMeta):
             raise TypeError("can't instantiate xs:NOTATION objects")
         return super().__new__(cls)
 
-    def __init__(self, uri, qname):
+    def __init__(self, uri: Optional[str], qname: str) -> None:
         if uri is None:
             self.uri = ''
         elif isinstance(uri, str):
