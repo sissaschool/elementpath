@@ -18,13 +18,13 @@ from collections.abc import MutableSequence
 from copy import copy
 from decimal import Decimal, DivisionByZero
 from urllib.parse import urlparse
-from typing import cast
+from typing import cast, Dict, Optional
 
 from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
-from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XLINK_NAMESPACE, \
-    XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
+from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
+    XLINK_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_namespace, get_prefixed_name, get_expanded_name
 from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
 from ..xpath_nodes import TypedElement, is_xpath_node, \
@@ -191,14 +191,24 @@ class XPath2Parser(XPath1Parser):
 
     function_signatures = XPath1Parser.function_signatures.copy()
 
-    def __init__(self, namespaces=None, variable_types=None, strict=True, compatibility_mode=False,
-                 default_collation=None, default_namespace=None, function_namespace=None,
-                 xsd_version=None, schema=None, base_uri=None, document_types=None,
-                 collection_types=None, default_collection_type='node()*'):
+    def __init__(self, namespaces: NamespacesType = None,
+                 variable_types: Optional[Dict[str, str]] = None,
+                 strict: bool = True,
+                 compatibility_mode: bool = False,
+                 default_collation: Optional[str] = None,
+                 default_namespace: Optional[str] = None,
+                 function_namespace: Optional[str] = None,
+                 xsd_version: Optional[str] = None,
+                 schema: Optional[AbstractSchemaProxy] = None,
+                 base_uri: Optional[str] = None,
+                 document_types: Optional[Dict[str, str]] = None,
+                 collection_types: Optional[Dict[str, str]] = None,
+                 default_collection_type: str = 'node()*') -> None:
+
         super(XPath2Parser, self).__init__(namespaces, strict)
         self._compatibility_mode = compatibility_mode
         self._default_collation = default_collation
-        self._xsd_version = xsd_version or '1.0'
+        self._xsd_version = xsd_version if xsd_version is not None else '1.0'
 
         if default_namespace is not None:
             self.namespaces[''] = default_namespace
@@ -247,28 +257,40 @@ class XPath2Parser(XPath1Parser):
         return state
 
     @property
-    def compatibility_mode(self):
+    def compatibility_mode(self) -> bool:
         return self._compatibility_mode
 
     @compatibility_mode.setter
-    def compatibility_mode(self, value):
+    def compatibility_mode(self, value: bool) -> None:
         self._compatibility_mode = value
 
     @property
-    def default_collation(self):
+    def default_collation(self) -> str:
         if self._default_collation is not None:
             return self._default_collation
 
-        default_locale = locale.getdefaultlocale()
-        collation = '.'.join(default_locale) if default_locale[1] else default_locale[0]
-        return collation if collation != 'en_US.UTF-8' else UNICODE_CODEPOINT_COLLATION
+        language_code, encoding = locale.getdefaultlocale()
+
+        if language_code is None:
+            return UNICODE_CODEPOINT_COLLATION
+        elif encoding is None or not encoding:
+            return language_code
+        else:
+            collation = f'{language_code}.{encoding}'
+            if collation != 'en_US.UTF-8':
+                return collation
+            else:
+                return UNICODE_CODEPOINT_COLLATION
 
     @property
-    def default_namespace(self):
+    def default_namespace(self) -> Optional[str]:
         return self.namespaces.get('')
 
     @property
-    def xsd_version(self):
+    def xsd_version(self) -> str:
+        if self.schema is None:
+            return self._xsd_version
+
         try:
             return self.schema.xsd_version
         except (AttributeError, NotImplementedError):
@@ -392,10 +414,10 @@ class XPath2Parser(XPath1Parser):
         self.symbol_table[symbol] = token_class
         return token_class
 
-    def is_schema_bound(self):
+    def is_schema_bound(self) -> bool:
         return 'symbol_table' in self.__dict__
 
-    def parse(self, source):
+    def parse(self, source: str) -> XPathToken:
         root_token = cast(XPathToken, super(XPath1Parser, self).parse(source))
         if root_token.label == 'sequence type':
             raise root_token.error('XPST0003', "not allowed in XPath expression")

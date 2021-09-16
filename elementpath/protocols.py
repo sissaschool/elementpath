@@ -24,39 +24,38 @@ if sys.version_info < (3, 8):
     XsdElementProtocol = Any
     XsdAttributeProtocol = Any
     GlobalMapsProtocol = Any
-    XsdSchemaProtocol = Any
+    XMLSchemaProtocol = Any
+    XPathParserProtocol = Any
 else:
     from typing import Dict, Iterator, Iterable, List, Literal, \
-        NoReturn, Optional, Protocol, Sized, runtime_checkable
+        NoReturn, Optional, Protocol, Sized, Hashable, runtime_checkable
 
     @runtime_checkable
-    class ElementProtocol(Iterable['ElementProtocol'], Sized, Protocol):
+    class ElementProtocol(Iterable['ElementProtocol'], Sized, Hashable, Protocol):
         def find(
             self, path: str, namespaces: Optional[Dict[str, str]] = ...
         ) -> Optional['ElementProtocol']: ...
         def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
-        def __hash__(self) -> int: ...
         tag: str
-        attrib: Dict[str, str]
+        attrib: Dict[str, Any]
         text: Optional[str]
         tail: Optional[str]
 
     @runtime_checkable
     class LxmlElementProtocol(ElementProtocol, Protocol):
-        def getparent(self) -> Optional['LxmlElementProtocol']: ...
+        def getparent(self) -> Optional[Any]: ...
         nsmap: Dict[Optional[str], str]
 
-    class DocumentProtocol(Iterable[ElementProtocol], Protocol):
+    class DocumentProtocol(Iterable[ElementProtocol], Hashable, Protocol):
         def getroot(self) -> ElementProtocol: ...
         def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementProtocol: ...
         def iter(self, tag: Optional[str] = ...) -> Iterator[ElementProtocol]: ...
-        def __hash__(self) -> int: ...
 
     class XsdComponentProtocol(Protocol):
         def is_matching(self, name: Optional[str],
                         default_namespace: Optional[str] = None) -> bool: ...
         name: Optional[str]
-        local_name:  Optional[str]
+        local_name: Optional[str]
 
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         def is_simple(self) -> bool:
@@ -110,7 +109,7 @@ else:
         elements: Dict[str, XsdElementProtocol]
         substitution_groups: Dict[str, List[XsdElementProtocol]]
 
-    class XsdSchemaProtocol(ElementProtocol, Protocol):
+    class XMLSchemaProtocol(ElementProtocol, Protocol):
         xsd_version: Literal['1.0', '1.1']
         tag: Literal['{http://www.w3.org/2001/XMLSchema}schema']
         attrib: Dict[str, Any]
@@ -120,4 +119,4 @@ else:
 
 __all__ = ['ElementProtocol', 'LxmlElementProtocol', 'DocumentProtocol',
            'XsdComponentProtocol', 'XsdTypeProtocol', 'XsdElementProtocol',
-           'XsdAttributeProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol']
+           'XsdAttributeProtocol', 'GlobalMapsProtocol', 'XMLSchemaProtocol']

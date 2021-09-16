@@ -83,7 +83,7 @@ class XPathContext:
                  axis: Optional[str] = None,
                  variables: Optional[Dict[str, Any]] = None,
                  current_dt: Optional[datetime.datetime] = None,
-                 timezone: Optional[Timezone] = None,
+                 timezone: Optional[Union[str, Timezone]] = None,
                  documents: Optional[DocumentNode] = None,
                  collections: Optional[ElementNode] = None,
                  default_collection: Optional[str] = None,

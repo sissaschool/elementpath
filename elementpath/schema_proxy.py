@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Iterator
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XsdSchemaProtocol
+    XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
@@ -24,7 +24,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
     :param base_element: the schema element used as base item for static analysis.
     """
-    def __init__(self, schema: XsdSchemaProtocol, base_element: Optional[ElementProtocol] = None):
+    def __init__(self, schema: XMLSchemaProtocol,
+                 base_element: Optional[ElementProtocol] = None) -> None:
         if not is_etree_element(schema):
             raise ElementPathTypeError(
                 "argument {!r} is not a compatible schema instance".format(schema)
@@ -37,7 +38,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         self._schema = schema
         self._base_element: Optional[ElementProtocol] = base_element
 
-    def bind_parser(self, parser):
+    def bind_parser(self, parser) -> None:
         """
         Binds a parser instance with schema proxy adding the schema's atomic types constructors.
         This method can be redefined in a concrete proxy to optimize schema bindings.

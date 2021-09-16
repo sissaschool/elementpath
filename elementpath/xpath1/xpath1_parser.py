@@ -12,7 +12,7 @@ import math
 import decimal
 import operator
 from copy import copy
-from typing import cast, Dict, Optional, Tuple
+from typing import cast, Any, Dict, Optional, Tuple
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -22,9 +22,10 @@ from ..datatypes import AnyAtomicType, AbstractDateTime, Duration, DayTimeDurati
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
 from ..xpath_context import XPathSchemaContext
 from ..tdop import Parser
-from ..namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
-    XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, split_expanded_name
+from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
+    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
+    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, \
+    split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
@@ -55,6 +56,8 @@ class XPath1Parser(Parser):
     version = '1.0'
     """The XPath version string."""
 
+    token: XPathToken
+    next_token: XPathToken
     token_base_class = XPathToken
     literals_pattern = re.compile(
         r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
@@ -105,14 +108,9 @@ class XPath1Parser(Parser):
     }
 
     # Class attributes for compatibility with XPath 2.0+
-    schema: Optional[AbstractSchemaProxy]
-    variable_types: Optional[Dict[str, str]]
-    token: XPathToken
-    next_token: XPathToken
-
-    schema = None           # XPath 1.0 doesn't have schema bindings
-    variable_types = None   # XPath 1.0 doesn't have in-scope variable types
-    xsd_version = '1.0'     # Use XSD 1.0 datatypes for default
+    schema: Optional[AbstractSchemaProxy] = None
+    variable_types: Optional[Dict[str, str]] = None
+    base_uri: Optional[str] = None
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
 
@@ -123,12 +121,13 @@ class XPath1Parser(Parser):
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 
-    def __init__(self, namespaces: Optional[Dict[str, str]] = None, strict=True, *args, **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 strict: bool = True, *args: Any, **kwargs: Any) -> None:
         super(XPath1Parser, self).__init__()
-        self.namespaces = self.DEFAULT_NAMESPACES.copy()
+        self.namespaces: Dict[str, str] = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
-        self.strict = strict
+        self.strict: bool = strict
 
     @property
     def compatibility_mode(self) -> bool:
@@ -142,6 +141,10 @@ class XPath1Parser(Parser):
         namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
         """
         return None
+
+    @property
+    def xsd_version(self) -> str:
+        return '1.0'  # Use XSD 1.0 datatypes for default
 
     def xsd_qname(self, local_name: str) -> str:
         """Returns a prefixed QName string for XSD namespace."""
@@ -207,7 +210,7 @@ class XPath1Parser(Parser):
         return cls.register(symbol, nargs=nargs, sequence_types=sequence_types, label=label,
                             bases=(XPathFunction,), lbp=bp, rbp=bp)
 
-    def parse(self, source: str):
+    def parse(self, source: str) -> XPathToken:
         root_token = cast(XPathToken, super(XPath1Parser, self).parse(source))
         try:
             root_token.evaluate()  # Static context evaluation
