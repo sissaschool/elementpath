@@ -44,7 +44,7 @@ jobs:
       - name: Lint with mypy
         if: ${{ matrix.python-version != 'pypy3' }}
         run: |
-          pip install mypy
+          pip install mypy==0.910
           mypy --show-error-codes elementpath
       - name: Test with unittest
         run: |
