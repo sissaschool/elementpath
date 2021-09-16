@@ -29,7 +29,7 @@ setup(
     python_requires='>=3.6',
     extras_require={
         'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.2.3',
-                'Sphinx', 'memory-profiler', 'flake8', 'mypy']
+                'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.910']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
