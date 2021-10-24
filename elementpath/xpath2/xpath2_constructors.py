@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-XPath 2.0 implementation - part 3 (XSD constructors and multi-role tokens)
+XPath 2.0 implementation - part 4 (XSD constructors)
 """
 from ..exceptions import ElementPathError, ElementPathSyntaxError
 from ..namespaces import XSD_NAMESPACE

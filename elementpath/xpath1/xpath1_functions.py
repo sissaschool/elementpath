@@ -7,6 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+XPath 1.0 implementation - part 3 (functions)
+"""
 import sys
 import math
 import decimal
@@ -16,7 +19,7 @@ from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
 from ..xpath_nodes import XPathNode, TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 
-from .xpath1_parser import XPath1Parser
+from .xpath1_operators import XPath1Parser
 
 method = XPath1Parser.method
 function = XPath1Parser.function
@@ -417,3 +420,5 @@ def evaluate_round_function(self, context=None):
         return round(arg)
     except decimal.DecimalException as err:
         raise self.error('FOCA0002', err) from None
+
+# XPath 1.0 definitions continue into module xpath1_axes
