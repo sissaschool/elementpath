@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-XPath 2.0 implementation - part 2 (functions)
+XPath 2.0 implementation - part 3 (functions)
 """
 import math
 import datetime
@@ -32,7 +32,7 @@ from ..xpath_nodes import AttributeNode, NamespaceNode, is_element_node, \
     is_document_node, is_xpath_node, node_name, node_nilled, node_base_uri, \
     node_document_uri, node_kind, etree_deep_equal
 from ..regex import RegexError, translate_pattern
-from .xpath2_parser import XPath2Parser
+from .xpath2_operators import XPath2Parser
 
 method = XPath2Parser.method
 function = XPath2Parser.function

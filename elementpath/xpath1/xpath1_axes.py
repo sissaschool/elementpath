@@ -7,6 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+XPath 1.0 implementation - part 4 (axes)
+"""
 from ..exceptions import ElementPathTypeError
 from ..xpath_nodes import NamespaceNode, is_element_node
 from .xpath1_functions import XPath1Parser
