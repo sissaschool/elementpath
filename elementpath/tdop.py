@@ -15,10 +15,13 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from itertools import takewhile
-from abc import ABCMeta
-from collections.abc import MutableSequence
-from typing import Any, cast, ClassVar, Callable, Dict, List, Optional, \
-    Union, Tuple, Type, Pattern, Match
+from typing import Any, cast, overload, ClassVar, Callable, Dict, Generic, List, Optional, \
+    Union, Tuple, Type, Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
+
+if sys.version_info < (3, 7):
+    from typing import GenericMeta as ABCMeta
+else:
+    from abc import ABCMeta
 
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
@@ -61,7 +64,7 @@ def symbol_to_classname(symbol: str) -> str:
     """
     Converts a symbol string to an identifier (only alphanumeric and '_').
     """
-    def get_id_name(c):
+    def get_id_name(c: str) -> str:
         if c.isalnum() or c == '_':
             return c
         else:
@@ -94,35 +97,35 @@ class MultiLabel:
         label == 'function'  # True
         label == 'operator'  # True
     """
-    def __init__(self, *values: str):
+    def __init__(self, *values: str) -> None:
         self.values = values
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return any(other == v for v in self.values)
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return all(other != v for v in self.values)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s%s' % (self.__class__.__name__, self.values)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return '__'.join(self.values).replace(' ', '_')
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.values)
 
-    def __contains__(self, item: str):
+    def __contains__(self, item: str) -> bool:
         return any(item in v for v in self.values)
 
-    def startswith(self, s: str):
+    def startswith(self, s: str) -> bool:
         return any(v.startswith(s) for v in self.values)
 
-    def endswith(self, s: str):
+    def endswith(self, s: str) -> bool:
         return any(v.endswith(s) for v in self.values)
 
 
-class Token(MutableSequence):
+class Token(MutableSequence['Token']):
     """
     Token base class for defining a parser based on Pratt's method.
 
@@ -165,31 +168,38 @@ class Token(MutableSequence):
     __slots__ = '_items', 'parser', 'value', '_source', 'span'
 
     _items: List[Any]
-    parser: 'Parser'
-    value: Any
+    parser: 'Parser[Token]'
+    value: Union[None, str, int, float, Decimal]
     _source: str
     span: Tuple[int, int]
 
-    def __init__(self, parser: 'Parser', value: Optional[Any] = None) -> None:
+    def __init__(self, parser: 'Parser[Token]', value: Optional[Any] = None) -> None:
         self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol
         self._source = parser.source
         self.span = (0, 0) if parser.next_match is None else parser.next_match.span()
 
-    def __getitem__(self, i):
+    @overload
+    def __getitem__(self, i: int) -> 'Token': ...
+
+    @overload
+    def __getitem__(self, s: slice) -> MutableSequence['Token']: ...
+
+    def __getitem__(self, i: Union[int, slice]) \
+            -> Union['Token', MutableSequence['Token']]:
         return self._items[i]
 
-    def __setitem__(self, i, item):
-        self._items[i] = item
+    def __setitem__(self, i: Union[int, slice], o: Any) -> None:
+        self._items[i] = o
 
-    def __delitem__(self, i):
+    def __delitem__(self, i: Union[int, slice]) -> None:
         del self._items[i]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._items)
 
-    def insert(self, i, item):
+    def insert(self, i: int, item: 'Token') -> None:
         self._items.insert(i, item)
 
     def __str__(self) -> str:
@@ -198,18 +208,17 @@ class Token(MutableSequence):
         else:
             return '%r %s' % (self.symbol, self.label)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         symbol, value = self.symbol, self.value
         if value != symbol:
             return '%s(value=%r)' % (self.__class__.__name__, value)
         else:
             return '%s()' % self.__class__.__name__
 
-    def __eq__(self, other):
-        try:
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Token):
             return self.symbol == other.symbol and self.value == other.value
-        except AttributeError:
-            return False
+        return False
 
     @property
     def arity(self) -> int:
@@ -238,7 +247,7 @@ class Token(MutableSequence):
         """Returns the source representation string."""
         symbol = self.symbol
         if symbol == '(name)':
-            return self.value
+            return cast(str, self.value)
         elif symbol == '(decimal)':
             return str(self.value)
         elif symbol in SPECIAL_SYMBOLS:
@@ -265,19 +274,19 @@ class Token(MutableSequence):
             return 1, token_index + 1
         return line, token_index - self._source[:token_index].rindex('\n')
 
-    def nud(self):
+    def nud(self) -> 'Token':
         """Pratt's null denotation method"""
         raise self.wrong_syntax()
 
-    def led(self, left):
+    def led(self, left: 'Token') -> 'Token':
         """Pratt's left denotation method"""
         raise self.wrong_syntax()
 
-    def evaluate(self):
+    def evaluate(self) -> Any:
         """Evaluation method"""
         return self.value
 
-    def iter(self, *symbols):
+    def iter(self, *symbols: str) -> Iterator['Token']:
         """Returns a generator for iterating the token's tree."""
         if not self:
             if not symbols or self.symbol in symbols:
@@ -293,15 +302,15 @@ class Token(MutableSequence):
             for t in self._items[1:]:
                 yield from t.iter(*symbols)
 
-    def expected(self, *symbols, message=None):
+    def expected(self, *symbols: str, message: Optional[str] = None) -> None:
         if symbols and self.symbol not in symbols:
             raise self.wrong_syntax(message)
 
-    def unexpected(self, *symbols, message=None):
+    def unexpected(self, *symbols: str, message: Optional[str] = None) -> None:
         if not symbols or self.symbol in symbols:
             raise self.wrong_syntax(message)
 
-    def wrong_syntax(self, message=None):
+    def wrong_syntax(self, message: Optional[str] = None) -> ParseError:
         if message:
             return ParseError(message)
         elif self.symbol not in SPECIAL_SYMBOLS:
@@ -319,16 +328,24 @@ class Token(MutableSequence):
         else:
             return ParseError('unexpected end of source')
 
-    def wrong_type(self, message='invalid type'):
+    def wrong_type(self, message: str = 'invalid type') -> TypeError:
         return TypeError(message)
 
-    def wrong_value(self, message='invalid value'):
+    def wrong_value(self, message: str = 'invalid value') -> ValueError:
         return ValueError(message)
 
 
-class ParserMeta(type):
+class ParserMeta(ABCMeta):
 
-    def __new__(mcs, name, bases, namespace):
+    token_base_class: Type[Token]
+    literals_pattern: Pattern[str]
+    name_pattern: Pattern[str]
+    tokenizer: Optional[Pattern[str]]
+    SYMBOLS: Set[str]
+    symbol_table: Dict[str, 'Token']
+
+    def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], namespace: Dict[str, Any]) \
+            -> 'ParserMeta':
         cls = super(ParserMeta, mcs).__new__(mcs, name, bases, namespace)
 
         # Avoids more parsers definitions for a single module
@@ -362,7 +379,10 @@ class ParserMeta(type):
         return cls
 
 
-class Parser(metaclass=ParserMeta):
+TK = TypeVar('TK', bound=Token, covariant=True)
+
+
+class Parser(Generic[TK], metaclass=ParserMeta):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
 
@@ -377,19 +397,21 @@ class Parser(metaclass=ParserMeta):
     """
     SYMBOLS = SPECIAL_SYMBOLS
     token_base_class = Token
-    tokenizer: Optional[Pattern] = None
-    symbol_table: ClassVar[Dict[str, Type[Token]]] = {}
+    tokenizer: Optional[Pattern[str]] = None
+    symbol_table: ClassVar[MutableMapping[str, Type[TK]]] = {}
 
-    _start_token: Token
-    token: Token
-    next_token: Token
-    next_match: Optional[Match]
-    literals_pattern: Pattern
-    name_pattern: Pattern
+    _start_token: TK
+    source: str
+    tokens: Iterator[str]
+    token: TK
+    next_token: TK
+    next_match: Optional[Match[str]]
+    literals_pattern: Pattern[str]
+    name_pattern: Pattern[str]
 
     __slots__ = 'source', 'tokens', 'next_match', '_start_token', 'token', 'next_token'
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self.tokenizer is None:
             self.build()
         self.source = ''
@@ -398,12 +420,13 @@ class Parser(metaclass=ParserMeta):
         self._start_token = self.symbol_table['(start)'](self)
         self.token = self.next_token = self._start_token
 
-    def __eq__(self, other):
-        return self.token_base_class is other.token_base_class and \
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Parser) and \
+            self.token_base_class is other.token_base_class and \
             self.SYMBOLS == other.SYMBOLS and \
             self.symbol_table == other.symbol_table
 
-    def parse(self, source: str) -> Token:
+    def parse(self, source: str) -> TK:
         """
         Parses a source code of the formal language. This is the main method that has to be
         called for a parser's instance.
@@ -411,9 +434,10 @@ class Parser(metaclass=ParserMeta):
         :param source: The source string.
         :return: The root of the token's tree that parse the source.
         """
+        assert self.tokenizer, "Parser tokenizer is not built!"
         try:
             try:
-                self.tokens = iter(self.tokenizer.finditer(source))  # type: ignore[union-attr]
+                self.tokens = iter(cast(Iterator[str], self.tokenizer.finditer(source)))
             except TypeError as err:
                 token = self.symbol_table['(invalid)'](self, type(source))
                 raise token.wrong_syntax('invalid source type, {}'.format(err))
@@ -428,7 +452,7 @@ class Parser(metaclass=ParserMeta):
             self.next_match = None
             self.token = self.next_token = self._start_token
 
-    def advance(self, *symbols: str) -> Token:
+    def advance(self, *symbols: str) -> TK:
         """
         The Pratt's function for advancing to next token.
 
@@ -444,7 +468,7 @@ class Parser(metaclass=ParserMeta):
         self.token = self.next_token
         while True:
             try:
-                self.next_match = cast(Match, next(self.tokens))
+                self.next_match = cast(Match[str], next(self.tokens))
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
@@ -512,7 +536,7 @@ class Parser(metaclass=ParserMeta):
         source_chunk: List[str] = []
         while True:
             try:
-                self.next_match = cast(Match, next(self.tokens))
+                self.next_match = cast(Match[str], next(self.tokens))
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break
@@ -533,7 +557,7 @@ class Parser(metaclass=ParserMeta):
                     source_chunk.append(self.next_match.group())
         return ''.join(source_chunk)
 
-    def expression(self, rbp: int = 0) -> Token:
+    def expression(self, rbp: int = 0) -> TK:
         """
         Pratt's function for parsing an expression. It calls token.nud() and then advances
         until the right binding power is less the left binding power of the next
@@ -549,21 +573,21 @@ class Parser(metaclass=ParserMeta):
             token = self.next_token
             self.advance()
             left = token.led(left)
-        return left
+        return cast(TK, left)
 
     @property
-    def position(self):
+    def position(self) -> Tuple[int, int]:
         """Property that returns the current line and column indexes."""
         return self.token.position
 
-    def is_source_start(self):
+    def is_source_start(self) -> bool:
         """
         Returns `True` if the parser is positioned at the start
         of the source, ignoring the spaces.
         """
         return not bool(self.source[0:self.token.span[0]].strip())
 
-    def is_line_start(self):
+    def is_line_start(self) -> bool:
         """
         Returns `True` if the parser is positioned at the start
         of a source line, ignoring the spaces.
@@ -576,7 +600,7 @@ class Parser(metaclass=ParserMeta):
         else:
             return not bool(self.source[line_start:token_index].strip())
 
-    def is_spaced(self, before=True, after=True):
+    def is_spaced(self, before: bool = True, after: bool = True) -> bool:
         """
         Returns `True` if the source has an extra space (whitespace, tab or newline)
         immediately before or after the current position of the parser.
@@ -595,11 +619,11 @@ class Parser(metaclass=ParserMeta):
             return False
 
     @staticmethod
-    def unescape(string_literal):
+    def unescape(string_literal: str) -> str:
         return string_literal[1:-1].replace("\\'", "'").replace('\\"', '"')
 
     @classmethod
-    def register(cls, symbol, **kwargs) -> Type[Token]:
+    def register(cls, symbol: Union[str, Type[TK]], **kwargs: Any) -> Type[TK]:
         """
         Register/update a token class in the symbol table.
 
@@ -608,32 +632,33 @@ class Parser(metaclass=ParserMeta):
         :return: A token class.
         """
         try:
-            try:
+            if isinstance(symbol, str):
+                _symbol = symbol
                 if ' ' in symbol:
                     raise ValueError("%r: a symbol can't contain whitespaces" % symbol)
-            except TypeError:
-                assert isinstance(symbol, type) and issubclass(symbol, Token), \
-                    "A %r subclass requested, not %r." % (Token, symbol)
-                symbol, token_class = symbol.symbol, symbol
-                assert symbol in cls.symbol_table and cls.symbol_table[symbol] is token_class, \
-                    "Token class %r is not registered." % token_class
-            else:
                 token_class = cls.symbol_table[symbol]
+            else:
+                assert isinstance(symbol, type) and issubclass(symbol, Token), \
+                    "A string or a %r subclass requested, not %r." % (Token, symbol)
+
+                _symbol, token_class = symbol.symbol, symbol
+                assert _symbol in cls.symbol_table and cls.symbol_table[_symbol] is token_class, \
+                    "Token class %r is not registered." % token_class
 
         except KeyError:
             # Register a new symbol and create a new custom class. The new class
             # name is registered at parser class's module level.
-            if symbol not in cls.SYMBOLS:
-                if symbol != '(start)':  # for backward compatibility
+            if _symbol not in cls.SYMBOLS:
+                if _symbol != '(start)':  # for backward compatibility
                     raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
-            kwargs['symbol'] = symbol
+            kwargs['symbol'] = _symbol
             label = kwargs.get('label', 'symbol')
             if isinstance(label, tuple):
                 label = kwargs['label'] = MultiLabel(*label)
 
             token_class_name = "_{}{}".format(
-                symbol_to_classname(symbol), str(label).title().replace(' ', '')
+                symbol_to_classname(_symbol), str(label).title().replace(' ', '')
             )
             token_class_bases = kwargs.get('bases', (cls.token_base_class,))
             kwargs.update({
@@ -641,8 +666,8 @@ class Parser(metaclass=ParserMeta):
                 '__qualname__': token_class_name,
                 '__return__': None
             })
-            token_class = cast(Type[Token], ABCMeta(token_class_name, token_class_bases, kwargs))
-            cls.symbol_table[symbol] = token_class
+            token_class = cast(Type[TK], ABCMeta(token_class_name, token_class_bases, kwargs))
+            cls.symbol_table[_symbol] = token_class
             MutableSequence.register(token_class)
             setattr(sys.modules[cls.__module__], token_class_name, token_class)
 
@@ -658,12 +683,12 @@ class Parser(metaclass=ParserMeta):
         return token_class
 
     @classmethod
-    def unregister(cls, symbol: str):
+    def unregister(cls, symbol: str) -> None:
         """Unregister a token class from the symbol table."""
         del cls.symbol_table[symbol.strip()]
 
     @classmethod
-    def duplicate(cls, symbol: str, new_symbol: str, **kwargs) -> Type[Token]:
+    def duplicate(cls, symbol: str, new_symbol: str, **kwargs: Any) -> Type[TK]:
         """Duplicate a token class with a new symbol."""
         token_class = cls.symbol_table[symbol]
         new_token_class = cls.register(new_symbol, **kwargs)
@@ -674,64 +699,65 @@ class Parser(metaclass=ParserMeta):
         return new_token_class
 
     @classmethod
-    def literal(cls, symbol: str, bp: int = 0):
+    def literal(cls, symbol: str, bp: int = 0) -> Type[TK]:
         """Register a token for a symbol that represents a *literal*."""
-        def nud(self):
+        def nud(self: Token) -> Token:
             return self
 
-        def evaluate(self, *_args, **_kwargs):
+        def evaluate(self: Token, *_args: Any, **_kwargs: Any) -> Any:
             return self.value
 
         return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
 
     @classmethod
-    def nullary(cls, symbol: str, bp: int = 0):
+    def nullary(cls, symbol: str, bp: int = 0) -> Type[TK]:
         """Register a token for a symbol that represents a *nullary* operator."""
-        def nud(self):
+        def nud(self: Token) -> Token:
             return self
         return cls.register(symbol, label='operator', lbp=bp, nud=nud)
 
     @classmethod
-    def prefix(cls, symbol: str, bp: int = 0):
+    def prefix(cls, symbol: str, bp: int = 0) -> Type[TK]:
         """Register a token for a symbol that represents a *prefix* unary operator."""
-        def nud(self):
+        def nud(self: Token) -> Token:
             self[:] = self.parser.expression(rbp=bp),
             return self
         return cls.register(symbol, label='prefix operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
-    def postfix(cls, symbol: str, bp: int = 0):
+    def postfix(cls, symbol: str, bp: int = 0) -> Type[TK]:
         """Register a token for a symbol that represents a *postfix* unary operator."""
-        def led(self, left):
+        def led(self: Token, left: Token) -> Token:
             self[:] = left,
             return self
         return cls.register(symbol, label='postfix operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infix(cls, symbol: str, bp: int = 0):
+    def infix(cls, symbol: str, bp: int = 0) -> Type[TK]:
         """Register a token for a symbol that represents an *infix* binary operator."""
-        def led(self, left):
+        def led(self: Token, left: Token) -> Token:
             self[:] = left, self.parser.expression(rbp=bp)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infixr(cls, symbol: str, bp: int = 0):
+    def infixr(cls, symbol: str, bp: int = 0) -> Type[TK]:
         """Register a token for a symbol that represents an *infixr* binary operator."""
-        def led(self, left):
+        def led(self: Token, left: Token) -> Token:
             self[:] = left, self.parser.expression(rbp=bp - 1)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp - 1, led=led)
 
     @classmethod
-    def method(cls, symbol: Union[str, Type[Token]], bp: int = 0) -> Callable:
+    def method(cls, symbol: Union[str, Type[TK]], bp: int = 0) \
+            -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
         """
         Register a token for a symbol that represents a custom operator or redefine
         a method for an existing token.
         """
         token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
-        def bind(func):
+        def bind(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             method_name = func.__name__.partition('_')[0]
             if not callable(getattr(token_class, method_name)):
                 raise TypeError(f"The attribute {method_name!r} is not a callable of {token_class}")
@@ -740,7 +766,7 @@ class Parser(metaclass=ParserMeta):
         return bind
 
     @classmethod
-    def build(cls):
+    def build(cls) -> None:
         """
         Builds the parser class. Checks if all declared symbols are defined
         and builds a the regex tokenizer using the symbol related patterns.
@@ -757,7 +783,7 @@ class Parser(metaclass=ParserMeta):
     build_tokenizer = build  # For backward compatibility
 
     @classmethod
-    def create_tokenizer(cls, symbol_table: Dict[str, Type[Token]]) -> Pattern:
+    def create_tokenizer(cls, symbol_table: MutableMapping[str, Type[TK]]) -> Pattern[str]:
         """
         Returns a regex based tokenizer built from a symbol table of token classes.
         The returned tokenizer skips extra spaces between symbols.
