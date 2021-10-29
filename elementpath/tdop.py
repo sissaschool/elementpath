@@ -23,6 +23,8 @@ if sys.version_info < (3, 7):
 else:
     from abc import ABCMeta
 
+from .datatypes import AtomicValueType
+
 #
 # Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
@@ -169,7 +171,7 @@ class Token(MutableSequence['Token']):
 
     _items: List[Any]
     parser: 'Parser[Token]'
-    value: Union[None, str, int, float, Decimal]
+    value: Optional[AtomicValueType]
     _source: str
     span: Tuple[int, int]
 

@@ -58,7 +58,7 @@ MONTH_DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 MONTH_DAYS_LEAP = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 
-def adjust_day(year: int, month: int, day: int):
+def adjust_day(year: int, month: int, day: int) -> int:
     if month in {1, 3, 5, 7, 8, 10, 12}:
         return day
     elif month in {4, 6, 9, 11}:

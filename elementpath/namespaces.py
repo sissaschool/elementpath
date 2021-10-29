@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, MutableMapping
 
-NamespacesType = Optional[Dict[str, str]]
+NamespacesType = MutableMapping[str, str]
 
 # Regex patterns related to names and namespaces
 NAMESPACE_URI_PATTERN = re.compile(r'{([^}]+)}')

@@ -7,18 +7,21 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Dict, Optional, Iterator, Type
+from typing import Any, Dict, Optional, Iterator, Union, Type
 
 from .namespaces import NamespacesType
 from .xpath_context import ContextRootType, XPathContext
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
 
-ParserType = Optional[Type[XPath1Parser]]
+ParserType = Union[Type[XPath1Parser], Type[XPath2Parser]]
 
 
-def select(root: ContextRootType, path: str, namespaces: NamespacesType = None,
-           parser: ParserType = None, **kwargs: Any) -> Any:
+def select(root: ContextRootType,
+           path: str,
+           namespaces: Optional[NamespacesType] = None,
+           parser: Optional[ParserType] = None,
+           **kwargs: Any) -> Any:
     """
     XPath selector function that apply a *path* expression on *root* Element.
 
@@ -45,8 +48,11 @@ def select(root: ContextRootType, path: str, namespaces: NamespacesType = None,
     return root_token.get_results(context)
 
 
-def iter_select(root: ContextRootType, path: str, namespaces: NamespacesType = None,
-                parser: ParserType = None, **kwargs: Any) -> Iterator[Any]:
+def iter_select(root: ContextRootType,
+                path: str,
+                namespaces: Optional[NamespacesType] = None,
+                parser: Optional[ParserType] = None,
+                **kwargs: Any) -> Iterator[Any]:
     """
     A function that creates an XPath selector generator for apply a *path* expression
     on *root* Element.
@@ -90,8 +96,11 @@ class Selector(object):
     :ivar root_token: the root of tokens tree compiled from path.
     :vartype root_token: XPathToken
     """
-    def __init__(self, path: str, namespaces: NamespacesType = None,
-                 parser: ParserType = None, **kwargs: Any) -> None:
+    def __init__(self, path: str,
+                 namespaces: Optional[NamespacesType] = None,
+                 parser: Optional[ParserType] = None,
+                 **kwargs: Any) -> None:
+
         self._variables = kwargs.pop('variables', None)  # For backward compatibility
         self.parser = (parser or XPath2Parser)(namespaces, **kwargs)
         self.path = path

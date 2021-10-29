@@ -25,22 +25,24 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import TYPE_CHECKING, Optional, List, Tuple, Union, Any, Iterator
+from typing import TYPE_CHECKING, cast, Callable, Optional, List, Tuple, Union, \
+    Any, Iterator
 import urllib.parse
 from xml.etree.ElementTree import Element
 
-from .exceptions import ElementPathError, ElementPathValueError, XPATH_ERROR_CODES
+from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
+    ElementPathTypeError, ElementPathSyntaxError, MissingContextError, XPATH_ERROR_CODES
 from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
-from .xpath_nodes import XPathNode, ElementNode, TypedElement, AttributeNode, TextNode, \
+from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
     is_comment_node, is_processing_instruction_node, is_element_node, \
     is_document_node, is_xpath_node, is_schema_node
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime, \
     AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
-    Integer, DoubleProxy10, DoubleProxy, QName
+    Integer, DoubleProxy10, DoubleProxy, QName, AtomicValueType
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -61,6 +63,7 @@ class XPathToken(Token):
     namespace = None  # for namespace binding of names and wildcards
 
     parser: 'XPath1Parser'
+    iter: Callable[..., Iterator['XPathToken']]
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         """
@@ -140,14 +143,14 @@ class XPathToken(Token):
 
     ###
     # Tokens tree analysis methods
-    def iter_leaf_elements(self) -> Iterator[ElementNode]:
+    def iter_leaf_elements(self) -> Iterator[str]:
         """
         Iterates through the leaf elements of the token tree if there are any,
         returning QNames in prefixed format. A leaf element is an element
         positioned at last path step. Does not consider kind tests and wildcards.
         """
         if self.symbol in {'(name)', ':'}:
-            yield self.value
+            yield cast(str, self.value)
         elif self.symbol in ('//', '/'):
             if self._items[-1].symbol in {
                 '(name)', '*', ':', '..', '.', '[', 'self', 'child',
@@ -954,8 +957,8 @@ class XPathToken(Token):
 
         return code  # returns an unprefixed code (without prefix the namespace is not checked)
 
-    def error(self, code: Union[str, QName],
-              message_or_error: Optional[str] = None) -> ElementPathError:
+    def error(self, code: Union[str, QName], message_or_error: Optional[str] = None) \
+            -> ElementPathError:
         """
         Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
         alphanumeric token starting with four uppercase letters and ending with four digits.
@@ -1010,15 +1013,20 @@ class XPathToken(Token):
         return error_class(message, code=self.error_code(code), token=self)
 
     # Shortcuts for XPath errors, only the wrong_syntax
-    def expected(self, *symbols, message=None, code='XPST0003'):
+    def expected(self, *symbols: str,
+                 message: Optional[str] = None,
+                 code: str = 'XPST0003') -> None:
         if symbols and self.symbol not in symbols:
             raise self.wrong_syntax(message, code)
 
-    def unexpected(self, *symbols, message=None, code='XPST0003'):
+    def unexpected(self, *symbols: str,
+                   message: Optional[str] = None,
+                   code: str = 'XPST0003') -> None:
         if not symbols or self.symbol in symbols:
             raise self.wrong_syntax(message, code)
 
-    def wrong_syntax(self, message=None, code='XPST0003'):
+    def wrong_syntax(self, message: Optional[str] = None,  # type: ignore[override]
+                     code: str = 'XPST0003') -> ElementPathError:
         if self.label == 'function':
             code = 'XPST0017'
 
@@ -1028,55 +1036,35 @@ class XPathToken(Token):
         error = super(XPathToken, self).wrong_syntax(message)
         return self.error(code, str(error))
 
-    def wrong_value(self, message=None):
-        return self.error('FOCA0002', message)
+    def wrong_value(self, message: Optional[str] = None) -> ElementPathValueError:
+        return cast(ElementPathValueError, self.error('FOCA0002', message))
 
-    def wrong_type(self, message=None):
-        return self.error('FORG0006', message)
+    def wrong_type(self, message: Optional[str] = None) -> ElementPathTypeError:
+        return cast(ElementPathTypeError, self.error('FORG0006', message))
 
-    def missing_schema(self, message=None):
-        return self.error('XPST0001', message)
+    def missing_context(self, message: Optional[str] = None) -> MissingContextError:
+        return cast(MissingContextError, self.error('XPDY0002', message))
 
-    def missing_context(self, message=None):
-        return self.error('XPDY0002', message)
+    def wrong_context_type(self, message: Optional[str] = None) -> ElementPathTypeError:
+        return cast(ElementPathTypeError, self.error('XPTY0004', message))
 
-    def wrong_context_type(self, message=None):
-        return self.error('XPTY0004', message)
+    def missing_name(self, message: Optional[str] = None) -> ElementPathNameError:
+        return cast(ElementPathNameError, self.error('XPST0008', message))
 
-    def missing_sequence(self, message=None):
-        return self.error('XPST0005', message)
-
-    def missing_name(self, message=None):
-        return self.error('XPST0008', message)
-
-    def missing_axis(self, message=None):
+    def missing_axis(self, message: Optional[str] = None) \
+            -> Union[ElementPathNameError, ElementPathSyntaxError]:
         if self.parser.compatibility_mode:
-            return self.error('XPST0010', message)
-        return self.error('XPST0003', message)
+            return cast(ElementPathNameError, self.error('XPST0010', message))
+        return cast(ElementPathSyntaxError, self.error('XPST0003', message))
 
-    def wrong_nargs(self, message=None):
-        return self.error('XPST0017', message)
+    def wrong_nargs(self, message: Optional[str] = None) -> ElementPathTypeError:
+        return cast(ElementPathTypeError, self.error('XPST0017', message))
 
-    def wrong_step_result(self, message=None):
-        return self.error('XPTY0018', message)
+    def wrong_sequence_type(self, message: Optional[str] = None) -> ElementPathTypeError:
+        return cast(ElementPathTypeError, self.error('XPDY0050', message))
 
-    def wrong_intermediate_step_result(self, message=None):
-        return self.error('XPTY0019', message)
-
-    def wrong_axis_argument(self, message=None):
-        return self.error('XPTY0020', message)
-
-    def wrong_sequence_type(self, message=None):
-        return self.error('XPDY0050', message)
-
-    def unknown_atomic_type(self, message=None):
-        return self.error('XPST0051', message)
-
-    def wrong_target_type(self, message=None):
-        return self.error('XPST0080', message)
-
-    def unknown_namespace(self, message=None):
-        return self.error('XPST0081', message)
+    def unknown_atomic_type(self, message: Optional[str] = None) -> ElementPathNameError:
+        return cast(ElementPathNameError, self.error('XPST0051', message))
 
 
 class XPathAxis(XPathToken):
@@ -1084,7 +1072,7 @@ class XPathAxis(XPathToken):
     label = 'axis'
     reverse_axis: bool = False
 
-    def nud(self):
+    def nud(self) -> 'XPathAxis':
         self.parser.advance('::')
         self.parser.expected_name(
             '(name)', '*', 'text', 'node', 'document-node',
@@ -1137,12 +1125,14 @@ class XPathFunction(XPathToken):
 
     def __call__(self, context: Optional[XPathContext] = None,
                  argument_list: Optional[Union[
-                     XPathToken, List[XPathToken], Tuple[XPathToken, ...]
+                     XPathToken,
+                     List[Union[XPathToken, AtomicValueType]],
+                     Tuple[Union[XPathToken, AtomicValueType], ...]
                  ]] = None) -> Any:
-        args = []
+
+        args: List[Union[XPathToken, AtomicValueType]] = []
         if isinstance(argument_list, (list, tuple)):
-            for token in argument_list:
-                args.append(token)
+            args.extend(argument_list)
         elif isinstance(argument_list, XPathToken):
             if argument_list.symbol == '(':
                 args.append(argument_list)
@@ -1160,10 +1150,14 @@ class XPathFunction(XPathToken):
                 if not self.parser.match_sequence_type(value, sequence_type):
                     msg = "invalid type for argument {!r}"
                     raise self.error('XPTY0004', msg.format(variable[0].value))
-                context.variables[variable[0].value] = value
+                varname = cast(str, variable[0].value)
+                context.variables[varname] = value
         elif any(tk.symbol == '?' for tk in self):
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
-                tk.value = value
+                if isinstance(value, XPathToken):
+                    tk.value = value.evaluate(context)
+                else:
+                    tk.value = value
         else:
             self.clear()
             for value in args:

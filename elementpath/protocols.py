@@ -28,7 +28,7 @@ if sys.version_info < (3, 8):
     XPathParserProtocol = Any
 else:
     from typing import Dict, Iterator, Iterable, List, Literal, \
-        NoReturn, Optional, Protocol, Sized, Hashable, runtime_checkable
+        Optional, Protocol, Sized, Hashable, runtime_checkable
 
     @runtime_checkable
     class ElementProtocol(Iterable['ElementProtocol'], Sized, Hashable, Protocol):
@@ -84,13 +84,13 @@ else:
             """Returns `True` if it's a simpleType derived from xs:QName, `False` otherwise."""
         def is_notation(self) -> bool:
             """Returns `True` if it's a simpleType derived from xs:NOTATION, `False` otherwise."""
-        def validate(self, obj, *args, **kwargs) -> NoReturn:
+        def validate(self, obj: Any, *args: Any, **kwargs: Any) -> None:
             """
             Validates an XML object node using the XSD type. The argument *obj* is an element
             for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
             compatible exception (a `ValueError` or a subclass of it) if the argument is not valid.
             """
-        def decode(self, obj, *args, **kwargs) -> Any:
+        def decode(self, obj: Any, *args: Any, **kwargs: Any) -> Any:
             """
             Decodes an XML object node using the XSD type. The argument *obj* is an element
             for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
