@@ -14,7 +14,7 @@ from abc import ABCMeta
 import locale
 from collections.abc import MutableSequence
 from urllib.parse import urlparse
-from typing import cast, Dict, Optional
+from typing import TYPE_CHECKING, cast, Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
@@ -22,10 +22,15 @@ from ..exceptions import ElementPathError, ElementPathTypeError, \
 from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
     XLINK_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_ATOMIC_TYPE, get_prefixed_name
-from ..datatypes import UntypedAtomic
+from ..datatypes import UntypedAtomic, AtomicValueType
 from ..xpath_token import XPathToken, UNICODE_CODEPOINT_COLLATION, XPathFunction
-from ..xpath1 import XPath1Parser
+from ..xpath_context import XPathContext
 from ..schema_proxy import AbstractSchemaProxy
+
+if TYPE_CHECKING:
+    from ..xpath1.xpath1_parser import XPath1Parser
+else:
+    from ..xpath1 import XPath1Parser
 
 
 class XPath2Parser(XPath1Parser):
@@ -183,8 +188,11 @@ class XPath2Parser(XPath1Parser):
     }
 
     function_signatures = XPath1Parser.function_signatures.copy()
+    namespaces: Dict[str, str]
+    token: XPathToken
+    next_token: XPathToken
 
-    def __init__(self, namespaces: NamespacesType = None,
+    def __init__(self, namespaces: Optional[NamespacesType] = None,
                  variable_types: Optional[Dict[str, str]] = None,
                  strict: bool = True,
                  compatibility_mode: bool = False,
@@ -243,7 +251,7 @@ class XPath2Parser(XPath1Parser):
                                         'default_collection_type argument')
         self.default_collection_type = default_collection_type
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()
         state.pop('symbol_table', None)
         state.pop('tokenizer', None)
@@ -289,7 +297,7 @@ class XPath2Parser(XPath1Parser):
         except (AttributeError, NotImplementedError):
             return self._xsd_version
 
-    def advance(self, *symbols):
+    def advance(self, *symbols: str) -> XPathToken  :
         super(XPath2Parser, self).advance(*symbols)
 
         if self.next_token.symbol == '(:':
@@ -313,9 +321,12 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
-    def constructor(cls, symbol, bp=0, nargs=1, sequence_types=(), label='constructor function'):
+    def constructor(cls, symbol: str, bp: int = 0, nargs: int = 1,
+                    sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
+                    label: str = 'constructor function') \
+            -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
         """Creates a constructor token class."""
-        def nud_(self):
+        def nud_(self: XPathFunction) -> XPathFunction:
             try:
                 self.parser.advance('(')
                 self[0:] = self.parser.expression(5),
@@ -327,21 +338,22 @@ class XPath2Parser(XPath1Parser):
                 raise self.error('XPST0017') from None
             return self
 
-        def evaluate_(self, context=None):
+        def evaluate_(self: XPathFunction, context: Optional[XPathContext] = None) \
+                -> Union[List[None], AtomicValueType]:
             arg = self.data_value(self.get_argument(context))
             if arg is None:
                 return []
 
             try:
                 if isinstance(arg, UntypedAtomic):
-                    return self.cast(arg.value)
-                return self.cast(arg)
+                    return cast(AtomicValueType, self.cast(arg.value))
+                return cast(AtomicValueType, self.cast(arg))
             except ElementPathError:
                 raise
             except (TypeError, ValueError) as err:
                 raise self.error('FORG0001', err) from None
 
-        def cast_(value):
+        def cast_(value) -> AtomicValueType:
             raise NotImplementedError
 
         if not sequence_types:
@@ -352,7 +364,7 @@ class XPath2Parser(XPath1Parser):
                                    label=label, bases=(XPathFunction,), lbp=bp, rbp=bp,
                                    nud=nud_, evaluate=evaluate_, cast=cast_)
 
-        def bind(func):
+        def bind(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
             method_name = func.__name__.partition('_')[0]
             if method_name != 'cast':
                 raise ValueError("The function name must be 'cast' or starts with 'cast_'")
@@ -365,7 +377,7 @@ class XPath2Parser(XPath1Parser):
         if atomic_type in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
             raise xpath_error('XPST0080')
 
-        def nud_(self_):
+        def nud_(self_) -> XPathFunction:
             self_.parser.advance('(')
             self_[0:] = self_.parser.expression(5),
             self_.parser.advance(')')
@@ -376,7 +388,7 @@ class XPath2Parser(XPath1Parser):
                 self_.value = None
             return self_
 
-        def evaluate_(self_, context=None):
+        def evaluate_(self_, context=None) -> Union[List[None], AtomicValueType]:
             arg = self_.get_argument(context)
             if arg is None:
                 return []

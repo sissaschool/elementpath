@@ -11,13 +11,14 @@
 XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
-from typing import cast, Any, Dict, Optional, Tuple
+from typing import cast, Any, Dict, MutableMapping, Optional, Tuple, Type, Union
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathValueError, xpath_error
+from ..protocols import XsdTypeProtocol
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
-    xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES
+    xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES, AtomicValueType
 from ..tdop import Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
@@ -28,7 +29,7 @@ from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_kind
 
 
-class XPath1Parser(Parser):
+class XPath1Parser(Parser[XPathToken]):
     """
     XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
     mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`
@@ -41,8 +42,6 @@ class XPath1Parser(Parser):
     version = '1.0'
     """The XPath version string."""
 
-    token: XPathToken
-    next_token: XPathToken
     token_base_class = XPathToken
     literals_pattern = re.compile(
         r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
@@ -106,8 +105,8 @@ class XPath1Parser(Parser):
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 
-    def __init__(self, namespaces: NamespacesType = None,
-                 strict: bool = True, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, namespaces: Optional[NamespacesType] = None, strict: bool = True,
+                 *args: Any, **kwargs: Any) -> None:
         super(XPath1Parser, self).__init__()
         self.namespaces: Dict[str, str] = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
@@ -150,15 +149,18 @@ class XPath1Parser(Parser):
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
-    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80):
+    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> Type[XPathAxis]:
         """Register a token for a symbol that represents an XPath *axis*."""
-        return cls.register(symbol, label='axis', bases=(XPathAxis,),
-                            reverse_axis=reverse_axis, lbp=bp, rbp=bp)
+        token_class = cls.register(symbol, label='axis', bases=(XPathAxis,),
+                                   reverse_axis=reverse_axis, lbp=bp, rbp=bp)
+        return cast(Type[XPathAxis], token_class)
 
     @classmethod
-    def function(cls, symbol: str, nargs: NargsType = None,
+    def function(cls, symbol: str,
+                 nargs: NargsType = None,
                  sequence_types: Tuple[str, ...] = (),
-                 label: str = 'function', bp: int = 90):
+                 label: str = 'function',
+                 bp: int = 90) -> Type[XPathFunction]:
         """
         Registers a token class for a symbol that represents an XPath function.
         """
@@ -192,18 +194,19 @@ class XPath1Parser(Parser):
                         ', '.join(sequence_types[:arity]), sequence_types[-1]
                     )
 
-        return cls.register(symbol, nargs=nargs, sequence_types=sequence_types, label=label,
-                            bases=(XPathFunction,), lbp=bp, rbp=bp)
+        token_class = cls.register(symbol, nargs=nargs, sequence_types=sequence_types,
+                                   label=label, bases=(XPathFunction,), lbp=bp, rbp=bp)
+        return cast(Type[XPathFunction], token_class)
 
     def parse(self, source: str) -> XPathToken:
-        root_token = cast(XPathToken, super(XPath1Parser, self).parse(source))
+        root_token = super(XPath1Parser, self).parse(source)
         try:
             root_token.evaluate()  # Static context evaluation
         except MissingContextError:
             pass
         return root_token
 
-    def expected_name(self, *symbols, message=None):
+    def expected_name(self, *symbols: str, message: Optional[str] = None) -> None:
         """
         Checks the next symbol with a list of symbols. Replaces the next token
         with a '(name)' token if check fails and the symbol can be also a name.
@@ -216,13 +219,14 @@ class XPath1Parser(Parser):
             return
         elif self.next_token.label == 'operator' and \
                 self.name_pattern.match(self.next_token.symbol) is not None:
-            self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
+            token_class = self.symbol_table['(name)']
+            self.next_token = token_class(self, self.next_token.symbol)
         else:
             raise self.next_token.wrong_syntax(message)
 
     ###
     # Type checking (used in XPath 2.0)
-    def is_instance(self, obj, type_qname):
+    def is_instance(self, obj: Any, type_qname: str) -> bool:
         """Checks an instance against an XSD type."""
         if get_namespace(type_qname) == XSD_NAMESPACE:
             if type_qname == XSD_UNTYPED_ATOMIC:
@@ -249,8 +253,8 @@ class XPath1Parser(Parser):
 
         raise ElementPathKeyError("unknown type %r" % type_qname)
 
-    def is_sequence_type(self, value):
-        """Checks is a string is a sequence type specification."""
+    def is_sequence_type(self, value: str) -> bool:
+        """Checks if a string is a sequence type specification."""
         try:
             value = normalize_sequence_type(value)
         except TypeError:
@@ -323,8 +327,10 @@ class XPath1Parser(Parser):
         else:
             return True
 
-    def get_atomic_value(self, type_or_name):
+    def get_atomic_value(self, type_or_name: Union[str, XsdTypeProtocol]) -> AtomicValueType:
         """Gets an atomic value for an XSD type instance or name. Used for schema contexts."""
+        expanded_name: Optional[str]
+
         if isinstance(type_or_name, str):
             expanded_name = get_expanded_name(type_or_name, self.namespaces)
             xsd_type = None
@@ -341,14 +347,16 @@ class XPath1Parser(Parser):
                     pass
 
         if xsd_type is None and self.schema is not None:
-            xsd_type = self.schema.get_type(expanded_name)
+            xsd_type = self.schema.get_type(expanded_name or '')
 
         if xsd_type is None:
             return UntypedAtomic('1')
         elif xsd_type.is_simple() or xsd_type.has_simple_content():
+            if self.schema is None:
+                return UntypedAtomic('1')
             try:
                 primitive_type = self.schema.get_primitive_type(xsd_type)
-                return ATOMIC_VALUES[primitive_type.local_name]
+                return ATOMIC_VALUES[cast(str, primitive_type.local_name)]
             except (KeyError, AttributeError):
                 return UntypedAtomic('1')
         else:
@@ -356,7 +364,9 @@ class XPath1Parser(Parser):
             # (that should be None) because it is for static evaluation.
             return UntypedAtomic('1')
 
-    def match_sequence_type(self, value, sequence_type, occurrence=None):
+    def match_sequence_type(self, value: Any,
+                                sequence_type: str,
+                            occurrence: Optional[str] = None) -> bool:
         """
         Checks a value instance against a sequence type.
 
@@ -392,7 +402,7 @@ class XPath1Parser(Parser):
         except (KeyError, ValueError):
             return False
 
-    def check_variables(self, values):
+    def check_variables(self, values: MutableMapping[str, Any]) -> None:
         """Checks the sequence types of the XPath dynamic context's variables."""
         for varname, value in values.items():
             if not self.match_sequence_type(

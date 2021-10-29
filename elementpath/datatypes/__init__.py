@@ -13,6 +13,7 @@ classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
 from decimal import Decimal
+from typing import Dict, Union
 
 from ..helpers import QNAME_PATTERN  # For backward compatibility
 
@@ -60,7 +61,12 @@ xsd11_atomic_types.update(
 )
 XSD_BUILTIN_TYPES = xsd10_atomic_types
 
-ATOMIC_VALUES = {
+AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
+                        AnyURI, HexBinary, Base64Binary, QName, AbstractDateTime, Date10,
+                        DateTime10, Time, GregorianDay, GregorianMonth, GregorianMonthDay,
+                        GregorianYear10, GregorianYearMonth10, Duration, UntypedAtomic]
+
+ATOMIC_VALUES: Dict[str, AtomicValueType] = {
     'untypedAtomic': UntypedAtomic('1'),
     'anyType': UntypedAtomic('1'),
     'anySimpleType': UntypedAtomic('1'),
@@ -121,4 +127,5 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'ATOMIC_VALUES', 'XSD_BUI
            'Integer', 'NonPositiveInteger', 'NegativeInteger', 'Long', 'Int', 'Short',
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
-           'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary']
+           'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
+           'AtomicValueType']

@@ -393,10 +393,6 @@ class XPath1TokenTest(unittest.TestCase):
             raise token.wrong_type()
         self.assertIn('FORG0006', str(ctx.exception))
 
-        with self.assertRaises(ValueError) as ctx:
-            raise token.missing_schema()
-        self.assertIn('XPST0001', str(ctx.exception))
-
         with self.assertRaises(MissingContextError) as ctx:
             raise token.missing_context()
         self.assertIn('XPDY0002', str(ctx.exception))
@@ -404,10 +400,6 @@ class XPath1TokenTest(unittest.TestCase):
         with self.assertRaises(TypeError) as ctx:
             raise token.wrong_context_type()
         self.assertIn('XPTY0004', str(ctx.exception))
-
-        with self.assertRaises(ValueError) as ctx:
-            raise token.missing_sequence()
-        self.assertIn('XPST0005', str(ctx.exception))
 
         with self.assertRaises(NameError) as ctx:
             raise token.missing_name()
@@ -427,32 +419,12 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertIn('XPST0017', str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
-            raise token.wrong_step_result()
-        self.assertIn('XPTY0018', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
-            raise token.wrong_intermediate_step_result()
-        self.assertIn('XPTY0019', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
-            raise token.wrong_axis_argument()
-        self.assertIn('XPTY0020', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
             raise token.wrong_sequence_type()
         self.assertIn('XPDY0050', str(ctx.exception))
 
         with self.assertRaises(NameError) as ctx:
             raise token.unknown_atomic_type()
         self.assertIn('XPST0051', str(ctx.exception))
-
-        with self.assertRaises(NameError) as ctx:
-            raise token.wrong_target_type()
-        self.assertIn('XPST0080', str(ctx.exception))
-
-        with self.assertRaises(NameError) as ctx:
-            raise token.unknown_namespace()
-        self.assertIn('XPST0081', str(ctx.exception))
 
 
 class XPath2TokenTest(XPath1TokenTest):

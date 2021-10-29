@@ -251,7 +251,7 @@ def evaluate_substring_function(self, context=None):
             if math.isnan(length) or length <= 0:
                 return ''
         except TypeError:
-            raise self.wrong_type("the third argument must be xs:numeric") from None
+            raise self.error('FORG0006', "the third argument must be xs:numeric") from None
 
         if math.isinf(length):
             return item[max(start, 0):]

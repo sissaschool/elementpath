@@ -72,7 +72,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         return self._schema.find(path, namespaces)
 
     @property
-    def xsd_version(self):
+    def xsd_version(self) -> str:
         """The XSD version, returns '1.0' or '1.1'."""
         return self._schema.xsd_version
 
