@@ -13,11 +13,11 @@ Helper functions for XPath nodes and basic data types.
 from collections import Counter
 from urllib.parse import urlparse
 from typing import Any, Dict, Iterator, Optional, Tuple, Union
-from xml.etree.ElementTree import Element
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol
+from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
+    XsdAttributeProtocol, XMLSchemaProtocol
 
 
 ###
@@ -26,7 +26,7 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol
 # In ElementTree element nodes, comment nodes and PI nodes
 # use the same class, so they are indistinguishable with a
 # class check.
-ElementNode = ElementProtocol
+ElementNode = Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
 DocumentNode = DocumentProtocol
 
 
@@ -182,7 +182,7 @@ class TypedElement(XPathNode):
     :param xsd_type: the reference XSD type.
     :param value: the decoded value. Can be `None` for empty or element-only elements."
     """
-    def __init__(self, elem: Element, xsd_type: Any, value: Any) -> None:
+    def __init__(self, elem: ElementProtocol, xsd_type: Any, value: Any) -> None:
         self.elem = elem
         self.xsd_type = xsd_type
         self.value = value

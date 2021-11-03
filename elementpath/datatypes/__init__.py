@@ -61,10 +61,14 @@ xsd11_atomic_types.update(
 )
 XSD_BUILTIN_TYPES = xsd10_atomic_types
 
+DatetimeValueType = Union[Date10, Date, DateTime10, DateTime, Time, GregorianDay,
+                          GregorianMonth, GregorianMonthDay, GregorianYear10,
+                          GregorianYear, GregorianYearMonth10, GregorianYearMonth]
+
 AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
-                        AnyURI, HexBinary, Base64Binary, QName, AbstractDateTime, Date10,
-                        DateTime10, Time, GregorianDay, GregorianMonth, GregorianMonthDay,
-                        GregorianYear10, GregorianYearMonth10, Duration, UntypedAtomic]
+                        AnyURI, HexBinary, Base64Binary, QName, AbstractDateTime, Duration,
+                        UntypedAtomic, DatetimeValueType]
+
 
 ATOMIC_VALUES: Dict[str, AtomicValueType] = {
     'untypedAtomic': UntypedAtomic('1'),
@@ -128,4 +132,4 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'ATOMIC_VALUES', 'XSD_BUI
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
            'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
-           'AtomicValueType']
+           'AtomicValueType', 'DatetimeValueType']

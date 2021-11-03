@@ -11,7 +11,7 @@
 Define type hints protocols for XPath related objects.
 """
 import sys
-from typing import Any
+from typing import overload, Any
 
 
 if sys.version_info < (3, 8):
@@ -28,7 +28,9 @@ if sys.version_info < (3, 8):
     XPathParserProtocol = Any
 else:
     from typing import Dict, Iterator, Iterable, List, Literal, \
-        Optional, Protocol, Sized, Hashable, runtime_checkable
+        Optional, Protocol, Sized, Hashable, Union, TypeVar, runtime_checkable
+
+    _T = TypeVar("_T")
 
     @runtime_checkable
     class ElementProtocol(Iterable['ElementProtocol'], Sized, Hashable, Protocol):
@@ -36,6 +38,11 @@ else:
             self, path: str, namespaces: Optional[Dict[str, str]] = ...
         ) -> Optional['ElementProtocol']: ...
         def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
+        @overload
+        def get(self, key: str, default: None = ...) -> Optional[str]: ...
+        # noinspection PyOverloads
+        @overload
+        def get(self, key: str, default: _T) -> Union[str, _T]: ...
         tag: str
         attrib: Dict[str, Any]
         text: Optional[str]
@@ -56,6 +63,7 @@ else:
                         default_namespace: Optional[str] = None) -> bool: ...
         name: Optional[str]
         local_name: Optional[str]
+        parent: Optional['XsdComponentProtocol']
 
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         def is_simple(self) -> bool:
@@ -84,6 +92,12 @@ else:
             """Returns `True` if it's a simpleType derived from xs:QName, `False` otherwise."""
         def is_notation(self) -> bool:
             """Returns `True` if it's a simpleType derived from xs:NOTATION, `False` otherwise."""
+        def is_valid(self, obj: Any, *args: Any, **kwargs: Any) -> bool:
+            """
+            Validates an XML object node using the XSD type. The argument *obj* is an element
+            for complex type nodes or a text value for simple type nodes. Returns `True` if
+            the argument is valid, `False` otherwise.
+            """
         def validate(self, obj: Any, *args: Any, **kwargs: Any) -> None:
             """
             Validates an XML object node using the XSD type. The argument *obj* is an element

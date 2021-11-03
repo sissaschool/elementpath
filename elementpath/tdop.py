@@ -15,8 +15,9 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from itertools import takewhile
-from typing import Any, cast, overload, ClassVar, Callable, Dict, Generic, List, Optional, \
-    Union, Tuple, Type, Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
+from typing import Any, cast, overload, no_type_check, no_type_check_decorator, ClassVar, Callable, \
+    Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, Match, MutableMapping, \
+    MutableSequence, Iterator, Set, TypeVar
 
 if sys.version_info < (3, 7):
     from typing import GenericMeta as ABCMeta
@@ -127,7 +128,10 @@ class MultiLabel:
         return any(v.endswith(s) for v in self.values)
 
 
-class Token(MutableSequence['Token']):
+TK = TypeVar('TK', bound='Token[Any]')
+
+
+class Token(MutableSequence[TK]):
     """
     Token base class for defining a parser based on Pratt's method.
 
@@ -169,13 +173,14 @@ class Token(MutableSequence['Token']):
 
     __slots__ = '_items', 'parser', 'value', '_source', 'span'
 
-    _items: List[Any]
-    parser: 'Parser[Token]'
+    _items: List[TK]
+    parser: 'Parser[Token[TK]]'
     value: Optional[AtomicValueType]
     _source: str
     span: Tuple[int, int]
 
-    def __init__(self, parser: 'Parser[Token]', value: Optional[Any] = None) -> None:
+    def __init__(self, parser: 'Parser[Token[TK]]',
+                 value: Optional[AtomicValueType] = None) -> None:
         self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol
@@ -183,13 +188,13 @@ class Token(MutableSequence['Token']):
         self.span = (0, 0) if parser.next_match is None else parser.next_match.span()
 
     @overload
-    def __getitem__(self, i: int) -> 'Token': ...
+    def __getitem__(self, i: int) -> TK: ...
 
     @overload
-    def __getitem__(self, s: slice) -> MutableSequence['Token']: ...
+    def __getitem__(self, s: slice) -> MutableSequence[TK]: ...
 
     def __getitem__(self, i: Union[int, slice]) \
-            -> Union['Token', MutableSequence['Token']]:
+            -> Union[TK, MutableSequence[TK]]:
         return self._items[i]
 
     def __setitem__(self, i: Union[int, slice], o: Any) -> None:
@@ -201,7 +206,7 @@ class Token(MutableSequence['Token']):
     def __len__(self) -> int:
         return len(self._items)
 
-    def insert(self, i: int, item: 'Token') -> None:
+    def insert(self, i: int, item: TK) -> None:
         self._items.insert(i, item)
 
     def __str__(self) -> str:
@@ -276,11 +281,11 @@ class Token(MutableSequence['Token']):
             return 1, token_index + 1
         return line, token_index - self._source[:token_index].rindex('\n')
 
-    def nud(self) -> 'Token':
+    def nud(self) -> TK:
         """Pratt's null denotation method"""
         raise self.wrong_syntax()
 
-    def led(self, left: 'Token') -> 'Token':
+    def led(self, left: TK) -> TK:
         """Pratt's left denotation method"""
         raise self.wrong_syntax()
 
@@ -288,7 +293,7 @@ class Token(MutableSequence['Token']):
         """Evaluation method"""
         return self.value
 
-    def iter(self, *symbols: str) -> Iterator['Token']:
+    def iter(self, *symbols: str) -> Iterator['Token[TK]']:
         """Returns a generator for iterating the token's tree."""
         if not self:
             if not symbols or self.symbol in symbols:
@@ -339,12 +344,12 @@ class Token(MutableSequence['Token']):
 
 class ParserMeta(ABCMeta):
 
-    token_base_class: Type[Token]
+    token_base_class: Type[Token[Any]]
     literals_pattern: Pattern[str]
     name_pattern: Pattern[str]
     tokenizer: Optional[Pattern[str]]
     SYMBOLS: Set[str]
-    symbol_table: Dict[str, 'Token']
+    symbol_table: Dict[str, Token[Any]]
 
     def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], namespace: Dict[str, Any]) \
             -> 'ParserMeta':
@@ -381,10 +386,10 @@ class ParserMeta(ABCMeta):
         return cls
 
 
-TK = TypeVar('TK', bound=Token, covariant=True)
+TK_co = TypeVar('TK_co', bound=Token[Any], covariant=True)
 
 
-class Parser(Generic[TK], metaclass=ParserMeta):
+class Parser(Generic[TK_co], metaclass=ParserMeta):
     """
     Parser class for implementing a Top Down Operator Precedence parser.
 
@@ -400,13 +405,13 @@ class Parser(Generic[TK], metaclass=ParserMeta):
     SYMBOLS = SPECIAL_SYMBOLS
     token_base_class = Token
     tokenizer: Optional[Pattern[str]] = None
-    symbol_table: ClassVar[MutableMapping[str, Type[TK]]] = {}
+    symbol_table: ClassVar[MutableMapping[str, Type[TK_co]]] = {}
 
-    _start_token: TK
+    _start_token: TK_co
     source: str
     tokens: Iterator[str]
-    token: TK
-    next_token: TK
+    token: TK_co
+    next_token: TK_co
     next_match: Optional[Match[str]]
     literals_pattern: Pattern[str]
     name_pattern: Pattern[str]
@@ -428,7 +433,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
             self.SYMBOLS == other.SYMBOLS and \
             self.symbol_table == other.symbol_table
 
-    def parse(self, source: str) -> TK:
+    def parse(self, source: str) -> TK_co:
         """
         Parses a source code of the formal language. This is the main method that has to be
         called for a parser's instance.
@@ -441,7 +446,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
             try:
                 self.tokens = iter(cast(Iterator[str], self.tokenizer.finditer(source)))
             except TypeError as err:
-                token = self.symbol_table['(invalid)'](self, type(source))
+                token = self.symbol_table['(invalid)'](self, source)
                 raise token.wrong_syntax('invalid source type, {}'.format(err))
 
             self.source = source
@@ -454,7 +459,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
             self.next_match = None
             self.token = self.next_token = self._start_token
 
-    def advance(self, *symbols: str) -> TK:
+    def advance(self, *symbols: str) -> TK_co:
         """
         The Pratt's function for advancing to next token.
 
@@ -559,7 +564,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
                     source_chunk.append(self.next_match.group())
         return ''.join(source_chunk)
 
-    def expression(self, rbp: int = 0) -> TK:
+    def expression(self, rbp: int = 0) -> TK_co:
         """
         Pratt's function for parsing an expression. It calls token.nud() and then advances
         until the right binding power is less the left binding power of the next
@@ -575,7 +580,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
             token = self.next_token
             self.advance()
             left = token.led(left)
-        return cast(TK, left)
+        return cast(TK_co, left)
 
     @property
     def position(self) -> Tuple[int, int]:
@@ -625,7 +630,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
         return string_literal[1:-1].replace("\\'", "'").replace('\\"', '"')
 
     @classmethod
-    def register(cls, symbol: Union[str, Type[TK]], **kwargs: Any) -> Type[TK]:
+    def register(cls, symbol: Union[str, Type[TK_co]], **kwargs: Any) -> Type[TK_co]:
         """
         Register/update a token class in the symbol table.
 
@@ -668,7 +673,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
                 '__qualname__': token_class_name,
                 '__return__': None
             })
-            token_class = cast(Type[TK], ABCMeta(token_class_name, token_class_bases, kwargs))
+            token_class = cast(Type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs))
             cls.symbol_table[_symbol] = token_class
             MutableSequence.register(token_class)
             setattr(sys.modules[cls.__module__], token_class_name, token_class)
@@ -690,7 +695,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
         del cls.symbol_table[symbol.strip()]
 
     @classmethod
-    def duplicate(cls, symbol: str, new_symbol: str, **kwargs: Any) -> Type[TK]:
+    def duplicate(cls, symbol: str, new_symbol: str, **kwargs: Any) -> Type[TK_co]:
         """Duplicate a token class with a new symbol."""
         token_class = cls.symbol_table[symbol]
         new_token_class = cls.register(new_symbol, **kwargs)
@@ -701,57 +706,57 @@ class Parser(Generic[TK], metaclass=ParserMeta):
         return new_token_class
 
     @classmethod
-    def literal(cls, symbol: str, bp: int = 0) -> Type[TK]:
+    def literal(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
         """Register a token for a symbol that represents a *literal*."""
-        def nud(self: Token) -> Token:
+        def nud(self: Token[TK_co]) -> Token[TK_co]:
             return self
 
-        def evaluate(self: Token, *_args: Any, **_kwargs: Any) -> Any:
+        def evaluate(self: Token[TK_co], *_args: Any, **_kwargs: Any) -> Any:
             return self.value
 
         return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
 
     @classmethod
-    def nullary(cls, symbol: str, bp: int = 0) -> Type[TK]:
+    def nullary(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
         """Register a token for a symbol that represents a *nullary* operator."""
-        def nud(self: Token) -> Token:
+        def nud(self: Token[TK_co]) -> Token[TK_co]:
             return self
         return cls.register(symbol, label='operator', lbp=bp, nud=nud)
 
     @classmethod
-    def prefix(cls, symbol: str, bp: int = 0) -> Type[TK]:
+    def prefix(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
         """Register a token for a symbol that represents a *prefix* unary operator."""
-        def nud(self: Token) -> Token:
+        def nud(self: Token[TK_co]) -> Token[TK_co]:
             self[:] = self.parser.expression(rbp=bp),
             return self
         return cls.register(symbol, label='prefix operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
-    def postfix(cls, symbol: str, bp: int = 0) -> Type[TK]:
+    def postfix(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
         """Register a token for a symbol that represents a *postfix* unary operator."""
-        def led(self: Token, left: Token) -> Token:
+        def led(self: Token[TK_co], left: Token[TK_co]) -> Token[TK_co]:
             self[:] = left,
             return self
         return cls.register(symbol, label='postfix operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infix(cls, symbol: str, bp: int = 0) -> Type[TK]:
+    def infix(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
         """Register a token for a symbol that represents an *infix* binary operator."""
-        def led(self: Token, left: Token) -> Token:
+        def led(self: Token[TK_co], left: Token[TK_co]) -> Token[TK_co]:
             self[:] = left, self.parser.expression(rbp=bp)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infixr(cls, symbol: str, bp: int = 0) -> Type[TK]:
+    def infixr(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
         """Register a token for a symbol that represents an *infixr* binary operator."""
-        def led(self: Token, left: Token) -> Token:
+        def led(self: Token[TK_co], left: Token[TK_co]) -> Token[TK_co]:
             self[:] = left, self.parser.expression(rbp=bp - 1)
             return self
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp - 1, led=led)
 
     @classmethod
-    def method(cls, symbol: Union[str, Type[TK]], bp: int = 0) \
+    def method(cls, symbol: Union[str, Type[TK_co]], bp: int = 0) \
             -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
         """
         Register a token for a symbol that represents a custom operator or redefine
@@ -785,7 +790,7 @@ class Parser(Generic[TK], metaclass=ParserMeta):
     build_tokenizer = build  # For backward compatibility
 
     @classmethod
-    def create_tokenizer(cls, symbol_table: MutableMapping[str, Type[TK]]) -> Pattern[str]:
+    def create_tokenizer(cls, symbol_table: MutableMapping[str, Type[TK_co]]) -> Pattern[str]:
         """
         Returns a regex based tokenizer built from a symbol table of token classes.
         The returned tokenizer skips extra spaces between symbols.
