@@ -14,10 +14,11 @@ from functools import lru_cache
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterable, Iterator, \
-    Optional, Sequence, Union, Callable
+    Optional, Sequence, Union, Callable, MutableMapping
 
 from .exceptions import ElementPathTypeError
 from .datatypes import AnyAtomicType, Timezone
+from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, \
     etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
     is_schema_node, is_lxml_etree_element, is_lxml_document_node, XPathNode, \
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
 
 ContextRootType = Union[ElementNode, DocumentNode]
-ContextItemType = Optional[Union[ElementNode, DocumentNode, XPathNode, AnyAtomicType]]
+ContextItemType = Union[ElementNode, DocumentNode, XPathNode, AnyAtomicType]
 IterableNodeType = Union[ElementNode, DocumentNode, AttributeNode, TextNode]
 
 
@@ -69,7 +70,7 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _iter_nodes = staticmethod(etree_iter_nodes)
-    _parent_map: Optional[Dict[ElementNode, ContextRootType]] = None
+    _parent_map: Optional[MutableMapping[ElementNode, ContextRootType]] = None
     _etree: Optional[ModuleType] = None
     root: ContextRootType
     item: Optional[ContextItemType]
@@ -150,7 +151,7 @@ class XPathContext:
         return obj
 
     @property
-    def parent_map(self) -> Dict[ElementNode, ContextRootType]:
+    def parent_map(self) -> MutableMapping[ElementNode, ContextRootType]:
         if self._parent_map is None:
             self._parent_map: Dict[ElementNode, ContextRootType]
             self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
@@ -227,7 +228,7 @@ class XPathContext:
             root = cast(DocumentNode, root).getroot()
         yield from self._iter_nodes(root, with_attributes=True)
 
-    def iter_results(self, results: Iterable[Any]) -> Iterator[ContextItemType]:
+    def iter_results(self, results: Iterable[Any]) -> Iterator[Optional[ContextItemType]]:
         """
         Iterates results in document order.
 
@@ -408,7 +409,7 @@ class XPathContext:
         :param axis: the context axis, default is 'following-sibling'.
         """
         if isinstance(self.item, TypedElement):
-            item = cast(ElementNode, self.item.elem)
+            item = self.item.elem
         elif not is_etree_element(self.item) or callable(getattr(self.item, 'tag')):
             return
         else:
@@ -493,7 +494,7 @@ class XPathContext:
         self.axis = axis or 'ancestor'
 
         if isinstance(self.item, TypedElement):
-            elem = cast(ElementNode, self.item.elem)
+            elem = self.item.elem
         elif is_element_node(self.item):
             elem = cast(ElementNode, self.item)
         else:
@@ -575,3 +576,5 @@ class XPathSchemaContext(XPathContext):
     checking during the static analysis phase. Don't use this as dynamic context on
     XML instances.
     """
+    iter_children_or_self: Callable[..., Iterator[Union[XsdElementProtocol, XMLSchemaProtocol]]]
+    root: XMLSchemaProtocol
