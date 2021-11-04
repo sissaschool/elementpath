@@ -412,8 +412,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         context.item = AttributeNode('a', 'true')
         self.check_value('xs:date(.)', ValueError, context=context)
+
         context.item = AttributeNode('a', True)
-        self.check_value('xs:date(.)', ValueError, context=context)
+        self.check_value('xs:date(.)', TypeError, context=context)
 
         with patch.multiple(self.dummy_type, is_simple=lambda x: True):
             context.item = TypedAttribute(AttributeNode('a', 'true'), self.dummy_type, True)
