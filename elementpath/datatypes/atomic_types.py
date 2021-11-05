@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta
+from typing import Dict, Optional
 import re
 
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
@@ -18,10 +19,10 @@ XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 # into a dictionary. Some classes of XSD primitive types are defined
 # as proxies of basic Python datatypes.
 
-xsd10_atomic_types = {}
+xsd10_atomic_types: Dict[Optional[str], 'AtomicTypeMeta'] = {}
 """Dictionary of builtin XSD 1.0 atomic types."""
 
-xsd11_atomic_types = {}
+xsd11_atomic_types: Dict[Optional[str], 'AtomicTypeMeta'] = {}
 """Dictionary of builtin XSD 1.1 atomic types."""
 
 
