@@ -7,6 +7,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .xpath2_constructors import XPath2Parser
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .xpath2_parser import XPath2Parser
+else:
+    from .xpath2_constructors import XPath2Parser
 
 __all__ = ['XPath2Parser']

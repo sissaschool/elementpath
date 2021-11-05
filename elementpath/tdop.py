@@ -15,9 +15,9 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from itertools import takewhile
-from typing import Any, cast, overload, no_type_check, no_type_check_decorator, ClassVar, Callable, \
-    Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, Match, MutableMapping, \
-    MutableSequence, Iterator, Set, TypeVar
+from typing import Any, cast, overload, Callable, \
+    Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, \
+    Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
 
 if sys.version_info < (3, 7):
     from typing import GenericMeta as ABCMeta
@@ -405,7 +405,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     SYMBOLS = SPECIAL_SYMBOLS
     token_base_class = Token
     tokenizer: Optional[Pattern[str]] = None
-    symbol_table: ClassVar[MutableMapping[str, Type[TK_co]]] = {}
+    symbol_table: MutableMapping[str, Type[TK_co]] = {}
 
     _start_token: TK_co
     source: str
@@ -638,54 +638,54 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         :param kwargs: Optional attributes/methods for the token class.
         :return: A token class.
         """
-        try:
-            if isinstance(symbol, str):
-                _symbol = symbol
-                if ' ' in symbol:
-                    raise ValueError("%r: a symbol can't contain whitespaces" % symbol)
+        if isinstance(symbol, str):
+            if ' ' in symbol:
+                raise ValueError("%r: a symbol can't contain whitespaces" % symbol)
+
+            try:
                 token_class = cls.symbol_table[symbol]
-            else:
-                assert isinstance(symbol, type) and issubclass(symbol, Token), \
-                    "A string or a %r subclass requested, not %r." % (Token, symbol)
+            except KeyError:
+                # Register a new symbol and create a new custom class. The new class
+                # name is registered at parser class's module level.
+                if symbol not in cls.SYMBOLS:
+                    if symbol != '(start)':  # for backward compatibility
+                        raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
-                _symbol, token_class = symbol.symbol, symbol
-                assert _symbol in cls.symbol_table and cls.symbol_table[_symbol] is token_class, \
-                    "Token class %r is not registered." % token_class
+                kwargs['symbol'] = symbol
+                label = kwargs.get('label', 'symbol')
+                if isinstance(label, tuple):
+                    label = kwargs['label'] = MultiLabel(*label)
 
-        except KeyError:
-            # Register a new symbol and create a new custom class. The new class
-            # name is registered at parser class's module level.
-            if _symbol not in cls.SYMBOLS:
-                if _symbol != '(start)':  # for backward compatibility
-                    raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
+                token_class_name = "_{}{}".format(
+                    symbol_to_classname(symbol), str(label).title().replace(' ', '')
+                )
+                token_class_bases = kwargs.get('bases', (cls.token_base_class,))
+                kwargs.update({
+                    '__module__': cls.__module__,
+                    '__qualname__': token_class_name,
+                    '__return__': None
+                })
+                token_class = cast(
+                    Type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs)
+                )
+                cls.symbol_table[symbol] = token_class
+                MutableSequence.register(token_class)
+                setattr(sys.modules[cls.__module__], token_class_name, token_class)
 
-            kwargs['symbol'] = _symbol
-            label = kwargs.get('label', 'symbol')
-            if isinstance(label, tuple):
-                label = kwargs['label'] = MultiLabel(*label)
-
-            token_class_name = "_{}{}".format(
-                symbol_to_classname(_symbol), str(label).title().replace(' ', '')
-            )
-            token_class_bases = kwargs.get('bases', (cls.token_base_class,))
-            kwargs.update({
-                '__module__': cls.__module__,
-                '__qualname__': token_class_name,
-                '__return__': None
-            })
-            token_class = cast(Type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs))
-            cls.symbol_table[_symbol] = token_class
-            MutableSequence.register(token_class)
-            setattr(sys.modules[cls.__module__], token_class_name, token_class)
-
+        elif not isinstance(symbol, type) or not issubclass(symbol, Token):
+            raise TypeError("A string or a %r subclass requested, not %r." % (Token, symbol))
         else:
-            for key, value in kwargs.items():
-                if key == 'lbp' and value > token_class.lbp:
-                    token_class.lbp = value
-                elif key == 'rbp' and value > token_class.rbp:
-                    token_class.rbp = value
-                elif callable(value):
-                    setattr(token_class, key, value)
+            token_class = symbol
+            if cls.symbol_table.get(symbol.symbol) is not token_class:
+                raise ValueError("Token class %r is not registered." % token_class)
+
+        for key, value in kwargs.items():
+            if key == 'lbp' and value > token_class.lbp:
+                token_class.lbp = value
+            elif key == 'rbp' and value > token_class.rbp:
+                token_class.rbp = value
+            elif callable(value):
+                setattr(token_class, key, value)
 
         return token_class
 
