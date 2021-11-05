@@ -43,15 +43,19 @@ from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime,
     AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, AtomicValueType, \
     AnyAtomicType
-from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
+from .protocols import ElementProtocol, DocumentProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
 from .schema_proxy import AbstractSchemaProxy
-from .tdop import Token, MultiLabel, Parser
+from .tdop import Token, MultiLabel
 from .xpath_context import XPathContext, XPathSchemaContext
 
 if TYPE_CHECKING:
     from .xpath1.xpath1_parser import XPath1Parser
     from .xpath2.xpath2_parser import XPath2Parser
+
+    XPathParserType = Union[XPath1Parser, XPath2Parser]
+else:
+    XPathParserType = Any
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
@@ -68,9 +72,12 @@ XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction']
 
 class XPathToken(Token[XPathTokenType]):
     """Base class for XPath tokens."""
-    xsd_types: Optional[Dict[str, XsdTypeProtocol]] = None  # for XPath 2.0+ XSD types labeling
-    namespace: Optional[str] = None  # for namespace binding of names and wildcards
-    parser: Union['XPath1Parser', 'XPath2Parser']
+    parser: XPathParserType
+    xsd_types: Optional[Dict[str, Union[XsdTypeProtocol, List[XsdTypeProtocol]]]]
+    namespace: Optional[str]
+
+    xsd_types = None  # for XPath 2.0+ XML Schema types labeling
+    namespace = None  # for namespace binding of names and wildcards
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         """
@@ -182,8 +189,6 @@ class XPathToken(Token[XPathTokenType]):
                      default: Optional[AtomicValueType] = None,
                      cls: Optional[Type[Any]] = None,
                      promote: Optional[ClassCheckType] = None) -> Any:
-
-        #    -> Union[None, ElementProtocol, DocumentProtocol, XPathNode, AnyAtomicType, AtomicValueType]:
         """
         Get the argument value of a function of constructor token. A zero length sequence is
         converted to a `None` value. If the function has no argument returns the context's
@@ -759,7 +764,7 @@ class XPathToken(Token[XPathTokenType]):
                 elif x.is_valid(item):
                     return x
 
-        return cast(XsdTypeProtocol, xsd_type[0])
+        return xsd_type[0]
 
     def get_typed_node(self, item: PrincipalNodeType) -> PrincipalNodeType:
         """
@@ -805,7 +810,7 @@ class XPathToken(Token[XPathTokenType]):
             atomic_types = xsd11_atomic_types
 
         try:
-            builder = atomic_types[xsd_type.name]
+            builder: Any = atomic_types[xsd_type.name]
         except KeyError:
             pass
         else:
@@ -913,16 +918,14 @@ class XPathToken(Token[XPathTokenType]):
                 return UntypedAtomic(obj.value)
             elif isinstance(obj, AttributeNode) and isinstance(obj.value, str):
                 return UntypedAtomic(obj.value)
-            return obj.value  # a typed node or a NamespaceNode
+            return cast(Optional[AtomicValueType], obj.value)  # a typed node or a NamespaceNode
 
         elif is_schema_node(obj):
             return self.parser.get_atomic_value(obj.type)
 
         elif hasattr(obj, 'tag'):
-            if is_comment_node(obj):
-                return obj.text
-            elif is_processing_instruction_node(obj):
-                return obj.text
+            if is_comment_node(obj) or is_processing_instruction_node(obj):
+                return cast(str, obj.text)
             elif hasattr(obj, 'attrib') and hasattr(obj, 'text'):
                 return UntypedAtomic(''.join(etree_iter_strings(obj)))
             else:
@@ -931,7 +934,7 @@ class XPathToken(Token[XPathTokenType]):
             value = ''.join(etree_iter_strings(obj.getroot()))
             return UntypedAtomic(value)
         else:
-            return obj
+            return cast(AtomicValueType, obj)
 
     def string_value(self, obj: Any) -> str:
         """
@@ -951,10 +954,8 @@ class XPathToken(Token[XPathTokenType]):
         elif is_schema_node(obj):
             return str(self.parser.get_atomic_value(obj.type))
         elif hasattr(obj, 'tag'):
-            if is_comment_node(obj):
-                return obj.text
-            elif is_processing_instruction_node(obj):
-                return obj.text
+            if is_comment_node(obj) or is_processing_instruction_node(obj):
+                return cast(str, obj.text)
             elif hasattr(obj, 'attrib') and hasattr(obj, 'text'):
                 return ''.join(etree_iter_strings(obj))
         elif is_document_node(obj):
@@ -1179,7 +1180,7 @@ class XPathFunction(XPathToken):
                      Tuple[Union[XPathToken, AtomicValueType], ...]
                  ]] = None) -> Any:
 
-        args: List[Union[XPathToken, AtomicValueType]] = []
+        args: List[Union[Token[XPathTokenType], AtomicValueType]] = []
         if isinstance(argument_list, (list, tuple)):
             args.extend(argument_list)
         elif isinstance(argument_list, XPathToken):
@@ -1206,6 +1207,7 @@ class XPathFunction(XPathToken):
                 if isinstance(value, XPathToken):
                     tk.value = value.evaluate(context)
                 else:
+                    assert not isinstance(value, Token), "An atomic value or None expected"
                     tk.value = value
         else:
             self.clear()
@@ -1213,6 +1215,7 @@ class XPathFunction(XPathToken):
                 if isinstance(value, XPathToken):
                     self.append(value)
                 else:
+                    assert not isinstance(value, Token), "An atomic value or None expected"
                     self.append(ValueToken(self.parser, value=value))
 
         result = self.evaluate(context)
@@ -1223,9 +1226,9 @@ class XPathFunction(XPathToken):
         return result
 
     @property
-    def name(self):
+    def name(self) -> Optional[QName]:
         if self.symbol == 'function':
-            return
+            return None
         elif self._name is None:
             if not self.namespace or self.namespace == XPATH_FUNCTIONS_NAMESPACE:
                 self._name = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
@@ -1237,10 +1240,10 @@ class XPathFunction(XPathToken):
         return self._name
 
     @property
-    def arity(self):
+    def arity(self) -> int:
         return self.nargs if isinstance(self.nargs, int) else len(self)
 
-    def nud(self):
+    def nud(self) -> 'XPathFunction':
         code = 'XPST0017' if self.label == 'function' else 'XPST0003'
         self.value = None
         self.parser.advance('(')
@@ -1293,7 +1296,7 @@ class XPathFunction(XPathToken):
 
         if self.parser.next_token.symbol == ',':
             msg = 'Too many arguments: expected at most %s arguments' % max_args
-            raise self.error(code, msg if max_args > 1 else msg[:-1])
+            raise self.error(code, msg if max_args != 1 else msg[:-1])
 
         self.parser.advance(')')
         return self

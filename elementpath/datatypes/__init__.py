@@ -17,7 +17,8 @@ from typing import Dict, Union
 
 from ..helpers import QNAME_PATTERN  # For backward compatibility
 
-from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType
+from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, \
+    AtomicTypeMeta, AnyAtomicType
 from .untyped import UntypedAtomic
 from .qname import Notation, QName
 from .numeric import Float10, Float, Integer, Int, NegativeInteger, \
@@ -120,10 +121,10 @@ ATOMIC_VALUES: Dict[str, AtomicValueType] = {
     'unsignedByte': UnsignedByte(1),
 }
 
-__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES',
-           'NumericProxy', 'ArithmeticProxy', 'QNAME_PATTERN', 'AnyAtomicType',
-           'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
-           'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
+__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'AtomicTypeMeta', 'AnyAtomicType',
+           'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES', 'NumericProxy', 'ArithmeticProxy',
+           'QNAME_PATTERN', 'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp',
+           'Date10', 'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
            'GregorianYear10', 'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth',
            'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
            'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',
