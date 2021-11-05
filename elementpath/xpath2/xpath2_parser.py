@@ -14,7 +14,7 @@ from abc import ABCMeta
 import locale
 from collections.abc import MutableSequence
 from urllib.parse import urlparse
-from typing import TYPE_CHECKING, cast, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import cast, Any, Callable, Dict, List, Optional, Tuple, Union, Type
 
 from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
@@ -26,11 +26,7 @@ from ..datatypes import UntypedAtomic, AtomicValueType
 from ..xpath_token import XPathToken, UNICODE_CODEPOINT_COLLATION, XPathFunction
 from ..xpath_context import XPathContext
 from ..schema_proxy import AbstractSchemaProxy
-
-if TYPE_CHECKING:
-    from ..xpath1.xpath1_parser import XPath1Parser
-else:
-    from ..xpath1 import XPath1Parser
+from ..xpath1 import XPath1Parser
 
 
 class XPath2Parser(XPath1Parser):
@@ -297,7 +293,7 @@ class XPath2Parser(XPath1Parser):
         except (AttributeError, NotImplementedError):
             return self._xsd_version
 
-    def advance(self, *symbols: str) -> XPathToken  :
+    def advance(self, *symbols: str) -> XPathToken:
         super(XPath2Parser, self).advance(*symbols)
 
         if self.next_token.symbol == '(:':
@@ -372,9 +368,10 @@ class XPath2Parser(XPath1Parser):
             return func
         return bind
 
-    def schema_constructor(self, atomic_type, bp=90):
+    def schema_constructor(self, atomic_type_name: Optional[str], bp: int = 90) \
+            -> Type[XPathFunction]:
         """Registers a token class for a schema atomic type constructor function."""
-        if atomic_type in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
+        if atomic_type_name in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
             raise xpath_error('XPST0080')
 
         def nud_(self_) -> XPathFunction:
@@ -395,11 +392,11 @@ class XPath2Parser(XPath1Parser):
 
             value = self_.string_value(arg)
             try:
-                return self_.parser.schema.cast_as(value, atomic_type)
+                return self_.parser.schema.cast_as(value, atomic_type_name)
             except (TypeError, ValueError) as err:
                 raise self_.error('FORG0001', err)
 
-        symbol = get_prefixed_name(atomic_type, self.namespaces)
+        symbol = get_prefixed_name(atomic_type_name, self.namespaces)
         token_class_name = "_%sConstructorFunction" % symbol.replace(':', '_')
         kwargs = {
             'symbol': symbol,

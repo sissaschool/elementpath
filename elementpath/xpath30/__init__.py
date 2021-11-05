@@ -7,6 +7,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .xpath30_functions import XPath30Parser
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .xpath30_parser import XPath30Parser
+else:
+    from .xpath30_functions import XPath30Parser
 
 __all__ = ['XPath30Parser']

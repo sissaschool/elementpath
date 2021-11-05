@@ -50,10 +50,11 @@ from .tdop import Token, MultiLabel
 from .xpath_context import XPathContext, XPathSchemaContext
 
 if TYPE_CHECKING:
-    from .xpath1.xpath1_parser import XPath1Parser
-    from .xpath2.xpath2_parser import XPath2Parser
+    from .xpath1 import XPath1Parser
+    from .xpath2 import XPath2Parser
+    from .xpath30 import XPath30Parser
 
-    XPathParserType = Union[XPath1Parser, XPath2Parser]
+    XPathParserType = Union[XPath1Parser, XPath2Parser, XPath30Parser]
 else:
     XPathParserType = Any
 

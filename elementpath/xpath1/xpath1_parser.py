@@ -365,7 +365,7 @@ class XPath1Parser(Parser[XPathToken]):
             return UntypedAtomic('1')
 
     def match_sequence_type(self, value: Any,
-                                sequence_type: str,
+                            sequence_type: str,
                             occurrence: Optional[str] = None) -> bool:
         """
         Checks a value instance against a sequence type.

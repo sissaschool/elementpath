@@ -8,13 +8,21 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List, Optional, Iterator
+from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Iterator, Union
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
+
+if TYPE_CHECKING:
+    from .xpath2 import XPath2Parser
+    from .xpath30 import XPath30Parser
+
+    XPathParserType = Union[XPath2Parser, XPath30Parser]
+else:
+    XPathParserType = Any
 
 
 class AbstractSchemaProxy(metaclass=ABCMeta):
@@ -38,7 +46,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         self._schema = schema
         self._base_element: Optional[ElementProtocol] = base_element
 
-    def bind_parser(self, parser) -> None:
+    def bind_parser(self, parser: XPathParserType) -> None:
         """
         Binds a parser instance with schema proxy adding the schema's atomic types constructors.
         This method can be redefined in a concrete proxy to optimize schema bindings.
@@ -48,12 +56,12 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         if parser.schema is not self:
             parser.schema = self
 
-        parser.symbol_table = parser.__class__.symbol_table.copy()
+        parser.symbol_table = dict(parser.__class__.symbol_table)
         for xsd_type in self.iter_atomic_types():
             parser.schema_constructor(xsd_type.name)
         parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
 
-    def get_context(self):
+    def get_context(self) -> XPathSchemaContext:
         """
         Get a context instance for static analysis phase.
 
@@ -61,7 +69,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return XPathSchemaContext(root=self._schema, item=self._base_element)
 
-    def find(self, path: str, namespaces: Optional[Dict[str, str]] = None):
+    def find(self, path: str, namespaces: Optional[Dict[str, str]] = None) \
+            -> Optional[XsdElementProtocol]:
         """
         Find a schema element or attribute using an XPath expression.
 
@@ -69,7 +78,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: The first matching schema component, or ``None`` if there is no match.
         """
-        return self._schema.find(path, namespaces)
+        return cast(Optional[XsdElementProtocol], self._schema.find(path, namespaces))
 
     @property
     def xsd_version(self) -> str:
