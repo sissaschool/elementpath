@@ -45,7 +45,8 @@ XSI_NIL = '{%s}nil' % XSI_NAMESPACE
 XSI_SCHEMA_LOCATION = '{%s}schemaLocation' % XSI_NAMESPACE
 XSI_NONS_SCHEMA_LOCATION = '{%s}schemaLocation' % XSI_NAMESPACE
 
-# XML Schema types
+# XML Schema tags (schema and types)
+XSD_SCHEMA = '{%s}schema' % XSD_NAMESPACE
 XSD_ANY_TYPE = '{%s}anyType' % XSD_NAMESPACE
 XSD_ANY_SIMPLE_TYPE = '{%s}anySimpleType' % XSD_NAMESPACE
 XSD_ANY_ATOMIC_TYPE = '{%s}anyAtomicType' % XSD_NAMESPACE
