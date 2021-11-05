@@ -10,6 +10,7 @@
 """
 XPath 1.0 implementation - part 1 (parser class and symbols)
 """
+import sys
 import re
 from typing import cast, Any, Dict, MutableMapping, Optional, Tuple, Type, Union
 
@@ -28,8 +29,13 @@ from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_kind
 
+if sys.version_info < (3, 7):
+    ParserType = Parser
+else:
+    ParserType = Parser[XPathToken]
 
-class XPath1Parser(Parser[XPathToken]):
+
+class XPath1Parser(ParserType):
     """
     XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
     mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`

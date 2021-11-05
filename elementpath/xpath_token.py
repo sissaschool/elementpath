@@ -32,7 +32,7 @@ import urllib.parse
 from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
     ElementPathTypeError, ElementPathSyntaxError, MissingContextError, XPATH_ERROR_CODES
 from .helpers import ordinal
-from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, \
+from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
@@ -654,7 +654,7 @@ class XPathToken(Token[XPathTokenType]):
         xsd_node: Any
         for xsd_node in schema_context.iter_children_or_self():
             if xsd_node is None:
-                if name == schema_context.root.tag == '{%s}schema' % XSD_NAMESPACE:
+                if name == XSD_SCHEMA == schema_context.root.tag:
                     yield None
                 continue  # pragma: no cover
 
@@ -680,6 +680,10 @@ class XPathToken(Token[XPathTokenType]):
                         value = self.parser.get_atomic_value(xsd_type)
                         yield TypedAttribute(xsd_node, xsd_type, value)
 
+                elif name == XSD_SCHEMA == xsd_node.tag:
+                    # The element is a schema
+                    yield xsd_node
+
                 elif xsd_node.is_matching(name, self.parser.default_namespace):
                     if xsd_node.name is None:
                         # node is an XSD element wildcard
@@ -693,9 +697,7 @@ class XPathToken(Token[XPathTokenType]):
                         yield TypedElement(xsd_node, xsd_type, value)
 
             except AttributeError:
-                # Item is a schema
-                if name == xsd_node.tag == '{%s}schema' % XSD_NAMESPACE:
-                    yield xsd_node
+                pass
 
     def add_xsd_type(self, item: Any) -> Optional[XsdTypeProtocol]:
         """
