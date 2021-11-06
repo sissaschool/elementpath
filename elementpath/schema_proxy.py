@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Iterator, Uni
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XMLSchemaProtocol
+from .datatypes import AtomicValueType
 from .xpath_nodes import is_etree_element
 from .xpath_context import XPathSchemaContext
 
@@ -58,7 +59,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
 
         parser.symbol_table = dict(parser.__class__.symbol_table)
         for xsd_type in self.iter_atomic_types():
-            parser.schema_constructor(xsd_type.name)
+            if xsd_type.name is not None:
+                parser.schema_constructor(xsd_type.name)
         parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
 
     def get_context(self) -> XPathSchemaContext:
@@ -139,7 +141,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def cast_as(self, obj: Any, type_qname: str) -> XsdTypeProtocol:
+    def cast_as(self, obj: Any, type_qname: str) -> AtomicValueType:
         """
         Converts *obj* to the Python type associated with an XSD global type. A concrete
         implementation must raises a `ValueError` or `TypeError` in case of a decoding

@@ -14,16 +14,18 @@ from abc import ABCMeta
 import locale
 from collections.abc import MutableSequence
 from urllib.parse import urlparse
-from typing import cast, Any, Callable, Dict, List, Optional, Tuple, Union, Type
+from typing import cast, Any, Callable, ClassVar, Dict, FrozenSet, List, \
+    MutableMapping, Optional, Tuple, Type, Union
 
 from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
-    XLINK_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, XSD_NOTATION, \
-    XSD_ANY_ATOMIC_TYPE, get_prefixed_name
-from ..datatypes import UntypedAtomic, AtomicValueType
-from ..xpath_token import XPathToken, UNICODE_CODEPOINT_COLLATION, XPathFunction
+    XLINK_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
+    XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
+from ..datatypes import UntypedAtomic, AtomicValueType, QName
+from ..xpath_token import UNICODE_CODEPOINT_COLLATION, XPathToken, \
+    XPathFunction, XPathConstructor
 from ..xpath_context import XPathContext
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath1 import XPath1Parser
@@ -70,7 +72,7 @@ class XPath2Parser(XPath1Parser):
     """
     version = '2.0'
 
-    SYMBOLS = XPath1Parser.SYMBOLS | {
+    SYMBOLS: ClassVar[FrozenSet[str]] = XPath1Parser.SYMBOLS | {
         'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
         'some', 'every', 'in', 'satisfies', 'item', 'satisfies', 'cast', 'treat',
         'return', 'except', '?', 'as', 'of',
@@ -170,7 +172,7 @@ class XPath2Parser(XPath1Parser):
         'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
     }
 
-    DEFAULT_NAMESPACES = {
+    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
         'xml': XML_NAMESPACE,
         'xs': XSD_NAMESPACE,
         'xlink': XLINK_NAMESPACE,
@@ -183,7 +185,7 @@ class XPath2Parser(XPath1Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
     }
 
-    function_signatures = XPath1Parser.function_signatures.copy()
+    function_signatures: Dict[Tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
     namespaces: Dict[str, str]
     token: XPathToken
     next_token: XPathToken
@@ -319,10 +321,10 @@ class XPath2Parser(XPath1Parser):
     @classmethod
     def constructor(cls, symbol: str, bp: int = 0, nargs: int = 1,
                     sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
-                    label: str = 'constructor function') \
-            -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
+                    label: Union[str, Tuple[str, ...]] = 'constructor function') \
+            -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Creates a constructor token class."""
-        def nud_(self: XPathFunction) -> XPathFunction:
+        def nud_(self: XPathConstructor) -> XPathConstructor:
             try:
                 self.parser.advance('(')
                 self[0:] = self.parser.expression(5),
@@ -334,7 +336,7 @@ class XPath2Parser(XPath1Parser):
                 raise self.error('XPST0017') from None
             return self
 
-        def evaluate_(self: XPathFunction, context: Optional[XPathContext] = None) \
+        def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
                 -> Union[List[None], AtomicValueType]:
             arg = self.data_value(self.get_argument(context))
             if arg is None:
@@ -342,25 +344,22 @@ class XPath2Parser(XPath1Parser):
 
             try:
                 if isinstance(arg, UntypedAtomic):
-                    return cast(AtomicValueType, self.cast(arg.value))
-                return cast(AtomicValueType, self.cast(arg))
+                    return self.cast(arg.value)
+                return self.cast(arg)
             except ElementPathError:
                 raise
             except (TypeError, ValueError) as err:
                 raise self.error('FORG0001', err) from None
-
-        def cast_(value) -> AtomicValueType:
-            raise NotImplementedError
 
         if not sequence_types:
             assert nargs == 1
             sequence_types = ('xs:anyAtomicType?', 'xs:%s?' % symbol)
 
         token_class = cls.register(symbol, nargs=nargs, sequence_types=sequence_types,
-                                   label=label, bases=(XPathFunction,), lbp=bp, rbp=bp,
-                                   nud=nud_, evaluate=evaluate_, cast=cast_)
+                                   label=label, bases=(XPathConstructor,), lbp=bp, rbp=bp,
+                                   nud=nud_, evaluate=evaluate_)
 
-        def bind(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        def bind(func: Callable[..., Any]) -> Callable[..., Any]:
             method_name = func.__name__.partition('_')[0]
             if method_name != 'cast':
                 raise ValueError("The function name must be 'cast' or starts with 'cast_'")
@@ -368,13 +367,13 @@ class XPath2Parser(XPath1Parser):
             return func
         return bind
 
-    def schema_constructor(self, atomic_type_name: Optional[str], bp: int = 90) \
+    def schema_constructor(self, atomic_type_name: str, bp: int = 90) \
             -> Type[XPathFunction]:
         """Registers a token class for a schema atomic type constructor function."""
         if atomic_type_name in {XSD_ANY_ATOMIC_TYPE, XSD_NOTATION}:
             raise xpath_error('XPST0080')
 
-        def nud_(self_) -> XPathFunction:
+        def nud_(self_: XPathFunction) -> XPathFunction:
             self_.parser.advance('(')
             self_[0:] = self_.parser.expression(5),
             self_.parser.advance(')')
@@ -385,9 +384,10 @@ class XPath2Parser(XPath1Parser):
                 self_.value = None
             return self_
 
-        def evaluate_(self_, context=None) -> Union[List[None], AtomicValueType]:
+        def evaluate_(self_: XPathFunction, context: Optional[XPathContext] = None) \
+                -> Union[List[None], AtomicValueType]:
             arg = self_.get_argument(context)
-            if arg is None:
+            if arg is None or self_.parser.schema is None:
                 return []
 
             value = self_.string_value(arg)
@@ -411,7 +411,9 @@ class XPath2Parser(XPath1Parser):
             '__qualname__': token_class_name,
             '__return__': None
         }
-        token_class = ABCMeta(token_class_name, (XPathFunction,), kwargs)
+        token_class = cast(
+            Type[XPathFunction], ABCMeta(token_class_name, (XPathFunction,), kwargs)
+        )
         MutableSequence.register(token_class)
         self.symbol_table[symbol] = token_class
         return token_class
@@ -420,7 +422,7 @@ class XPath2Parser(XPath1Parser):
         return 'symbol_table' in self.__dict__
 
     def parse(self, source: str) -> XPathToken:
-        root_token = cast(XPathToken, super(XPath1Parser, self).parse(source))
+        root_token = super(XPath1Parser, self).parse(source)
         if root_token.label == 'sequence type':
             raise root_token.error('XPST0003', "not allowed in XPath expression")
 
@@ -437,7 +439,10 @@ class XPath2Parser(XPath1Parser):
 
         return root_token
 
-    def check_variables(self, values):
+    def check_variables(self, values: MutableMapping[str, Any]) -> None:
+        if self.variable_types is None:
+            return
+
         for varname, xsd_type in self.variable_types.items():
             if varname not in values:
                 raise xpath_error('XPST0008', "missing variable {!r}".format(varname))

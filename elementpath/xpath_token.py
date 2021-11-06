@@ -68,7 +68,7 @@ PrincipalNodeType = Union[ElementProtocol, AttributeNode, TypedAttribute, TypedE
 OperandsType = Tuple[Optional[AtomicValueType], Optional[AtomicValueType]]
 SelectResultType = Union[AtomicValueType, ElementProtocol, XsdAttributeProtocol, Tuple[str, str]]
 
-XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction']
+XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
 
 
 class XPathToken(Token[XPathTokenType]):
@@ -183,7 +183,7 @@ class XPathToken(Token[XPathTokenType]):
 
     ###
     # Dynamic context methods
-    def get_argument(self, context: XPathContext,
+    def get_argument(self, context: Optional[XPathContext],
                      index: int = 0,
                      required: bool = False,
                      default_to_context: bool = False,
@@ -1010,14 +1010,15 @@ class XPathToken(Token[XPathTokenType]):
 
         return code  # returns an unprefixed code (without prefix the namespace is not checked)
 
-    def error(self, code: Union[str, QName], message_or_error: Optional[str] = None) \
-            -> ElementPathError:
+    def error(self, code: Union[str, QName],
+              message_or_error: Union[None, str, Exception] = None) -> ElementPathError:
         """
-        Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code is an
-        alphanumeric token starting with four uppercase letters and ending with four digits.
+        Returns an XPath error instance related with a code. An XPath/XQuery/XSLT
+        error code is an alphanumeric token starting with four uppercase letters
+        and ending with four digits.
 
         :param code: the error code as QName or string.
-        :param message_or_error: an optional custom additional message.
+        :param message_or_error: an optional custom message or an exception.
         """
         namespace: Optional[str]
 
@@ -1303,3 +1304,12 @@ class XPathFunction(XPathToken):
 
         self.parser.advance(')')
         return self
+
+
+class XPathConstructor(XPathFunction):
+    """
+    A token for processing XPath 2.0+ constructors.
+    """
+    @staticmethod
+    def cast(value: Any) -> AtomicValueType:
+        raise NotImplementedError()

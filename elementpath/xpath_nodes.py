@@ -41,7 +41,7 @@ class XPathNode:
 
     @property
     def kind(self) -> str:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class AttributeNode(XPathNode):
