@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import locale
-from typing import Optional
+from typing import Optional, Any
 from .tdop import Token
 
 
@@ -22,7 +22,7 @@ class ElementPathError(Exception):
     """
     def __init__(self, message: str,
                  code: Optional[str] = None,
-                 token: Optional[Token] = None) -> None:
+                 token: Optional[Token[Any]] = None) -> None:
         super(ElementPathError, self).__init__(message)
         self.message = message
         self.code = code
@@ -176,7 +176,7 @@ XPATH_ERROR_CODES = {
 
 
 def xpath_error(code: str, message: Optional[str] = None,
-                token: Optional[Token] = None, prefix: str = 'err') -> ElementPathError:
+                token: Optional[Token[Any]] = None, prefix: str = 'err') -> ElementPathError:
     """
     Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code
     (ref: http://www.w3.org/2005/xqt-errors) is an alphanumeric token starting with four
