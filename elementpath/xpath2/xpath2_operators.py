@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """
 XPath 2.0 implementation - part 2 (operators, expressions and multi-role tokens)
 """

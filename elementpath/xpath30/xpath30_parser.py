@@ -14,6 +14,8 @@ Refs:
   - https://www.w3.org/TR/2014/REC-xpath-30-20140408/
   - https://www.w3.org/TR/xpath-functions-30/
 """
+from typing import Any, Dict, Optional
+
 from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
 from ..xpath2 import XPath2Parser
 
@@ -71,7 +73,8 @@ class XPath30Parser(XPath2Parser):
 
     function_signatures = XPath2Parser.function_signatures.copy()
 
-    def __init__(self, *args, decimal_formats=None, **kwargs):
+    def __init__(self, *args: Any, decimal_formats: Optional[Dict[str, Any]] = None,
+                 **kwargs: Any) -> None:
         kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
         self.decimal_formats = decimal_formats if decimal_formats is not None else {}
