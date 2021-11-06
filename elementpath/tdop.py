@@ -15,7 +15,7 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from itertools import takewhile
-from typing import Any, cast, overload, Callable, \
+from typing import Any, cast, overload, Callable, ClassVar, FrozenSet, \
     Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, \
     Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
 
@@ -402,7 +402,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     :type token_base_class: Token
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
-    SYMBOLS = SPECIAL_SYMBOLS
+    SYMBOLS: ClassVar[FrozenSet[str]] = SPECIAL_SYMBOLS
     token_base_class = Token
     tokenizer: Optional[Pattern[str]] = None
     symbol_table: MutableMapping[str, Type[TK_co]] = {}
@@ -757,14 +757,14 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
 
     @classmethod
     def method(cls, symbol: Union[str, Type[TK_co]], bp: int = 0) \
-            -> Callable[[Callable[[Any], Any]], Callable[[Any], Any]]:
+            -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Register a token for a symbol that represents a custom operator or redefine
         a method for an existing token.
         """
         token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
-        def bind(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        def bind(func: Callable[..., Any]) -> Callable[..., Any]:
             method_name = func.__name__.partition('_')[0]
             if not callable(getattr(token_class, method_name)):
                 raise TypeError(f"The attribute {method_name!r} is not a callable of {token_class}")

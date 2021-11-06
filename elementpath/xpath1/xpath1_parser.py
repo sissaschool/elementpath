@@ -12,7 +12,8 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import sys
 import re
-from typing import cast, Any, Dict, MutableMapping, Optional, Tuple, Type, Union
+from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
+    Optional, Tuple, Type, Union, Set
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -54,7 +55,7 @@ class XPath1Parser(ParserType):
     )
     name_pattern = re.compile(r'[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*')
 
-    SYMBOLS = Parser.SYMBOLS | {
+    SYMBOLS: ClassVar[FrozenSet[str]] = Parser.SYMBOLS | {
         # Axes
         'descendant-or-self', 'following-sibling', 'preceding-sibling',
         'ancestor-or-self', 'descendant', 'attribute', 'following',
@@ -85,15 +86,15 @@ class XPath1Parser(ParserType):
         '{', '}'
     }
 
-    DEFAULT_NAMESPACES = {'xml': XML_NAMESPACE}
+    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {'xml': XML_NAMESPACE}
     """
     The default prefix-to-namespace associations of the XPath class. These namespaces
     are updated in the instance with the ones passed with the *namespaces* argument.
     """
 
     # Labels and symbols admitted after a path step
-    PATH_STEP_LABELS: Tuple[str, ...] = ('axis', 'kind test')
-    PATH_STEP_SYMBOLS = {
+    PATH_STEP_LABELS: ClassVar[Tuple[str, ...]] = ('axis', 'kind test')
+    PATH_STEP_SYMBOLS: ClassVar[Set[str]] = {
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '{'
     }
 

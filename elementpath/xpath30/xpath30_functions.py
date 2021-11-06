@@ -1024,15 +1024,10 @@ def select_fold_left_function(self, context=None):
     else:
         yield result
 
-from typing import no_type_check, no_type_check_decorator
 
-
-tk = function('fold-right', nargs=3,
-              sequence_types=('item()*', 'item()*',
-                              'function(item()*, item()) as item()*', 'item()*'))
-
-
-@method(tk)
+@method(function('fold-right', nargs=3,
+                 sequence_types=('item()*', 'item()*',
+                                 'function(item()*, item()) as item()*', 'item()*')))
 def select_fold_right_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
