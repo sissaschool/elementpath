@@ -29,7 +29,8 @@ def code_point_reverse_order(cp: CodePoint) -> int:
     return cp if isinstance(cp, int) else cp[1] - 1
 
 
-def iter_code_points(code_points: Iterable[CodePoint], reverse=False) -> Iterator[CodePoint]:
+def iter_code_points(code_points: Iterable[CodePoint], reverse: bool = False) \
+        -> Iterator[CodePoint]:
     """
     Iterates a code points sequence. Three ore more consecutive
     code points are merged in a range.

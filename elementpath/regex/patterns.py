@@ -44,7 +44,10 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
     :param anchors: if `True` supports ^ and $ anchors, otherwise the translated \
     pattern is anchored to its boundaries and anchors are treated as normal characters.
     """
-    def parse_character_class():
+    pos: int
+    msg: str
+
+    def parse_character_class() -> CharacterClass:
         nonlocal pos
         nonlocal msg
 

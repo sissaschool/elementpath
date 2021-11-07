@@ -11,12 +11,13 @@
 This module defines Unicode character categories and blocks.
 """
 from sys import maxunicode
-from collections.abc import Iterable, MutableSet
-from typing import Iterator, List
+from typing import cast, Iterable, Iterator, List, MutableSet, Union, Optional
 
 from .unicode_categories import RAW_UNICODE_CATEGORIES
 from .codepoints import CodePoint, code_point_order, code_point_repr, \
     iter_code_points, get_code_point_range
+
+CodePointsArgType = Union[str, 'UnicodeSubset', List[CodePoint], Iterable[CodePoint]]
 
 
 class RegexError(Exception):
@@ -27,7 +28,7 @@ class RegexError(Exception):
     """
 
 
-def iterparse_character_subset(s: str, expand_ranges=False) -> Iterator[CodePoint]:
+def iterparse_character_subset(s: str, expand_ranges: bool = False) -> Iterator[CodePoint]:
     """
     Parses a regex character subset, generating a sequence of code points
     and code points ranges. An unescaped hyphen (-) that is not at the
@@ -115,7 +116,7 @@ def iterparse_character_subset(s: str, expand_ranges=False) -> Iterator[CodePoin
         yield ord('\\')
 
 
-class UnicodeSubset(MutableSet):
+class UnicodeSubset(MutableSet[CodePoint]):
     """
     Represents a subset of Unicode code points, implemented with an ordered list of
     integer values and ranges. Codepoints can be added or discarded using sequences
@@ -127,7 +128,7 @@ class UnicodeSubset(MutableSet):
     __slots__ = '_codepoints',
     _codepoints: List[CodePoint]
 
-    def __init__(self, codepoints=None):
+    def __init__(self, codepoints: Optional[CodePointsArgType] = None) -> None:
         if not codepoints:
             self._codepoints = list()
         elif isinstance(codepoints, list):
@@ -139,29 +140,29 @@ class UnicodeSubset(MutableSet):
             self.update(codepoints)
 
     @property
-    def codepoints(self):
+    def codepoints(self) -> List[CodePoint]:
         return self._codepoints
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, str(self))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ''.join(code_point_repr(cp) for cp in self._codepoints)
 
-    def copy(self):
+    def copy(self) -> 'UnicodeSubset':
         return self.__copy__()
 
-    def __copy__(self):
+    def __copy__(self) -> 'UnicodeSubset':
         return UnicodeSubset(self._codepoints)
 
-    def __reversed__(self):
+    def __reversed__(self) -> Iterator[int]:
         for item in reversed(self._codepoints):
             if isinstance(item, int):
                 yield item
             else:
                 yield from reversed(range(item[0], item[1]))
 
-    def complement(self):
+    def complement(self) -> Iterator[CodePoint]:
         last_cp = 0
         for cp in self._codepoints:
             if isinstance(cp, int):
@@ -184,15 +185,15 @@ class UnicodeSubset(MutableSet):
         elif last_cp == maxunicode:
             yield maxunicode
 
-    def iter_characters(self):
+    def iter_characters(self) -> Iterator[str]:
         return map(chr, self.__iter__())
 
     #
     # MutableSet's abstract methods implementation
-    def __contains__(self, value):
+    def __contains__(self, value: object) -> bool:
         if not isinstance(value, int):
             try:
-                value = ord(value)
+                value = ord(value)  # type: ignore[arg-type]
             except TypeError:
                 return False
 
@@ -210,20 +211,20 @@ class UnicodeSubset(MutableSet):
                 return True
         return False
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         for cp in self._codepoints:
             if isinstance(cp, int):
                 yield cp
             else:
                 yield from range(*cp)
 
-    def __len__(self):
+    def __len__(self) -> int:
         k = 0
         for _ in self:
             k += 1
         return k
 
-    def update(self, *others):
+    def update(self, *others: Union[str, Iterable[CodePoint]]) -> None:
         for value in others:
             if isinstance(value, str):
                 for cp in iter_code_points(iterparse_character_subset(value), reverse=True):
@@ -232,9 +233,9 @@ class UnicodeSubset(MutableSet):
                 for cp in iter_code_points(value, reverse=True):
                     self.add(cp)
 
-    def add(self, value):
+    def add(self, value: CodePoint) -> None:
         try:
-            start_value, end_value = get_code_point_range(value)
+            start_value, end_value = get_code_point_range(value)  # type: ignore[misc]
         except TypeError:
             raise ValueError("{!r} is not a Unicode code point value/range".format(value))
 
@@ -245,7 +246,7 @@ class UnicodeSubset(MutableSet):
                 cp = cp, cp + 1
 
             if end_value < cp[0]:
-                code_points.insert(k, value if isinstance(value, int) else tuple(value))
+                code_points.insert(k, value)
             elif start_value > cp[1]:
                 continue
             elif end_value > cp[1]:
@@ -264,9 +265,9 @@ class UnicodeSubset(MutableSet):
                 code_points[k] = start_value, cp[1]
             break
         else:
-            self._codepoints.append(tuple(value) if isinstance(value, list) else value)
+            self._codepoints.append(value)
 
-    def difference_update(self, *others):
+    def difference_update(self, *others: Union[str, Iterable[CodePoint]]) -> None:
         for value in others:
             if isinstance(value, str):
                 for cp in iter_code_points(iterparse_character_subset(value), reverse=True):
@@ -275,9 +276,9 @@ class UnicodeSubset(MutableSet):
                 for cp in iter_code_points(value, reverse=True):
                     self.discard(cp)
 
-    def discard(self, value):
+    def discard(self, value: CodePoint) -> None:
         try:
-            start_cp, end_cp = get_code_point_range(value)
+            start_cp, end_cp = get_code_point_range(value)  # type: ignore[misc]
         except TypeError:
             raise ValueError("{!r} is not a Unicode code point value/range".format(value))
 
@@ -314,10 +315,10 @@ class UnicodeSubset(MutableSet):
 
     #
     # MutableSet's mixin methods override
-    def clear(self):
+    def clear(self) -> None:
         del self._codepoints[:]
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Iterable):
             return NotImplemented
         elif isinstance(other, UnicodeSubset):
@@ -325,7 +326,7 @@ class UnicodeSubset(MutableSet):
         else:
             return self._codepoints == other
 
-    def __ior__(self, other):
+    def __ior__(self, other: object) -> 'UnicodeSubset':  # type: ignore[override]
         if not isinstance(other, Iterable):
             return NotImplemented
         elif isinstance(other, UnicodeSubset):
@@ -339,11 +340,11 @@ class UnicodeSubset(MutableSet):
             self.add(cp)
         return self
 
-    def __or__(self, other):
+    def __or__(self, other: object) -> 'UnicodeSubset':
         obj = self.copy()
         return obj.__ior__(other)
 
-    def __isub__(self, other):
+    def __isub__(self, other: object) -> 'UnicodeSubset':
         if not isinstance(other, Iterable):
             return NotImplemented
         elif isinstance(other, UnicodeSubset):
@@ -357,29 +358,32 @@ class UnicodeSubset(MutableSet):
             self.discard(cp)
         return self
 
-    def __sub__(self, other):
+    def __sub__(self, other: object) -> 'UnicodeSubset':
         obj = self.copy()
         return obj.__isub__(other)
 
     __rsub__ = __sub__
 
-    def __iand__(self, other):
+    def __iand__(self, other: object) -> 'UnicodeSubset':
+        if not isinstance(other, Iterable):
+            return NotImplemented
+
         for value in (self - other):
             self.discard(value)
         return self
 
-    def __and__(self, other):
+    def __and__(self, other: object) -> 'UnicodeSubset':
         obj = self.copy()
         return obj.__iand__(other)
 
-    def __ixor__(self, other):
+    def __ixor__(self, other: object) -> 'UnicodeSubset':  # type: ignore[override]
         if other is self:
             self.clear()
             return self
         elif not isinstance(other, Iterable):
             return NotImplemented
         elif not isinstance(other, UnicodeSubset):
-            other = UnicodeSubset(other)
+            other = UnicodeSubset(cast(Union[str, Iterable[CodePoint]], other))
 
         for value in other:
             if value in self:
@@ -388,12 +392,13 @@ class UnicodeSubset(MutableSet):
                 self.add(value)
         return self
 
-    def __xor__(self, other):
+    def __xor__(self, other: object) -> 'UnicodeSubset':
         obj = self.copy()
         return obj.__ixor__(other)
 
 
-UNICODE_CATEGORIES = {k: UnicodeSubset(v) for k, v in RAW_UNICODE_CATEGORIES.items()}
+UNICODE_CATEGORIES = {k: UnicodeSubset(cast(List[CodePoint], v))
+                      for k, v in RAW_UNICODE_CATEGORIES.items()}
 
 
 # See http://www.unicode.org/Public/UNIDATA/Blocks.txt
@@ -496,10 +501,10 @@ UNICODE_BLOCKS = {
     'IsTags': UnicodeSubset('\U000E0000-\U000E007F'),
 }
 
-UNICODE_BLOCKS['IsPrivateUse'].update('\U000F0000-\U0010FFFD'),
+UNICODE_BLOCKS['IsPrivateUse'].update('\U000F0000-\U0010FFFD')
 
 
-def unicode_subset(name):
+def unicode_subset(name: str) -> UnicodeSubset:
     if name.startswith('Is'):
         try:
             return UNICODE_BLOCKS[name]
