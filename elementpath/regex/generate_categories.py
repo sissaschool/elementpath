@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """Codepoints module generator utility."""
 
 CATEGORIES_TEMPLATE = """#

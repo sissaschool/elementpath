@@ -11,7 +11,7 @@ import re
 from itertools import chain
 from sys import maxunicode
 from collections import Counter
-from collections.abc import MutableSet
+from typing import AbstractSet, Any, Iterator, MutableSet, Optional, Union
 
 from .unicode_subsets import RegexError, UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
 
@@ -73,12 +73,11 @@ CHARACTER_ESCAPES = {
 }
 
 
-class CharacterClass(MutableSet):
+class CharacterClass(MutableSet[int]):
     """
     A set class to represent XML Schema/XQuery/XPath regex character class.
 
-    :param charset: a string with formatted character set or a list of \
-    codepoints and codepoint ranges.
+    :param charset: a string with formatted character set.
     :param xsd_version: the reference XSD version for syntax variants. Defaults to '1.0'.
     TODO: implement __ior__, __iand__, __ixor__ operators for a full mutable set class.
     """
@@ -87,17 +86,17 @@ class CharacterClass(MutableSet):
 
     __slots__ = 'xsd_version', 'positive', 'negative'
 
-    def __init__(self, charset=None, xsd_version='1.0'):
+    def __init__(self, charset: Optional[str] = None, xsd_version: str = '1.0') -> None:
         self.xsd_version = xsd_version
         self.positive = UnicodeSubset()
         self.negative = UnicodeSubset()
         if charset:
             self.add(charset)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self))
 
-    def __str__(self):
+    def __str__(self) -> str:
         if not self.negative:
             return '[%s]' % str(self.positive)
         elif not self.positive:
@@ -107,29 +106,40 @@ class CharacterClass(MutableSet):
                 str(UnicodeSubset(self.negative.complement())), str(self.positive)
             )
 
-    def __contains__(self, item):
-        if not isinstance(item, int):
+    def __copy__(self) -> 'CharacterClass':
+        obj = CharacterClass(xsd_version=self.xsd_version)
+        obj.positive.update(self.positive)
+        obj.negative.update(self.negative)
+        return self
+
+    def __contains__(self, item: object) -> bool:
+        if isinstance(item, str):
             item = ord(item)
+        elif not isinstance(item, int):
+            return False
+
         if self.negative:
             return item not in self.negative or item in self.positive
         return item in self.positive
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         if self.negative:
             return (
                 cp for cp in range(maxunicode + 1)
                 if cp in self.positive or cp not in self.negative
             )
-        return iter(sorted(self.positive))
+        return iter(sorted(self.positive))  # type: ignore[arg-type]
 
-    def __len__(self):
+    def __len__(self) -> int:
         if self.negative:
             not_in_positive = Counter(x not in self.positive for x in self.negative)[True]
             return maxunicode + 1 - not_in_positive
         return len(self.positive)
 
-    def __isub__(self, other):
-        if self.negative:
+    def __isub__(self, other: AbstractSet[Any]) -> 'CharacterClass':
+        if not isinstance(other, CharacterClass):
+            return NotImplemented
+        elif self.negative:
             if other.negative:
                 self.positive |= (other.negative - self.negative)
                 self.negative.clear()
@@ -139,11 +149,14 @@ class CharacterClass(MutableSet):
         self.positive -= other.positive
         return self
 
-    def __sub__(self, other):
-        obj = self.copy()
+    def __sub__(self, other: AbstractSet[Any]) -> 'CharacterClass':
+        obj = self.__copy__()
         return obj.__isub__(other)
 
-    def add(self, charset):
+    def add(self, charset: Union[int, str]) -> None:
+        if isinstance(charset, int):
+            charset = chr(charset)
+
         for part in self._re_char_set.split(charset):
             if part in CHARACTER_ESCAPES:
                 value = CHARACTER_ESCAPES[part]
@@ -172,7 +185,10 @@ class CharacterClass(MutableSet):
             else:
                 self.positive.update(part)
 
-    def discard(self, charset):
+    def discard(self, charset: Union[int, str]) -> None:
+        if isinstance(charset, int):
+            charset = chr(charset)
+
         for part in self._re_char_set.split(charset):
             if part in CHARACTER_ESCAPES:
                 value = CHARACTER_ESCAPES[part]
@@ -207,11 +223,11 @@ class CharacterClass(MutableSet):
             else:
                 self.positive.difference_update(part)
 
-    def clear(self):
+    def clear(self) -> None:
         self.positive.clear()
         self.negative.clear()
 
-    def complement(self):
+    def complement(self) -> None:
         if self.positive or self.negative:
             self.positive, self.negative = self.negative, self.positive
         else:
