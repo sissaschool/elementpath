@@ -28,7 +28,7 @@ class TestTyping(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.cases_dir = Path(__file__).parent.joinpath('mypy')
+        cls.cases_dir = Path(__file__).parent.joinpath('mypy_tests')
         cls.config_file = Path(__file__).parent.parent.joinpath('mypy.ini')
         cls.error_pattern = re.compile(r'Found \d+ error', re.IGNORECASE)
 
