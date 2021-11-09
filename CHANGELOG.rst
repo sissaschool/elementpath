@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v2.4.0`_ (2021-11-09)
+======================
+* Fix type annotations and going strict on parsers and other public classes
+* Add XPathConstructor token class (subclass of XPathFunction)
+* Last release for Python 3.6
+
 `v2.3.2`_ (2021-09-16)
 ======================
 * Make ElementProtocol and LxmlElementProtocol runtime checkable (only for Python 3.8+)
@@ -335,3 +341,4 @@ CHANGELOG
 .. _v2.3.0: https://github.com/sissaschool/elementpath/compare/v2.2.3...v2.3.0
 .. _v2.3.1: https://github.com/sissaschool/elementpath/compare/v2.3.0...v2.3.1
 .. _v2.3.2: https://github.com/sissaschool/elementpath/compare/v2.3.1...v2.3.2
+.. _v2.4.0: https://github.com/sissaschool/elementpath/compare/v2.3.3...v2.4.0
