@@ -1125,7 +1125,10 @@ class TimezoneTypeTest(unittest.TestCase):
         tz = Timezone.fromstring('+05:00')
         dt = datetime.datetime(2000, 1, 20)
         self.assertEqual(tz.fromutc(dt=dt), datetime.datetime(2000, 1, 20, 5, 0))
-        self.assertEqual(tz.fromutc(dt=None), None)
+
+        with self.assertRaises(TypeError):
+            tz.fromutc(dt=None)
+
         with self.assertRaises(TypeError):
             tz.fromutc(dt='+05:00')
 

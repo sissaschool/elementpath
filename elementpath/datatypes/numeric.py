@@ -9,7 +9,7 @@
 #
 import re
 import math
-from typing import Optional, SupportsFloat, SupportsInt, Union
+from typing import Any, Optional, SupportsFloat, SupportsInt, Union, Type
 
 from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta, AnyAtomicType
@@ -40,74 +40,94 @@ class Float10(float, AnyAtomicType):
             return super().__new__(cls, -0.0 if str(value).startswith('-') else 0.0)
         return value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return super(Float10, self).__hash__()
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             if super(Float10, self).__eq__(other):
                 return True
             return math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
         return super(Float10, self).__eq__(other)
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             if super(Float10, self).__eq__(other):
                 return False
             return not math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
         return super(Float10, self).__ne__(other)
 
-    def __add__(self, other):
+    def __add__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__add__(other))
-        return super(Float10, self).__add__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__add__(other)
+        return NotImplemented
 
-    def __radd__(self, other):
+    def __radd__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__radd__(other))
-        return super(Float10, self).__radd__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__radd__(other)
+        return NotImplemented
 
-    def __sub__(self, other):
+    def __sub__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__sub__(other))
-        return super(Float10, self).__sub__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__sub__(other)
+        return NotImplemented
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__rsub__(other))
-        return super(Float10, self).__rsub__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__rsub__(other)
+        return NotImplemented
 
-    def __mul__(self, other):
+    def __mul__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__mul__(other))
-        return super(Float10, self).__mul__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__mul__(other)
+        return NotImplemented
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__rmul__(other))
-        return super(Float10, self).__rmul__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__rmul__(other)
+        return NotImplemented
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__truediv__(other))
-        return super(Float10, self).__truediv__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__truediv__(other)
+        return NotImplemented
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__rtruediv__(other))
-        return super(Float10, self).__rtruediv__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__rtruediv__(other)
+        return NotImplemented
 
-    def __mod__(self, other):
+    def __mod__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__mod__(other))
-        return super(Float10, self).__mod__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__mod__(other)
+        return NotImplemented
 
-    def __rmod__(self, other):
+    def __rmod__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)):
             return self.__class__(super(Float10, self).__rmod__(other))
-        return super(Float10, self).__rmod__(other)
+        elif isinstance(other, float):
+            return super(Float10, self).__rmod__(other)
+        return NotImplemented
 
-    def __abs__(self):
+    def __abs__(self) -> Union['Float10', 'Float']:
         return self.__class__(super(Float10, self).__abs__())
 
 
@@ -131,19 +151,20 @@ class Integer(int, metaclass=AtomicTypeMeta):
         super(Integer, self).__init__()
 
     @classmethod
-    def __subclasshook__(cls, subclass):
+    def __subclasshook__(cls, subclass: Type[Any]) -> bool:
         if cls is Integer:
             return issubclass(subclass, int) and not issubclass(subclass, bool)
         return NotImplemented
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, cls):
             return
-        elif not isinstance(value, str):
+        elif isinstance(value, str):
+            if cls.pattern.match(value) is None:
+                raise cls.invalid_value(value)
+        else:
             raise cls.invalid_type(value)
-        elif cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
 
 
 class NonPositiveInteger(Integer):

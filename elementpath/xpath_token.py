@@ -573,7 +573,7 @@ class XPathToken(Token[XPathTokenType]):
         self.namespace = namespace
 
     def adjust_datetime(self, context: XPathContext, cls: Type[DatetimeValueType]) \
-            -> Optional[DatetimeValueType]:
+            -> Optional[Union[DatetimeValueType, DayTimeDuration]]:
         """
         XSD datetime adjust function helper.
 
@@ -584,6 +584,7 @@ class XPathToken(Token[XPathTokenType]):
         """
         timezone: Optional[Any]
         item: Optional[DatetimeValueType]
+        _item: Union[DatetimeValueType, DayTimeDuration]
 
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
@@ -603,19 +604,21 @@ class XPathToken(Token[XPathTokenType]):
                 return None
 
         _item = item
+        _tzinfo = _item.tzinfo
         try:
-            if _item.tzinfo is not None and timezone is not None:
+            if _tzinfo is not None and timezone is not None:
                 if isinstance(_item, DateTime10):
                     _item += timezone.offset
                 elif not isinstance(item, Date10):
-                    _item += timezone.offset - _item.tzinfo.offset
-                elif timezone.offset < _item.tzinfo.offset:
-                    _item -= timezone.offset - _item.tzinfo.offset
+                    _item += timezone.offset - _tzinfo.offset
+                elif timezone.offset < _tzinfo.offset:
+                    _item -= timezone.offset - _tzinfo.offset
                     _item -= DayTimeDuration.fromstring('P1D')
         except OverflowError as err:
             raise self.error('FODT0001', str(err)) from None
 
-        _item.tzinfo = timezone
+        if not isinstance(_item, DayTimeDuration):
+            _item.tzinfo = timezone
         return _item
 
     @contextlib.contextmanager

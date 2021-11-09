@@ -31,7 +31,7 @@ from .binary import AbstractBinary, Base64Binary, HexBinary
 from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Date10, Date, GregorianDay, GregorianMonth, GregorianYear, GregorianYear10, \
     GregorianMonthDay, GregorianYearMonth, GregorianYearMonth10, Time, Timezone, \
-    Duration, DayTimeDuration, YearMonthDuration
+    Duration, DayTimeDuration, YearMonthDuration, OrderedDateTime
 from .proxies import BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
     StringProxy, NumericProxy, ArithmeticProxy
 
@@ -62,8 +62,8 @@ xsd11_atomic_types.update(
 )
 XSD_BUILTIN_TYPES = xsd10_atomic_types
 
-DatetimeValueType = Union[Date10, Date, DateTime10, DateTime, Time, GregorianDay,
-                          GregorianMonth, GregorianMonthDay, GregorianYear10,
+DatetimeValueType = Union[OrderedDateTime, Date10, Date, DateTime10, DateTime, Time,
+                          GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10,
                           GregorianYear, GregorianYearMonth10, GregorianYearMonth]
 
 AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
@@ -133,4 +133,4 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'AtomicTypeMeta', 'AnyAto
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
            'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
-           'AtomicValueType', 'DatetimeValueType']
+           'AtomicValueType', 'DatetimeValueType', 'OrderedDateTime']

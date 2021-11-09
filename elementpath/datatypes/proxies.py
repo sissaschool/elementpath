@@ -18,6 +18,7 @@ from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
 from .datetime import AbstractDateTime, Duration
 
+FloatArgType = Union[SupportsFloat, str, bytes]
 
 ####
 # Type proxies for basic Python datatypes: a proxy class creates
@@ -28,7 +29,7 @@ class BooleanProxy(metaclass=AtomicTypeMeta):
     name = 'boolean'
     pattern = re.compile(r'^(?:true|false|1|0)$')
 
-    def __new__(cls, value: Any):
+    def __new__(cls, value: object) -> bool:  # type: ignore[misc]
         if isinstance(value, bool):
             return value
         elif isinstance(value, (int, float, Decimal)):
@@ -45,24 +46,25 @@ class BooleanProxy(metaclass=AtomicTypeMeta):
         return 't' in value or '1' in value
 
     @classmethod
-    def __subclasshook__(cls, subclass):
+    def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, bool)
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, bool):
             return
-        elif not isinstance(value, str):
+        elif isinstance(value, str):
+            if cls.pattern.match(value) is None:
+                raise cls.invalid_value(value)
+        else:
             raise cls.invalid_type(value)
-        elif cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
 
 
 class DecimalProxy(metaclass=AtomicTypeMeta):
     name = 'decimal'
     pattern = re.compile(r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$')
 
-    def __new__(cls, value: Any):
+    def __new__(cls, value: Any) -> Decimal:  # type: ignore[misc]
         if isinstance(value, (str, UntypedAtomic)):
             value = collapse_white_spaces(str(value)).replace(' ', '')
             if cls.pattern.match(value) is None:
@@ -77,20 +79,21 @@ class DecimalProxy(metaclass=AtomicTypeMeta):
             raise ArithmeticError(msg.format(value, cls.name)) from None
 
     @classmethod
-    def __subclasshook__(cls, subclass):
+    def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, (int, Decimal, Integer)) and not issubclass(subclass, bool)
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, Decimal):
             if math.isnan(value) or math.isinf(value):
                 raise cls.invalid_value(value)
         elif isinstance(value, (int, Integer)) and not isinstance(value, bool):
             return
-        elif not isinstance(value, str):
+        elif isinstance(value, str):
+            if cls.pattern.match(value) is None:
+                raise cls.invalid_value(value)
+        else:
             raise cls.invalid_type(value)
-        elif cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
 
 
 class DoubleProxy10(metaclass=AtomicTypeMeta):
@@ -100,7 +103,7 @@ class DoubleProxy10(metaclass=AtomicTypeMeta):
         r'^(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[+-]?INF|NaN)$'
     )
 
-    def __new__(cls, value: Union[SupportsFloat, str]):
+    def __new__(cls, value: Union[SupportsFloat, str]) -> float:  # type: ignore[misc]
         if isinstance(value, str):
             value = collapse_white_spaces(value)
             if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
@@ -111,17 +114,18 @@ class DoubleProxy10(metaclass=AtomicTypeMeta):
         return float(value)
 
     @classmethod
-    def __subclasshook__(cls, subclass):
+    def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, float) and not issubclass(subclass, Float10)
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, float) and not isinstance(value, Float10):
             return
-        elif not isinstance(value, str):
+        elif isinstance(value, str):
+            if cls.pattern.match(value) is None:
+                raise cls.invalid_value(value)
+        else:
             raise cls.invalid_type(value)
-        elif cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
 
 
 class DoubleProxy(DoubleProxy10):
@@ -132,15 +136,15 @@ class DoubleProxy(DoubleProxy10):
 class StringProxy(metaclass=AtomicTypeMeta):
     name = 'string'
 
-    def __new__(cls, *args: Any, **kwargs: Any):
+    def __new__(cls, *args: object, **kwargs: object) -> str:  # type: ignore[misc]
         return str(*args, **kwargs)
 
     @classmethod
-    def __subclasshook__(cls, subclass):
+    def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, str)
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if not isinstance(value, str):
             raise cls.invalid_type(value)
 
@@ -150,10 +154,10 @@ class StringProxy(metaclass=AtomicTypeMeta):
 class NumericTypeMeta(type):
     """Metaclass for checking numeric classes and instances."""
 
-    def __instancecheck__(cls, instance):
+    def __instancecheck__(cls, instance: object) -> bool:
         return isinstance(instance, (int, float, Decimal)) and not isinstance(instance, bool)
 
-    def __subclasscheck__(cls, subclass):
+    def __subclasscheck__(cls, subclass: type) -> bool:
         if issubclass(subclass, bool):
             return False
         return issubclass(subclass, int) or issubclass(subclass, float) \
@@ -163,19 +167,19 @@ class NumericTypeMeta(type):
 class NumericProxy(metaclass=NumericTypeMeta):
     """Proxy for xs:numeric related types. Builds xs:float instances."""
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: FloatArgType, **kwargs: FloatArgType) -> float:  # type: ignore[misc]
         return float(*args, **kwargs)
 
 
 class ArithmeticTypeMeta(type):
     """Metaclass for checking numeric, datetime and duration classes/instances."""
 
-    def __instancecheck__(cls, instance):
+    def __instancecheck__(cls, instance: object) -> bool:
         return isinstance(
             instance, (int, float, Decimal, AbstractDateTime, Duration, UntypedAtomic)
         ) and not isinstance(instance, bool)
 
-    def __subclasscheck__(cls, subclass):
+    def __subclasscheck__(cls, subclass: type) -> bool:
         if issubclass(subclass, bool):
             return False
         return issubclass(subclass, int) or issubclass(subclass, float) or \
@@ -186,5 +190,5 @@ class ArithmeticTypeMeta(type):
 class ArithmeticProxy(metaclass=ArithmeticTypeMeta):
     """Proxy for arithmetic related types. Builds xs:float instances."""
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: FloatArgType, **kwargs: FloatArgType) -> float:  # type: ignore[misc]
         return float(*args, **kwargs)

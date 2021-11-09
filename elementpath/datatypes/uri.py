@@ -25,7 +25,7 @@ class AnyURI(AnyAtomicType):
     """
     name = 'anyURI'
 
-    def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']):
+    def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']) -> None:
         if isinstance(value, str):
             self.value = collapse_white_spaces(value)
         elif isinstance(value, bytes):
@@ -39,57 +39,57 @@ class AnyURI(AnyAtomicType):
 
         self.validate(self.value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return bool(self.value)  # For effective boolean value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.value)
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self.value
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value == other.value
         elif isinstance(other, (bool, float, Decimal, Integer)):
             raise TypeError("cannot compare {} with xs:{}".format(type(other), self.name))
         return self.value == other
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value != other.value
         elif isinstance(other, (bool, float, Decimal, Integer)):
             raise TypeError("cannot compare {} with xs:{}".format(type(other), self.name))
         return self.value != other
 
-    def __lt__(self, other):
+    def __lt__(self, other: Union[str, 'AnyURI', UntypedAtomic]) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value < other.value
         return self.value < other
 
-    def __le__(self, other):
+    def __le__(self, other: Union[str, 'AnyURI', UntypedAtomic]) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value <= other.value
         return self.value <= other
 
-    def __gt__(self, other):
+    def __gt__(self, other: Union[str, 'AnyURI', UntypedAtomic]) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value > other.value
         return self.value > other
 
-    def __ge__(self, other):
+    def __ge__(self, other: Union[str, 'AnyURI', UntypedAtomic]) -> bool:
         if isinstance(other, (AnyURI, UntypedAtomic)):
             return self.value >= other.value
         return self.value >= other
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, cls):
             return
         elif isinstance(value, bytes):

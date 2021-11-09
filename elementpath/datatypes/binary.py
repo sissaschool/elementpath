@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
-from typing import Union
+from typing import Any, Callable, Union
 import re
 import codecs
 
@@ -24,6 +24,7 @@ class AbstractBinary(metaclass=AtomicTypeMeta):
     :param value: a string or a binary data or an untyped atomic instance.
     """
     value: bytes
+    invalid_type: Callable[[Any], TypeError]
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary']) -> None:
         if isinstance(value, self.__class__):
@@ -43,23 +44,23 @@ class AbstractBinary(metaclass=AtomicTypeMeta):
             self.validate(value)
             self.value = value.replace(' ', '').encode('ascii')
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return self.value
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         raise NotImplementedError()
 
     @staticmethod
     @abstractmethod
-    def encoder(value):
+    def encoder(value: bytes) -> bytes:
         raise NotImplementedError()
 
     @abstractmethod
-    def decode(self):
+    def decode(self) -> bytes:
         raise NotImplementedError()
 
 
@@ -72,7 +73,7 @@ class Base64Binary(AbstractBinary):
     )
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, cls):
             return
         elif isinstance(value, bytes):
@@ -86,20 +87,20 @@ class Base64Binary(AbstractBinary):
             if match is None or match.group(0) != value:
                 raise cls.invalid_value(value)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value.decode('utf-8')
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.value)
 
-    def __len__(self):
+    def __len__(self) -> int:
         if self.value[-2] == ord('='):
             return len(self.value) // 4 * 3 - 2
         elif self.value[-1] == ord('='):
             return len(self.value) // 4 * 3 - 1
         return len(self.value) // 4 * 3
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.value == other.value
         elif isinstance(other, UntypedAtomic):
@@ -109,10 +110,10 @@ class Base64Binary(AbstractBinary):
         return isinstance(other, bytes) and self.value == other
 
     @staticmethod
-    def encoder(value):
+    def encoder(value: bytes) -> bytes:
         return codecs.encode(value, 'base64').rstrip(b'\n')
 
-    def decode(self):
+    def decode(self) -> bytes:
         return codecs.decode(self.value, 'base64')
 
 
@@ -121,7 +122,7 @@ class HexBinary(AbstractBinary):
     pattern = re.compile(r'^([0-9a-fA-F]{2})*$')
 
     @classmethod
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, cls):
             return
         elif isinstance(value, bytes):
@@ -134,22 +135,22 @@ class HexBinary(AbstractBinary):
             raise cls.invalid_value(value)
 
     @staticmethod
-    def encoder(value):
+    def encoder(value: bytes) -> bytes:
         return codecs.encode(value, 'hex')
 
-    def decode(self):
+    def decode(self) -> bytes:
         return codecs.decode(self.value, 'hex')
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value.decode('utf-8').upper()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.value.upper())
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.value) // 2
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.value.upper() == other.value.upper()
         elif isinstance(other, UntypedAtomic):
