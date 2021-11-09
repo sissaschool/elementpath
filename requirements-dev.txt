@@ -3,7 +3,7 @@ setuptools
 tox
 coverage
 lxml
-xmlschema>=1.2.3
+xmlschema>=1.8.0
 Sphinx
 memory-profiler
 flake8

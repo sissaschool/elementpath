@@ -48,5 +48,5 @@ jobs:
           mypy --show-error-codes elementpath
       - name: Test with unittest
         run: |
-          pip install lxml xmlschema>=1.2.3
+          pip install lxml xmlschema>=1.8.0
           python -m unittest

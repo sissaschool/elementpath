@@ -15,10 +15,9 @@ import re
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from itertools import takewhile
-from typing import Any, cast, overload, no_type_check, no_type_check_decorator, \
-    Callable, ClassVar, FrozenSet, \
-    Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, \
-    Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
+from typing import Any, cast, overload, no_type_check_decorator, Callable, \
+    ClassVar, FrozenSet, Dict, Generic, List, Optional, Union, Tuple, Type, \
+    Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
 
 if sys.version_info < (3, 7):
     from typing import GenericMeta as ABCMeta

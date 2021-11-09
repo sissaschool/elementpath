@@ -13,6 +13,7 @@
 import unittest
 import subprocess
 import re
+import sys
 from pathlib import Path
 
 try:
@@ -22,6 +23,7 @@ except ImportError:
 
 
 @unittest.skipIf(mypy is None, "mypy is not installed")
+@unittest.skipIf(sys.version_info < (3, 8), "Python version is lesser than 3.8")
 class TestTyping(unittest.TestCase):
 
     @classmethod
