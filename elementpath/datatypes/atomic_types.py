@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Pattern, Tuple, Type
 import re
 
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
@@ -33,9 +33,12 @@ class AtomicTypeMeta(ABCMeta):
     attribute is provided the class is registered into a global map
     of XSD atomic types and also the expanded name is added.
     """
-    name = None
+    xsd_version: str
+    pattern: Pattern[str]
+    name: Optional[str] = None
 
-    def __new__(mcs, class_name, bases, dict_):
+    def __new__(mcs, class_name: str, bases: Tuple[Type[Any], ...], dict_: Dict[str, Any]) \
+            -> 'AtomicTypeMeta':
         try:
             name = dict_['name']
         except KeyError:
@@ -44,6 +47,9 @@ class AtomicTypeMeta(ABCMeta):
         if name is not None and not isinstance(name, str):
             raise TypeError("attribute 'name' must be a string or None")
 
+        dict_['is_valid'] = classmethod(mcs.is_valid)
+        dict_['invalid_type'] = classmethod(mcs.invalid_type)
+        dict_['invalid_value'] = classmethod(mcs.invalid_value)
         cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
         # Add missing attributes and methods
@@ -51,10 +57,6 @@ class AtomicTypeMeta(ABCMeta):
             cls.xsd_version = '1.0'
         if not hasattr(cls, 'pattern'):
             cls.pattern = re.compile(r'^$')
-
-        cls.is_valid = classmethod(mcs.is_valid)
-        cls.invalid_type = classmethod(mcs.invalid_type)
-        cls.invalid_value = classmethod(mcs.invalid_value)
 
         # Register class with an name
         if name:
@@ -66,15 +68,16 @@ class AtomicTypeMeta(ABCMeta):
 
         return cls
 
-    def validate(cls, value):
+    def validate(cls, value: object) -> None:
         if isinstance(value, cls):
             return
-        elif not isinstance(value, str):
+        elif isinstance(value, str):
+            if cls.pattern.match(value) is None:
+                raise cls.invalid_value(value)
+        else:
             raise cls.invalid_type(value)
-        elif cls.pattern.match(value) is None:
-            raise cls.invalid_value(value)
 
-    def is_valid(cls, value):
+    def is_valid(cls, value: object) -> bool:
         try:
             cls.validate(value)
         except (TypeError, ValueError):
@@ -82,12 +85,12 @@ class AtomicTypeMeta(ABCMeta):
         else:
             return True
 
-    def invalid_type(cls, value):
+    def invalid_type(cls, value: object) -> TypeError:
         if cls.name:
             return TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
         return TypeError('invalid type {!r} for {!r}'.format(type(value), cls))
 
-    def invalid_value(cls, value):
+    def invalid_value(cls, value: object) -> ValueError:
         if cls.name:
             return ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))
