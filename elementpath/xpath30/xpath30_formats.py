@@ -17,7 +17,7 @@ from ..regex import translate_pattern
 PICTURE_PATTERN = re.compile(r'(?<!\[)\[(?!\[)[^]]+]')
 UNICODE_DIGIT_PATTERN = re.compile(r'\d')
 DECIMAL_DIGIT_PATTERN = re.compile(translate_pattern(r'^((\p{Nd}|#|[^\p{N}\p{L}])+?)$'))
-WIDTH_PATTERN = re.compile(r'(\d+-\d+)+')
+WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
 MODIFIER_PATTERN = re.compile(r'^([co](\(.+\))?)?[at]?$')
 
 
@@ -343,7 +343,7 @@ def parse_datetime_picture(picture):
     msg_tmpl = 'Invalid formatting component {!r}'
     for value in markers:
         if value[1] not in 'YMDdFWwHhPmsfZzCE':
-            raise xpath_error('FOFD1350', msg_tmpl.format(value))
+            raise xpath_error('FOFD1340', msg_tmpl.format(value))
 
         if ',' not in value:
             presentation = value[2:-1]
@@ -351,12 +351,20 @@ def parse_datetime_picture(picture):
             presentation, width = value[2:-1].split(',', maxsplit=1)
 
             if WIDTH_PATTERN.match(width) is None:
-                raise xpath_error('FOFD1350', msg_tmpl.format(value))
-
-            for chunk in width.split(',;'):
-                min_value, max_value = map(int, chunk.split('-'))
+                raise xpath_error('FOFD1340', f'Invalid width modifier {value!r}')
+            elif '-' not in width:
+                if '*' not in width and not int(width):
+                    raise xpath_error('FOFD1340', f'Invalid width modifier {value!r}')
+            elif '*' not in width:
+                min_value, max_value = map(int, width.split('-'))
                 if min_value < 1 or max_value < min_value:
                     raise xpath_error('FOFD1340', msg_tmpl.format(value))
+            else:
+                min_value, max_value = width.split('-')
+                if min_value != '*' and not int(min_value):
+                    raise xpath_error('FOFD1340', f'Invalid width modifier {value!r}')
+                if max_value != '*' and not int(max_value):
+                    raise xpath_error('FOFD1340', f'Invalid width modifier {value!r}')
 
         if len(presentation) > 1 and presentation[-1] in 'atco':
             presentation = presentation[:-1]
@@ -366,9 +374,176 @@ def parse_datetime_picture(picture):
         elif DECIMAL_DIGIT_PATTERN.match(presentation) is None:
             raise xpath_error('FOFD1340', msg_tmpl.format(value))
         else:
-            cp = ord(presentation[-1])
+            # Check digits set uniformity
+            cp = None
             for ch in reversed(presentation):
-                if ch != '#' and abs(ord(ch) - cp) > 10:
+                if not ch.isdigit():
+                    continue
+                elif cp is None:
+                    cp = ord(ch)
+                elif abs(ord(ch) - cp) > 10:
                     raise xpath_error('FOFD1340', msg_tmpl.format(value))
 
     return literals, markers
+
+
+def parse_datetime_marker(marker, dt):
+    component = marker[1]
+    fmt_token = marker[2:-1]
+
+    if ',' not in fmt_token:
+        presentation, width = fmt_token, ''
+    else:
+        presentation, width = fmt_token.split(',', maxsplit=1)
+
+    if not presentation:
+        if component in 'Hhf':
+            presentation = '1'
+        elif component in 'ms':
+            presentation = '01'
+        elif component in 'Zz':
+            presentation = '01:01'
+        else:
+            presentation = 'n'
+
+    digits = sum(c.isdigit() for c in presentation)
+    opt_digits = presentation.count('#')
+    if not width or width == '*':
+        if digits > 1:
+            min_width, max_width = digits, digits + opt_digits
+        else:
+            min_width, max_width = 0, None
+    else:
+        min_width, max_width = parse_width(width)
+        if digits > 1:
+            min_width = max(min_width, digits)
+            if max_width:
+                max_width = max(max_width, digits + opt_digits)
+
+    zero_cp = 0
+    fmt_chunk = []
+    if component == 'H':
+        value = str(dt.hour)
+    elif component == 'h':
+        if dt.hour == 0:
+            value = '12'
+        elif dt.hour > 12:
+            value = str(dt.hour % 12)
+        else:
+            value = str(dt.hour)
+    elif component == 'P':
+        value = 'a.m.' if dt.hour < 12 else 'p.m.'
+    elif component == 'm':
+        value = str(dt.minute)
+    elif component == 's':
+        value = str(dt.second)
+    elif component == 'f':
+        value = str('{:06}'.format(dt.microsecond))
+    elif component == 'z':
+        value = str(dt.tzinfo or '+00:00')
+        fmt_chunk.append('GMT')
+        min_width += 3
+        max_width += 3
+        if value == 'Z':
+            value = '+00:00'
+    elif component == 'Z':
+        value = str(dt.tzinfo or '+00:00')
+        if value == 'Z':
+            value = '+00:00'
+    else:
+        print(component)
+        breakpoint()
+
+    if presentation == 'n':
+        fmt_chunk.append(value.lower())
+    elif presentation == 'N':
+        fmt_chunk.append(value.upper())
+    elif presentation == 'Nn':
+        fmt_chunk.append(value.title())
+    else:
+        k = 0
+        pch = None
+
+        for ch in value:
+            try:
+                pch = presentation[k]
+            except IndexError:
+                if pch != '#' and not pch.isdigit():
+                    break
+            else:
+                k += 1
+
+            while pch != '#' and not pch.isdigit():
+                fmt_chunk.append(pch)
+                min_width += 1
+                if max_width:
+                    max_width += 1
+                try:
+                    pch = presentation[k]
+                except IndexError:
+                    break
+                else:
+                    k += 1
+            else:
+                if ch == '-' or ch == '+':
+                    fmt_chunk.append(ch)
+                    min_width += 1
+                    if max_width:
+                        max_width += 1
+                    k -= 1
+                    continue
+                if ch != '#' and not ch.isdigit():
+                    continue
+                elif not zero_cp:
+                    if pch == '#':
+                        raise xpath_error('FOFD1340', f'Invalid formatting component {presentation!r}')
+                    zero_cp = ord(pch) - int(pch)
+                fmt_chunk.append(chr(zero_cp + int(ch)))
+
+    fmt_chunk = ''.join(fmt_chunk)
+    zero_ch = '0' if not zero_cp else chr(zero_cp)
+    if len(fmt_chunk) < min_width and component not in 'PzZ':
+        fmt_chunk = zero_ch * (min_width - len(fmt_chunk)) + fmt_chunk
+    if max_width:
+        fmt_chunk = fmt_chunk[:max_width]
+    if min_width or component == 'f':
+        try:
+            nz_last = max(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)
+        except ValueError:
+            nz_last = 0
+
+        fmt_chunk = fmt_chunk[:max(min_width, nz_last + 1)]
+    return fmt_chunk
+
+
+def parse_width(width):
+    if WIDTH_PATTERN.match(width) is None:
+        raise xpath_error('FOFD1340', f'Invalid width modifier {width!r}')
+    elif '-' not in width:
+        if width == '*':
+            return 0, None
+        min_width = int(width)
+        if not min_width:
+            raise xpath_error('FOFD1340', f'Invalid width modifier {width!r}')
+        return min_width, None
+    elif '*' not in width:
+        min_width, max_width = map(int, width.split('-'))
+        if not min_width or max_width < min_width:
+            raise xpath_error('FOFD1340', f'Invalid width modifier {width!r}')
+        return min_width, max_width
+    else:
+        min_width, max_width = width.split('-')
+        if min_width == '*':
+            min_width = 0
+        else:
+            min_width = int(min_width)
+            if not min_width:
+                raise xpath_error('FOFD1340', f'Invalid width modifier {width!r}')
+
+        if max_width == '*':
+            return min_width, None
+        else:
+            max_width = int(max_width)
+            if not max_width:
+                raise xpath_error('FOFD1340', f'Invalid width modifier {width!r}')
+            return min_width, max_width

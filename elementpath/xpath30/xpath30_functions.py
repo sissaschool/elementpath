@@ -33,7 +33,7 @@ from ..regex import translate_pattern, RegexError
 from .xpath30_operators import XPath30Parser
 from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     MODIFIER_PATTERN, int_to_roman, int_to_alphabetic, int_to_numeric, \
-    int_to_words, parse_datetime_picture
+    int_to_words, parse_datetime_picture, parse_datetime_marker, parse_width
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -351,9 +351,40 @@ def evaluate_format_datetime_function(self, context=None):
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate_format_date_function(self, context=None):
     value = self.get_argument(context, cls=Date10)
-    # picture = self.get_argument(context, index=1, required=True, cls=str)
+    picture = self.get_argument(context, index=1, required=True, cls=str)
+    if len(self) not in [2, 5]:
+        raise self.error('XPST0017')
+    language = self.get_argument(context, index=2, cls=str)
+    calendar = self.get_argument(context, index=3, cls=str)
+    place = self.get_argument(context, index=4, cls=str)
+
     if value is None:
-        return None
+        return ''
+
+    try:
+        literals, markers = parse_datetime_picture(picture)
+    except ElementPathError as err:
+        err.token = self
+        raise
+
+    for mrk in markers:
+        if mrk[1] in 'YMDdFWwCE':
+            msg = 'Invalid time formatting component {!r}'.format(mrk)
+            raise self.error('FOFD1350', msg)
+
+    print(value, picture, literals, markers)
+
+    result = []
+    for k in range(len(markers)):
+        result.append(literals[k])
+        try:
+            result.append(parse_datetime_marker(markers[k], value))
+        except ElementPathError as err:
+            err.token = self
+            raise
+
+    result.append(literals[-1])
+    return ''.join(result)
 
 
 # TODO
@@ -363,9 +394,14 @@ def evaluate_format_date_function(self, context=None):
 def evaluate_format_time_function(self, context=None):
     value = self.get_argument(context, cls=Time)
     picture = self.get_argument(context, index=1, required=True, cls=str)
-    # language = self.get_argument(context, index=2, cls=str)
-    # calendar = self.get_argument(context, index=3, cls=str)
-    # place = self.get_argument(context, index=4, cls=str)
+    if len(self) not in [2, 5]:
+        raise self.error('XPST0017')
+    language = self.get_argument(context, index=2, cls=str)
+    calendar = self.get_argument(context, index=3, cls=str)
+    place = self.get_argument(context, index=4, cls=str)
+
+    if value is None:
+        return ''
 
     try:
         literals, markers = parse_datetime_picture(picture)
@@ -374,29 +410,20 @@ def evaluate_format_time_function(self, context=None):
         raise
 
     for mrk in markers:
-        if mrk[1] in 'YMDdFWw':
+        if mrk[1] in 'YMDdFWwCE':
             msg = 'Invalid time formatting component {!r}'.format(mrk)
             raise self.error('FOFD1350', msg)
 
-    if value is None:
-        return ''
-
-    print(value, literals, markers)
+    print(value, picture, literals, markers)
 
     result = []
     for k in range(len(markers)):
         result.append(literals[k])
-        component = markers[k][1]
-        if component == 'f':
-            fmt_token = markers[k][2:-1]
-            item_value = value.microsecond
-            if not fmt_token:
-                result.append(str(item_value).strip('0'))
-            elif fmt_token.isdigit():
-                if fmt_token.startswith('0'):
-                    result.append(str(value.microsecond).lstrip('0')[:len(fmt_token)])
-                else:
-                    result.append(str(value.microsecond).strip('0'))
+        try:
+            result.append(parse_datetime_marker(markers[k], value))
+        except ElementPathError as err:
+            err.token = self
+            raise
 
     result.append(literals[-1])
     return ''.join(result)
