@@ -295,19 +295,42 @@ class Token(MutableSequence[TK]):
 
     def iter(self, *symbols: str) -> Iterator['Token[TK]']:
         """Returns a generator for iterating the token's tree."""
-        if not self:
-            if not symbols or self.symbol in symbols:
-                yield self
-        elif len(self) == 1:
-            if not symbols or self.symbol in symbols:
-                yield self
-            yield from self[0].iter(*symbols)
-        else:
-            yield from self[0].iter(*symbols)
-            if not symbols or self.symbol in symbols:
-                yield self
-            for t in self._items[1:]:
-                yield from t.iter(*symbols)
+        status = []
+        parent, children = self, iter(self)
+        tk: Token
+
+        while True:
+            try:
+                tk = next(children)
+            except StopIteration:
+                try:
+                    parent, children = status.pop()
+                except IndexError:
+                    if parent is not None:
+                        if not symbols or parent.symbol in symbols:
+                            yield parent
+                    return
+                else:
+                    if parent is not None:
+                        if not symbols or parent.symbol in symbols:
+                            yield parent
+                        parent = None
+            else:
+                if parent is not None and len(parent._items) == 1:
+                    if not symbols or parent.symbol in symbols:
+                        yield parent
+                    parent = None
+
+                if not tk._items:
+                    if not symbols or tk.symbol in symbols:
+                        yield tk
+                    if parent is not None:
+                        if not symbols or parent.symbol in symbols:
+                            yield parent
+                        parent = None
+                    continue
+                status.append((parent, children))
+                parent, children = tk, iter(tk)
 
     def expected(self, *symbols: str, message: Optional[str] = None) -> None:
         if symbols and self.symbol not in symbols:
