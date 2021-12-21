@@ -816,10 +816,8 @@ def evaluate_codepoints_to_string_function(self, context=None):
 @method(function('string-to-codepoints', nargs=1,
                  sequence_types=('xs:string?', 'xs:integer*')))
 def evaluate_string_to_codepoints_function(self, context=None):
-    try:
-        return [ord(c) for c in self[0].evaluate(context)] or None
-    except TypeError:
-        raise self.error('XPTY0004', 'an xs:string required') from None
+    arg = self.get_argument(context, cls=str)
+    return [ord(c) for c in arg] if arg else None
 
 
 @method(function('compare', nargs=(2, 3),
@@ -828,7 +826,7 @@ def evaluate_compare_function(self, context=None):
     comp1 = self.get_argument(context, 0, cls=str, promote=(AnyURI, UntypedAtomic))
     comp2 = self.get_argument(context, 1, cls=str, promote=(AnyURI, UntypedAtomic))
     if comp1 is None or comp2 is None:
-        return
+        return None
 
     if len(self) < 3:
         value = locale.strcoll(comp1, comp2)

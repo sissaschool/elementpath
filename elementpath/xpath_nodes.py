@@ -506,6 +506,8 @@ def node_children(obj: Any) -> Optional[Iterator[ElementNode]]:
 
 def node_nilled(obj: Any) -> Optional[bool]:
     if is_element_node(obj):
+        if isinstance(obj, TypedElement):
+            return obj.elem.get(XSI_NIL) in ('true', '1')
         return obj.get(XSI_NIL) in ('true', '1')
     return None
 

@@ -422,7 +422,13 @@ def parse_datetime_marker(marker, dt):
 
     zero_cp = 0
     fmt_chunk = []
-    if component == 'H':
+    if component == 'Y':
+        value = str(dt.year)
+    elif component == 'M':
+        value = str(dt.month)
+    elif component == 'D':
+        value = str(dt.day)
+    elif component == 'H':
         value = str(dt.hour)
     elif component == 'h':
         if dt.hour == 0:
@@ -450,9 +456,20 @@ def parse_datetime_marker(marker, dt):
         value = str(dt.tzinfo or '+00:00')
         if value == 'Z':
             value = '+00:00'
+    elif component == 'W':
+        value = str(dt.isocalendar()[2])
+    elif component == 'w':
+        import calendar
+        month_cal = calendar.monthcalendar(dt.year, dt.month)
+        if dt.day in month_cal[0]:
+            value = '1' if month_cal[0][3] else '5'
+        elif month_cal[0][3]:
+            value = str((dt.day - month_cal[0][6]) // 7 + 1)
+        else:
+            value = str((dt.day - month_cal[0][6]) // 7)
     else:
         print(component)
-        breakpoint()
+        # breakpoint()
 
     if presentation == 'n':
         fmt_chunk.append(value.lower())
@@ -460,6 +477,10 @@ def parse_datetime_marker(marker, dt):
         fmt_chunk.append(value.upper())
     elif presentation == 'Nn':
         fmt_chunk.append(value.title())
+    elif presentation == 'I':
+        fmt_chunk.append(int_to_roman(int(value)))
+    elif presentation == 'i':
+        fmt_chunk.append(int_to_roman(int(value)).lower())
     else:
         k = 0
         pch = None

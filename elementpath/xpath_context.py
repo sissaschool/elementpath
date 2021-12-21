@@ -236,21 +236,27 @@ class XPathContext:
         """
         status = self.item
 
-        for self.item in self._iter_nodes(self.root, with_attributes=True):
-            if self.item in results:
-                yield self.item
+        if any(is_document_node(x) for x in results):
+            roots = {doc for doc in results if is_document_node(doc)}
+        else:
+            roots = (self.root,)
 
-            elif isinstance(self.item, AttributeNode):
-                # Match XSD decoded attributes
-                for typed_attribute in filter(lambda x: isinstance(x, TypedAttribute), results):
-                    if typed_attribute.attribute == self.item:
-                        yield typed_attribute
+        for root in roots:
+            for self.item in self._iter_nodes(root, with_attributes=True):
+                if self.item in results:
+                    yield self.item
 
-            elif is_etree_element(self.item):
-                # Match XSD decoded elements
-                for typed_element in filter(lambda x: isinstance(x, TypedElement), results):
-                    if typed_element.elem is self.item:
-                        yield typed_element
+                elif isinstance(self.item, AttributeNode):
+                    # Match XSD decoded attributes
+                    for typed_attribute in filter(lambda x: isinstance(x, TypedAttribute), results):
+                        if typed_attribute.attribute == self.item:
+                            yield typed_attribute
+
+                elif is_etree_element(self.item):
+                    # Match XSD decoded elements
+                    for typed_element in filter(lambda x: isinstance(x, TypedElement), results):
+                        if typed_element.elem is self.item:
+                            yield typed_element
 
         self.item = status
 

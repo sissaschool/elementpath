@@ -18,6 +18,7 @@ into only one module.
 import argparse
 import contextlib
 import decimal
+import pathlib
 import re
 import json
 import math
@@ -41,9 +42,6 @@ DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
                     'format-integer-sequence', 'language', 'limits',
                     'xml-version', 'xsd-version', 'unicode-version',
                     'unicode-normalization-form'}
-
-IGNORE_SPECS = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30', 'XQ30+',
-                'XP31', 'XP31+', 'XQ31', 'XQ31+', 'XT30+'}
 
 SKIP_TESTS = {
     'fn-subsequence__cbcl-subsequence-010',
@@ -78,6 +76,7 @@ SKIP_TESTS = {
     'fn-unparsed-text__fn-unparsed-text-038',  # Typo in filename
     'fn-unparsed-text-lines__fn-unparsed-text-lines-038',  # Typo in filename
     'fn-serialize__serialize-xml-015b',  # Do not raise, attribute is good
+    'fn-parse-xml-fragment__parse-xml-fragment-022-st',  # conflict with parse-xml-fragment-022
 
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
@@ -88,6 +87,9 @@ SKIP_TESTS = {
 }
 
 xpath_parser = XPath2Parser
+
+ignore_specs = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30', 'XQ30+',
+                'XP31', 'XP31+', 'XQ31', 'XQ31+', 'XT30+'}
 
 QT3_NAMESPACE = "http://www.w3.org/2010/09/qt-fots-catalog"
 
@@ -708,7 +710,7 @@ class Result(object):
             value = self.string_token.evaluate(context)
 
         if self.attrib.get('normalize-space'):
-            expected = ' '.join(x.strip() for x in self.value.split('\n')).strip()
+            expected = re.sub(r'\s+', ' ', self.value).strip()
             value = ' '.join(x.strip() for x in value.split('\n')).strip()
         else:
             expected = self.value
@@ -853,14 +855,57 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
         else:
-            if result is None or result == []:
+            if result is None or result == '' or result == []:
                 return True
 
             self.report_failure(verbose, result=result)
             return False
 
     def assert_permutation_validator(self, verbose=1):
-        """ TODO """
+        try:
+            result = self.test_case.run_xpath_test(verbose)
+        except (ElementPathError, ParseError, EvaluateError):
+            return False
+
+        if not isinstance(result, list):
+            result = [result]
+
+        expected = self.parser.parse(self.value).evaluate()
+        if not isinstance(expected, list):
+            expected = [expected]
+
+        if set(expected) == set(result):
+            return True
+
+        if len(expected) == len(result):
+            _expected = set(expected)
+
+            for value in result:
+                if value in _expected:
+                    _expected.remove(value)
+                    continue
+                elif not isinstance(value, (float, decimal.Decimal)):
+                    self.report_failure(verbose, result=result, expected=expected)
+                    return False
+
+                dv = decimal.Decimal(value)
+                for ev in _expected:
+                    if not isinstance(ev, (float, decimal.Decimal)):
+                        continue
+                    elif math.isnan(ev) and math.isnan(dv):
+                        _expected.remove(ev)
+                        break
+                    elif math.isclose(dv, decimal.Decimal(ev), rel_tol=1E-7, abs_tol=0.0):
+                        _expected.remove(ev)
+                        break
+                else:
+                    self.report_failure(verbose, result=result, expected=expected)
+                    return False
+
+            return True
+
+        self.report_failure(verbose, result=result, expected=expected)
+        return False
 
     def assert_serialization_error_validator(self, verbose=1):
         # TODO: this currently succeeds on any error
@@ -1010,8 +1055,9 @@ def main():
 
         global xpath_parser
         xpath_parser = XPath30Parser
-        IGNORE_SPECS.remove('XP30')
-        IGNORE_SPECS.remove('XP30+')
+        ignore_specs.remove('XP30')
+        ignore_specs.remove('XP30+')
+        ignore_specs.add('XP20')
 
     with working_directory(dirpath=os.path.dirname(catalog_file)):
         catalog_xml = ElementTree.parse(catalog_file)
@@ -1038,9 +1084,9 @@ def main():
         count_other_failures = 0
 
         for test_set in test_sets.values():
-            # ignore test cases for XQuery, and 3.0
+            # ignore by specs of test_set
             ignore_all_in_test_set = test_set.specs and all(
-                dep in IGNORE_SPECS for dep in test_set.specs
+                dep in ignore_specs for dep in test_set.specs
             )
 
             for test_case in test_set.test_cases:
@@ -1055,8 +1101,8 @@ def main():
                     count_skip += 1
                     continue
 
-                # ignore test cases for XQuery, and 3.0
-                if test_case.specs and all(dep in IGNORE_SPECS for dep in test_case.specs):
+                # ignore by specs of test_case
+                if test_case.specs and all(dep in ignore_specs for dep in test_case.specs):
                     count_skip += 1
                     continue
 

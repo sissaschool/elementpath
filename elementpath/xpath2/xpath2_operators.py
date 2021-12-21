@@ -627,13 +627,15 @@ def select_document_node_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
-        if is_document_node(context.root) and context.item is None:
+        if is_document_node(context.item):
+            yield context.item
+        elif is_document_node(context.root) and context.item is None:
             for item in context.iter_children_or_self():
                 if item is None:
                     yield context.root
     else:
-        elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
         if is_document_node(context.root) and context.item is None:
+            elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
             if len(elements) == 1:
                 yield context.root
 

@@ -21,13 +21,15 @@ from urllib.parse import urlsplit
 
 from ..exceptions import ElementPathError
 from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
-from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, \
+    XSLT_XQUERY_SERIALIZATION_NAMESPACE, split_expanded_name
 from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
-    is_document_node, is_etree_element, is_schema_node, TypedElement, \
-    TextNode, AttributeNode, TypedAttribute, NamespaceNode
+    is_document_node, is_etree_element, is_schema_node, node_document_uri, \
+    node_nilled, node_name, TypedElement, TextNode, AttributeNode, \
+    TypedAttribute, NamespaceNode
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
-from ..datatypes import NumericProxy, QName, Date10, DateTime10, Time
+from ..datatypes import NumericProxy, QName, Date10, DateTime10, Time, AnyURI
 from ..regex import translate_pattern, RegexError
 
 from .xpath30_operators import XPath30Parser
@@ -340,9 +342,39 @@ def evaluate_format_number_function(self, context=None):
                                  'xs:string?', 'xs:string?', 'xs:string?')))
 def evaluate_format_datetime_function(self, context=None):
     value = self.get_argument(context, cls=DateTime10)
-    # picture = self.get_argument(context, index=1, required=True, cls=str)
+    picture = self.get_argument(context, index=1, required=True, cls=str)
+    if len(self) not in [2, 5]:
+        raise self.error('XPST0017')
+    language = self.get_argument(context, index=2, cls=str)
+    calendar = self.get_argument(context, index=3, cls=str)
+    place = self.get_argument(context, index=4, cls=str)
+
     if value is None:
         return ''
+
+    try:
+        literals, markers = parse_datetime_picture(picture)
+    except ElementPathError as err:
+        err.token = self
+        raise
+
+    if place is not None:
+        print(place)
+
+    # print(value, picture, literals, markers, calendar)
+    # breakpoint()
+
+    result = []
+    for k in range(len(markers)):
+        result.append(literals[k])
+        try:
+            result.append(parse_datetime_marker(markers[k], value))
+        except ElementPathError as err:
+            err.token = self
+            raise
+
+    result.append(literals[-1])
+    return ''.join(result)
 
 
 # TODO
@@ -368,8 +400,8 @@ def evaluate_format_date_function(self, context=None):
         raise
 
     for mrk in markers:
-        if mrk[1] in 'YMDdFWwCE':
-            msg = 'Invalid time formatting component {!r}'.format(mrk)
+        if mrk[1] in 'HhPmsfzZ':
+            msg = 'Invalid date formatting component {!r}'.format(mrk)
             raise self.error('FOFD1350', msg)
 
     print(value, picture, literals, markers)
@@ -833,7 +865,10 @@ def evaluate_parse_xml_functions(self, context=None):
     if self.symbol == 'parse-xml-fragment':
         # Wrap argument in a fake document because an
         # XML document can have only one root element
-        arg = '<document>{}</document>'.format(arg)
+        if arg.startswith('<?xml '):
+            arg = '%s%s<document>%s</document>' % arg.partition('?>')
+        else:
+            arg = f'<document>{arg}</document>'
 
     try:
         root = etree.XML(arg)
@@ -1097,7 +1132,80 @@ def select_for_each_pair_function(self, context=None):
 
 ###
 # Redefined or extended functions
+XPath30Parser.unregister('data')
+XPath30Parser.unregister('document-uri')
+XPath30Parser.unregister('nilled')
+XPath30Parser.unregister('node-name')
 XPath30Parser.unregister('string-join')
+
+
+@method(function('data', nargs=(0, 1), sequence_types=('item()*', 'xs:anyAtomicType*')))
+def select_data_function(self, context=None):
+    if not self:
+        items = [self.get_argument(context, default_to_context=True)]
+    else:
+        items = self[0].select(context)
+
+    for item in items:
+        value = self.data_value(item)
+        if value is None:
+            raise self.error('FOTY0012', "argument node does not have a typed value")
+        else:
+            yield value
+
+
+@method(function('document-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI?')))
+def evaluate_document_uri_function(self, context=None):
+    if context is None:
+        raise self.missing_context()
+
+    arg = self.get_argument(context, default_to_context=True)
+    if arg is None or not is_document_node(arg):
+        return
+
+    uri = node_document_uri(arg)
+    if uri is not None:
+        return AnyURI(uri)
+    elif is_document_node(context.root):
+        try:
+            for uri, doc in context.documents.items():
+                if doc is context.root:
+                    return AnyURI(uri)
+        except AttributeError:
+            pass
+
+
+@method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))
+def evaluate_nilled_function(self, context=None):
+    arg = self.get_argument(context, default_to_context=True)
+    if arg is None:
+        return
+    elif not is_xpath_node(arg):
+        raise self.error('XPTY0004', 'an XPath node required')
+    return node_nilled(arg)
+
+
+@method(function('node-name', nargs=(0, 1), sequence_types=('node()?', 'xs:QName?')))
+def evaluate_node_name_function(self, context=None):
+    arg = self.get_argument(context, default_to_context=True)
+    if arg is None:
+        return
+    elif not is_xpath_node(arg):
+        raise self.error('XPTY0004', 'an XPath node required')
+
+    name = node_name(arg)
+    if name is None:
+        return
+    elif name.startswith('{'):
+        # name is a QName in extended format
+        namespace, local_name = split_expanded_name(name)
+        for pfx, uri in self.parser.namespaces.items():
+            if uri == namespace:
+                return QName(uri, '{}:{}'.format(pfx, local_name))
+        raise self.error('FONS0004', 'no prefix found for namespace {}'.format(namespace))
+    else:
+        # name is a local name
+        return QName(self.parser.namespaces.get('', ''), name)
 
 
 @method(function('string-join', nargs=(1, 2),

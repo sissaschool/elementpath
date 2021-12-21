@@ -818,44 +818,33 @@ class XPathToken(Token[XPathTokenType]):
         try:
             builder: Any = atomic_types[xsd_type.name]
         except KeyError:
-            pass
+            if self.parser.schema is None:
+                builder = UntypedAtomic
+            else:
+                try:
+                    primitive_type = self.parser.schema.get_primitive_type(xsd_type)
+                    builder = atomic_types[primitive_type.name]
+                except KeyError:
+                    builder = UntypedAtomic
+                else:
+                    if isinstance(builder, (AbstractDateTime, Duration)):
+                        builder = builder.fromstring
+                    elif issubclass(builder, QName):
+                        builder = self.cast_to_qname
         else:
             if issubclass(builder, (AbstractDateTime, Duration)):
                 builder = builder.fromstring
             elif issubclass(builder, QName):
                 builder = self.cast_to_qname
 
-            try:
-                if isinstance(item, AttributeNode):
-                    return TypedAttribute(item, xsd_type, builder(item.value))
-                else:
-                    return TypedElement(item, xsd_type, builder(item.text))
-            except (TypeError, ValueError):
-                msg = "Type {!r} does not match sequence type of {!r}"
-                raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
-
-        if self.parser.schema is None:
-            builder = UntypedAtomic
-        else:
-            try:
-                primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-                builder = atomic_types[primitive_type.name]
-            except KeyError:
-                builder = UntypedAtomic
-            else:
-                if isinstance(builder, (AbstractDateTime, Duration)):
-                    builder = builder.fromstring
-                elif issubclass(builder, QName):
-                    builder = self.cast_to_qname
-
-        try:
-            if isinstance(item, AttributeNode):
-                if xsd_type.is_valid(item.value):
-                    return TypedAttribute(item, xsd_type, builder(item.value))
-            elif xsd_type.is_valid(item.text):
+        if isinstance(item, AttributeNode):
+            if xsd_type.is_valid(item.value):
+                return TypedAttribute(item, xsd_type, builder(item.value))
+        elif item.text is not None:
+            if xsd_type.is_valid(item.text):
                 return TypedElement(item, xsd_type, builder(item.text))
-        except (TypeError, ValueError):
-            pass
+        elif item.get(XSI_NIL) in ('1', 'true'):
+            return TypedElement(item, atomic_types[XSD_ANY_ATOMIC_TYPE], '')
 
         msg = "Type {!r} does not match sequence type of {!r}"
         raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None

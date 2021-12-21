@@ -923,7 +923,7 @@ class TestPatterns(unittest.TestCase):
 
     def test_invalid_pattern_groups(self):
         with self.assertRaises(RegexError) as ctx:
-            translate_pattern('(?:.*)')
+            translate_pattern('(?.*)')
         self.assertIn("invalid '(?...)' extension notation", str(ctx.exception))
 
         with self.assertRaises(RegexError) as ctx:
