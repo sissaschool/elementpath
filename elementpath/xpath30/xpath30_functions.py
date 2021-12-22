@@ -35,7 +35,7 @@ from ..regex import translate_pattern, RegexError
 from .xpath30_operators import XPath30Parser
 from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     MODIFIER_PATTERN, int_to_roman, int_to_alphabetic, int_to_numeric, \
-    int_to_words, parse_datetime_picture, parse_datetime_marker, parse_width
+    int_to_words, parse_datetime_picture, parse_datetime_marker, ordinal_suffix
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -315,14 +315,7 @@ def evaluate_format_integer_function(self, context=None):
             result = int_to_numeric(value, digits[0], fmt_token)
 
     if fmt_modifier.startswith('o'):
-        if not value or abs(value) > 3:
-            return '{}th'.format(result)
-        elif abs(value) == 1:
-            return '{}st'.format(result)
-        elif abs(value) == 2:
-            return '{}nd'.format(result)
-        else:
-            return '{}rd'.format(result)
+        return f'{result}{ordinal_suffix(value)}'
     return result
 
 
@@ -358,8 +351,8 @@ def evaluate_format_datetime_function(self, context=None):
         err.token = self
         raise
 
-    if place is not None:
-        print(place)
+    if calendar not in {None, 'AD', 'ISO', 'OS'}:
+        raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
 
     # print(value, picture, literals, markers, calendar)
     # breakpoint()
@@ -400,9 +393,12 @@ def evaluate_format_date_function(self, context=None):
         raise
 
     for mrk in markers:
-        if mrk[1] in 'HhPmsfzZ':
+        if mrk[1] in 'HhPmsf':
             msg = 'Invalid date formatting component {!r}'.format(mrk)
             raise self.error('FOFD1350', msg)
+
+    if calendar not in {None, 'AD', 'ISO', 'OS'} and (context is None or calendar != context.default_calendar):
+        raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
 
     print(value, picture, literals, markers)
 
@@ -410,7 +406,7 @@ def evaluate_format_date_function(self, context=None):
     for k in range(len(markers)):
         result.append(literals[k])
         try:
-            result.append(parse_datetime_marker(markers[k], value))
+            result.append(parse_datetime_marker(markers[k], value, lang=language))
         except ElementPathError as err:
             err.token = self
             raise
@@ -445,6 +441,9 @@ def evaluate_format_time_function(self, context=None):
         if mrk[1] in 'YMDdFWwCE':
             msg = 'Invalid time formatting component {!r}'.format(mrk)
             raise self.error('FOFD1350', msg)
+
+    if calendar not in {None, 'AD', 'ISO', 'OS'} and calendar != self.parser.default_calendar:
+        raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
 
     print(value, picture, literals, markers)
 

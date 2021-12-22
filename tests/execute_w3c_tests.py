@@ -468,7 +468,8 @@ class TestCase(object):
         if not with_context:
             context = None
         elif environment is None:
-            context = XPathContext(root=ElementTree.XML("<empty/>"), timezone='Z')
+            context = XPathContext(root=ElementTree.XML("<empty/>"), timezone='Z',
+                                   default_calendar=self.calendar)
         else:
             kwargs = {'timezone': 'Z'}
             variables = {}
@@ -507,6 +508,8 @@ class TestCase(object):
                 kwargs['variables'] = variables
             if documents:
                 kwargs['documents'] = documents
+            if self.calendar:
+                kwargs['default_calendar'] = self.calendar
 
             context = XPathContext(root=root, **kwargs)
 

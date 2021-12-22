@@ -9,33 +9,20 @@
 #
 # type: ignore
 import re
-from string import ascii_lowercase
+from typing import Optional
 
 from ..exceptions import xpath_error
 from ..regex import translate_pattern
+
+from .translation_maps import ALPHABET_CHARACTERS, ROMAN_NUMERALS_MAP, \
+    NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS
+
 
 PICTURE_PATTERN = re.compile(r'(?<!\[)\[(?!\[)[^]]+]')
 UNICODE_DIGIT_PATTERN = re.compile(r'\d')
 DECIMAL_DIGIT_PATTERN = re.compile(translate_pattern(r'^((\p{Nd}|#|[^\p{N}\p{L}])+?)$'))
 WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
 MODIFIER_PATTERN = re.compile(r'^([co](\(.+\))?)?[at]?$')
-
-
-ROMAN_NUMERALS_MAP = {
-    1000: 'M',
-    900: 'CM',
-    500: 'D',
-    400: 'CD',
-    100: 'C',
-    90: 'XC',
-    50: 'L',
-    40: 'XL',
-    10: 'X',
-    9: 'IX',
-    5: 'V',
-    4: 'IV',
-    1: 'I',
-}
 
 
 def int_to_roman(num):
@@ -56,15 +43,6 @@ def int_to_roman(num):
                 value %= base
 
     return ''.join(x for x in roman_num(num))
-
-
-ALPHABET_CHARACTERS = {
-    None: ascii_lowercase,
-    'en': ascii_lowercase,
-    'it': 'ABCDEFGHILMNOPQRSTUVZ',
-    'el': 'αβγδεζηθικλμνξοπρςστυφχψω',
-    # Add your language with a PR ;)
-}
 
 
 def int_to_alphabetic(num, reference=None):
@@ -97,6 +75,30 @@ def int_to_alphabetic(num, reference=None):
     if negative:
         chars.append('-')
     return ''.join(reversed(chars))
+
+
+def int_to_month(num: int, lang: Optional[str] = None) -> str:
+    if lang is None:
+        lang = 'en'
+
+    try:
+        months_map = NUM_TO_MONTH_MAPS[lang]
+    except KeyError:
+        months_map = NUM_TO_MONTH_MAPS['en']
+
+    return months_map[num]
+
+
+def int_to_weekday(num: int, lang: Optional[str] = None) -> str:
+    if lang is None:
+        lang = 'en'
+
+    try:
+        weekday_map = NUM_TO_WEEKDAY_MAPS[lang]
+    except KeyError:
+        weekday_map = NUM_TO_WEEKDAY_MAPS['en']
+
+    return weekday_map[num]
 
 
 def int_to_numeric(num, reference, fmt_pattern):
@@ -153,85 +155,33 @@ def int_to_numeric(num, reference, fmt_pattern):
     return ''.join(reversed(result))
 
 
-NUM_TO_WORD_MAPS = {
-    'en': {
-        10 ** 9: 'billion',
-        10 ** 6: 'million',
-        1000: 'thousand',
-        100: 'hundred',
-        90: 'ninety',
-        80: 'eighty',
-        70: 'seventy',
-        60: 'sixty',
-        50: 'fifty',
-        40: 'forty',
-        30: 'thirty',
-        20: 'twenty',
-        19: 'nineteen',
-        18: 'eighteen',
-        17: 'seventeen',
-        16: 'sixteen',
-        15: 'fifteen',
-        14: 'fourteen',
-        13: 'thirteen',
-        12: 'twelve',
-        11: 'eleven',
-        10: 'ten',
-        9: 'nine',
-        8: 'eight',
-        7: 'seven',
-        6: 'six',
-        5: 'five',
-        4: 'four',
-        3: 'three',
-        2: 'two',
-        1: 'one',
-        0: 'zero',
-    },
-    'it': {
-        10 ** 9: 'miliardo',
-        10 ** 6: 'milione',
-        1000: 'mille',
-        100: 'cento',
-        90: 'novanta',
-        80: 'ottanta',
-        70: 'settanta',
-        60: 'sessanta',
-        50: 'cinquanta',
-        40: 'quaranta',
-        30: 'trenta',
-        20: 'venti',
-        19: 'diciannove',
-        18: 'diciotto',
-        17: 'diciassette',
-        16: 'sedici',
-        15: 'quindici',
-        14: 'quattordici',
-        13: 'tredici',
-        12: 'dodici',
-        11: 'undici',
-        10: 'dieci',
-        9: 'nove',
-        8: 'otto',
-        7: 'sette',
-        6: 'sei',
-        5: 'cinque',
-        4: 'quattro',
-        3: 'tre',
-        2: 'due',
-        1: 'uno',
-        0: 'zero',
-    }
-}
+def ordinal_suffix(value: int) -> str:
+    value = abs(value) % 100
+    if 3 < value < 20:
+        return 'th'
+
+    value %= 10
+    if value == 1:
+        return 'st'
+    elif value == 2:
+        return 'nd'
+    elif value == 3:
+        return 'rd'
+    else:
+        return 'th'
 
 
-def to_cardinal_en(num_as_words):
+def to_ordinal_en(num_as_words: str) -> str:
     if num_as_words.endswith('one'):
         return num_as_words[:-3] + 'first'
     elif num_as_words.endswith('two'):
         return num_as_words[:-3] + 'second'
     elif num_as_words.endswith('three'):
         return num_as_words[:-5] + 'third'
+    elif num_as_words.endswith('eight'):
+        return num_as_words + 'h'
+    elif num_as_words.endswith('nine'):
+        return num_as_words[:-1] + 'th'
     elif num_as_words.endswith('y'):
         return num_as_words[:-1] + 'ieth'
     elif num_as_words.endswith('e'):
@@ -240,7 +190,7 @@ def to_cardinal_en(num_as_words):
         return num_as_words + 'th'
 
 
-def to_cardinal_it(num_as_words, fmt_modifier):
+def to_ordinal_it(num_as_words: str, fmt_modifier: str) -> str:
     if '%spellout-ordinal-feminine' in fmt_modifier:
         suffix = 'a'
     elif fmt_modifier.startswith('o(-'):
@@ -282,7 +232,7 @@ def int_to_words(num, lang=None, fmt_modifier=''):
             yield num_map[value]
         except KeyError:
             for base, word in num_map.items():
-                if base > 1:
+                if base >= 1:
                     floor = value // base
                     if not floor:
                         continue
@@ -316,9 +266,9 @@ def int_to_words(num, lang=None, fmt_modifier=''):
         return result
 
     if lang == 'en':
-        return to_cardinal_en(result)
+        return to_ordinal_en(result)
     elif lang == 'it':
-        return to_cardinal_it(result, fmt_modifier)
+        return to_ordinal_it(result, fmt_modifier)
     else:
         return result
 
@@ -348,7 +298,7 @@ def parse_datetime_picture(picture):
         if ',' not in value:
             presentation = value[2:-1]
         else:
-            presentation, width = value[2:-1].split(',', maxsplit=1)
+            presentation, width = value[2:-1].rsplit(',', maxsplit=1)
 
             if WIDTH_PATTERN.match(width) is None:
                 raise xpath_error('FOFD1340', f'Invalid width modifier {value!r}')
@@ -369,7 +319,7 @@ def parse_datetime_picture(picture):
         if len(presentation) > 1 and presentation[-1] in 'atco':
             presentation = presentation[:-1]
 
-        if not presentation or presentation in {'i', 'I', 'w', 'W', 'Ww', 'n', 'N', 'Nn'}:
+        if not presentation or presentation in {'i', 'I', 'w', 'W', 'Ww', 'n', 'N', 'Nn', 'Z'}:
             pass
         elif DECIMAL_DIGIT_PATTERN.match(presentation) is None:
             raise xpath_error('FOFD1340', msg_tmpl.format(value))
@@ -387,14 +337,14 @@ def parse_datetime_picture(picture):
     return literals, markers
 
 
-def parse_datetime_marker(marker, dt):
+def parse_datetime_marker(marker, dt, lang=None):
     component = marker[1]
     fmt_token = marker[2:-1]
 
     if ',' not in fmt_token:
         presentation, width = fmt_token, ''
     else:
-        presentation, width = fmt_token.split(',', maxsplit=1)
+        presentation, width = fmt_token.rsplit(',', maxsplit=1)
 
     if not presentation:
         if component in 'Hhf':
@@ -421,11 +371,13 @@ def parse_datetime_marker(marker, dt):
                 max_width = max(max_width, digits + opt_digits)
 
     zero_cp = 0
-    fmt_chunk = []
     if component == 'Y':
         value = str(dt.year)
     elif component == 'M':
-        value = str(dt.month)
+        if presentation.lower().startswith('n') and lang is not None:
+            value = int_to_month(dt.month, lang)
+        else:
+            value = str(dt.month)
     elif component == 'D':
         value = str(dt.day)
     elif component == 'H':
@@ -447,7 +399,7 @@ def parse_datetime_marker(marker, dt):
         value = str('{:06}'.format(dt.microsecond))
     elif component == 'z':
         value = str(dt.tzinfo or '+00:00')
-        fmt_chunk.append('GMT')
+        fmt_chunk = 'GMT'
         min_width += 3
         max_width += 3
         if value == 'Z':
@@ -467,23 +419,40 @@ def parse_datetime_marker(marker, dt):
             value = str((dt.day - month_cal[0][6]) // 7 + 1)
         else:
             value = str((dt.day - month_cal[0][6]) // 7)
+    elif component == 'F':
+        if presentation.lower().startswith('n') and lang is not None:
+            value = int_to_weekday(dt.isocalendar().weekday, lang)
+        else:
+            value = str(dt.isocalendar().weekday)
     else:
-        print(component)
+        print(f"MISSING: {component!r}")
         # breakpoint()
 
     if presentation == 'n':
-        fmt_chunk.append(value.lower())
+        fmt_chunk = value.lower()
     elif presentation == 'N':
-        fmt_chunk.append(value.upper())
+        fmt_chunk = value.upper()
     elif presentation == 'Nn':
-        fmt_chunk.append(value.title())
+        fmt_chunk = value.title()
     elif presentation == 'I':
-        fmt_chunk.append(int_to_roman(int(value)))
+        fmt_chunk = int_to_roman(int(value))
     elif presentation == 'i':
-        fmt_chunk.append(int_to_roman(int(value)).lower())
+        fmt_chunk = int_to_roman(int(value)).lower()
+    elif presentation.startswith('Ww'):
+        fmt_chunk = int_to_words(int(value), lang, presentation[2:]).title()
+    elif presentation.startswith('w'):
+        fmt_chunk = int_to_words(int(value), lang, presentation[1:])
+    elif presentation.startswith('W'):
+        fmt_chunk = int_to_words(int(value), lang, presentation[1:]).upper()
     else:
         k = 0
         pch = None
+        fmt_chunk = []
+        if presentation[-1] in 'co':
+            fmt_modifier = presentation[-1]
+            presentation = presentation[:-1]
+        else:
+            fmt_modifier = ''
 
         for ch in value:
             try:
@@ -513,15 +482,28 @@ def parse_datetime_marker(marker, dt):
                         max_width += 1
                     k -= 1
                     continue
+
                 if ch != '#' and not ch.isdigit():
                     continue
                 elif not zero_cp:
                     if pch == '#':
-                        raise xpath_error('FOFD1340', f'Invalid formatting component {presentation!r}')
-                    zero_cp = ord(pch) - int(pch)
+                        zero_cp = ord('0')
+                        # raise xpath_error('FOFD1340', f'Invalid formatting component {presentation!r}')
+                    else:
+                        zero_cp = ord(pch) - int(pch)
                 fmt_chunk.append(chr(zero_cp + int(ch)))
 
-    fmt_chunk = ''.join(fmt_chunk)
+        fmt_chunk = ''.join(fmt_chunk)
+        if fmt_modifier == 'o':
+            try:
+                fmt_chunk += ordinal_suffix(int(fmt_chunk))
+            except ValueError:
+                pass
+            else:
+                min_width += 2
+                if max_width:
+                    max_width += 2
+
     zero_ch = '0' if not zero_cp else chr(zero_cp)
     if len(fmt_chunk) < min_width and component not in 'PzZ':
         fmt_chunk = zero_ch * (min_width - len(fmt_chunk)) + fmt_chunk
