@@ -18,7 +18,6 @@ into only one module.
 import argparse
 import contextlib
 import decimal
-import pathlib
 import re
 import json
 import math
@@ -77,6 +76,7 @@ SKIP_TESTS = {
     'fn-unparsed-text-lines__fn-unparsed-text-lines-038',  # Typo in filename
     'fn-serialize__serialize-xml-015b',  # Do not raise, attribute is good
     'fn-parse-xml-fragment__parse-xml-fragment-022-st',  # conflict with parse-xml-fragment-022
+    'fn-for-each-pair__fn-for-each-pair-017',  # Requires PI and comments parsing
 
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
@@ -1121,7 +1121,8 @@ def main():
                     continue
 
                 # ignore tests that rely on XQuery 1.0/XPath 2.0 static-typing enforcement
-                if 'staticTyping' in test_case.test_set.features:
+                if 'staticTyping' in test_case.test_set.features \
+                        or 'staticTyping' in test_case.features:
                     count_skip += 1
                     continue
 

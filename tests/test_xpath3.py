@@ -702,7 +702,8 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
             token.evaluate(context)
 
         context.variables['f'] = [1, context.variables['f']]
-        self.assertEqual(token.evaluate(context), 'Hi there')
+        with self.assertRaises(TypeError):
+            token.evaluate(context)
 
         context.variables['f'] = self.parser.symbol_table['true'](self.parser, nargs=0)
         token = self.parser.parse('$f()[2]')

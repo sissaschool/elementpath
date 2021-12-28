@@ -65,6 +65,9 @@ class XPath30Parser(XPath2Parser):
 
         # Expressions and node type functions
         'function', 'let', ':=',  # 'namespace-node', 'switch',
+
+        # XSD list-types constructor functions
+        'ENTITIES', 'IDREFS', 'NMTOKENS',
     }
 
     DEFAULT_NAMESPACES = {

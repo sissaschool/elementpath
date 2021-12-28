@@ -71,32 +71,21 @@ def led_parenthesized_expression(self, left):
 
 @method('(')
 def evaluate_parenthesized_expression(self, context=None):
-    if len(self) < 2:
-        return self[0].evaluate(context) if self else []
+    if not self:
+        return []
 
-    result = self[0].evaluate(context)
-    if isinstance(result, list) and len(result) == 1:
-        result = result[0]
+    value = self[0].evaluate(context)
+    if isinstance(value, list) and len(value) == 1:
+        value = value[0]
 
-    if not isinstance(result, XPathFunction):
-        raise self.error('XPST0017', 'an XPath function expected, not {!r}'.format(type(result)))
-    return result(context, self[1])
-
-
-@method('(')
-def select_parenthesized_expression(self, context=None):
-    if len(self) < 2:
-        yield from self[0].select(context) if self else iter(())
-    else:
-
-        value = self[0].evaluate(context)
+    if len(self) == 1:
         if not isinstance(value, XPathFunction):
-            raise self.error('XPST0017', 'an XPath function expected, not {!r}'.format(type(value)))
-        result = value(context, self[1])
-        if isinstance(result, list):
-            yield from result
-        else:
-            yield result
+            return value
+        return value(context)
+    else:
+        if not isinstance(value, XPathFunction):
+            raise self.error('XPST0017', f'an XPath function expected, not {type(value)!r}')
+        return value(context, self[1])
 
 
 @method(infix('||', bp=32))

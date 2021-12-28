@@ -29,7 +29,8 @@ from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
     TypedAttribute, NamespaceNode
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
-from ..datatypes import NumericProxy, QName, Date10, DateTime10, Time, AnyURI
+from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
+    DateTime10, Time, AnyURI
 from ..regex import translate_pattern, RegexError
 
 from .xpath30_operators import XPath30Parser
@@ -63,6 +64,11 @@ def nud_inline_function(self):
     if self.parser.next_token.symbol != '(':
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
         return token.nud()
+    elif self.label == 'kind test':
+        self.parser.advance('(')
+        self.parser.advance('*')
+        self.parser.advance(')')
+        return self
 
     self.parser.advance('(')
     self.sequence_types = []
@@ -118,7 +124,14 @@ def nud_inline_function(self):
 def evaluate_inline_function(self, context=None):
     if context is None:
         raise self.missing_context()
-    return self.expr.evaluate(context)
+
+    if self.label == 'kind test':
+        if isinstance(context.item, XPathFunction):
+            return context.item
+        else:
+            return None
+    else:
+        return self.expr.evaluate(context)
 
 
 ###
@@ -903,7 +916,7 @@ def evaluate_serialize_function(self, context=None):
             for pfx, uri in self.parser.namespaces.items():
                 etree.register_namespace(pfx, uri)
 
-    item_separator = '\n'
+    item_separator = ' '
     kwargs = {}
     character_map = {}
     if len(params):
@@ -983,6 +996,9 @@ def evaluate_serialize_function(self, context=None):
         elif isinstance(item, TextNode):
             chunks.append(item.value)
             continue
+        elif isinstance(item, bool):
+            chunks.append('true' if item else 'false')
+            continue
         elif not is_etree_element(item):
             chunks.append(str(item))
             continue
@@ -1009,17 +1025,16 @@ def evaluate_serialize_function(self, context=None):
 @method(function('function-lookup', nargs=2,
                  sequence_types=('xs:QName', 'xs:integer', 'function(*)?')))
 def evaluate_function_lookup_function(self, context=None):
-    qname = self.get_argument(context, cls=QName)
-    arity = self.get_argument(context, index=1, cls=int)
+    qname = self.get_argument(context, cls=QName, required=True)
+    arity = self.get_argument(context, index=1, cls=int, required=True)
 
     # TODO: complete function signatures
     # if (qname, arity) not in self.parser.function_signatures:
     #    raise self.error('XPST0017')
-
     try:
         return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
     except (KeyError, TypeError):
-        raise self.error('XPST0017', "unknown function {}".format(qname.local_name))
+        return []
 
 
 @method(function('function-name', nargs=1, sequence_types=('function(*)', 'xs:QName?')))
@@ -1046,7 +1061,7 @@ def evaluate_function_arity_function(self, context=None):
 def select_for_each_function(self, context=None):
     func = self[1][1] if self[1].symbol == ':' else self[1]
     if not isinstance(func, XPathFunction):
-        func = self.get_argument(context, index=1, cls=XPathFunction)
+        func = self.get_argument(context, index=1, cls=XPathFunction, required=True)
 
     for item in self[0].select(copy(context)):
         result = func(context, argument_list=[item])
@@ -1063,8 +1078,14 @@ def select_filter_function(self, context=None):
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=1, cls=XPathFunction)
 
+    if func.nargs == 0:
+        raise self.error('XPTY0004', f'invalid number of arguments {func.nargs}')
+
     for item in self[0].select(copy(context)):
-        if self.boolean_value(func(context, argument_list=[item])):
+        cond = func(context, argument_list=[item])
+        if not isinstance(cond, bool):
+            raise self.error('XPTY0004', 'a single boolean value required')
+        if cond:
             yield item
 
 
@@ -1212,3 +1233,34 @@ def evaluate_node_name_function(self, context=None):
 def evaluate_string_join_function(self, context=None):
     items = [self.string_value(s) for s in self[0].select(context)]
     return self.get_argument(context, 1, default='', cls=str).join(items)
+
+
+#
+# XSD list-based constructors
+
+@XPath30Parser.constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
+def cast_string_based_types(self, value):
+    cast_func = xsd10_atomic_types['NMTOKEN']
+    try:
+        return [cast_func(x) for x in value.split()]
+    except ValueError as err:
+        raise self.error('FORG0001', err)
+
+
+@XPath30Parser.constructor('IDREFS', sequence_types=('xs:IDREF*',))
+def cast_string_based_types(self, value):
+    cast_func = xsd10_atomic_types['IDREF']
+    try:
+        return [cast_func(x) for x in value.split()]
+    except ValueError as err:
+        raise self.error('FORG0001', err)
+
+
+@XPath30Parser.constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
+def cast_string_based_types(self, value):
+    cast_func = xsd10_atomic_types['ENTITY']
+    try:
+        return [cast_func(x) for x in value.split()]
+    except ValueError as err:
+        raise self.error('FORG0001', err)
+

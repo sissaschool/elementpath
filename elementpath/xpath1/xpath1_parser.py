@@ -224,7 +224,7 @@ class XPath1Parser(ParserType):
         """
         if self.next_token.symbol in symbols:
             return
-        elif self.next_token.label == 'operator' and \
+        elif self.next_token.label in ('operator', 'symbol') and \
                 self.name_pattern.match(self.next_token.symbol) is not None:
             token_class = self.symbol_table['(name)']
             self.next_token = token_class(self, self.next_token.symbol)
@@ -395,7 +395,7 @@ class XPath1Parser(ParserType):
             else:
                 return all(self.match_sequence_type(x, sequence_type) for x in value)
         elif sequence_type == 'item()':
-            return is_xpath_node(value) or isinstance(value, (AnyAtomicType, list))
+            return is_xpath_node(value) or isinstance(value, (AnyAtomicType, list, XPathFunction))
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
 

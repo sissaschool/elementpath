@@ -686,6 +686,8 @@ def evaluate_matches_function(self, context=None):
         for c in self.get_argument(context, 2, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
+            elif c == 'q' and self.parser.version > '2':
+                pattern = re.escape(pattern)
             else:
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 

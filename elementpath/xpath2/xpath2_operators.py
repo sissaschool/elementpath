@@ -233,7 +233,10 @@ def select_for_expression(self, context=None):
 def led_sequence_type_based_expressions(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
     if self.parser.next_token.label not in ('kind test', 'sequence type'):
-        self.parser.expected_name('(name)', ':')
+        if self.parser.next_token.label == 'inline function':
+            self.parser.next_token.label = 'kind test'
+        else:
+            self.parser.expected_name('(name)', ':')
 
     try:
         self[:] = left, self.parser.expression(rbp=self.rbp)

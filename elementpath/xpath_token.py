@@ -1139,7 +1139,10 @@ class ValueToken(XPathToken):
         return self.value
 
     def select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
-        yield self.value
+        if isinstance(self.value, list):
+            yield from self.value
+        elif self.value is not None:
+            yield self.value
 
 
 class XPathFunction(XPathToken):
@@ -1180,12 +1183,28 @@ class XPathFunction(XPathToken):
         if isinstance(argument_list, (list, tuple)):
             args.extend(argument_list)
         elif isinstance(argument_list, XPathToken):
-            if argument_list.symbol == '(':
-                args.append(argument_list)
-            else:
-                for token in argument_list.iter():
-                    if token.symbol not in ('(', ','):
-                        args.append(token)
+            tk = argument_list
+            while True:
+                if tk.symbol == ',':
+                    args.append(tk[1].evaluate(context))
+                    tk = tk[0]
+                else:
+                    args.append(tk.evaluate(context))
+                    break
+            args.reverse()
+
+        # Check provided argument with arity
+        if self.nargs is None or self.nargs == len(args):
+            pass
+        elif isinstance(self.nargs, tuple):
+            if len(args) < self.nargs[0]:
+                raise self.error('XPTY0004', "missing required arguments")
+            elif self.nargs[1] is not None and len(args) > self.nargs[1]:
+                raise self.error('XPTY0004', "too many arguments")
+        elif self.nargs > len(args):
+            raise self.error('XPTY0004', "missing required arguments")
+        else:
+            raise self.error('XPTY0004', "too many arguments")
 
         context = copy(context)
         if self.symbol == 'function':
@@ -1237,7 +1256,11 @@ class XPathFunction(XPathToken):
 
     @property
     def arity(self) -> int:
-        return self.nargs if isinstance(self.nargs, int) else len(self)
+        if isinstance(self.nargs, int):
+            return self.nargs
+        elif any(tk.symbol == '?' for tk in self._items):
+            return len([tk for tk in self._items if tk.symbol == '?'])
+        return len(self._items)
 
     def nud(self) -> 'XPathFunction':
         code = 'XPST0017' if self.label == 'function' else 'XPST0003'
