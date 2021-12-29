@@ -11,6 +11,7 @@
 """
 XPath 3.0 implementation - part 3 (functions)
 """
+import decimal
 import os
 import re
 import codecs
@@ -35,7 +36,7 @@ from ..regex import translate_pattern, RegexError
 
 from .xpath30_operators import XPath30Parser
 from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
-    MODIFIER_PATTERN, int_to_roman, int_to_alphabetic, int_to_numeric, \
+    MODIFIER_PATTERN, DECIMAL_FORMATS, int_to_roman, int_to_alphabetic, format_digits, \
     int_to_words, parse_datetime_picture, parse_datetime_marker, ordinal_suffix
 
 # XSLT and XQuery Serialization parameters
@@ -325,24 +326,107 @@ def evaluate_format_integer_function(self, context=None):
             elif fmt_token[0] != '#':
                 raise self.error('FODF1310', "invalid grouping in picture argument")
 
-            result = int_to_numeric(value, digits[0], fmt_token)
+            if digits[0].isdigit():
+                cp = ord(digits[0])
+                while chr(cp - 1).isdigit():
+                    cp -= 1
+                digits_family = ''.join(chr(cp + k) for k in range(10))
+            else:
+                raise ValueError()
+
+            if value < 0:
+                result = '-' + format_digits(str(abs(value)), fmt_token, digits_family)
+            else:
+                result = format_digits(str(abs(value)), fmt_token, digits_family)
 
     if fmt_modifier.startswith('o'):
         return f'{result}{ordinal_suffix(value)}'
     return result
 
 
-# TODO
 @method(function('format-number', nargs=(2, 3),
                  sequence_types=('numeric?', 'xs:string', 'xs:string?', 'xs:string')))
 def evaluate_format_number_function(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
-    # picture = self.get_argument(context, index=1, required=True, cls=str)
+    picture = self.get_argument(context, index=1, required=True, cls=str)
+    decimal_format_name = self.get_argument(context, index=2, cls=str)
     if value is None:
         return ''
 
+    try:
+        decimal_format = DECIMAL_FORMATS[decimal_format_name]
+    except KeyError:
+        decimal_format = DECIMAL_FORMATS[None]
 
-# TODO
+    pattern_separator = decimal_format['pattern-separator']
+    sub_pictures = picture.split(pattern_separator)
+    if len(sub_pictures) > 2:
+        breakpoint()
+
+    decimal_separator = decimal_format['decimal-separator']
+    if any(p.count(decimal_separator) > 1 for p in sub_pictures):
+        raise self.error('FODF1310')
+
+    percent_sign = decimal_format['percent']
+    per_mille_sign = decimal_format['per-mille']
+    if any(p.count(percent_sign) + p.count(per_mille_sign) > 1 for p in sub_pictures):
+        raise self.error('FODF1310')
+
+    mandatory_digit = decimal_format['zero-digit']
+    optional_digit = decimal_format['digit']
+    digits_family = ''.join(chr(cp + ord(mandatory_digit)) for cp in range(10))
+    if any(optional_digit not in p and all(x not in p for x in digits_family) for p in sub_pictures):
+        raise self.error('FODF1310')
+
+    grouping_separator = decimal_format['grouping-separator']
+    adjacent_pattern = re.compile(r'[\\%s\\%s]{2}' % (grouping_separator, decimal_separator))
+    if any(adjacent_pattern.search(p) for p in sub_pictures):
+        raise self.error('FODF1310')
+
+    if math.isnan(value):
+        return decimal_format['NaN']
+
+    if isinstance(value, float):
+        value = decimal.Decimal.from_float(value)
+    elif not isinstance(value, decimal.Decimal):
+        value = decimal.Decimal(value)
+
+    if value >= 0:
+        fmt_tokens = sub_pictures[0].split(decimal_separator)
+        prefix = ''
+        chunks = str(value).split(decimal_separator)
+    else:
+        fmt_tokens = sub_pictures[-1].split(decimal_separator)
+        if len(sub_pictures) == 1:
+            prefix = decimal_format['minus-sign']
+        else:
+            prefix = ''
+        chunks = str(abs(value)).split(decimal_separator)
+
+    if not fmt_tokens[-1]:
+        suffix = ''
+    elif fmt_tokens[-1][-1] == percent_sign or fmt_tokens[-1][-1] == per_mille_sign:
+        suffix = fmt_tokens[-1][-1]
+        fmt_tokens[-1] = fmt_tokens[-1][:-1]
+    else:
+        suffix = ''
+
+    if math.isnan(value) or abs(value) > 10 ** 28:
+        return prefix + decimal_format['infinity'] + suffix
+
+    result = format_digits(chunks[0], fmt_tokens[0], digits_family)
+    if len(fmt_tokens) > 1:
+        if len(chunks) == 1:
+            chunks.append('0')
+        result += '.' + format_digits(chunks[1], fmt_tokens[1], digits_family)
+
+    result = result.lstrip(',')
+    if decimal_separator in result:
+        result = result.lstrip('0')
+            
+    return prefix + result + suffix
+
+
 @method(function('format-dateTime', nargs=(2, 5),
                  sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
@@ -383,7 +467,6 @@ def evaluate_format_datetime_function(self, context=None):
     return ''.join(result)
 
 
-# TODO
 @method(function('format-date', nargs=(2, 5),
                  sequence_types=('xs:date?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
@@ -428,7 +511,6 @@ def evaluate_format_date_function(self, context=None):
     return ''.join(result)
 
 
-# TODO
 @method(function('format-time', nargs=(2, 5),
                  sequence_types=('xs:time?', 'xs:string', 'xs:string?',
                                  'xs:string?', 'xs:string?', 'xs:string?')))
@@ -1027,10 +1109,6 @@ def evaluate_serialize_function(self, context=None):
 def evaluate_function_lookup_function(self, context=None):
     qname = self.get_argument(context, cls=QName, required=True)
     arity = self.get_argument(context, index=1, cls=int, required=True)
-
-    # TODO: complete function signatures
-    # if (qname, arity) not in self.parser.function_signatures:
-    #    raise self.error('XPST0017')
     try:
         return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
     except (KeyError, TypeError):

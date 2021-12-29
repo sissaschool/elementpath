@@ -450,7 +450,7 @@ def select_distinct_values_function(self, context=None):
                     if not nan:
                         yield value
                         nan = True
-                elif all(not math.isclose(value, x, rel_tol=1E-7, abs_tol=0)
+                elif all(not math.isclose(value, x, rel_tol=1E-18, abs_tol=0)
                          for x in results if isinstance(x, (int, Decimal, float))):
                     yield value
                     results.append(value)

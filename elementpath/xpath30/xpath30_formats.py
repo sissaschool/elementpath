@@ -25,6 +25,23 @@ WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
 MODIFIER_PATTERN = re.compile(r'^([co](\(.+\))?)?[at]?$')
 
 
+DECIMAL_FORMATS = {
+    None: {
+        'decimal-separator': '.',
+        'grouping-separator': ',',
+        'exponent-separator': 'e',
+        'infinity': 'Infinity',
+        'minus-sign': '-',
+        'NaN': 'NaN',
+        'percent': '%',
+        'per-mille': '‰',
+        'zero-digit': '0',
+        'digit': '#',
+        'pattern-separator': ';',
+    }
+}
+
+
 def int_to_roman(num):
     """
     Convert an integer to Roman ordinal.
@@ -101,38 +118,30 @@ def int_to_weekday(num: int, lang: Optional[str] = None) -> str:
     return weekday_map[num]
 
 
-def int_to_numeric(num, reference, fmt_pattern):
-    if reference.isdigit():
-        cp = ord(reference)
-        while chr(cp - 1).isdigit():
-            cp -= 1
-        digits = ''.join(chr(cp + k) for k in range(10))
-    else:
-        raise ValueError()
-
+def format_digits(digits: str, fmt: str, digits_family: str = '0123456789') -> str:
     result = []
-    iter_num_digits = reversed(str(abs(num)))
+    iter_num_digits = reversed(digits)
     num_digit = next(iter_num_digits)
 
-    for fmt_char in reversed(fmt_pattern):
+    for fmt_char in reversed(fmt):
         if fmt_char.isdigit() or fmt_char == '#':
             if num_digit is not None:
-                result.append(digits[ord(num_digit) - 48])
+                result.append(digits_family[ord(num_digit) - 48])
                 num_digit = next(iter_num_digits, None)
             elif fmt_char != '#':
-                result.append(digits[0])
+                result.append(digits_family[0])
         elif not result or not result[-1].isdigit():
             raise xpath_error('FODF1310', "invalid grouping in picture argument")
         else:
             result.append(fmt_char)
 
     if num_digit is not None:
-        separator = {x for x in fmt_pattern if not x.isdigit() and x != '#'}
+        separator = {x for x in fmt if not x.isdigit() and x != '#'}
         if len(separator) != 1:
             repeat = None
         else:
             separator = separator.pop()
-            chunks = fmt_pattern.split(separator)
+            chunks = fmt.split(separator)
             repeat = len(chunks[-1])
             if all(len(item) == repeat for item in chunks[1:-1]):
                 repeat += 1
@@ -141,17 +150,15 @@ def int_to_numeric(num, reference, fmt_pattern):
 
         if repeat is None:
             while num_digit is not None:
-                result.append(digits[ord(num_digit) - 48])
+                result.append(digits_family[ord(num_digit) - 48])
                 num_digit = next(iter_num_digits, None)
         else:
             while num_digit is not None:
                 if ((len(result) + 1) % repeat) == 0:
                     result.append(separator)
-                result.append(digits[ord(num_digit) - 48])
+                result.append(digits_family[ord(num_digit) - 48])
                 num_digit = next(iter_num_digits, None)
 
-    if num < 0:
-        return '-' + ''.join(reversed(result))
     return ''.join(reversed(result))
 
 
