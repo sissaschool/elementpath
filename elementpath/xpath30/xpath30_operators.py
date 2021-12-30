@@ -13,7 +13,7 @@ XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 """
 from copy import copy
 
-from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..xpath_nodes import TypedElement, TypedAttribute, XPathNode
 from ..xpath_token import ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
@@ -168,16 +168,24 @@ def evaluate_function_reference(self, context=None):
         qname = QName(self[0][0].value, self[0][1].value)
     else:
         qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
-    arity = self[1].value
 
-    # TODO: complete function signatures
-    # if (qname, arity) not in self.parser.function_signatures:
-    #    raise self.error('XPST0017')
+    arity = self[1].value
+    local_name = qname.local_name
+
+    # Generic rule for XSD constructor functions
+    if qname.namespace == XSD_NAMESPACE and arity != 1:
+        raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
+
+    # Special checks for multirole tokens
+    if qname.namespace == XPATH_FUNCTIONS_NAMESPACE and \
+            local_name in {'QName', 'dateTime'} and arity == 1:
+        raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
     try:
-        return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
+        return self.parser.symbol_table[local_name](self.parser, nargs=arity)
     except (KeyError, TypeError):
-        raise self.error('XPST0017', "unknown function {}".format(qname.local_name))
+        msg = f"unknown function {qname.qname}#{arity}"
+        raise self.error('XPST0017', msg) from None
 
 
 # XPath 3.0 definitions continue into module xpath3_functions

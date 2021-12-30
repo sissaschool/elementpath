@@ -139,7 +139,7 @@ def nud_anonymous_function(self):
 
     if self.label == 'inline function':
         self.parser.advance('{')
-        self.expr = self.parser.expression()
+        self.body = self.parser.expression()
         self.parser.advance('}')
 
     return self
@@ -1144,8 +1144,10 @@ def evaluate_function_name_function(self, context=None):
     if isinstance(self[0], XPathFunction):
         func = self[0]
     else:
-        func = self.get_argument(context, cls=XPathFunction)
+        func = self.get_argument(context)
 
+    if not isinstance(func, XPathFunction):
+        raise self.error('XPTY0004', "argument is not a function")
     return [] if func.name is None else func.name
 
 

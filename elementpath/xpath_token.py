@@ -1169,6 +1169,12 @@ class XPathFunction(XPathToken):
     nargs: NargsType = None
     "Number of arguments: a single value or a couple with None that means unbounded."
 
+    body: Optional[XPathToken] = None
+    "Body of anonymous inline function."
+
+    partial_evaluate = False
+    "Evaluation method of a Denotes a partial unnamed function."
+
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:
@@ -1237,7 +1243,7 @@ class XPathFunction(XPathToken):
                     raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
                 context.variables[varname] = value
 
-        elif any(tk.symbol == '?' for tk in self):
+        elif any(tk.symbol == '?' for tk in self._items):
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
                 if isinstance(value, XPathToken):
                     tk.value = value.evaluate(context)
@@ -1254,7 +1260,9 @@ class XPathFunction(XPathToken):
                     self.append(ValueToken(self.parser, value=value))
 
         if self.label == 'inline function':
-            result = self.expr.evaluate(context)
+            result = self.body.evaluate(context)
+        elif self.label == 'partial function':
+            result = self._partial_evaluate(context)
         else:
             result = self.evaluate(context)
 
@@ -1278,17 +1286,20 @@ class XPathFunction(XPathToken):
 
     @property
     def name(self) -> Optional[QName]:
-        if self.symbol == 'function':
+        if self._name is not None:
+            return self._name
+        elif self.symbol == 'function':
             return None
-        elif self._name is None:
-            if not self.namespace or self.namespace == XPATH_FUNCTIONS_NAMESPACE:
-                self._name = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
-            elif self.namespace == XSD_NAMESPACE:
-                self._name = QName(XSD_NAMESPACE, 'xs:%s' % self.symbol)
-            elif self.namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
-                self._name = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
-
-        return self._name
+        elif self.label == 'partial function':
+            return None
+        elif not self.namespace or self.namespace == XPATH_FUNCTIONS_NAMESPACE:
+            self._name = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
+        elif self.namespace == XSD_NAMESPACE:
+            self._name = QName(XSD_NAMESPACE, 'xs:%s' % self.symbol)
+        elif self.namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
+            self._name = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
+        else:
+            self.symbol
 
     @property
     def arity(self) -> int:
@@ -1311,8 +1322,6 @@ class XPathFunction(XPathToken):
                 if self.parser.next_token.symbol != ',':
                     break
                 self.parser.advance()
-            self.parser.advance(')')
-            return self
         elif self.nargs == 0:
             if self.parser.next_token.symbol != ')':
                 if self.parser.next_token.symbol != '(end)':
@@ -1320,41 +1329,76 @@ class XPathFunction(XPathToken):
                 raise self.parser.next_token.wrong_syntax()
             self.parser.advance()
             return self
-        elif isinstance(self.nargs, (tuple, list)):
-            min_args, max_args = self.nargs
         else:
-            min_args = max_args = self.nargs
-
-        k = 0
-        while k < min_args:
-            if self.parser.next_token.symbol in (')', '(end)'):
-                msg = 'Too few arguments: expected at least %s arguments' % min_args
-                raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
-
-            self._items[k:] = self.parser.expression(5),
-            k += 1
-            if k < min_args:
-                if self.parser.next_token.symbol == ')':
-                    msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    raise self.error(code, msg if min_args > 1 else msg[:-1])
-                self.parser.advance(',')
-
-        while max_args is None or k < max_args:
-            if self.parser.next_token.symbol == ',':
-                self.parser.advance(',')
-                self._items[k:] = self.parser.expression(5),
-            elif k == 0 and self.parser.next_token.symbol != ')':
-                self._items[k:] = self.parser.expression(5),
+            if isinstance(self.nargs, (tuple, list)):
+                min_args, max_args = self.nargs
             else:
-                break  # pragma: no cover
-            k += 1
+                min_args = max_args = self.nargs
 
-        if self.parser.next_token.symbol == ',':
-            msg = 'Too many arguments: expected at most %s arguments' % max_args
-            raise self.error(code, msg if max_args != 1 else msg[:-1])
+            k = 0
+            while k < min_args:
+                if self.parser.next_token.symbol in (')', '(end)'):
+                    msg = 'Too few arguments: expected at least %s arguments' % min_args
+                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+
+                self._items[k:] = self.parser.expression(5),
+                k += 1
+                if k < min_args:
+                    if self.parser.next_token.symbol == ')':
+                        msg = 'Too few arguments: expected at least %s arguments' % min_args
+                        raise self.error(code, msg if min_args > 1 else msg[:-1])
+                    self.parser.advance(',')
+
+            while max_args is None or k < max_args:
+                if self.parser.next_token.symbol == ',':
+                    self.parser.advance(',')
+                    self._items[k:] = self.parser.expression(5),
+                elif k == 0 and self.parser.next_token.symbol != ')':
+                    self._items[k:] = self.parser.expression(5),
+                else:
+                    break  # pragma: no cover
+                k += 1
+
+            if self.parser.next_token.symbol == ',':
+                msg = 'Too many arguments: expected at most %s arguments' % max_args
+                raise self.error(code, msg if max_args != 1 else msg[:-1])
 
         self.parser.advance(')')
+        if any(tk.symbol == '?' for tk in self._items):
+            self._partial_function()
+
         return self
+
+    def _partial_function(self) -> None:
+        """Convert a named function to an anonymous partial function."""
+        def evaluate(context: Optional[XPathContext] = None) -> Any:
+            return self
+
+        def select(context: Optional[XPathContext] = None) -> Any:
+            yield self
+
+        if self.__class__.evaluate is not XPathToken.evaluate:
+            self._partial_evaluate = self.evaluate
+        if self.__class__.select is not XPathToken.select:
+            self._partial_select = self.select
+
+        self.evaluate = evaluate
+        self.select = select
+        self._name = None
+        self.label = 'partial function'
+
+    def _partial_evaluate(self, context: Optional[XPathContext] = None) -> Any:
+        return [x for x in self._partial_select(context)]
+
+    def _partial_select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+        item = self._partial_evaluate(context)
+        if item is not None:
+            if isinstance(item, list):
+                yield from item
+            else:
+                if context is not None:
+                    context.item = item
+                yield item
 
 
 class XPathConstructor(XPathFunction):
