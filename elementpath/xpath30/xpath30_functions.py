@@ -1148,7 +1148,9 @@ def evaluate_function_name_function(self, context=None):
 
     if not isinstance(func, XPathFunction):
         raise self.error('XPTY0004', "argument is not a function")
-    return [] if func.name is None else func.name
+
+    name = func.name
+    return [] if name is None else name
 
 
 @method(function('function-arity', nargs=1, sequence_types=('function(*)', 'xs:integer')))

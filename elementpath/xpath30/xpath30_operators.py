@@ -170,22 +170,28 @@ def evaluate_function_reference(self, context=None):
         qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
 
     arity = self[1].value
+    namespace = qname.namespace
     local_name = qname.local_name
 
     # Generic rule for XSD constructor functions
-    if qname.namespace == XSD_NAMESPACE and arity != 1:
+    if namespace == XSD_NAMESPACE and arity != 1:
         raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
     # Special checks for multirole tokens
-    if qname.namespace == XPATH_FUNCTIONS_NAMESPACE and \
+    if namespace == XPATH_FUNCTIONS_NAMESPACE and \
             local_name in {'QName', 'dateTime'} and arity == 1:
         raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
     try:
-        return self.parser.symbol_table[local_name](self.parser, nargs=arity)
+        func = self.parser.symbol_table[local_name](self.parser, nargs=arity)
     except (KeyError, TypeError):
         msg = f"unknown function {qname.qname}#{arity}"
         raise self.error('XPST0017', msg) from None
-
+    else:
+        if func.namespace is None:
+            func.namespace = namespace
+        elif func.namespace != namespace:
+            raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
+        return func
 
 # XPath 3.0 definitions continue into module xpath3_functions

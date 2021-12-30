@@ -662,11 +662,15 @@ class Result(object):
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"))
         expected_result = root_node.evaluate(context)
-        if expected_result == result:
-            return True
-        elif isinstance(expected_result, decimal.Decimal) and isinstance(result, float):
-            if float(expected_result) == result:
+
+        try:
+            if expected_result == result:
                 return True
+            elif isinstance(expected_result, decimal.Decimal) and isinstance(result, float):
+                if float(expected_result) == result:
+                    return True
+        except TypeError:
+            pass
 
         self.report_failure(verbose, expected=expected_result, result=result)
         return False

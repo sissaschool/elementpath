@@ -1299,7 +1299,14 @@ class XPathFunction(XPathToken):
         elif self.namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
             self._name = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
         else:
-            self.symbol
+            for pfx, uri in self.parser.namespaces.items():
+                if uri == self.namespace:
+                    self._name = QName(uri, f'{pfx}:{self.symbol}')
+                    break
+            else:
+                self._name = QName(self.namespace, self.symbol)
+
+        return self._name
 
     @property
     def arity(self) -> int:
