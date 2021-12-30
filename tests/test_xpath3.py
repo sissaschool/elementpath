@@ -656,7 +656,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'a': 9.0, 'b': 3.0})
-        self.assertListEqual(token.evaluate(context), [2, 3, 5, 7, 11, 13])
+        self.assertListEqual(token(context), [2, 3, 5, 7, 11, 13])
 
         token = self.parser.parse(
             "function($a as xs:double, $b as xs:double) as xs:double { $a * $b }")
@@ -665,12 +665,12 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'a': 9.0, 'b': 3.0})
-        self.assertEqual(token.evaluate(context), 27.0)
+        self.assertEqual(token(context), 27.0)
 
         token = self.parser.parse("function($a) { $a }")
         with self.assertRaises(MissingContextError):
             token.evaluate()
-        self.assertEqual(token.evaluate(context), 9.0)
+        self.assertEqual(token(context), 9.0)
 
     def test_dynamic_function_call(self):
         token = self.parser.parse("$f(2, 3)")

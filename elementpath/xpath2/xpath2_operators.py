@@ -232,11 +232,8 @@ def select_for_expression(self, context=None):
 @method('treat', bp=61)
 def led_sequence_type_based_expressions(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
-    if self.parser.next_token.label not in ('kind test', 'sequence type'):
-        if self.parser.next_token.label == 'inline function':
-            self.parser.next_token.label = 'kind test'
-        else:
-            self.parser.expected_name('(name)', ':')
+    if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
+        self.parser.expected_name('(name)', ':')
 
     try:
         self[:] = left, self.parser.expression(rbp=self.rbp)
@@ -253,14 +250,17 @@ def led_sequence_type_based_expressions(self, left):
 
 @method('instance')
 def evaluate_instance_expression(self, context=None):
-    occurs = self[2].symbol if len(self) > 2 else None
+    if len(self) > 2:
+        occurs = self[2].symbol
+    else:
+        occurs = self[1].occurrence
     position = None
 
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
             return False
         return True
-    elif self[1].label in ('kind test', 'sequence type'):
+    elif self[1].label in ('kind test', 'sequence type', 'function test'):
         if context is None:
             raise self.missing_context()
 
@@ -294,13 +294,17 @@ def evaluate_instance_expression(self, context=None):
 
 @method('treat')
 def evaluate_treat_expression(self, context=None):
-    occurs = self[2].symbol if len(self) > 2 else None
+    if len(self) > 2:
+        occurs = self[2].symbol
+    else:
+        occurs = self[1].occurrence
+
     position = None
     castable_expr = []
     if self[1].symbol == 'empty-sequence':
         for _ in self[0].select(context):
             raise self.wrong_sequence_type()
-    elif self[1].label in ('kind test', 'sequence type'):
+    elif self[1].label in ('kind test', 'sequence type', 'function test'):
         for position, item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
             if isinstance(result, list) and not result:

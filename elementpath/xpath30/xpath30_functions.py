@@ -59,42 +59,64 @@ function = XPath30Parser.function
 
 
 ###
-# 'inline function' expression
-@method(register('function', bp=90, label='inline function', bases=(XPathFunction,)))
-def nud_inline_function(self):
+# 'inline function' expression or 'function test'
+@method(register('function', bp=90, label='anonymous function', bases=(XPathFunction,)))
+def nud_anonymous_function(self):
     if self.parser.next_token.symbol != '(':
+        self.label = 'inline function'
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
         return token.nud()
-    elif self.label == 'kind test':
-        self.parser.advance('(')
-        self.parser.advance('*')
-        self.parser.advance(')')
-        return self
 
     self.parser.advance('(')
     self.sequence_types = []
-    while self.parser.next_token.symbol != ')':
-        self.parser.next_token.expected('$')
-        param = self.parser.expression(5)
-        self.append(param)
-        if self.parser.next_token.symbol == 'as':
-            self.parser.advance('as')
-            token = self.parser.expression(5)
-            sequence_type = token.source
-            if not self.parser.is_sequence_type(sequence_type):
-                raise token.error('XPST0003', "a sequence type expected")
-            self.sequence_types.append(sequence_type)
-        else:
-            self.sequence_types.append('item()*')
 
-        self.parser.next_token.expected(')', ',')
-        if self.parser.next_token.symbol == ',':
-            self.parser.advance()
-            self.parser.next_token.unexpected(')')
+    if self.parser.next_token.symbol in ('$', ')'):
+        self.label = 'inline function'
+        while self.parser.next_token.symbol != ')':
+            self.parser.next_token.expected('$')
+            param = self.parser.expression(5)
+            self.append(param)
+            if self.parser.next_token.symbol == 'as':
+                self.parser.advance('as')
+                token = self.parser.expression(5)
+                sequence_type = token.source
+                if not self.parser.is_sequence_type(sequence_type):
+                    raise token.error('XPST0003', "a sequence type expected")
 
-    self.parser.advance(')')
+                next_symbol = self.parser.next_token.symbol
+                if sequence_type != 'empty-sequence()' and next_symbol in ('?', '*', '+'):
+                    self.parser.advance()
+                    sequence_type += next_symbol
+                self.sequence_types.append(sequence_type)
 
-    # Add function return type
+            else:
+                self.sequence_types.append('item()*')
+
+            self.parser.next_token.expected(')', ',')
+            if self.parser.next_token.symbol == ',':
+                self.parser.advance()
+                self.parser.next_token.unexpected(')')
+
+        self.parser.advance(')')
+
+    elif self.parser.next_token.symbol == '*':
+        self.label = 'function test'
+        self.append(self.parser.advance('*'))
+        self.sequence_types.append('*')
+        self.parser.advance(')')
+        return self
+
+    else:
+        self.label = 'function test'
+        token = self.parser.expression(5)
+        sequence_type = token.source
+        if not self.parser.is_sequence_type(sequence_type):
+            raise token.error('XPST0003', "a sequence type expected")
+        self.sequence_types.append(sequence_type)
+        self.parser.advance(')')
+        self.append(token)
+
+    # Add function return sequence type
     if self.parser.next_token.symbol != 'as':
         self.sequence_types.append('item()*')
     else:
@@ -115,24 +137,26 @@ def nud_inline_function(self):
             raise token.error('XPST0003', "a sequence type expected")
         self.sequence_types.append(sequence_type)
 
-    self.parser.advance('{')
-    self.expr = self.parser.expression()
-    self.parser.advance('}')
+    if self.label == 'inline function':
+        self.parser.advance('{')
+        self.expr = self.parser.expression()
+        self.parser.advance('}')
+
     return self
 
 
 @method('function')
-def evaluate_inline_function(self, context=None):
+def evaluate_anonymous_function(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    if self.label == 'kind test':
+    if self.label == 'function test':
         if isinstance(context.item, XPathFunction):
             return context.item
         else:
             return None
     else:
-        return self.expr.evaluate(context)
+        return self
 
 
 ###

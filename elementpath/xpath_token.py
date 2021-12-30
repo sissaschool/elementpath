@@ -60,6 +60,7 @@ else:
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+OCCURRENCE_INDICATORS = {'?', '*', '+'}
 
 # Type annotations aliases
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
@@ -76,9 +77,14 @@ class XPathToken(Token[XPathTokenType]):
     parser: XPathParserType
     xsd_types: Optional[Dict[str, Union[XsdTypeProtocol, List[XsdTypeProtocol]]]]
     namespace: Optional[str]
+    occurrence: Optional[str]
 
     xsd_types = None  # for XPath 2.0+ XML Schema types labeling
     namespace = None  # for namespace binding of names and wildcards
+    occurrence = None  # occurrence indicator for item types
+
+    def __call__(self, context: Optional[XPathContext] = None) -> Any:
+        return self.evaluate(context)
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         """
@@ -109,17 +115,18 @@ class XPathToken(Token[XPathTokenType]):
             return '$%s variable reference' % (self[0].value if self._items else '')
         elif symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
+        elif symbol == 'function':
+            return label
         elif label.endswith('function') or label in ('axis', 'sequence type', 'kind test'):
             return '%r %s' % (symbol, label)
         return super(XPathToken, self).__str__()
 
     @property
     def source(self) -> str:
-        symbol, label = self.symbol, self.label
-        if label == 'axis':
-            return '%s::%s' % (self.symbol, self[0].source)
-        elif label.endswith('function') or label in ('sequence type', 'kind test'):
-            return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
+        symbol = self.symbol
+        if self.label == 'axis':
+            # For XPath 2.0 'attribute' multi-role token ('kind test', 'axis')
+            return '%s::%s' % (symbol, self[0].source)
         elif symbol == ':':
             return '%s:%s' % (self[0].source, self[1].source)
         elif symbol == '(':
@@ -1128,6 +1135,10 @@ class XPathAxis(XPathToken):
         self._items[:] = self.parser.expression(rbp=self.rbp),
         return self
 
+    @property
+    def source(self) -> str:
+        return '%s::%s' % (self.symbol, self[0].source)
+
 
 class ValueToken(XPathToken):
     """
@@ -1210,13 +1221,22 @@ class XPathFunction(XPathToken):
         if self.symbol == 'function':
             if context is None:
                 raise self.missing_context()
+            elif not args and self:
+                if context.item is None:
+                    if is_document_node(context.root):
+                        context.item = context.root.getroot()
+                    else:
+                        context.item = context.root
+
+                args.append(context.item)
 
             for variable, sequence_type, value in zip(self, self.sequence_types, args):
-                if not self.parser.match_sequence_type(value, sequence_type):
-                    msg = "invalid type for argument {!r}"
-                    raise self.error('XPTY0004', msg.format(variable[0].value))
                 varname = cast(str, variable[0].value)
+                if not self.parser.match_sequence_type(value, sequence_type):
+                    msg = "argument {!r}: {} does not match sequence type {}"
+                    raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
                 context.variables[varname] = value
+
         elif any(tk.symbol == '?' for tk in self):
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
                 if isinstance(value, XPathToken):
@@ -1233,12 +1253,28 @@ class XPathFunction(XPathToken):
                     assert not isinstance(value, Token), "An atomic value or None expected"
                     self.append(ValueToken(self.parser, value=value))
 
-        result = self.evaluate(context)
+        if self.label == 'inline function':
+            result = self.expr.evaluate(context)
+        else:
+            result = self.evaluate(context)
+
         if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
             msg = "{!r} does not match sequence type {}"
             raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
 
         return result
+
+    @property
+    def source(self) -> str:
+        if self.label == 'function test':
+            return 'function(%s) as %s' % (
+                ', '.join(self.sequence_types[:-1]), self.sequence_types[-1]
+            )
+        elif self.label in ('sequence type', 'kind test', ''):
+            return '%s(%s)%s' % (
+                self.symbol, ', '.join(item.source for item in self), self.occurrence or ''
+            )
+        return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
 
     @property
     def name(self) -> Optional[QName]:

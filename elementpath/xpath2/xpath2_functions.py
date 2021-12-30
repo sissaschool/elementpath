@@ -32,6 +32,7 @@ from ..xpath_context import XPathContext, XPathSchemaContext
 from ..xpath_nodes import AttributeNode, NamespaceNode, is_element_node, \
     is_document_node, is_xpath_node, node_name, node_nilled, node_base_uri, \
     node_document_uri, node_kind, etree_deep_equal
+from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from .xpath2_operators import XPath2Parser
 
@@ -53,6 +54,15 @@ def evaluate_item_sequence_type(self, context=None):
     if context is None:
         raise self.missing_context()
     return context.root if context.item is None else context.item
+
+
+@method('item')
+def nud_item_sequence_type(self):
+    XPathFunction.nud(self)
+    if self.parser.next_token.symbol in ('*', '+', '?'):
+        self.occurrence = self.parser.next_token.symbol
+        self.parser.advance()
+    return self
 
 
 ###

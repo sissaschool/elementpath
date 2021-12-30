@@ -28,7 +28,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
     split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
-from ..xpath_nodes import is_xpath_node, node_kind
+from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name
 
 if sys.version_info < (3, 7):
     ParserType = Parser
@@ -297,8 +297,15 @@ class XPath1Parser(ParserType):
             return self.is_sequence_type(value[14:-1])
 
         elif value.startswith('function('):
-            if value == 'function(*)' and self.version >= '3.0':
-                return True
+            if self.version >= '3.0':
+                if value == 'function(*)':
+                    return True
+                elif ' as ' in value:
+                    pass
+                elif not value.endswith(')'):
+                    return False
+                else:
+                    return self.is_sequence_type(value[9:-1])
 
             try:
                 value, return_type = value.rsplit(' as ', 1)
@@ -398,14 +405,49 @@ class XPath1Parser(ParserType):
             return is_xpath_node(value) or isinstance(value, (AnyAtomicType, list, XPathFunction))
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
+        elif sequence_type.startswith('function('):
+            if not isinstance(value, XPathFunction):
+                return False
+
+            print(sequence_type)
+            print(value.sequence_types)
+            return True
 
         value_kind = node_kind(value)
-        if value_kind is not None:
-            return sequence_type == 'node()' or sequence_type == '%s()' % value_kind
+        if value_kind is None:
+            try:
+                type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
+                return self.is_instance(value, type_expanded_name)
+            except (KeyError, ValueError):
+                return False
+        elif sequence_type == 'node()':
+            return True
+        elif not sequence_type.startswith(value_kind) or not sequence_type.endswith(')'):
+            return False
+        elif sequence_type == f'{value_kind}()':
+            return True
+        elif value_kind not in {'element', 'attribute'}:
+            return False
+
+        _, params = sequence_type[:-1].split('(')
+        if ',' not in sequence_type:
+            name = params
+        else:
+            name, type_name = params.split(',')
+            if type_name.endswith('?'):
+                type_name = type_name[:-1]
+            elif node_nilled(value):
+                return False
+
+            try:
+                type_expanded_name = get_expanded_name(type_name, self.namespaces)
+                if not self.is_instance(value, type_expanded_name):
+                    return False
+            except (KeyError, ValueError):
+                return False
 
         try:
-            type_qname = get_expanded_name(sequence_type, self.namespaces)
-            return self.is_instance(value, type_qname)
+            return node_name(value) == get_expanded_name(name, self.namespaces)
         except (KeyError, ValueError):
             return False
 
