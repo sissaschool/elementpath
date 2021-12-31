@@ -46,19 +46,17 @@ def select_namespace_axis(self, context=None):
         raise self.missing_context()
     elif is_element_node(context.item):
         elem = context.item
-        namespaces = self.parser.namespaces
-
-        for prefix_, uri in namespaces.items():
-            context.item = NamespaceNode(prefix_, uri)
-            yield context.item
 
         if hasattr(elem, 'nsmap'):
             # Add element's namespaces for lxml (and use None for default namespace)
             # noinspection PyUnresolvedReferences
             for prefix_, uri in elem.nsmap.items():
-                if prefix_ not in namespaces:
-                    context.item = NamespaceNode(prefix_, uri, elem)
-                    yield context.item
+                context.item = NamespaceNode(prefix_, uri, elem)
+                yield context.item
+        else:
+            for prefix_, uri in self.parser.namespaces.items():
+                context.item = NamespaceNode(prefix_, uri)
+                yield context.item
 
 
 @method(axis('self'))

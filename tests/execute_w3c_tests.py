@@ -50,9 +50,6 @@ SKIP_TESTS = {
     'fn-subsequence__cbcl-subsequence-014',
     'prod-NameTest__NodeTest004',
 
-    # Maybe tested with lxml
-    'fn-string__fn-string-30',  # parse of comments required
-
     # Unsupported collations
     'fn-compare__compare-010',
 
@@ -86,6 +83,27 @@ SKIP_TESTS = {
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
 }
 
+# Tests that can be run only with lxml.etree
+LXML_ONLY = {
+    # parse of comments or PIs required
+    'fn-string__fn-string-30',
+    'prod-AxisStep__Axes003-4',
+    'prod-AxisStep__Axes006-4',
+    'prod-AxisStep__Axes033-4',
+    'prod-AxisStep__Axes037-2',
+    'prod-AxisStep__Axes058-2',
+    'prod-AxisStep__Axes061-1',
+    'prod-AxisStep__Axes064-2',
+    'prod-AxisStep__Axes067-2',
+    'prod-AxisStep__Axes073-1',
+    'prod-AxisStep__Axes076-4',
+    'prod-AxisStep__Axes079-4',
+
+    # in-scope nsmap required
+    'fn-in-scope-prefixes__fn-in-scope-prefixes-21',
+    'fn-in-scope-prefixes__fn-in-scope-prefixes-22',
+}
+
 xpath_parser = XPath2Parser
 
 ignore_specs = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30', 'XQ30+',
@@ -107,6 +125,38 @@ def working_directory(dirpath):
         yield
     finally:
         os.chdir(orig_wd)
+
+
+def etree_is_equal(root1, root2, strict=True):
+    nodes1 = root1.iter()
+    nodes2 = root2.iter()
+
+    for e1 in nodes1:
+        e2 = next(nodes2, None)
+        if e2 is None:
+            return False
+
+        if e1.tail != e2.tail:
+            if strict or e1.tail is None or e2.tail is None:
+                return False
+            if e1.tail.strip() != e2.tail.strip():
+                return False
+
+        if callable(e1.tag) ^ callable(e2.tag):
+            return False
+        elif not callable(e1.tag):
+            if e1.tag != e1.tag:
+                return False
+            if e1.attrib != e1.attrib:
+                return False
+
+        if e1.text != e2.text:
+            if strict or e1.text is None or e2.text is None:
+                return False
+            if e1.text.strip() != e2.text.strip():
+                return False
+
+    return next(nodes2, None) is None
 
 
 class ExecutionError(Exception):
@@ -154,26 +204,35 @@ class Source(object):
         except AttributeError:
             self.description = ''
 
-        try:
-            if use_lxml:
-                self.xml = lxml.etree.parse(self.file)
-            else:
+        if use_lxml:
+            iterparse = lxml.etree.iterparse
+            parser = lxml.etree.XMLParser(collect_ids=False)
+            try:
+                self.xml = lxml.etree.parse(self.file, parser=parser)
+            except lxml.etree.XMLSyntaxError:
+                self.xml = None
+        else:
+            iterparse = ElementTree.iterparse
+            try:
                 self.xml = ElementTree.parse(self.file)
-                self.namespaces = {}
-                dup_index = 1
+            except ElementTree.ParseError:
+                self.xml = None
 
-                for _, (prefix, uri) in ElementTree.iterparse(self.file, events=('start-ns',)):
-                    if prefix not in self.namespaces:
-                        self.namespaces[prefix] = uri
-                    elif prefix:
-                        self.namespaces[f'{prefix}{dup_index}'] = uri
-                        dup_index += 1
-                    else:
-                        self.namespaces[f'default{dup_index}'] = uri
-                        dup_index += 1
+        try:
+            self.namespaces = {}
+            dup_index = 1
 
+            for _, (prefix, uri) in iterparse(self.file, events=('start-ns',)):
+                if prefix not in self.namespaces:
+                    self.namespaces[prefix] = uri
+                elif prefix:
+                    self.namespaces[f'{prefix}{dup_index}'] = uri
+                    dup_index += 1
+                else:
+                    self.namespaces[f'default{dup_index}'] = uri
+                    dup_index += 1
         except (ElementTree.ParseError, lxml.etree.XMLSyntaxError):
-            self.xml = None
+            pass
 
     def __repr__(self):
         return '%s(file=%r)' % (self.__class__.__name__, self.file)
@@ -326,6 +385,7 @@ class TestCase(object):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
         self.xsd_version = test_set.xsd_version
+        self.use_lxml = use_lxml
 
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
@@ -477,6 +537,8 @@ class TestCase(object):
 
             if '.' in environment.sources:
                 root = environment.sources['.'].xml
+            elif self.use_lxml:
+                root = lxml.etree.XML("<empty/>")
             else:
                 root = ElementTree.XML("<empty/>")
 
@@ -993,14 +1055,16 @@ class Result(object):
         if xml_str == expected or xml_str.replace(' />', '/>') == expected:
             return True
 
-        # 2nd tentative (expected result from a serialization)
+        # 2nd tentative (expected result from a serialization or comparing trees)
         try:
             if xml_str == tostring(fromstring(expected)).decode('utf-8').strip():
                 return True
+            if etree_is_equal(fromstring(xml_str), fromstring(expected)):
+                return True
         except (ElementTree.ParseError, lxml.etree.ParseError):
-            # expected result is a concatenation of XML elements,
-            # so try removing xmlns registrations.
+            # invalid XML data (maybe empty or concatenation of XML elements)
 
+            # Last try removing xmlns registrations
             xmlns_pattern = re.compile(r'\sxmlns[^"]+"[^"]+"')
             expected_xmlns = xmlns_pattern.findall(expected)
 
@@ -1137,6 +1201,10 @@ def main():
 
                 # Other test cases to skip for technical limitations
                 if test_case.name in SKIP_TESTS:
+                    count_skip += 1
+                    continue
+
+                if not args.use_lxml and test_case.name in LXML_ONLY:
                     count_skip += 1
                     continue
 

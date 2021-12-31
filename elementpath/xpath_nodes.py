@@ -263,7 +263,12 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
 
     for e in root.iter():
         if callable(e.tag):
-            continue  # is a comment or a process instruction
+            # a comment or a process instruction
+            yield e
+            if e.tail is not None:
+                yield TextNode(e.tail, e, True)
+            continue
+
         if with_root or e is not root:
             yield e
         if e.text is not None:
