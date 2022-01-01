@@ -1263,6 +1263,7 @@ XPath30Parser.unregister('document-uri')
 XPath30Parser.unregister('nilled')
 XPath30Parser.unregister('node-name')
 XPath30Parser.unregister('string-join')
+XPath30Parser.unregister('round')
 
 
 @method(function('data', nargs=(0, 1), sequence_types=('item()*', 'xs:anyAtomicType*')))
@@ -1339,6 +1340,39 @@ def evaluate_node_name_function(self, context=None):
 def evaluate_string_join_function(self, context=None):
     items = [self.string_value(s) for s in self[0].select(context)]
     return self.get_argument(context, 1, default='', cls=str).join(items)
+
+
+@method(function('round', nargs=(1, 2),
+                 sequence_types=('numeric?', 'xs:integer', 'numeric?')))
+def evaluate_round_function(self, context=None):
+    arg = self.get_argument(context)
+    if arg is None:
+        return []
+    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+        arg = self.number_value(arg)
+
+    if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):
+        return arg
+
+    precision = self.get_argument(context, index=1, default=0, cls=int)
+    try:
+        if precision < 0:
+            return type(arg)(round(arg, precision))
+
+        number = decimal.Decimal(arg)
+        exponent = decimal.Decimal('1') / 10 ** precision
+        if number > 0:
+            return type(arg)(number.quantize(exponent, rounding='ROUND_HALF_UP'))
+        else:
+            return type(arg)(number.quantize(exponent, rounding='ROUND_HALF_DOWN'))
+    except TypeError as err:
+        raise self.error('FORG0006', err) from None
+    except decimal.InvalidOperation:
+        if isinstance(arg, str):
+            raise self.error('XPTY0004') from None
+        return round(arg)
+    except decimal.DecimalException as err:
+        raise self.error('FOCA0002', err) from None
 
 
 #
