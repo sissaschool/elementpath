@@ -12,12 +12,12 @@ Helper functions for XPath nodes and basic data types.
 """
 from collections import Counter
 from urllib.parse import urlparse
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import cast, Any, Dict, Iterator, Optional, Tuple, Union
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
-    XsdAttributeProtocol, XMLSchemaProtocol
+from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
+    XsdElementProtocol, XsdAttributeProtocol, XMLSchemaProtocol
 
 
 ###
@@ -256,12 +256,45 @@ def is_lxml_etree_element(obj: Any) -> bool:
 def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
                      with_root: bool = True, with_attributes: bool = False
                      ) -> Iterator[Union[ElementNode, DocumentNode, AttributeNode, TextNode]]:
-    if isinstance(root, TypedElement):
-        root = root.elem
-    elif is_document_node(root) and with_root:
-        yield root
 
-    for e in root.iter():
+    _root: Union[ElementProtocol, LxmlElementProtocol]
+    _lxml_root: Optional[LxmlElementProtocol] = None
+
+    if hasattr(root, 'getroot'):
+        document = cast(DocumentNode, root)
+        if with_root:
+            yield document
+        else:
+            with_root = True
+        _root = document.getroot()
+    elif isinstance(root, TypedElement):
+        _root = root.elem
+    else:
+        _root = cast(ElementProtocol, root)
+
+    if with_root:
+        yield _root
+        if hasattr(_root, 'getparent'):  # TODO: type checking
+            _lxml_root = cast(LxmlElementProtocol, _root)
+            if _lxml_root.getparent() is None:
+                previous_siblings = []
+                sibling = _lxml_root.getprevious()
+                while sibling is not None:
+                    previous_siblings.append(cast(ElementProtocol, sibling))
+                    sibling = sibling.getprevious()
+                yield from reversed(previous_siblings)
+            else:
+                _lxml_root = None
+
+    if _root.text is not None:
+        yield TextNode(_root.text, _root)
+    if _root.attrib and with_attributes:
+        for name, value in _root.attrib.items():
+            yield AttributeNode(name, value, _root)
+
+    descendants = _root.iter()
+    next(descendants)  # discard root
+    for e in descendants:
         if callable(e.tag):
             # a comment or a process instruction
             yield e
@@ -269,15 +302,20 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
                 yield TextNode(e.tail, e, True)
             continue
 
-        if with_root or e is not root:
-            yield e
+        yield e
         if e.text is not None:
             yield TextNode(e.text, e)
         if e.attrib and with_attributes:
             for name, value in e.attrib.items():
                 yield AttributeNode(name, value, e)
-        if e.tail is not None and e is not root:
+        if e.tail is not None:
             yield TextNode(e.tail, e, True)
+
+    if _lxml_root is not None:
+        sibling = _lxml_root.getnext()
+        while sibling is not None:
+            yield cast(ElementProtocol, sibling)
+            sibling = sibling.getnext()
 
 
 def etree_iter_strings(elem: Union[DocumentNode, ElementNode, TypedElement]) -> Iterator[str]:
