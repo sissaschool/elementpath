@@ -721,10 +721,14 @@ def evaluate_replace_function(self, context=None):
     pattern = self.get_argument(context, 1, required=True, cls=str)
     replacement = self.get_argument(context, 2, required=True, cls=str)
     flags = 0
+    q_flag = False
     if len(self) > 3:
         for c in self.get_argument(context, 3, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
+            elif c == 'q' and self.parser.version > '2':
+                pattern = re.escape(pattern)
+                q_flag = True
             else:
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
@@ -737,6 +741,12 @@ def evaluate_replace_function(self, context=None):
         if pattern.search(''):
             msg = "Regular expression %r matches zero-length string"
             raise self.error('FORX0003', msg % pattern.pattern)
+        elif q_flag:
+            # use replacement string as is (but inactivating escapes)
+            replacement = replacement.replace('\\', '\\\\')
+            input_string = input_string.replace('\\', '\\\\')
+            return pattern.sub(replacement, input_string).replace('\\\\', '\\')
+
         elif REPLACEMENT_PATTERN.search(replacement) is None:
             raise self.error('FORX0004', "Invalid replacement string %r" % replacement)
         else:
@@ -744,7 +754,7 @@ def evaluate_replace_function(self, context=None):
                 if '$%d' % g in replacement:
                     replacement = re.sub(r'(?<!\\)\$%d' % g, r'\\g<%d>' % g, replacement)
 
-        return pattern.sub(replacement, input_string).replace('\\$', '$')
+            return pattern.sub(replacement, input_string).replace('\\$', '$')
 
 
 @method(function('tokenize', nargs=(2, 3),
@@ -757,6 +767,8 @@ def select_tokenize_function(self, context=None):
         for c in self.get_argument(context, 2, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
+            elif c == 'q' and self.parser.version > '2':
+                pattern = re.escape(pattern)
             else:
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
