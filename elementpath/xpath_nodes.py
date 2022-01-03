@@ -38,6 +38,7 @@ class XPathNode:
 
     name: Any = None
     value: Any = None
+    parent: Optional[ElementNode] = None
 
     @property
     def kind(self) -> str:
@@ -219,6 +220,7 @@ class TypedAttribute(XPathNode):
         self.attribute = attribute
         self.xsd_type = xsd_type
         self.value = value
+        self.parent = attribute.parent
 
     @property
     def kind(self) -> str:
@@ -241,6 +243,9 @@ class TypedAttribute(XPathNode):
 
     def __hash__(self) -> int:
         return hash((self.attribute, self.value))
+
+
+XPathNodeType = Union[ElementNode, DocumentNode, XPathNode]
 
 
 ###
@@ -508,27 +513,29 @@ def is_xpath_node(obj: Any) -> bool:
 
 
 ###
-# Node accessors: in this implementation node accessors return None instead of empty sequence.
-# Ref: https://www.w3.org/TR/xpath-datamodel-31/#dm-document-uri
+# Node accessors: https://www.w3.org/TR/xpath-datamodel-30/#accessors-list
+#
+# Note: in this implementation empty sequence return value is replaced by None.
+#
 def node_attributes(obj: Any) -> Optional[Dict[str, Any]]:
     return obj.attrib if is_element_node(obj) else None
 
 
-def node_base_uri(obj: Any) -> Any:
+def node_base_uri(obj: Any) -> Optional[str]:
     try:
         if is_element_node(obj):
-            return obj.attrib[XML_BASE]
+            return cast(str, obj.attrib[XML_BASE])
         elif is_document_node(obj):
-            return obj.getroot().attrib[XML_BASE]
+            return cast(str, obj.getroot().attrib[XML_BASE])
         return None
     except KeyError:
         return None
 
 
-def node_document_uri(obj: Any) -> Any:
+def node_document_uri(obj: Any) -> Optional[str]:
     if is_document_node(obj):
         try:
-            uri = obj.getroot().attrib[XML_BASE]
+            uri = cast(str, obj.getroot().attrib[XML_BASE])
             parts = urlparse(uri)
         except (KeyError, ValueError):
             pass
@@ -570,11 +577,19 @@ def node_kind(obj: Any) -> Optional[str]:
         return None
 
 
-def node_name(obj: Any) -> Any:
+def node_name(obj: Any) -> Optional[str]:
     if isinstance(obj, XPathNode):
-        return obj.name
-    elif hasattr(obj, 'tag') and not callable(obj.tag) \
-            and hasattr(obj, 'attrib') and hasattr(obj, 'text'):
-        return obj.tag
-    else:
+        return cast(Optional[str], obj.name)
+    elif not hasattr(obj, 'tag') or not hasattr(obj, 'text'):
         return None
+    elif not callable(obj.tag):
+        return cast(str, obj.tag)
+    elif obj.tag.__name__ != 'ProcessingInstruction':
+        return None
+    else:
+        # Return pi target. ElementTree doesn't have a specific attribute
+        # for target but put it before the text, separated by a space.
+        try:
+            return cast(str, obj.target)
+        except AttributeError:
+            return cast(str, obj.text.split(' ', maxsplit=1)[0])

@@ -37,6 +37,8 @@ from elementpath.xpath_token import XPathFunction
 from elementpath.datatypes import AnyAtomicType
 
 
+PY38_PLUS = sys.version_info > (3, 8)
+
 DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
                     'format-integer-sequence', 'language', 'limits',
                     'xml-version', 'xsd-version', 'unicode-version',
@@ -213,8 +215,14 @@ class Source(object):
                 self.xml = None
         else:
             iterparse = ElementTree.iterparse
+            if PY38_PLUS:
+                tree_builder = ElementTree.TreeBuilder(insert_comments=True, insert_pis=True)
+                parser = ElementTree.XMLParser(target=tree_builder)
+            else:
+                parser = None
+
             try:
-                self.xml = ElementTree.parse(self.file)
+                self.xml = ElementTree.parse(self.file, parser=parser)
             except ElementTree.ParseError:
                 self.xml = None
 

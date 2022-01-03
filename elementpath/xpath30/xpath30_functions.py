@@ -769,6 +769,7 @@ def select_innermost_function(self, context=None):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
+    # print(ancestors)
     yield from context.iter_results([x for x in nodes if x not in ancestors])
 
 

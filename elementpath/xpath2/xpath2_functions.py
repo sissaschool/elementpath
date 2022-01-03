@@ -662,8 +662,16 @@ def evaluate_deep_equal_function(self, context=None):
                     return False
             elif node_kind(value1) != node_kind(value2):
                 return False
-            elif is_element_node(value1):
-                if not etree_deep_equal(value1, value2):
+            elif hasattr(value1, 'tag') and hasattr(value1, 'text'):
+                if not callable(value1.tag):
+                    if not etree_deep_equal(value1, value2):
+                        return False
+                elif hasattr(value1, 'target'):
+                    return value1.target == value2.target
+                else:
+                    return value1.text == value2.text
+            elif is_document_node(value1):
+                if not etree_deep_equal(value1.getroot(), value2.getroot()):
                     return False
             elif value1.value != value2.value:
                 return False

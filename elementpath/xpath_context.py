@@ -14,7 +14,7 @@ from functools import lru_cache
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterable, Iterator, \
-    Optional, Sequence, Union, Callable, MutableMapping
+    Optional, Sequence, Union, Callable, MutableMapping, Tuple
 
 from .exceptions import ElementPathTypeError
 from .datatypes import AnyAtomicType, Timezone
@@ -22,13 +22,14 @@ from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import TypedElement, AttributeNode, TextNode, TypedAttribute, \
     etree_iter_nodes, is_etree_element, is_element_node, is_document_node, \
     is_schema_node, is_lxml_etree_element, is_lxml_document_node, XPathNode, \
-    ElementNode, DocumentNode
+    ElementNode, DocumentNode, XPathNodeType
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
 
+
 ContextRootType = Union[ElementNode, DocumentNode]
-ContextItemType = Union[ElementNode, DocumentNode, XPathNode, AnyAtomicType]
+ContextItemType = Union[XPathNodeType, AnyAtomicType]
 IterableNodeType = Union[ElementNode, DocumentNode, AttributeNode, TextNode]
 
 
@@ -235,6 +236,8 @@ class XPathContext:
         :param results: a container with selection results.
         """
         status = self.item
+        roots: Any
+        root: Union[DocumentNode, ElementNode]
 
         if any(is_document_node(x) for x in results):
             roots = {doc for doc in results if is_document_node(doc)}
@@ -408,7 +411,8 @@ class XPathContext:
 
             self.item, self.axis = status
 
-    def iter_siblings(self, axis: Optional[str] = None) -> Iterator[ElementNode]:
+    def iter_siblings(self, axis: Optional[str] = None) \
+            -> Iterator[Union[ElementNode, TextNode]]:
         """
         Iterator for 'following-sibling' forward axis and 'preceding-sibling' reverse axis.
 
@@ -434,12 +438,18 @@ class XPathContext:
                     break
                 self.item = child
                 yield child
+                if child.tail is not None:
+                    self.item = TextNode(child.tail, child, True)
+                    yield self.item
         else:
             follows = False
             for child in parent:
                 if follows:
                     self.item = child
                     yield child
+                    if child.tail is not None:
+                        self.item = TextNode(child.tail, child, True)
+                        yield self.item
                 elif child is item:
                     follows = True
 
@@ -455,6 +465,7 @@ class XPathContext:
         In this case set the context size at start and change both position and \
         item at each iteration. For default only context item is changed.
         """
+        descendants: Union[Iterator[Union[XPathNodeType, None]], Tuple[XPathNode]]
         with_self = axis != 'descendant'
 
         if self.item is None:
@@ -468,7 +479,7 @@ class XPathContext:
                 descendants = self._iter_nodes(self.root)
         elif is_element_node(self.item) or is_document_node(self.item):
             descendants = self._iter_nodes(self.item, with_root=with_self)
-        elif with_self:
+        elif with_self and isinstance(self.item, XPathNode):
             descendants = self.item,
         else:
             return
@@ -490,27 +501,36 @@ class XPathContext:
                 yield self.item
             self.item, self.axis = status_
 
-    def iter_ancestors(self, axis: Optional[str] = None) -> Iterator[ContextRootType]:
+    def iter_ancestors(self, axis: Optional[str] = None) -> Iterator[XPathNodeType]:
         """
         Iterator for 'ancestor' and 'ancestor-or-self' reverse axes.
 
         :param axis: the context axis, default is 'ancestor'.
         """
         status = self.item, self.axis
-        self.axis = axis or 'ancestor'
 
         if isinstance(self.item, TypedElement):
-            elem = self.item.elem
-        elif is_element_node(self.item):
-            elem = cast(ElementNode, self.item)
-        else:
+            parent = self.get_parent(self.item.elem)
+        elif isinstance(self.item, XPathNode):
+            parent = self.item.parent
+            if parent is not None and callable(parent.tag):
+                parent = self.get_parent(parent)
+        elif isinstance(self.item, AnyAtomicType):
             return
+        elif self.item is None:
+            return  # document position without a document root
+        elif is_element_node(self.item):
+            parent = self.get_parent(cast(ElementNode, self.item))
+        elif is_document_node(self.item):
+            parent = None
+        else:
+            return  # is not an XPath node
 
-        ancestors: List[Union[ElementNode, DocumentNode]] = []
-        if self.axis == 'ancestor-or-self':
-            ancestors.append(elem)
+        self.axis = axis or 'ancestor'
+        ancestors: List[Union[ElementNode, DocumentNode, XPathNode]] = []
+        if axis == 'ancestor-or-self':
+            ancestors.append(self.item)
 
-        parent = self.get_parent(elem)
         while parent is not None:
             ancestors.append(parent)
             parent = self.get_parent(parent)
@@ -530,17 +550,13 @@ class XPathContext:
         status = self.item, self.axis
         self.axis = 'preceding'
 
-        ancestors = []
-        elem = item
-        while True:
-            parent = self.get_parent(elem)
-            if parent is None:
-                break
-            else:
-                ancestors.append(parent)
-                elem = parent
+        ancestors = set()
+        parent = self.get_parent(item)
+        while parent is not None:
+            ancestors.add(parent)
+            parent = self.get_parent(parent)
 
-        for elem in self.root.iter():  # pragma: no cover
+        for elem in self._iter_nodes(self.root):  # pragma: no cover
             if elem is item:
                 break
             elif elem not in ancestors:
@@ -549,7 +565,7 @@ class XPathContext:
 
         self.item, self.axis = status
 
-    def iter_followings(self) -> Iterator[ElementNode]:
+    def iter_followings(self) -> Iterator[XPathNodeType]:
         """Iterator for 'following' forward axis."""
         status = self.item, self.axis
         self.axis = 'following'
@@ -564,12 +580,12 @@ class XPathContext:
 
         descendants = set(self._iter_nodes(self.item))
         follows = False
-        for elem in self._iter_nodes(self.root):
+        for item in self._iter_nodes(self.root):
             if follows:
-                if elem not in descendants:
-                    self.item = elem
-                    yield elem
-            elif self.item is elem:
+                if item not in descendants:
+                    self.item = item
+                    yield item
+            elif self.item is item:
                 follows = True
 
         self.item, self.axis = status
