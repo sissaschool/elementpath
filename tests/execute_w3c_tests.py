@@ -101,9 +101,14 @@ LXML_ONLY = {
     'prod-AxisStep__Axes076-4',
     'prod-AxisStep__Axes079-4',
 
-    # in-scope nsmap required
+    # in-scope namespaces required
     'fn-in-scope-prefixes__fn-in-scope-prefixes-21',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-22',
+    'fn-innermost__fn-innermost-017',
+    'fn-innermost__fn-innermost-018',
+    'fn-innermost__fn-innermost-019',
+    'fn-innermost__fn-innermost-020',
+    'fn-innermost__fn-innermost-021',
 }
 
 xpath_parser = XPath2Parser

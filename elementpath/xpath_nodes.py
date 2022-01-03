@@ -258,9 +258,8 @@ def is_lxml_etree_element(obj: Any) -> bool:
     return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
 
 
-def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
-                     with_root: bool = True, with_attributes: bool = False
-                     ) -> Iterator[Union[ElementNode, DocumentNode, AttributeNode, TextNode]]:
+def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = True) \
+        -> Iterator[Union[DocumentNode, ElementNode, TextNode]]:
 
     _root: Union[ElementProtocol, LxmlElementProtocol]
     _lxml_root: Optional[LxmlElementProtocol] = None
@@ -272,8 +271,6 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
         else:
             with_root = True
         _root = document.getroot()
-    elif isinstance(root, TypedElement):
-        _root = root.elem
     else:
         _root = cast(ElementProtocol, root)
 
@@ -293,9 +290,6 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
 
     if _root.text is not None:
         yield TextNode(_root.text, _root)
-    if _root.attrib and with_attributes:
-        for name, value in _root.attrib.items():
-            yield AttributeNode(name, value, _root)
 
     descendants = _root.iter()
     next(descendants)  # discard root
@@ -310,9 +304,6 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode, TypedElement],
         yield e
         if e.text is not None:
             yield TextNode(e.text, e)
-        if e.attrib and with_attributes:
-            for name, value in e.attrib.items():
-                yield AttributeNode(name, value, e)
         if e.tail is not None:
             yield TextNode(e.tail, e, True)
 

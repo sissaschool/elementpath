@@ -12,6 +12,7 @@
 XPath 1.0 implementation - part 4 (axes)
 """
 from ..exceptions import ElementPathTypeError
+from ..namespaces import XML_NAMESPACE
 from ..xpath_nodes import NamespaceNode, is_element_node
 from .xpath1_functions import XPath1Parser
 
@@ -46,17 +47,18 @@ def select_namespace_axis(self, context=None):
         raise self.missing_context()
     elif is_element_node(context.item):
         elem = context.item
+        nsmap = getattr(elem, 'nsmap', None)
+        if nsmap is None:
+            # missing in-scope namespaces, use static provided namespaces.
+            nsmap = self.parser.other_namespaces
 
-        if hasattr(elem, 'nsmap'):
-            # Add element's namespaces for lxml (and use None for default namespace)
-            # noinspection PyUnresolvedReferences
-            for prefix_, uri in elem.nsmap.items():
-                context.item = NamespaceNode(prefix_, uri, elem)
-                yield context.item
-        else:
-            for prefix_, uri in self.parser.namespaces.items():
-                context.item = NamespaceNode(prefix_, uri)
-                yield context.item
+        for pfx, uri in nsmap.items():
+            context.item = NamespaceNode(pfx, uri, elem)
+            yield context.item
+
+        if 'xml' not in nsmap:
+            context.item = NamespaceNode('xml', XML_NAMESPACE, elem)
+            yield context.item
 
 
 @method(axis('self'))

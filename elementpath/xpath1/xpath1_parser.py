@@ -134,6 +134,11 @@ class XPath1Parser(ParserType):
         return None
 
     @property
+    def other_namespaces(self) -> Dict[str, str]:
+        """The subset of namespaces not provided by default."""
+        return {k: v for k, v in self.namespaces.items() if k not in self.DEFAULT_NAMESPACES}
+
+    @property
     def xsd_version(self) -> str:
         return '1.0'  # Use XSD 1.0 datatypes for default
 
