@@ -10,7 +10,6 @@
 import datetime
 import importlib
 from copy import copy
-from functools import lru_cache
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
@@ -159,6 +158,16 @@ class XPathContext:
             if is_document_node(self.root):
                 self._parent_map[cast(DocumentNode, self.root).getroot()] = self.root
 
+            # Add parent mapping for trees bound to dynamic context variables
+            for v in self.variables.values():
+                if is_document_node(v):
+                    doc = cast(DocumentNode, v)
+                    self._parent_map.update((c, e) for e in doc.iter() for c in e)
+                    self._parent_map[doc.getroot()] = doc
+                elif is_element_node(v):
+                    root = cast(ElementNode, v)
+                    self._parent_map.update((c, e) for e in root.iter() for c in e)
+
         return self._parent_map
 
     @property
@@ -171,23 +180,15 @@ class XPathContext:
                 self._etree = importlib.import_module('xml.etree.ElementTree')
         return self._etree
 
-    @lru_cache(maxsize=1024)
-    def get_parent(self, elem: Union[ElementNode, TypedElement]) \
-            -> Optional[Union[ElementNode, DocumentNode]]:
-        """
-        Returns the parent element or `None` for root element and for elements
-        that are not included in the tree. Uses a LRU cache to minimize parent
-        map rebuilding for trees processed with an incremental parser.
-        """
-        if isinstance(elem, TypedElement):
-            elem = elem.elem
-        if elem is self.root:
-            return None
-
+    def get_parent(self, elem: ElementNode) -> Union[None, ElementNode, DocumentNode]:
+        """Returns the parent of the element or `None` if it has no parent."""
         try:
             return self.parent_map[elem]
         except KeyError:
-            return None
+            try:
+                return elem.getparent()  # fallback for lxml elements
+            except AttributeError:
+                return None
 
     def get_path(self, item: Any) -> str:
         """Cached path resolver for elements and attributes. Returns absolute paths."""
@@ -541,15 +542,17 @@ class XPathContext:
         """
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item.elem)
+        elif isinstance(self.item, TextNode):
+            parent = self.item.parent
+            if parent is not None and (callable(parent.tag) or self.item.is_tail()):
+                parent = self.get_parent(parent)
         elif isinstance(self.item, XPathNode):
             parent = self.item.parent
-            if parent is not None and callable(parent.tag):
-                parent = self.get_parent(parent)
         elif isinstance(self.item, AnyAtomicType):
             return
         elif self.item is None:
             return  # document position without a document root
-        elif is_element_node(self.item):
+        elif hasattr(self.item, 'tag'):
             parent = self.get_parent(cast(ElementNode, self.item))
         elif is_document_node(self.item):
             parent = None

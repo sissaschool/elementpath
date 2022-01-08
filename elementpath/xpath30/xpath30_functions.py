@@ -783,10 +783,14 @@ def select_outermost_function(self, context=None):
     if any(not is_xpath_node(x) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
-    yield from context.iter_results({
-        context.item for context.item in nodes
-        if all(x not in nodes for x in context.iter_ancestors(axis='ancestor'))
-    }, namespaces=self.parser.other_namespaces)
+    results = set()
+    for item in nodes:
+        context.item = item
+        ancestors = {x for x in context.iter_ancestors(axis='ancestor')}
+        if any(x in nodes for x in ancestors):
+            continue
+        results.add(item)
+    yield from context.iter_results(results, namespaces=self.parser.other_namespaces)
 
 
 ##

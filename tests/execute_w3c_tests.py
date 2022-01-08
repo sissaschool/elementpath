@@ -109,6 +109,10 @@ LXML_ONLY = {
     'fn-innermost__fn-innermost-019',
     'fn-innermost__fn-innermost-020',
     'fn-innermost__fn-innermost-021',
+    'fn-outermost__fn-outermost-017',
+    'fn-outermost__fn-outermost-018',
+    'fn-outermost__fn-outermost-019',
+    'fn-outermost__fn-outermost-021',
 }
 
 xpath_parser = XPath2Parser
