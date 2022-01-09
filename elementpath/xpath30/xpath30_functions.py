@@ -52,6 +52,7 @@ SER_PARAM_NO_INDENT = '{%s}suppress-indentation' % XSLT_XQUERY_SERIALIZATION_NAM
 SER_PARAM_STANDALONE = '{%s}standalone' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 
+DECL_PARAM_PATTERN = re.compile(r'([^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*)=')
 
 register = XPath30Parser.register
 method = XPath30Parser.method
@@ -976,27 +977,76 @@ def evaluate_available_environment_variables_function(self, context=None):
 # Parsing and serializing
 @method(function('parse-xml', nargs=1,
                  sequence_types=('xs:string?', 'document-node(element(*))?')))
-@method(function('parse-xml-fragment', nargs=1,
-                 sequence_types=('xs:string?', 'document-node()?')))
-def evaluate_parse_xml_functions(self, context=None):
+def evaluate_parse_xml_function(self, context=None):
     # TODO: resolve relative entity references with static base URI
     arg = self.get_argument(context, cls=str)
     if arg is None:
-        return
+        return []
 
     etree = ElementTree if context is None else context.etree
     if self.symbol == 'parse-xml-fragment':
         # Wrap argument in a fake document because an
         # XML document can have only one root element
-        if arg.startswith('<?xml '):
-            arg = '%s%s<document>%s</document>' % arg.partition('?>')
+        if not arg.startswith('<?xml '):
+            xml_declaration = None
         else:
+            xml_declaration, _, arg = arg[6:].partition('?>')
+            xml_params = DECL_PARAM_PATTERN.findall(xml_declaration)
+            if 'encoding' not in xml_params:
+                raise self.error('FODC0006', "'encoding' argument is mandatory")
+
+            for param in xml_params:
+                if param not in {'version', 'encoding'}:
+                    msg = f'unexpected parameter {param!r} in XML declaration'
+                    raise self.error('FODC0006', msg)
+
+        if not arg.lstrip().startswith('<'):
             arg = f'<document>{arg}</document>'
+        if arg.lstrip().startswith('<!DOCTYPE'):
+            raise self.error('FODC0006', "<!DOCTYPE is not allowed")
 
     try:
         root = etree.XML(arg)
     except etree.ParseError:
         raise self.error('FODC0006')
+    else:
+        return etree.ElementTree(root)
+
+
+@method(function('parse-xml-fragment', nargs=1,
+                 sequence_types=('xs:string?', 'document-node()?')))
+def evaluate_parse_xml_fragment_function(self, context=None):
+    arg = self.get_argument(context, cls=str)
+    if arg is None:
+        return []
+
+    etree = ElementTree if context is None else context.etree
+
+    # Wrap argument in a fake document because an
+    # XML document can have only one root element
+    if not arg.startswith('<?xml '):
+        xml_declaration = None
+    else:
+        xml_declaration, _, arg = arg[6:].partition('?>')
+        xml_params = DECL_PARAM_PATTERN.findall(xml_declaration)
+        if 'encoding' not in xml_params:
+            raise self.error('FODC0006', "'encoding' argument is mandatory")
+
+        for param in xml_params:
+            if param not in {'version', 'encoding'}:
+                msg = f'unexpected parameter {param!r} in XML declaration'
+                raise self.error('FODC0006', msg)
+
+    if arg.lstrip().startswith('<!DOCTYPE'):
+        raise self.error('FODC0006', "<!DOCTYPE is not allowed")
+
+    try:
+        root = etree.XML(arg)
+    except etree.ParseError:
+        try:
+            return etree.XML(f'<document>{arg}</document>')
+        except etree.ParseError:
+            raise self.error('FODC0006') from None
     else:
         return etree.ElementTree(root)
 

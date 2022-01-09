@@ -44,6 +44,11 @@ def is_local_url_scheme(scheme):
     return scheme in ('', 'file') or len(scheme) == 1 and scheme in ascii_letters
 
 
+def is_local_dir_url(url):
+    url_parts = urlsplit(url)
+    return is_local_url_scheme(url_parts.scheme) and os.path.isdir(url_parts.path.lstrip(':'))
+
+
 ###
 # Sequence types (allowed only for type checking in treat-as/instance-of statements)
 function('empty-sequence', nargs=0, label='sequence type')
@@ -1381,41 +1386,47 @@ def evaluate_doc_functions(self, context=None):
     uri = self.get_argument(context)
     if uri is None:
         return None if self.symbol == 'doc' else False
-    elif context is None:
-        raise self.missing_context()
     elif isinstance(uri, str):
         pass
+    elif isinstance(uri, AnyURI):
+        uri = str(uri)
     elif isinstance(uri, UntypedAtomic):
         raise self.error('FODC0002')
     else:
         raise self.error('XPTY0004')
 
-    uri = self.get_absolute_uri(uri.strip())
-    if not isinstance(context, XPathSchemaContext):
-        try:
-            doc = context.documents[uri]
-        except (KeyError, TypeError):
-            if self.symbol == 'doc':
-                url_parts = urlsplit(uri)
-                if is_local_url_scheme(url_parts.scheme) \
-                        and os.path.isdir(url_parts.path.lstrip(':')):
-                    raise self.error('FODC0005', 'document URI is a directory')
-                raise self.error('FODC0002')
-            return False
-        else:
-            if doc is None:
-                raise self.error('FODC0002')
+    if context is None:
+        raise self.missing_context()
+    elif isinstance(context, XPathSchemaContext):
+        return None
 
-        try:
-            sequence_type = self.parser.document_types[uri]
-        except (KeyError, TypeError):
-            sequence_type = 'document-node()'
+    uri = uri.strip()
+    if uri.startswith(':'):
+        raise self.error('FODC0005')
 
-        if not self.parser.match_sequence_type(doc, sequence_type):
-            msg = "Type does not match sequence type {!r}"
-            raise self.wrong_sequence_type(msg.format(sequence_type))
+    uri = self.get_absolute_uri(uri)
+    try:
+        doc = context.documents[uri]
+    except (KeyError, TypeError):
+        if self.symbol == 'doc':
+            if is_local_dir_url(uri):
+                raise self.error('FODC0005', 'document URI is a directory')
+            raise self.error('FODC0002')
+        return False
+    else:
+        if doc is None:
+            raise self.error('FODC0002')
 
-        return doc if self.symbol == 'doc' else True
+    try:
+        sequence_type = self.parser.document_types[uri]
+    except (KeyError, TypeError):
+        sequence_type = 'document-node()'
+
+    if not self.parser.match_sequence_type(doc, sequence_type):
+        msg = "Type does not match sequence type {!r}"
+        raise self.wrong_sequence_type(msg.format(sequence_type))
+
+    return doc if self.symbol == 'doc' else True
 
 
 @method(function('collection', nargs=(0, 1), sequence_types=('xs:string?', 'node()*')))
@@ -1436,10 +1447,8 @@ def evaluate_collection_function(self, context=None):
         try:
             collection = context.collections[uri]
         except (KeyError, TypeError):
-            url_parts = urlsplit(uri)
-            if is_local_url_scheme(url_parts.scheme) and \
-                    not url_parts.path.startswith(':') and url_parts.path.endswith('/'):
-                raise self.error('FODC0003', 'collection URI is a directory')
+            if is_local_dir_url(uri):
+                raise self.error('FODC0004', 'collection URI is a directory')
             raise self.error('FODC0002', '{!r} collection not found'.format(uri)) from None
 
         try:

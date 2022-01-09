@@ -22,10 +22,12 @@ import re
 import json
 import math
 import os
+import pathlib
 import sys
 import traceback
 
 from collections import OrderedDict
+from urllib.parse import urlsplit
 from xml.etree import ElementTree
 import lxml.etree
 
@@ -209,7 +211,12 @@ class Source(object):
         assert elem.tag == '{%s}source' % QT3_NAMESPACE
         self.file = elem.attrib['file']
         self.role = elem.attrib.get('role', '')
-        self.uri = elem.attrib.get('uri')
+        self.uri = elem.attrib.get('uri', self.file)
+        if not urlsplit(self.uri).scheme:
+            self.uri = pathlib.Path(self.uri).absolute().as_uri()
+
+        self.key = self.role or self.file
+
         try:
             self.description = elem.find('description', namespaces).text
         except AttributeError:
@@ -304,7 +311,7 @@ class Environment(object):
         self.sources = {}
         for child in elem.iterfind('source', namespaces):
             source = Source(child, use_lxml)
-            self.sources[source.role] = source
+            self.sources[source.key] = source
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)
@@ -518,7 +525,11 @@ class TestCase(object):
                 schema_proxy = schema.xpath_proxy
 
         if not static_base_uri:
-            pass
+            base_uri = self.test_set_file
+            if base_uri:
+                base_uri = os.path.dirname(os.path.abspath(base_uri))
+                if os.path.isdir(base_uri):
+                    static_base_uri = f'{pathlib.Path(base_uri).as_uri()}/'
         elif static_base_uri.startswith(INVALID_BASE_URL):
             static_base_uri = static_base_uri.replace(INVALID_BASE_URL, effective_base_url)
 
@@ -570,9 +581,7 @@ class TestCase(object):
                 variables[name] = value
 
             for source in environment.sources.values():
-                documents[source.file] = source.xml
-                if source.uri is not None:
-                    documents[source.uri] = source.xml
+                documents[source.uri] = source.xml
 
             if environment.collection is not None:
                 uri = environment.collection.uri
@@ -1202,6 +1211,12 @@ def main():
                 # ignore tests that rely on DTD parsing (TODO with lxml or a custom parser)
                 if 'infoset-dtd' in test_case.features \
                         or test_case.environment_ref == 'id-idref-dtd':
+                    count_skip += 1
+                    continue
+
+                # ignore cases where a directory is used as collection uri (not supported
+                # feature, only the case fn-collection__collection-010)
+                if 'directory-as-collection-uri' in test_case.features:
                     count_skip += 1
                     continue
 

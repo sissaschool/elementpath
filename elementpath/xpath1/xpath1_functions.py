@@ -48,13 +48,13 @@ def select_pi_kind_test(self, context=None):
         if not self:
             yield context.item
         else:
-            arg = self.get_argument(context, cls=str)
+            name = self[0].value
             if hasattr(context.item, 'target'):
                 target = context.item.target
             else:
                 target = context.item.text.split()[0] if context.item.text else ''
 
-            if target == ' '.join(arg.strip().split()):
+            if target == ' '.join(name.strip().split()):
                 yield context.item
 
 
