@@ -166,6 +166,9 @@ def evaluate_function_reference(self, context=None):
         qname = QName(self[0][1].namespace, self[0].value)
     elif self[0].symbol == 'Q{':
         qname = QName(self[0][0].value, self[0][1].value)
+    elif self[0].value in self.parser.RESERVED_FUNCTION_NAMES:
+        msg = f"{self[0].value!r} is not allowed as function name"
+        raise self.error('XPST0003', msg)
     else:
         qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
 
@@ -183,8 +186,17 @@ def evaluate_function_reference(self, context=None):
         raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
     try:
-        func = self.parser.symbol_table[local_name](self.parser, nargs=arity)
-    except (KeyError, TypeError):
+        token_class = self.parser.symbol_table[local_name]
+    except KeyError:
+        msg = f"unknown function {qname.qname}#{arity}"
+        raise self.error('XPST0017', msg) from None
+    else:
+        if token_class.symbol == 'function' or not token_class.label.endswith('function'):
+            raise self.error('XPST0003')
+
+    try:
+        func = token_class(self.parser, nargs=arity)
+    except TypeError:
         msg = f"unknown function {qname.qname}#{arity}"
         raise self.error('XPST0017', msg) from None
     else:
