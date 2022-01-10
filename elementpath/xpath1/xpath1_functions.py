@@ -32,30 +32,32 @@ function = XPath1Parser.function
 def select_node_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
-    else:
-        for item in context.iter_children_or_self():
-            if item is None:
-                yield context.root
-            elif is_xpath_node(item):
-                yield item
+
+    for item in context.iter_children_or_self():
+        if item is None:
+            yield context.root
+        elif is_xpath_node(item):
+            yield item
 
 
 @method(function('processing-instruction', nargs=(0, 1), label='kind test'))
 def select_pi_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif is_processing_instruction_node(context.item):
-        if not self:
-            yield context.item
-        else:
-            name = self[0].value
-            if hasattr(context.item, 'target'):
-                target = context.item.target
-            else:
-                target = context.item.text.split()[0] if context.item.text else ''
 
-            if target == ' '.join(name.strip().split()):
-                yield context.item
+    for item in context.iter_children_or_self():
+        if is_processing_instruction_node(item):
+            if not self:
+                yield item
+            else:
+                name = self[0].value
+                if hasattr(item, 'target'):
+                    target = item.target
+                else:
+                    target = item.text.split()[0] if item.text else ''
+
+                if target == ' '.join(name.strip().split()):
+                    yield item
 
 
 @method('processing-instruction')
@@ -73,18 +75,20 @@ def nud_pi_kind_test(self):
 def select_comment_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif is_comment_node(context.item):
-        yield context.item
+
+    for item in context.iter_children_or_self():
+        if is_comment_node(item):
+            yield item
 
 
 @method(function('text', nargs=0, label='kind test'))
 def select_text_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
-    else:
-        for item in context.iter_children_or_self():
-            if isinstance(item, TextNode):
-                yield item
+
+    for item in context.iter_children_or_self():
+        if isinstance(item, TextNode):
+            yield item
 
 
 ###
