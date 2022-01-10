@@ -31,7 +31,7 @@ from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
-    DateTime10, Time, AnyURI
+    DateTime10, Time, AnyURI, UntypedAtomic
 from ..regex import translate_pattern, RegexError
 
 from .xpath30_operators import XPath30Parser
@@ -1436,8 +1436,13 @@ def evaluate_round_function(self, context=None):
 @XPath30Parser.constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
 def cast_string_based_types(self, value):
     cast_func = xsd10_atomic_types['NMTOKEN']
+    if isinstance(value, UntypedAtomic):
+        values = value.value.split() or [value.value]
+    else:
+        values = value.split() or [value]
+
     try:
-        return [cast_func(x) for x in value.split()]
+        return [cast_func(x) for x in values]
     except ValueError as err:
         raise self.error('FORG0001', err)
 
@@ -1445,8 +1450,13 @@ def cast_string_based_types(self, value):
 @XPath30Parser.constructor('IDREFS', sequence_types=('xs:IDREF*',))
 def cast_string_based_types(self, value):
     cast_func = xsd10_atomic_types['IDREF']
+    if isinstance(value, UntypedAtomic):
+        values = value.value.split() or [value.value]
+    else:
+        values = value.split() or [value]
+
     try:
-        return [cast_func(x) for x in value.split()]
+        return [cast_func(x) for x in values]
     except ValueError as err:
         raise self.error('FORG0001', err)
 
@@ -1454,8 +1464,13 @@ def cast_string_based_types(self, value):
 @XPath30Parser.constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
 def cast_string_based_types(self, value):
     cast_func = xsd10_atomic_types['ENTITY']
+    if isinstance(value, UntypedAtomic):
+        values = value.value.split() or [value.value]
+    else:
+        values = value.split() or [value]
+
     try:
-        return [cast_func(x) for x in value.split()]
+        return [cast_func(x) for x in values]
     except ValueError as err:
         raise self.error('FORG0001', err)
 

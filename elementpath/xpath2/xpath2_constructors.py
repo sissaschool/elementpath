@@ -80,7 +80,7 @@ def cast_integer_types(self, value):
         return xsd10_atomic_types[self.symbol](value)
     except ValueError:
         msg = 'could not convert {!r} to xs:{}'.format(value, self.symbol)
-        if isinstance(value, (str, bytes, UntypedAtomic, bool)):
+        if isinstance(value, (str, bytes, int, UntypedAtomic)):
             raise self.error('FORG0001', msg) from None
         raise self.error('FOCA0002', msg) from None
     except OverflowError as err:
