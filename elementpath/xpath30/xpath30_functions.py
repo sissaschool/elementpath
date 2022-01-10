@@ -755,7 +755,8 @@ def evaluate_has_children_function(self, context=None):
             raise self.error('XPTY0004', 'argument must be a node')
 
     return is_document_node(item) or \
-        is_element_node(item) and (len(item) > 0 or item.text is not None) or \
+        is_element_node(item) and not callable(item.tag) and \
+        (len(item) > 0 or item.text is not None) or \
         isinstance(item, TypedElement) and (len(item.elem) > 0 or item.elem.text is not None)
 
 
@@ -1309,6 +1310,14 @@ def select_for_each_pair_function(self, context=None):
             yield from result
         else:
             yield result
+
+
+@method(function('namespace-node', nargs=0, label='kind test'))
+def select_namespace_node_kind_test(self, context=None):
+    if context is None:
+        raise self.missing_context()
+    elif isinstance(context.item, NamespaceNode):
+        yield context.item
 
 
 ###
