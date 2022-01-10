@@ -902,6 +902,8 @@ class XPathToken(Token[XPathTokenType]):
             return False if math.isnan(obj) else bool(obj)
         elif obj is None:
             return False
+        elif is_xpath_node(obj):
+            return True
         else:
             message = "effective boolean value is not defined for {!r}.".format(type(obj))
             raise self.error('FORG0006', message)
