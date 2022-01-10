@@ -45,6 +45,13 @@ class XPath31Parser(XPath30Parser):
         **XPath30Parser.DEFAULT_NAMESPACES
     }
 
+    # https://www.w3.org/TR/xpath-31/#id-reserved-fn-names
+    RESERVED_FUNCTION_NAMES = {
+        'array', 'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
+        'function', 'if', 'item', 'map', 'namespace-node', 'node', 'processing-instruction',
+        'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
+    }
+
 
 ##
 # XPath 3.0 definitions

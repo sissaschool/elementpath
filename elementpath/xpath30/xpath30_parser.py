@@ -74,10 +74,10 @@ class XPath30Parser(XPath2Parser):
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
 
-    # https://www.w3.org/TR/xpath-3/#id-reserved-fn-names
+    # https://www.w3.org/TR/xpath-30/#id-reserved-fn-names
     RESERVED_FUNCTION_NAMES = {
-        'array', 'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
-        'function', 'if', 'item', 'map', 'namespace-node', 'node', 'processing-instruction',
+        'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
+        'function', 'if', 'item', 'namespace-node', 'node', 'processing-instruction',
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 

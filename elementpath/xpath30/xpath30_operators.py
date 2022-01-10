@@ -59,8 +59,19 @@ def nud_parenthesized_expression(self):
 
 @method('(')
 def led_parenthesized_expression(self, left):
-    if left.symbol == '(name)' or left.symbol == ':' and left[1].symbol == '(name)':
-        raise self.error('XPST0017', 'unknown function {!r}'.format(left.value))
+    if left.symbol == '(name)':
+        if left.value in self.parser.RESERVED_FUNCTION_NAMES:
+            msg = f"{left.value!r} is not allowed as function name"
+            raise left.error('XPST0003', msg)
+        else:
+            raise left.error('XPST0017', 'unknown function {!r}'.format(left.value))
+
+    elif left.symbol == ':' and left[1].symbol == '(name)':
+        if left[1].namespace == XSD_NAMESPACE:
+            msg = 'unknown constructor function {!r}'.format(left[1].value)
+            raise left[1].error('XPST0017', msg)
+        raise left.error('XPST0017', 'unknown function {!r}'.format(left.value))
+
     if self.parser.next_token.symbol != ')':
         self[:] = left, self.parser.expression()
     else:

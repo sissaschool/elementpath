@@ -21,11 +21,11 @@ from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
-    XLINK_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
+    XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from ..datatypes import UntypedAtomic, AtomicValueType, QName
-from ..xpath_token import UNICODE_CODEPOINT_COLLATION, XPathToken, \
-    XPathFunction, XPathConstructor
+from ..xpath_token import UNICODE_CODEPOINT_COLLATION, NargsType, \
+    XPathToken, XPathFunction, XPathConstructor
 from ..xpath_context import XPathContext
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath1 import XPath1Parser
@@ -326,7 +326,7 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
-    def constructor(cls, symbol: str, bp: int = 0, nargs: int = 1,
+    def constructor(cls, symbol: str, bp: int = 0, nargs: NargsType = 1,
                     sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
                     label: Union[str, Tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:

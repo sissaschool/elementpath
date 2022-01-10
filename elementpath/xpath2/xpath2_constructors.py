@@ -470,7 +470,7 @@ def evaluate_string_type_and_function(self, context=None):
 # of the number of args.
 #
 @constructor('QName', bp=90, label=('function', 'constructor function'),
-             sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
+             nargs=(1, 2), sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
 def cast_qname_type(self, value):
     if isinstance(value, QName):
         return value

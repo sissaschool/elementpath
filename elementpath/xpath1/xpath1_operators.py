@@ -49,22 +49,19 @@ axis = XPath1Parser.axis
 
 @method(register('(name)', bp=10, label='literal'))
 def nud_name_literal(self):
-    if self.parser.next_token.symbol == '(':
+    if self.parser.next_token.symbol == '::':
+        raise self.missing_axis("axis '%s::' not found" % self.value)
+    elif self.parser.next_token.symbol == '(':
         if self.parser.version >= '3.0':
-            pass
+            pass  # XP30+ has led() for '(' operator that can check this
         elif self.namespace == XSD_NAMESPACE:
             raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.value))
-        elif self.value not in self.parser.RESERVED_FUNCTION_NAMES:
+        elif self.namespace or self.value not in self.parser.RESERVED_FUNCTION_NAMES:
             raise self.error('XPST0017', 'unknown function {!r}'.format(self.value))
-        elif self.value == 'typeswitch':
-            msg = 'improper use of XQuery reserved name {!r}'
-            raise self.error('XPST0003', msg.format(self.value))
         else:
-            msg = 'improper use of XPath reserved name {!r}'
-            raise self.error('XPST0017', msg.format(self.value))
+            msg = f"{self.value!r} is not allowed as function name"
+            raise self.error('XPST0003', msg)
 
-    elif self.parser.next_token.symbol == '::':
-        raise self.missing_axis("axis '%s::' not found" % self.value)
     return self
 
 
