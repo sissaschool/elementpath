@@ -64,7 +64,7 @@ class XPath30Parser(XPath2Parser):
         'for-each', 'filter', 'fold-left', 'fold-right', 'for-each-pair',
 
         # Expressions and node type functions
-        'function', 'let', ':=',  # 'namespace-node', 'switch',
+        'function', 'let', ':=', 'namespace-node',
 
         # XSD list-types constructor functions
         'ENTITIES', 'IDREFS', 'NMTOKENS',
@@ -72,6 +72,13 @@ class XPath30Parser(XPath2Parser):
 
     DEFAULT_NAMESPACES = {
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
+    }
+
+    # https://www.w3.org/TR/xpath-3/#id-reserved-fn-names
+    RESERVED_FUNCTION_NAMES = {
+        'array', 'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
+        'function', 'if', 'item', 'map', 'namespace-node', 'node', 'processing-instruction',
+        'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 
     function_signatures = XPath2Parser.function_signatures.copy()

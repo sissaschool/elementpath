@@ -185,6 +185,13 @@ class XPath2Parser(XPath1Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '(', '{'
     }
 
+    # https://www.w3.org/TR/xpath20/#id-reserved-fn-names
+    RESERVED_FUNCTION_NAMES = {
+        'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
+        'if', 'item', 'node', 'processing-instruction', 'schema-attribute',
+        'schema-element', 'text', 'typeswitch',
+    }
+
     function_signatures: Dict[Tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
     namespaces: Dict[str, str]
     token: XPathToken
