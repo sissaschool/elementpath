@@ -186,9 +186,12 @@ class XPathContext:
             return self.parent_map[elem]
         except KeyError:
             try:
-                return elem.getparent()  # fallback for lxml elements
+                # fallback for lxml elements
+                parent = elem.getparent()  # type: ignore[union-attr]
             except AttributeError:
                 return None
+            else:
+                return cast(Optional[ElementNode], parent)
 
     def get_path(self, item: Any) -> str:
         """Cached path resolver for elements and attributes. Returns absolute paths."""
@@ -438,8 +441,16 @@ class XPathContext:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, TypedElement):
             parent = self.get_parent(self.item.elem)
+        elif isinstance(self.item, TextNode):
+            parent = self.item.parent
+            if parent is not None and (callable(parent.tag) or self.item.is_tail()):
+                parent = self.get_parent(parent)
+        elif isinstance(self.item, XPathNode):
+            parent = self.item.parent
+        elif hasattr(self.item, 'tag'):
+            parent = self.get_parent(cast(ElementNode, self.item))
         else:
-            parent = self.get_parent(self.item)
+            return  # not applicable
 
         if parent is not None:
             status = self.item, self.axis

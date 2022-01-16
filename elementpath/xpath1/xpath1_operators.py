@@ -380,11 +380,7 @@ def select_self_shortcut(self, context=None):
 def select_parent_shortcut(self, context=None):
     if context is None:
         raise self.missing_context()
-    else:
-        parent = context.get_parent(context.item)
-        if is_element_node(parent):
-            context.item = parent
-            yield parent
+    yield from context.iter_parent()
 
 
 ###
