@@ -687,27 +687,42 @@ def select_child_path(self, context=None):
 
 @method('//')
 def select_descendant_path(self, context=None):
-    # Note: // is short for /descendant-or-self::node()/, so the axis
-    #   is left to None. Use descendant:: only if next-step uses child
-    #   axis, to preserve document order.
+    """Operator '//' is a short equivalent to /descendant-or-self::node()/"""
     if context is None:
         raise self.missing_context()
     elif len(self) == 2:
-        _axis = 'descendant' if self[1].child_axis else None
-
-        for context.item in self[0].select(context):
+        items = set()
+        for _ in context.inner_focus_select(self[0]):
             if not is_xpath_node(context.item):
                 raise self.error('XPTY0019')
 
-            for _ in context.iter_descendants(axis=_axis, inner_focus=True):
-                yield from self[1].select(context)
+            for _ in context.iter_descendants():
+                inner_context = copy(context)
+                for result in self[1].select(inner_context):
+                    if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
+                        yield result
+                    elif result in items:
+                        pass
+                    elif isinstance(result, TypedElement):
+                        if result.elem not in items:
+                            items.add(result)
+                            yield result
+                    elif isinstance(result, TypedAttribute):
+                        if result.attribute not in items:
+                            items.add(result)
+                            yield result
+                    else:
+                        items.add(result)
+                        yield result
+                        if isinstance(context, XPathSchemaContext):
+                            self[1].add_xsd_type(result)
 
     elif is_document_node(context.root) or context.item is context.root:
         context.item = None
-        _axis = 'descendant' if self[0].child_axis else None
 
-        for _ in context.iter_descendants(axis=_axis, inner_focus=True):
-            yield from self[0].select(context)
+        for _ in context.iter_descendants():
+            inner_context = copy(context)
+            yield from self[0].select(inner_context)
 
 
 ###

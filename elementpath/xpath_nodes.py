@@ -258,6 +258,15 @@ def is_lxml_etree_element(obj: Any) -> bool:
     return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
 
 
+def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) -> Iterator[ElementNode]:
+    if not hasattr(root, 'itersiblings'):
+        yield root
+    else:
+        yield from reversed([e for e in root.itersiblings(preceding=True)])
+        yield root
+        yield from root.itersiblings()
+
+
 def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = True) \
         -> Iterator[Union[DocumentNode, ElementNode, TextNode]]:
 
@@ -314,6 +323,7 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = T
             sibling = sibling.getnext()
 
 
+
 def etree_iter_strings(elem: Union[DocumentNode, ElementNode, TypedElement]) -> Iterator[str]:
     e: ElementNode
 
@@ -357,12 +367,18 @@ def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
 
 def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[ElementNode, str]]:
     yield elem, path
+    pi_nodes = Counter()
     children_tags = Counter([e.tag for e in elem])
     positions = Counter([t for t in children_tags if children_tags[t] > 1])
 
     for child in elem:
         if callable(child.tag):
-            continue  # Skip lxml comments
+            if child.tag.__name__ != 'ProcessingInstruction':
+                continue  # Skip comments
+            name = node_name(child)
+            pi_nodes[name] += 1
+            yield f'{path}/processing-instruction({name})[{pi_nodes[name]}]'
+            continue
         elif path == '/':
             child_path = '/%s' % child.tag
         elif path:

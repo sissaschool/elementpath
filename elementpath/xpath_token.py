@@ -156,9 +156,12 @@ class XPathToken(Token[XPathTokenType]):
     @property
     def child_axis(self) -> bool:
         """Is `True` if the token apply child axis for default, `False` otherwise."""
-        if self.symbol not in {'*', 'node', 'child', 'text', '(name)', ':',
-                               'document-node', 'element', 'schema-element'}:
+        if self.symbol not in {'*', 'node', 'child', 'text', '(name)', ':', '[',
+                               'document-node', 'element', 'comment',
+                               'processing-instruction', 'schema-element'}:
             return False
+        elif self.symbol == '[':
+            return self._items[0].child_axis
         elif self.symbol != ':':
             return True
         return not self._items[1].label.endswith('function')

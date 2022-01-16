@@ -27,7 +27,7 @@ from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, \
 from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
     is_document_node, is_etree_element, is_schema_node, node_document_uri, \
     node_nilled, node_name, TypedElement, TextNode, AttributeNode, \
-    TypedAttribute, NamespaceNode
+    TypedAttribute, NamespaceNode, is_processing_instruction_node
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -704,7 +704,7 @@ def evaluate_path_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
-        return
+        return None
     elif not self:
         if context.item is None:
             return '/'
@@ -712,13 +712,16 @@ def evaluate_path_function(self, context=None):
     else:
         item = self.get_argument(context)
         if item is None:
-            return
+            return None
 
     if is_document_node(item):
         return '/'
     elif isinstance(item, TypedElement):
         elem = item.elem
     elif is_etree_element(item):
+        if is_processing_instruction_node(item):
+            name = node_name(item)
+            return f'/processing-instruction({name})[{context.position}]'
         elem = item
     else:
         elem = self._elem

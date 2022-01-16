@@ -40,7 +40,7 @@ def select_node_kind_test(self, context=None):
             yield item
 
 
-@method(function('processing-instruction', nargs=(0, 1), label='kind test'))
+@method(function('processing-instruction', nargs=(0, 1), bp=79, label='kind test'))
 def select_pi_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()

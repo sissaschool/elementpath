@@ -22,7 +22,7 @@ from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
     TypedAttribute, etree_iter_nodes, is_etree_element, is_element_node, \
     is_document_node, is_schema_node, is_lxml_etree_element, is_lxml_document_node, \
-    XPathNode, ElementNode, DocumentNode, XPathNodeType
+    XPathNode, ElementNode, DocumentNode, XPathNodeType, etree_iter_root
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -299,7 +299,7 @@ class XPathContext:
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position
-        results = [x for x in token.select(copy(self))]
+        results = [x for x in token.select(self.copy(clear_axis=False))]
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
             self.size = self.position = len(results)
@@ -403,11 +403,17 @@ class XPathContext:
         if self.item is None:
             if is_document_node(self.root):
                 document = cast(DocumentNode, self.root)
-                self.item = document.getroot()
+                root = document.getroot()
             else:
-                self.item = self.root
-            yield self.item
+                root = self.root
+
+            for self.item in etree_iter_root(root):
+                yield self.item
+
         elif is_etree_element(self.item):
+            if callable(self.item.tag):
+                return
+
             elem = cast(ElementNode, self.item)
             if elem.text is not None:
                 self.item = TextNode(elem.text, elem)
@@ -423,8 +429,8 @@ class XPathContext:
 
         elif is_document_node(self.item):
             document = cast(DocumentNode, self.item)
-            self.item = document.getroot()
-            yield self.item
+            for self.item in etree_iter_root(document.getroot()):
+                yield self.item
 
         self.item, self.axis = status
 
