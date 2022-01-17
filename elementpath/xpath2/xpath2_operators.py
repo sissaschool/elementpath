@@ -539,15 +539,20 @@ def evaluate_node_comparison(self, context=None):
     elif len(right) > 1 or not is_xpath_node(right[0]):
         raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 
+    # For identity comparison use '==' operator instead of 'is'
+    # because elem1 == elem2 if and only if elem1 is elem2.
+    # For example two AttributeNode objects (a1, a2) represent
+    # the same node if they have the same name, the same value
+    # and the same parent.
     if symbol == 'is':
-        return left[0] is right[0]
+        return left[0] == right[0]
     else:
-        if left[0] is right[0]:
+        if left[0] == right[0]:
             return False
         for item in context.root.iter():  # pragma: no cover
-            if left[0] is item:
+            if left[0] == item:
                 return True if symbol == '<<' else False
-            elif right[0] is item:
+            elif right[0] == item:
                 return False if symbol == '<<' else True
         else:
             raise self.error('FOCA0002', "operands are not nodes of the XML tree!")

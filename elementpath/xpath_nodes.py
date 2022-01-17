@@ -323,7 +323,6 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = T
             sibling = sibling.getnext()
 
 
-
 def etree_iter_strings(elem: Union[DocumentNode, ElementNode, TypedElement]) -> Iterator[str]:
     e: ElementNode
 
@@ -449,7 +448,7 @@ def match_element_node(obj: Any, tag: Optional[str] = None) -> Any:
 def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
     """
     Returns `True` if the first argument is an attribute node matching the name, `False` otherwise.
-    Raises a ValueError if the argument name has to be used but it's in a wrong format.
+    Raises a ValueError if the argument name has to be used, but it's in a wrong format.
 
     :param obj: the node to be tested.
     :param name: a fully qualified name, a local name or a wildcard. The accepted wildcard formats \

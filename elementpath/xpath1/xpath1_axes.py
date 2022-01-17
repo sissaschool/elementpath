@@ -47,18 +47,22 @@ def select_namespace_axis(self, context=None):
         raise self.missing_context()
     elif is_element_node(context.item):
         elem = context.item
+        name = self[0].value
+
         nsmap = getattr(elem, 'nsmap', None)
         if nsmap is None:
             # missing in-scope namespaces, use static provided namespaces.
             nsmap = self.parser.other_namespaces
 
         for pfx, uri in nsmap.items():
-            context.item = NamespaceNode(pfx, uri, elem)
-            yield context.item
+            if name == '*' or name == pfx:
+                context.item = NamespaceNode(pfx, uri, elem)
+                yield context.item
 
         if 'xml' not in nsmap:
-            context.item = NamespaceNode('xml', XML_NAMESPACE, elem)
-            yield context.item
+            if name == '*' or name == 'xml':
+                context.item = NamespaceNode('xml', XML_NAMESPACE, elem)
+                yield context.item
 
 
 @method(axis('self'))

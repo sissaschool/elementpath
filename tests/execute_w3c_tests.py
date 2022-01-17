@@ -950,7 +950,7 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
         else:
-            if result is None or result == '' or result == []:
+            if result is None or result == '' or result == [] or result == ['']:
                 return True
 
             self.report_failure(verbose, result=result)
