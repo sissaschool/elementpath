@@ -1405,8 +1405,15 @@ def evaluate_node_name_function(self, context=None):
 @method(function('string-join', nargs=(1, 2),
                  sequence_types=('xs:string*', 'xs:string', 'xs:string')))
 def evaluate_string_join_function(self, context=None):
-    items = [self.string_value(s) for s in self[0].select(context)]
-    return self.get_argument(context, 1, default='', cls=str).join(items)
+    items = []
+    for s in self[0].select(context):
+        if not isinstance(s, str):
+            raise self.error('XPTY0004', "1st argument must be a sequence of xs:string values")
+        items.append(s)
+
+    if len(self) == 1:
+        return ''.join(items)
+    return self.get_argument(context, 1, required=True, cls=str).join(items)
 
 
 @method(function('round', nargs=(1, 2),
