@@ -77,10 +77,10 @@ def nud_item_sequence_type(self):
 def evaluate_prefix_from_qname_function(self, context=None):
     qname = self.get_argument(context)
     if qname is None:
-        return
+        return []
     elif not isinstance(qname, QName):
         raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
-    return qname.prefix or []
+    return NCName(qname.prefix) if qname.prefix else []
 
 
 @method(function('local-name-from-QName', nargs=1,
