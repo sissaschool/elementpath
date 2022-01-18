@@ -635,7 +635,7 @@ class XPathToken(Token[XPathTokenType]):
     def use_locale(self, collation: str) -> Iterator[None]:
         """A context manager for use a locale setting for string comparison in a code block."""
         loc = locale.getlocale(locale.LC_COLLATE)
-        if collation == UNICODE_CODEPOINT_COLLATION:
+        if collation == UNICODE_CODEPOINT_COLLATION or collation == 'collation/codepoint':
             collation = 'en_US.UTF-8'
         elif collation is None:
             raise self.error('XPTY0004', 'collation cannot be an empty sequence')

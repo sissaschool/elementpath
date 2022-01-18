@@ -56,6 +56,8 @@ SKIP_TESTS = {
 
     # Unsupported collations
     'fn-compare__compare-010',
+    'fn-substring-after__fn-substring-after-24',
+    'fn-substring-before__fn-substring-before-24',
 
     # Processing-instructions (tests on env "auction")
     'fn-local-name__fn-local-name-78',
