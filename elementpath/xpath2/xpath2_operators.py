@@ -18,7 +18,7 @@ from decimal import Decimal, DivisionByZero
 
 from ..exceptions import ElementPathError, ElementPathTypeError
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
-    get_namespace, get_expanded_name
+    XSI_NIL, get_namespace, get_expanded_name
 from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
@@ -679,9 +679,11 @@ def select_element_kind_test(self, context=None):
             if len(self) == 1:
                 yield item
             elif isinstance(item, TypedElement):
-                for type_annotation in self[1].select():
-                    if type_annotation == item.xsd_type.name:
-                        yield item
+                type_annotation = self[1].source
+                if type_annotation == item.xsd_type.name:
+                    yield item
+                elif item.elem.get(XSI_NIL) and type_annotation[-1] in ('*', '?'):
+                    yield item
 
 
 @method('element')
@@ -694,6 +696,10 @@ def nud_element_kind_test(self):
             self.parser.advance(',')
             self.parser.expected_name('(name)', ':', message='a QName expected')
             self[1:] = self.parser.expression(5),
+            if self.parser.next_token.symbol in ('*', '+', '?'):
+                self[1].occurrence = self.parser.next_token.symbol
+                self.parser.advance()
+
     self.parser.advance(')')
     self.value = None
     return self

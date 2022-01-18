@@ -128,7 +128,7 @@ class XPathToken(Token[XPathTokenType]):
             # For XPath 2.0 'attribute' multi-role token ('kind test', 'axis')
             return '%s::%s' % (symbol, self[0].source)
         elif symbol == ':':
-            return '%s:%s' % (self[0].source, self[1].source)
+            return self.value + self.occurrence if self.occurrence else self.value
         elif symbol == '(':
             return '()' if not self else '(%s)' % self[0].source
         elif symbol == '[':
