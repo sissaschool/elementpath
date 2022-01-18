@@ -378,6 +378,9 @@ def evaluate_max_min_functions(self, context=None):
     def max_or_min():
         if not values:
             return values
+        elif all(isinstance(x, str) for x in values):
+            if to_any_uri:
+                return AnyURI(aggregate_func(values))
         elif any(isinstance(x, str) for x in values):
             if any(isinstance(x, ArithmeticProxy) for x in values):
                 raise self.error('FORG0006', "cannot compare strings with numeric data")
@@ -391,6 +394,7 @@ def evaluate_max_min_functions(self, context=None):
 
     values = []
     float_class = None
+    to_any_uri = None
     aggregate_func = max if self.symbol == 'max' else min
 
     for item in self[0].select_data_values(context):
@@ -405,11 +409,14 @@ def evaluate_max_min_functions(self, context=None):
                 float_class = float
         elif isinstance(item, AnyURI):
             values.append(item.value)
+            if to_any_uri is None:
+                to_any_uri = True
         elif isinstance(item, (DayTimeDuration, YearMonthDuration)):
             values.append(item)
         elif isinstance(item, (Duration, QName)):
             raise self.error('FORG0006', "xs:{} is not an ordered type".format(type(item).name))
         else:
+            to_any_uri = False
             values.append(item)
 
     try:
