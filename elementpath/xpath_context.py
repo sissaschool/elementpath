@@ -9,13 +9,12 @@
 #
 import datetime
 import importlib
-from copy import copy
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
     Optional, Sequence, Union, Callable, MutableMapping, Set, Tuple
 
-from .exceptions import ElementPathTypeError
+from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XML_NAMESPACE
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import XsdElementProtocol, XMLSchemaProtocol
@@ -222,8 +221,61 @@ class XPathContext:
     def is_principal_node_kind(self) -> bool:
         if self.axis == 'attribute':
             return isinstance(self.item, (AttributeNode, TypedAttribute))
+        elif self.axis == 'namespace':
+            return isinstance(self.item, NamespaceNode)
         else:
             return is_element_node(self.item)
+
+    def match_name(self, name: Optional[str] = None,
+                   default_namespace: Optional[str] = None) -> bool:
+        """
+        Returns `True` if the context item is matching the name, `False` otherwise.
+
+        :param name: a fully qualified name, a local name or a wildcard. The accepted \
+        wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
+        :param default_namespace: the namespace URI associated with unqualified names. \
+        Used for matching element names (tag).
+        """
+        if self.axis == 'attribute':
+            if not isinstance(self.item, (AttributeNode, TypedAttribute)):
+                return False
+            item_name = self.item.name
+        elif is_element_node(self.item):
+            item_name = self.item.tag
+            if hasattr(self.item, 'nsmap') and None in self.item.nsmap:
+                default_namespace = self.item.nsmap[None]
+        else:
+            return False
+
+        if name is None or name == '*' or name == '*:*':
+            return True
+
+        if not name:
+            return not item_name
+        elif name[0] == '*':
+            try:
+                _, _name = name.split(':')
+            except (ValueError, IndexError):
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            else:
+                if item_name.startswith('{'):
+                    return item_name.split('}')[1] == _name
+                else:
+                    return item_name == _name
+
+        elif name[-1] == '*':
+            if name[0] != '{' or '}' not in name:
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            elif item_name.startswith('{'):
+                return item_name.split('}')[0][1:] == name.split('}')[0][1:]
+            else:
+                return False
+        elif name[0] == '{' or not default_namespace:
+            return item_name == name
+        elif self.axis == 'attribute':
+            return item_name == name
+        else:
+            return item_name == '{%s}%s' % (default_namespace, name)
 
     def iter(self, namespaces: Optional[Dict[str, str]] = None) \
             -> Iterator[Union[ElementNode, DocumentNode, TextNode, NamespaceNode, AttributeNode]]:

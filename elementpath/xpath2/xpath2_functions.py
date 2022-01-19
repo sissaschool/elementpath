@@ -29,7 +29,7 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
 from ..xpath_context import XPathContext, XPathSchemaContext
-from ..xpath_nodes import AttributeNode, NamespaceNode, is_element_node, \
+from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, is_element_node, \
     is_document_node, is_xpath_node, node_name, node_nilled, node_base_uri, \
     node_document_uri, node_kind, etree_deep_equal
 from ..xpath_token import XPathFunction
@@ -137,23 +137,31 @@ def select_in_scope_prefixes_function(self, context=None):
         raise self.missing_context()
 
     elem = self.get_argument(context)
-    if not is_element_node(elem):
+    if isinstance(elem, TypedElement):
+        elem = elem.elem
+    elif not is_element_node(elem):
         raise self.error('XPTY0004', 'argument %r is not an element node' % elem)
 
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
-        yield from self.parser.namespaces
+        for pfx, uri in self.parser.namespaces.items():
+            if uri:
+                yield pfx or ''
     elif hasattr(elem, 'nsmap'):
-        # For lxml returns Element's prefixes
-        yield 'xml'
-        yield from filter(lambda x: x and x != 'xml', elem.nsmap)
+        # For lxml returns Element nsmap prefixes, replacing None with ''
+        if 'xml' not in elem.nsmap:
+            yield 'xml'
+        for pfx, uri in elem.nsmap.items():
+            if uri:
+                yield pfx or ''
     else:
         # For ElementTree returns module registered prefixes
-        prefixes = {'xml'}  # 'xml' prefix is always registered
-        prefixes.update(x for x in self.parser.namespaces if x)
+        for pfx, uri in self.parser.namespaces.items():
+            if uri:
+                yield pfx or ''
+
         if context.namespaces:
-            prefixes.update(x for x in context.namespaces if x)
-        yield from prefixes
+            yield from (x for x in context.namespaces if x not in self.parser.namespaces)
 
 
 @method(function('resolve-QName', nargs=2,
@@ -182,7 +190,7 @@ def evaluate_resolve_qname_function(self, context=None):
         return QName(XML_NAMESPACE, qname)
 
     try:
-        nsmap = {**self.parser.namespaces, **elem.nsmap}
+        nsmap = elem.nsmap
     except AttributeError:
         nsmap = self.parser.namespaces
 

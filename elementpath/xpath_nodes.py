@@ -196,6 +196,10 @@ class TypedElement(XPathNode):
     def name(self) -> str:
         return self.elem.tag
 
+    @property
+    def tag(self) -> str:
+        return self.elem.tag
+
     def __repr__(self) -> str:
         return '%s(tag=%r)' % (self.__class__.__name__, self.elem.tag)
 
@@ -395,7 +399,7 @@ def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[Eleme
 ###
 # XPath node test functions
 #
-# XPath has there are 7 kinds of nodes:
+# XPath has there are seven kinds of nodes:
 #
 #  element, attribute, text, namespace, processing-instruction, comment, document
 #

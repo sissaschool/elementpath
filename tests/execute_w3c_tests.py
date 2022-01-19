@@ -37,6 +37,7 @@ import xmlschema
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
 from elementpath.xpath_token import XPathFunction
 from elementpath.datatypes import AnyAtomicType
+from elementpath.xpath31 import XPath31Parser
 
 
 PY38_PLUS = sys.version_info > (3, 8)
@@ -108,6 +109,9 @@ LXML_ONLY = {
     # in-scope namespaces required
     'fn-in-scope-prefixes__fn-in-scope-prefixes-21',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-22',
+    'fn-in-scope-prefixes__fn-in-scope-prefixes-24',
+    'fn-in-scope-prefixes__fn-in-scope-prefixes-25',
+    'fn-in-scope-prefixes__fn-in-scope-prefixes-26',
     'fn-innermost__fn-innermost-017',
     'fn-innermost__fn-innermost-018',
     'fn-innermost__fn-innermost-019',
@@ -647,8 +651,8 @@ class Result(object):
     """
     # Validation helper tokens
     parser = xpath_parser()
-    string_token = parser.parse('fn:string($result)')
-    string_join_token = parser.parse('fn:string-join($result, " ")')
+    string_token = XPath31Parser().parse('fn:string($result)')
+    string_join_token = XPath31Parser().parse('fn:string-join($result, " ")')
 
     def __init__(self, elem, test_case, use_lxml=False):
         self.test_case = test_case
@@ -913,7 +917,7 @@ class Result(object):
             return False
 
         variables = {'result': result}
-        parser = xpath_parser(xsd_version=self.test_case.xsd_version)
+        parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(self.value)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.boolean_value(root_node.evaluate(context)) is True:
