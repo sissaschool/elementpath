@@ -70,6 +70,10 @@ SKIP_TESTS = {
     'fn-codepoints-to-string__K-CodepointToStringFunc-11b',
     'fn-codepoints-to-string__K-CodepointToStringFunc-12b',
 
+    # Require unicode version "7.0"
+    'fn-lower-case__fn-lower-case-19',
+    'fn-upper-case__fn-upper-case-19',
+
     # For XQuery??
     'fn-deep-equal__K2-SeqDeepEqualFunc-43',  # includes a '!' symbol
 
@@ -107,6 +111,7 @@ LXML_ONLY = {
     'prod-AxisStep__Axes079-4',
 
     # in-scope namespaces required
+    'fn-resolve-QName__fn-resolve-qname-26',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-21',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-22',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-24',
@@ -939,7 +944,7 @@ class Result(object):
         expression = "fn:deep-equal($result, (%s))" % self.value
         variables = {'result': result}
 
-        parser = xpath_parser(xsd_version=self.test_case.xsd_version)
+        parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(expression)
         context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
         if root_node.evaluate(context) is True:

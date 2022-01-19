@@ -195,13 +195,15 @@ def evaluate_resolve_qname_function(self, context=None):
         nsmap = self.parser.namespaces
 
     for pfx, uri in nsmap.items():
+        if pfx is None:
+            pfx = ''
         if pfx == prefix:
             if pfx:
                 return QName(uri, '{}:{}'.format(pfx, match.groupdict()['local']))
             else:
                 return QName(uri, match.groupdict()['local'])
 
-    if prefix or '' in self.parser.namespaces:
+    if prefix or '' in nsmap or None in nsmap:
         raise self.error('FONS0004', 'no namespace found for prefix %r' % prefix)
     return QName('', qname)
 
