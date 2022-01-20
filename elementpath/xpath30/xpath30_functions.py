@@ -521,7 +521,8 @@ def evaluate_format_date_function(self, context=None):
     if calendar not in {None, 'AD', 'ISO', 'OS'} and (context is None or calendar != context.default_calendar):
         raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
 
-    print(value, picture, literals, markers)
+    # print(value, picture, literals, markers)
+    # breakpoint()
 
     result = []
     for k in range(len(markers)):

@@ -420,7 +420,12 @@ class TestCase(object):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
         self.xsd_version = test_set.xsd_version
+
         self.use_lxml = use_lxml
+        if use_lxml:
+            self.etree = lxml.etree
+        else:
+            self.etree = ElementTree
 
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
@@ -567,7 +572,7 @@ class TestCase(object):
         if not with_context:
             context = None
         elif environment is None:
-            context = XPathContext(root=ElementTree.XML("<empty/>"), timezone='Z',
+            context = XPathContext(root=self.etree.XML("<empty/>"), timezone='Z',
                                    default_calendar=self.calendar)
         else:
             kwargs = {'timezone': 'Z'}
@@ -576,10 +581,8 @@ class TestCase(object):
 
             if '.' in environment.sources:
                 root = environment.sources['.'].xml
-            elif self.use_lxml:
-                root = lxml.etree.XML("<empty/>")
             else:
-                root = ElementTree.XML("<empty/>")
+                root = self.etree.XML("<empty/>")
 
             if any(k.startswith('$') for k in environment.sources):
                 variables.update(

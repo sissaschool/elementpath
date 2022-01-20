@@ -294,7 +294,8 @@ def parse_datetime_picture(picture):
         elif ']' in lit.replace(']]', ''):
             raise xpath_error('FOFD1340', "Invalid character ']' in picture literal")
 
-    markers = [x.group().replace(' ', '') for x in PICTURE_PATTERN.finditer(picture)]
+    markers = [x.group().replace(' ', '').replace('\n', '').replace('\t', '')
+               for x in PICTURE_PATTERN.finditer(picture)]
     assert len(markers) == (len(literals) - 1)
 
     msg_tmpl = 'Invalid formatting component {!r}'
@@ -331,6 +332,14 @@ def parse_datetime_picture(picture):
         elif DECIMAL_DIGIT_PATTERN.match(presentation) is None:
             raise xpath_error('FOFD1340', msg_tmpl.format(value))
         else:
+            if value[1] == 'f':
+                if presentation[0] == '#' and any(ch.isdigit() for ch in presentation):
+                    msg = 'picture argument has an invalid primary format token'
+                    raise xpath_error('FOFD1340', msg)
+            elif presentation[0].isdigit() and '#' in presentation:
+                msg = 'picture argument has an invalid primary format token'
+                raise xpath_error('FOFD1340', msg)
+
             # Check digits set uniformity
             cp = None
             for ch in reversed(presentation):
@@ -379,7 +388,7 @@ def parse_datetime_marker(marker, dt, lang=None):
 
     zero_cp = 0
     if component == 'Y':
-        value = str(dt.year)
+        value = str(abs(dt.year))
     elif component == 'M':
         if presentation.lower().startswith('n') and lang is not None:
             value = int_to_month(dt.month, lang)
@@ -404,14 +413,7 @@ def parse_datetime_marker(marker, dt, lang=None):
         value = str(dt.second)
     elif component == 'f':
         value = str('{:06}'.format(dt.microsecond))
-    elif component == 'z':
-        value = str(dt.tzinfo or '+00:00')
-        fmt_chunk = 'GMT'
-        min_width += 3
-        max_width += 3
-        if value == 'Z':
-            value = '+00:00'
-    elif component == 'Z':
+    elif component == 'z' or component == 'Z':
         value = str(dt.tzinfo or '+00:00')
         if value == 'Z':
             value = '+00:00'
@@ -431,10 +433,19 @@ def parse_datetime_marker(marker, dt, lang=None):
             value = int_to_weekday(dt.isocalendar().weekday, lang)
         else:
             value = str(dt.isocalendar().weekday)
+    elif component == 'E':
+        if dt.year < 0:
+            value = 'BC'
+        else:
+            value = 'AD'
+    elif component == 'd':
+        delta = dt - type(dt)(dt.year, 1, 1)
+        value = str(1 + delta.seconds // 86400)
     else:
-        print(f"MISSING: {component!r}")
-        # breakpoint()
+        msg_tmpl = 'Invalid formatting component {!r}'
+        raise xpath_error('FOFD1340', msg_tmpl.format(component))
 
+    is_number = False
     if presentation == 'n':
         fmt_chunk = value.lower()
     elif presentation == 'N':
@@ -452,6 +463,7 @@ def parse_datetime_marker(marker, dt, lang=None):
     elif presentation.startswith('W'):
         fmt_chunk = int_to_words(int(value), lang, presentation[1:]).upper()
     else:
+        is_number = True
         k = 0
         pch = None
         fmt_chunk = []
@@ -523,6 +535,9 @@ def parse_datetime_marker(marker, dt, lang=None):
             nz_last = 0
 
         fmt_chunk = fmt_chunk[:max(min_width, nz_last + 1)]
+
+    if component == 'z':
+        return 'GMT' + fmt_chunk
     return fmt_chunk
 
 
