@@ -83,7 +83,7 @@ class ElementPathLocaleError(ElementPathError, locale.Error):
 
 
 XPATH_ERROR_CODES = {
-    # XPath 2.0 parser error (https://www.w3.org/TR/xpath20/#id-errors)
+    # XPath 2.0 parser errors (https://www.w3.org/TR/xpath20/#id-errors)
     'XPST0001': (ElementPathValueError, 'Parser not bound to a schema'),
     'XPST0003': (ElementPathSyntaxError, 'Invalid XPath expression'),
     'XPDY0002': (MissingContextError, 'Dynamic context required for evaluate'),
@@ -102,7 +102,7 @@ XPATH_ERROR_CODES = {
                  'Target type cannot be xs:NOTATION or xs:anyAtomicType'),
     'XPST0081': (ElementPathNameError, 'Unknown namespace'),
 
-    # XPath data types and function errors
+    # Data types and functions errors
     'FOER0000': (ElementPathError, 'Unidentified error'),
     'FOAR0001': (ElementPathZeroDivisionError, 'Division by zero'),
     'FOAR0002': (ElementPathOverflowError, 'Numeric operation overflow/underflow'),
@@ -145,7 +145,11 @@ XPATH_ERROR_CODES = {
     'FORX0004': (ElementPathValueError, 'Invalid replacement string'),
     'FOTY0012': (ElementPathValueError, 'Argument node does not have a typed value'),
 
-    # XPath 3.0 errors
+    # XPath 3.0+ errors
+    'XQST0039': (ElementPathTypeError, 'Duplicate parameter name in inline function expression'),
+    'XQST0046': (ElementPathTypeError, 'The namespace part of the EQName is not a valid URI'),
+    'XQST0052': (ElementPathNameError, 'The name of an in-scope simple schema type required'),
+    'XQST0070': (ElementPathNameError, 'Illegal use of a predefined namespace'),
     'FOTY0013': (ElementPathTypeError, 'The argument to fn:data() contains a function item'),
     'FOTY0014': (ElementPathTypeError, 'The argument to fn:string() is a function item'),
     'FOTY0015': (ElementPathTypeError,

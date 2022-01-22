@@ -41,7 +41,7 @@ def nud_as_and_of_symbols(self):
 # Variables
 @method('$', bp=90)
 def nud_variable_reference(self):
-    self.parser.expected_name('(name)')
+    self.parser.expected_name('(name)', 'Q{')
     self[:] = self.parser.expression(rbp=90),
     return self
 

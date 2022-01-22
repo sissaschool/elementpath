@@ -578,7 +578,8 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(self.label, MultiLabel):
                 self.label = 'math function'
         else:
-            raise self.wrong_syntax("a name, a wildcard or a function expected")
+            msg = "a name, a wildcard or a function expected"
+            raise self.wrong_syntax(msg, code='XPST0017')
 
         self.namespace = namespace
 

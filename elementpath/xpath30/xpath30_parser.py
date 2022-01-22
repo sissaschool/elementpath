@@ -77,6 +77,7 @@ class XPath30Parser(XPath2Parser):
     DEFAULT_NAMESPACES = {
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
+    PATH_STEP_SYMBOLS = XPath2Parser.PATH_STEP_SYMBOLS | {'Q{'}
 
     decimal_formats: DecimalFormatsType = {
         None: {

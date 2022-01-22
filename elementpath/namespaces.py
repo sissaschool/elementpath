@@ -21,6 +21,7 @@ EXPANDED_NAME_PATTERN = re.compile(
 
 # Namespaces
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
+XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/"  # Used in DOM for xmlns declarations
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"

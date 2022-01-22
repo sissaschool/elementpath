@@ -76,6 +76,10 @@ def nud_anonymous_function(self):
         while self.parser.next_token.symbol != ')':
             self.parser.next_token.expected('$')
             param = self.parser.expression(5)
+            name = param[0].value
+            if any(name == tk[0].value for tk in self):
+                raise self.error('XQST0039')
+
             self.append(param)
             if self.parser.next_token.symbol == 'as':
                 self.parser.advance('as')

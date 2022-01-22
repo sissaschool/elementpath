@@ -39,7 +39,8 @@ def nud_optional_symbol(self):
 
 ###
 # Braced/expanded QName(s)
-XPath30Parser.duplicate('{', 'Q{')
+
+XPath30Parser.duplicate('{', 'Q{', pattern=r'Q\{')
 XPath30Parser.unregister('{')
 XPath30Parser.unregister('}')
 register('{')

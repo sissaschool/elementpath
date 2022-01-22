@@ -541,7 +541,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                     break
                 elif unknown is not None:
                     self.next_token = self.symbol_table['(unknown)'](self, unknown)
-                    raise self.next_token.wrong_syntax()
+                    break
                 elif str(self.next_match.group()).strip():
                     msg = "unexpected matching %r: incompatible tokenizer"
                     raise RuntimeError(msg % self.next_match.group())

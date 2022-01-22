@@ -89,6 +89,20 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
                     os.environ[v] = self.current_env_vars[v]
 
     def test_braced_uri_literal(self):
+        expected_lexemes = ['Q{', 'http', ':', '//', 'xpath.test', '/', 'ns', '}', 'ABC']
+        self.check_tokenizer("Q{http://xpath.test/ns}ABC", expected_lexemes)
+        self.check_tokenizer("/Q{http://xpath.test/ns}ABC", ['/'] + expected_lexemes)
+
+        self.check_tokenizer("Q{###}ABC", ['Q{', '#', '#', '#', '}', 'ABC'])
+
+        token = self.parser.parse('/Q{http://xpath.test/ns}ABC')
+        self.assertEqual(token.symbol, '/')
+        self.assertEqual(token[0].symbol, 'Q{')
+
+        token = self.parser.parse('/Q{###}ABC')
+        self.assertEqual(token.symbol, '/')
+        self.assertEqual(token[0].symbol, 'Q{')
+
         token = self.parser.parse('Q{http://www.w3.org/2005/xpath-functions/math}pi()')
         self.assertEqual(token.evaluate(), math.pi)
 
