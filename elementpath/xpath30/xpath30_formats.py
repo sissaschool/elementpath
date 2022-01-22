@@ -25,23 +25,6 @@ WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
 MODIFIER_PATTERN = re.compile(r'^([co](\(.+\))?)?[at]?$')
 
 
-DECIMAL_FORMATS = {
-    None: {
-        'decimal-separator': '.',
-        'grouping-separator': ',',
-        'exponent-separator': 'e',
-        'infinity': 'Infinity',
-        'minus-sign': '-',
-        'NaN': 'NaN',
-        'percent': '%',
-        'per-mille': '‰',
-        'zero-digit': '0',
-        'digit': '#',
-        'pattern-separator': ';',
-    }
-}
-
-
 def int_to_roman(num):
     """
     Convert an integer to Roman ordinal.

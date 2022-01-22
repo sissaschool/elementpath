@@ -14,10 +14,14 @@ Refs:
   - https://www.w3.org/TR/2014/REC-xpath-30-20140408/
   - https://www.w3.org/TR/xpath-functions-30/
 """
+from copy import deepcopy
 from typing import Any, Dict, Optional
 
 from ..namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
 from ..xpath2 import XPath2Parser
+
+
+DecimalFormatsType = Dict[Optional[str], Dict[str, str]]
 
 
 class XPath30Parser(XPath2Parser):
@@ -74,6 +78,22 @@ class XPath30Parser(XPath2Parser):
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
 
+    decimal_formats: DecimalFormatsType = {
+        None: {
+            'decimal-separator': '.',
+            'grouping-separator': ',',
+            'exponent-separator': 'e',
+            'infinity': 'Infinity',
+            'minus-sign': '-',
+            'NaN': 'NaN',
+            'percent': '%',
+            'per-mille': '‰',
+            'zero-digit': '0',
+            'digit': '#',
+            'pattern-separator': ';',
+        }
+    }
+
     # https://www.w3.org/TR/xpath-30/#id-reserved-fn-names
     RESERVED_FUNCTION_NAMES = {
         'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
@@ -83,11 +103,20 @@ class XPath30Parser(XPath2Parser):
 
     function_signatures = XPath2Parser.function_signatures.copy()
 
-    def __init__(self, *args: Any, decimal_formats: Optional[Dict[str, Any]] = None,
+    def __init__(self, *args: Any, decimal_formats: Optional[DecimalFormatsType] = None,
                  **kwargs: Any) -> None:
         kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
-        self.decimal_formats = decimal_formats if decimal_formats is not None else {}
 
+        if decimal_formats is not None:
+            self.decimal_formats = deepcopy(self.decimal_formats)
+
+            for k, v in decimal_formats.items():
+                if k is not None:
+                    self.decimal_formats[k] = self.decimal_formats[None].copy()
+                    self.decimal_formats[k].update(v)
+
+            if None in decimal_formats:
+                self.decimal_formats[None].update(decimal_formats[None])
 
 # XPath 3.0 definitions continue into module xpath3_operators

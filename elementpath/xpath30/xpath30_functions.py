@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 
 from ..exceptions import ElementPathError
 from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
-from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, \
+from ..namespaces import get_expanded_name, XPATH_FUNCTIONS_NAMESPACE, \
     XSLT_XQUERY_SERIALIZATION_NAMESPACE, split_expanded_name
 from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
     is_document_node, is_etree_element, is_schema_node, node_document_uri, \
@@ -36,7 +36,7 @@ from ..regex import translate_pattern, RegexError
 
 from .xpath30_operators import XPath30Parser
 from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
-    MODIFIER_PATTERN, DECIMAL_FORMATS, int_to_roman, int_to_alphabetic, format_digits, \
+    MODIFIER_PATTERN, int_to_roman, int_to_alphabetic, format_digits, \
     int_to_words, parse_datetime_picture, parse_datetime_marker, ordinal_suffix
 
 # XSLT and XQuery Serialization parameters
@@ -375,18 +375,36 @@ def evaluate_format_number_function(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
     picture = self.get_argument(context, index=1, required=True, cls=str)
     decimal_format_name = self.get_argument(context, index=2, cls=str)
+
+    # Check and adapt decimal format name
+    if decimal_format_name is not None:
+        decimal_format_name = decimal_format_name.strip()
+        if decimal_format_name.startswith('Q{'):
+            if decimal_format_name.startswith('Q{}'):
+                decimal_format_name = decimal_format_name[3:]
+            else:
+                decimal_format_name = decimal_format_name[1:]
+        elif ':' in decimal_format_name:
+            try:
+                decimal_format_name = get_expanded_name(
+                    qname=decimal_format_name,
+                    namespaces=self.parser.namespaces
+                )
+            except (KeyError, ValueError):
+                raise self.error('FODF1280') from None
+
     if value is None:
         return ''
 
     try:
-        decimal_format = DECIMAL_FORMATS[decimal_format_name]
+        decimal_format = self.parser.decimal_formats[decimal_format_name]
     except KeyError:
-        decimal_format = DECIMAL_FORMATS[None]
+        decimal_format = self.parser.decimal_formats[None]
 
     pattern_separator = decimal_format['pattern-separator']
     sub_pictures = picture.split(pattern_separator)
     if len(sub_pictures) > 2:
-        breakpoint()
+        raise self.error('FODF1310')
 
     decimal_separator = decimal_format['decimal-separator']
     if any(p.count(decimal_separator) > 1 for p in sub_pictures):
@@ -397,15 +415,18 @@ def evaluate_format_number_function(self, context=None):
     if any(p.count(percent_sign) + p.count(per_mille_sign) > 1 for p in sub_pictures):
         raise self.error('FODF1310')
 
-    mandatory_digit = decimal_format['zero-digit']
+    zero_digit = decimal_format['zero-digit']
     optional_digit = decimal_format['digit']
-    digits_family = ''.join(chr(cp + ord(mandatory_digit)) for cp in range(10))
+    digits_family = ''.join(chr(cp + ord(zero_digit)) for cp in range(10))
     if any(optional_digit not in p and all(x not in p for x in digits_family) for p in sub_pictures):
         raise self.error('FODF1310')
 
     grouping_separator = decimal_format['grouping-separator']
     adjacent_pattern = re.compile(r'[\\%s\\%s]{2}' % (grouping_separator, decimal_separator))
     if any(adjacent_pattern.search(p) for p in sub_pictures):
+        raise self.error('FODF1310')
+
+    if any(x.endswith(grouping_separator) for s in sub_pictures for x in s.split(decimal_separator)):
         raise self.error('FODF1310')
 
     if math.isnan(value):
@@ -416,40 +437,94 @@ def evaluate_format_number_function(self, context=None):
     elif not isinstance(value, decimal.Decimal):
         value = decimal.Decimal(value)
 
+    prefix = ''
     if value >= 0:
         fmt_tokens = sub_pictures[0].split(decimal_separator)
-        prefix = ''
-        chunks = str(value).split(decimal_separator)
     else:
         fmt_tokens = sub_pictures[-1].split(decimal_separator)
         if len(sub_pictures) == 1:
             prefix = decimal_format['minus-sign']
-        else:
-            prefix = ''
-        chunks = str(abs(value)).split(decimal_separator)
+
+    for k, ch in enumerate(fmt_tokens[0]):
+        if ch.isdigit() or ch == '#':
+            prefix += fmt_tokens[0][:k]
+            fmt_tokens[0] = fmt_tokens[0][k:]
+            break
+    else:
+        prefix += fmt_tokens[0]
+        fmt_tokens[0] = ''
 
     if not fmt_tokens[-1]:
         suffix = ''
-    elif fmt_tokens[-1][-1] == percent_sign or fmt_tokens[-1][-1] == per_mille_sign:
+    elif fmt_tokens[-1][-1] == percent_sign:
         suffix = fmt_tokens[-1][-1]
         fmt_tokens[-1] = fmt_tokens[-1][:-1]
+        value *= 100
+    elif fmt_tokens[-1][-1] == per_mille_sign:
+        suffix = fmt_tokens[-1][-1]
+        fmt_tokens[-1] = fmt_tokens[-1][:-1]
+        value *= 1000
     else:
-        suffix = ''
+        for k, ch in enumerate(reversed(fmt_tokens[-1])):
+            if ch.isdigit() or ch == '#':
+                idx = len(fmt_tokens[-1]) - k
+                suffix = fmt_tokens[-1][idx:]
+                fmt_tokens[-1] = fmt_tokens[-1][:idx]
+                break
+        else:
+            suffix = fmt_tokens[-1]
+            fmt_tokens[-1] = ''
 
-    if math.isnan(value) or abs(value) > 10 ** 28:
+    if math.isinf(value) or abs(value) > 10 ** 28:
         return prefix + decimal_format['infinity'] + suffix
 
+    # round the value by fractional part
+    if len(fmt_tokens) == 1 or not fmt_tokens[-1]:
+        exp = decimal.Decimal('1')
+    else:
+        k = -1
+        for ch in fmt_tokens[-1]:
+            if ch.isdigit():
+                k += 1
+        exp = decimal.Decimal('.' + '0' * k + '1')
+
+    if value > 0:
+        value = value.quantize(exp, rounding='ROUND_HALF_UP')
+    else:
+        value = value.quantize(exp, rounding='ROUND_HALF_DOWN')
+
+    chunks = str(abs(value)).split(decimal_separator)
+
+    if chunks[0].startswith('-'):
+        sign = '-'
+        chunks[0] = chunks[0][1:]
+    else:
+        sign = ''
+
     result = format_digits(chunks[0], fmt_tokens[0], digits_family)
-    if len(fmt_tokens) > 1:
+    if len(fmt_tokens) > 1 and fmt_tokens[-1]:
+        has_optional_digit = False
+        for ch in fmt_tokens[-1]:
+            if ch == optional_digit:
+                has_optional_digit = True
+            elif ch.isdigit() and has_optional_digit:
+                raise self.error('FODF1310')
+
         if len(chunks) == 1:
             chunks.append('0')
-        result += '.' + format_digits(chunks[1], fmt_tokens[1], digits_family)
+
+        decimal_part = format_digits(chunks[1], fmt_tokens[-1], digits_family)
+        if any(x != zero_digit for x in decimal_part):
+            for k, ch in enumerate(reversed(fmt_tokens[-1])):
+                if ch != optional_digit or decimal_part[-k]:
+                    decimal_part = decimal_part.rstrip(zero_digit)
+        result += decimal_separator + decimal_part
 
     result = result.lstrip(',')
     if decimal_separator in result:
         result = result.lstrip('0')
             
-    return prefix + result + suffix
+    return sign + prefix + result + suffix
 
 
 @method(function('format-dateTime', nargs=(2, 5),

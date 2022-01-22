@@ -35,6 +35,7 @@ import elementpath
 import xmlschema
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
+from elementpath.namespaces import get_expanded_name
 from elementpath.xpath_token import XPathFunction
 from elementpath.datatypes import AnyAtomicType
 from elementpath.xpath31 import XPath31Parser
@@ -111,6 +112,8 @@ LXML_ONLY = {
     'prod-AxisStep__Axes079-4',
 
     # in-scope namespaces required
+    'prod-AxisStep__Axes120',
+    'prod-AxisStep__Axes126',
     'fn-resolve-QName__fn-resolve-qname-26',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-21',
     'fn-in-scope-prefixes__fn-in-scope-prefixes-22',
@@ -126,6 +129,8 @@ LXML_ONLY = {
     'fn-outermost__fn-outermost-018',
     'fn-outermost__fn-outermost-019',
     'fn-outermost__fn-outermost-021',
+    'fn-local-name__fn-local-name-79',
+    'fn-name__fn-name-29',
 }
 
 xpath_parser = XPath2Parser
@@ -296,6 +301,7 @@ class Environment(object):
     collection = None
     schema = None
     static_base_uri = None
+    decimal_formats = None
 
     def __init__(self, elem, use_lxml=False):
         assert elem.tag == '{%s}environment' % QT3_NAMESPACE
@@ -304,6 +310,13 @@ class Environment(object):
             namespace.attrib['prefix']: namespace.attrib['uri']
             for namespace in elem.iterfind('namespace', namespaces)
         }
+
+        child = elem.find('decimal-format', namespaces)
+        if child is not None:
+            name = child.get('name')
+            if name is not None and use_lxml:
+                name = get_expanded_name(name, child.nsmap)
+            self.decimal_formats = {name: child.attrib}
 
         child = elem.find('collection', namespaces)
         if child is not None:
@@ -363,13 +376,15 @@ class TestSet(object):
         self.specs = []
         self.features = []
         self.xsd_version = None
+        self.use_lxml = use_lxml
+        self.etree = lxml.etree if use_lxml else ElementTree
 
         full_path = os.path.abspath(self.file)
         directory = os.path.dirname(full_path)
         filename = os.path.basename(full_path)
 
         with working_directory(directory):
-            xml_root = ElementTree.parse(filename).getroot()
+            xml_root = self.etree.parse(filename).getroot()
 
             self.description = xml_root.find('description', namespaces).text
 
@@ -420,12 +435,8 @@ class TestCase(object):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
         self.xsd_version = test_set.xsd_version
-
         self.use_lxml = use_lxml
-        if use_lxml:
-            self.etree = lxml.etree
-        else:
-            self.etree = ElementTree
+        self.etree = lxml.etree if use_lxml else ElementTree
 
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
@@ -549,12 +560,16 @@ class TestCase(object):
         elif static_base_uri.startswith(INVALID_BASE_URL):
             static_base_uri = static_base_uri.replace(INVALID_BASE_URL, effective_base_url)
 
-        parser = xpath_parser(
+        kwargs = dict(
             namespaces=test_namespaces,
             xsd_version=self.xsd_version,
             schema=schema_proxy,
             base_uri=static_base_uri,
         )
+        if environment is not None and xpath_parser.version >= '3.0':
+            kwargs['decimal_formats'] = environment.decimal_formats
+
+        parser = xpath_parser(**kwargs)
 
         if self.test is not None:
             xpath_expression = self.test.replace(INVALID_BASE_URL, effective_base_url)
@@ -665,6 +680,8 @@ class Result(object):
     def __init__(self, elem, test_case, use_lxml=False):
         self.test_case = test_case
         self.use_lxml = use_lxml
+        self.etree = lxml.etree if use_lxml else ElementTree
+
         self.type = elem.tag.split('}')[1]
         self.value = elem.text
         self.attrib = {k: v for k, v in elem.attrib.items()}
@@ -762,7 +779,7 @@ class Result(object):
 
         parser = xpath_parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(self.value)
-        context = XPathContext(root=ElementTree.XML("<empty/>"))
+        context = XPathContext(root=self.etree.XML("<empty/>"))
         expected_result = root_node.evaluate(context)
 
         try:
@@ -812,7 +829,7 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
-        context = XPathContext(ElementTree.XML("<empty/>"), variables={'result': result})
+        context = XPathContext(self.etree.XML("<empty/>"), variables={'result': result})
         if isinstance(result, list):
             value = self.string_join_token.evaluate(context)
         else:
@@ -927,7 +944,7 @@ class Result(object):
         variables = {'result': result}
         parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(self.value)
-        context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
+        context = XPathContext(root=self.etree.XML("<empty/>"), variables=variables)
         if root_node.boolean_value(root_node.evaluate(context)) is True:
             return True
 
@@ -949,7 +966,7 @@ class Result(object):
 
         parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
         root_node = parser.parse(expression)
-        context = XPathContext(root=ElementTree.XML("<empty/>"), variables=variables)
+        context = XPathContext(root=self.etree.XML("<empty/>"), variables=variables)
         if root_node.evaluate(context) is True:
             return True
 
@@ -1156,6 +1173,7 @@ def main():
 
     catalog_file = os.path.abspath(args.catalog)
     pattern = re.compile(args.pattern, flags=re.IGNORECASE if args.ignore_case else 0)
+    etree = lxml.etree if args.use_lxml else ElementTree
 
     if not os.path.isfile(catalog_file):
         print("Error: catalog file %s does not exist" % args.catalog)
@@ -1171,7 +1189,7 @@ def main():
         ignore_specs.add('XP20')
 
     with working_directory(dirpath=os.path.dirname(catalog_file)):
-        catalog_xml = ElementTree.parse(catalog_file)
+        catalog_xml = etree.parse(catalog_file)
 
         global effective_base_url
         effective_base_url = 'file://{}/fn/unparsed-text/'.format(os.getcwd())
