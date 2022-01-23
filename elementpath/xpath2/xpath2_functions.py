@@ -1498,6 +1498,8 @@ def evaluate_error_function(self, context=None):
         raise self.error('FOER0000')
     elif len(self) == 1:
         error = self.get_argument(context, cls=QName)
+        if error is None:
+            raise self.error('XPTY0004', "an xs:QName expected")
         raise self.error(error or 'FOER0000')
     else:
         error = self.get_argument(context, cls=QName)

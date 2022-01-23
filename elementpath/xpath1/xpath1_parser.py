@@ -22,7 +22,7 @@ from ..protocols import XsdTypeProtocol
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES, AtomicValueType
 from ..tdop import Parser
-from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
+from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, \
     split_expanded_name
@@ -238,7 +238,9 @@ class XPath1Parser(ParserType):
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         """Checks an instance against an XSD type."""
         if get_namespace(type_qname) == XSD_NAMESPACE:
-            if type_qname == XSD_UNTYPED_ATOMIC:
+            if type_qname == XSD_ERROR:
+                return obj is None or obj == []
+            elif type_qname == XSD_UNTYPED_ATOMIC:
                 return isinstance(obj, UntypedAtomic)
             elif type_qname == XSD_ANY_ATOMIC_TYPE:
                 return isinstance(obj, AnyAtomicType)
@@ -408,12 +410,7 @@ class XPath1Parser(ParserType):
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
         elif sequence_type.startswith('function('):
-            if not isinstance(value, XPathFunction):
-                return False
-
-            print(sequence_type)
-            print(value.sequence_types)
-            return True
+            return isinstance(value, XPathFunction)
 
         value_kind = node_kind(value)
         if value_kind is None:

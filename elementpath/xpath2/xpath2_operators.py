@@ -324,8 +324,8 @@ def evaluate_treat_expression(self, context=None):
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
-                    msg = "item %r is not of type %r"
-                    raise self.wrong_sequence_type(msg % (item, self[1].source))
+                    msg = f"item {item!r} is not of type {self[1].source!r}"
+                    raise self.error('XPDY0050', msg)
             except KeyError:
                 msg = "atomic type %r not found in in-scope schema types"
                 raise self.error('XPST0051', msg % self[1].source) from None

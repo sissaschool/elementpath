@@ -71,8 +71,8 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
             return value in ('1', 'true'), other
         elif isinstance(other, int):
             return float(self.value), other
-        elif isinstance(other, str):
-            return str(self.value), other
+        elif other is None or isinstance(other, (str, list)):
+            return self.value, other
 
         try:
             return type(other).fromstring(self.value), other

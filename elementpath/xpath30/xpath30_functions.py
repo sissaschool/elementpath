@@ -22,8 +22,9 @@ from urllib.parse import urlsplit
 
 from ..exceptions import ElementPathError
 from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
-from ..namespaces import get_expanded_name, XPATH_FUNCTIONS_NAMESPACE, \
-    XSLT_XQUERY_SERIALIZATION_NAMESPACE, split_expanded_name
+from ..namespaces import get_expanded_name, split_expanded_name, \
+    XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
+    XSD_NAMESPACE
 from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
     is_document_node, is_etree_element, is_schema_node, node_document_uri, \
     node_nilled, node_name, TypedElement, TextNode, AttributeNode, \
@@ -1533,7 +1534,7 @@ def evaluate_round_function(self, context=None):
 # XSD list-based constructors
 
 @XPath30Parser.constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
-def cast_string_based_types(self, value):
+def cast_nmtokens_list_type(self, value):
     cast_func = xsd10_atomic_types['NMTOKEN']
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
@@ -1543,11 +1544,11 @@ def cast_string_based_types(self, value):
     try:
         return [cast_func(x) for x in values]
     except ValueError as err:
-        raise self.error('FORG0001', err)
+        raise self.error('FORG0001', err) from None
 
 
 @XPath30Parser.constructor('IDREFS', sequence_types=('xs:IDREF*',))
-def cast_string_based_types(self, value):
+def cast_idrefs_list_type(self, value):
     cast_func = xsd10_atomic_types['IDREF']
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
@@ -1557,11 +1558,11 @@ def cast_string_based_types(self, value):
     try:
         return [cast_func(x) for x in values]
     except ValueError as err:
-        raise self.error('FORG0001', err)
+        raise self.error('FORG0001', err) from None
 
 
 @XPath30Parser.constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
-def cast_string_based_types(self, value):
+def cast_entities_list_type(self, value):
     cast_func = xsd10_atomic_types['ENTITY']
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
@@ -1571,5 +1572,64 @@ def cast_string_based_types(self, value):
     try:
         return [cast_func(x) for x in values]
     except ValueError as err:
-        raise self.error('FORG0001', err)
+        raise self.error('FORG0001', err) from None
 
+
+###
+# In XPath 3.0+ the 'error' keyword has to be used both for fn:error() and xs:error()
+XPath30Parser.unregister('error')
+
+
+# TODO: apply sequence_types=('xs:anyAtomicType?', 'xs:error?') for xs:error
+@XPath30Parser.constructor('error', bp=90, label=('function', 'constructor function'),
+                           nargs=(0, 3),
+                           sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
+def cast_error_type(self, value):
+    if value is None or value == []:
+        return []
+    msg = f"Cast {value!r} to xs:error is not possible"
+    raise self.error('FORG0001', msg)
+
+
+@method('error')
+def nud_error_type_and_function(self):
+    self.clear()
+    try:
+        self.parser.advance('(')
+        if self.namespace == XSD_NAMESPACE:
+            self.label = 'constructor function'
+            self.nargs = 1
+            if self.parser.xsd_version == '1.0':
+                raise self.error('XPST0051', 'xs:error is not defined with XSD 1.0')
+            self.append(self.parser.expression(5))
+        else:
+            self.label = 'function'
+            for k in range(3):
+                if self.parser.next_token.symbol == ')':
+                    break
+                self.append(self.parser.expression(5))
+                if self.parser.next_token.symbol == ')':
+                    break
+                self.parser.advance(',')
+        self.parser.advance(')')
+    except SyntaxError:
+        raise self.error('XPST0017') from None
+    self.value = None
+    return self
+
+
+@method('error')
+def evaluate_error_type_and_function(self, context=None):
+    if self.label == 'constructor function':
+        return self.cast(self.get_argument(context))
+    elif not self:
+        raise self.error('FOER0000')
+    elif len(self) == 1:
+        error = self.get_argument(context, cls=QName)
+        if error is None and self.parser.version == '3.0':
+            raise self.error('XPTY0004', "an xs:QName expected")
+        raise self.error(error or 'FOER0000')
+    else:
+        error = self.get_argument(context, cls=QName)
+        description = self.get_argument(context, index=1, cls=str)
+        raise self.error(error or 'FOER0000', description)

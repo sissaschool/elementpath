@@ -59,6 +59,7 @@ XSD_IDREFS = '{%s}IDREFS' % XSD_NAMESPACE
 # XPath type labels defined in XSD namespace that are not XSD builtin types
 XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
 XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
+XSD_ERROR = '{%s}error' % XSD_NAMESPACE
 
 
 def get_namespace(name: str) -> str:
