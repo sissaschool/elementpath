@@ -615,11 +615,12 @@ class TestCase(object):
             if environment.collection is not None:
                 uri = environment.collection.uri
                 collection = [source.xml for source in environment.collection.sources]
-                if uri:
+                if uri is not None:
                     kwargs['collections'] = {uri: collection}
 
-                if 'non_empty_sequence_collection' in self.features or not uri:
+                if 'non_empty_sequence_collection' in self.features:
                     kwargs['default_collection'] = collection
+                    kwargs['default_resource_collection'] = uri
 
             if variables:
                 kwargs['variables'] = variables

@@ -164,7 +164,7 @@ def select_let_expression(self, context=None):
     yield from self[-1].select(context)
 
 
-@method('#', bp=50)
+@method('#', bp=90)
 def led_function_reference(self, left):
     left.expected(':', '(name)', 'Q{')
     self[:] = left, self.parser.expression(rbp=90)

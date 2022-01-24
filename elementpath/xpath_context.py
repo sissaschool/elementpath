@@ -61,7 +61,7 @@ class XPathContext:
     :param default_collection: this is the sequence of nodes used when fn:collection \
     is called with no arguments.
     :param resource_collections: available URI collections. This is a mapping of absolute \
-    URI strings to sequences of URIs. Used by the XPath 3.0+ function fn:uri-collection.
+    URI strings to sequence of URIs. Used by the XPath 3.0+ function fn:uri-collection.
     :param default_resource_collection: this is the sequence of URIs used when \
     fn:uri-collection is called with no arguments.
     :param allow_environment: defines if the access to system environment is allowed, \

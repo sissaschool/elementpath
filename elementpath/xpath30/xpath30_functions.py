@@ -918,7 +918,7 @@ def evaluate_uri_collection_function(self, context=None):
     elif not self or uri is None:
         if context.default_resource_collection is None:
             raise self.error('FODC0002', 'no default resource collection has been defined')
-        resource_collection = context.default_resource_collection
+        resource_collection = AnyURI(context.default_resource_collection)
     else:
         uri = self.get_absolute_uri(uri)
         try:
