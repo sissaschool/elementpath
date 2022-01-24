@@ -1042,9 +1042,11 @@ def evaluate_substring_functions(self, context=None):
 def evaluate_years_from_duration_function(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return
+        return None
+    elif item.months >= 0:
+        return item.months // 12
     else:
-        return item.months // 12 if item.months >= 0 else -(abs(item.months) // 12)
+        return -(abs(item.months) // 12)
 
 
 @method(function('months-from-duration', nargs=1,
@@ -1052,9 +1054,11 @@ def evaluate_years_from_duration_function(self, context=None):
 def evaluate_months_from_duration_function(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return
+        return None
+    elif item.months >= 0:
+        return item.months % 12
     else:
-        return item.months % 12 if item.months >= 0 else -(abs(item.months) % 12)
+        return -(abs(item.months) % 12)
 
 
 @method(function('days-from-duration', nargs=1,
@@ -1062,9 +1066,11 @@ def evaluate_months_from_duration_function(self, context=None):
 def evaluate_days_from_duration_function(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return
+        return None
+    elif item.seconds >= 0:
+        return int(item.seconds // 86400)
     else:
-        return item.seconds // 86400 if item.seconds >= 0 else -(abs(item.seconds) // 86400)
+        return - int(abs(item.seconds) // 86400)
 
 
 @method(function('hours-from-duration', nargs=1,
@@ -1072,9 +1078,11 @@ def evaluate_days_from_duration_function(self, context=None):
 def evaluate_hours_from_duration_function(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return
+        return None
+    elif item.seconds >= 0:
+        return int(item.seconds // 3600 % 24)
     else:
-        return item.seconds // 3600 % 24 if item.seconds >= 0 else -(abs(item.seconds) // 3600 % 24)
+        return - int(abs(item.seconds) // 3600 % 24)
 
 
 @method(function('minutes-from-duration', nargs=1,
@@ -1082,19 +1090,23 @@ def evaluate_hours_from_duration_function(self, context=None):
 def evaluate_minutes_from_duration_function(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return
+        return None
+    elif item.seconds >= 0:
+        return int(item.seconds // 60 % 60)
     else:
-        return item.seconds // 60 % 60 if item.seconds >= 0 else -(abs(item.seconds) // 60 % 60)
+        return - int(abs(item.seconds) // 60 % 60)
 
 
 @method(function('seconds-from-duration', nargs=1,
-                 sequence_types=('xs:duration?', 'xs:integer?')))
+                 sequence_types=('xs:duration?', 'xs:decimal?')))
 def evaluate_seconds_from_duration_function(self, context=None):
     item = self.get_argument(context, cls=Duration)
     if item is None:
-        return
+        return None
+    elif item.seconds >= 0:
+        return item.seconds % 60
     else:
-        return item.seconds % 60 if item.seconds >= 0 else -(abs(item.seconds) % 60)
+        return -(abs(item.seconds) % 60)
 
 
 @method(function('year-from-dateTime', nargs=1, sequence_types=('xs:dateTime?', 'xs:integer?')))

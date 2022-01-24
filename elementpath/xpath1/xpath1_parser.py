@@ -28,7 +28,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
-from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name
+from ..xpath_nodes import is_xpath_node, is_document_node, node_nilled, node_kind, node_name
 
 if sys.version_info < (3, 7):
     ParserType = Parser
@@ -425,6 +425,8 @@ class XPath1Parser(ParserType):
             return False
         elif sequence_type == f'{value_kind}()':
             return True
+        elif value_kind == 'document-node':
+            return self.match_sequence_type(value.getroot(), sequence_type[14:-1])
         elif value_kind not in {'element', 'attribute'}:
             return False
 
@@ -444,6 +446,9 @@ class XPath1Parser(ParserType):
                     return False
             except (KeyError, ValueError):
                 return False
+
+        if name == '*':
+            return True
 
         try:
             return node_name(value) == get_expanded_name(name, self.namespaces)
