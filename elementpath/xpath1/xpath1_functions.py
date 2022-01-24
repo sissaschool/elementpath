@@ -19,6 +19,7 @@ from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
 from ..xpath_nodes import XPathNode, TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
+from ..xpath_token import XPathFunction
 
 from .xpath1_operators import XPath1Parser
 
@@ -38,6 +39,15 @@ def select_node_kind_test(self, context=None):
             yield context.root
         elif is_xpath_node(item):
             yield item
+
+
+@method('node')
+def nud_item_sequence_type(self):
+    XPathFunction.nud(self)
+    if self.parser.next_token.symbol in ('*', '+', '?'):
+        self.occurrence = self.parser.next_token.symbol
+        self.parser.advance()
+    return self
 
 
 @method(function('processing-instruction', nargs=(0, 1), bp=79, label='kind test'))

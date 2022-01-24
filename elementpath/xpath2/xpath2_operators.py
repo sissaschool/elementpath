@@ -266,8 +266,8 @@ def evaluate_instance_expression(self, context=None):
 
         for position, context.item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
-            if isinstance(result, list) and not result:
-                return False
+            if result is None or isinstance(result, list) and not result:
+                return occurs in ('*', '?')
             elif position and (occurs is None or occurs == '?'):
                 return False
         else:

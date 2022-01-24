@@ -64,7 +64,7 @@ function = XPath30Parser.function
 # 'inline function' expression or 'function test'
 @method(register('function', bp=90, label=('inline function', 'function test'),
                  bases=(XPathFunction,)))
-def nud_anonymous_function(self):
+def nud_inline_function(self):
     if self.parser.next_token.symbol != '(':
         self.label = 'inline function'
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
@@ -115,13 +115,17 @@ def nud_anonymous_function(self):
 
     else:
         self.label = 'function test'
-        token = self.parser.expression(5)
-        sequence_type = token.source
-        if not self.parser.is_sequence_type(sequence_type):
-            raise token.error('XPST0003', "a sequence type expected")
-        self.sequence_types.append(sequence_type)
+        while True:
+            token = self.parser.expression(5)
+            sequence_type = token.source
+            if not self.parser.is_sequence_type(sequence_type):
+                raise token.error('XPST0003', "a sequence type expected")
+            self.sequence_types.append(sequence_type)
+            self.append(token)
+            if self.parser.next_token.symbol != ',':
+                break
+            self.parser.advance(',')
         self.parser.advance(')')
-        self.append(token)
 
     # Add function return sequence type
     if self.parser.next_token.symbol != 'as':
@@ -145,9 +149,12 @@ def nud_anonymous_function(self):
         self.sequence_types.append(sequence_type)
 
     if self.label == 'inline function':
-        self.parser.advance('{')
-        self.body = self.parser.expression()
-        self.parser.advance('}')
+        if self.parser.next_token.symbol != '{' and not self:
+            self.label = 'function test'
+        else:
+            self.parser.advance('{')
+            self.body = self.parser.expression()
+            self.parser.advance('}')
 
     return self
 
@@ -156,14 +163,18 @@ def nud_anonymous_function(self):
 def evaluate_anonymous_function(self, context=None):
     if context is None:
         raise self.missing_context()
-
-    if self.label == 'function test':
-        if isinstance(context.item, XPathFunction):
-            return context.item
-        else:
-            return None
-    else:
+    elif self.label == 'inline function':
         return self
+
+    # A function test
+    if not isinstance(context.item, XPathFunction):
+        return None
+    elif self.source == 'function(*)':
+        return context.item
+    elif len(context.item) != len(self):
+        return None
+    else:
+        return context.item
 
 
 ###
