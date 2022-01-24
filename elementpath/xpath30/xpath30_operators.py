@@ -96,7 +96,7 @@ def evaluate_parenthesized_expression(self, context=None):
         return value(context)
     else:
         if not isinstance(value, XPathFunction):
-            raise self.error('XPST0017', f'an XPath function expected, not {type(value)!r}')
+            raise self.error('XPTY0004', f'an XPath function expected, not {type(value)!r}')
         return value(context, self[1])
 
 

@@ -395,8 +395,8 @@ class XPath1Parser(ParserType):
         if sequence_type[-1] in {'?', '+', '*'}:
             return self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1])
         elif value is None or isinstance(value, list) and value == []:
-            return sequence_type == 'empty-sequence()' or occurrence in {'?', '*'}
-        elif sequence_type == 'empty-sequence()':
+            return sequence_type in {'empty-sequence()', 'none'} or occurrence in {'?', '*'}
+        elif sequence_type in {'empty-sequence()', 'none'}:
             return False
         elif isinstance(value, list):
             if len(value) == 1:

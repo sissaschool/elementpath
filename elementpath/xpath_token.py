@@ -524,17 +524,17 @@ class XPathToken(Token[XPathTokenType]):
         if not base_uri:
             base_uri = self.parser.base_uri
 
-        url_parts: Union[urllib.parse.ParseResult, urllib.parse.SplitResult]
-        url_parts = urllib.parse.urlparse(uri)
-        if url_parts.scheme or url_parts.netloc \
-                or url_parts.path.startswith('/') \
-                or base_uri is None:
+        uri_parts: urllib.parse.ParseResult = urllib.parse.urlparse(uri)
+        if uri_parts.scheme or uri_parts.netloc or base_uri is None:
             return uri if as_string else AnyURI(uri)
 
-        url_parts = urllib.parse.urlsplit(base_uri)
-        if url_parts.fragment or not url_parts.scheme and \
-                not url_parts.netloc and not url_parts.path.startswith('/'):
+        base_uri_parts: urllib.parse.SplitResult = urllib.parse.urlsplit(base_uri)
+        if base_uri_parts.fragment or not base_uri_parts.scheme and \
+                not base_uri_parts.netloc and not base_uri_parts.path.startswith('/'):
             raise self.error('FORG0002', '{!r} is not suitable as base URI'.format(base_uri))
+
+        if uri_parts.path.startswith('/') and base_uri_parts.path not in {'', '/'}:
+            return uri if as_string else AnyURI(uri)
 
         if as_string:
             return urllib.parse.urljoin(base_uri, uri)
@@ -1264,6 +1264,17 @@ class XPathFunction(XPathToken):
                 else:
                     assert not isinstance(value, Token), "An atomic value or None expected"
                     self.append(ValueToken(self.parser, value=value))
+
+        if isinstance(self.label, MultiLabel):
+            # Disambiguate multi-label tokens
+            if self.namespace == XSD_NAMESPACE and \
+                    'constructor function' in self.label.values:
+                self.label = 'constructor function'
+            else:
+                for label in self.label.values:
+                    if label.endswith('function'):
+                        self.label = label
+                        break
 
         if self.label == 'inline function':
             result = self.body.evaluate(context)

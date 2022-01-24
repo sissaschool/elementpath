@@ -62,7 +62,8 @@ function = XPath30Parser.function
 
 ###
 # 'inline function' expression or 'function test'
-@method(register('function', bp=90, label='anonymous function', bases=(XPathFunction,)))
+@method(register('function', bp=90, label=('inline function', 'function test'),
+                 bases=(XPathFunction,)))
 def nud_anonymous_function(self):
     if self.parser.next_token.symbol != '(':
         self.label = 'inline function'

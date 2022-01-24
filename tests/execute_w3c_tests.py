@@ -863,18 +863,26 @@ class Result(object):
 
     def error_validator(self, verbose=1):
         code = self.attrib.get('code', '*').strip()
+        err_traceback = ''
+
         try:
             self.test_case.run_xpath_test(verbose, with_context=code != 'XPDY0002')
         except ElementPathError as err:
             if code == '*' or code in str(err):
                 return True
+
+            if verbose > 3:
+                err_traceback = ''.join(traceback.format_exception(None, err, err.__traceback__))
             reason = "Unexpected error {!r}: {}".format(type(err), str(err))
+
         except (ParseError, EvaluateError) as err:
             reason = "Not an elementpath error {!r}: {}".format(type(err), str(err))
         else:
             reason = "Error not raised"
 
         self.report_failure(verbose, reason=reason, expected_code=code)
+        if err_traceback:
+            print(err_traceback)
         return False
 
     def assert_true_validator(self, verbose=1):
