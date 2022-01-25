@@ -23,6 +23,7 @@ from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_context import XPathSchemaContext
+from ..xpath_token import XPathFunction
 
 from .xpath2_parser import XPath2Parser
 
@@ -481,7 +482,9 @@ def evaluate_value_comparison_operators(self, context=None):
                 self[1].get_atomized_operand(context=copy(context))]
 
     if any(x is None for x in operands):
-        return
+        return None
+    elif any(isinstance(x, XPathFunction) for x in operands):
+        raise self.error('FOTY0013', "cannot compare a function item")
 
     cls0, cls1 = type(operands[0]), type(operands[1])
     if cls0 is cls1 and cls0 is not Duration:

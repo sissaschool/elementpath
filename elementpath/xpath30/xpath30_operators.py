@@ -93,6 +93,8 @@ def evaluate_parenthesized_expression(self, context=None):
     if len(self) == 1:
         if not isinstance(value, XPathFunction):
             return value
+        elif value.arity != len(value):
+            return value
         return value(context)
     else:
         if not isinstance(value, XPathFunction):
@@ -157,10 +159,11 @@ def select_let_expression(self, context=None):
         raise self.missing_context()
 
     context = copy(context)
-    varnames = [self[k][0].value for k in range(0, len(self) - 1, 2)]
-    values = [self[k].evaluate(copy(context)) for k in range(1, len(self) - 1, 2)]
+    for k in range(0, len(self) - 1, 2):
+        varname = self[k][0].value
+        value = self[k+1].evaluate(context)
+        context.variables[varname] = value
 
-    context.variables.update(x for x in zip(varnames, values))
     yield from self[-1].select(context)
 
 
