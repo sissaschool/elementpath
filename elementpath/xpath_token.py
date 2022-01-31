@@ -1181,6 +1181,9 @@ class XPathFunction(XPathToken):
     partial_evaluate = False
     "Evaluation method of a Denotes a partial unnamed function."
 
+    variables = None
+    "Optional variables linked by let and for expressions."
+
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:
@@ -1230,6 +1233,9 @@ class XPathFunction(XPathToken):
             raise self.error('XPTY0004', "too many arguments")
 
         context = copy(context)
+        if self.variables is not None:
+            context.variables.update(self.variables)
+
         if self.symbol == 'function':
             if context is None:
                 raise self.missing_context()
@@ -1249,7 +1255,7 @@ class XPathFunction(XPathToken):
                     raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
                 context.variables[varname] = value
 
-        elif any(tk.symbol == '?' for tk in self._items):
+        elif self.label == 'partial function':
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
                 if isinstance(value, XPathToken):
                     tk.value = value.evaluate(context)
@@ -1292,9 +1298,12 @@ class XPathFunction(XPathToken):
     @property
     def source(self) -> str:
         if self.label == 'function test':
-            return 'function(%s) as %s' % (
-                ', '.join(self.sequence_types[:-1]), self.sequence_types[-1]
-            )
+            if len(self.sequence_types) == 1 and self.sequence_types[0] == '*':
+                return 'function(*)'
+            else:
+                return 'function(%s) as %s' % (
+                    ', '.join(self.sequence_types[:-1]), self.sequence_types[-1]
+                )
         elif self.label in ('sequence type', 'kind test', ''):
             return '%s(%s)%s' % (
                 self.symbol, ', '.join(item.source for item in self), self.occurrence or ''
@@ -1329,8 +1338,6 @@ class XPathFunction(XPathToken):
     def arity(self) -> int:
         if isinstance(self.nargs, int):
             return self.nargs
-        elif any(tk.symbol == '?' for tk in self._items):
-            return len([tk for tk in self._items if tk.symbol == '?'])
         return len(self._items)
 
     def nud(self) -> 'XPathFunction':
@@ -1410,6 +1417,7 @@ class XPathFunction(XPathToken):
         self.select = select
         self._name = None
         self.label = 'partial function'
+        self.nargs = len([tk for tk in self._items if tk.symbol == '?'])
 
     def _partial_evaluate(self, context: Optional[XPathContext] = None) -> Any:
         return [x for x in self._partial_select(context)]

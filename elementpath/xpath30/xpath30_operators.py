@@ -95,6 +95,8 @@ def evaluate_parenthesized_expression(self, context=None):
             return value
         elif value.arity != len(value):
             return value
+        elif value.variables:
+            return value
         return value(context)
     else:
         if not isinstance(value, XPathFunction):

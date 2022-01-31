@@ -56,6 +56,11 @@ XSD_ID = '{%s}ID' % XSD_NAMESPACE
 XSD_IDREF = '{%s}IDREF' % XSD_NAMESPACE
 XSD_IDREFS = '{%s}IDREFS' % XSD_NAMESPACE
 
+XSD_STRING = '{%s}string' % XSD_NAMESPACE
+XSD_FLOAT = '{%s}float' % XSD_NAMESPACE
+XSD_DOUBLE = '{%s}double' % XSD_NAMESPACE
+XSD_DECIMAL = '{%s}decimal' % XSD_NAMESPACE
+
 # XPath type labels defined in XSD namespace that are not XSD builtin types
 XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
 XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE

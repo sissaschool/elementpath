@@ -164,6 +164,7 @@ def evaluate_anonymous_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif self.label == 'inline function':
+        self.variables = context.variables.copy()  # like a closure
         return self
 
     # A function test
@@ -173,6 +174,41 @@ def evaluate_anonymous_function(self, context=None):
         return context.item
     elif len(context.item) != len(self):
         return None
+
+    # compare sequence types
+    for t1, t2 in zip(context.item.sequence_types[:-1], self.sequence_types[:-1]):
+
+        # check occurrences
+        if t1[-1] not in '?+*':
+            if t2[-1] in '?+*':
+                return None
+        elif t1[-1] == '+':
+            t1 = t1[:-1]
+            if t2[-1] in '?*':
+                return None
+            elif t2[-1] == '+':
+                t2 = t2[:-1]
+
+        elif t1[-1] == '*':
+            t1 = t1[:-1]
+            if t2[-1] in '?+':
+                return None
+            elif t2[-1] == '*':
+                t2 = t2[:-1]
+
+        elif t1[-1] == '?':
+            t1 = t1[:-1]
+            if t2[-1] in '+*':
+                return None
+            elif t2[-1] == '?':
+                t2 = t2[:-1]
+
+        if t1 == t2:
+            continue
+        elif t1 == 'item()':
+            continue
+        elif t2 == 'item()':
+            return None
     else:
         return context.item
 

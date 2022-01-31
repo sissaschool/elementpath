@@ -341,6 +341,9 @@ class XPath2Parser(XPath1Parser):
                 self.value = None
             except SyntaxError:
                 raise self.error('XPST0017') from None
+
+            if self[0].symbol == '?':
+                self._partial_function()
             return self
 
         def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
@@ -348,6 +351,8 @@ class XPath2Parser(XPath1Parser):
             arg = self.data_value(self.get_argument(context))
             if arg is None:
                 return []
+            elif arg == '?' and self[0].symbol == '?':
+                raise self.error('XPTY0004', "cannot evaluate a partial function")
 
             try:
                 if isinstance(arg, UntypedAtomic):
