@@ -33,7 +33,7 @@ from .exceptions import ElementPathError, ElementPathValueError, ElementPathName
     ElementPathTypeError, ElementPathSyntaxError, MissingContextError, XPATH_ERROR_CODES
 from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
-    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, \
+    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
@@ -42,7 +42,7 @@ from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime, \
     AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, AtomicValueType, \
-    AnyAtomicType
+    AnyAtomicType, Float10, Float
 from .protocols import ElementProtocol, DocumentProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
 from .schema_proxy import AbstractSchemaProxy
@@ -116,9 +116,9 @@ class XPathToken(Token[XPathTokenType]):
         elif symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
         elif symbol == 'function':
-            return label
+            return str(label)
         elif label.endswith('function') or label in ('axis', 'sequence type', 'kind test'):
-            return '%r %s' % (symbol, label)
+            return '%r %s' % (symbol, str(label))
         return super(XPathToken, self).__str__()
 
     @property
@@ -882,6 +882,36 @@ class XPathToken(Token[XPathTokenType]):
         except ValueError as err:
             raise self.error('FORG0001', str(err))  # str or UntypedAtomic
 
+    def cast_to_primitive_type(self, obj: Any, type_name: str) -> Any:
+        if obj is None or not type_name.startswith('xs:') or type_name.count(':') != 1:
+            return obj
+
+        values = obj if isinstance(obj, list) else [obj]
+        if not values:
+            return obj
+
+        if type_name[-1] in '+*?':
+            type_name = type_name[:-1]
+
+        result = []
+        for v in values:
+            if self.parser.is_instance(v, XSD_DECIMAL):
+                if type_name == 'xs:double':
+                    result.append(float(v))
+                    continue
+                elif type_name == 'xs:float':
+                    if self.parser.xsd_version == '1.0':
+                        result.append(Float10(v))
+                    else:
+                        result.append(Float(v))
+                    continue
+
+            result.append(v)
+
+        if isinstance(obj, list) or len(result) > 1:
+            return result
+        return result[0]
+
     ###
     # XPath data accessors base functions
     def boolean_value(self, obj: Any) -> bool:
@@ -927,6 +957,9 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(obj, AttributeNode) and isinstance(obj.value, str):
                 return UntypedAtomic(obj.value)
             return cast(Optional[AtomicValueType], obj.value)  # a typed node or a NamespaceNode
+
+        elif isinstance(obj, XPathFunction):
+            raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
 
         elif is_schema_node(obj):
             return self.parser.get_atomic_value(obj.type)
@@ -990,6 +1023,9 @@ class XPathToken(Token[XPathTokenType]):
             if 'e' in value:
                 return value.upper()
             return value
+
+        elif isinstance(obj, XPathFunction):
+            raise self.error('FOTY0014', f"{obj.label!r} has no string value")
 
         return str(obj)
 
@@ -1167,7 +1203,8 @@ class XPathFunction(XPathToken):
     A token for processing XPath functions.
     """
     _name: Optional[QName] = None
-    pattern = r'\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
+    pattern = r'(?<!\$)\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*' \
+              r'(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
 
     sequence_types: Tuple[str, ...] = ()
     "Sequence types of arguments and of the return value of the function."
@@ -1250,9 +1287,13 @@ class XPathFunction(XPathToken):
 
             for variable, sequence_type, value in zip(self, self.sequence_types, args):
                 varname = cast(str, variable[0].value)
+
                 if not self.parser.match_sequence_type(value, sequence_type):
-                    msg = "argument {!r}: {} does not match sequence type {}"
-                    raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
+                    value = self.cast_to_primitive_type(value, sequence_type)
+                    if not self.parser.match_sequence_type(value, sequence_type):
+                        msg = "argument {!r}: {} does not match sequence type {}"
+                        raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
+
                 context.variables[varname] = value
 
         elif self.label == 'partial function':
@@ -1290,8 +1331,10 @@ class XPathFunction(XPathToken):
             result = self.evaluate(context)
 
         if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
-            msg = "{!r} does not match sequence type {}"
-            raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
+            result = self.cast_to_primitive_type(result, self.sequence_types[-1])
+            if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
+                msg = "{!r} does not match sequence type {}"
+                raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
 
         return result
 

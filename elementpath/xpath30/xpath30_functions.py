@@ -132,7 +132,7 @@ def nud_inline_function(self):
         self.sequence_types.append('item()*')
     else:
         self.parser.advance('as')
-        if self.parser.next_token.label not in ('kind test', 'sequence type'):
+        if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
             self.parser.expected_name('(name)', ':')
         token = self.parser.expression(rbp=90)
 

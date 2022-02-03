@@ -17,7 +17,7 @@ from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
-    ElementPathValueError, xpath_error
+    ElementPathTypeError, ElementPathValueError, xpath_error
 from ..protocols import XsdTypeProtocol
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES, AtomicValueType
@@ -25,7 +25,7 @@ from ..tdop import Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, \
-    split_expanded_name, XSD_FLOAT, XSD_DOUBLE, XSD_DECIMAL
+    split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name
@@ -416,11 +416,7 @@ class XPath1Parser(ParserType):
         if value_kind is None:
             try:
                 type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
-                if self.is_instance(value, type_expanded_name):
-                    return True
-                elif type_expanded_name in {XSD_FLOAT, XSD_DOUBLE}:
-                    return self.is_instance(value, XSD_DECIMAL)
-                return False
+                return self.is_instance(value, type_expanded_name)
             except (KeyError, ValueError):
                 return False
         elif sequence_type == 'node()':

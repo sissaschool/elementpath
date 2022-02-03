@@ -213,7 +213,7 @@ class Token(MutableSequence[TK]):
         if self.symbol in SPECIAL_SYMBOLS:
             return '%r %s' % (self.value, self.symbol[1:-1])
         else:
-            return '%r %s' % (self.symbol, self.label)
+            return '%r %s' % (self.symbol, str(self.label))
 
     def __repr__(self) -> str:
         symbol, value = self.symbol, self.value

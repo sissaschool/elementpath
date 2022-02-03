@@ -17,7 +17,7 @@ import operator
 from copy import copy
 
 from ..datatypes import AnyURI
-from ..exceptions import ElementPathKeyError
+from ..exceptions import ElementPathKeyError, ElementPathTypeError
 from ..helpers import collapse_white_spaces
 from ..datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy
@@ -433,6 +433,8 @@ def evaluate_comparison_operators(self, context=None):
     op = OPERATORS_MAP[self.symbol]
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
+    except ElementPathTypeError as err:
+        raise
     except TypeError as err:
         raise self.error('XPTY0004', err) from None
     except ValueError as err:

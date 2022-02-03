@@ -637,6 +637,9 @@ def evaluate_deep_equal_function(self, context=None):
         while True:
             value1 = next(seq1, None)
             value2 = next(seq2, None)
+            if isinstance(value1, XPathFunction) or isinstance(value2, XPathFunction):
+                raise self.error('FOTY0015')
+
             if (value1 is None) ^ (value2 is None):
                 return False
             elif value1 is None:

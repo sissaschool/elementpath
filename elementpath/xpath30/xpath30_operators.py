@@ -90,18 +90,15 @@ def evaluate_parenthesized_expression(self, context=None):
     if isinstance(value, list) and len(value) == 1:
         value = value[0]
 
-    if len(self) == 1:
-        if not isinstance(value, XPathFunction):
-            return value
-        elif value.arity != len(value):
-            return value
-        elif value.variables:
-            return value
-        return value(context)
-    else:
+    if len(self) > 1:
         if not isinstance(value, XPathFunction):
             raise self.error('XPTY0004', f'an XPath function expected, not {type(value)!r}')
         return value(context, self[1])
+
+    if not isinstance(value, XPathFunction) or self[0].span[0] > self.span[0]:
+        return value
+    else:
+        return value(context)
 
 
 @method(infix('||', bp=32))
