@@ -47,7 +47,10 @@ def select_namespace_axis(self, context=None):
         raise self.missing_context()
     elif is_element_node(context.item):
         elem = context.item
-        name = self[0].value
+        if self[0].symbol == 'namespace-node':
+            name = '*'
+        else:
+            name = self[0].value
 
         nsmap = getattr(elem, 'nsmap', None)
         if nsmap is None:

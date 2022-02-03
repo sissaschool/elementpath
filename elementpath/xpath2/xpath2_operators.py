@@ -780,7 +780,7 @@ def nud_attribute_kind_test_or_axis(self):
         self.parser.advance('::')
         self.parser.expected_name(
             '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
-            'attribute', 'schema-attribute', 'element', 'schema-element'
+            'attribute', 'schema-attribute', 'element', 'schema-element', 'namespace-node'
         )
         self[:] = self.parser.expression(rbp=90),
     else:

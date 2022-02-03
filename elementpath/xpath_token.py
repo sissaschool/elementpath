@@ -1172,7 +1172,8 @@ class XPathAxis(XPathToken):
         self.parser.expected_name(
             '(name)', '*', 'text', 'node', 'document-node',
             'comment', 'processing-instruction', 'attribute',
-            'schema-attribute', 'element', 'schema-element'
+            'schema-attribute', 'element', 'schema-element',
+            'namespace-node',
         )
         self._items[:] = self.parser.expression(rbp=self.rbp),
         return self
