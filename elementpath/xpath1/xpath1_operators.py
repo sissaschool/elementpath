@@ -729,9 +729,26 @@ def select_descendant_path(self, context=None):
     elif is_document_node(context.root) or context.item is context.root:
         context.item = None
 
+        items = set()
         for _ in context.iter_descendants():
             inner_context = copy(context)
-            yield from self[0].select(inner_context)
+            for result in self[0].select(inner_context):
+                if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
+                    items.add(result)
+                elif result in items:
+                    pass
+                elif isinstance(result, TypedElement):
+                    if result.elem not in items:
+                        items.add(result)
+                elif isinstance(result, TypedAttribute):
+                    if result.attribute not in items:
+                        items.add(result)
+                else:
+                    items.add(result)
+                    if isinstance(context, XPathSchemaContext):
+                        self[0].add_xsd_type(result)
+
+        yield from context.iter_results(items)
 
 
 ###

@@ -226,7 +226,7 @@ class XPath1Parser(ParserType):
         """
         if self.next_token.symbol in symbols:
             return
-        elif self.next_token.label in ('operator', 'symbol') and \
+        elif self.next_token.label in ('operator', 'symbol', 'let expression') and \
                 self.name_pattern.match(self.next_token.symbol) is not None:
             token_class = self.symbol_table['(name)']
             self.next_token = token_class(self, self.next_token.symbol)

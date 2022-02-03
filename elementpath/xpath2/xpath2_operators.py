@@ -649,8 +649,8 @@ def select_document_node_kind_test(self, context=None):
                 if item is None:
                     yield context.root
     else:
+        elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
         if is_document_node(context.root) and context.item is None:
-            elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
             if len(elements) == 1:
                 yield context.root
 
@@ -776,26 +776,27 @@ XPath2Parser.register(
 @method('attribute')
 def nud_attribute_kind_test_or_axis(self):
     if self.parser.next_token.symbol == '::':
+        self.label = 'axis'
         self.parser.advance('::')
         self.parser.expected_name(
             '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
             'attribute', 'schema-attribute', 'element', 'schema-element'
         )
         self[:] = self.parser.expression(rbp=90),
-        self.label = 'axis'
     else:
+        self.label = 'kind test'
         self.parser.advance('(')
-        if not self.namespace:
-            msg = f"{self.value!r} is not allowed as function name"
-            raise self.error('XPST0003', msg)
-
         if self.parser.next_token.symbol != ')':
             self[:] = self.parser.expression(5),
             if self.parser.next_token.symbol == ',':
                 self.parser.advance(',')
                 self[1:] = self.parser.expression(5),
         self.parser.advance(')')
-        self.label = 'kind test'
+
+        if not self.namespace:
+            msg = f"{self.value!r} is not allowed as function name"
+            raise self.error('XPST0003', msg)
+
     return self
 
 

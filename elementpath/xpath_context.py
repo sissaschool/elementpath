@@ -353,8 +353,9 @@ class XPathContext:
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
-        status = self.item, self.size, self.position
+        status = self.item, self.size, self.position, self.axis
         results = [x for x in token.select(self.copy(clear_axis=False))]
+        self.axis = None
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
             self.size = self.position = len(results)
@@ -366,7 +367,7 @@ class XPathContext:
             for self.position, self.item in enumerate(results, start=1):
                 yield self.item
 
-        self.item, self.size, self.position = status
+        self.item, self.size, self.position, self.axis = status
 
     def iter_product(self, selectors: Sequence[Callable[[Any], Any]],
                      varnames: Optional[Sequence[str]] = None) -> Iterator[Any]:
