@@ -552,11 +552,16 @@ def evaluate_node_comparison(self, context=None):
     else:
         if left[0] == right[0]:
             return False
-        for item in context.root.iter():  # pragma: no cover
-            if left[0] == item:
-                return True if symbol == '<<' else False
-            elif right[0] == item:
-                return False if symbol == '<<' else True
+
+        documents = [context.root]
+        documents.extend(v for v in context.variables.values() if is_document_node(v))
+
+        for root in documents:
+            for item in root.iter():  # pragma: no cover
+                if left[0] == item:
+                    return True if symbol == '<<' else False
+                elif right[0] == item:
+                    return False if symbol == '<<' else True
         else:
             raise self.error('FOCA0002', "operands are not nodes of the XML tree!")
 
