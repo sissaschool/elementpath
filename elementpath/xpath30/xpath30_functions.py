@@ -968,6 +968,11 @@ def evaluate_uri_collection_function(self, context=None):
             raise self.error('FODC0002', 'no default resource collection has been defined')
         resource_collection = AnyURI(context.default_resource_collection)
     else:
+        try:
+            AnyURI(uri)
+        except ValueError:
+            raise self.error('FODC0004', 'invalid argument to fn:uri-collection') from None
+
         uri = self.get_absolute_uri(uri)
         try:
             resource_collection = context.resource_collections[uri]
@@ -1019,7 +1024,9 @@ def evaluate_unparsed_text_functions(self, context=None):
     except (ValueError, URLError) as err:
         message = str(err)
         if 'No such file' in message or \
-                'unknown url type' in message or 'HTTP Error 404' in message:
+                'unknown url type' in message or \
+                'HTTP Error 404' in message or \
+                'failure in name resolution' in message:
             raise self.error('FOUT1170') from None
         raise self.error('FOUT1190') from None
 
