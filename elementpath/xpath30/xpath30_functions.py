@@ -70,6 +70,24 @@ def nud_inline_function(self):
         token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
         return token.nud()
 
+    def append_sequence_type(tk):
+        sequence_type = tk.source
+        next_symbol = self.parser.next_token.symbol
+        if sequence_type != 'empty-sequence()' and next_symbol in {'?', '*', '+'}:
+            self.parser.advance()
+            sequence_type += next_symbol
+            tk.occurrence = next_symbol
+
+        if not self.parser.is_sequence_type(sequence_type):
+            if 'xs:NMTOKENS' in sequence_type \
+                    or 'xs:ENTITIES' in sequence_type \
+                    or 'xs:IDREFS' in sequence_type:
+                msg = "a list type cannot be used in a function signature"
+                raise self.error('XPST0051', msg)
+            raise self.error('XPST0003', "a sequence type expected")
+
+        self.sequence_types.append(sequence_type)
+
     self.parser.advance('(')
     self.sequence_types = []
 
@@ -86,16 +104,7 @@ def nud_inline_function(self):
             if self.parser.next_token.symbol == 'as':
                 self.parser.advance('as')
                 token = self.parser.expression(5)
-                sequence_type = token.source
-                if not self.parser.is_sequence_type(sequence_type):
-                    raise token.error('XPST0003', "a sequence type expected")
-
-                next_symbol = self.parser.next_token.symbol
-                if sequence_type != 'empty-sequence()' and next_symbol in ('?', '*', '+'):
-                    self.parser.advance()
-                    sequence_type += next_symbol
-                self.sequence_types.append(sequence_type)
-
+                append_sequence_type(token)
             else:
                 self.sequence_types.append('item()*')
 
@@ -117,10 +126,7 @@ def nud_inline_function(self):
         self.label = 'function test'
         while True:
             token = self.parser.expression(5)
-            sequence_type = token.source
-            if not self.parser.is_sequence_type(sequence_type):
-                raise token.error('XPST0003', "a sequence type expected")
-            self.sequence_types.append(sequence_type)
+            append_sequence_type(token)
             self.append(token)
             if self.parser.next_token.symbol != ',':
                 break
@@ -134,19 +140,9 @@ def nud_inline_function(self):
         self.parser.advance('as')
         if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
             self.parser.expected_name('(name)', ':')
+
         token = self.parser.expression(rbp=90)
-
-        next_symbol = self.parser.next_token.symbol
-        if token.symbol != 'empty-sequence' and next_symbol in {'?', '*', '+'}:
-            self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
-            self.parser.advance()
-            sequence_type = token.source + next_symbol
-        else:
-            sequence_type = token.source
-
-        if not self.parser.is_sequence_type(sequence_type):
-            raise token.error('XPST0003', "a sequence type expected")
-        self.sequence_types.append(sequence_type)
+        append_sequence_type(token)
 
     if self.label == 'inline function':
         if self.parser.next_token.symbol != '{' and not self:

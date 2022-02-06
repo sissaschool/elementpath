@@ -435,7 +435,7 @@ class XPath2Parser(XPath1Parser):
 
     def parse(self, source: str) -> XPathToken:
         root_token = super(XPath1Parser, self).parse(source)
-        if root_token.label == 'sequence type':
+        if root_token.label in ('sequence type', 'function test'):
             raise root_token.error('XPST0003', "not allowed in XPath expression")
 
         if self.schema is None:

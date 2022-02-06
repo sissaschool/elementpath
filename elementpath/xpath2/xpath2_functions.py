@@ -856,6 +856,9 @@ def evaluate_resolve_uri_function(self, context=None):
 def evaluate_codepoints_to_string_function(self, context=None):
     result = []
     for value in self[0].select(context):
+        if isinstance(value, UntypedAtomic):
+            value = int(value)
+
         if not isinstance(value, int):
             msg = "invalid type {} for codepoint {}".format(type(value), value)
             if isinstance(value, str):

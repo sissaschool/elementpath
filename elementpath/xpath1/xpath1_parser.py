@@ -17,7 +17,7 @@ from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
 
 from ..helpers import EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
-    ElementPathTypeError, ElementPathValueError, xpath_error
+    ElementPathValueError, xpath_error
 from ..protocols import XsdTypeProtocol
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES, AtomicValueType
