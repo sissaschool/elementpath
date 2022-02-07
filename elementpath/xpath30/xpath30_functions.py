@@ -1267,7 +1267,7 @@ def evaluate_serialize_function(self, context=None):
                 kwargs['method'] = value if value != 'xhtml' else 'html'
 
             elif child.tag == SER_PARAM_INDENT:
-                value = child.get('value')
+                value = child.attrib.get('value', '').strip()
                 if value not in {'yes', 'no'} or len(child.attrib) > 1:
                     raise self.error('SEPM0017')
 
@@ -1277,15 +1277,20 @@ def evaluate_serialize_function(self, context=None):
                 except KeyError:
                     raise self.error('SEPM0017') from None
 
-            # TODO params
             elif child.tag == SER_PARAM_CDATA:
-                pass
+                pass  # TODO param
             elif child.tag == SER_PARAM_NO_INDENT:
-                pass
+                pass  # TODO param
             elif child.tag == SER_PARAM_STANDALONE:
-                pass
+                value = child.attrib.get('value', '').strip()
+                if value not in {'yes', 'no', 'omit'} or len(child.attrib) > 1:
+                    raise self.error('SEPM0017')
+                if value != 'omit':
+                    kwargs['standalone'] = value == 'yes'
 
             elif child.tag.startswith(f'{{{XSLT_XQUERY_SERIALIZATION_NAMESPACE}'):
+                raise self.error('SEPM0017')
+            elif not child.tag.startswith('{'):  # no-namespace not allowed
                 raise self.error('SEPM0017')
 
     chunks = []
@@ -1309,9 +1314,13 @@ def evaluate_serialize_function(self, context=None):
             continue  # XSD schema or schema node
 
         try:
-            chunks.append(etree.tostring(item, encoding='utf-8', **kwargs).decode('utf-8'))
+            ck = etree.tostringlist(item, encoding='utf-8', **kwargs)
         except TypeError:
             chunks.append(etree.tostring(item, encoding='utf-8').decode('utf-8'))
+        else:
+            if ck and ck[0].startswith(b'<?'):
+                ck[0] = ck[0].replace(b'\'', b'"')
+            chunks.append(b'\n'.join(ck).decode('utf-8'))
 
     if not character_map:
         return item_separator.join(chunks)
