@@ -1014,17 +1014,23 @@ def evaluate_unparsed_text_functions(self, context=None):
     except LookupError:
         raise self.error('FOUT1190') from None
 
-    try:
-        with urlopen(uri) as rp:
-            obj = rp.read()
-    except (ValueError, URLError) as err:
-        message = str(err)
-        if 'No such file' in message or \
-                'unknown url type' in message or \
-                'HTTP Error 404' in message or \
-                'failure in name resolution' in message:
-            raise self.error('FOUT1170') from None
-        raise self.error('FOUT1190') from None
+    if context is not None and uri in context.text_resources:
+        obj = context.text_resources[uri]
+    else:
+        try:
+            with urlopen(uri) as rp:
+                obj = rp.read()
+        except (ValueError, URLError) as err:
+            message = str(err)
+            if 'No such file' in message or \
+                    'unknown url type' in message or \
+                    'HTTP Error 404' in message or \
+                    'failure in name resolution' in message:
+                raise self.error('FOUT1170') from None
+            raise self.error('FOUT1190') from None
+        else:
+            if context is not None:
+                context.text_resources[uri] = obj
 
     try:
         text = codecs.decode(obj, encoding)

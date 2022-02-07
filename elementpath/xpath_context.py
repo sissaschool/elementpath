@@ -60,6 +60,8 @@ class XPathContext:
     strings onto sequences of nodes. Used by the XPath 2.0+ function fn:collection.
     :param default_collection: this is the sequence of nodes used when fn:collection \
     is called with no arguments.
+    :param text_resources: available text resources. This is a mapping of absolute URI strings \
+    onto text resources. Used by XPath 3.0+ function fn:unparsed-text/fn:unparsed-text-lines.
     :param resource_collections: available URI collections. This is a mapping of absolute \
     URI strings to sequence of URIs. Used by the XPath 3.0+ function fn:uri-collection.
     :param default_resource_collection: this is the sequence of URIs used when \
@@ -84,9 +86,10 @@ class XPathContext:
                  variables: Optional[Dict[str, Any]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
-                 documents: Optional[DocumentNode] = None,
-                 collections: Optional[ElementNode] = None,
+                 documents: Optional[Dict[str, DocumentNode]] = None,
+                 collections: Optional[Dict[str, ElementNode]] = None,
                  default_collection: Optional[str] = None,
+                 text_resources: Optional[Dict[str, str]] = None,
                  resource_collections: Optional[Dict[str, List[str]]] = None,
                  default_resource_collection: Optional[str] = None,
                  allow_environment: bool = False,
@@ -123,6 +126,7 @@ class XPathContext:
         self.documents = documents
         self.collections = collections
         self.default_collection = default_collection
+        self.text_resources = text_resources if text_resources is not None else {}
         self.resource_collections = resource_collections
         self.default_resource_collection = default_resource_collection
         self.allow_environment = allow_environment

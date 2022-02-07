@@ -1094,11 +1094,15 @@ class Result(object):
             parts = []
             for item in result:
                 if isinstance(item, elementpath.TypedElement):
+                    tail, item.elem.tail = item.elem.tail, None
                     parts.append(tostring(item.elem).decode('utf-8').strip())
+                    item.elem.tail = tail
                 elif isinstance(item, XPathNode):
                     parts.append(str(item.value))
                 elif hasattr(item, 'tag'):
+                    tail, item.tail = item.tail, None
                     parts.append(tostring(item).decode('utf-8').strip())
+                    item.tail = tail
                 elif hasattr(item, 'getroot'):
                     parts.append(tostring(item.getroot()).decode('utf-8').strip())
                 else:
