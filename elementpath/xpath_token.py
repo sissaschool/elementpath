@@ -239,7 +239,7 @@ class XPathToken(Token[XPathTokenType]):
                 elif isinstance(context, XPathSchemaContext):
                     # Multiple schema nodes are ignored but do not raise. The target
                     # of schema context selection is XSD type association and multiple
-                    # nodes coherency is already checked at schema level.
+                    # node coherency is already checked at schema level.
                     break
                 else:
                     raise self.wrong_context_type(
@@ -253,37 +253,44 @@ class XPathToken(Token[XPathTokenType]):
                     msg = "A not empty sequence required for {} argument"
                     raise self.error('XPTY0004', msg.format(ord_arg))
 
-        # Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
-        if cls is not None and not isinstance(item, cls) and not issubclass(cls, XPathToken):
-            if promote and isinstance(item, promote):
-                return cls(item)
-
-            if self.parser.compatibility_mode:
-                if issubclass(cls, str):
-                    return self.string_value(item)
-                elif issubclass(cls, float) or issubclass(float, cls):
-                    return self.number_value(item)
-
-            if self.parser.version == '1.0':
-                code = 'XPTY0004'
-            else:
-                value = self.data_value(item)
-                if isinstance(value, cls):
-                    return value
-                elif isinstance(value, AnyURI) and issubclass(cls, str):
-                    return cls(value)
-                elif isinstance(value, UntypedAtomic):
-                    try:
-                        return cls(value)
-                    except (TypeError, ValueError):
-                        pass
-
-                code = 'FOTY0012' if value is None else 'XPTY0004'
-
-            message = "the type of the {} argument is {!r} instead of {!r}"
-            raise self.error(code, message.format(ordinal(index + 1), type(item), cls))
-
+        if cls is not None and not issubclass(cls, XPathToken):
+            return self.validated_value(item, cls, promote)
         return item
+
+    def validated_value(self, item: Any, cls: Optional[Type[Any]],
+                        promote: Optional[ClassCheckType] = None) -> Any:
+        """
+        Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
+        """
+        if isinstance(item, cls):
+            return item
+        elif promote and isinstance(item, promote):
+            return cls(item)
+
+        if self.parser.compatibility_mode:
+            if issubclass(cls, str):
+                return self.string_value(item)
+            elif issubclass(cls, float) or issubclass(float, cls):
+                return self.number_value(item)
+
+        if self.parser.version == '1.0':
+            code = 'XPTY0004'
+        else:
+            value = self.data_value(item)
+            if isinstance(value, cls):
+                return value
+            elif isinstance(value, AnyURI) and issubclass(cls, str):
+                return cls(value)
+            elif isinstance(value, UntypedAtomic):
+                try:
+                    return cls(value)
+                except (TypeError, ValueError):
+                    pass
+
+            code = 'FOTY0012' if value is None else 'XPTY0004'
+
+        message = "item type is {!r} instead of {!r}"
+        raise self.error(code, message.format(type(item), cls))
 
     def select_data_values(self, context: Optional[XPathContext] = None) \
             -> Iterator[Optional[AtomicValueType]]:
