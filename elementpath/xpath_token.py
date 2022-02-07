@@ -253,7 +253,7 @@ class XPathToken(Token[XPathTokenType]):
                     msg = "A not empty sequence required for {} argument"
                     raise self.error('XPTY0004', msg.format(ord_arg))
 
-        if cls is not None and not issubclass(cls, XPathToken):
+        if cls is not None:
             return self.validated_value(item, cls, promote)
         return item
 
@@ -273,7 +273,7 @@ class XPathToken(Token[XPathTokenType]):
             elif issubclass(cls, float) or issubclass(float, cls):
                 return self.number_value(item)
 
-        if self.parser.version == '1.0':
+        if issubclass(cls, XPathToken) or self.parser.version == '1.0':
             code = 'XPTY0004'
         else:
             value = self.data_value(item)

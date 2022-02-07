@@ -356,7 +356,14 @@ def evaluate_number_function(self, context=None):
 @method(function('sum', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyAtomicType?')))
 def evaluate_sum_function(self, context=None):
-    values = [x.value if isinstance(x, XPathNode) else x for x in self[0].select(context)]
+    try:
+        values = [float(self.string_value(x)) if is_xpath_node(x) else x
+                  for x in self[0].select(context)]
+    except (TypeError, ValueError):
+        if self.parser.version == '1.0':
+            return float('nan')
+        raise self.error('FORG0006') from None
+
     if not values:
         zero = 0 if len(self) == 1 else self.get_argument(context, index=1)
         return [] if zero is None else zero

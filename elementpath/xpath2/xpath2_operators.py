@@ -322,6 +322,9 @@ def evaluate_treat_expression(self, context=None):
         except KeyError as err:
             raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
+        if not qname.startswith('{') and not QName.is_valid(qname):
+            raise self.error('XPST0003')
+
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):

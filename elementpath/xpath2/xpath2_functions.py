@@ -27,7 +27,8 @@ from ..helpers import is_idrefs, is_xml_codepoint
 from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
-from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, XML_ID, XML_LANG
+from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
+    XML_BASE, XML_ID, XML_LANG
 from ..xpath_context import XPathContext, XPathSchemaContext
 from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, is_element_node, \
     is_document_node, is_xpath_node, node_name, node_nilled, node_base_uri, \
@@ -259,13 +260,22 @@ def evaluate_base_uri_function(self, context=None):
     if context is None:
         raise self.missing_context("context item is undefined")
     elif item is None:
-        return
+        return None
     elif not is_xpath_node(item):
         raise self.wrong_context_type("context item is not a node")
+    elif is_document_node(item):
+        base_uri = item.getroot().get(XML_BASE)
+        return AnyURI(base_uri) if base_uri is not None else None
     else:
-        uri = node_base_uri(item)
-        if uri is not None:
-            return AnyURI(uri)
+        context.item = item
+        base_uri = []
+        for item in context.iter_ancestors(axis='ancestor-or-self'):
+            if is_element_node(item):
+                uri = item.get(XML_BASE)
+                if uri is not None:
+                    base_uri.append(uri)
+
+        return AnyURI(''.join(base_uri)) if base_uri else None
 
 
 @method(function('document-uri', nargs=1, sequence_types=('node()?', 'xs:anyURI?')))

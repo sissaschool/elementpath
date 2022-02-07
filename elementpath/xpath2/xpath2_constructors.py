@@ -474,7 +474,7 @@ def evaluate_string_type_and_function(self, context=None):
 def cast_qname_type(self, value):
     if isinstance(value, QName):
         return value
-    elif isinstance(value, UntypedAtomic):
+    elif isinstance(value, UntypedAtomic) and self.parser.version >= '3.0':
         return self.cast_to_qname(value.value)
     elif isinstance(value, str):
         return self.cast_to_qname(value)

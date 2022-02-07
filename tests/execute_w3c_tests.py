@@ -91,6 +91,10 @@ SKIP_TESTS = {
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-006',
 
+    # 'เจมส์' does not match xs:NCName (maybe due to Python re module limitation)
+    'prod-CastExpr__K2-SeqExprCast-488',
+    'prod-CastExpr__K2-SeqExprCast-504',
+
     # IMHO incorrect tests
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
 }

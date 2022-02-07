@@ -1349,7 +1349,7 @@ def evaluate_function_arity_function(self, context=None):
     if isinstance(self[0], XPathFunction):
         return self[0].arity
 
-    func = self.get_argument(context, cls=XPathFunction)
+    func = self.get_argument(context, cls=XPathFunction, required=True)
     return func.arity
 
 
