@@ -1286,7 +1286,7 @@ def evaluate_root_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
-        return
+        return None
     elif not self:
         if context.item is None or is_xpath_node(context.item):
             return context.root
@@ -1295,19 +1295,20 @@ def evaluate_root_function(self, context=None):
     else:
         item = self.get_argument(context)
         if item is None:
-            return
+            return None
         elif not is_xpath_node(item):
             raise self.error('XPTY0004')
-        elif any(item is x for x in context.iter()):
+        elif any(item == x for x in context.iter()):
             return context.root
 
         try:
             for uri, doc in context.documents.items():
                 doc_context = XPathContext(root=doc)
-                if any(item is x for x in doc_context.iter()):
+                if any(item == x for x in doc_context.iter()):
                     return doc
         except AttributeError:
             pass
+        return None
 
 
 @method(function('lang', nargs=(1, 2),
@@ -1341,7 +1342,7 @@ def evaluate_lang_function(self, context=None):
 
     test_lang = self.get_argument(context, cls=str)
     if test_lang is None:
-        return
+        return None
 
     test_lang = test_lang.strip().lower()
     lang = lang.strip().lower()
