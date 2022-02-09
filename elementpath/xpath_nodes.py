@@ -370,28 +370,36 @@ def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
 
 def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[ElementNode, str]]:
     yield elem, path
+    comment_nodes = 0
     pi_nodes = Counter()
-    children_tags = Counter([e.tag for e in elem])
-    positions = Counter([t for t in children_tags if children_tags[t] > 1])
+    positions = Counter()
 
     for child in elem:
         if callable(child.tag):
             if child.tag.__name__ != 'ProcessingInstruction':
-                continue  # Skip comments
+                comment_nodes += 1
+                yield child, f'{path}/comment()[{comment_nodes}]'
+                continue
+
             name = node_name(child)
             pi_nodes[name] += 1
-            yield f'{path}/processing-instruction({name})[{pi_nodes[name]}]'
+            yield child, f'{path}/processing-instruction({name})[{pi_nodes[name]}]'
             continue
-        elif path == '/':
-            child_path = '/%s' % child.tag
-        elif path:
-            child_path = '/'.join((path, child.tag))
-        else:
-            child_path = child.tag
 
-        if child.tag in positions:
-            child_path += '[%d]' % positions[child.tag]
-            positions[child.tag] += 1
+        if child.tag.startswith('{'):
+            tag = f'Q{child.tag}'
+        else:
+            tag = f'Q{{}}{child.tag}'
+
+        if path == '/':
+            child_path = f'/{tag}'
+        elif path:
+            child_path = '/'.join((path, tag))
+        else:
+            child_path = tag
+
+        positions[child.tag] += 1
+        child_path += f'[{positions[child.tag]}]'
 
         yield from etree_iter_paths(child, child_path)
 

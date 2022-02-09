@@ -28,7 +28,7 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
 from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
     is_document_node, is_etree_element, is_schema_node, node_document_uri, \
     node_nilled, node_name, TypedElement, TextNode, AttributeNode, \
-    TypedAttribute, NamespaceNode, is_processing_instruction_node
+    TypedAttribute, NamespaceNode, is_processing_instruction_node, is_comment_node
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -839,17 +839,30 @@ def evaluate_path_function(self, context=None):
         if item is None:
             return None
 
+    suffix = ''
     if is_document_node(item):
         return '/'
     elif isinstance(item, TypedElement):
         elem = item.elem
     elif is_etree_element(item):
-        if is_processing_instruction_node(item):
-            name = node_name(item)
-            return f'/processing-instruction({name})[{context.position}]'
         elem = item
+    elif isinstance(item, TextNode):
+        elem = item.parent
+        suffix = '/text()[1]'
+    elif isinstance(item, AttributeNode):
+        elem = item.parent
+        if item.name.startswith('{'):
+            suffix = f'/@Q{item.name}'
+        else:
+            suffix = f'/@{item.name}'
+    elif isinstance(item, NamespaceNode):
+        elem = item.parent
+        if item.prefix:
+            suffix = f'/namespace::{item.prefix}'
+        else:
+            suffix = f'/namespace::*[Q{{{XPATH_FUNCTIONS_NAMESPACE}}}local-name()=""]'
     else:
-        elem = self._elem
+        return None
 
     try:
         root = context.root.getroot()
@@ -857,11 +870,19 @@ def evaluate_path_function(self, context=None):
         root = context.root
         path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
     else:
-        path = '/%s' % root.tag
+        path = f'/Q{root.tag}[1]'
+
+    if is_processing_instruction_node(elem) and context.parent_map.get(elem) is None:
+        name = node_name(item)
+        return f'/processing-instruction({name})[{context.position}]'
+    elif is_comment_node(elem) and context.parent_map.get(elem) is None:
+        return f'/comment()[{context.position}]'
 
     for e, path in etree_iter_paths(root, path):
         if e is elem:
-            return path
+            return path + suffix
+    else:
+        return None
 
 
 @method(function('has-children', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean')))
