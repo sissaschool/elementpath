@@ -23,16 +23,16 @@ from decimal import Decimal, DecimalException
 from string import ascii_letters
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from ..helpers import is_idrefs, is_xml_codepoint
+from ..helpers import is_idrefs, is_xml_codepoint, round_number
 from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
 from ..xpath_context import XPathContext, XPathSchemaContext
-from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, is_element_node, \
-    is_document_node, is_xpath_node, node_name, node_nilled, node_base_uri, \
-    node_document_uri, node_kind, etree_deep_equal
+from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, \
+    is_element_node, is_document_node, is_xpath_node, node_name, \
+    node_nilled, node_document_uri, node_kind, etree_deep_equal
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from .xpath2_operators import XPath2Parser
@@ -91,7 +91,12 @@ def evaluate_local_name_from_qname_function(self, context=None):
     if qname is None:
         return
     elif not isinstance(qname, QName):
-        raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
+        if self.parser.version >= '3.0' and \
+                isinstance(self.data_value(qname), UntypedAtomic):
+            code = 'XPTY0117'
+        else:
+            code = 'XPTY0004'
+        raise self.error(code, 'argument has an invalid type %r' % type(qname))
     return NCName(qname.local_name)
 
 
@@ -102,7 +107,12 @@ def evaluate_uri_from_qname_function(self, context=None):
     if qname is None:
         return
     elif not isinstance(qname, QName):
-        raise self.error('XPTY0004', 'argument has an invalid type %r' % type(qname))
+        if self.parser.version >= '3.0' and \
+                isinstance(self.data_value(qname), UntypedAtomic):
+            code = 'XPTY0117'
+        else:
+            code = 'XPTY0004'
+        raise self.error(code, 'argument has an invalid type %r' % type(qname))
     return AnyURI(qname.uri or '')
 
 
@@ -547,7 +557,7 @@ def select_index_of_function(self, context=None):
 
 @method(function('remove', nargs=2, sequence_types=('item()*', 'xs:integer', 'item()*')))
 def select_remove_function(self, context=None):
-    position = self[1].evaluate(context)
+    position = self.get_argument(context, 1)
     if not isinstance(position, int):
         raise self.error('XPTY0004', 'an xs:integer required')
 
@@ -566,7 +576,7 @@ def select_reverse_function(self, context=None):
 def select_subsequence_function(self, context=None):
     starting_loc = self.get_argument(context, 1, cls=NumericProxy)
     if not math.isnan(starting_loc) and not math.isinf(starting_loc):
-        starting_loc = round(starting_loc)
+        starting_loc = float(round_number(starting_loc))
 
     if len(self) == 2:
         for pos, result in enumerate(self[0].select(context), start=1):
@@ -575,7 +585,7 @@ def select_subsequence_function(self, context=None):
     else:
         length = self.get_argument(context, 2, cls=NumericProxy)
         if not math.isnan(length) and not math.isinf(length):
-            length = round(length)
+            length = float(round_number(length))
 
         for pos, result in enumerate(self[0].select(context), start=1):
             if starting_loc <= pos < starting_loc + length:

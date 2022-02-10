@@ -168,6 +168,13 @@ XPATH_ERROR_CODES = {
     'FOFD1340': (ElementPathValueError, 'Invalid date/time formatting parameters'),
     'FOFD1350': (ElementPathValueError, 'Invalid date/time formatting component'),
 
+    'XPTY0117': (ElementPathTypeError,
+                 'Item type is xs:untypedAtomic and the expected type is namespace-sensitive'),
+    'XPDY0130': (ElementPathValueError,
+                 'An implementation-defined limit has been exceeded'),
+    'XPST0133': (ElementPathValueError,
+                 'The namespace URI for EQName is http://www.w3.org/2000/xmlns/'),
+
     # XSLT and XQuery Serialization errors
     # (the complete list: https://www.w3.org/TR/xslt-xquery-serialization/#id-errors)
     'SENR0001': (ElementPathTypeError, 'item is an attribute node or a namespace node'),
