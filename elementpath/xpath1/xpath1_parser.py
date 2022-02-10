@@ -28,7 +28,8 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     split_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
-from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name
+from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
+    TypedAttribute, TypedElement
 
 if sys.version_info < (3, 7):
     ParserType = Parser
@@ -278,8 +279,8 @@ class XPath1Parser(ParserType):
         elif value[-1] in {'?', '+', '*'}:
             value = value[:-1]
 
-        if value in {'untypedAtomic', 'attribute()', 'attribute(*)', 'element()',
-                     'element(*)', 'text()', 'document-node()', 'comment()',
+        if value in {'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
+                     'element()', 'element(*)', 'text()', 'document-node()', 'comment()',
                      'processing-instruction()', 'item()', 'node()', 'numeric'}:
             return True
 
@@ -440,12 +441,16 @@ class XPath1Parser(ParserType):
             elif node_nilled(value):
                 return False
 
-            try:
-                type_expanded_name = get_expanded_name(type_name, self.namespaces)
-                if not self.is_instance(value, type_expanded_name):
+            if type_name == 'xs:untyped':
+                if isinstance(value, (TypedAttribute, TypedElement)):
                     return False
-            except (KeyError, ValueError):
-                return False
+            else:
+                try:
+                    type_expanded_name = get_expanded_name(type_name, self.namespaces)
+                    if not self.is_instance(value, type_expanded_name):
+                        return False
+                except (KeyError, ValueError):
+                    return False
 
         if name == '*':
             return True

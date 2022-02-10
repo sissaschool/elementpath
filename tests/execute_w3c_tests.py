@@ -75,6 +75,9 @@ SKIP_TESTS = {
     'fn-lower-case__fn-lower-case-19',
     'fn-upper-case__fn-upper-case-19',
 
+    # Very large number fault (interpreter crashes)
+    'op-to__RangeExpr-409d',
+
     # For XQuery??
     'fn-deep-equal__K2-SeqDeepEqualFunc-43',  # includes a '!' symbol
 
@@ -811,9 +814,6 @@ class Result(object):
 
         if self.value == 'function(*)':
             type_check = isinstance(result, XPathFunction)
-        elif self.value.startswith('element(') and self.value[8] != ')':
-            tag = self.value[8:self.value.index(')')]
-            type_check = hasattr(result, 'tag') and result.tag == tag
         elif not self.parser.is_sequence_type(self.value):
             msg = " test-case {}: {!r} is not a valid sequence type"
             print(msg.format(self.test_case.name, self.value))

@@ -1342,6 +1342,7 @@ class XPathFunction(XPathToken):
             result = self.cast_to_primitive_type(result, self.sequence_types[-1])
             if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
                 msg = "{!r} does not match sequence type {}"
+                self.parser.match_sequence_type(result, self.sequence_types[-1])
                 raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
 
         return result

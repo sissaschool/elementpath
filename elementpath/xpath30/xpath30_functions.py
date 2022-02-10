@@ -53,7 +53,7 @@ SER_PARAM_NO_INDENT = '{%s}suppress-indentation' % XSLT_XQUERY_SERIALIZATION_NAM
 SER_PARAM_STANDALONE = '{%s}standalone' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 
-DECL_PARAM_PATTERN = re.compile(r'([^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*)=')
+DECL_PARAM_PATTERN = re.compile(r'([^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*)\s*=\s*')
 
 register = XPath30Parser.register
 method = XPath30Parser.method
@@ -1147,29 +1147,8 @@ def evaluate_parse_xml_function(self, context=None):
         return []
 
     etree = ElementTree if context is None else context.etree
-    if self.symbol == 'parse-xml-fragment':
-        # Wrap argument in a fake document because an
-        # XML document can have only one root element
-        if not arg.startswith('<?xml '):
-            xml_declaration = None
-        else:
-            xml_declaration, _, arg = arg[6:].partition('?>')
-            xml_params = DECL_PARAM_PATTERN.findall(xml_declaration)
-            if 'encoding' not in xml_params:
-                raise self.error('FODC0006', "'encoding' argument is mandatory")
-
-            for param in xml_params:
-                if param not in {'version', 'encoding'}:
-                    msg = f'unexpected parameter {param!r} in XML declaration'
-                    raise self.error('FODC0006', msg)
-
-        if not arg.lstrip().startswith('<'):
-            arg = f'<document>{arg}</document>'
-        if arg.lstrip().startswith('<!DOCTYPE'):
-            raise self.error('FODC0006', "<!DOCTYPE is not allowed")
-
     try:
-        root = etree.XML(arg)
+        root = etree.XML(arg.encode('utf-8'))
     except etree.ParseError:
         raise self.error('FODC0006')
     else:
@@ -1187,9 +1166,7 @@ def evaluate_parse_xml_fragment_function(self, context=None):
 
     # Wrap argument in a fake document because an
     # XML document can have only one root element
-    if not arg.startswith('<?xml '):
-        xml_declaration = None
-    else:
+    if arg.startswith('<?xml '):
         xml_declaration, _, arg = arg[6:].partition('?>')
         xml_params = DECL_PARAM_PATTERN.findall(xml_declaration)
         if 'encoding' not in xml_params:
@@ -1360,10 +1337,16 @@ def evaluate_serialize_function(self, context=None):
 def evaluate_function_lookup_function(self, context=None):
     qname = self.get_argument(context, cls=QName, required=True)
     arity = self.get_argument(context, index=1, cls=int, required=True)
+    if qname.namespace == '':
+        return []
+
     try:
-        return self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
+        func = self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
     except (KeyError, TypeError):
         return []
+    else:
+        func.namespace = qname.namespace
+        return func
 
 
 @method(function('function-name', nargs=1, sequence_types=('function(*)', 'xs:QName?')))

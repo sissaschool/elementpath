@@ -286,6 +286,8 @@ def cast_datetime_stamp_type(self, value):
     try:
         if isinstance(value, UntypedAtomic):
             return DateTimeStamp.fromstring(value.value)
+        elif isinstance(value, Date):
+            return DateTimeStamp(value.year, value.month, value.day, tzinfo=value.tzinfo)
         return DateTimeStamp.fromstring(value)
     except ValueError as err:
         raise self.error('FORG0001', err) from None
@@ -299,6 +301,8 @@ def evaluate_datetime_stamp_type(self, context=None):
 
     if isinstance(arg, UntypedAtomic):
         return self.cast(arg.value)
+    elif isinstance(arg, Date):
+        return self.cast(arg)
     return self.cast(str(arg))
 
 
