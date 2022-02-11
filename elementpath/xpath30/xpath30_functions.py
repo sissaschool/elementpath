@@ -969,7 +969,7 @@ def evaluate_generate_id_function(self, context=None):
             raise self.error('XPTY0004', "argument is not a node")
         raise self.error('XPTY0004', "context item is not a node")
     else:
-        return 'ID-{}'.format(id(arg))
+        return f'ID{id(arg)}'
 
 
 @method(function('uri-collection', nargs=(0, 1),

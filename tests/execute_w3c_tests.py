@@ -572,6 +572,7 @@ class TestCase(object):
             xsd_version=self.xsd_version,
             schema=schema_proxy,
             base_uri=static_base_uri,
+            compatibility_mode='xpath-1.0-compatibility' in self.features,
         )
         if environment is not None and xpath_parser.version >= '3.0':
             kwargs['decimal_formats'] = environment.decimal_formats

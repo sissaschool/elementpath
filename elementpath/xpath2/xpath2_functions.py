@@ -1298,27 +1298,18 @@ def evaluate_root_function(self, context=None):
     elif isinstance(context, XPathSchemaContext):
         return None
     elif not self:
-        if context.item is None or is_xpath_node(context.item):
+        if context.item is None:
             return context.root
-        else:
+        elif not is_xpath_node(context.item):
             raise self.error('XPTY0004')
+        return context.get_root(context.item)
     else:
         item = self.get_argument(context)
         if item is None:
             return None
         elif not is_xpath_node(item):
             raise self.error('XPTY0004')
-        elif any(item == x for x in context.iter()):
-            return context.root
-
-        try:
-            for uri, doc in context.documents.items():
-                doc_context = XPathContext(root=doc)
-                if any(item == x for x in doc_context.iter()):
-                    return doc
-        except AttributeError:
-            pass
-        return None
+        return context.get_root(item)
 
 
 @method(function('lang', nargs=(1, 2),
@@ -1367,20 +1358,31 @@ def evaluate_lang_function(self, context=None):
                  sequence_types=('xs:string*', 'node()', 'element()*')))
 def select_id_function(self, context=None):
     idrefs = {x for item in self[0].select(copy(context))
-              for x in self.string_value(item).split()}
+              for x in self.string_value(item).split() if Id.is_valid(x)}
 
-    node = self.get_argument(context, index=1, default_to_context=True)
-    if isinstance(context, XPathSchemaContext):
-        return
+    if context is None:
+        raise self.missing_context()
+
+    if len(self) == 1:
+        node = context.item
+        if node is None:
+            node = context.root
+    else:
+        node = self.get_argument(context, index=1)
 
     if not is_xpath_node(node):
         raise self.error('XPTY0004')
-    elif not is_element_node(node) and not is_document_node(node):
-        return
+
+    if isinstance(context, XPathSchemaContext):
+        return None
+
+    root = context.get_root(node)
+    if root is None:
+        return None
 
     # TODO: PSVI bindings with also xsi:type evaluation
-    for elem in node.iter():
-        if Id.is_valid(elem.text) and elem.text in idrefs:
+    for elem in root.iter():
+        if elem.text in idrefs:
             if self.parser.schema is not None:
                 path = context.get_path(elem)
                 xsd_element = self.parser.schema.find(path, self.parser.namespaces)
@@ -1398,15 +1400,22 @@ def select_id_function(self, context=None):
 
         for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
             if attr.value in idrefs:
-                if self.parser.schema is not None:
-                    path = context.get_path(elem)
-                    xsd_element = self.parser.schema.find(path, self.parser.namespaces)
-                    if xsd_element is None:
-                        continue
+                if attr.name == XML_ID:
+                    idrefs.remove(attr.value)
+                    yield elem
+                    break
 
-                    xsd_attribute = xsd_element.attrib.get(attr.name)
-                    if xsd_attribute is None or not xsd_attribute.type.is_key():
-                        continue  # pragma: no cover
+                if self.parser.schema is None:
+                    continue
+
+                path = context.get_path(elem)
+                xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                if xsd_element is None:
+                    continue
+
+                xsd_attribute = xsd_element.attrib.get(attr.name)
+                if xsd_attribute is None or not xsd_attribute.type.is_key():
+                    continue  # pragma: no cover
 
                 idrefs.remove(attr.value)
                 yield elem
