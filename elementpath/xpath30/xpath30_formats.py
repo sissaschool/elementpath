@@ -101,25 +101,29 @@ def int_to_weekday(num: int, lang: Optional[str] = None) -> str:
     return weekday_map[num]
 
 
-def format_digits(digits: str, fmt: str, digits_family: str = '0123456789') -> str:
+def format_digits(digits: str,
+                  fmt: str,
+                  digits_family: str = '0123456789',
+                  optional_digit: str = '#',
+                  grouping_separator: str = ',') -> str:
     result = []
     iter_num_digits = reversed(digits)
     num_digit = next(iter_num_digits)
 
     for fmt_char in reversed(fmt):
-        if fmt_char.isdigit() or fmt_char == '#':
+        if fmt_char.isdigit() or fmt_char == optional_digit:
             if num_digit is not None:
                 result.append(digits_family[ord(num_digit) - 48])
                 num_digit = next(iter_num_digits, None)
-            elif fmt_char != '#':
+            elif fmt_char != optional_digit:
                 result.append(digits_family[0])
-        elif not result or not result[-1].isdigit():
+        elif not result or not result[-1].isdigit() and result[-1] != grouping_separator:
             raise xpath_error('FODF1310', "invalid grouping in picture argument")
         else:
             result.append(fmt_char)
 
     if num_digit is not None:
-        separator = {x for x in fmt if not x.isdigit() and x != '#'}
+        separator = {x for x in fmt if not x.isdigit() and x != optional_digit}
         if len(separator) != 1:
             repeat = None
         else:
@@ -142,7 +146,7 @@ def format_digits(digits: str, fmt: str, digits_family: str = '0123456789') -> s
                 result.append(digits_family[ord(num_digit) - 48])
                 num_digit = next(iter_num_digits, None)
 
-    return ''.join(reversed(result))
+    return ''.join(reversed(result)).lstrip(grouping_separator)
 
 
 def ordinal_suffix(value: int) -> str:

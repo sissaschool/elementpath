@@ -321,7 +321,7 @@ class Environment(object):
         child = elem.find('decimal-format', namespaces)
         if child is not None:
             name = child.get('name')
-            if name is not None and use_lxml:
+            if name is not None and ':' in name and use_lxml:
                 name = get_expanded_name(name, child.nsmap)
             self.decimal_formats = {name: child.attrib}
 

@@ -54,6 +54,7 @@ SER_PARAM_STANDALONE = '{%s}standalone' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 
 DECL_PARAM_PATTERN = re.compile(r'([^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*)\s*=\s*')
+EXPONENT_PIC = re.compile(r'\d[eE]\d')
 
 register = XPath30Parser.register
 method = XPath30Parser.method
@@ -475,7 +476,11 @@ def evaluate_format_number_function(self, context=None):
     if any(adjacent_pattern.search(p) for p in sub_pictures):
         raise self.error('FODF1310')
 
-    if any(x.endswith(grouping_separator) for s in sub_pictures for x in s.split(decimal_separator)):
+    if any(x.endswith(grouping_separator)
+           for s in sub_pictures for x in s.split(decimal_separator)):
+        raise self.error('FODF1310')
+
+    if self.parser.version == '3.0' and any(EXPONENT_PIC.search(s) for s in sub_pictures):
         raise self.error('FODF1310')
 
     if math.isnan(value):
@@ -486,16 +491,18 @@ def evaluate_format_number_function(self, context=None):
     elif not isinstance(value, decimal.Decimal):
         value = decimal.Decimal(value)
 
+    minus_sign = decimal_format['minus-sign']
+
     prefix = ''
     if value >= 0:
         fmt_tokens = sub_pictures[0].split(decimal_separator)
     else:
         fmt_tokens = sub_pictures[-1].split(decimal_separator)
         if len(sub_pictures) == 1:
-            prefix = decimal_format['minus-sign']
+            prefix = minus_sign
 
     for k, ch in enumerate(fmt_tokens[0]):
-        if ch.isdigit() or ch == '#':
+        if ch.isdigit() or ch == optional_digit:
             prefix += fmt_tokens[0][:k]
             fmt_tokens[0] = fmt_tokens[0][k:]
             break
@@ -515,7 +522,7 @@ def evaluate_format_number_function(self, context=None):
         value *= 1000
     else:
         for k, ch in enumerate(reversed(fmt_tokens[-1])):
-            if ch.isdigit() or ch == '#':
+            if ch in digits_family or ch == optional_digit:
                 idx = len(fmt_tokens[-1]) - k
                 suffix = fmt_tokens[-1][idx:]
                 fmt_tokens[-1] = fmt_tokens[-1][:idx]
@@ -533,7 +540,7 @@ def evaluate_format_number_function(self, context=None):
     else:
         k = -1
         for ch in fmt_tokens[-1]:
-            if ch.isdigit():
+            if ch in digits_family or ch == optional_digit:
                 k += 1
         exp = decimal.Decimal('.' + '0' * k + '1')
 
@@ -542,15 +549,11 @@ def evaluate_format_number_function(self, context=None):
     else:
         value = value.quantize(exp, rounding='ROUND_HALF_DOWN')
 
-    chunks = str(abs(value)).split(decimal_separator)
+    chunks = str(abs(value)).split('.')  # use '.' always, it's a number!!
 
-    if chunks[0].startswith('-'):
-        sign = '-'
-        chunks[0] = chunks[0][1:]
-    else:
-        sign = ''
+    result = format_digits(chunks[0], fmt_tokens[0], digits_family,
+                           optional_digit, grouping_separator)
 
-    result = format_digits(chunks[0], fmt_tokens[0], digits_family)
     if len(fmt_tokens) > 1 and fmt_tokens[-1]:
         has_optional_digit = False
         for ch in fmt_tokens[-1]:
@@ -560,20 +563,22 @@ def evaluate_format_number_function(self, context=None):
                 raise self.error('FODF1310')
 
         if len(chunks) == 1:
-            chunks.append('0')
+            chunks.append(zero_digit)
 
-        decimal_part = format_digits(chunks[1], fmt_tokens[-1], digits_family)
-        if any(x != zero_digit for x in decimal_part):
-            for k, ch in enumerate(reversed(fmt_tokens[-1])):
-                if ch != optional_digit or decimal_part[-k]:
-                    decimal_part = decimal_part.rstrip(zero_digit)
+        decimal_part = format_digits(chunks[1], fmt_tokens[-1], digits_family,
+                                     optional_digit, grouping_separator)
+
+        for ch in reversed(fmt_tokens[-1]):
+            if ch == optional_digit and decimal_part[-1] == zero_digit:
+                decimal_part = decimal_part[:-1]
+            else:
+                break
+        if not decimal_part:
+            decimal_part = zero_digit
+
         result += decimal_separator + decimal_part
 
-    result = result.lstrip(',')
-    if decimal_separator in result:
-        result = result.lstrip('0')
-            
-    return sign + prefix + result + suffix
+    return prefix + result + suffix
 
 
 @method(function('format-dateTime', nargs=(2, 5),
