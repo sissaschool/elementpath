@@ -379,13 +379,19 @@ def evaluate_format_integer_function(self, context=None):
 
     else:
         if UNICODE_DIGIT_PATTERN.search(fmt_token) is None:
-            base_char = '1'
-            for base_char in fmt_token:
-                if base_char.isalpha():
-                    break
-            result = int_to_alphabetic(value, base_char)
+            if any(not x.isalpha() and not x.isdigit() for x in fmt_token):
+                result = str(value)  # fallback for invalid pictures
+            else:
+                base_char = '1'
+                for base_char in fmt_token:
+                    if base_char.isalpha():
+                        break
+                if base_char.islower():
+                    result = int_to_alphabetic(value, base_char)
+                else:
+                    result = int_to_alphabetic(value, base_char.lower()).upper()
 
-        elif DECIMAL_DIGIT_PATTERN.match(fmt_token) is None:
+        elif DECIMAL_DIGIT_PATTERN.search(fmt_token) is None or ',,' in fmt_token:
             msg = 'picture argument has an invalid primary format token'
             raise self.error('FODF1310', msg)
         else:

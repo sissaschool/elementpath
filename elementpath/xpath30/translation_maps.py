@@ -15,9 +15,18 @@ from string import ascii_lowercase
 ALPHABET_CHARACTERS = {
     None: ascii_lowercase,
     'en': ascii_lowercase,
-    'it': 'ABCDEFGHILMNOPQRSTUVZ',
+    'it': 'abcdefghilmnopqrstuvz',
     'el': 'αβγδεζηθικλμνξοπρςστυφχψω',
 }
+
+OTHER_NUMBERS = (
+    '\u2070\u00B9\u00B2\u00B3' +
+    ''.join(chr(x) for x in range(0x2074, 0x207A)),  # superscript digits (0-9)
+    ''.join(chr(x) for x in range(0x2080, 0x208A)),  # subscript digits (0-9)
+    ''.join(chr(x) for x in range(0x2460, 0x2474)),  # circled numbers (1-20)
+    ''.join(chr(x) for x in range(0x2474, 0x2488)),  # parenthesized numbers (1-20)
+    ''.join(chr(x) for x in range(0x2488, 0x249C)),  # full stop numbers (1-20)
+)
 
 ROMAN_NUMERALS_MAP = {
     1000: 'M',

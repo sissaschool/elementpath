@@ -61,6 +61,12 @@ SKIP_TESTS = {
     'fn-substring-after__fn-substring-after-24',
     'fn-substring-before__fn-substring-before-24',
 
+    # Unsupported language
+    'fn-format-integer__format-integer-032',
+    'fn-format-integer__format-integer-032-fr',
+    'fn-format-integer__format-integer-052',
+    'fn-format-integer__format-integer-065',
+
     # Processing-instructions (tests on env "auction")
     'fn-local-name__fn-local-name-78',
     'fn-name__fn-name-28',

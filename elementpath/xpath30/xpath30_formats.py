@@ -10,11 +10,12 @@
 # type: ignore
 import re
 from typing import Optional
+from unicodedata import category
 
 from ..exceptions import xpath_error
 from ..regex import translate_pattern
 
-from .translation_maps import ALPHABET_CHARACTERS, ROMAN_NUMERALS_MAP, \
+from .translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS_MAP, \
     NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS
 
 
@@ -50,14 +51,21 @@ def int_to_alphabetic(num, reference=None):
         try:
             alphabet = ALPHABET_CHARACTERS[reference]
         except KeyError:
+            return str(num)
             msg = "formatting for language {!r} is not supported"
             raise NotImplementedError(msg.format(reference))
-    else:
-        for alphabet in ALPHABET_CHARACTERS.values():
+    elif reference.isdigit():
+        for alphabet in OTHER_NUMBERS:
             if reference in alphabet:
                 break
         else:
-            raise NotImplementedError("formatting for {!r} is not supported".format(reference))
+            alphabet = '1234567890'
+    else:
+        for alphabet in ALPHABET_CHARACTERS.values():
+            if reference.lower() in alphabet:
+                break
+        else:
+            alphabet = '1234567890'
 
     base = len(alphabet)
 
@@ -105,7 +113,7 @@ def format_digits(digits: str,
                   fmt: str,
                   digits_family: str = '0123456789',
                   optional_digit: str = '#',
-                  grouping_separator: str = ',') -> str:
+                  grouping_separator: Optional[str] = None) -> str:
     result = []
     iter_num_digits = reversed(digits)
     num_digit = next(iter_num_digits)
@@ -117,7 +125,8 @@ def format_digits(digits: str,
                 num_digit = next(iter_num_digits, None)
             elif fmt_char != optional_digit:
                 result.append(digits_family[0])
-        elif not result or not result[-1].isdigit() and result[-1] != grouping_separator:
+        elif not result or not result[-1].isdigit() and grouping_separator \
+                and result[-1] != grouping_separator:
             raise xpath_error('FODF1310', "invalid grouping in picture argument")
         else:
             result.append(fmt_char)
@@ -146,7 +155,12 @@ def format_digits(digits: str,
                 result.append(digits_family[ord(num_digit) - 48])
                 num_digit = next(iter_num_digits, None)
 
-    return ''.join(reversed(result)).lstrip(grouping_separator)
+    if grouping_separator:
+        return ''.join(reversed(result)).lstrip(grouping_separator)
+    while result and \
+            category(result[-1]) not in {'Nd', 'Nl', 'No', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo'}:
+        result.pop()
+    return ''.join(reversed(result))
 
 
 def ordinal_suffix(value: int) -> str:
@@ -222,28 +236,29 @@ def to_ordinal_it(num_as_words: str, fmt_modifier: str) -> str:
 def int_to_words(num, lang=None, fmt_modifier=''):
 
     def word_num(value):
-        try:
+        if not value:
             yield num_map[value]
-        except KeyError:
-            for base, word in num_map.items():
-                if base >= 1:
-                    floor = value // base
-                    if not floor:
-                        continue
-                    elif base >= 100:
-                        yield from word_num(floor)
-                        yield ' '
 
-                    yield word
-                    value %= base
-                    if not value:
-                        break
-                    elif base < 100:
-                        yield '-'
-                    elif base == 100:
+        for base, word in num_map.items():
+            if base >= 1:
+                floor = value // base
+                if not floor:
+                    continue
+                elif base >= 100:
+                    yield from word_num(floor)
+                    yield ' '
+
+                yield word
+                value %= base
+                if not value:
+                    break
+                elif base < 100:
+                    yield '-'
+                elif base == 100:
+                    if lang == 'en':
                         yield ' and '
-                    else:
-                        yield ' '
+                else:
+                    yield ' '
 
     try:
         num_map = NUM_TO_WORD_MAPS[lang]
