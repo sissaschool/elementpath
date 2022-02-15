@@ -21,7 +21,7 @@ from copy import copy
 from urllib.parse import urlsplit
 
 from ..exceptions import ElementPathError
-from ..helpers import XML_NEWLINES_PATTERN, is_xml_codepoint
+from ..helpers import EQNAME_PATTERN, XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE, XML_NAMESPACE
@@ -587,11 +587,32 @@ def evaluate_format_number_function(self, context=None):
     return prefix + result + suffix
 
 
-@method(function('format-dateTime', nargs=(2, 5),
-                 sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
-                                 'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate_format_datetime_function(self, context=None):
-    value = self.get_argument(context, cls=DateTime10)
+function('format-dateTime', nargs=(2, 5),
+         sequence_types=('xs:dateTime?', 'xs:string', 'xs:string?',
+                         'xs:string?', 'xs:string?', 'xs:string?'))
+function('format-date', nargs=(2, 5),
+         sequence_types=('xs:date?', 'xs:string', 'xs:string?',
+                         'xs:string?', 'xs:string?', 'xs:string?'))
+function('format-time', nargs=(2, 5),
+         sequence_types=('xs:time?', 'xs:string', 'xs:string?',
+                         'xs:string?', 'xs:string?', 'xs:string?'))
+
+
+@method('format-dateTime')
+@method('format-date')
+@method('format-time')
+def evaluate_format_date_time_functions(self, context=None):
+    if self.symbol == 'format-dateTime':
+        cls = DateTime10
+        invalid_markers = ''
+    elif self.symbol == 'format-date':
+        cls = Date10
+        invalid_markers = 'HhPmsf'
+    else:
+        cls = Time
+        invalid_markers = 'YMDdFWwCE'
+
+    value = self.get_argument(context, cls=cls)
     picture = self.get_argument(context, index=1, required=True, cls=str)
     if len(self) not in [2, 5]:
         raise self.error('XPST0017')
@@ -607,107 +628,38 @@ def evaluate_format_datetime_function(self, context=None):
     except ElementPathError as err:
         err.token = self
         raise
+
+    if invalid_markers:
+        for mrk in markers:
+            if mrk[1] in invalid_markers:
+                msg = 'Invalid date formatting component {!r}'.format(mrk)
+                raise self.error('FOFD1350', msg)
+
+    result = []
+    if language not in {'en', 'it', None}:
+        language = 'en'
+        result.append('[Language: en')
 
     if calendar not in {None, 'AD', 'ISO', 'OS'}:
-        raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
+        if context is None or calendar != context.default_calendar:
+            if QName.is_valid(calendar):
+                if ':' not in calendar:
+                    msg = f'unknown calendar in no namespace {calendar!r}'
+                    raise self.error('FOFD1340', msg)
+                _ = QName(qname=calendar)
+            elif EQNAME_PATTERN.search(calendar) is None or calendar.startswith('Q{}'):
+                raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
+        else:
+            result.append('[' if not result else ', ')
+            result.append('Calendar: AD')
 
-    # print(value, picture, literals, markers, calendar)
-    # breakpoint()
+    if result:
+        result.append(']')
 
-    result = []
-    for k in range(len(markers)):
-        result.append(literals[k])
-        try:
-            result.append(parse_datetime_marker(markers[k], value))
-        except ElementPathError as err:
-            err.token = self
-            raise
-
-    result.append(literals[-1])
-    return ''.join(result)
-
-
-@method(function('format-date', nargs=(2, 5),
-                 sequence_types=('xs:date?', 'xs:string', 'xs:string?',
-                                 'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate_format_date_function(self, context=None):
-    value = self.get_argument(context, cls=Date10)
-    picture = self.get_argument(context, index=1, required=True, cls=str)
-    if len(self) not in [2, 5]:
-        raise self.error('XPST0017')
-    language = self.get_argument(context, index=2, cls=str)
-    calendar = self.get_argument(context, index=3, cls=str)
-    place = self.get_argument(context, index=4, cls=str)
-
-    if value is None:
-        return ''
-
-    try:
-        literals, markers = parse_datetime_picture(picture)
-    except ElementPathError as err:
-        err.token = self
-        raise
-
-    for mrk in markers:
-        if mrk[1] in 'HhPmsf':
-            msg = 'Invalid date formatting component {!r}'.format(mrk)
-            raise self.error('FOFD1350', msg)
-
-    if calendar not in {None, 'AD', 'ISO', 'OS'} and (context is None or calendar != context.default_calendar):
-        raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
-
-    # print(value, picture, literals, markers)
-    # breakpoint()
-
-    result = []
     for k in range(len(markers)):
         result.append(literals[k])
         try:
             result.append(parse_datetime_marker(markers[k], value, lang=language))
-        except ElementPathError as err:
-            err.token = self
-            raise
-
-    result.append(literals[-1])
-    return ''.join(result)
-
-
-@method(function('format-time', nargs=(2, 5),
-                 sequence_types=('xs:time?', 'xs:string', 'xs:string?',
-                                 'xs:string?', 'xs:string?', 'xs:string?')))
-def evaluate_format_time_function(self, context=None):
-    value = self.get_argument(context, cls=Time)
-    picture = self.get_argument(context, index=1, required=True, cls=str)
-    if len(self) not in [2, 5]:
-        raise self.error('XPST0017')
-    language = self.get_argument(context, index=2, cls=str)
-    calendar = self.get_argument(context, index=3, cls=str)
-    place = self.get_argument(context, index=4, cls=str)
-
-    if value is None:
-        return ''
-
-    try:
-        literals, markers = parse_datetime_picture(picture)
-    except ElementPathError as err:
-        err.token = self
-        raise
-
-    for mrk in markers:
-        if mrk[1] in 'YMDdFWwCE':
-            msg = 'Invalid time formatting component {!r}'.format(mrk)
-            raise self.error('FOFD1350', msg)
-
-    if calendar not in {None, 'AD', 'ISO', 'OS'} and calendar != self.parser.default_calendar:
-        raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
-
-    print(value, picture, literals, markers)
-
-    result = []
-    for k in range(len(markers)):
-        result.append(literals[k])
-        try:
-            result.append(parse_datetime_marker(markers[k], value))
         except ElementPathError as err:
             err.token = self
             raise

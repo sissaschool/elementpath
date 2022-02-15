@@ -58,6 +58,10 @@ class AbstractQName(metaclass=AtomicTypeMeta):
     def expanded_name(self) -> str:
         return '{%s}%s' % (self.uri, self.local_name) if self.uri else self.local_name
 
+    @property
+    def braced_uri_name(self) -> str:
+        return 'Q{%s}%s' % (self.uri, self.local_name) if self.uri else self.local_name
+
     def __repr__(self) -> str:
         return '%s(uri=%r, qname=%r)' % (self.__class__.__name__, self.uri, self.qname)
 

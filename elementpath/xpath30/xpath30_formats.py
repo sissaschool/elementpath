@@ -19,7 +19,7 @@ from .translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS
     NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS
 
 
-PICTURE_PATTERN = re.compile(r'(?<!\[)\[(?!\[)[^]]+]')
+PICTURE_PATTERN = re.compile(r'\[(?!\[)[^]]+]')
 UNICODE_DIGIT_PATTERN = re.compile(r'\d')
 DECIMAL_DIGIT_PATTERN = re.compile(translate_pattern(r'^((\p{Nd}|#|[^\p{N}\p{L}])+?)$'))
 WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
@@ -447,7 +447,8 @@ def parse_datetime_marker(marker, dt, lang=None):
         msg_tmpl = 'Invalid formatting component {!r}'
         raise xpath_error('FOFD1340', msg_tmpl.format(component))
 
-    is_number = False
+    sign = ''
+    left_to_right = True
     if presentation == 'n':
         fmt_chunk = value.lower()
     elif presentation == 'N':
@@ -458,6 +459,8 @@ def parse_datetime_marker(marker, dt, lang=None):
         fmt_chunk = int_to_roman(int(value))
     elif presentation == 'i':
         fmt_chunk = int_to_roman(int(value)).lower()
+    elif presentation == 'Z' and component == 'Z':
+        fmt_chunk = value if value != '+00:00' else 'J'
     elif presentation.startswith('Ww'):
         fmt_chunk = int_to_words(int(value), lang, presentation[2:]).title()
     elif presentation.startswith('w'):
@@ -465,7 +468,7 @@ def parse_datetime_marker(marker, dt, lang=None):
     elif presentation.startswith('W'):
         fmt_chunk = int_to_words(int(value), lang, presentation[1:]).upper()
     else:
-        is_number = True
+        left_to_right = False
         k = 0
         pch = None
         fmt_chunk = []
@@ -475,7 +478,12 @@ def parse_datetime_marker(marker, dt, lang=None):
         else:
             fmt_modifier = ''
 
-        for ch in value:
+        if presentation.startswith('#') and presentation.endswith('#'):
+            msg_tmpl = 'Invalid formatting component {!r}'
+            raise xpath_error('FOFD1340', msg_tmpl.format(component))
+
+        presentation = ''.join(reversed(presentation))
+        for ch in reversed(value):
             try:
                 pch = presentation[k]
             except IndexError:
@@ -497,10 +505,7 @@ def parse_datetime_marker(marker, dt, lang=None):
                     k += 1
             else:
                 if ch == '-' or ch == '+':
-                    fmt_chunk.append(ch)
-                    min_width += 1
-                    if max_width:
-                        max_width += 1
+                    sign = ch
                     k -= 1
                     continue
 
@@ -509,12 +514,11 @@ def parse_datetime_marker(marker, dt, lang=None):
                 elif not zero_cp:
                     if pch == '#':
                         zero_cp = ord('0')
-                        # raise xpath_error('FOFD1340', f'Invalid formatting component {presentation!r}')
                     else:
                         zero_cp = ord(pch) - int(pch)
                 fmt_chunk.append(chr(zero_cp + int(ch)))
 
-        fmt_chunk = ''.join(fmt_chunk)
+        fmt_chunk = ''.join(reversed(fmt_chunk))
         if fmt_modifier == 'o':
             try:
                 fmt_chunk += ordinal_suffix(int(fmt_chunk))
@@ -529,8 +533,15 @@ def parse_datetime_marker(marker, dt, lang=None):
     if len(fmt_chunk) < min_width and component not in 'PzZ':
         fmt_chunk = zero_ch * (min_width - len(fmt_chunk)) + fmt_chunk
     if max_width:
-        fmt_chunk = fmt_chunk[:max_width]
-    if min_width or component == 'f':
+        # breakpoint()
+        if left_to_right or component in 'f':
+            fmt_chunk = fmt_chunk[:max_width]
+        else:
+            fmt_chunk = fmt_chunk[max(0, len(fmt_chunk)-max_width):]
+
+    if min_width == 3 and component == 'F':
+        fmt_chunk = fmt_chunk[:3]
+    elif min_width or component == 'f':
         try:
             nz_last = max(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)
         except ValueError:
@@ -540,7 +551,7 @@ def parse_datetime_marker(marker, dt, lang=None):
 
     if component == 'z':
         return 'GMT' + fmt_chunk
-    return fmt_chunk
+    return sign + fmt_chunk
 
 
 def parse_width(width):
