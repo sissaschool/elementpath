@@ -478,17 +478,32 @@ def parse_datetime_marker(marker, dt, lang=None):
         else:
             fmt_modifier = ''
 
+        # Extract the sign
+        if value.startswith('-') or value.startswith('+'):
+            sign = value[0]
+
         if presentation.startswith('#') and presentation.endswith('#'):
             msg_tmpl = 'Invalid formatting component {!r}'
             raise xpath_error('FOFD1340', msg_tmpl.format(component))
 
-        presentation = ''.join(reversed(presentation))
-        for ch in reversed(value):
+        for pch in presentation:
+            if pch.isdigit():
+                zero_cp = ord(pch) - int(pch)
+                break
+        else:
+            zero_cp = ord('0')
+
+        if component != 'f':
+            presentation = ''.join(reversed(presentation))
+            value = ''.join(reversed(value))
+
+        for ch in value:
             try:
                 pch = presentation[k]
             except IndexError:
-                if pch != '#' and not pch.isdigit():
-                    break
+                if ch == '0' and not pch.isdigit():
+                    if not max_width or len(fmt_chunk) >= max_width:
+                        break
             else:
                 k += 1
 
@@ -511,14 +526,13 @@ def parse_datetime_marker(marker, dt, lang=None):
 
                 if ch != '#' and not ch.isdigit():
                     continue
-                elif not zero_cp:
-                    if pch == '#':
-                        zero_cp = ord('0')
-                    else:
-                        zero_cp = ord(pch) - int(pch)
                 fmt_chunk.append(chr(zero_cp + int(ch)))
 
-        fmt_chunk = ''.join(reversed(fmt_chunk))
+        if component != 'f':
+            fmt_chunk = ''.join(reversed(fmt_chunk))
+        else:
+            fmt_chunk = ''.join(fmt_chunk)
+
         if fmt_modifier == 'o':
             try:
                 fmt_chunk += ordinal_suffix(int(fmt_chunk))
@@ -531,7 +545,11 @@ def parse_datetime_marker(marker, dt, lang=None):
 
     zero_ch = '0' if not zero_cp else chr(zero_cp)
     if len(fmt_chunk) < min_width and component not in 'PzZ':
-        fmt_chunk = zero_ch * (min_width - len(fmt_chunk)) + fmt_chunk
+        if component == 'f':
+            fmt_chunk += zero_ch * (min_width - len(fmt_chunk))
+        else:
+            fmt_chunk = zero_ch * (min_width - len(fmt_chunk)) + fmt_chunk
+
     if max_width:
         # breakpoint()
         if left_to_right or component in 'f':
@@ -550,7 +568,7 @@ def parse_datetime_marker(marker, dt, lang=None):
         fmt_chunk = fmt_chunk[:max(min_width, nz_last + 1)]
 
     if component == 'z':
-        return 'GMT' + fmt_chunk
+        return 'GMT' + sign + fmt_chunk
     return sign + fmt_chunk
 
 
