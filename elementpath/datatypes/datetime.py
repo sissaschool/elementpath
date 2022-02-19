@@ -226,6 +226,12 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
     def tzinfo(self, tz: Timezone) -> None:
         self._dt = self._dt.replace(tzinfo=tz)
 
+    def tzname(self) -> Optional[str]:
+        return self._dt.tzname()
+
+    def astimezone(self, tz: Optional[datetime.tzinfo] = None) -> datetime.datetime:
+        return self._dt.astimezone(tz)
+
     def isocalendar(self) -> Tuple[int, int, int]:
         return self._dt.isocalendar()
 

@@ -22,6 +22,7 @@ from .translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS
 PICTURE_PATTERN = re.compile(r'\[(?!\[)[^]]+]')
 UNICODE_DIGIT_PATTERN = re.compile(r'\d')
 DECIMAL_DIGIT_PATTERN = re.compile(translate_pattern(r'^((\p{Nd}|#|[^\p{N}\p{L}])+?)$'))
+FMT_MODIFIER_PATTERN = re.compile(r'([co](\(.+\))?)?[at]?$')
 WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
 MODIFIER_PATTERN = re.compile(r'^([co](\(.+\))?)?[at]?$')
 
@@ -51,9 +52,9 @@ def int_to_alphabetic(num, reference=None):
         try:
             alphabet = ALPHABET_CHARACTERS[reference]
         except KeyError:
-            return str(num)
             msg = "formatting for language {!r} is not supported"
             raise NotImplementedError(msg.format(reference))
+
     elif reference.isdigit():
         for alphabet in OTHER_NUMBERS:
             if reference in alphabet:
@@ -365,6 +366,7 @@ def parse_datetime_marker(marker, dt, lang=None):
         presentation, width = fmt_token.rsplit(',', maxsplit=1)
 
     if not presentation:
+        fmt_modifier = ''
         if component in 'Hhf':
             presentation = '1'
         elif component in 'ms':
@@ -373,6 +375,22 @@ def parse_datetime_marker(marker, dt, lang=None):
             presentation = '01:01'
         else:
             presentation = 'n'
+    else:
+        fmt_modifier = FMT_MODIFIER_PATTERN.search(presentation).group(0)
+        if fmt_modifier:
+            presentation = presentation[:-len(fmt_modifier)]
+
+        if presentation.startswith('#') and presentation.endswith('#'):
+            msg_tmpl = 'Invalid formatting component {!r}'
+            raise xpath_error('FOFD1340', msg_tmpl.format(component))
+
+    for pch in presentation:
+        if pch.isdigit():
+            zero_cp = ord(pch) - int(pch)
+            zero_ch = chr(zero_cp)
+            break
+    else:
+        zero_cp, zero_ch = ord('0'), '0'
 
     digits = sum(c.isdigit() for c in presentation)
     opt_digits = presentation.count('#')
@@ -388,7 +406,6 @@ def parse_datetime_marker(marker, dt, lang=None):
             if max_width:
                 max_width = max(max_width, digits + opt_digits)
 
-    zero_cp = 0
     if component == 'Y':
         value = str(abs(dt.year))
     elif component == 'M':
@@ -416,9 +433,16 @@ def parse_datetime_marker(marker, dt, lang=None):
     elif component == 'f':
         value = str('{:06}'.format(dt.microsecond))
     elif component == 'z' or component == 'Z':
-        value = str(dt.tzinfo or '+00:00')
-        if value == 'Z':
+        if presentation == 'N':
+            value = dt.tzname()
+        elif dt.tzinfo is None:
             value = '+00:00'
+        else:
+            value = str(dt)
+            if value.endswith('Z'):
+                value = '+00:00'
+            else:
+                value = value[-6:]
     elif component == 'W':
         value = str(dt.isocalendar()[2])
     elif component == 'w':
@@ -461,37 +485,30 @@ def parse_datetime_marker(marker, dt, lang=None):
         fmt_chunk = int_to_roman(int(value)).lower()
     elif presentation == 'Z' and component == 'Z':
         fmt_chunk = value if value != '+00:00' else 'J'
-    elif presentation.startswith('Ww'):
-        fmt_chunk = int_to_words(int(value), lang, presentation[2:]).title()
-    elif presentation.startswith('w'):
-        fmt_chunk = int_to_words(int(value), lang, presentation[1:])
-    elif presentation.startswith('W'):
-        fmt_chunk = int_to_words(int(value), lang, presentation[1:]).upper()
+    elif presentation == 'w':
+        fmt_chunk = int_to_words(int(value), lang, fmt_modifier)
+    elif presentation == 'W':
+        fmt_chunk = int_to_words(int(value), lang, fmt_modifier).upper()
+    elif presentation == 'Ww':
+        fmt_chunk = int_to_words(int(value), lang, fmt_modifier).title()
     else:
         left_to_right = False
         k = 0
         pch = None
         fmt_chunk = []
-        if presentation[-1] in 'co':
-            fmt_modifier = presentation[-1]
-            presentation = presentation[:-1]
-        else:
-            fmt_modifier = ''
 
         # Extract the sign
         if value.startswith('-') or value.startswith('+'):
             sign = value[0]
+            value = value[1:]
 
-        if presentation.startswith('#') and presentation.endswith('#'):
-            msg_tmpl = 'Invalid formatting component {!r}'
-            raise xpath_error('FOFD1340', msg_tmpl.format(component))
-
-        for pch in presentation:
-            if pch.isdigit():
-                zero_cp = ord(pch) - int(pch)
-                break
-        else:
-            zero_cp = ord('0')
+        if component in 'zZ':
+            if presentation.isdigit() and len(presentation) <= 2:
+                if value.endswith(':00'):
+                    value = value[:-3]
+                    left_to_right = True
+                else:
+                    presentation += ':01'
 
         if component != 'f':
             presentation = ''.join(reversed(presentation))
@@ -502,16 +519,16 @@ def parse_datetime_marker(marker, dt, lang=None):
                 pch = presentation[k]
             except IndexError:
                 if ch == '0' and not pch.isdigit():
-                    if not max_width or len(fmt_chunk) >= max_width:
-                        break
+                    break
             else:
                 k += 1
 
             while pch != '#' and not pch.isdigit():
                 fmt_chunk.append(pch)
                 min_width += 1
-                if max_width:
+                if max_width is not None:
                     max_width += 1
+
                 try:
                     pch = presentation[k]
                 except IndexError:
@@ -519,39 +536,31 @@ def parse_datetime_marker(marker, dt, lang=None):
                 else:
                     k += 1
             else:
-                if ch == '-' or ch == '+':
-                    sign = ch
-                    k -= 1
-                    continue
-
-                if ch != '#' and not ch.isdigit():
-                    continue
-                fmt_chunk.append(chr(zero_cp + int(ch)))
+                if ch.isdigit():
+                    fmt_chunk.append(ch)
 
         if component != 'f':
             fmt_chunk = ''.join(reversed(fmt_chunk))
         else:
             fmt_chunk = ''.join(fmt_chunk)
 
-        if fmt_modifier == 'o':
+        if 'o' in fmt_modifier:
             try:
                 fmt_chunk += ordinal_suffix(int(fmt_chunk))
             except ValueError:
                 pass
             else:
                 min_width += 2
-                if max_width:
+                if max_width is not None:
                     max_width += 2
 
-    zero_ch = '0' if not zero_cp else chr(zero_cp)
     if len(fmt_chunk) < min_width and component not in 'PzZ':
-        if component == 'f':
+        if component in 'f':
             fmt_chunk += zero_ch * (min_width - len(fmt_chunk))
         else:
             fmt_chunk = zero_ch * (min_width - len(fmt_chunk)) + fmt_chunk
 
     if max_width:
-        # breakpoint()
         if left_to_right or component in 'f':
             fmt_chunk = fmt_chunk[:max_width]
         else:
@@ -559,6 +568,14 @@ def parse_datetime_marker(marker, dt, lang=None):
 
     if min_width == 3 and component == 'F':
         fmt_chunk = fmt_chunk[:3]
+    elif min_width and component in 'zZ':
+        try:
+            nz_first = min(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)
+        except ValueError:
+            fmt_chunk = fmt_chunk[max(0, len(fmt_chunk) - min_width):]
+        else:
+            fmt_chunk = fmt_chunk[max(0, min(nz_first, len(fmt_chunk) - min_width)):]
+
     elif min_width or component == 'f':
         try:
             nz_last = max(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)
@@ -566,6 +583,9 @@ def parse_datetime_marker(marker, dt, lang=None):
             nz_last = 0
 
         fmt_chunk = fmt_chunk[:max(min_width, nz_last + 1)]
+
+    if zero_ch != '0':
+        fmt_chunk = ''.join(chr(zero_cp + int(ch)) if ch.isdigit() else ch for ch in fmt_chunk)
 
     if component == 'z':
         return 'GMT' + sign + fmt_chunk

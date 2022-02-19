@@ -20,6 +20,11 @@ import xml.etree.ElementTree as ElementTree
 from copy import copy
 from urllib.parse import urlsplit
 
+try:
+    import zoneinfo
+except ImportError:
+    zoneinfo = None  # Python < 3.9
+
 from ..exceptions import ElementPathError
 from ..helpers import EQNAME_PATTERN, XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import get_expanded_name, split_expanded_name, \
@@ -646,12 +651,20 @@ def evaluate_format_date_time_functions(self, context=None):
                 if ':' not in calendar:
                     msg = f'unknown calendar in no namespace {calendar!r}'
                     raise self.error('FOFD1340', msg)
-                _ = QName(qname=calendar)
+                _ = QName(uri=None, qname=calendar)
             elif EQNAME_PATTERN.search(calendar) is None or calendar.startswith('Q{}'):
                 raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
         else:
             result.append('[' if not result else ', ')
             result.append('Calendar: AD')
+
+    if place is not None and zoneinfo is not None:
+        try:
+            zone = zoneinfo.ZoneInfo(place.strip())
+        except zoneinfo.ZoneInfoNotFoundError:
+            raise self.error('FOFD1340', f'Invalid place argument {place!r}')
+        else:
+            value = value.astimezone(zone)
 
     if result:
         result.append(']')
