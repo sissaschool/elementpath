@@ -795,13 +795,17 @@ def nud_attribute_kind_test_or_axis(self):
         self.label = 'kind test'
         self.parser.advance('(')
         if self.parser.next_token.symbol != ')':
+            self.parser.next_token.expected('(name)', '*', ':')
             self[:] = self.parser.expression(5),
+
             if self.parser.next_token.symbol == ',':
                 self.parser.advance(',')
+                self.parser.next_token.expected('(name)', ':')
                 self[1:] = self.parser.expression(5),
+
         self.parser.advance(')')
 
-        if not self.namespace:
+        if self.namespace:
             msg = f"{self.value!r} is not allowed as function name"
             raise self.error('XPST0003', msg)
 

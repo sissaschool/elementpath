@@ -1016,7 +1016,8 @@ class Result(object):
     def assert_permutation_validator(self, verbose=1):
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         if not isinstance(result, list):
@@ -1071,7 +1072,8 @@ class Result(object):
     def assert_xml_validator(self, verbose=1):
         try:
             result = self.test_case.run_xpath_test(verbose)
-        except (ElementPathError, ParseError, EvaluateError):
+        except (ElementPathError, ParseError, EvaluateError) as err:
+            self.report_failure(verbose, error=err)
             return False
 
         if result is None:

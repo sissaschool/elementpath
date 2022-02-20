@@ -703,6 +703,8 @@ def evaluate_analyze_string_function(self, context=None):
         for c in self.get_argument(context, 2, required=True, cls=str):
             if c in 'smix':
                 flags |= getattr(re, c.upper())
+            elif c == 'q' and self.parser.version > '2':
+                pattern = re.escape(pattern)
             else:
                 raise self.error('FORX0001', "Invalid regular expression flag %r" % c)
 
@@ -765,42 +767,45 @@ def evaluate_analyze_string_function(self, context=None):
             unclosed_groups = 0
 
             for idx in range(1, compiled_pattern.groups + 1):
-                start, stop = match.span(idx)
-                if start < 0:
+                _start, _stop = match.span(idx)
+                if _start < 0:
                     continue
-                elif start > k:
+                elif _start > k:
                     if unclosed_groups:
                         for _ in range(unclosed_groups):
                             match_items.append('</group>')
                         unclosed_groups = 0
 
-                    match_items.append(input_string[k:start])
+                    match_items.append(input_string[k:_start])
 
-                if start == stop:
+                if _start == _stop:
                     if group_levels[idx] <= group_levels[idx - 1]:
                         for _ in range(unclosed_groups):
                             match_items.append('</group>')
                         unclosed_groups = 0
                     match_items.append(empty_group_tmpl.format(idx))
-                    k = stop
+                    k = _stop
                 elif idx == compiled_pattern.groups:
-                    k = stop
-                    match_items.append(group_tmpl.format(idx, input_string[start:k]))
+                    k = _stop
+                    match_items.append(group_tmpl.format(idx, input_string[_start:k]))
                     match_items.append('</group>')
                 else:
                     next_start = match.span(idx + 1)[0]
-                    if next_start < 0 or stop < next_start or stop == next_start \
+                    if next_start < 0 or _stop < next_start or _stop == next_start \
                             and group_levels[idx + 1] <= group_levels[idx]:
-                        k = stop
-                        match_items.append(group_tmpl.format(idx, input_string[start:k]))
+                        k = _stop
+                        match_items.append(group_tmpl.format(idx, input_string[_start:k]))
                         match_items.append('</group>')
                     else:
                         k = next_start
-                        match_items.append(group_tmpl.format(idx, input_string[start:k]))
+                        match_items.append(group_tmpl.format(idx, input_string[_start:k]))
                         unclosed_groups += 1
 
             for _ in range(unclosed_groups):
                 match_items.append('</group>')
+
+            match_items.append(input_string[k:stop])
+            k = stop
             lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
