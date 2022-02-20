@@ -16,7 +16,7 @@ from ..exceptions import xpath_error
 from ..regex import translate_pattern
 
 from .translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS_MAP, \
-    NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS
+    NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS, MILITARY_TIME_ZONES
 
 
 PICTURE_PATTERN = re.compile(r'\[(?!\[)[^]]+]')
@@ -290,12 +290,14 @@ def parse_datetime_picture(picture):
     :param picture: the picture string.
     :return: a couple of lists containing the literal parts and markers.
     """
-    literals = PICTURE_PATTERN.split(picture)
-    for lit in literals:
+    literals = []
+    for lit in PICTURE_PATTERN.split(picture):
         if '[' in lit.replace('[[', ''):
             raise xpath_error('FOFD1340', "Invalid character '[' in picture literal")
         elif ']' in lit.replace(']]', ''):
             raise xpath_error('FOFD1340', "Invalid character ']' in picture literal")
+        else:
+            literals.append(lit.replace('[[', '[').replace(']]', ']'))
 
     markers = [x.group().replace(' ', '').replace('\n', '').replace('\t', '')
                for x in PICTURE_PATTERN.finditer(picture)]
@@ -356,7 +358,7 @@ def parse_datetime_picture(picture):
     return literals, markers
 
 
-def parse_datetime_marker(marker, dt, lang=None):
+def parse_datetime_marker(marker, dt, language=None, calendar=None):
     component = marker[1]
     fmt_token = marker[2:-1]
 
@@ -409,8 +411,8 @@ def parse_datetime_marker(marker, dt, lang=None):
     if component == 'Y':
         value = str(abs(dt.year))
     elif component == 'M':
-        if presentation.lower().startswith('n') and lang is not None:
-            value = int_to_month(dt.month, lang)
+        if presentation.lower().startswith('n') and language is not None:
+            value = int_to_month(dt.month, language)
         else:
             value = str(dt.month)
     elif component == 'D':
@@ -455,8 +457,8 @@ def parse_datetime_marker(marker, dt, lang=None):
         else:
             value = str((dt.day - month_cal[0][6]) // 7)
     elif component == 'F':
-        if presentation.lower().startswith('n') and lang is not None:
-            value = int_to_weekday(dt.isocalendar().weekday, lang)
+        if presentation.lower().startswith('n') and language is not None:
+            value = int_to_weekday(dt.isocalendar().weekday, language)
         else:
             value = str(dt.isocalendar().weekday)
     elif component == 'E':
@@ -484,13 +486,19 @@ def parse_datetime_marker(marker, dt, lang=None):
     elif presentation == 'i':
         fmt_chunk = int_to_roman(int(value)).lower()
     elif presentation == 'Z' and component == 'Z':
-        fmt_chunk = value if value != '+00:00' else 'J'
+        if dt.tzinfo is None:
+            fmt_chunk = MILITARY_TIME_ZONES[None]
+        elif value.endswith(':00'):
+            fmt_chunk = MILITARY_TIME_ZONES.get(value[:3], value)
+        else:
+            fmt_chunk = value
+
     elif presentation == 'w':
-        fmt_chunk = int_to_words(int(value), lang, fmt_modifier)
+        fmt_chunk = int_to_words(int(value), language, fmt_modifier)
     elif presentation == 'W':
-        fmt_chunk = int_to_words(int(value), lang, fmt_modifier).upper()
+        fmt_chunk = int_to_words(int(value), language, fmt_modifier).upper()
     elif presentation == 'Ww':
-        fmt_chunk = int_to_words(int(value), lang, fmt_modifier).title()
+        fmt_chunk = int_to_words(int(value), language, fmt_modifier).title()
     else:
         left_to_right = False
         k = 0
@@ -503,12 +511,24 @@ def parse_datetime_marker(marker, dt, lang=None):
             value = value[1:]
 
         if component in 'zZ':
-            if presentation.isdigit() and len(presentation) <= 2:
-                if value.endswith(':00'):
-                    value = value[:-3]
-                    left_to_right = True
-                else:
-                    presentation += ':01'
+            if presentation.isdigit():
+                if len(presentation) <= 2:
+                    if value.endswith(':00'):
+                        value = value[:-3]
+                        left_to_right = True
+                    elif len(presentation) == 1:
+                        presentation = '#0:01'
+                        min_width, max_width = 3, 4
+                    else:
+                        presentation = '01:01'
+                        min_width = max_width = 4
+                elif len(presentation) == 3:
+                    presentation = '#001'
+                    min_width, max_width = 3, 4
+            elif presentation.replace(':', '', 1).isdigit():
+                if len(presentation) == 4:
+                    presentation = '#0:01'
+                    min_width, max_width = 3, 4
 
         if component != 'f':
             presentation = ''.join(reversed(presentation))
@@ -566,16 +586,21 @@ def parse_datetime_marker(marker, dt, lang=None):
         else:
             fmt_chunk = fmt_chunk[max(0, len(fmt_chunk)-max_width):]
 
-    if min_width == 3 and component == 'F':
-        fmt_chunk = fmt_chunk[:3]
-    elif min_width and component in 'zZ':
-        try:
-            nz_first = min(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)
-        except ValueError:
-            fmt_chunk = fmt_chunk[max(0, len(fmt_chunk) - min_width):]
+    if component in 'zZ':
+        if not min_width:
+            fmt_chunk = fmt_chunk.lstrip('0')
+            if not fmt_chunk:
+                return 'Z' if component == 'Z' else 'GMT' + sign + '0'
         else:
-            fmt_chunk = fmt_chunk[max(0, min(nz_first, len(fmt_chunk) - min_width)):]
+            try:
+                nz_first = min(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)
+            except ValueError:
+                fmt_chunk = fmt_chunk[max(0, len(fmt_chunk) - min_width):]
+            else:
+                fmt_chunk = fmt_chunk[max(0, min(nz_first, len(fmt_chunk) - min_width)):]
 
+    elif min_width == 3 and component == 'F':
+        fmt_chunk = fmt_chunk[:3]
     elif min_width or component == 'f':
         try:
             nz_last = max(k for k in range(len(fmt_chunk)) if fmt_chunk[k] != zero_ch)

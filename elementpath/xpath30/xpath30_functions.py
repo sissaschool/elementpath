@@ -645,18 +645,27 @@ def evaluate_format_date_time_functions(self, context=None):
         language = 'en'
         result.append('[Language: en')
 
-    if calendar not in {None, 'AD', 'ISO', 'OS'}:
-        if context is None or calendar != context.default_calendar:
-            if QName.is_valid(calendar):
-                if ':' not in calendar:
-                    msg = f'unknown calendar in no namespace {calendar!r}'
-                    raise self.error('FOFD1340', msg)
-                _ = QName(uri=None, qname=calendar)
-            elif EQNAME_PATTERN.search(calendar) is None or calendar.startswith('Q{}'):
-                raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
-        else:
-            result.append('[' if not result else ', ')
-            result.append('Calendar: AD')
+    if calendar is not None:
+        if calendar.startswith('Q{}'):
+            calendar = calendar[3:]
+
+        if calendar not in {'AD', 'ISO', 'OS'}:
+            if context is None or calendar != context.default_calendar:
+                if QName.is_valid(calendar):
+                    if ':' not in calendar:
+                        msg = f'unknown calendar in no namespace {calendar!r}'
+                        raise self.error('FOFD1340', msg)
+
+                    try:
+                        calendar = get_expanded_name(calendar, self.parser.namespaces)
+                    except (KeyError, ValueError) as err:
+                        raise self.error('FOFD1340', str(err)) from None
+
+                elif EQNAME_PATTERN.search(calendar) is None:
+                    raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
+            else:
+                result.append('[' if not result else ', ')
+                result.append('Calendar: AD')
 
     if place is not None and zoneinfo is not None:
         try:
@@ -672,7 +681,7 @@ def evaluate_format_date_time_functions(self, context=None):
     for k in range(len(markers)):
         result.append(literals[k])
         try:
-            result.append(parse_datetime_marker(markers[k], value, lang=language))
+            result.append(parse_datetime_marker(markers[k], value, language, calendar))
         except ElementPathError as err:
             err.token = self
             raise
