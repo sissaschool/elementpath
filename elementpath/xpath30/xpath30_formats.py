@@ -111,6 +111,28 @@ def int_to_weekday(num: int, lang: Optional[str] = None) -> str:
     return weekday_map[num]
 
 
+def week_in_month(dt):
+    month_cal = calendar.monthcalendar(dt.year, dt.month)
+    for k, week_cal in enumerate(month_cal, start=1):
+        if dt.day in week_cal:
+            if month_cal[0][3]:
+                return k
+            elif k > 1:
+                return k - 1
+
+            if dt.month > 1:
+                prev_month_cal = calendar.monthcalendar(dt.year, dt.month - 1)
+            else:
+                prev_month_cal = calendar.monthcalendar(dt.year - 1, 12)
+
+            if prev_month_cal[0][3]:
+                return len(prev_month_cal)
+            else:
+                return len(prev_month_cal) - 1
+    else:
+        raise ValueError(f'{dt.day} does not match related calendar')
+
+
 def format_digits(digits: str,
                   fmt: str,
                   digits_family: str = '0123456789',
@@ -333,7 +355,8 @@ def parse_datetime_picture(picture):
         if len(presentation) > 1 and presentation[-1] in 'atco':
             presentation = presentation[:-1]
 
-        if not presentation or presentation in {'i', 'I', 'w', 'W', 'Ww', 'n', 'N', 'Nn', 'Z'}:
+        if not presentation or presentation in {'i', 'I', 'w', 'W', 'Ww', 'a',
+                                                'A', 'n', 'N', 'Nn', 'Z'}:
             pass
         elif DECIMAL_DIGIT_PATTERN.match(presentation) is None:
             raise xpath_error('FOFD1340', msg_tmpl.format(value))
@@ -359,7 +382,7 @@ def parse_datetime_picture(picture):
     return literals, markers
 
 
-def parse_datetime_marker(marker, dt, lang=None, cal=None):
+def parse_datetime_marker(marker, dt, lang=None):
     component = marker[1]
     fmt_token = marker[2:-1]
 
@@ -378,6 +401,8 @@ def parse_datetime_marker(marker, dt, lang=None, cal=None):
             presentation = '01:01'
         else:
             presentation = 'n'
+    elif presentation == 'a':
+        fmt_modifier = ''
     else:
         fmt_modifier = FMT_MODIFIER_PATTERN.search(presentation).group(0)
         if fmt_modifier:
@@ -449,19 +474,7 @@ def parse_datetime_marker(marker, dt, lang=None, cal=None):
     elif component == 'W':
         value = str(dt.isocalendar().week)
     elif component == 'w':
-        month_cal = calendar.monthcalendar(dt.year, dt.month)
-        for k, week_cal in enumerate(month_cal, start=1):
-            if dt.day in week_cal:
-                if month_cal[0][3]:
-                    value = str(k)
-                elif k == 1:
-                    value = '5'
-                else:
-                    value = str(k - 1)
-                break
-        else:
-            raise xpath_error('XPST0017', f'{dt.day} does not match related calendar')
-
+        value = str(week_in_month(dt))
     elif component == 'F':
         if presentation.lower().startswith('n') and lang is not None:
             value = int_to_weekday(dt.isocalendar().weekday, lang)
@@ -488,10 +501,8 @@ def parse_datetime_marker(marker, dt, lang=None, cal=None):
         fmt_chunk = value.upper()
     elif presentation == 'Nn':
         fmt_chunk = value.title()
-    elif presentation == 'I':
-        return int_to_roman(int(value))  # ignore width spec
-    elif presentation == 'i':
-        return int_to_roman(int(value)).lower()  # ignore width spec
+    elif presentation == 'I' or presentation == 'i':
+        fmt_chunk = value
     elif presentation == 'Z' and component == 'Z':
         if dt.tzinfo is None:
             fmt_chunk = MILITARY_TIME_ZONES[None]
@@ -506,6 +517,10 @@ def parse_datetime_marker(marker, dt, lang=None, cal=None):
         fmt_chunk = int_to_words(int(value), lang, fmt_modifier).upper()
     elif presentation == 'Ww':
         fmt_chunk = int_to_words(int(value), lang, fmt_modifier).title()
+    elif presentation == 'a':
+        fmt_chunk = int_to_alphabetic(int(value), lang)
+    elif presentation == 'A':
+        fmt_chunk = int_to_alphabetic(int(value), lang).upper()
     else:
         left_to_right = False
         k = 0
@@ -621,6 +636,12 @@ def parse_datetime_marker(marker, dt, lang=None, cal=None):
 
     if component == 'z':
         return 'GMT' + sign + fmt_chunk
+
+    if presentation == 'I':
+        return sign + int_to_roman(int(fmt_chunk))
+    elif presentation == 'i':
+        return sign + int_to_roman(int(fmt_chunk)).lower()
+
     return sign + fmt_chunk
 
 

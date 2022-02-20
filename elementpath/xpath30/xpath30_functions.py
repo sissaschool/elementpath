@@ -657,7 +657,7 @@ def evaluate_format_date_time_functions(self, context=None):
                         raise self.error('FOFD1340', msg)
 
                     try:
-                        calendar = get_expanded_name(calendar, self.parser.namespaces)
+                        _ = get_expanded_name(calendar, self.parser.namespaces)
                     except (KeyError, ValueError) as err:
                         raise self.error('FOFD1340', str(err)) from None
 
@@ -681,7 +681,7 @@ def evaluate_format_date_time_functions(self, context=None):
     for k in range(len(markers)):
         result.append(literals[k])
         try:
-            result.append(parse_datetime_marker(markers[k], value, language, calendar))
+            result.append(parse_datetime_marker(markers[k], value, language))
         except ElementPathError as err:
             err.token = self
             raise

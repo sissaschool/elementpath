@@ -858,8 +858,12 @@ class Result(object):
                 return True
         elif value == expected:
             return True
-        elif isinstance(expected, str) and expected.strip() == value:
-            return True
+        elif isinstance(expected, str):
+            # workaround for typos in some expected values
+            if expected.strip() == value:
+                return True
+            elif expected.replace('v ;', 'v;') == value:
+                return True
 
         if value and ' ' not in value:
             try:
