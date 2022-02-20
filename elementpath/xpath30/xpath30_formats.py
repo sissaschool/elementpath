@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 # type: ignore
+import calendar
 import re
 from typing import Optional
 from unicodedata import category
@@ -358,7 +359,7 @@ def parse_datetime_picture(picture):
     return literals, markers
 
 
-def parse_datetime_marker(marker, dt, language=None, calendar=None):
+def parse_datetime_marker(marker, dt, lang=None, cal=None):
     component = marker[1]
     fmt_token = marker[2:-1]
 
@@ -411,8 +412,8 @@ def parse_datetime_marker(marker, dt, language=None, calendar=None):
     if component == 'Y':
         value = str(abs(dt.year))
     elif component == 'M':
-        if presentation.lower().startswith('n') and language is not None:
-            value = int_to_month(dt.month, language)
+        if presentation.lower().startswith('n') and lang is not None:
+            value = int_to_month(dt.month, lang)
         else:
             value = str(dt.month)
     elif component == 'D':
@@ -446,19 +447,24 @@ def parse_datetime_marker(marker, dt, language=None, calendar=None):
             else:
                 value = value[-6:]
     elif component == 'W':
-        value = str(dt.isocalendar()[2])
+        value = str(dt.isocalendar().week)
     elif component == 'w':
-        import calendar
         month_cal = calendar.monthcalendar(dt.year, dt.month)
-        if dt.day in month_cal[0]:
-            value = '1' if month_cal[0][3] else '5'
-        elif month_cal[0][3]:
-            value = str((dt.day - month_cal[0][6]) // 7 + 1)
+        for k, week_cal in enumerate(month_cal, start=1):
+            if dt.day in week_cal:
+                if month_cal[0][3]:
+                    value = str(k)
+                elif k == 1:
+                    value = '5'
+                else:
+                    value = str(k - 1)
+                break
         else:
-            value = str((dt.day - month_cal[0][6]) // 7)
+            raise xpath_error('XPST0017', f'{dt.day} does not match related calendar')
+
     elif component == 'F':
-        if presentation.lower().startswith('n') and language is not None:
-            value = int_to_weekday(dt.isocalendar().weekday, language)
+        if presentation.lower().startswith('n') and lang is not None:
+            value = int_to_weekday(dt.isocalendar().weekday, lang)
         else:
             value = str(dt.isocalendar().weekday)
     elif component == 'E':
@@ -474,7 +480,8 @@ def parse_datetime_marker(marker, dt, language=None, calendar=None):
         raise xpath_error('FOFD1340', msg_tmpl.format(component))
 
     sign = ''
-    left_to_right = True
+    left_to_right = component != 'Y'
+
     if presentation == 'n':
         fmt_chunk = value.lower()
     elif presentation == 'N':
@@ -482,9 +489,9 @@ def parse_datetime_marker(marker, dt, language=None, calendar=None):
     elif presentation == 'Nn':
         fmt_chunk = value.title()
     elif presentation == 'I':
-        fmt_chunk = int_to_roman(int(value))
+        return int_to_roman(int(value))  # ignore width spec
     elif presentation == 'i':
-        fmt_chunk = int_to_roman(int(value)).lower()
+        return int_to_roman(int(value)).lower()  # ignore width spec
     elif presentation == 'Z' and component == 'Z':
         if dt.tzinfo is None:
             fmt_chunk = MILITARY_TIME_ZONES[None]
@@ -494,11 +501,11 @@ def parse_datetime_marker(marker, dt, language=None, calendar=None):
             fmt_chunk = value
 
     elif presentation == 'w':
-        fmt_chunk = int_to_words(int(value), language, fmt_modifier)
+        fmt_chunk = int_to_words(int(value), lang, fmt_modifier)
     elif presentation == 'W':
-        fmt_chunk = int_to_words(int(value), language, fmt_modifier).upper()
+        fmt_chunk = int_to_words(int(value), lang, fmt_modifier).upper()
     elif presentation == 'Ww':
-        fmt_chunk = int_to_words(int(value), language, fmt_modifier).title()
+        fmt_chunk = int_to_words(int(value), lang, fmt_modifier).title()
     else:
         left_to_right = False
         k = 0
