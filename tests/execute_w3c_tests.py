@@ -858,6 +858,8 @@ class Result(object):
                 return True
         elif value == expected:
             return True
+        elif isinstance(expected, str) and expected.strip() == value:
+            return True
 
         if value and ' ' not in value:
             try:

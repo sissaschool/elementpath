@@ -545,7 +545,7 @@ class DateTime10(OrderedDateTime):
             return '{}-{:02}-{:02}T{:02}:{:02}:{:02}.{}{}'.format(
                 self.iso_year, self.month, self.day, self.hour, self.minute, self.second,
                 '{:06}'.format(self.microsecond).rstrip('0'), str(self.tzinfo or '')
-            ).rstrip('0')
+            )
         return '{}-{:02}-{:02}T{:02}:{:02}:{:02}{}'.format(
             self.iso_year, self.month, self.day, self.hour,
             self.minute, self.second, str(self.tzinfo or '')
