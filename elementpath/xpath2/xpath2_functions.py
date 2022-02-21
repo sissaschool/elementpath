@@ -522,10 +522,8 @@ def select_distinct_values_function(self, context=None):
 @method(function('insert-before', nargs=3,
                  sequence_types=('item()*', 'xs:integer', 'item()*', 'item()*')))
 def select_insert_before_function(self, context=None):
-    try:
-        insert_at_pos = max(0, self[1].value - 1)
-    except TypeError:
-        raise self.error('XPTY0004', '2nd argument must be an xs:integer') from None
+    position = self.get_argument(context, 1, required=True, cls=int)
+    insert_at_pos = max(0, position - 1)
 
     inserted = False
     for pos, result in enumerate(self[0].select(context)):
@@ -957,12 +955,10 @@ def evaluate_codepoint_equal_function(self, context=None):
 @method(function('string-join', nargs=2,
                  sequence_types=('xs:string*', 'xs:string', 'xs:string')))
 def evaluate_string_join_function(self, context=None):
-    items = []
-    for s in self[0].select(context):
-        if not isinstance(s, str):
-            raise self.error('XPTY0004', "1st argument must be a sequence of xs:string values")
-        items.append(s)
-
+    items = [
+        self.validated_value(s, cls=str, promote=AnyURI)
+        for s in self[0].select(context)
+    ]
     return self.get_argument(context, 1, required=True, cls=str).join(items)
 
 
@@ -1262,8 +1258,9 @@ def evaluate_default_collation_function(self, context=None):
 
 @method(function('static-base-uri', nargs=0, sequence_types=('xs:anyURI?',)))
 def evaluate_static_base_uri_function(self, context=None):
-    if self.parser.base_uri is not None:
-        return AnyURI(self.parser.base_uri)
+    if self.parser.base_uri is None:
+        return None
+    return AnyURI(self.parser.base_uri)
 
 
 ###
@@ -1354,7 +1351,7 @@ def evaluate_lang_function(self, context=None):
 
     test_lang = self.get_argument(context, cls=str)
     if test_lang is None:
-        return None
+        test_lang = ''
 
     test_lang = test_lang.strip().lower()
     lang = lang.strip().lower()

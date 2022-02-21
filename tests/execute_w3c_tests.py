@@ -82,6 +82,8 @@ SKIP_TESTS = {
     # Require unicode version "7.0"
     'fn-lower-case__fn-lower-case-19',
     'fn-upper-case__fn-upper-case-19',
+    'fn-matches.re__re00506',
+    'fn-matches.re__re00984',
 
     # Very large number fault (interpreter crashes or float rounding)
     'op-to__RangeExpr-409d',

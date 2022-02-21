@@ -1177,10 +1177,9 @@ class XPathAxis(XPathToken):
     def nud(self) -> 'XPathAxis':
         self.parser.advance('::')
         self.parser.expected_name(
-            '(name)', '*', 'text', 'node', 'document-node',
-            'comment', 'processing-instruction', 'attribute',
-            'schema-attribute', 'element', 'schema-element',
-            'namespace-node',
+            '(name)', '*', '{', 'Q{', 'text', 'node', 'document-node',
+            'comment', 'processing-instruction', 'element', 'attribute',
+            'schema-attribute', 'schema-element', 'namespace-node',
         )
         self._items[:] = self.parser.expression(rbp=self.rbp),
         return self

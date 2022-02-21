@@ -478,7 +478,7 @@ XPath1Parser.literal('(float)')
 XPath1Parser.literal('(decimal)')
 XPath1Parser.literal('(integer)')
 XPath1Parser.literal('(invalid)')
-XPath1Parser.literal('(unknown)')
+XPath1Parser.register('(unknown)')
 
 ###
 # Simple symbols
