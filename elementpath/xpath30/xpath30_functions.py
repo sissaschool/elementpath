@@ -42,8 +42,9 @@ from ..regex import translate_pattern, RegexError
 
 from .xpath30_operators import XPath30Parser
 from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
-    MODIFIER_PATTERN, int_to_roman, int_to_alphabetic, format_digits, \
-    int_to_words, parse_datetime_picture, parse_datetime_marker, ordinal_suffix
+    MODIFIER_PATTERN, decimal_to_string, int_to_roman, int_to_alphabetic, \
+    format_digits, int_to_words, parse_datetime_picture, parse_datetime_marker, \
+    ordinal_suffix
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -454,9 +455,6 @@ def evaluate_format_number_function(self, context=None):
             except (KeyError, ValueError):
                 raise self.error('FODF1280') from None
 
-    if value is None:
-        return ''
-
     try:
         decimal_format = self.parser.decimal_formats[decimal_format_name]
     except KeyError:
@@ -494,10 +492,9 @@ def evaluate_format_number_function(self, context=None):
     if self.parser.version == '3.0' and any(EXPONENT_PIC.search(s) for s in sub_pictures):
         raise self.error('FODF1310')
 
-    if math.isnan(value):
+    if value is None or math.isnan(value):
         return decimal_format['NaN']
-
-    if isinstance(value, float):
+    elif isinstance(value, float):
         value = decimal.Decimal.from_float(value)
     elif not isinstance(value, decimal.Decimal):
         value = decimal.Decimal(value)
@@ -513,7 +510,7 @@ def evaluate_format_number_function(self, context=None):
             prefix = minus_sign
 
     for k, ch in enumerate(fmt_tokens[0]):
-        if ch.isdigit() or ch == optional_digit:
+        if ch.isdigit() or ch == optional_digit or ch == grouping_separator:
             prefix += fmt_tokens[0][:k]
             fmt_tokens[0] = fmt_tokens[0][k:]
             break
@@ -526,11 +523,21 @@ def evaluate_format_number_function(self, context=None):
     elif fmt_tokens[-1][-1] == percent_sign:
         suffix = fmt_tokens[-1][-1]
         fmt_tokens[-1] = fmt_tokens[-1][:-1]
-        value *= 100
+
+        if value.as_tuple().exponent < 0:
+            value *= 100
+        else:
+            value = decimal.Decimal(int(value) * 100)
+
     elif fmt_tokens[-1][-1] == per_mille_sign:
         suffix = fmt_tokens[-1][-1]
         fmt_tokens[-1] = fmt_tokens[-1][:-1]
-        value *= 1000
+
+        if value.as_tuple().exponent < 0:
+            value *= 1000
+        else:
+            value = decimal.Decimal(int(value) * 1000)
+
     else:
         for k, ch in enumerate(reversed(fmt_tokens[-1])):
             if ch in digits_family or ch == optional_digit:
@@ -542,7 +549,7 @@ def evaluate_format_number_function(self, context=None):
             suffix = fmt_tokens[-1]
             fmt_tokens[-1] = ''
 
-    if math.isinf(value) or abs(value) > 10 ** 28:
+    if math.isinf(value):
         return prefix + decimal_format['infinity'] + suffix
 
     # round the value by fractional part
@@ -555,12 +562,15 @@ def evaluate_format_number_function(self, context=None):
                 k += 1
         exp = decimal.Decimal('.' + '0' * k + '1')
 
-    if value > 0:
-        value = value.quantize(exp, rounding='ROUND_HALF_UP')
-    else:
-        value = value.quantize(exp, rounding='ROUND_HALF_DOWN')
+    try:
+        if value > 0:
+            value = value.quantize(exp, rounding='ROUND_HALF_UP')
+        else:
+            value = value.quantize(exp, rounding='ROUND_HALF_DOWN')
+    except decimal.InvalidOperation:
+        pass  # number too large, don't round ...
 
-    chunks = str(abs(value)).split('.')  # use '.' always, it's a number!!
+    chunks = decimal_to_string(value).lstrip('-').split('.')
 
     result = format_digits(chunks[0], fmt_tokens[0], digits_family,
                            optional_digit, grouping_separator)
@@ -580,14 +590,19 @@ def evaluate_format_number_function(self, context=None):
                                      optional_digit, grouping_separator)
 
         for ch in reversed(fmt_tokens[-1]):
-            if ch == optional_digit and decimal_part[-1] == zero_digit:
-                decimal_part = decimal_part[:-1]
+            if ch == optional_digit:
+                if decimal_part and decimal_part[-1] == zero_digit:
+                    decimal_part = decimal_part[:-1]
             else:
+                if not decimal_part:
+                    decimal_part = zero_digit
                 break
-        if not decimal_part:
-            decimal_part = zero_digit
 
-        result += decimal_separator + decimal_part
+        if decimal_part:
+            result += decimal_separator + decimal_part
+
+            if not fmt_tokens[0] and result.startswith(zero_digit):
+                result = result.lstrip(zero_digit)
 
     return prefix + result + suffix
 

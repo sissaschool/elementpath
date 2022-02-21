@@ -9,6 +9,7 @@
 #
 # type: ignore
 import calendar
+import decimal
 import re
 from typing import Optional
 from unicodedata import category
@@ -26,6 +27,31 @@ DECIMAL_DIGIT_PATTERN = re.compile(translate_pattern(r'^((\p{Nd}|#|[^\p{N}\p{L}]
 FMT_MODIFIER_PATTERN = re.compile(r'([co](\(.+\))?)?[at]?$')
 WIDTH_PATTERN = re.compile(r'^([0-9]+|\*)(-([0-9]+|\*))?$')
 MODIFIER_PATTERN = re.compile(r'^([co](\(.+\))?)?[at]?$')
+
+
+def decimal_to_string(value: decimal.Decimal) -> str:
+    """
+    Convert a Decimal value to a string representation
+    that not includes exponent and with its decimals.
+    """
+    sign, digits, exponent = value.as_tuple()
+
+    if not exponent:
+        result = ''.join(str(x) for x in digits)
+    elif exponent > 0:
+        result = ''.join(str(x) for x in digits) + '0' * exponent
+    else:
+        result = ''.join(str(x) for x in digits[:exponent])
+        if not result:
+            result = '0'
+        result += '.'
+        if len(digits) >= -exponent:
+            result += ''.join(str(x) for x in digits[exponent:])
+        else:
+            result += '0' * (-exponent - len(digits))
+            result += ''.join(str(x) for x in digits)
+
+    return '-' + result if sign else result
 
 
 def int_to_roman(num):
