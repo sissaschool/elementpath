@@ -60,6 +60,8 @@ SKIP_TESTS = {
     'fn-compare__compare-010',
     'fn-substring-after__fn-substring-after-24',
     'fn-substring-before__fn-substring-before-24',
+    'fn-deep-equal__K-SeqDeepEqualFunc-57',
+    'fn-deep-equal__K-SeqDeepEqualFunc-56',
 
     # Unsupported language
     'fn-format-integer__format-integer-032',
@@ -632,8 +634,10 @@ class TestCase(object):
                 if uri is not None:
                     kwargs['collections'] = {uri: collection}
 
-                if 'non_empty_sequence_collection' in self.features:
+                if collection:
                     kwargs['default_collection'] = collection
+
+                if 'non_empty_sequence_collection' in self.features:
                     kwargs['default_resource_collection'] = uri
 
             if variables:

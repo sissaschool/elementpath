@@ -686,18 +686,28 @@ def evaluate_deep_equal_function(self, context=None):
                         if math.isnan(value1):
                             if not math.isnan(value2):
                                 return False
+                        elif math.isinf(value1):
+                            if value1 != value2:
+                                return False
                         elif isinstance(value2, Decimal):
                             if value1 != float(value2):
                                 return False
+                        elif not isinstance(value2, (value1.__class__, int)):
+                            return False
                         elif value1 != value2:
                             return False
 
                     elif isinstance(value2, float):
                         if math.isnan(value2):
                             return False
+                        elif math.isinf(value2):
+                            if value1 != value2:
+                                return False
                         elif isinstance(value1, Decimal):
                             if value2 != float(value1):
                                 return False
+                        elif not isinstance(value1, (value2.__class__, int)):
+                            return False
                         elif value1 != value2:
                             return False
 
