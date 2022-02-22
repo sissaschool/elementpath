@@ -276,7 +276,7 @@ def evaluate_base_uri_function(self, context=None):
         raise self.wrong_context_type("context item is not a node")
     elif is_document_node(item):
         base_uri = item.getroot().get(XML_BASE)
-        return AnyURI(base_uri) if base_uri is not None else None
+        return AnyURI(base_uri if base_uri is not None else '')
     else:
         context.item = item
         base_uri = []
@@ -284,9 +284,14 @@ def evaluate_base_uri_function(self, context=None):
             if is_element_node(item):
                 uri = item.get(XML_BASE)
                 if uri is not None:
-                    base_uri.append(uri)
+                    if base_uri and urlsplit(uri).scheme:
+                        break
 
-        return AnyURI(''.join(base_uri)) if base_uri else None
+                    base_uri.append(uri)
+                    if not urlsplit(uri).path.endswith('/'):
+                        break
+
+        return AnyURI(''.join(base_uri))
 
 
 @method(function('document-uri', nargs=1, sequence_types=('node()?', 'xs:anyURI?')))

@@ -163,6 +163,9 @@ LXML_ONLY = {
     'fn-name__fn-name-27',
     'fn-name__fn-name-29',
     'fn-string__fn-string-27',
+
+    # require external ENTITY parsing
+    'fn-parse-xml__parse-xml-010',
 }
 
 xpath_parser = XPath2Parser
@@ -412,10 +415,10 @@ class TestSet(object):
         self.etree = lxml.etree if use_lxml else ElementTree
 
         full_path = os.path.abspath(self.file)
-        directory = os.path.dirname(full_path)
         filename = os.path.basename(full_path)
+        self.workdir = os.path.dirname(full_path)
 
-        with working_directory(directory):
+        with working_directory(self.workdir):
             xml_root = self.etree.parse(filename).getroot()
 
             self.description = xml_root.find('description', namespaces).text
@@ -583,12 +586,15 @@ class TestCase(object):
                 schema = xmlschema.XMLSchema(environment.schema.filepath)
                 schema_proxy = schema.xpath_proxy
 
-        if not static_base_uri:
-            base_uri = self.test_set_file
-            if base_uri:
-                base_uri = os.path.dirname(os.path.abspath(base_uri))
+        if static_base_uri is None:
+            if self.name == "fn-parse-xml__parse-xml-007":
+                # workaround: static-base-uri() must return AnyURI('') for this case
+                static_base_uri = ''
+            else:
+                base_uri = os.path.dirname(os.path.abspath(self.test_set_file))
                 if os.path.isdir(base_uri):
                     static_base_uri = f'{pathlib.Path(base_uri).as_uri()}/'
+
         elif static_base_uri.startswith(INVALID_BASE_URL):
             static_base_uri = static_base_uri.replace(INVALID_BASE_URL, effective_base_url)
 
@@ -1092,7 +1098,12 @@ class Result(object):
 
     def assert_xml_validator(self, verbose=1):
         try:
-            result = self.test_case.run_xpath_test(verbose)
+            if self.test_case.test_set.name == 'fn-parse-xml':
+                with working_directory(self.test_case.test_set.workdir):
+                    result = self.test_case.run_xpath_test(verbose)
+            else:
+                result = self.test_case.run_xpath_test(verbose)
+
         except (ElementPathError, ParseError, EvaluateError) as err:
             self.report_failure(verbose, error=err)
             return False

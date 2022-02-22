@@ -110,7 +110,7 @@ def nud_inline_function(self):
             self.append(param)
             if self.parser.next_token.symbol == 'as':
                 self.parser.advance('as')
-                token = self.parser.expression(5)
+                token = self.parser.expression(90)
                 append_sequence_type(token)
             else:
                 self.sequence_types.append('item()*')
@@ -1155,6 +1155,9 @@ def evaluate_parse_xml_function(self, context=None):
     try:
         root = etree.XML(arg.encode('utf-8'))
     except etree.ParseError:
+        if context is None:
+            raise self.missing_context()
+
         raise self.error('FODC0006')
     else:
         return etree.ElementTree(root)
