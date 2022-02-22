@@ -124,15 +124,23 @@ LXML_ONLY = {
     'prod-AxisStep__Axes006-4',
     'prod-AxisStep__Axes033-4',
     'prod-AxisStep__Axes037-2',
+    'prod-AxisStep__Axes046-2',
+    'prod-AxisStep__Axes049-2',
     'prod-AxisStep__Axes058-2',
+    'prod-AxisStep__Axes058-3',
     'prod-AxisStep__Axes061-1',
+    'prod-AxisStep__Axes061-2',
     'prod-AxisStep__Axes064-2',
+    'prod-AxisStep__Axes064-3',
     'prod-AxisStep__Axes067-2',
+    'prod-AxisStep__Axes067-3',
     'prod-AxisStep__Axes073-1',
+    'prod-AxisStep__Axes073-2',
     'prod-AxisStep__Axes076-4',
     'prod-AxisStep__Axes079-4',
 
     # in-scope namespaces required
+    'prod-AxisStep__Axes118',
     'prod-AxisStep__Axes120',
     'prod-AxisStep__Axes126',
     'fn-resolve-QName__fn-resolve-qname-26',
@@ -150,8 +158,11 @@ LXML_ONLY = {
     'fn-outermost__fn-outermost-018',
     'fn-outermost__fn-outermost-019',
     'fn-outermost__fn-outermost-021',
+    'fn-local-name__fn-local-name-77',
     'fn-local-name__fn-local-name-79',
+    'fn-name__fn-name-27',
     'fn-name__fn-name-29',
+    'fn-string__fn-string-27',
 }
 
 xpath_parser = XPath2Parser

@@ -399,6 +399,11 @@ def evaluate_cast_expressions(self, context=None):
             if token_class is None or token_class.label != 'constructor function':
                 msg = "atomic type %r not found in the in-scope schema types"
                 raise self.unknown_atomic_type(msg % self[1].source)
+            elif local_name == 'QName':
+                if isinstance(arg, QName):
+                    pass
+                elif self.parser.version < '3.0' and self[0].symbol != '(string)':
+                    raise self.error('XPTY0004', "Non literal string to QName cast")
 
             token = token_class(self.parser)
             value = token.cast(arg)
