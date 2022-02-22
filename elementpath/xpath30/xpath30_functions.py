@@ -1420,6 +1420,9 @@ def select_fold_left_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=2, cls=XPathFunction)
+    if func.arity != 2:
+        raise self.error('XPTY0004', "function arity must be 2")
+
     zero = self.get_argument(context, index=1)
 
     result = zero
@@ -1439,6 +1442,9 @@ def select_fold_right_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
         func = self.get_argument(context, index=2, cls=XPathFunction)
+    if func.arity != 2:
+        raise self.error('XPTY0004', "function arity must be 2")
+
     zero = self.get_argument(context, index=1)
 
     result = zero
