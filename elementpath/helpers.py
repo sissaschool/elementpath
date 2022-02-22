@@ -154,3 +154,15 @@ def ordinal(n: int) -> str:
         return '%drd' % n
     else:
         return '%dth' % n
+
+
+def numeric_equal(op1, op2):
+    if op1 == op2:
+        return True
+    return math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)
+
+
+def numeric_not_equal(op1, op2):
+    if op1 == op2:
+        return False
+    return not math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)

@@ -17,9 +17,10 @@ from copy import copy
 from decimal import Decimal, DivisionByZero
 
 from ..exceptions import ElementPathError, ElementPathTypeError
+from ..helpers import numeric_equal, numeric_not_equal
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSI_NIL, get_namespace, get_expanded_name
-from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer
+from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer, DoubleProxy10
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_context import XPathSchemaContext
@@ -517,6 +518,14 @@ def evaluate_value_comparison_operators(self, context=None):
         return None
     elif any(isinstance(x, XPathFunction) for x in operands):
         raise self.error('FOTY0013', "cannot compare a function item")
+    elif all(isinstance(x, DoubleProxy10) for x in operands):
+        # Special case of two <class 'float'> values: use custom operators
+        if self.symbol == 'eq':
+            return numeric_equal(*operands)
+        elif self.symbol == 'ne':
+            return numeric_not_equal(*operands)
+        elif numeric_equal(*operands):
+            return self.symbol in ('le', 'ge')
 
     cls0, cls1 = type(operands[0]), type(operands[1])
     if cls0 is cls1 and cls0 is not Duration:
