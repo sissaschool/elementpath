@@ -28,12 +28,16 @@ method = XPath30Parser.method
 
 register(':=')
 
+###
+# Placeholder symbol (used also for optional occurrence)
+
 XPath30Parser.unregister('?')
 register('?', bases=(ValueToken,))
 
 
 @method('?')
-def nud_optional_symbol(self):
+def nud_placeholder_symbol(self):
+    self.value = self
     return self
 
 
@@ -91,9 +95,15 @@ def evaluate_parenthesized_expression(self, context=None):
         value = value[0]
 
     if len(self) > 1:
-        if not isinstance(value, XPathFunction):
-            raise self.error('XPTY0004', f'an XPath function expected, not {type(value)!r}')
-        return value(context, self[1])
+        if isinstance(value, XPathFunction):
+            return value(context, self[1])
+        elif self[0].symbol == '(':
+            if not isinstance(value, list):
+                return value
+            elif any(not isinstance(x, XPathFunction) for x in value):
+                return value
+
+        raise self.error('XPTY0004', f'an XPath function expected, not {type(value)!r}')
 
     if not isinstance(value, XPathFunction) or self[0].span[0] > self.span[0]:
         return value

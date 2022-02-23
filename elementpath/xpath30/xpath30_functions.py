@@ -78,6 +78,9 @@ def nud_inline_function(self):
         return token.nud()
 
     def append_sequence_type(tk):
+        if tk.symbol == '(' and len(tk) == 1:
+            tk = tk[0]
+
         sequence_type = tk.source
         next_symbol = self.parser.next_token.symbol
         if sequence_type != 'empty-sequence()' and next_symbol in {'?', '*', '+'}:

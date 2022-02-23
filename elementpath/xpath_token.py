@@ -1319,6 +1319,10 @@ class XPathFunction(XPathToken):
                     assert not isinstance(value, Token), "An atomic value or None expected"
                     self.append(ValueToken(self.parser, value=value))
 
+            if any(tk.symbol == '?' for tk in self._items):
+                self._partial_function()
+                return self
+
         if isinstance(self.label, MultiLabel):
             # Disambiguate multi-label tokens
             if self.namespace == XSD_NAMESPACE and \
