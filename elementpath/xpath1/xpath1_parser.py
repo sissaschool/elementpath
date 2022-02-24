@@ -411,7 +411,9 @@ class XPath1Parser(ParserType):
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
         elif sequence_type.startswith('function('):
-            return isinstance(value, XPathFunction)
+            if not isinstance(value, XPathFunction):
+                return False
+            return value.match_function_test(sequence_type)
 
         value_kind = node_kind(value)
         if value_kind is None:

@@ -101,6 +101,7 @@ SKIP_TESTS = {
     'fn-serialize__serialize-xml-015b',  # Do not raise, attribute is good
     'fn-parse-xml-fragment__parse-xml-fragment-022-st',  # conflict with parse-xml-fragment-022
     'fn-for-each-pair__fn-for-each-pair-017',  # Requires PI and comments parsing
+    'fn-function-lookup__fn-function-lookup-522',  # xs:dateTimeStamp for XSD 1.1 only
 
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
@@ -807,6 +808,9 @@ class Result(object):
         result = not self.children[0].validate()
         if not result and verbose > 1:
             self.children[0].validate(verbose)
+
+        if not result:
+            self.report_failure(verbose, expected=False, result=True)
         return result
 
     def assert_eq_validator(self, verbose=1):

@@ -26,6 +26,7 @@ import math
 import pathlib
 import platform
 import xml.etree.ElementTree as ElementTree
+from typing import cast
 
 try:
     import lxml.etree as lxml_etree
@@ -769,6 +770,17 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'node': root})
         self.assertEqual(token.evaluate(context), 1)
+
+    def test_function_test(self):
+        func: XPathFunction
+        func = cast(XPathFunction, self.parser.parse("function($x as item()) as item() { $x }"))
+        self.assertTrue(func.match_function_test('function(*)'))
+
+        func = cast(XPathFunction, self.parser.parse("function($x as item()) as xs:integer { $x }"))
+        self.assertTrue(func.match_function_test('function(item()) as item()'))
+
+        func = cast(XPathFunction, self.parser.parse("function($x as item()) as item() { $x }"))
+        self.assertTrue(func.match_function_test('function(xs:string) as item()'))
 
     def test_let_expression(self):
         token = self.parser.parse('let $x := 4, $y := 3 return $x + $y')

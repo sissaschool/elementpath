@@ -1295,7 +1295,12 @@ class XPathFunction(XPathToken):
             for variable, sequence_type, value in zip(self, self.sequence_types, args):
                 varname = cast(str, variable[0].value)
 
-                if not self.parser.match_sequence_type(value, sequence_type):
+                if isinstance(value, XPathFunction) and sequence_type.startswith('function('):
+                    if not value.match_function_test(sequence_type, as_argument=True):
+                        msg = "argument {!r}: {} does not match sequence type {}"
+                        raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
+
+                elif not self.parser.match_sequence_type(value, sequence_type):
                     value = self.cast_to_primitive_type(value, sequence_type)
                     if not self.parser.match_sequence_type(value, sequence_type):
                         msg = "argument {!r}: {} does not match sequence type {}"
@@ -1454,6 +1459,83 @@ class XPathFunction(XPathToken):
             self._partial_function()
 
         return self
+
+    def match_function_test(self, function_test: str, as_argument: bool = False) -> bool:
+        """
+        Match if function signature is a subtype of provided *function_test*.
+        For default return type is covariant and arguments are contravariant.
+        If *as_argument* is `True` the match is inverted and also the return
+        type is considered contravariant.
+
+        References:
+          https://www.w3.org/TR/xpath-31/#id-function-test
+          https://www.w3.org/TR/xpath-31/#id-sequencetype-subtype
+        """
+        if not function_test.startswith('function('):
+            return False
+        elif function_test == 'function(*)':
+            return True
+
+        parts = function_test[9:].partition(') as ')
+        if not parts[1] or not parts[2]:
+            return False
+
+        sequence_types = parts[0].split(', ')
+        sequence_types.append(parts[2])
+
+        if len(self.sequence_types) != len(sequence_types):
+            return False
+
+        if as_argument:
+            iterator = zip(sequence_types, self.sequence_types)
+        else:
+            iterator = zip(self.sequence_types, sequence_types)
+
+        k = 0
+        for fst, st in iterator:
+            k += 1
+            if not as_argument and k == len(sequence_types):
+                st, fst = fst, st
+
+            if st[-1] in '*+?':
+                st_occurs = st[-1]
+                st = st[:-1]
+            else:
+                st_occurs = ''
+
+            if fst[-1] in '*+?':
+                fst_occurs = fst[-1]
+                fst = fst[:-1]
+            else:
+                fst_occurs = ''
+
+            if st_occurs == fst_occurs or fst_occurs == '*':
+                pass
+            elif not fst_occurs:
+                if st_occurs not in '?*':
+                    return False
+            elif fst_occurs == '+':
+                if st_occurs:
+                    return False
+            elif st_occurs:
+                return False
+
+            if st == fst:
+                continue
+            elif fst == 'item()':
+                continue
+            elif st == 'item()':
+                return False
+            elif fst.startswith('xs:') ^ st.startswith('xs:'):
+                return False
+            elif fst.startswith('xs:'):
+                if not issubclass(xsd11_atomic_types[st[3:]],
+                                  xsd11_atomic_types[fst[3:]]):
+                    return False
+            elif fst != 'node()':
+                return False
+
+        return True
 
     def _partial_function(self) -> None:
         """Convert a named function to an anonymous partial function."""
