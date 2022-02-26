@@ -1403,7 +1403,7 @@ def select_for_each_function(self, context=None):
 def select_filter_function(self, context=None):
     func = self[1][1] if self[1].symbol == ':' else self[1]
     if not isinstance(func, XPathFunction):
-        func = self.get_argument(context, index=1, cls=XPathFunction)
+        func = self.get_argument(context, index=1, cls=XPathFunction, required=True)
 
     if func.nargs == 0:
         raise self.error('XPTY0004', f'invalid number of arguments {func.nargs}')
@@ -1422,7 +1422,7 @@ def select_filter_function(self, context=None):
 def select_fold_left_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
-        func = self.get_argument(context, index=2, cls=XPathFunction)
+        func = self.get_argument(context, index=2, cls=XPathFunction, required=True)
     if func.arity != 2:
         raise self.error('XPTY0004', "function arity must be 2")
 
@@ -1444,7 +1444,7 @@ def select_fold_left_function(self, context=None):
 def select_fold_right_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
-        func = self.get_argument(context, index=2, cls=XPathFunction)
+        func = self.get_argument(context, index=2, cls=XPathFunction, required=True)
     if func.arity != 2:
         raise self.error('XPTY0004', "function arity must be 2")
 
@@ -1468,7 +1468,7 @@ def select_fold_right_function(self, context=None):
 def select_for_each_pair_function(self, context=None):
     func = self[2][1] if self[2].symbol == ':' else self[2]
     if not isinstance(func, XPathFunction):
-        func = self.get_argument(context, index=2, cls=XPathFunction)
+        func = self.get_argument(context, index=2, cls=XPathFunction, required=True)
 
     if not isinstance(func, XPathFunction):
         raise self.error('XPTY0004', "invalid type for 3rd argument {!r}".format(func))

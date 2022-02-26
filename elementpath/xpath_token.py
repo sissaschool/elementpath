@@ -262,7 +262,7 @@ class XPathToken(Token[XPathTokenType]):
         """
         Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         """
-        if isinstance(item, cls):
+        if isinstance(item, (cls, ValueToken)):
             return item
         elif promote and isinstance(item, promote):
             return cls(item)
@@ -1292,10 +1292,17 @@ class XPathFunction(XPathToken):
 
                 args.append(context.item)
 
+            partial_function = False
+            if self.variables is None:
+                self.variables = {}
+
             for variable, sequence_type, value in zip(self, self.sequence_types, args):
                 varname = cast(str, variable[0].value)
 
-                if isinstance(value, XPathFunction) and sequence_type.startswith('function('):
+                if isinstance(value, XPathToken) and value.symbol == '?':
+                    partial_function = True
+                    continue
+                elif isinstance(value, XPathFunction) and sequence_type.startswith('function('):
                     if not value.match_function_test(sequence_type, as_argument=True):
                         msg = "argument {!r}: {} does not match sequence type {}"
                         raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
@@ -1306,7 +1313,10 @@ class XPathFunction(XPathToken):
                         msg = "argument {!r}: {} does not match sequence type {}"
                         raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
 
-                context.variables[varname] = value
+                context.variables[varname] = self.variables[varname] = value
+
+            if partial_function:
+                return self
 
         elif self.label == 'partial function':
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
@@ -1346,7 +1356,9 @@ class XPathFunction(XPathToken):
         else:
             result = self.evaluate(context)
 
-        if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
+        if isinstance(result, XPathToken) and result.symbol == '?':
+            pass
+        elif not self.parser.match_sequence_type(result, self.sequence_types[-1]):
             result = self.cast_to_primitive_type(result, self.sequence_types[-1])
             if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
                 msg = "{!r} does not match sequence type {}"
@@ -1483,13 +1495,16 @@ class XPathFunction(XPathToken):
         sequence_types = parts[0].split(', ')
         sequence_types.append(parts[2])
 
-        if len(self.sequence_types) != len(sequence_types):
+        signature = [x for x in self.sequence_types[:self.arity]]                   
+        signature.append(self.sequence_types[-1])
+
+        if len(sequence_types) != len(signature):
             return False
 
         if as_argument:
-            iterator = zip(sequence_types, self.sequence_types)
+            iterator = zip(sequence_types, signature)
         else:
-            iterator = zip(self.sequence_types, sequence_types)
+            iterator = zip(signature, sequence_types)
 
         k = 0
         for fst, st in iterator:

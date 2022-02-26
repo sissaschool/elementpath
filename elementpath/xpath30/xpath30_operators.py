@@ -15,7 +15,7 @@ from copy import copy
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..xpath_nodes import TypedElement, TypedAttribute, XPathNode
-from ..xpath_token import ValueToken, XPathFunction
+from ..xpath_token import XPathToken, ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import QName
 
@@ -37,7 +37,12 @@ register('?', bases=(ValueToken,))
 
 @method('?')
 def nud_placeholder_symbol(self):
-    self.value = self
+    # self.value = self
+    return self
+
+
+@method('?')
+def evaluate_placeholder_symbol(self, context=None):
     return self
 
 
@@ -102,6 +107,9 @@ def evaluate_parenthesized_expression(self, context=None):
                 return value
             elif any(not isinstance(x, XPathFunction) for x in value):
                 return value
+
+        if isinstance(value, XPathToken) and value.symbol == '?':
+            return value
 
         raise self.error('XPTY0004', f'an XPath function expected, not {type(value)!r}')
 
