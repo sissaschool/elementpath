@@ -90,6 +90,9 @@ def select_name_literal(self, context=None):
 
         # Untyped selection
         for item in context.iter_children_or_self():
+            if hasattr(item, 'nsmap') and None in item.nsmap and self.parser.version != '1.0':
+                default_namespace = item.nsmap[None]
+
             if context.match_name(name, default_namespace):
                 yield item
 
@@ -97,6 +100,9 @@ def select_name_literal(self, context=None):
 
         # Try to match the type using the item's path
         for item in context.iter_children_or_self():
+            if hasattr(item, 'nsmap') and None in item.nsmap and self.parser.version != '1.0':
+                default_namespace = item.nsmap[None]
+
             if context.match_name(name, default_namespace):
                 if isinstance(item, (TypedAttribute, TypedElement)):
                     yield item
@@ -104,16 +110,21 @@ def select_name_literal(self, context=None):
                     path = context.get_path(item)
 
                     xsd_node = self.parser.schema.find(path, self.parser.namespaces)
-                    if xsd_node is not None:
-                        self.xsd_types = {item.tag: xsd_node.type}
-                    else:
+                    if xsd_node is None:
                         self.xsd_types = self.parser.schema
+                    elif isinstance(item, AttributeNode):
+                        self.xsd_types = {item.name: xsd_node.type}
+                    else:
+                        self.xsd_types = {item.tag: xsd_node.type}
 
                     context.item = self.get_typed_node(item)
                     yield context.item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
+            if hasattr(item, 'nsmap') and None in item.nsmap and self.parser.version != '1.0':
+                default_namespace = item.nsmap[None]
+
             if context.match_name(name, default_namespace):
                 if isinstance(item, (TypedAttribute, TypedElement)):
                     yield item

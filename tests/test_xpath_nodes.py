@@ -60,12 +60,10 @@ class XPathNodesTest(unittest.TestCase):
             typed_root = TypedElement(root, xsd_type, 'text1')
             self.assertListEqual(list(etree_iter_nodes(typed_root)), result)
 
-        result = result[:4] + [AttributeNode('a', '10', root[0])] + result[4:]
-        self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
-
         comment = ElementTree.Comment('foo')
         root[1].append(comment)
-        self.assertListEqual(list(etree_iter_nodes(root, with_attributes=True)), result)
+        self.assertListEqual(list(etree_iter_nodes(root)),
+                             result[:5] + [comment] + result[5:])
 
     def test_elem_iter_strings_function(self):
         root = ElementTree.XML('<A>text1\n<B1>text2</B1>tail1<B2/><B3><C1>text3</C1></B3>tail2</A>')
@@ -353,19 +351,31 @@ class XPathNodesTest(unittest.TestCase):
 
         items = list(etree_iter_paths(root))
         self.assertListEqual(items, [
-            (root, '.'), (root[0], './b1'), (root[0][0], './b1/c1'),
-            (root[0][1], './b1/c2'), (root[1], './b2'), (root[2], './b3'),
-            (root[2][0], './b3/c3[1]'), (root[2][2], './b3/c3[2]')
+            (root, '.'), (root[0], './Q{}b1[1]'),
+            (root[0][0], './Q{}b1[1]/Q{}c1[1]'),
+            (root[0][1], './Q{}b1[1]/Q{}c2[1]'),
+            (root[1], './Q{}b2[1]'), (root[2], './Q{}b3[1]'),
+            (root[2][0], './Q{}b3[1]/Q{}c3[1]'),
+            (root[2][1], './Q{}b3[1]/comment()[1]'),
+            (root[2][2], './Q{}b3[1]/Q{}c3[2]')
         ])
         self.assertListEqual(list(etree_iter_paths(root, path='')), [
-            (root, ''), (root[0], 'b1'), (root[0][0], 'b1/c1'),
-            (root[0][1], 'b1/c2'), (root[1], 'b2'), (root[2], 'b3'),
-            (root[2][0], 'b3/c3[1]'), (root[2][2], 'b3/c3[2]')
+            (root, ''), (root[0], 'Q{}b1[1]'),
+            (root[0][0], 'Q{}b1[1]/Q{}c1[1]'),
+            (root[0][1], 'Q{}b1[1]/Q{}c2[1]'),
+            (root[1], 'Q{}b2[1]'), (root[2], 'Q{}b3[1]'),
+            (root[2][0], 'Q{}b3[1]/Q{}c3[1]'),
+            (root[2][1], 'Q{}b3[1]/comment()[1]'),
+            (root[2][2], 'Q{}b3[1]/Q{}c3[2]')
         ])
         self.assertListEqual(list(etree_iter_paths(root, path='/')), [
-            (root, '/'), (root[0], '/b1'), (root[0][0], '/b1/c1'),
-            (root[0][1], '/b1/c2'), (root[1], '/b2'), (root[2], '/b3'),
-            (root[2][0], '/b3/c3[1]'), (root[2][2], '/b3/c3[2]')
+            (root, '/'), (root[0], '/Q{}b1[1]'),
+            (root[0][0], '/Q{}b1[1]/Q{}c1[1]'),
+            (root[0][1], '/Q{}b1[1]/Q{}c2[1]'),
+            (root[1], '/Q{}b2[1]'), (root[2], '/Q{}b3[1]'),
+            (root[2][0], '/Q{}b3[1]/Q{}c3[1]'),
+            (root[2][1], '/Q{}b3[1]/comment()[1]'),
+            (root[2][2], '/Q{}b3[1]/Q{}c3[2]')
         ])
 
 

@@ -217,17 +217,16 @@ class XPath1TokenTest(unittest.TestCase):
     def test_boolean_value_function(self):
         token = self.parser.parse('true()')
         elem = ElementTree.Element('A')
-        with self.assertRaises(TypeError):
-            token.boolean_value(elem)
 
+        self.assertTrue(token.boolean_value(elem))
         self.assertFalse(token.boolean_value([]))
         self.assertTrue(token.boolean_value([elem]))
         self.assertFalse(token.boolean_value([0]))
         self.assertTrue(token.boolean_value([1]))
+
         with self.assertRaises(TypeError):
             token.boolean_value([1, 1])
-        with self.assertRaises(TypeError):
-            token.boolean_value(elem)
+
         self.assertFalse(token.boolean_value(0))
         self.assertTrue(token.boolean_value(1))
         self.assertTrue(token.boolean_value(1.0))
@@ -453,9 +452,9 @@ class XPath2TokenTest(XPath1TokenTest):
         self.assertIn("a function expected", str(ctx.exception))
 
         token = self.parser.parse("tst:foo")
-        with self.assertRaises(SyntaxError) as ctx:
+        with self.assertRaises(TypeError) as ctx:
             token.bind_namespace('http://xpath.test/ns')
-        self.assertIn('XPST0003', str(ctx.exception))
+        self.assertIn('XPST0017', str(ctx.exception))
         self.assertIn("a name, a wildcard or a function", str(ctx.exception))
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")

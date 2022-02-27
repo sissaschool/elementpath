@@ -409,7 +409,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('upper-case("aBcDe01")', 'ABCDE01')
         self.check_value('upper-case(("aBcDe01"))', 'ABCDE01')
         self.check_value('upper-case(())', '')
-        self.wrong_type('upper-case((10))', 'XPTY0004', "1st argument is <class 'int'>")
+        self.wrong_type('upper-case((10))', 'XPTY0004')
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[upper-case(@id) = 'A_ID']", root, [root[0]])
@@ -453,8 +453,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("string-join((), 'separator')", '')
 
         self.check_value("string-join(('a', 'b', 'c'), ', ')", 'a, b, c')
-        self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004', 'type of the 2nd argument')
-        self.check_value("string-join(('a', 4, 'c'), ', ')", 'a, 4, c')
+        self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004')
+        self.wrong_type("string-join(('a', 4, 'c'), ', ')", 'XPTY0004')
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']",
@@ -746,7 +746,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value(
             'fn:prefix-from-QName(fn:QName("http://www.example.com/ns/", "person"))', []
         )
-        self.check_value('fn:prefix-from-QName(())')
+        self.check_value('fn:prefix-from-QName(())', [])
         self.check_value('fn:prefix-from-QName(7)', TypeError)
         self.check_value('fn:prefix-from-QName("7")', TypeError)
 
@@ -782,8 +782,14 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root=root)
 
         self.check_value("fn:resolve-QName((), .)", context=context)
-        self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context)
-        self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError, namespaces={'p3': ''})
+
+        if self.etree is lxml_etree:
+            self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", KeyError, context=context)
+            self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError, namespaces={'p3': ''})
+        else:
+            self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context)
+            self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError, namespaces={'p3': ''})
+
         self.check_raise("fn:resolve-QName('p3:C3', .)", KeyError, 'FONS0004',
                          "no namespace found for prefix 'p3'", context=context)
         self.check_value("fn:resolve-QName('C3', .)", QName('', 'C3'), context=context)
@@ -874,7 +880,10 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
             with self.schema_bound_parser(schema.xpath_proxy):
                 context = self.parser.schema.get_context()
-                prefixes = {'xml', 'xs', 'xlink', 'fn', 'err', 'xsi', 'eg', 'tst'}
+                prefixes = {'xml', 'xs', 'fn', 'err', 'xsi', 'eg', 'tst'}
+                if self.parser.version == '3.0':
+                    prefixes.add('math')
+
                 self.check_value("fn:in-scope-prefixes(.)", prefixes, context)
 
     def test_datetime_function(self):
@@ -1216,7 +1225,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertFalse(schema.is_valid(root))
         with self.schema_bound_parser(schema.xpath_proxy):
             context = XPathContext(doc)
-            self.check_select("id('ID21256')", [], context)
+            self.check_select("id('ID21256')", [root], context)
             self.check_select("id('E21256')", [], context)
 
         schema = xmlschema.XMLSchema(dedent("""\
@@ -1227,7 +1236,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertFalse(schema.is_valid(root))
         with self.schema_bound_parser(schema.xpath_proxy):
             context = XPathContext(doc)
-            self.check_select("id('ID21256')", [], context)
+            self.check_select("id('ID21256')", [root], context)
             self.check_select("id('E21256')", [], context)
 
     def test_node_set_idref_function(self):
@@ -1463,7 +1472,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_value('fn:base-uri(9)', MissingContextError)
         self.check_value('fn:base-uri(9)', TypeError, context=context)
-        self.check_value('fn:base-uri()', context=context)
+        self.check_value('fn:base-uri()', datatypes.AnyURI(''), context=context)
         self.check_value('fn:base-uri(())', context=context)
 
         context = XPathContext(root=self.etree.XML('<A xml:base="/base_path/"/>'))
@@ -1548,7 +1557,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root)
         self.wrong_value("fn:collection('filepath')", 'FODC0002', context=context)
-        self.wrong_value("fn:collection('dirpath/')", 'FODC0003', context=context)
+        self.wrong_value("fn:collection('dirpath/')", 'FODC0002', context=context)
 
     def test_root_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
@@ -1605,9 +1614,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         with self.assertRaises(ElementPathError) as err:
             self.check_value('fn:error("err:XPST0001")')
-        self.assertIn(
-            "[err:XPTY0004] the type of the 1st argument is <class 'str'>", str(err.exception)
-        )
+        self.assertIn("[err:XPTY0004]", str(err.exception))
 
         with self.assertRaises(ElementPathError) as err:
             self.check_value(

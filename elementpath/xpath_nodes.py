@@ -284,6 +284,8 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = T
         else:
             with_root = True
         _root = document.getroot()
+    elif isinstance(root, TypedElement):
+        _root = cast(ElementProtocol, root.elem)
     else:
         _root = cast(ElementProtocol, root)
 

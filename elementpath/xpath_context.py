@@ -196,14 +196,17 @@ class XPathContext:
             pass
         return None
 
-    def get_parent(self, elem: ElementNode) -> Union[None, ElementNode, DocumentNode]:
+    def get_parent(self, elem: Union[ElementNode, TypedElement]) \
+            -> Union[None, ElementNode, DocumentNode]:
         """Returns the parent of the element or `None` if it has no parent."""
+        _elem = elem.elem if isinstance(elem, TypedElement) else elem
+
         try:
-            return self.parent_map[elem]
+            return self.parent_map[_elem]
         except KeyError:
             try:
                 # fallback for lxml elements
-                parent = elem.getparent()  # type: ignore[union-attr]
+                parent = _elem.getparent()  # type: ignore[union-attr]
             except AttributeError:
                 return None
             else:
@@ -259,8 +262,6 @@ class XPathContext:
             item_name = self.item.name
         elif is_element_node(self.item):
             item_name = self.item.tag
-            if hasattr(self.item, 'nsmap') and None in self.item.nsmap:
-                default_namespace = self.item.nsmap[None]
         else:
             return False
 

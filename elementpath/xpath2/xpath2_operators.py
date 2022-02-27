@@ -731,7 +731,11 @@ def select_element_kind_test(self, context=None):
             if len(self) == 1:
                 yield item
             elif isinstance(item, TypedElement):
-                type_annotation = self[1].source
+                try:
+                    type_annotation = get_expanded_name(self[1].source, self.parser.namespaces)
+                except KeyError:
+                    type_annotation = self[1].source
+
                 if type_annotation == item.xsd_type.name:
                     yield item
                 elif item.elem.get(XSI_NIL) and type_annotation[-1] in ('*', '?'):

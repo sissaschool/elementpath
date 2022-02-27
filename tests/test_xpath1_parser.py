@@ -892,7 +892,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector('para/lang("en")', root, True)
             context = XPathContext(root)
             self.check_value('for $x in . return $x/fn:lang(())',
-                             expected=[], context=context)
+                             expected=[False], context=context)
         else:
             context = XPathContext(document, item=root[0])
             self.check_value('lang("en")', True, context=context)
@@ -1147,11 +1147,12 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root, variables=self.variables)
         self.check_value("sum($values)", 35, context)
         self.check_selector("sum(/values/a)", root, 13.299999999999999)
-        self.check_selector("sum(/values/*)", root, math.isnan)
 
         if self.parser.version == '1.0':
+            self.check_selector("sum(/values/*)", root, math.isnan)
             self.wrong_syntax("sum(())")
         else:
+            self.check_selector("sum(/values/*)", root, TypeError)
             self.check_value("sum(())", 0)
             self.check_value("sum((), ())", [])
             self.check_value('sum((xs:yearMonthDuration("P2Y"), xs:yearMonthDuration("P1Y")))',
@@ -1211,7 +1212,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("$alpha", 10, context=context)
         self.check_value("$beta", NameError, context=context)
         self.check_value("$id", '19273222', context=context)
-        self.wrong_type("$id()")
+
+        if self.parser.version == '1.0':
+            self.wrong_type("$id()", 'XPST0017')
+        else:
+            self.check_value("$id()", MissingContextError)
 
     def test_path_step_operator(self):
         root = self.etree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -1412,7 +1417,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
                                 namespaces=namespaces[-1:])
         else:
             self.check_selector('/A/namespace::*', root,
-                                expected=set(x[1] for x in namespaces),
+                                expected={'http://www.w3.org/XML/1998/namespace',
+                                          'http://xpath.test/ns'},
                                 namespaces=namespaces[-1:])
 
         self.check_value('namespace::*', MissingContextError)
@@ -1556,17 +1562,22 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector('/*:foo', root, [root], namespaces={'': 'ns'})  # foo --> {ns}foo
 
         root = self.etree.XML('<foo xmlns="ns">bar</foo>')
-        self.check_selector('/foo', root, [])
-        if type(self.parser) is XPath1Parser:
+        if self.parser.version == '1.0' or self.etree is not lxml_etree:
+            self.check_selector('/foo', root, [])
+        else:
+            self.check_selector('/foo', root, [root])
+
+        if self.parser.version == '1.0':
             self.check_selector('/foo', root, [], namespaces={'': 'ns'})
         else:
             self.check_selector('/foo', root, [root], namespaces={'': 'ns'})
 
         root = self.etree.XML('<A xmlns="http://xpath.test/ns"><B1/></A>')
-        if self.parser.version > '1.0' or not hasattr(root, 'nsmap'):
-            self.check_selector("name(tst:B1)", root, 'tst:B1',
-                                namespaces={'tst': "http://xpath.test/ns"})
         if self.parser.version > '1.0':
+            self.check_selector("name(tst:B1)", root,
+                                'B1' if self.etree is lxml_etree else 'tst:B1',
+                                namespaces={'tst': "http://xpath.test/ns"})
+
             self.check_selector("name(B1)", root, 'B1', namespaces={'': "http://xpath.test/ns"})
         else:
             # XPath 1.0 ignores the default namespace declarations

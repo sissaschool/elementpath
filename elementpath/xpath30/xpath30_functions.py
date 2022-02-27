@@ -1160,7 +1160,6 @@ def evaluate_parse_xml_function(self, context=None):
     except etree.ParseError:
         if context is None:
             raise self.missing_context()
-
         raise self.error('FODC0006')
     else:
         return etree.ElementTree(root)

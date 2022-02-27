@@ -108,9 +108,8 @@ class XPathContextTest(unittest.TestCase):
         self.assertIsNone(context._parent_map)
         self.assertIsNone(context.get_parent(root))
 
-        self.assertIsNone(context._parent_map)
-        self.assertEqual(context.get_parent(root[0]), root)
         self.assertIsInstance(context._parent_map, dict)
+        self.assertEqual(context.get_parent(root[0]), root)
         parent_map_id = id(context._parent_map)
 
         self.assertEqual(context.get_parent(root[1]), root)
@@ -375,6 +374,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'is_empty', return_value=True) as xsd_type:
             context = XPathContext(root, item=TypedElement(root, xsd_type, None))
+            results = [root[2], root[0][0]]
             self.assertListEqual(list(context.iter_results(results)), [root[0][0], root[2]])
 
             results = [root[2], TypedElement(root[0][0], xsd_type, None)]
@@ -383,6 +383,7 @@ class XPathContextTest(unittest.TestCase):
                                  [TypedElement(root[0][0], xsd_type, None), root[2]])
 
             context = XPathContext(root, item=TypedElement(root, xsd_type, None))
+            results = [root[2], TypedElement(root[0][0], xsd_type, None)]
             self.assertListEqual(list(context.iter_results(results)),
                                  [TypedElement(root[0][0], xsd_type, None), root[2]])
 
@@ -392,14 +393,14 @@ class XPathContextTest(unittest.TestCase):
                 root[0]
             ]
             context = XPathContext(root)
-            self.assertListEqual(list(context.iter_results(results)), results[::-1])
+            self.assertListEqual(list(context.iter_results(results.copy())), results[::-1])
 
             results = [
                 TypedAttribute(AttributeNode('max', '11'), xsd_type, 11),
                 root[0]
             ]
             context = XPathContext(root)
-            self.assertListEqual(list(context.iter_results(results)), results[1:])
+            self.assertListEqual(list(context.iter_results(results.copy())), results[1:])
 
 
 if __name__ == '__main__':
