@@ -139,6 +139,10 @@ LXML_ONLY = {
     'prod-AxisStep__Axes073-2',
     'prod-AxisStep__Axes076-4',
     'prod-AxisStep__Axes079-4',
+    'fn-path__path007',
+    'fn-path__path009',
+    'fn-generate-id__generate-id-005',
+    'fn-parse-xml-fragment__parse-xml-fragment-010',
 
     # in-scope namespaces required
     'prod-AxisStep__Axes118',
@@ -164,6 +168,22 @@ LXML_ONLY = {
     'fn-name__fn-name-27',
     'fn-name__fn-name-29',
     'fn-string__fn-string-27',
+    'fn-format-number__numberformat87',
+    'fn-format-number__numberformat88',
+    'fn-path__path010',
+    'fn-path__path011',
+    'fn-path__path012',
+    'fn-path__path013',
+    'fn-function-lookup__fn-function-lookup-262',
+    'fn-generate-id__generate-id-007',
+    'fn-serialize__serialize-xml-012',
+    'prod-EQName__eqname-018',
+    'prod-EQName__eqname-023',
+    'prod-NamedFunctionRef__function-literal-262',
+
+    # XML declaration
+    'fn-serialize__serialize-xml-029b',
+    'fn-serialize__serialize-xml-030b',
 
     # require external ENTITY parsing
     'fn-parse-xml__parse-xml-010',
@@ -350,8 +370,15 @@ class Environment(object):
         child = elem.find('decimal-format', namespaces)
         if child is not None:
             name = child.get('name')
-            if name is not None and ':' in name and use_lxml:
-                name = get_expanded_name(name, child.nsmap)
+            if name is not None and ':' in name:
+                if use_lxml:
+                    name = get_expanded_name(name, child.nsmap)
+                else:
+                    try:
+                        name = get_expanded_name(name, self.namespaces)
+                    except KeyError:
+                        pass
+
             self.decimal_formats = {name: child.attrib}
 
         child = elem.find('collection', namespaces)
