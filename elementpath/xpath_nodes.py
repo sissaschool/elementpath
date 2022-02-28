@@ -264,7 +264,7 @@ def is_lxml_etree_element(obj: Any) -> bool:
 
 def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) -> Iterator[ElementNode]:
     if not hasattr(root, 'itersiblings'):
-        yield cast(ElementProtocol, root)
+        yield root
     else:
         _root = cast(LxmlElementProtocol, root)
         yield from reversed([e for e in _root.itersiblings(preceding=True)])

@@ -294,7 +294,7 @@ class Token(MutableSequence[TK]):
         status: List[Tuple[Optional['Token[TK]'], Iterator['Token[TK]']]] = []
         parent: Optional['Token[TK]'] = self
         children: Iterator['Token[TK]'] = iter(self)
-        tk: Token
+        tk: 'Token[TK]'
 
         while True:
             try:

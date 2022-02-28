@@ -26,7 +26,7 @@ class AbstractQName(metaclass=AtomicTypeMeta):
     def __new__(cls, *args: Any, **kwargs: Any) -> 'AbstractQName':
         if cls.__name__ == 'Notation':
             raise TypeError("can't instantiate xs:NOTATION objects")
-        return cast(AbstractQName, super().__new__(cls))
+        return super().__new__(cls)
 
     def __init__(self, uri: Optional[str], qname: str) -> None:
         if uri is None:
