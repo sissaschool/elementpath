@@ -311,7 +311,8 @@ class AbstractDateTime(metaclass=AtomicTypeMeta):
     def _get_operands(self, other: object) -> Tuple[datetime.datetime, datetime.datetime]:
         if isinstance(other, (self.__class__, datetime.datetime)) or \
                 isinstance(self, other.__class__):
-            dt = getattr(other, '_dt', other)
+            dt: datetime.datetime = getattr(other, '_dt', cast(datetime.datetime, other))
+
             if self._dt.tzinfo is dt.tzinfo:
                 return self._dt, dt
             elif self.tzinfo is None:

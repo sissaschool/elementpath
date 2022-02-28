@@ -264,11 +264,12 @@ def is_lxml_etree_element(obj: Any) -> bool:
 
 def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) -> Iterator[ElementNode]:
     if not hasattr(root, 'itersiblings'):
-        yield root
+        yield cast(ElementProtocol, root)
     else:
-        yield from reversed([e for e in root.itersiblings(preceding=True)])
-        yield root
-        yield from root.itersiblings()
+        _root = cast(LxmlElementProtocol, root)
+        yield from reversed([e for e in _root.itersiblings(preceding=True)])
+        yield _root
+        yield from _root.itersiblings()
 
 
 def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = True) \
@@ -373,12 +374,12 @@ def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
 def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[ElementNode, str]]:
     yield elem, path
     comment_nodes = 0
-    pi_nodes = Counter()
-    positions = Counter()
+    pi_nodes: Counter[Optional[str]] = Counter()
+    positions: Counter[Optional[str]] = Counter()
 
     for child in elem:
         if callable(child.tag):
-            if child.tag.__name__ != 'ProcessingInstruction':
+            if child.tag.__name__ != 'ProcessingInstruction':  # type: ignore[attr-defined]
                 comment_nodes += 1
                 yield child, f'{path}/comment()[{comment_nodes}]'
                 continue

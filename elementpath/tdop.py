@@ -12,17 +12,13 @@ This module contains base classes and helper functions for defining Pratt parser
 """
 import sys
 import re
+from abc import ABCMeta
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from itertools import takewhile
 from typing import Any, cast, overload, no_type_check_decorator, Callable, \
     ClassVar, FrozenSet, Dict, Generic, List, Optional, Union, Tuple, Type, \
     Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
-
-if sys.version_info < (3, 7):
-    from typing import GenericMeta as ABCMeta
-else:
-    from abc import ABCMeta
 
 from .datatypes import AtomicValueType
 
@@ -295,8 +291,9 @@ class Token(MutableSequence[TK]):
 
     def iter(self, *symbols: str) -> Iterator['Token[TK]']:
         """Returns a generator for iterating the token's tree."""
-        status = []
-        parent, children = self, iter(self)
+        status: List[Tuple[Optional['Token[TK]'], Iterator['Token[TK]']]] = []
+        parent: Optional['Token[TK]'] = self
+        children: Iterator['Token[TK]'] = iter(self)
         tk: Token
 
         while True:
@@ -491,6 +488,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         parse error.
         :return: The next token instance.
         """
+        value: Any
         if self.next_token.symbol == '(end)' or \
                 symbols and self.next_token.symbol not in symbols:
             raise self.next_token.wrong_syntax()

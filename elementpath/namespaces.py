@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from typing import Dict, Optional, Tuple, MutableMapping
+from typing import cast, Dict, Optional, Tuple, MutableMapping, Union
 
 NamespacesType = MutableMapping[str, str]
 
@@ -82,7 +82,8 @@ def split_expanded_name(name: str) -> Tuple[str, str]:
     return namespace or '', local_name
 
 
-def get_prefixed_name(qname: str, namespaces: Dict[Optional[str], str]) -> str:
+def get_prefixed_name(
+        qname: str, namespaces: Union[Dict[str, str], Dict[Optional[str], str]]) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
 
@@ -109,7 +110,8 @@ def get_prefixed_name(qname: str, namespaces: Dict[Optional[str], str]) -> str:
         return qname
 
 
-def get_expanded_name(qname: str, namespaces: Dict[Optional[str], str]) -> str:
+def get_expanded_name(
+        qname: str, namespaces: Union[Dict[str, str], Dict[Optional[str], str]]) -> str:
     """
     Get the expanded form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
@@ -132,7 +134,7 @@ def get_expanded_name(qname: str, namespaces: Dict[Optional[str], str]) -> str:
         elif '' in namespaces:
             uri = namespaces['']
         elif None in namespaces:
-            uri = namespaces[None]  # lxml nsmap
+            uri = cast(Dict[Optional[str], str], namespaces)[None]  # lxml nsmap
         else:
             return qname
 

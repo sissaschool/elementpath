@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XML_NAMESPACE
 from .datatypes import AnyAtomicType, Timezone
-from .protocols import XsdElementProtocol, XMLSchemaProtocol
+from .protocols import ElementProtocol, XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
     TypedAttribute, etree_iter_nodes, is_etree_element, is_element_node, \
     is_document_node, is_schema_node, is_lxml_etree_element, is_lxml_document_node, \
@@ -187,13 +187,15 @@ class XPathContext:
         if any(node == x for x in self.iter()):
             return self.root
 
-        try:
-            for uri, doc in self.documents.items():
-                doc_context = XPathContext(root=doc)
-                if any(node == x for x in doc_context.iter()):
-                    return doc
-        except AttributeError:
-            pass
+        if self.documents is not None:
+            try:
+                for uri, doc in self.documents.items():
+                    doc_context = XPathContext(root=doc)
+                    if any(node == x for x in doc_context.iter()):
+                        return doc
+            except AttributeError:
+                pass
+
         return None
 
     def get_parent(self, elem: Union[ElementNode, TypedElement]) \
@@ -206,7 +208,7 @@ class XPathContext:
         except KeyError:
             try:
                 # fallback for lxml elements
-                parent = _elem.getparent()  # type: ignore[union-attr]
+                parent = _elem.getparent()  # type: ignore[attr-defined]
             except AttributeError:
                 return None
             else:
@@ -261,7 +263,7 @@ class XPathContext:
                 return False
             item_name = self.item.name
         elif is_element_node(self.item):
-            item_name = self.item.tag
+            item_name = cast(ElementProtocol, self.item).tag
         else:
             return False
 
@@ -479,17 +481,16 @@ class XPathContext:
                 document = cast(DocumentNode, self.root)
                 root = document.getroot()
             else:
-                root = self.root
+                root = cast(ElementProtocol, self.root)
 
             for self.item in etree_iter_root(root):
                 yield self.item
 
         elif is_etree_element(self.item):
-            if callable(self.item.tag):
-                return
-
             elem = cast(ElementNode, self.item)
-            if elem.text is not None:
+            if callable(elem.tag):
+                return
+            elif elem.text is not None:
                 self.item = TextNode(elem.text, elem)
                 yield self.item
 
@@ -656,7 +657,7 @@ class XPathContext:
 
         while parent is not None:
             ancestors.append(parent)
-            parent = self.get_parent(parent)
+            parent = self.get_parent(parent)  # type: ignore[arg-type]
 
         for self.item in reversed(ancestors):
             yield self.item
@@ -666,6 +667,7 @@ class XPathContext:
     def iter_preceding(self) -> Iterator[ElementNode]:
         """Iterator for 'preceding' reverse axis."""
         item: Union[ElementNode, XPathNode]
+        parent: Union[None, ElementNode, DocumentNode]
 
         if isinstance(self.item, TypedElement):
             item = self.item.elem
@@ -691,14 +693,14 @@ class XPathContext:
         ancestors = set()
         while parent is not None:
             ancestors.add(parent)
-            parent = self.get_parent(parent)
+            parent = self.get_parent(parent)  # type: ignore[arg-type]
 
         for elem in self._iter_nodes(self.root):  # pragma: no cover
             if elem is item:
                 break
             elif elem not in ancestors:
-                self.item = elem
-                yield elem
+                self.item = cast(ElementNode, elem)
+                yield self.item
 
         self.item, self.axis = status
 

@@ -128,7 +128,10 @@ class XPathToken(Token[XPathTokenType]):
             # For XPath 2.0 'attribute' multi-role token ('kind test', 'axis')
             return '%s::%s' % (symbol, self[0].source)
         elif symbol == ':':
-            return self.value + self.occurrence if self.occurrence else self.value
+            if self.occurrence:
+                return str(self.value) + self.occurrence
+            else:
+                return str(self.value)
         elif symbol == '(':
             return '()' if not self else '(%s)' % self[0].source
         elif symbol == '[':
@@ -257,7 +260,7 @@ class XPathToken(Token[XPathTokenType]):
             return self.validated_value(item, cls, promote)
         return item
 
-    def validated_value(self, item: Any, cls: Optional[Type[Any]],
+    def validated_value(self, item: Any, cls: Type[Any],
                         promote: Optional[ClassCheckType] = None) -> Any:
         """
         Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
@@ -1222,10 +1225,7 @@ class XPathFunction(XPathToken):
     body: Optional[XPathToken] = None
     "Body of anonymous inline function."
 
-    partial_evaluate = False
-    "Evaluation method of a Denotes a partial unnamed function."
-
-    variables = None
+    variables: Optional[Dict[str, Any]] = None
     "Optional variables linked by let and for expressions."
 
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
@@ -1249,7 +1249,7 @@ class XPathFunction(XPathToken):
                      Tuple[Union[XPathToken, AtomicValueType], ...]
                  ]] = None) -> Any:
 
-        args: List[Union[Token[XPathTokenType], AtomicValueType]] = []
+        args: List[Any] = []
         if isinstance(argument_list, (list, tuple)):
             args.extend(argument_list)
         elif isinstance(argument_list, XPathToken):
@@ -1277,7 +1277,7 @@ class XPathFunction(XPathToken):
             raise self.error('XPTY0004', "too many arguments")
 
         context = copy(context)
-        if self.variables is not None:
+        if self.variables is not None and context is not None:
             context.variables.update(self.variables)
 
         if self.symbol == 'function':
@@ -1286,7 +1286,7 @@ class XPathFunction(XPathToken):
             elif not args and self:
                 if context.item is None:
                     if is_document_node(context.root):
-                        context.item = context.root.getroot()
+                        context.item = cast(DocumentProtocol, context.root).getroot()
                     else:
                         context.item = context.root
 
@@ -1349,10 +1349,11 @@ class XPathFunction(XPathToken):
                         self.label = label
                         break
 
-        if self.label == 'inline function':
-            result = self.body.evaluate(context)
-        elif self.label == 'partial function':
+        if self.label == 'partial function':
             result = self._partial_evaluate(context)
+        elif self.body is not None:
+            assert self.label == 'inline function'
+            result = self.body.evaluate(context)
         else:
             result = self.evaluate(context)
 
@@ -1561,12 +1562,13 @@ class XPathFunction(XPathToken):
             yield self
 
         if self.__class__.evaluate is not XPathToken.evaluate:
-            self._partial_evaluate = self.evaluate
+            setattr(self, '_partial_evaluate', self.evaluate)
         if self.__class__.select is not XPathToken.select:
-            self._partial_select = self.select
+            setattr(self, '_partial_select', self.select)
 
-        self.evaluate = evaluate
-        self.select = select
+        setattr(self, 'evaluate', evaluate)
+        setattr(self, 'select', select)
+
         self._name = None
         self.label = 'partial function'
         self.nargs = len([tk for tk in self._items if tk.symbol == '?'])
