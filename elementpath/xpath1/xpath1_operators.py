@@ -444,7 +444,7 @@ def evaluate_comparison_operators(self, context=None):
     op = OPERATORS_MAP[self.symbol]
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
-    except ElementPathTypeError as err:
+    except ElementPathTypeError:
         raise
     except TypeError as err:
         raise self.error('XPTY0004', err) from None

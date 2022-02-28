@@ -17,7 +17,7 @@ import decimal
 from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
-from ..xpath_nodes import XPathNode, TextNode, is_xpath_node, is_document_node, \
+from ..xpath_nodes import TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 from ..xpath_token import XPathFunction
 

@@ -19,7 +19,7 @@ from .namespaces import XML_NAMESPACE
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
-    TypedAttribute, etree_iter_nodes, is_etree_element, is_element_node, is_xpath_node, \
+    TypedAttribute, etree_iter_nodes, is_etree_element, is_element_node, \
     is_document_node, is_schema_node, is_lxml_etree_element, is_lxml_document_node, \
     XPathNode, ElementNode, DocumentNode, XPathNodeType, etree_iter_root
 

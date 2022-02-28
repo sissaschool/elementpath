@@ -1495,7 +1495,7 @@ class XPathFunction(XPathToken):
         sequence_types = parts[0].split(', ')
         sequence_types.append(parts[2])
 
-        signature = [x for x in self.sequence_types[:self.arity]]                   
+        signature = [x for x in self.sequence_types[:self.arity]]
         signature.append(self.sequence_types[-1])
 
         if len(sequence_types) != len(signature):

@@ -480,7 +480,8 @@ def evaluate_format_number_function(self, context=None):
     zero_digit = decimal_format['zero-digit']
     optional_digit = decimal_format['digit']
     digits_family = ''.join(chr(cp + ord(zero_digit)) for cp in range(10))
-    if any(optional_digit not in p and all(x not in p for x in digits_family) for p in sub_pictures):
+    if any(optional_digit not in p and all(x not in p for x in digits_family)
+           for p in sub_pictures):
         raise self.error('FODF1310')
 
     grouping_separator = decimal_format['grouping-separator']
