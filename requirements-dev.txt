@@ -3,9 +3,9 @@ setuptools
 tox
 coverage
 lxml
-xmlschema>=1.8.0
+xmlschema>=1.9.0
 Sphinx
 memory-profiler
 flake8
-mypy==0.910
+mypy==0.931
 -e .

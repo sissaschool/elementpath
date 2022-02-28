@@ -17,7 +17,7 @@ from typing import overload, Any
 if sys.version_info < (3, 8):
     # for Python < 3.8 fallback to typing.Any
     ElementProtocol = Any
-    LxmlElementProtocol: Any
+    LxmlElementProtocol = Any
     DocumentProtocol = Any
     XsdComponentProtocol = Any
     XsdTypeProtocol = Any

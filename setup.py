@@ -15,18 +15,18 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='2.4.1',
+    version='2.5.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     include_package_data=True,
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/sissaschool/elementpath',
-    keywords=['XPath', 'XPath2', 'Pratt-parser', 'ElementTree', 'lxml'],
+    keywords=['XPath', 'XPath2', 'XPath3', 'Pratt-parser', 'ElementTree', 'lxml'],
     license='MIT',
     license_file='LICENSE',
     description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     extras_require={
         'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.8.0',
                 'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.910']
@@ -41,7 +41,6 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
