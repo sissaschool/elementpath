@@ -14,6 +14,15 @@ from decimal import Decimal
 from typing import Optional, Union, SupportsFloat
 
 ###
+# Common sets constants
+OCCURRENCE_INDICATORS = frozenset(('?', '*', '+'))
+BOOLEAN_VALUES = frozenset(('true', 'false', '1', '0'))
+NUMERIC_INF_OR_NAN = frozenset(('INF', '-INF', 'NaN'))
+INVALID_NUMERIC = frozenset(
+    ('inf', '+inf', '-inf', 'nan', 'infinity', '+infinity', '-infinity')
+)
+
+###
 # Data validation helpers
 
 NORMALIZE_PATTERN = re.compile(r'[^\S\xa0]')
@@ -59,9 +68,9 @@ MONTH_DAYS_LEAP = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 
 def adjust_day(year: int, month: int, day: int) -> int:
-    if month in {1, 3, 5, 7, 8, 10, 12}:
+    if month in (1, 3, 5, 7, 8, 10, 12):
         return day
-    elif month in {4, 6, 9, 11}:
+    elif month in (4, 6, 9, 11):
         return min(day, 30)
     else:
         return min(day, 29) if isleap(year) else min(day, 28)
@@ -135,14 +144,14 @@ def normalized_seconds(seconds: Decimal) -> str:
 
 
 def is_xml_codepoint(cp: int) -> bool:
-    return cp in {0x9, 0xA, 0xD} or \
+    return cp in (0x9, 0xA, 0xD) or \
         0x20 <= cp <= 0xD7FF or \
         0xE000 <= cp <= 0xFFFD or \
         0x10000 <= cp <= 0x10FFFF
 
 
 def ordinal(n: int) -> str:
-    if n in {11, 12, 13}:
+    if n in (11, 12, 13):
         return '%dth' % n
 
     least_significant_digit = n % 10

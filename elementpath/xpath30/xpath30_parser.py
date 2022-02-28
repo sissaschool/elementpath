@@ -81,7 +81,7 @@ class XPath30Parser(XPath2Parser):
         '(integer)', '(string)', '(float)', '(decimal)', '(name)',
         '*', '@', '..', '.', '(', '{', 'Q{', '$',
     }
-    
+
     decimal_formats: DecimalFormatsType = {
         None: {
             'decimal-separator': '.',

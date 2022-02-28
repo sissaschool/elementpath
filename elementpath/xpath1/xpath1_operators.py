@@ -611,7 +611,7 @@ def nud_logical_div_mod_operators(self):
 @method('|', bp=50)
 def led_union_operator(self, left):
     self.cut_and_sort = True
-    if left.symbol in {'|', 'union'}:
+    if left.symbol in ('|', 'union'):
         left.cut_and_sort = False
     self[:] = left, self.parser.expression(rbp=50)
     return self

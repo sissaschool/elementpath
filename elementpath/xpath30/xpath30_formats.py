@@ -20,7 +20,7 @@ from ..regex import translate_pattern
 from .translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS_MAP, \
     NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS, MILITARY_TIME_ZONES
 
-
+PRESENTATION_FORMATS = {'i', 'I', 'w', 'W', 'Ww', 'a', 'A', 'n', 'N', 'Nn', 'Z'}
 PICTURE_PATTERN = re.compile(r'\[(?!\[)[^]]+]')
 UNICODE_DIGIT_PATTERN = re.compile(r'\d')
 DECIMAL_DIGIT_PATTERN = re.compile(translate_pattern(r'^((\p{Nd}|#|[^\p{N}\p{L}])+?)$'))
@@ -208,7 +208,7 @@ def format_digits(digits: str,
     if grouping_separator:
         return ''.join(reversed(result)).lstrip(grouping_separator)
     while result and \
-            category(result[-1]) not in {'Nd', 'Nl', 'No', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo'}:
+            category(result[-1]) not in ('Nd', 'Nl', 'No', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo'):
         result.pop()
     return ''.join(reversed(result))
 
@@ -381,8 +381,7 @@ def parse_datetime_picture(picture):
         if len(presentation) > 1 and presentation[-1] in 'atco':
             presentation = presentation[:-1]
 
-        if not presentation or presentation in {'i', 'I', 'w', 'W', 'Ww', 'a',
-                                                'A', 'n', 'N', 'Nn', 'Z'}:
+        if not presentation or presentation in PRESENTATION_FORMATS:
             pass
         elif DECIMAL_DIGIT_PATTERN.match(presentation) is None:
             raise xpath_error('FOFD1340', msg_tmpl.format(value))

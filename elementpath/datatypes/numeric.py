@@ -11,7 +11,7 @@ import re
 import math
 from typing import Any, Optional, SupportsFloat, SupportsInt, Union, Type
 
-from ..helpers import collapse_white_spaces
+from ..helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, collapse_white_spaces
 from .atomic_types import AtomicTypeMeta, AnyAtomicType
 
 
@@ -25,10 +25,9 @@ class Float10(float, AnyAtomicType):
     def __new__(cls, value: Union[str, SupportsFloat]) -> 'Float10':
         if isinstance(value, str):
             value = collapse_white_spaces(value)
-            if value in {'INF', '-INF', 'NaN'} or cls.xsd_version != '1.0' and value == '+INF':
+            if value in NUMERIC_INF_OR_NAN or cls.xsd_version != '1.0' and value == '+INF':
                 pass
-            elif value.lower() in {'inf', '+inf', '-inf', 'nan',
-                                   'infinity', '+infinity', '-infinity'}:
+            elif value.lower() in INVALID_NUMERIC:
                 raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
 
         value = super().__new__(cls, value)

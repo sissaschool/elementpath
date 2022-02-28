@@ -60,7 +60,16 @@ else:
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
-OCCURRENCE_INDICATORS = {'?', '*', '+'}
+
+CHILD_AXIS_TOKENS = {
+    '*', 'node', 'child', 'text', '(name)', ':', '[', 'document-node',
+    'element', 'comment', 'processing-instruction', 'schema-element'
+}
+LEAF_ELEMENTS_TOKENS = {
+    '(name)', '*', ':', '..', '.', '[', 'self', 'child', 'parent',
+    'following-sibling', 'preceding-sibling', 'ancestor', 'ancestor-or-self',
+    'descendant', 'descendant-or-self', 'following', 'preceding'
+}
 
 # Type annotations aliases
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
@@ -159,9 +168,7 @@ class XPathToken(Token[XPathTokenType]):
     @property
     def child_axis(self) -> bool:
         """Is `True` if the token apply child axis for default, `False` otherwise."""
-        if self.symbol not in {'*', 'node', 'child', 'text', '(name)', ':', '[',
-                               'document-node', 'element', 'comment',
-                               'processing-instruction', 'schema-element'}:
+        if self.symbol not in CHILD_AXIS_TOKENS:
             return False
         elif self.symbol == '[':
             return self._items[0].child_axis
@@ -177,15 +184,10 @@ class XPathToken(Token[XPathTokenType]):
         returning QNames in prefixed format. A leaf element is an element
         positioned at last path step. Does not consider kind tests and wildcards.
         """
-        if self.symbol in {'(name)', ':'}:
+        if self.symbol in ('(name)', ':'):
             yield cast(str, self.value)
         elif self.symbol in ('//', '/'):
-            if self._items[-1].symbol in {
-                '(name)', '*', ':', '..', '.', '[', 'self', 'child',
-                'parent', 'following-sibling', 'preceding-sibling',
-                'ancestor', 'ancestor-or-self', 'descendant',
-                'descendant-or-self', 'following', 'preceding'
-            }:
+            if self._items[-1].symbol in LEAF_ELEMENTS_TOKENS:
                 yield from self._items[-1].iter_leaf_elements()
 
         elif self.symbol in ('[',):
@@ -543,7 +545,7 @@ class XPathToken(Token[XPathTokenType]):
                 not base_uri_parts.netloc and not base_uri_parts.path.startswith('/'):
             raise self.error('FORG0002', '{!r} is not suitable as base URI'.format(base_uri))
 
-        if uri_parts.path.startswith('/') and base_uri_parts.path not in {'', '/'}:
+        if uri_parts.path.startswith('/') and base_uri_parts.path not in ('', '/'):
             return uri if as_string else AnyURI(uri)
 
         if as_string:

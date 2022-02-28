@@ -214,7 +214,7 @@ def evaluate_function_reference(self, context=None):
 
     # Special checks for multirole tokens
     if namespace == XPATH_FUNCTIONS_NAMESPACE and \
-            local_name in {'QName', 'dateTime'} and arity == 1:
+            local_name in ('QName', 'dateTime') and arity == 1:
         raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
     try:

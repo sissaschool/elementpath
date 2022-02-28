@@ -17,7 +17,7 @@ from copy import copy
 from decimal import Decimal, DivisionByZero
 
 from ..exceptions import ElementPathError, ElementPathTypeError
-from ..helpers import numeric_equal, numeric_not_equal
+from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSI_NIL, get_namespace, get_expanded_name
 from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer, DoubleProxy10
@@ -27,6 +27,8 @@ from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
 
 from .xpath2_parser import XPath2Parser
+
+COMPARISON_OPERATORS = {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}
 
 register = XPath2Parser.register
 infix = XPath2Parser.infix
@@ -69,7 +71,7 @@ def evaluate_variable_reference(self, context=None):
             except KeyError:
                 pass
             else:
-                if sequence_type[-1] in {'?', '+', '*'}:
+                if sequence_type[-1] in OCCURRENCE_INDICATORS:
                     sequence_type = sequence_type[:-1]
 
                 if QName.pattern.match(sequence_type) is not None:
@@ -498,7 +500,7 @@ def select_parenthesized_expression(self, context=None):
 @method('le', bp=30)
 @method('ge', bp=30)
 def led_value_comparison_operators(self, left):
-    if left.symbol in {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}:
+    if left.symbol in COMPARISON_OPERATORS:
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=30)
     return self

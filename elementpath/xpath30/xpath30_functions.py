@@ -26,7 +26,8 @@ except ImportError:
     zoneinfo = None  # Python < 3.9
 
 from ..exceptions import ElementPathError
-from ..helpers import EQNAME_PATTERN, XML_NEWLINES_PATTERN, is_xml_codepoint
+from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
+    XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE, XML_NAMESPACE
@@ -59,6 +60,8 @@ SER_PARAM_NO_INDENT = '{%s}suppress-indentation' % XSLT_XQUERY_SERIALIZATION_NAM
 SER_PARAM_STANDALONE = '{%s}standalone' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 
+FORMAT_INTEGER_TOKENS = {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}
+
 DECL_PARAM_PATTERN = re.compile(r'([^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*)\s*=\s*')
 EXPONENT_PIC = re.compile(r'\d[eE]\d')
 
@@ -83,7 +86,7 @@ def nud_inline_function(self):
 
         sequence_type = tk.source
         next_symbol = self.parser.next_token.symbol
-        if sequence_type != 'empty-sequence()' and next_symbol in {'?', '*', '+'}:
+        if sequence_type != 'empty-sequence()' and next_symbol in OCCURRENCE_INDICATORS:
             self.parser.advance()
             sequence_type += next_symbol
             tk.occurrence = next_symbol
@@ -370,7 +373,7 @@ def evaluate_format_integer_function(self, context=None):
 
     if not fmt_token:
         raise self.error('FODF1310')
-    elif fmt_token in {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}:
+    elif fmt_token in FORMAT_INTEGER_TOKENS:
         if fmt_token == 'a':
             result = int_to_alphabetic(value, lang)
         elif fmt_token == 'A':
@@ -660,7 +663,7 @@ def evaluate_format_date_time_functions(self, context=None):
                 raise self.error('FOFD1350', msg)
 
     result = []
-    if language not in {'en', 'it', None}:
+    if language not in ('en', 'it', None):
         language = 'en'
         result.append('[Language: en')
 
@@ -668,7 +671,7 @@ def evaluate_format_date_time_functions(self, context=None):
         if calendar.startswith('Q{}'):
             calendar = calendar[3:]
 
-        if calendar not in {'AD', 'ISO', 'OS'}:
+        if calendar not in ('AD', 'ISO', 'OS'):
             if context is None or calendar != context.default_calendar:
                 if QName.is_valid(calendar):
                     if ':' not in calendar:
@@ -1184,7 +1187,7 @@ def evaluate_parse_xml_fragment_function(self, context=None):
             raise self.error('FODC0006', "'encoding' argument is mandatory")
 
         for param in xml_params:
-            if param not in {'version', 'encoding'}:
+            if param not in ('version', 'encoding'):
                 msg = f'unexpected parameter {param!r} in XML declaration'
                 raise self.error('FODC0006', msg)
 
@@ -1238,7 +1241,7 @@ def evaluate_serialize_function(self, context=None):
         for child in params:
             if child.tag == SER_PARAM_OMIT_XML_DECLARATION:
                 value = child.get('value')
-                if value not in {'yes', 'no'} or len(child.attrib) > 1:
+                if value not in ('yes', 'no') or len(child.attrib) > 1:
                     raise self.error('SEPM0017')
                 elif value == 'no':
                     kwargs['xml_declaration'] = True
@@ -1271,13 +1274,13 @@ def evaluate_serialize_function(self, context=None):
 
             elif child.tag == SER_PARAM_METHOD:
                 value = child.get('value')
-                if value not in {'html', 'xml', 'xhtml', 'text'} or len(child.attrib) > 1:
+                if value not in ('html', 'xml', 'xhtml', 'text') or len(child.attrib) > 1:
                     raise self.error('SEPM0017')
                 kwargs['method'] = value if value != 'xhtml' else 'html'
 
             elif child.tag == SER_PARAM_INDENT:
                 value = child.attrib.get('value', '').strip()
-                if value not in {'yes', 'no'} or len(child.attrib) > 1:
+                if value not in ('yes', 'no') or len(child.attrib) > 1:
                     raise self.error('SEPM0017')
 
             elif child.tag == SER_PARAM_ITEM_SEPARATOR:
@@ -1292,7 +1295,7 @@ def evaluate_serialize_function(self, context=None):
                 pass  # TODO param
             elif child.tag == SER_PARAM_STANDALONE:
                 value = child.attrib.get('value', '').strip()
-                if value not in {'yes', 'no', 'omit'} or len(child.attrib) > 1:
+                if value not in ('yes', 'no', 'omit') or len(child.attrib) > 1:
                     raise self.error('SEPM0017')
                 if value != 'omit':
                     kwargs['standalone'] = value == 'yes'

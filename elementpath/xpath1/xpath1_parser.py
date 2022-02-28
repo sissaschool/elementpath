@@ -14,7 +14,7 @@ import re
 from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
     Optional, Tuple, Type, Union, Set
 
-from ..helpers import EQNAME_PATTERN, normalize_sequence_type
+from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathValueError, xpath_error
 from ..protocols import XsdTypeProtocol
@@ -29,6 +29,13 @@ from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
     TypedAttribute, TypedElement
+
+
+COMMON_SEQUENCE_TYPES = {
+    'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
+    'element()', 'element(*)', 'text()', 'document-node()', 'comment()',
+    'processing-instruction()', 'item()', 'node()', 'numeric'
+}
 
 
 class XPath1Parser(Parser[XPathToken]):
@@ -270,12 +277,10 @@ class XPath1Parser(Parser[XPathToken]):
             return False
         elif value == 'empty-sequence()' or value == 'none':
             return True
-        elif value[-1] in {'?', '+', '*'}:
+        elif value[-1] in OCCURRENCE_INDICATORS:
             value = value[:-1]
 
-        if value in {'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
-                     'element()', 'element(*)', 'text()', 'document-node()', 'comment()',
-                     'processing-instruction()', 'item()', 'node()', 'numeric'}:
+        if value in COMMON_SEQUENCE_TYPES:
             return True
 
         elif value.startswith('element(') and value.endswith(')'):
@@ -387,11 +392,11 @@ class XPath1Parser(Parser[XPathToken]):
         :param sequence_type: a string containing the sequence type spec.
         :param occurrence: an optional occurrence spec, can be '?', '+' or '*'.
         """
-        if sequence_type[-1] in {'?', '+', '*'}:
+        if sequence_type[-1] in OCCURRENCE_INDICATORS:
             return self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1])
         elif value is None or isinstance(value, list) and value == []:
-            return sequence_type in {'empty-sequence()', 'none'} or occurrence in {'?', '*'}
-        elif sequence_type in {'empty-sequence()', 'none'}:
+            return sequence_type in ('empty-sequence()', 'none') or occurrence in ('?', '*')
+        elif sequence_type in ('empty-sequence()', 'none'):
             return False
         elif isinstance(value, list):
             if len(value) == 1:
@@ -424,7 +429,7 @@ class XPath1Parser(Parser[XPathToken]):
             return True
         elif value_kind == 'document-node':
             return self.match_sequence_type(value.getroot(), sequence_type[14:-1])
-        elif value_kind not in {'element', 'attribute'}:
+        elif value_kind not in ('element', 'attribute'):
             return False
 
         _, params = sequence_type[:-1].split('(')
