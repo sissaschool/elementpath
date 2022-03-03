@@ -41,8 +41,8 @@ from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
     DateTime10, Time, AnyURI, UntypedAtomic
 from ..regex import translate_pattern, RegexError
 
-from .xpath30_operators import XPath30Parser
-from .xpath30_formats import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
+from ._xpath30_operators import XPath30Parser
+from .xpath30_helpers import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     MODIFIER_PATTERN, decimal_to_string, int_to_roman, int_to_alphabetic, \
     format_digits, int_to_words, parse_datetime_picture, parse_datetime_marker, \
     ordinal_suffix

@@ -23,6 +23,7 @@ class AnyURI(AnyAtomicType):
 
     :param value: a string or an untyped atomic instance.
     """
+    value: str
     name = 'anyURI'
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']) -> None:

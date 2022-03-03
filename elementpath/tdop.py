@@ -15,7 +15,6 @@ import re
 from abc import ABCMeta
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
-from itertools import takewhile
 from typing import Any, cast, overload, no_type_check_decorator, Callable, \
     ClassVar, FrozenSet, Dict, Generic, List, Optional, Union, Tuple, Type, \
     Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
@@ -23,7 +22,7 @@ from typing import Any, cast, overload, no_type_check_decorator, Callable, \
 from .datatypes import AtomicValueType
 
 #
-# Simple top down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
+# Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
 # References:
 #
@@ -37,7 +36,7 @@ from .datatypes import AtomicValueType
 #
 # A parser can be extended by derivation, copying the reusable token classes and
 # defining the additional ones. See the files xpath1_parser.py and xpath2_parser.py
-# for a fully implementation example of a real parser.
+# for a full implementation example of a real parser.
 #
 
 # Parser special symbols set, that includes the special symbols of TDOP plus two
@@ -48,18 +47,12 @@ SPECIAL_SYMBOLS = frozenset((
     '(integer)', '(name)', '(invalid)', '(unknown)',
 ))
 
-SPACE_PATTERN = re.compile(r'\s')
-
 
 class ParseError(SyntaxError):
     """An error when parsing source with TDOP parser."""
 
 
-def count_leading_spaces(s: str) -> int:
-    return sum(1 for _ in takewhile(str.isspace, s))
-
-
-def symbol_to_classname(symbol: str) -> str:
+def _symbol_to_classname(symbol: str) -> str:
     """
     Converts a symbol string to an identifier (only alphanumeric and '_').
     """
@@ -385,7 +378,7 @@ class ParserMeta(ABCMeta):
             cls.token_base_class = Token
         if not hasattr(cls, 'literals_pattern'):
             cls.literals_pattern = re.compile(
-                    r"""'[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
+                r"""'[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
             )
         if not hasattr(cls, 'name_pattern'):
             cls.name_pattern = re.compile(r'[A-Za-z0-9_]+')
@@ -678,7 +671,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                     label = kwargs['label'] = MultiLabel(*label)
 
                 token_class_name = "_{}{}".format(
-                    symbol_to_classname(symbol), str(label).title().replace(' ', '')
+                    _symbol_to_classname(symbol), str(label).title().replace(' ', '')
                 )
                 token_class_bases = kwargs.get('bases', (cls.token_base_class,))
                 kwargs.update({

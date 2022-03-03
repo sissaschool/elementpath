@@ -19,7 +19,7 @@ from ..xpath_token import XPathToken, ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import QName
 
-from .xpath30_parser import XPath30Parser
+from ._xpath30_parser import XPath30Parser
 
 
 register = XPath30Parser.register

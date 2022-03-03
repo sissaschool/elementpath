@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Optional
+from typing import Any, Optional
 
 from ..helpers import QNAME_PATTERN
 from .atomic_types import AtomicTypeMeta

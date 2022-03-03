@@ -27,7 +27,7 @@ from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
     is_xpath_node, is_schema_node, is_document_node, is_element_node
 
-from .xpath1_parser import XPath1Parser
+from ._xpath1_parser import XPath1Parser
 
 OPERATORS_MAP = {
     '=': operator.eq,

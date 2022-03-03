@@ -10,6 +10,6 @@
 from .xpath30 import XPath30Parser
 from .xpath31 import XPath31Parser
 
-XPath3Parser = XPath31Parser
+XPath3Parser = XPath30Parser
 
 __all__ = ['XPath30Parser', 'XPath31Parser', 'XPath3Parser']

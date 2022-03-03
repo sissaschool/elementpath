@@ -59,13 +59,14 @@ else:
     XPathParserType = Any
 
 UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
-CHILD_AXIS_TOKENS = {
+_XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+
+_CHILD_AXIS_TOKENS = {
     '*', 'node', 'child', 'text', '(name)', ':', '[', 'document-node',
     'element', 'comment', 'processing-instruction', 'schema-element'
 }
-LEAF_ELEMENTS_TOKENS = {
+_LEAF_ELEMENTS_TOKENS = {
     '(name)', '*', ':', '..', '.', '[', 'self', 'child', 'parent',
     'following-sibling', 'preceding-sibling', 'ancestor', 'ancestor-or-self',
     'descendant', 'descendant-or-self', 'following', 'preceding'
@@ -168,7 +169,7 @@ class XPathToken(Token[XPathTokenType]):
     @property
     def child_axis(self) -> bool:
         """Is `True` if the token apply child axis for default, `False` otherwise."""
-        if self.symbol not in CHILD_AXIS_TOKENS:
+        if self.symbol not in _CHILD_AXIS_TOKENS:
             return False
         elif self.symbol == '[':
             return self._items[0].child_axis
@@ -187,7 +188,7 @@ class XPathToken(Token[XPathTokenType]):
         if self.symbol in ('(name)', ':'):
             yield cast(str, self.value)
         elif self.symbol in ('//', '/'):
-            if self._items[-1].symbol in LEAF_ELEMENTS_TOKENS:
+            if self._items[-1].symbol in _LEAF_ELEMENTS_TOKENS:
                 yield from self._items[-1].iter_leaf_elements()
 
         elif self.symbol in ('[',):
@@ -352,7 +353,7 @@ class XPathToken(Token[XPathTokenType]):
                         isinstance(value, str):
 
                     xsd_type = self.get_xsd_type(item)
-                    if xsd_type is None or xsd_type.name in XSD_SPECIAL_TYPES:
+                    if xsd_type is None or xsd_type.name in _XSD_SPECIAL_TYPES:
                         pass
                     else:
                         try:
@@ -814,7 +815,7 @@ class XPathToken(Token[XPathTokenType]):
         xsd_type = self.get_xsd_type(item)
         if not xsd_type:
             return item
-        elif xsd_type.name in XSD_SPECIAL_TYPES:
+        elif xsd_type.name in _XSD_SPECIAL_TYPES:
             if isinstance(item, AttributeNode):
                 if not isinstance(item.value, str):
                     return TypedAttribute(item, xsd_type, UntypedAtomic(''))

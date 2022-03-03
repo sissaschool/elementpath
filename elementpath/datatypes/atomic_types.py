@@ -58,7 +58,7 @@ class AtomicTypeMeta(ABCMeta):
         if not hasattr(cls, 'pattern'):
             cls.pattern = re.compile(r'^$')
 
-        # Register class with an name
+        # Register class with a name
         if name:
             expanded_name = '{%s}%s' % (XSD_NAMESPACE, name)
             if cls.xsd_version == '1.0':

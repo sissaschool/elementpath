@@ -18,7 +18,7 @@ from ..datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
     GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
     YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
     Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy
-from .xpath2_functions import XPath2Parser
+from ._xpath2_functions import XPath2Parser
 
 
 register = XPath2Parser.register

@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
 import calendar
 import decimal
 import re
@@ -17,7 +16,7 @@ from unicodedata import category
 from ..exceptions import xpath_error
 from ..regex import translate_pattern
 
-from .translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS_MAP, \
+from ._translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS_MAP, \
     NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS, MILITARY_TIME_ZONES
 
 PRESENTATION_FORMATS = {'i', 'I', 'w', 'W', 'Ww', 'a', 'A', 'n', 'N', 'Nn', 'Z'}

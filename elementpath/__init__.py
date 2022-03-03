@@ -20,6 +20,7 @@ from .exceptions import ElementPathError, MissingContextError, \
     ElementPathTypeError, ElementPathLocaleError, ElementPathValueError, \
     ElementPathOverflowError, ElementPathZeroDivisionError
 
+from . import datatypes
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, AttributeNode, TextNode, \
     NamespaceNode, TypedElement, TypedAttribute

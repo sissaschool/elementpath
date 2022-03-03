@@ -21,7 +21,7 @@ from ..xpath_nodes import TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 from ..xpath_token import XPathFunction
 
-from .xpath1_operators import XPath1Parser
+from ._xpath1_operators import XPath1Parser
 
 method = XPath1Parser.method
 function = XPath1Parser.function

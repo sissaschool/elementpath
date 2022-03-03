@@ -30,7 +30,6 @@ from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
     TypedAttribute, TypedElement
 
-
 COMMON_SEQUENCE_TYPES = {
     'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
     'element()', 'element(*)', 'text()', 'document-node()', 'comment()',

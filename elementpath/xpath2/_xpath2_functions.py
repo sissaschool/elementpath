@@ -36,7 +36,7 @@ from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, \
     node_nilled, node_document_uri, node_kind, etree_deep_equal
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
-from .xpath2_operators import XPath2Parser
+from ._xpath2_operators import XPath2Parser
 
 method = XPath2Parser.method
 function = XPath2Parser.function

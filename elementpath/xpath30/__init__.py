@@ -10,8 +10,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .xpath30_parser import XPath30Parser
+    from ._xpath30_parser import XPath30Parser
 else:
-    from .xpath30_functions import XPath30Parser
+    from ._xpath30_functions import XPath30Parser
 
 __all__ = ['XPath30Parser']
