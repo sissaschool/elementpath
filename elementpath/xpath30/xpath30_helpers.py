@@ -505,14 +505,14 @@ def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str
             else:
                 value = value[-6:]
     elif component == 'W':
-        value = str(dt.isocalendar().week)
+        value = str(dt.isocalendar()[1])
     elif component == 'w':
         value = str(week_in_month(dt))
     elif component == 'F':
         if presentation.lower().startswith('n') and lang is not None:
-            value = int_to_weekday(dt.isocalendar().weekday, lang)
+            value = int_to_weekday(dt.isocalendar()[2], lang)
         else:
-            value = str(dt.isocalendar().weekday)
+            value = str(dt.isocalendar()[2])
     elif component == 'E':
         if dt.year < 0:
             value = 'BC'

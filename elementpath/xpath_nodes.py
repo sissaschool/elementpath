@@ -10,9 +10,8 @@
 """
 Helper functions for XPath nodes and basic data types.
 """
-from collections import Counter
 from urllib.parse import urlparse
-from typing import cast, Any, Dict, Iterator, Optional, Tuple, Union
+from typing import cast, Any, Counter, Dict, Iterator, Optional, Tuple, Union
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
@@ -374,8 +373,8 @@ def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
 def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[ElementNode, str]]:
     yield elem, path
     comment_nodes = 0
-    pi_nodes: Counter[Optional[str]] = Counter()
-    positions: Counter[Optional[str]] = Counter()
+    pi_nodes = Counter[Optional[str]]()
+    positions = Counter[Optional[str]]()
 
     for child in elem:
         if callable(child.tag):
