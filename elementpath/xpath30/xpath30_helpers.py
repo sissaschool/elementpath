@@ -8,9 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import calendar
+import datetime
 import decimal
 import re
-from typing import Optional
+from typing import Iterator, List, Optional, Tuple, Union
 from unicodedata import category
 
 from ..exceptions import xpath_error
@@ -53,11 +54,11 @@ def decimal_to_string(value: decimal.Decimal) -> str:
     return '-' + result if sign else result
 
 
-def int_to_roman(num):
+def int_to_roman(num: int) -> str:
     """
     Convert an integer to Roman ordinal.
     """
-    def roman_num(value):
+    def roman_num(value: int) -> Iterator[str]:
         if not value:
             yield '0'
             return
@@ -73,7 +74,7 @@ def int_to_roman(num):
     return ''.join(x for x in roman_num(num))
 
 
-def int_to_alphabetic(num, reference=None):
+def int_to_alphabetic(num: int, reference: Optional[str] = None) -> str:
     if not reference or len(reference) > 1:
         try:
             alphabet = ALPHABET_CHARACTERS[reference]
@@ -136,7 +137,7 @@ def int_to_weekday(num: int, lang: Optional[str] = None) -> str:
     return weekday_map[num]
 
 
-def week_in_month(dt):
+def week_in_month(dt: datetime.datetime) -> int:
     month_cal = calendar.monthcalendar(dt.year, dt.month)
     for k, week_cal in enumerate(month_cal, start=1):
         if dt.day in week_cal:
@@ -169,9 +170,9 @@ def format_digits(digits: str,
 
     for fmt_char in reversed(fmt):
         if fmt_char.isdigit() or fmt_char == optional_digit:
-            if num_digit is not None:
+            if num_digit:
                 result.append(digits_family[ord(num_digit) - 48])
-                num_digit = next(iter_num_digits, None)
+                num_digit = next(iter_num_digits, '')
             elif fmt_char != optional_digit:
                 result.append(digits_family[0])
         elif not result or not result[-1].isdigit() and grouping_separator \
@@ -180,12 +181,13 @@ def format_digits(digits: str,
         else:
             result.append(fmt_char)
 
-    if num_digit is not None:
-        separator = {x for x in fmt if not x.isdigit() and x != optional_digit}
-        if len(separator) != 1:
+    if num_digit:
+        separator = ''
+        _separator = {x for x in fmt if not x.isdigit() and x != optional_digit}
+        if len(_separator) != 1:
             repeat = None
         else:
-            separator = separator.pop()
+            separator = _separator.pop()
             chunks = fmt.split(separator)
             repeat = len(chunks[-1])
             if all(len(item) == repeat for item in chunks[1:-1]):
@@ -194,15 +196,15 @@ def format_digits(digits: str,
                 repeat = None
 
         if repeat is None:
-            while num_digit is not None:
+            while num_digit:
                 result.append(digits_family[ord(num_digit) - 48])
-                num_digit = next(iter_num_digits, None)
+                num_digit = next(iter_num_digits, '')
         else:
-            while num_digit is not None:
+            while num_digit:
                 if ((len(result) + 1) % repeat) == 0:
                     result.append(separator)
                 result.append(digits_family[ord(num_digit) - 48])
-                num_digit = next(iter_num_digits, None)
+                num_digit = next(iter_num_digits, '')
 
     if grouping_separator:
         return ''.join(reversed(result)).lstrip(grouping_separator)
@@ -282,9 +284,9 @@ def to_ordinal_it(num_as_words: str, fmt_modifier: str) -> str:
     return value
 
 
-def int_to_words(num, lang=None, fmt_modifier=''):
+def int_to_words(num: int, lang: Optional[str] = None, fmt_modifier: str = '') -> str:
 
-    def word_num(value):
+    def word_num(value: int) -> Iterator[str]:
         if not value:
             yield num_map[value]
 
@@ -310,7 +312,7 @@ def int_to_words(num, lang=None, fmt_modifier=''):
                     yield ' '
 
     try:
-        num_map = NUM_TO_WORD_MAPS[lang]
+        num_map = NUM_TO_WORD_MAPS[lang]  # type: ignore[index]
     except KeyError:
         lang = 'en'
         num_map = NUM_TO_WORD_MAPS[lang]
@@ -331,13 +333,16 @@ def int_to_words(num, lang=None, fmt_modifier=''):
         return result
 
 
-def parse_datetime_picture(picture):
+def parse_datetime_picture(picture: str) -> Tuple[List[str], List[str]]:
     """
     Analyze a picture argument of XPath 3.0+ formatting functions.
 
     :param picture: the picture string.
     :return: a couple of lists containing the literal parts and markers.
     """
+    min_value: Union[int, str]
+    max_value: Union[None, int, str]
+
     literals = []
     for lit in PICTURE_PATTERN.split(picture):
         if '[' in lit.replace('[[', ''):
@@ -406,7 +411,7 @@ def parse_datetime_picture(picture):
     return literals, markers
 
 
-def parse_datetime_marker(marker, dt, lang=None):
+def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str] = None) -> str:
     component = marker[1]
     fmt_token = marker[2:-1]
 
@@ -428,9 +433,13 @@ def parse_datetime_marker(marker, dt, lang=None):
     elif presentation == 'a':
         fmt_modifier = ''
     else:
-        fmt_modifier = FMT_MODIFIER_PATTERN.search(presentation).group(0)
-        if fmt_modifier:
-            presentation = presentation[:-len(fmt_modifier)]
+        _match = FMT_MODIFIER_PATTERN.search(presentation)
+        if _match is None:
+            fmt_modifier = ''
+        else:
+            fmt_modifier = _match.group(0)
+            if fmt_modifier:
+                presentation = presentation[:-len(fmt_modifier)]
 
         if presentation.startswith('#') and presentation.endswith('#'):
             msg_tmpl = 'Invalid formatting component {!r}'
@@ -486,7 +495,7 @@ def parse_datetime_marker(marker, dt, lang=None):
         value = str('{:06}'.format(dt.microsecond))
     elif component == 'z' or component == 'Z':
         if presentation == 'N':
-            value = dt.tzname()
+            value = dt.tzname() or ''
         elif dt.tzinfo is None:
             value = '+00:00'
         else:
@@ -548,8 +557,8 @@ def parse_datetime_marker(marker, dt, lang=None):
     else:
         left_to_right = False
         k = 0
-        pch = None
-        fmt_chunk = []
+        pch = ''
+        chars = []
 
         # Extract the sign
         if value.startswith('-') or value.startswith('+'):
@@ -590,7 +599,7 @@ def parse_datetime_marker(marker, dt, lang=None):
                 k += 1
 
             while pch != '#' and not pch.isdigit():
-                fmt_chunk.append(pch)
+                chars.append(pch)
                 min_width += 1
                 if max_width is not None:
                     max_width += 1
@@ -603,12 +612,12 @@ def parse_datetime_marker(marker, dt, lang=None):
                     k += 1
             else:
                 if ch.isdigit():
-                    fmt_chunk.append(ch)
+                    chars.append(ch)
 
         if component != 'f':
-            fmt_chunk = ''.join(reversed(fmt_chunk))
+            fmt_chunk = ''.join(reversed(chars))
         else:
-            fmt_chunk = ''.join(fmt_chunk)
+            fmt_chunk = ''.join(chars)
 
         if 'o' in fmt_modifier:
             try:
@@ -669,7 +678,10 @@ def parse_datetime_marker(marker, dt, lang=None):
     return sign + fmt_chunk
 
 
-def parse_width(width):
+def parse_width(width: str) -> Tuple[int, Optional[int]]:
+    min_width: Union[str, int]
+    max_width: Union[str, int, None]
+
     if WIDTH_PATTERN.match(width) is None:
         raise xpath_error('FOFD1340', f'Invalid width modifier {width!r}')
     elif '-' not in width:
