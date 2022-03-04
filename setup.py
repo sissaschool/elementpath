@@ -24,12 +24,12 @@ setup(
     keywords=['XPath', 'XPath2', 'XPath3', 'Pratt-parser', 'ElementTree', 'lxml'],
     license='MIT',
     license_file='LICENSE',
-    description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
+    description='XPath 1.0/2.0/3.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     python_requires='>=3.7',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.8.0',
-                'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.910']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.9.0',
+                'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.931']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
