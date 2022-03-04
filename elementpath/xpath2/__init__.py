@@ -10,7 +10,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ._xpath2_parser import XPath2Parser
+    from .xpath2_parser import XPath2Parser
 else:
     from ._xpath2_constructors import XPath2Parser
 

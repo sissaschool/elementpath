@@ -37,6 +37,8 @@ XPath parsers
 
 .. autoclass:: elementpath.XPath2Parser
 
+.. autoclass:: elementpath.xpath3.XPath30Parser
+
 
 XPath tokens
 ============

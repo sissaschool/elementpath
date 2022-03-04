@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v2.5.0`_ (2022-03-04)
+======================
+* Add XPath 3.0 support
+* Better use of lxml.etree features
+* Full coverage of W3C tests
+* Drop support for Python 3.6
+
 `v2.4.0`_ (2021-11-09)
 ======================
 * Fix type annotations and going strict on parsers and other public classes
@@ -342,3 +349,4 @@ CHANGELOG
 .. _v2.3.1: https://github.com/sissaschool/elementpath/compare/v2.3.0...v2.3.1
 .. _v2.3.2: https://github.com/sissaschool/elementpath/compare/v2.3.1...v2.3.2
 .. _v2.4.0: https://github.com/sissaschool/elementpath/compare/v2.3.3...v2.4.0
+.. _v2.5.0: https://github.com/sissaschool/elementpath/compare/v2.4.0...v2.5.0

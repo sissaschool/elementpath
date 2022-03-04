@@ -20,11 +20,11 @@ elementpath
 
 .. elementpath-introduction
 
-The proposal of this package is to provide XPath 1.0 and 2.0 selectors for Python's ElementTree XML
+The proposal of this package is to provide XPath 1.0, 2.0 and 3.0 selectors for ElementTree XML
 data structures, both for the standard ElementTree library and for the
 `lxml.etree <http://lxml.de>`_ library.
 
-For `lxml.etree <http://lxml.de>`_ this package can be useful for providing XPath 2.0 selectors,
+For `lxml.etree <http://lxml.de>`_ this package can be useful for providing XPath 2.0/3.0 selectors,
 because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XPath 1.0.
 
 
@@ -72,6 +72,22 @@ data:
 
 Public API classes and functions are described into the
 `elementpath manual on the "Read the Docs" site <http://elementpath.readthedocs.io/en/latest/>`_.
+
+For default the XPath 2.0 is used. If you need XPath 1.0 parser provide the *parser* argument:
+
+>>> from elementpath import select, XPath1Parser
+>>> from xml.etree import ElementTree
+>>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+>>> select(root, '/A/B2/*', parser=XPath1Parser)
+[<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
+
+For XPath 3.0 import the parser from *elementpath.xpath3* subpackage, that is not loaded
+for default:
+
+>>> from elementpath.xpath3 import XPath3Parser
+>>> select(root, 'math:atan(1.0e0)', parser=XPath3Parser)
+0.7853981633974483
+
 
 Contributing
 ============

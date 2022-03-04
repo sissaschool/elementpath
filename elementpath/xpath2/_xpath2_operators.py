@@ -26,7 +26,7 @@ from ..xpath_nodes import TypedElement, is_xpath_node, \
 from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
 
-from ._xpath2_parser import XPath2Parser
+from .xpath2_parser import XPath2Parser
 
 COMPARISON_OPERATORS = {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}
 
