@@ -19,6 +19,7 @@ Element-like objects are used for representing elements and comments, ElementTre
 for documents.
 XPathNode subclasses are used for representing other node types and typed elements/attributes.
 """
+import decimal
 import locale
 import contextlib
 import math
@@ -415,6 +416,14 @@ class XPathToken(Token[XPathTokenType]):
                     any(isinstance(x, str) for x in values):
                 msg = "cannot compare {!r} and {!r}"
                 raise TypeError(msg.format(type(values[0]), type(values[1])))
+            elif any(isinstance(x, float) for x in values):
+                if isinstance(values[0], decimal.Decimal):
+                    yield float(values[0]), values[1]
+                    continue
+                elif isinstance(values[1], decimal.Decimal):
+                    yield values[0], float(values[1])
+                    continue
+
             yield values
 
     def select_results(self, context: Optional[XPathContext]) -> Iterator[SelectResultType]:
