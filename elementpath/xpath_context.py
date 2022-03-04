@@ -168,7 +168,11 @@ class XPathContext:
                     self._parent_map.update((c, e) for e in doc.iter() for c in e)
                     self._parent_map[doc.getroot()] = doc
                 elif is_element_node(v):
-                    root = cast(ElementNode, v)
+                    if isinstance(v, TypedElement):
+                        root = v.elem
+                    else:
+                        root = cast(ElementNode, v)
+
                     self._parent_map.update((c, e) for e in root.iter() for c in e)
 
         return self._parent_map
@@ -454,13 +458,8 @@ class XPathContext:
             self.item = self.item.elem
 
         elem = cast(ElementNode, self.item)
-        if is_schema_node(elem):
-            # TODO: for backward compatibility, to be removed in release 3.0.
-            for self.item in (AttributeNode(*x) for x in elem.attrib.items()):
-                yield self.item
-        else:
-            for self.item in (AttributeNode(x[0], x[1], parent=elem) for x in elem.attrib.items()):
-                yield self.item
+        for self.item in (AttributeNode(x[0], x[1], parent=elem) for x in elem.attrib.items()):
+            yield self.item
 
         self.item, self.axis = status
 
