@@ -1239,6 +1239,8 @@ class Result(object):
 
 
 def main():
+    global xpath_parser
+
     parser = argparse.ArgumentParser()
     parser.add_argument('catalog', metavar='CATALOG_FILE',
                         help='the path to the main index file of test suite (catalog.xml)')
@@ -1249,6 +1251,8 @@ def main():
     parser.add_argument('-i', dest='ignore_case', action='store_true', default=False,
                         help="ignore character case for regex pattern matching")
     parser.add_argument('--xp30', action='store_true', default=False,
+                        help="test XPath 3.0 parser")
+    parser.add_argument('--xp31', action='store_true', default=False,
                         help="test XPath 3.0 parser")
     parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
                         help="use lxml.etree for environment sources (default is ElementTree)")
@@ -1274,10 +1278,18 @@ def main():
         print("Error: catalog file %s does not exist" % args.catalog)
         sys.exit(1)
 
-    if args.xp30:
+    if args.xp31:
+        from elementpath.xpath31 import XPath31Parser
+
+        xpath_parser = XPath31Parser
+        ignore_specs.remove('XP30+')
+        ignore_specs.remove('XP31')
+        ignore_specs.remove('XP31+')
+        ignore_specs.add('XP20')
+
+    elif args.xp30:
         from elementpath.xpath30 import XPath30Parser
 
-        global xpath_parser
         xpath_parser = XPath30Parser
         ignore_specs.remove('XP30')
         ignore_specs.remove('XP30+')
@@ -1371,7 +1383,7 @@ def main():
                     count_skip += 1
                     continue
 
-                if args.xp30 and test_case.test:
+                if args.xp30 and not args.xp31 and test_case.test:
                     if 'parse-json' in test_case.test:
                         count_skip += 1
                         continue
