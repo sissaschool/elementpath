@@ -11,7 +11,7 @@
 Helper functions for XPath nodes and basic data types.
 """
 from urllib.parse import urlparse
-from typing import cast, Any, Counter, Dict, Iterator, Optional, Tuple, Union
+from typing import cast, Any, Counter, Dict, Iterator, List, Optional, Tuple, Union
 
 from .namespaces import XML_BASE, XSI_NIL
 from .exceptions import ElementPathValueError
@@ -25,8 +25,8 @@ from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
 # In ElementTree element nodes, comment nodes and PI nodes
 # use the same class, so they are indistinguishable with a
 # class check.
-ElementNode = Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
-DocumentNode = DocumentProtocol
+ElementNodeType = Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
+DocumentNodeType = DocumentProtocol
 
 
 ###
@@ -35,13 +35,68 @@ DocumentNode = DocumentProtocol
 # are associated with an XSD type.
 class XPathNode:
 
+    # Accessors, empty sequences are represented with None values.
+    attributes: Any = None
+    base_uri: Any = None
+    children: Any = None
+    document_uri: Any = None
+    is_id: bool
+    is_idrefs: bool
+    namespace_nodes: Optional[List['NamespaceNode']]
+    nilled: bool
+    kind: str
     name: Any = None
+    parent: Optional[ElementNodeType] = None
+    string_value: str
+    type_name: Optional[str]
+    typed_value: None
+
     value: Any = None
-    parent: Optional[ElementNode] = None
+
+
+class ElementNode(XPathNode):
+    """
+    A class for processing XPath element nodes.
+
+    :param elem: the namespace prefix.
+    :param parent: the parent element.
+    """
+    kind = 'element'
+
+    def __init__(self, elem: ElementNodeType, parent: Optional[ElementNodeType] = None) -> None:
+        self.elem = elem
+        self.parent = parent
+
+    def __repr__(self) -> str:
+        if self.parent is None:
+            return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
+        return '%s(elem=%r, parent=%r)' % (self.__class__.__name__, self.elem, self.parent)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, self.__class__) and self.elem is other.elem
+
+    def __hash__(self) -> int:
+        return hash(self.elem)
 
     @property
-    def kind(self) -> str:
-        raise NotImplementedError()
+    def name(self) -> str:
+        return self.elem.tag
+
+    @property
+    def value(self) -> str:
+        return self.elem
+
+    @property
+    def attributes(self):
+        return self.elem.attrib
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        return self.elem.get(XML_BASE)
+
+    @property
+    def children(self):
+        return self.elem[:]
 
 
 class AttributeNode(XPathNode):
@@ -53,16 +108,13 @@ class AttributeNode(XPathNode):
     :param parent: the parent element.
     """
     name: str
+    kind = 'attribute'
 
     def __init__(self, name: str, value: Union[str, XsdAttributeProtocol],
-                 parent: Optional[ElementNode] = None) -> None:
+                 parent: Optional[ElementNodeType] = None) -> None:
         self.name = name
         self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
-
-    @property
-    def kind(self) -> str:
-        return 'attribute'
 
     def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
         return self.name, self.value
@@ -93,19 +145,17 @@ class TextNode(XPathNode):
     :param parent: the parent element.
     :param tail: provide `True` if the text node is the parent Element's tail.
     """
+    kind = 'text'
+
     text: None
     _tail = False
 
-    def __init__(self, value: str, parent: Optional[ElementNode] = None,
+    def __init__(self, value: str, parent: Optional[ElementNodeType] = None,
                  tail: bool = False) -> None:
         self.value = value
         self.parent = parent
         if tail and parent is not None:
             self._tail = True
-
-    @property
-    def kind(self) -> str:
-        return 'text'
 
     def is_tail(self) -> bool:
         """Returns `True` if the node has a parent and represents the tail text."""
@@ -136,14 +186,12 @@ class NamespaceNode(XPathNode):
     :param uri: the namespace URI.
     :param parent: the parent element.
     """
-    def __init__(self, prefix: str, uri: str, parent: Optional[ElementNode] = None) -> None:
+    kind = 'namespace'
+
+    def __init__(self, prefix: str, uri: str, parent: Optional[ElementNodeType] = None) -> None:
         self.prefix = prefix
         self.uri = uri
         self.parent = parent
-
-    @property
-    def kind(self) -> str:
-        return 'namespace'
 
     @property
     def name(self) -> str:
@@ -182,14 +230,12 @@ class TypedElement(XPathNode):
     :param xsd_type: the reference XSD type.
     :param value: the decoded value. Can be `None` for empty or element-only elements."
     """
+    kind = 'element'
+
     def __init__(self, elem: ElementProtocol, xsd_type: Any, value: Any) -> None:
         self.elem = elem
         self.xsd_type = xsd_type
         self.value = value
-
-    @property
-    def kind(self) -> str:
-        return 'element'
 
     @property
     def name(self) -> str:
@@ -219,15 +265,13 @@ class TypedAttribute(XPathNode):
     :param xsd_type: the reference XSD type.
     :param value: the types value.
     """
+    kind = 'attribute'
+
     def __init__(self, attribute: AttributeNode, xsd_type: Any, value: Any) -> None:
         self.attribute = attribute
         self.xsd_type = xsd_type
         self.value = value
         self.parent = attribute.parent
-
-    @property
-    def kind(self) -> str:
-        return 'attribute'
 
     @property
     def name(self) -> str:
@@ -248,7 +292,7 @@ class TypedAttribute(XPathNode):
         return hash((self.attribute, self.value))
 
 
-XPathNodeType = Union[ElementNode, DocumentNode, XPathNode]
+XPathNodeType = Union[ElementNodeType, DocumentNodeType, XPathNode]
 
 
 ###
@@ -261,7 +305,7 @@ def is_lxml_etree_element(obj: Any) -> bool:
     return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
 
 
-def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) -> Iterator[ElementNode]:
+def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) -> Iterator[ElementNodeType]:
     if not hasattr(root, 'itersiblings'):
         yield root
     else:
@@ -271,14 +315,14 @@ def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) -> Iterat
         yield from _root.itersiblings()
 
 
-def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = True) \
-        -> Iterator[Union[DocumentNode, ElementNode, TextNode]]:
+def etree_iter_nodes(root: Union[DocumentNodeType, ElementNodeType], with_root: bool = True) \
+        -> Iterator[Union[DocumentNodeType, ElementNodeType, TextNode]]:
 
     _root: Union[ElementProtocol, LxmlElementProtocol]
     _lxml_root: Optional[LxmlElementProtocol] = None
 
     if hasattr(root, 'getroot'):
-        document = cast(DocumentNode, root)
+        document = cast(DocumentNodeType, root)
         if with_root:
             yield document
         else:
@@ -329,8 +373,8 @@ def etree_iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = T
             sibling = sibling.getnext()
 
 
-def etree_iter_strings(elem: Union[DocumentNode, ElementNode, TypedElement]) -> Iterator[str]:
-    e: ElementNode
+def etree_iter_strings(elem: Union[DocumentNodeType, ElementNodeType, TypedElement]) -> Iterator[str]:
+    e: ElementNodeType
 
     if isinstance(elem, TypedElement):
         if elem.xsd_type.is_element_only():
@@ -356,7 +400,7 @@ def etree_iter_strings(elem: Union[DocumentNode, ElementNode, TypedElement]) -> 
             yield e.tail
 
 
-def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
+def etree_deep_equal(e1: ElementNodeType, e2: ElementNodeType) -> bool:
     if e1.tag != e2.tag:
         return False
     elif (e1.text or '').strip() != (e2.text or '').strip():
@@ -370,7 +414,7 @@ def etree_deep_equal(e1: ElementNode, e2: ElementNode) -> bool:
     return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
 
-def etree_iter_paths(elem: ElementNode, path: str = '.') -> Iterator[Tuple[ElementNode, str]]:
+def etree_iter_paths(elem: ElementNodeType, path: str = '.') -> Iterator[Tuple[ElementNodeType, str]]:
     yield elem, path
     comment_nodes = 0
     pi_nodes = Counter[Optional[str]]()
@@ -565,7 +609,7 @@ def node_document_uri(obj: Any) -> Optional[str]:
     return None
 
 
-def node_children(obj: Any) -> Optional[Iterator[ElementNode]]:
+def node_children(obj: Any) -> Optional[Iterator[ElementNodeType]]:
     if is_element_node(obj):
         return (child for child in obj)
     elif is_document_node(obj):

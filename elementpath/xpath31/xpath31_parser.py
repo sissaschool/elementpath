@@ -24,7 +24,7 @@ class XPath31Parser(XPath30Parser):
     SYMBOLS = XPath30Parser.SYMBOLS | set()
     """
     {
-        'format-number', 'random-number-generator', 'collation-key',
+        'random-number-generator', 'collation-key',
         'contains-token', 'parse-ietf-date',
 
         # Higher-order functions
