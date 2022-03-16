@@ -426,8 +426,11 @@ class XPath1Parser(Parser[XPathToken]):
             return False
         elif sequence_type == f'{value_kind}()':
             return True
-        elif value_kind == 'document-node':
-            return self.match_sequence_type(value.getroot(), sequence_type[14:-1])
+        elif value_kind == 'document':
+            element_test = sequence_type[14:-1]
+            if not element_test:
+                return True
+            return self.match_sequence_type(value.getroot(), element_test)
         elif value_kind not in ('element', 'attribute'):
             return False
 

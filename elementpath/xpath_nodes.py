@@ -232,6 +232,15 @@ class DocumentNode(XPathNode):
     def value(self) -> str:
         return self.document
 
+    def getroot(self):
+        return ElementNode(self.document.getroot())
+
+    def parse(self, source: Any, *args: Any, **kwargs: Any):
+        return DocumentNode(self.document.parse(source, *args, **kwargs))
+
+    def iter(self, tag: Optional[str] = None) -> Iterator[ElementProtocol]:
+        return self.document.iter(tag)
+
 
 class ElementNode(ElementProxy, XPathNode):
     """
@@ -575,7 +584,7 @@ def node_kind(obj: Any) -> Optional[str]:
     elif is_element_node(obj):
         return 'element'
     elif is_document_node(obj):
-        return 'document-node'
+        return 'document'
     elif is_comment_node(obj):
         return 'comment'
     elif is_processing_instruction_node(obj):
