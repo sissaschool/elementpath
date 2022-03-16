@@ -112,6 +112,7 @@ XPath nodes
 
 XPath nodes are processed using a set of classes derived from :class:`XPathNode`:
 
+
 .. autoclass:: elementpath.AttributeNode
 .. autoclass:: elementpath.TextNode
 .. autoclass:: elementpath.TypedAttribute

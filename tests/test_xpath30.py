@@ -42,8 +42,8 @@ else:
 
 from elementpath import *
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
-from elementpath.xpath_nodes import is_document_node, is_lxml_document_node, \
-    is_etree_element, is_lxml_etree_element
+from elementpath.etree import is_etree_element, is_lxml_etree_element
+from elementpath.xpath_nodes import is_document_node, is_lxml_document_node
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
 from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
     int_to_roman, int_to_alphabetic, int_to_words

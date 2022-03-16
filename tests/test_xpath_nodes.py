@@ -13,12 +13,13 @@ from unittest.mock import patch
 import io
 import xml.etree.ElementTree as ElementTree
 
+from elementpath.etree import is_etree_element, etree_iter_strings, \
+    etree_deep_equal, etree_iter_paths
 from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
-    TypedElement, NamespaceNode, is_etree_element, etree_iter_strings, \
-    etree_deep_equal, match_element_node, match_attribute_node, is_comment_node, \
+    TypedElement, NamespaceNode, match_element_node, match_attribute_node, is_comment_node, \
     is_document_node, is_processing_instruction_node, node_attributes, node_base_uri, \
     node_document_uri, node_children, node_nilled, node_kind, node_name, \
-    etree_iter_nodes, etree_iter_paths
+    etree_iter_nodes
 
 
 class DummyXsdType:
@@ -73,17 +74,17 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = TypedElement(elem=root, xsd_type=xsd_type, value='text1')
-            self.assertListEqual(list(etree_iter_strings(typed_root)), result)
+            self.assertListEqual(list(etree_iter_strings(typed_root.elem)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = TypedElement(elem=root, xsd_type=xsd_type, value='text1')
-            self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
+            self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
             comment = ElementTree.Comment('foo')
             root[1].append(comment)
-            self.assertListEqual(list(etree_iter_strings(typed_root)), norm_result)
+            self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
         self.assertListEqual(list(etree_iter_strings(root)), result)
 

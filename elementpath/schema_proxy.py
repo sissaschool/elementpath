@@ -14,7 +14,7 @@ from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XMLSchemaProtocol
 from .datatypes import AtomicValueType
-from .xpath_nodes import is_etree_element
+from .etree import is_etree_element
 from .xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -147,7 +147,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         implementation must raises a `ValueError` or `TypeError` in case of a decoding
         error or a `KeyError` if the type is not bound to the schema's scope.
 
-        :param obj: the instance to be casted.
+        :param obj: the instance to be cast.
         :param type_qname: the fully qualified name of the type used to convert the instance.
         """
 

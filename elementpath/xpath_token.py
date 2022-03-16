@@ -36,10 +36,10 @@ from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
+from .etree import is_etree_element, etree_iter_strings
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
-    NamespaceNode, TypedAttribute, is_etree_element, etree_iter_strings, \
-    is_comment_node, is_processing_instruction_node, is_element_node, \
-    is_document_node, is_xpath_node, is_schema_node
+    NamespaceNode, TypedAttribute, is_comment_node, is_processing_instruction_node, \
+    is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime, \
     AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, AtomicValueType, \
@@ -1008,7 +1008,10 @@ class XPathToken(Token[XPathTokenType]):
         elif isinstance(obj, XPathNode):
             if isinstance(obj, TypedElement):
                 if obj.value is None:
-                    return ''.join(etree_iter_strings(obj))
+                    if obj.xsd_type.is_element_only():
+                        # Element-only text content is normalized
+                        return ''.join(etree_iter_strings(obj.elem, normalize=True))
+                    return ''.join(etree_iter_strings(obj.elem))
                 return str(obj.value)
             elif isinstance(obj, (AttributeNode, TypedAttribute)):
                 return str(obj.value)

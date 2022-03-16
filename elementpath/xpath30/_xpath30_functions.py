@@ -31,10 +31,11 @@ from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE, XML_NAMESPACE
-from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
-    is_document_node, is_etree_element, is_schema_node, node_document_uri, \
-    node_nilled, node_name, TypedElement, TextNode, AttributeNode, \
-    TypedAttribute, NamespaceNode, is_processing_instruction_node, is_comment_node
+from ..etree import etree_iter_paths, is_etree_element
+from ..xpath_nodes import is_xpath_node, is_element_node, is_document_node, \
+    is_schema_node, node_document_uri, node_nilled, node_name, TypedElement, \
+    TextNode, AttributeNode, TypedAttribute, NamespaceNode, \
+    is_processing_instruction_node, is_comment_node
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \

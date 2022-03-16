@@ -18,10 +18,10 @@ from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XML_NAMESPACE
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import ElementProtocol, XsdElementProtocol, XMLSchemaProtocol
+from .etree import is_etree_element, is_lxml_etree_element, etree_iter_root
 from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
-    TypedAttribute, etree_iter_nodes, is_etree_element, is_element_node, \
-    is_document_node, is_lxml_etree_element, is_lxml_document_node, \
-    XPathNode, ElementNodeType, DocumentNodeType, XPathNodeType, etree_iter_root
+    TypedAttribute, etree_iter_nodes, is_element_node, is_document_node, \
+    is_lxml_document_node, XPathNode, ElementNodeType, DocumentNodeType, XPathNodeType
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis

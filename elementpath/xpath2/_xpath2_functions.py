@@ -30,10 +30,11 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
+from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, \
     is_element_node, is_document_node, is_xpath_node, node_name, \
-    node_nilled, node_document_uri, node_kind, etree_deep_equal
+    node_nilled, node_document_uri, node_kind
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
