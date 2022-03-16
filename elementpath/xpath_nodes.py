@@ -393,64 +393,6 @@ class TypedAttribute(XPathNode):
 XPathNodeType = Union[ElementNodeType, DocumentNodeType, XPathNode]
 
 
-def etree_iter_nodes(root: Union[DocumentNodeType, ElementNodeType], with_root: bool = True) \
-        -> Iterator[Union[DocumentNodeType, ElementNodeType, TextNode]]:
-
-    _root: Union[ElementProtocol, LxmlElementProtocol]
-    _lxml_root: Optional[LxmlElementProtocol] = None
-
-    if hasattr(root, 'getroot'):
-        document = cast(DocumentNodeType, root)
-        if with_root:
-            yield document
-        else:
-            with_root = True
-        _root = document.getroot()
-    elif isinstance(root, TypedElement):
-        _root = cast(ElementProtocol, root.elem)
-    else:
-        _root = cast(ElementProtocol, root)
-
-    if with_root:
-        yield _root
-        if hasattr(_root, 'getparent'):  # TODO: type checking
-            _lxml_root = cast(LxmlElementProtocol, _root)
-            if _lxml_root.getparent() is None:
-                previous_siblings = []
-                sibling = _lxml_root.getprevious()
-                while sibling is not None:
-                    previous_siblings.append(cast(ElementProtocol, sibling))
-                    sibling = sibling.getprevious()
-                yield from reversed(previous_siblings)
-            else:
-                _lxml_root = None
-
-    if _root.text is not None:
-        yield TextNode(_root.text, _root)
-
-    descendants = _root.iter()
-    next(descendants)  # discard root
-    for e in descendants:
-        if callable(e.tag):
-            # a comment or a process instruction
-            yield e
-            if e.tail is not None:
-                yield TextNode(e.tail, e, True)
-            continue
-
-        yield e
-        if e.text is not None:
-            yield TextNode(e.text, e)
-        if e.tail is not None:
-            yield TextNode(e.tail, e, True)
-
-    if _lxml_root is not None:
-        sibling = _lxml_root.getnext()
-        while sibling is not None:
-            yield cast(ElementProtocol, sibling)
-            sibling = sibling.getnext()
-
-
 ###
 # XPath node test functions
 #

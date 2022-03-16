@@ -17,11 +17,12 @@ from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XML_NAMESPACE
 from .datatypes import AnyAtomicType, Timezone
-from .protocols import ElementProtocol, XsdElementProtocol, XMLSchemaProtocol
+from .protocols import ElementProtocol, LxmlElementProtocol, \
+    XsdElementProtocol, XMLSchemaProtocol
 from .etree import is_etree_element, is_lxml_etree_element, etree_iter_root
 from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
-    TypedAttribute, etree_iter_nodes, is_element_node, is_document_node, \
-    is_lxml_document_node, XPathNode, ElementNodeType, DocumentNodeType, XPathNodeType
+    TypedAttribute, is_element_node, is_document_node, is_lxml_document_node, \
+    XPathNode, ElementNodeType, DocumentNodeType, XPathNodeType
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -70,7 +71,6 @@ class XPathContext:
     for default is `False`. Used by the XPath 3.0+ functions fn:environment-variable \
     and fn:available-environment-variables.
     """
-    _iter_nodes = staticmethod(etree_iter_nodes)
     _parent_map: Optional[MutableMapping[ElementNodeType, ContextRootType]] = None
     _etree: Optional[ModuleType] = None
     root: ContextRootType
@@ -300,6 +300,64 @@ class XPathContext:
             return item_name == name
         else:
             return item_name == '{%s}%s' % (default_namespace, name)
+
+    @staticmethod
+    def _iter_nodes(root: Union[DocumentNodeType, ElementNodeType], with_root: bool = True) \
+            -> Iterator[Union[DocumentNodeType, ElementNodeType, TextNode]]:
+
+        _root: Union[ElementProtocol, LxmlElementProtocol]
+        _lxml_root: Optional[LxmlElementProtocol] = None
+
+        if hasattr(root, 'getroot'):
+            document = cast(DocumentNodeType, root)
+            if with_root:
+                yield document
+            else:
+                with_root = True
+            _root = document.getroot()
+        elif isinstance(root, TypedElement):
+            _root = cast(ElementProtocol, root.elem)
+        else:
+            _root = cast(ElementProtocol, root)
+
+        if with_root:
+            yield _root
+            if hasattr(_root, 'getparent'):  # TODO: type checking
+                _lxml_root = cast(LxmlElementProtocol, _root)
+                if _lxml_root.getparent() is None:
+                    previous_siblings = []
+                    sibling = _lxml_root.getprevious()
+                    while sibling is not None:
+                        previous_siblings.append(cast(ElementProtocol, sibling))
+                        sibling = sibling.getprevious()
+                    yield from reversed(previous_siblings)
+                else:
+                    _lxml_root = None
+
+        if _root.text is not None:
+            yield TextNode(_root.text, _root)
+
+        descendants = _root.iter()
+        next(descendants)  # discard root
+        for e in descendants:
+            if callable(e.tag):
+                # a comment or a process instruction
+                yield e
+                if e.tail is not None:
+                    yield TextNode(e.tail, e, True)
+                continue
+
+            yield e
+            if e.text is not None:
+                yield TextNode(e.text, e)
+            if e.tail is not None:
+                yield TextNode(e.tail, e, True)
+
+        if _lxml_root is not None:
+            sibling = _lxml_root.getnext()
+            while sibling is not None:
+                yield cast(ElementProtocol, sibling)
+                sibling = sibling.getnext()
 
     def iter(self, namespaces: Optional[Dict[str, str]] = None) \
             -> Iterator[Union[ElementNodeType, DocumentNodeType, TextNode, NamespaceNode, AttributeNode]]:

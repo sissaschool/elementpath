@@ -18,8 +18,7 @@ from elementpath.etree import is_etree_element, etree_iter_strings, \
 from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
     TypedElement, NamespaceNode, match_element_node, match_attribute_node, is_comment_node, \
     is_document_node, is_processing_instruction_node, node_attributes, node_base_uri, \
-    node_document_uri, node_children, node_nilled, node_kind, node_name, \
-    etree_iter_nodes
+    node_document_uri, node_children, node_nilled, node_kind, node_name
 
 
 class DummyXsdType:
@@ -45,26 +44,6 @@ class XPathNodesTest(unittest.TestCase):
         self.assertTrue(is_etree_element(self.elem))
         self.assertFalse(is_etree_element('text'))
         self.assertFalse(is_etree_element(None))
-
-    def test_elem_iter_nodes_function(self):
-        root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')
-
-        result = [root, TextNode('text1\n', root),
-                  root[0], TextNode('text2', root[0]), root[1],
-                  root[2], root[2][0], TextNode('text3', root[2][0])]
-
-        self.assertListEqual(list(etree_iter_nodes(root)), result)
-        self.assertListEqual(list(etree_iter_nodes(root, with_root=False)), result[1:])
-
-        with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
-            xsd_type = DummyXsdType()
-            typed_root = TypedElement(root, xsd_type, 'text1')
-            self.assertListEqual(list(etree_iter_nodes(typed_root)), result)
-
-        comment = ElementTree.Comment('foo')
-        root[1].append(comment)
-        self.assertListEqual(list(etree_iter_nodes(root)),
-                             result[:5] + [comment] + result[5:])
 
     def test_elem_iter_strings_function(self):
         root = ElementTree.XML('<A>text1\n<B1>text2</B1>tail1<B2/><B3><C1>text3</C1></B3>tail2</A>')
