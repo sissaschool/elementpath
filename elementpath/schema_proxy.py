@@ -155,18 +155,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
         """
         Returns an iterator for not builtin atomic types defined in the schema's scope. A concrete
-        implementation must yields objects that implement the protocol `XsdTypeProtocol`.
-        """
-
-    @abstractmethod
-    def get_primitive_type(self, xsd_type: XsdTypeProtocol) -> XsdTypeProtocol:
-        """
-        Returns the type at base of the definition of an XSD type. For an atomic type
-        is effectively the primitive type. For a list is the primitive type of the item.
-        For a union is the base union type. For a complex type is xs:anyType.
-
-        :param xsd_type: an XSD type instance.
-        :return: an XSD type instance.
+        implementation must yield objects that implement the protocol `XsdTypeProtocol`.
         """
 
 

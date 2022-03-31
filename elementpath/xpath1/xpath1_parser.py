@@ -28,7 +28,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
-    TypedAttribute, TypedElement
+    AttributeNode, TypedAttribute, TypedElement
 
 COMMON_SEQUENCE_TYPES = {
     'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
@@ -369,11 +369,8 @@ class XPath1Parser(Parser[XPathToken]):
         if xsd_type is None:
             return UntypedAtomic('1')
         elif xsd_type.is_simple() or xsd_type.has_simple_content():
-            if self.schema is None:
-                return UntypedAtomic('1')
             try:
-                primitive_type = self.schema.get_primitive_type(xsd_type)
-                return ATOMIC_VALUES[cast(str, primitive_type.local_name)]
+                return ATOMIC_VALUES[cast(str, xsd_type.root_type.local_name)]
             except (KeyError, AttributeError):
                 return UntypedAtomic('1')
         else:
@@ -446,6 +443,8 @@ class XPath1Parser(Parser[XPathToken]):
 
             if type_name == 'xs:untyped':
                 if isinstance(value, (TypedAttribute, TypedElement)):
+                    return False
+                if isinstance(value, AttributeNode) and value.xsd_type is not None:
                     return False
             else:
                 try:

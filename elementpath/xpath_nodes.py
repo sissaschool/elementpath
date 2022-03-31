@@ -13,11 +13,15 @@ Helper functions for XPath nodes and basic data types.
 from urllib.parse import urlparse
 from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from .namespaces import XML_BASE, XSI_NIL
+from .datatypes import UntypedAtomic
+from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
+    XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
-    XsdElementProtocol, XsdAttributeProtocol, XMLSchemaProtocol
+from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
+    XsdAttributeProtocol, XMLSchemaProtocol, XsdTypeProtocol
 from .etree import is_etree_element, etree_iter_strings
+
+_XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 
 ###
@@ -94,7 +98,7 @@ class XPathNode:
     type_name: Optional[str]
     typed_value: None
 
-    value: Any = None
+    _value: Any = None
 
 
 class AttributeNode(XPathNode):
@@ -107,31 +111,55 @@ class AttributeNode(XPathNode):
     """
     name: str
     kind = 'attribute'
+    xsd_type: Optional[XsdTypeProtocol] = None
 
-    def __init__(self, name: str, value: Union[str, XsdAttributeProtocol],
+    def __init__(self, name: str,
+                 value: Union[str, XsdAttributeProtocol],
                  parent: Optional[ElementNodeType] = None) -> None:
         self.name = name
-        self.value: Union[str, XsdAttributeProtocol] = value
+        self._value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
 
     def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
-        return self.name, self.value
+        return self.name, self._value
 
     def __repr__(self) -> str:
         if self.parent is not None:
             return '%s(name=%r, value=%r, parent=%r)' % (
-                self.__class__.__name__, self.name, self.value, self.parent
+                self.__class__.__name__, self.name, self._value, self.parent
             )
-        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
+        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self._value)
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
-            self.name == other.name and \
-            self.value == other.value and \
-            self.parent is other.parent
+               self.name == other.name and \
+               self._value == other._value and \
+               self.parent is other.parent
 
     def __hash__(self) -> int:
-        return hash((self.name, self.value, self.parent))
+        return hash((self.name, self._value, self.parent))
+
+    @property
+    def value(self):
+        if self.xsd_type is None:
+            return self._value
+        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
+            return UntypedAtomic(self._value)
+        return self.xsd_type.decode(self._value)
+
+    @property
+    def string_value(self) -> str:
+        if isinstance(self._value, str):
+            return self._value
+        return str(self._value)
+
+    @property
+    def typed_value(self):
+        if self.xsd_type is None:
+            return self._value
+        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
+            return UntypedAtomic(self._value)
+        return self.xsd_type.decode(self._value)
 
 
 class TextNode(XPathNode):
@@ -247,6 +275,7 @@ class ElementNode(ElementProxy, XPathNode):
     A class for processing XPath element nodes.
     """
     kind = 'element'
+    xsd_type: Optional[XsdTypeProtocol] = None
 
     @property
     def value(self) -> str:
@@ -275,6 +304,27 @@ class ElementNode(ElementProxy, XPathNode):
     @property
     def string_value(self):
         return ''.join(etree_iter_strings(self.elem))
+
+    @property
+    def typed_value(self):
+        if self.xsd_type is None:
+            return self.value
+        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
+            return UntypedAtomic(self.elem.text or '')
+        elif self.xsd_type.has_mixed_content():
+            return UntypedAtomic(self.elem.text or '')
+        elif self.xsd_type.is_element_only():
+            return None
+        elif self.xsd_type.is_empty():
+            return None
+        elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
+            return None
+
+        if self.elem.text is not None:
+            return self.xsd_type.decode(self.elem.text)
+        elif self.elem.get(XSI_NIL) in ('1', 'true'):
+            return ''
+        return self.xsd_type.decode(self.elem.text)
 
 
 class CommentNode(ElementProxy, XPathNode):

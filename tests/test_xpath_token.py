@@ -833,10 +833,11 @@ class XPath2TokenTest(XPath1TokenTest):
 
             root_token[0].xsd_types['a'] = schema.meta_schema.types['anyType']
             node = root_token[0].get_typed_node(attribute)
-            self.assertIsInstance(node, TypedAttribute)
+            self.assertIsInstance(node, AttributeNode)
             self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
-            self.assertIsInstance(node.value, UntypedAtomic)
-            self.assertEqual(node.value, 10)
+            self.assertIsInstance(node.value, str)
+            self.assertEqual(node.value, '10')
+            self.assertEqual(node.typed_value, 10)
 
         finally:
             self.parser.schema = None

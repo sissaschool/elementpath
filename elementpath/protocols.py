@@ -65,6 +65,7 @@ else:
     class XsdComponentProtocol(Protocol):
         def is_matching(self, name: Optional[str],
                         default_namespace: Optional[str] = None) -> bool: ...
+        xsd_version: str
         name: Optional[str]
         local_name: Optional[str]
         parent: Optional['XsdComponentProtocol']
@@ -135,6 +136,13 @@ else:
             or a `TypeError` compatible exception if the argument it's not valid.
             """
             ...
+
+        root_type: 'XsdTypeProtocol'
+        """
+        The type at base of the definition of the XSD type. For a special type is the type 
+        itself. For an atomic type is the primitive type. For a list is the primitive type 
+        of the item. For a union is the base union type. For a complex type is xs:anyType.
+        """
 
     class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
         type: XsdTypeProtocol

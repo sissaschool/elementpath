@@ -104,7 +104,6 @@ implementing concrete interfaces to other types of XML Schema processors.
     .. automethod:: is_instance
     .. automethod:: cast_as
     .. automethod:: iter_atomic_types
-    .. automethod:: get_primitive_type
 
 
 XPath nodes

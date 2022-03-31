@@ -820,14 +820,15 @@ class XPathToken(Token[XPathTokenType]):
         """
         if isinstance(item, (TypedAttribute, TypedElement)):
             return item
+        if isinstance(item, AttributeNode) and item.xsd_type is not None:
+            return item
 
         xsd_type = self.get_xsd_type(item)
         if not xsd_type:
             return item
         elif xsd_type.name in _XSD_SPECIAL_TYPES:
             if isinstance(item, AttributeNode):
-                if not isinstance(item.value, str):
-                    return TypedAttribute(item, xsd_type, UntypedAtomic(''))
+                item.xsd_type = xsd_type
                 return TypedAttribute(item, xsd_type, UntypedAtomic(item.value))
             return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
 
@@ -843,7 +844,7 @@ class XPathToken(Token[XPathTokenType]):
         elif item.get(XSI_NIL) and getattr(xsd_type.parent, 'nillable', None):
             return TypedElement(item, xsd_type, None)
 
-        if self.parser.xsd_version == '1.0':
+        if xsd_type.xsd_version == '1.0':
             atomic_types = xsd10_atomic_types
         else:
             atomic_types = xsd11_atomic_types
@@ -851,19 +852,15 @@ class XPathToken(Token[XPathTokenType]):
         try:
             builder: Any = atomic_types[xsd_type.name]
         except KeyError:
-            if self.parser.schema is None:
+            try:
+                builder = atomic_types[xsd_type.root_type.name]
+            except KeyError:
                 builder = UntypedAtomic
             else:
-                try:
-                    primitive_type = self.parser.schema.get_primitive_type(xsd_type)
-                    builder = atomic_types[primitive_type.name]
-                except KeyError:
-                    builder = UntypedAtomic
-                else:
-                    if isinstance(builder, (AbstractDateTime, Duration)):
-                        builder = builder.fromstring
-                    elif issubclass(builder, QName):
-                        builder = self.cast_to_qname
+                if isinstance(builder, (AbstractDateTime, Duration)):
+                    builder = builder.fromstring
+                elif issubclass(builder, QName):
+                    builder = self.cast_to_qname
         else:
             if issubclass(builder, (AbstractDateTime, Duration)):
                 builder = builder.fromstring
@@ -872,7 +869,9 @@ class XPathToken(Token[XPathTokenType]):
 
         if isinstance(item, AttributeNode):
             if xsd_type.is_valid(item.value):
-                return TypedAttribute(item, xsd_type, builder(item.value))
+                item.xsd_type = xsd_type
+                return item
+                # return TypedAttribute(item, xsd_type, builder(item.value))
         elif item.text is not None:
             if xsd_type.is_valid(item.text):
                 return TypedElement(item, xsd_type, builder(item.text))
@@ -977,6 +976,8 @@ class XPathToken(Token[XPathTokenType]):
             if isinstance(obj, TextNode):
                 return UntypedAtomic(obj.value)
             elif isinstance(obj, AttributeNode) and isinstance(obj.value, str):
+                if obj.xsd_type is not None:
+                    return obj.typed_value
                 return UntypedAtomic(obj.value)
             return cast(Optional[AtomicValueType], obj.value)  # a typed node or a NamespaceNode
 
