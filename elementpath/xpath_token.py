@@ -40,10 +40,10 @@ from .etree import is_etree_element, etree_iter_strings
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
     NamespaceNode, TypedAttribute, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
-from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AbstractDateTime, \
-    AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
-    Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, AtomicValueType, \
-    AnyAtomicType, Float10, Float
+from .datatypes import xsd10_atomic_types, xsd11_atomic_types, get_atomic_value, \
+    AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, \
+    DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy, QName, \
+    DatetimeValueType, AtomicValueType, AnyAtomicType, Float10, Float
 from .protocols import ElementProtocol, DocumentProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
 from .schema_proxy import AbstractSchemaProxy
@@ -713,7 +713,7 @@ class XPathToken(Token[XPathTokenType]):
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     if xsd_type is not None:
-                        value = self.parser.get_atomic_value(xsd_type)
+                        value = get_atomic_value(xsd_type)
                         yield TypedAttribute(xsd_node, xsd_type, value)
 
                 elif name == XSD_SCHEMA == xsd_node.tag:
@@ -729,7 +729,7 @@ class XPathToken(Token[XPathTokenType]):
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     if xsd_type is not None:
-                        value = self.parser.get_atomic_value(xsd_type)
+                        value = get_atomic_value(xsd_type)
                         yield TypedElement(xsd_node, xsd_type, value)
 
             except AttributeError:
@@ -985,7 +985,7 @@ class XPathToken(Token[XPathTokenType]):
             raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
 
         elif is_schema_node(obj):
-            return self.parser.get_atomic_value(obj.type)
+            return get_atomic_value(obj.type)
 
         elif hasattr(obj, 'tag'):
             if is_comment_node(obj) or is_processing_instruction_node(obj):
@@ -1019,7 +1019,7 @@ class XPathToken(Token[XPathTokenType]):
             else:
                 return cast(str, obj.value)  # TextNode or NamespaceNode
         elif is_schema_node(obj):
-            return str(self.parser.get_atomic_value(obj.type))
+            return str(get_atomic_value(obj.type))
         elif hasattr(obj, 'tag'):
             if is_comment_node(obj) or is_processing_instruction_node(obj):
                 return cast(str, obj.text)

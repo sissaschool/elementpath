@@ -12,19 +12,17 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
 from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
-    Optional, Tuple, Type, Union, Set
+    Optional, Tuple, Type, Set
 
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathValueError, xpath_error
-from ..protocols import XsdTypeProtocol
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
-    xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES, AtomicValueType
+    xsd10_atomic_types, xsd11_atomic_types
 from ..tdop import Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
-    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, \
-    split_expanded_name
+    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
@@ -343,40 +341,6 @@ class XPath1Parser(Parser[XPathToken]):
             return False
         else:
             return True
-
-    def get_atomic_value(self, type_or_name: Union[str, XsdTypeProtocol]) -> AtomicValueType:
-        """Gets an atomic value for an XSD type instance or name. Used for schema contexts."""
-        expanded_name: Optional[str]
-
-        if isinstance(type_or_name, str):
-            expanded_name = get_expanded_name(type_or_name, self.namespaces)
-            xsd_type = None
-        else:
-            xsd_type = type_or_name
-            expanded_name = xsd_type.name
-
-        if expanded_name:
-            uri, local_name = split_expanded_name(expanded_name)
-            if uri == XSD_NAMESPACE:
-                try:
-                    return ATOMIC_VALUES[local_name]
-                except KeyError:
-                    pass
-
-        if xsd_type is None and self.schema is not None:
-            xsd_type = self.schema.get_type(expanded_name or '')
-
-        if xsd_type is None:
-            return UntypedAtomic('1')
-        elif xsd_type.is_simple() or xsd_type.has_simple_content():
-            try:
-                return ATOMIC_VALUES[cast(str, xsd_type.root_type.local_name)]
-            except (KeyError, AttributeError):
-                return UntypedAtomic('1')
-        else:
-            # returns an xs:untypedAtomic value also for element-only types
-            # (that should be None) because it is for static evaluation.
-            return UntypedAtomic('1')
 
     def match_sequence_type(self, value: Any,
                             sequence_type: str,

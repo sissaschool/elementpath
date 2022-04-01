@@ -20,7 +20,8 @@ from ..exceptions import ElementPathError, ElementPathTypeError
 from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSI_NIL, get_namespace, get_expanded_name
-from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer, DoubleProxy10
+from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
+    Duration, Integer, DoubleProxy10
 from ..xpath_nodes import TypedElement, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_context import XPathSchemaContext
@@ -75,7 +76,15 @@ def evaluate_variable_reference(self, context=None):
                     sequence_type = sequence_type[:-1]
 
                 if QName.pattern.match(sequence_type) is not None:
-                    return self.parser.get_atomic_value(sequence_type)
+                    try:
+                        type_name = get_expanded_name(sequence_type, self.parser.namespaces)
+                    except KeyError:
+                        pass
+                    else:
+                        xsd_type = context.root.xpath_proxy.get_type(type_name)
+                        if xsd_type is not None:
+                            return get_atomic_value(xsd_type)
+
                 return UntypedAtomic('')
 
     raise self.missing_name('unknown variable %r' % str(varname))
