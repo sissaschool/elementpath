@@ -13,67 +13,15 @@ Helper functions for XPath nodes and basic data types.
 from urllib.parse import urlparse
 from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from .datatypes import UntypedAtomic
+from .datatypes import UntypedAtomic, get_atomic_value
 from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
-    XsdAttributeProtocol, XMLSchemaProtocol, XsdTypeProtocol
-from .etree import is_etree_element, etree_iter_strings
+from .protocols import ElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
+from .etree import ElementType, DocumentType, is_etree_element, \
+    etree_iter_strings, ElementProxy, DocumentProxy
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
-
-
-###
-# Elements and document nodes are processed on duck typing
-# bases and mypy checks them using structural subtyping.
-# In ElementTree element nodes, comment nodes and PI nodes
-# use the same class, so they are indistinguishable with a
-# class check.
-ElementNodeType = Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
-DocumentNodeType = DocumentProtocol
-
-
-class ElementProxy:
-    """
-    A proxy for ElementTree elements.
-
-    :param elem: the wrapped Element object.
-    :param parent: the parent Element object.
-    """
-    def __init__(self, elem: ElementNodeType, parent: Optional[ElementNodeType] = None) -> None:
-        self.elem = elem
-        self.parent = parent
-
-    def __repr__(self) -> str:
-        if self.parent is None:
-            return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
-        return '%s(elem=%r, parent=%r)' % (self.__class__.__name__, self.elem, self.parent)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and self.elem is other.elem
-
-    def __hash__(self) -> int:
-        return hash(self.elem)
-
-    @property
-    def tag(self) -> str:
-        return self.elem.tag
-
-    @property
-    def text(self) -> str:
-        return self.elem.text
-
-    @property
-    def tail(self) -> str:
-        return self.elem.tail
-
-    @property
-    def attrib(self) -> Dict[str, str]:
-        return self.elem.attrib
-
-    def get(self, key, default: Optional[str] = None) -> Optional[str]:
-        return self.elem.get(key, default)
 
 
 ###
@@ -93,12 +41,17 @@ class XPathNode:
     nilled: Optional[bool]
     kind: str
     name: Any = None
-    parent: Optional[ElementNodeType] = None
-    string_value: str
+    parent: Optional[ElementType] = None
     type_name: Optional[str]
-    typed_value: None
+    value: Any = None
 
-    _value: Any = None
+    @property
+    def string_value(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def typed_value(self) -> Any:
+        raise NotImplementedError()
 
 
 class AttributeNode(XPathNode):
@@ -115,7 +68,7 @@ class AttributeNode(XPathNode):
 
     def __init__(self, name: str,
                  value: Union[str, XsdAttributeProtocol],
-                 parent: Optional[ElementNodeType] = None) -> None:
+                 parent: Optional[ElementType] = None) -> None:
         self.name = name
         self._value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
@@ -141,7 +94,7 @@ class AttributeNode(XPathNode):
 
     @property
     def value(self):
-        if self.xsd_type is None:
+        if not isinstance(self._value, str) or self.xsd_type is None:
             return self._value
         elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self._value)
@@ -151,11 +104,13 @@ class AttributeNode(XPathNode):
     def string_value(self) -> str:
         if isinstance(self._value, str):
             return self._value
-        return str(self._value)
+        return str(get_atomic_value(self._value.type))
 
     @property
     def typed_value(self):
-        if self.xsd_type is None:
+        if not isinstance(self._value, str):
+            return get_atomic_value(self._value.type)
+        elif self.xsd_type is None:
             return self._value
         elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self._value)
@@ -176,7 +131,7 @@ class TextNode(XPathNode):
     text: None
     _tail = False
 
-    def __init__(self, value: str, parent: Optional[ElementNodeType] = None,
+    def __init__(self, value: str, parent: Optional[ElementType] = None,
                  tail: bool = False) -> None:
         self.value = value
         self.parent = parent
@@ -203,6 +158,14 @@ class TextNode(XPathNode):
     def __hash__(self) -> int:
         return hash((self.value, self.parent, self._tail))
 
+    @property
+    def string_value(self) -> str:
+        return self.value
+
+    @property
+    def typed_value(self) -> UntypedAtomic:
+        return UntypedAtomic(self.value)
+
 
 class NamespaceNode(XPathNode):
     """
@@ -214,7 +177,7 @@ class NamespaceNode(XPathNode):
     """
     kind = 'namespace'
 
-    def __init__(self, prefix: str, uri: str, parent: Optional[ElementNodeType] = None) -> None:
+    def __init__(self, prefix: str, uri: str, parent: Optional[ElementType] = None) -> None:
         self.prefix = prefix
         self.uri = uri
         self.parent = parent
@@ -246,28 +209,32 @@ class NamespaceNode(XPathNode):
     def __hash__(self) -> int:
         return hash((self.prefix, self.uri, self.parent))
 
+    @property
+    def string_value(self) -> str:
+        return self.uri
 
-class DocumentNode(XPathNode):
+    @property
+    def typed_value(self) -> str:
+        return self.uri
+
+
+class DocumentNode(DocumentProxy, XPathNode):
     """
     A class for XPath document nodes.
     """
     kind = 'document'
 
-    def __init__(self, document: DocumentNodeType) -> None:
-        self.document = document
-
     @property
     def value(self) -> str:
         return self.document
 
-    def getroot(self):
-        return ElementNode(self.document.getroot())
+    @property
+    def string_value(self) -> str:
+        return ''.join(etree_iter_strings(self.document.getroot()))
 
-    def parse(self, source: Any, *args: Any, **kwargs: Any):
-        return DocumentNode(self.document.parse(source, *args, **kwargs))
-
-    def iter(self, tag: Optional[str] = None) -> Iterator[ElementProtocol]:
-        return self.document.iter(tag)
+    @property
+    def typed_value(self) -> UntypedAtomic:
+        return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
 
 
 class ElementNode(ElementProxy, XPathNode):
@@ -303,11 +270,15 @@ class ElementNode(ElementProxy, XPathNode):
 
     @property
     def string_value(self):
+        if is_schema_node(self.elem):
+            return ''
         return ''.join(etree_iter_strings(self.elem))
 
     @property
     def typed_value(self):
-        if self.xsd_type is None:
+        if is_schema_node(self.elem):
+            return get_atomic_value(self.elem.type)
+        elif self.xsd_type is None:
             return self.value
         elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.elem.text or '')
@@ -413,6 +384,14 @@ class TypedElement(XPathNode):
     def __hash__(self) -> int:
         return hash((self.elem, self.value))
 
+    @property
+    def string_value(self) -> str:
+        return str(self.value)
+
+    @property
+    def typed_value(self) -> Any:
+        return self.value
+
 
 class TypedAttribute(XPathNode):
     """
@@ -448,8 +427,16 @@ class TypedAttribute(XPathNode):
     def __hash__(self) -> int:
         return hash((self.attribute, self.value))
 
+    @property
+    def string_value(self) -> str:
+        return str(self.value)
 
-XPathNodeType = Union[ElementNodeType, DocumentNodeType, XPathNode]
+    @property
+    def typed_value(self) -> Any:
+        return self.value
+
+
+XPathNodeType = Union[ElementType, DocumentType, XPathNode]
 
 
 ###
@@ -611,7 +598,7 @@ def node_document_uri(obj: Any) -> Optional[str]:
     return None
 
 
-def node_children(obj: Any) -> Optional[Iterator[ElementNodeType]]:
+def node_children(obj: Any) -> Optional[Iterator[ElementType]]:
     if is_element_node(obj):
         return (child for child in obj)
     elif is_document_node(obj):

@@ -12,9 +12,14 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
-from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, Tuple, Union
+from typing import cast, Any, Counter, Dict, Iterator, Optional, MutableMapping, \
+    Tuple, Union
 
-from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol
+from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
+    XsdElementProtocol, XMLSchemaProtocol
+
+ElementType = Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
+DocumentType = DocumentProtocol
 
 _REGEX_NS_PREFIX = re.compile(r'ns\d+$')
 
@@ -93,6 +98,67 @@ class SafeXMLParser(PyElementTree.XMLParser):
             "External references are forbidden (system_id={!r}, "
             "public_id={!r})".format(system_id, public_id)
         )  # pragma: no cover (EntityDeclHandler is called before)
+
+
+class DocumentProxy:
+    """
+    A proxy for ElementTree documents.
+
+    :param document: the wrapped ElementTree object.
+    """
+    def __init__(self, document: DocumentType) -> None:
+        self.document = document
+
+    def getroot(self):
+        return self.document.getroot()
+
+    def parse(self, source: Any, *args: Any, **kwargs: Any):
+        return self.document.parse(source, *args, **kwargs)
+
+    def iter(self, tag: Optional[str] = None) -> Iterator[ElementType]:
+        return self.document.iter(tag)
+
+
+class ElementProxy:
+    """
+    A proxy for ElementTree elements.
+
+    :param elem: the wrapped Element object.
+    :param parent: the parent Element object.
+    """
+    def __init__(self, elem: ElementType, parent: Optional[ElementType] = None) -> None:
+        self.elem = elem
+        self.parent = parent
+
+    def __repr__(self) -> str:
+        if self.parent is None:
+            return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
+        return '%s(elem=%r, parent=%r)' % (self.__class__.__name__, self.elem, self.parent)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, self.__class__) and self.elem is other.elem
+
+    def __hash__(self) -> int:
+        return hash(self.elem)
+
+    @property
+    def tag(self) -> str:
+        return self.elem.tag
+
+    @property
+    def text(self) -> str:
+        return self.elem.text
+
+    @property
+    def tail(self) -> str:
+        return self.elem.tail
+
+    @property
+    def attrib(self) -> Dict[str, str]:
+        return self.elem.attrib
+
+    def get(self, key, default: Optional[str] = None) -> Optional[str]:
+        return self.elem.get(key, default)
 
 
 def is_etree_element(obj: Any) -> bool:
@@ -294,6 +360,7 @@ def etree_tostring(elem: ElementProtocol,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'is_etree_element',
+__all__ = ['ElementType', 'DocumentType', 'ElementTree', 'PyElementTree',
+           'SafeXMLParser', 'DocumentProxy', 'ElementProxy', 'is_etree_element',
            'is_lxml_etree_element', 'etree_iter_root', 'etree_iter_strings',
            'etree_deep_equal', 'etree_iter_paths', 'etree_tostring']

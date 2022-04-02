@@ -12,7 +12,7 @@ from timeit import timeit
 from memory_profiler import profile
 from xml.etree import ElementTree
 
-from elementpath.xpath_nodes import ElementNodeType, is_element_node
+from elementpath.xpath_nodes import ElementType, is_element_node
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -23,7 +23,7 @@ def run_timeit(stmt='pass', setup='pass', number=1000):
 @profile
 def element_nodes_objects():
     elem = ElementTree.XML(xml_source)
-    nodes = [ElementNodeType(e) for e in elem.iter()]
+    nodes = [ElementType(e) for e in elem.iter()]
     return nodes
 
 
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     root = ElementTree.XML(xml_source)
     setup = 'from __main__ import ElementNode, root, node, is_element_node'
-    node = ElementNodeType(root)
+    node = ElementType(root)
 
     NUMBER = 10000
 
