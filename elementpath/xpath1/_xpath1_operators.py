@@ -24,7 +24,7 @@ from ..datatypes import AbstractDateTime, Duration, DayTimeDuration, \
 from ..xpath_context import XPathSchemaContext
 from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, TypedAttribute, \
+from ..xpath_nodes import XPathNode, TypedElement, AttributeNode, \
     is_xpath_node, is_schema_node, is_document_node, is_element_node
 
 from .xpath1_parser import XPath1Parser
@@ -104,7 +104,9 @@ def select_name_literal(self, context=None):
                 default_namespace = item.nsmap[None]
 
             if context.match_name(name, default_namespace):
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     path = context.get_path(item)
@@ -126,7 +128,9 @@ def select_name_literal(self, context=None):
                 default_namespace = item.nsmap[None]
 
             if context.match_name(name, default_namespace):
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     context.item = self.get_typed_node(item)
@@ -204,7 +208,9 @@ def select_namespace_prefix(self, context=None):
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
         for item in context.iter_children_or_self():
             if context.match_name(name):
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     path = context.get_path(item)
@@ -221,7 +227,9 @@ def select_namespace_prefix(self, context=None):
         # XSD typed selection
         for item in context.iter_children_or_self():
             if context.match_name(name):
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     context.item = self.get_typed_node(item)
@@ -293,7 +301,9 @@ def select_namespace_uri(self, context=None):
         # XSD typed selection
         for item in context.iter_children_or_self():
             if context.match_name(self.value):
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     context.item = self.get_typed_node(item)
@@ -348,7 +358,7 @@ def select_wildcard(self, context=None):
             if item is None:
                 pass  # '*' wildcard doesn't match document nodes
             elif context.axis == 'attribute':
-                if isinstance(item, (AttributeNode, TypedAttribute)):
+                if isinstance(item, AttributeNode):
                     yield item
             elif is_element_node(item):
                 yield item
@@ -357,7 +367,9 @@ def select_wildcard(self, context=None):
         # XSD typed selection
         for item in context.iter_children_or_self():
             if context.item is not None and context.is_principal_node_kind():
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     context.item = self.get_typed_node(item)
@@ -389,7 +401,9 @@ def select_self_shortcut(self, context=None):
     else:
         for item in context.iter_self():
             if item is not None:
-                if isinstance(item, (TypedAttribute, TypedElement)):
+                if isinstance(item, TypedElement):
+                    yield item
+                elif isinstance(item, AttributeNode) and item.xsd_type is not None:
                     yield item
                 else:
                     context.item = self.get_typed_node(item)
@@ -694,10 +708,6 @@ def select_child_path(self, context=None):
                     if result.elem not in items:
                         items.add(result)
                         yield result
-                elif isinstance(result, TypedAttribute):
-                    if result.attribute not in items:
-                        items.add(result)
-                        yield result
                 else:
                     items.add(result)
                     yield result
@@ -727,10 +737,6 @@ def select_descendant_path(self, context=None):
                         if result.elem not in items:
                             items.add(result)
                             yield result
-                    elif isinstance(result, TypedAttribute):
-                        if result.attribute not in items:
-                            items.add(result)
-                            yield result
                     else:
                         items.add(result)
                         yield result
@@ -750,9 +756,6 @@ def select_descendant_path(self, context=None):
                     pass
                 elif isinstance(result, TypedElement):
                     if result.elem not in items:
-                        items.add(result)
-                elif isinstance(result, TypedAttribute):
-                    if result.attribute not in items:
                         items.add(result)
                 else:
                     items.add(result)

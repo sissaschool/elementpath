@@ -65,7 +65,6 @@ class XPathTestCase(unittest.TestCase):
 
     def setUp(self):
         self.parser = XPath2Parser(self.namespaces)
-        self.dummy_type = DummyXsdType()
 
     #
     # Helper methods
@@ -188,7 +187,7 @@ class XPathTestCase(unittest.TestCase):
         elif not callable(expected):
             self.assertEqual(list(root_token.select(context)), expected)
         else:
-            self.assertTrue(expected(list(root_token.parse(path).select(context))))
+            self.assertTrue(expected(list(root_token.parser.parse(path).select(context))))
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """

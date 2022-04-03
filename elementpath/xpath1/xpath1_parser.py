@@ -26,7 +26,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
-    AttributeNode, TypedAttribute, TypedElement
+    AttributeNode, TypedElement
 
 COMMON_SEQUENCE_TYPES = {
     'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
@@ -406,7 +406,7 @@ class XPath1Parser(Parser[XPathToken]):
                 return False
 
             if type_name == 'xs:untyped':
-                if isinstance(value, (TypedAttribute, TypedElement)):
+                if isinstance(value, TypedElement):
                     return False
                 if isinstance(value, AttributeNode) and value.xsd_type is not None:
                     return False

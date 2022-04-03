@@ -34,8 +34,8 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
 from ..etree import etree_iter_paths, is_etree_element
 from ..xpath_nodes import is_xpath_node, is_element_node, is_document_node, \
     is_schema_node, node_document_uri, node_nilled, node_name, TypedElement, \
-    TextNode, AttributeNode, TypedAttribute, NamespaceNode, \
-    is_processing_instruction_node, is_comment_node
+    TextNode, AttributeNode, NamespaceNode, is_processing_instruction_node, \
+    is_comment_node
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -1312,7 +1312,7 @@ def evaluate_serialize_function(self, context=None):
             item = item.getroot()
         elif isinstance(item, TypedElement):
             item = item.elem
-        elif isinstance(item, (AttributeNode, TypedAttribute, NamespaceNode)):
+        elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise self.error('SENR0001')
         elif isinstance(item, TextNode):
             chunks.append(item.value)

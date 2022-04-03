@@ -22,8 +22,7 @@ from .protocols import ElementProtocol, LxmlElementProtocol, \
 from .etree import ElementType, DocumentType, is_etree_element, \
     is_lxml_etree_element, etree_iter_root
 from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
-    TypedAttribute, is_element_node, is_document_node, is_lxml_document_node, \
-    XPathNode, XPathNodeType
+    is_element_node, is_document_node, is_lxml_document_node, XPathNode, XPathNodeType
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -225,9 +224,6 @@ class XPathContext:
         if isinstance(item, AttributeNode):
             path.append(f'@{item.name}')
             item = item.parent
-        elif isinstance(item, TypedAttribute):
-            path.append(f'@{item.attribute.name}')
-            item = item.attribute.parent
 
         if item is None:
             return '' if not path else path[0]
@@ -247,7 +243,7 @@ class XPathContext:
 
     def is_principal_node_kind(self) -> bool:
         if self.axis == 'attribute':
-            return isinstance(self.item, (AttributeNode, TypedAttribute))
+            return isinstance(self.item, AttributeNode)
         elif self.axis == 'namespace':
             return isinstance(self.item, NamespaceNode)
         else:
@@ -264,7 +260,7 @@ class XPathContext:
         Used for matching element names (tag).
         """
         if self.axis == 'attribute':
-            if not isinstance(self.item, (AttributeNode, TypedAttribute)):
+            if not isinstance(self.item, AttributeNode):
                 return False
             item_name = self.item.name
         elif is_element_node(self.item):
@@ -420,12 +416,6 @@ class XPathContext:
                     yield self.item
                     results.remove(self.item)
 
-                elif isinstance(self.item, AttributeNode):
-                    # Match XSD decoded attributes
-                    for typed_attribute in filter(lambda x: isinstance(x, TypedAttribute), results):
-                        if typed_attribute.attribute == self.item:
-                            yield typed_attribute
-
                 elif is_etree_element(self.item):
                     # Match XSD decoded elements
                     for typed_element in filter(lambda x: isinstance(x, TypedElement), results):
@@ -497,11 +487,11 @@ class XPathContext:
         yield self.item
         self.axis = status
 
-    def iter_attributes(self) -> Iterator[Union[AttributeNode, TypedAttribute]]:
+    def iter_attributes(self) -> Iterator[AttributeNode]:
         """Iterator for 'attribute' axis and '@' shortcut."""
         status: Any
 
-        if isinstance(self.item, (AttributeNode, TypedAttribute)):
+        if isinstance(self.item, AttributeNode):
             status = self.axis
             self.axis = 'attribute'
             yield self.item

@@ -13,7 +13,7 @@ Helper functions for XPath nodes and basic data types.
 from urllib.parse import urlparse
 from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from .datatypes import UntypedAtomic, get_atomic_value
+from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
@@ -52,170 +52,6 @@ class XPathNode:
     @property
     def typed_value(self) -> Any:
         raise NotImplementedError()
-
-
-class AttributeNode(XPathNode):
-    """
-    A class for processing XPath attribute nodes.
-
-    :param name: the attribute name.
-    :param value: a string value or an XSD attribute when XPath is applied on a schema.
-    :param parent: the parent element.
-    """
-    name: str
-    kind = 'attribute'
-    xsd_type: Optional[XsdTypeProtocol] = None
-
-    def __init__(self, name: str,
-                 value: Union[str, XsdAttributeProtocol],
-                 parent: Optional[ElementType] = None) -> None:
-        self.name = name
-        self._value: Union[str, XsdAttributeProtocol] = value
-        self.parent = parent
-
-    def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
-        return self.name, self._value
-
-    def __repr__(self) -> str:
-        if self.parent is not None:
-            return '%s(name=%r, value=%r, parent=%r)' % (
-                self.__class__.__name__, self.name, self._value, self.parent
-            )
-        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self._value)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-               self.name == other.name and \
-               self._value == other._value and \
-               self.parent is other.parent
-
-    def __hash__(self) -> int:
-        return hash((self.name, self._value, self.parent))
-
-    @property
-    def value(self):
-        if not isinstance(self._value, str) or self.xsd_type is None:
-            return self._value
-        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
-            return UntypedAtomic(self._value)
-        return self.xsd_type.decode(self._value)
-
-    @property
-    def string_value(self) -> str:
-        if isinstance(self._value, str):
-            return self._value
-        return str(get_atomic_value(self._value.type))
-
-    @property
-    def typed_value(self):
-        if not isinstance(self._value, str):
-            return get_atomic_value(self._value.type)
-        elif self.xsd_type is None:
-            return self._value
-        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
-            return UntypedAtomic(self._value)
-        return self.xsd_type.decode(self._value)
-
-
-class TextNode(XPathNode):
-    """
-    A class for processing XPath text nodes. An Element's property
-    (elem.text or elem.tail) with a `None` value is not a text node.
-
-    :param value: a string value.
-    :param parent: the parent element.
-    :param tail: provide `True` if the text node is the parent Element's tail.
-    """
-    kind = 'text'
-
-    text: None
-    _tail = False
-
-    def __init__(self, value: str, parent: Optional[ElementType] = None,
-                 tail: bool = False) -> None:
-        self.value = value
-        self.parent = parent
-        if tail and parent is not None:
-            self._tail = True
-
-    def is_tail(self) -> bool:
-        """Returns `True` if the node has a parent and represents the tail text."""
-        return self._tail
-
-    def __repr__(self) -> str:
-        if self.parent is not None:
-            return '%s(%r, parent=%r, tail=%r)' % (
-                self.__class__.__name__, self.value, self.parent, self._tail
-            )
-        return '%s(%r)' % (self.__class__.__name__, self.value)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-            self.value == other.value and \
-            self.parent is other.parent and \
-            self._tail is other._tail
-
-    def __hash__(self) -> int:
-        return hash((self.value, self.parent, self._tail))
-
-    @property
-    def string_value(self) -> str:
-        return self.value
-
-    @property
-    def typed_value(self) -> UntypedAtomic:
-        return UntypedAtomic(self.value)
-
-
-class NamespaceNode(XPathNode):
-    """
-    A class for processing XPath namespace nodes.
-
-    :param prefix: the namespace prefix.
-    :param uri: the namespace URI.
-    :param parent: the parent element.
-    """
-    kind = 'namespace'
-
-    def __init__(self, prefix: str, uri: str, parent: Optional[ElementType] = None) -> None:
-        self.prefix = prefix
-        self.uri = uri
-        self.parent = parent
-
-    @property
-    def name(self) -> str:
-        return self.prefix
-
-    @property
-    def value(self) -> str:
-        return self.uri
-
-    def as_item(self) -> Tuple[str, str]:
-        return self.prefix, self.uri
-
-    def __repr__(self) -> str:
-        if self.parent is not None:
-            return '%s(prefix=%r, uri=%r, parent=%r)' % (
-                self.__class__.__name__, self.prefix, self.uri, self.parent
-            )
-        return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-            self.prefix == other.prefix and \
-            self.uri == other.uri and \
-            self.parent is other.parent
-
-    def __hash__(self) -> int:
-        return hash((self.prefix, self.uri, self.parent))
-
-    @property
-    def string_value(self) -> str:
-        return self.uri
-
-    @property
-    def typed_value(self) -> str:
-        return self.uri
 
 
 class DocumentNode(DocumentProxy, XPathNode):
@@ -298,6 +134,113 @@ class ElementNode(ElementProxy, XPathNode):
         return self.xsd_type.decode(self.elem.text)
 
 
+class AttributeNode(XPathNode):
+    """
+    A class for processing XPath attribute nodes.
+
+    :param name: the attribute name.
+    :param value: a string value or an XSD attribute when XPath is applied on a schema.
+    :param parent: the parent element.
+    """
+    name: str
+    kind = 'attribute'
+    xsd_type: Optional[XsdTypeProtocol] = None
+
+    def __init__(self, name: str,
+                 value: Union[str, XsdAttributeProtocol],
+                 parent: Optional[ElementType] = None,
+                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
+        self.name = name
+        self.value: Union[str, XsdAttributeProtocol] = value
+        self.parent = parent
+        self.xsd_type = xsd_type
+
+    def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
+        return self.name, self.value
+
+    def __repr__(self) -> str:
+        if self.parent is not None:
+            return '%s(name=%r, value=%r, parent=%r)' % (
+                self.__class__.__name__, self.name, self.value, self.parent
+            )
+        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, self.__class__) and \
+               self.name == other.name and \
+               self.value == other.value and \
+               self.parent is other.parent
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.value, self.parent))
+
+    @property
+    def string_value(self) -> str:
+        if isinstance(self.value, str):
+            return self.value
+        return str(get_atomic_value(self.value.type))
+
+    @property
+    def typed_value(self) -> AtomicValueType:
+        if not isinstance(self.value, str):
+            xsd_attribute = cast(XsdAttributeProtocol, self.value)
+            return get_atomic_value(xsd_attribute.type)
+        elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
+            return UntypedAtomic(self.value)
+        return self.xsd_type.decode(self.value)
+
+
+class NamespaceNode(XPathNode):
+    """
+    A class for processing XPath namespace nodes.
+
+    :param prefix: the namespace prefix.
+    :param uri: the namespace URI.
+    :param parent: the parent element.
+    """
+    kind = 'namespace'
+
+    def __init__(self, prefix: str, uri: str, parent: Optional[ElementType] = None) -> None:
+        self.prefix = prefix
+        self.uri = uri
+        self.parent = parent
+
+    @property
+    def name(self) -> str:
+        return self.prefix
+
+    @property
+    def value(self) -> str:
+        return self.uri
+
+    def as_item(self) -> Tuple[str, str]:
+        return self.prefix, self.uri
+
+    def __repr__(self) -> str:
+        if self.parent is not None:
+            return '%s(prefix=%r, uri=%r, parent=%r)' % (
+                self.__class__.__name__, self.prefix, self.uri, self.parent
+            )
+        return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, self.__class__) and \
+            self.prefix == other.prefix and \
+            self.uri == other.uri and \
+            self.parent is other.parent
+
+    def __hash__(self) -> int:
+        return hash((self.prefix, self.uri, self.parent))
+
+    @property
+    def string_value(self) -> str:
+        return self.uri
+
+    @property
+    def typed_value(self) -> str:
+        return self.uri
+
+
 class CommentNode(ElementProxy, XPathNode):
     """
     A class for processing XPath comment nodes.
@@ -349,6 +292,56 @@ class ProcessingInstructionNode(ElementProxy, XPathNode):
         return self.elem.text
 
 
+class TextNode(XPathNode):
+    """
+    A class for processing XPath text nodes. An Element's property
+    (elem.text or elem.tail) with a `None` value is not a text node.
+
+    :param value: a string value.
+    :param parent: the parent element.
+    :param tail: provide `True` if the text node is the parent Element's tail.
+    """
+    kind = 'text'
+
+    text: None
+    _tail = False
+
+    def __init__(self, value: str, parent: Optional[ElementType] = None,
+                 tail: bool = False) -> None:
+        self.value = value
+        self.parent = parent
+        if tail and parent is not None:
+            self._tail = True
+
+    def is_tail(self) -> bool:
+        """Returns `True` if the node has a parent and represents the tail text."""
+        return self._tail
+
+    def __repr__(self) -> str:
+        if self.parent is not None:
+            return '%s(%r, parent=%r, tail=%r)' % (
+                self.__class__.__name__, self.value, self.parent, self._tail
+            )
+        return '%s(%r)' % (self.__class__.__name__, self.value)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, self.__class__) and \
+            self.value == other.value and \
+            self.parent is other.parent and \
+            self._tail is other._tail
+
+    def __hash__(self) -> int:
+        return hash((self.value, self.parent, self._tail))
+
+    @property
+    def string_value(self) -> str:
+        return self.value
+
+    @property
+    def typed_value(self) -> UntypedAtomic:
+        return UntypedAtomic(self.value)
+
+
 class TypedElement(XPathNode):
     """
     A class for processing typed element nodes.
@@ -383,49 +376,6 @@ class TypedElement(XPathNode):
 
     def __hash__(self) -> int:
         return hash((self.elem, self.value))
-
-    @property
-    def string_value(self) -> str:
-        return str(self.value)
-
-    @property
-    def typed_value(self) -> Any:
-        return self.value
-
-
-class TypedAttribute(XPathNode):
-    """
-    A class for processing typed attribute nodes.
-
-    :param attribute: the origin AttributeNode instance.
-    :param xsd_type: the reference XSD type.
-    :param value: the types value.
-    """
-    kind = 'attribute'
-
-    def __init__(self, attribute: AttributeNode, xsd_type: Any, value: Any) -> None:
-        self.attribute = attribute
-        self.xsd_type = xsd_type
-        self.value = value
-        self.parent = attribute.parent
-
-    @property
-    def name(self) -> str:
-        return self.attribute.name
-
-    def as_item(self) -> Tuple[str, Any]:
-        return self.attribute.name, self.value
-
-    def __repr__(self) -> str:
-        return '%s(name=%r)' % (self.__class__.__name__, self.attribute.name)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-            self.attribute == other.attribute and \
-            self.value == other.value
-
-    def __hash__(self) -> int:
-        return hash((self.attribute, self.value))
 
     @property
     def string_value(self) -> str:
@@ -502,11 +452,9 @@ def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
     are '*', '*:*', '*:local-name' and '{namespace}*'.
     """
     if name is None or name == '*' or name == '*:*':
-        return isinstance(obj, (AttributeNode, TypedAttribute))
-    elif not isinstance(obj, (AttributeNode, TypedAttribute)):
+        return isinstance(obj, AttributeNode)
+    elif not isinstance(obj, AttributeNode):
         return False
-    elif isinstance(obj, TypedAttribute):
-        obj = obj.attribute
 
     if not name:
         return not obj.name

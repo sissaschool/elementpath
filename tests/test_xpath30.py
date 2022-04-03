@@ -982,7 +982,6 @@ class LxmlXPath30FunctionsTest(XPath30FunctionsTest):
 class XPath30ConstructorsTest(test_xpath2_constructors.XPath2ConstructorsTest):
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
-        self.dummy_type = xpath_test_class.DummyXsdType()
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

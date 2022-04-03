@@ -38,7 +38,7 @@ from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
 from .etree import is_etree_element, etree_iter_strings
 from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
-    NamespaceNode, TypedAttribute, is_comment_node, is_processing_instruction_node, \
+    NamespaceNode, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, get_atomic_value, \
     AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, \
@@ -76,7 +76,7 @@ _LEAF_ELEMENTS_TOKENS = {
 # Type annotations aliases
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
-PrincipalNodeType = Union[ElementProtocol, AttributeNode, TypedAttribute, TypedElement]
+PrincipalNodeType = Union[ElementProtocol, AttributeNode, TypedElement]
 OperandsType = Tuple[Optional[AtomicValueType], Optional[AtomicValueType]]
 SelectResultType = Union[AtomicValueType, ElementProtocol, XsdAttributeProtocol, Tuple[str, str]]
 
@@ -438,15 +438,12 @@ class XPathToken(Token[XPathTokenType]):
         for result in self.select(context):
             if not isinstance(result, XPathNode):
                 yield result
-            elif isinstance(result, (TextNode, AttributeNode)):
+            elif isinstance(result, TextNode):
                 yield result.value
             elif isinstance(result, TypedElement):
                 yield result.elem
-            elif isinstance(result, TypedAttribute):
-                if is_schema_node(result.attribute.value):
-                    yield result.attribute.value
-                else:
-                    yield result.value
+            elif isinstance(result, AttributeNode):
+                yield result.value
             elif isinstance(result, NamespaceNode):  # pragma: no cover
                 if self.parser.compatibility_mode:
                     yield result.prefix, result.uri
@@ -675,7 +672,7 @@ class XPathToken(Token[XPathTokenType]):
     ###
     # XSD types related methods
     def select_xsd_nodes(self, schema_context: XPathSchemaContext, name: str) \
-            -> Iterator[Union[None, TypedElement, TypedAttribute, XMLSchemaProtocol]]:
+            -> Iterator[Union[None, TypedElement, XMLSchemaProtocol]]:
         """
         Selector for XSD nodes (elements, attributes and schemas). If there is
         a match with an attribute or an element the node's type is added to
@@ -713,8 +710,8 @@ class XPathToken(Token[XPathTokenType]):
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     if xsd_type is not None:
-                        value = get_atomic_value(xsd_type)
-                        yield TypedAttribute(xsd_node, xsd_type, value)
+                        xsd_node.xsd_type = xsd_type
+                        yield xsd_node
 
                 elif name == XSD_SCHEMA == xsd_node.tag:
                     # The element is a schema
@@ -742,8 +739,6 @@ class XPathToken(Token[XPathTokenType]):
         """
         if isinstance(item, AttributeNode):
             item = item.value
-        elif isinstance(item, TypedAttribute):
-            item = item.attribute.value
         elif isinstance(item, TypedElement):
             item = item.elem
 
@@ -780,8 +775,10 @@ class XPathToken(Token[XPathTokenType]):
         elif isinstance(item, str):
             xsd_type = self.xsd_types.get(item)
         elif isinstance(item, AttributeNode):
+            if item.xsd_type is not None:
+                return item.xsd_type
             xsd_type = self.xsd_types.get(item.name)
-        elif isinstance(item, (TypedAttribute, TypedElement)):
+        elif isinstance(item, TypedElement):
             return cast(XsdTypeProtocol, item.xsd_type)
         else:
             xsd_type = self.xsd_types.get(item.tag)
@@ -818,7 +815,7 @@ class XPathToken(Token[XPathTokenType]):
         :return: a typed AttributeNode/ElementNode if the argument is matching \
         any associated XSD type.
         """
-        if isinstance(item, (TypedAttribute, TypedElement)):
+        if isinstance(item, TypedElement):
             return item
         if isinstance(item, AttributeNode) and item.xsd_type is not None:
             return item
@@ -829,7 +826,7 @@ class XPathToken(Token[XPathTokenType]):
         elif xsd_type.name in _XSD_SPECIAL_TYPES:
             if isinstance(item, AttributeNode):
                 item.xsd_type = xsd_type
-                return TypedAttribute(item, xsd_type, UntypedAtomic(item.value))
+                return item
             return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
 
         elif isinstance(item, AttributeNode):
@@ -871,7 +868,6 @@ class XPathToken(Token[XPathTokenType]):
             if xsd_type.is_valid(item.value):
                 item.xsd_type = xsd_type
                 return item
-                # return TypedAttribute(item, xsd_type, builder(item.value))
         elif item.text is not None:
             if xsd_type.is_valid(item.text):
                 return TypedElement(item, xsd_type, builder(item.text))
@@ -973,20 +969,11 @@ class XPathToken(Token[XPathTokenType]):
         if obj is None:
             return None
         elif isinstance(obj, XPathNode):
-            if isinstance(obj, TextNode):
-                return UntypedAtomic(obj.value)
-            elif isinstance(obj, AttributeNode) and isinstance(obj.value, str):
-                if obj.xsd_type is not None:
-                    return obj.typed_value
-                return UntypedAtomic(obj.value)
-            return cast(Optional[AtomicValueType], obj.value)  # a typed node or a NamespaceNode
-
+            return obj.typed_value
         elif isinstance(obj, XPathFunction):
             raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
-
         elif is_schema_node(obj):
             return get_atomic_value(obj.type)
-
         elif hasattr(obj, 'tag'):
             if is_comment_node(obj) or is_processing_instruction_node(obj):
                 return cast(str, obj.text)
@@ -1014,8 +1001,8 @@ class XPathToken(Token[XPathTokenType]):
                         return ''.join(etree_iter_strings(obj.elem, normalize=True))
                     return ''.join(etree_iter_strings(obj.elem))
                 return str(obj.value)
-            elif isinstance(obj, (AttributeNode, TypedAttribute)):
-                return str(obj.value)
+            elif isinstance(obj, AttributeNode):
+                return obj.string_value
             else:
                 return cast(str, obj.value)  # TextNode or NamespaceNode
         elif is_schema_node(obj):

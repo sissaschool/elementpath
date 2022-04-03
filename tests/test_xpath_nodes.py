@@ -15,9 +15,9 @@ import xml.etree.ElementTree as ElementTree
 
 from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
-from elementpath.xpath_nodes import AttributeNode, TextNode, TypedAttribute, \
-    TypedElement, NamespaceNode, match_element_node, match_attribute_node, is_comment_node, \
-    is_document_node, is_processing_instruction_node, node_attributes, node_base_uri, \
+from elementpath.xpath_nodes import AttributeNode, TextNode, TypedElement, NamespaceNode, \
+    match_element_node, match_attribute_node, is_comment_node, is_document_node, \
+    is_processing_instruction_node, node_attributes, node_base_uri, \
     node_document_uri, node_children, node_nilled, node_kind, node_name
 
 
@@ -33,7 +33,7 @@ class DummyXsdType:
     def is_key(self): pass
     def is_qname(self): pass
     def is_notation(self): pass
-    def decode(self, obj, *args, **kwargs): pass
+    def decode(self, obj, *args, **kwargs): return int(obj)
     def validate(self, obj, *args, **kwargs): pass
 
 
@@ -106,7 +106,7 @@ class XPathNodesTest(unittest.TestCase):
     def test_match_attribute_node_function(self):
         attr = AttributeNode('a1', '10', parent=None)
         self.assertTrue(match_attribute_node(attr, '*'))
-        self.assertTrue(match_attribute_node(TypedAttribute(attr, None, 10), 'a1'))
+        self.assertTrue(match_attribute_node(attr, 'a1'))
         with self.assertRaises(ValueError):
             match_attribute_node(attr, '**')
         with self.assertRaises(ValueError):
@@ -192,18 +192,8 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
-
-            typed_attribute = TypedAttribute(attribute, xsd_type, 10)
-            self.assertEqual(repr(typed_attribute), "TypedAttribute(name='value')")
-            self.assertEqual(typed_attribute.as_item(), ('value', 10))
-
-            self.assertEqual(typed_attribute, TypedAttribute(attribute, DummyXsdType(), 10))
-            self.assertEqual(typed_attribute, TypedAttribute(attribute, None, 10))
-            self.assertEqual(typed_attribute,
-                             TypedAttribute(AttributeNode('value', '10', parent), xsd_type, 10))
-            self.assertNotEqual(typed_attribute, TypedAttribute(attribute, xsd_type, '10'))
-            self.assertNotEqual(typed_attribute,
-                                TypedAttribute(AttributeNode('value', '10'), xsd_type, 10))
+            attribute.xsd_type = xsd_type
+            self.assertEqual(attribute.as_item(), ('value', '10'))
 
     def test_typed_element_nodes(self):
         element = ElementTree.Element('schema')
@@ -299,8 +289,8 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            typed_attribute = TypedAttribute(attribute, xsd_type, '0212349350')
-            self.assertEqual(node_kind(typed_attribute), 'attribute')
+            attribute = AttributeNode('id', '0212349350', xsd_type=xsd_type)
+            self.assertEqual(node_kind(attribute), 'attribute')
 
             typed_element = TypedElement(element, xsd_type, None)
             self.assertEqual(node_kind(typed_element), 'element')
@@ -321,7 +311,7 @@ class XPathNodesTest(unittest.TestCase):
             typed_elem = TypedElement(elem=elem, xsd_type=xsd_type, value=10)
             self.assertEqual(node_name(typed_elem), 'root')
 
-            typed_attr = TypedAttribute(attribute=attr, xsd_type=xsd_type, value=20)
+            typed_attr = AttributeNode('a1', value='20', xsd_type=xsd_type)
             self.assertEqual(node_name(typed_attr), 'a1')
 
     def test_etree_iter_paths(self):
