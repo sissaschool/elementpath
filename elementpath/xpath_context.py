@@ -212,7 +212,7 @@ class XPathContext:
         except KeyError:
             try:
                 # fallback for lxml elements
-                parent = _elem.getparent()  # type: ignore[attr-defined]
+                parent = _elem.getparent()  # type: ignore[union-attr]
             except AttributeError:
                 return None
             else:
@@ -648,7 +648,8 @@ class XPathContext:
             else:
                 descendants = self._iter_nodes(self.root)
         elif is_element_node(self.item) or is_document_node(self.item):
-            descendants = self._iter_nodes(self.item, with_root=with_self)
+            item = cast(Union[ElementType, DocumentType], self.item)
+            descendants = self._iter_nodes(item, with_root=with_self)
         elif with_self and isinstance(self.item, XPathNode):
             descendants = self.item,
         else:
@@ -765,7 +766,8 @@ class XPathContext:
                 or callable(getattr(self.item, 'tag')):
             return
 
-        descendants = set(self._iter_nodes(self.item))
+        elem = cast(Union[DocumentType, ElementType], self.item)
+        descendants = set(self._iter_nodes(elem))
         follows = False
         for item in self._iter_nodes(self.root):
             if follows:

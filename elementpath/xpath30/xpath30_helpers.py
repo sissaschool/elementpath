@@ -412,6 +412,9 @@ def parse_datetime_picture(picture: str) -> Tuple[List[str], List[str]]:
 
 
 def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str] = None) -> str:
+    min_width: int
+    max_width: Optional[int]
+
     component = marker[1]
     fmt_token = marker[2:-1]
 

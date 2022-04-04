@@ -35,12 +35,12 @@ from .exceptions import ElementPathError, ElementPathValueError, ElementPathName
 from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .etree import is_etree_element, etree_iter_strings
-from .xpath_nodes import XPathNode, ElementNode, AttributeNode, TextNode, \
+from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     NamespaceNode, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
-from .datatypes import xsd10_atomic_types, xsd11_atomic_types, get_atomic_value, \
+from .datatypes import xsd11_atomic_types, get_atomic_value, \
     AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, \
     DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy, QName, \
     DatetimeValueType, AtomicValueType, AnyAtomicType, Float10, Float
@@ -438,17 +438,13 @@ class XPathToken(Token[XPathTokenType]):
         for result in self.select(context):
             if not isinstance(result, XPathNode):
                 yield result
-            elif isinstance(result, TextNode):
-                yield result.value
-            elif isinstance(result, ElementNode):
-                yield result.elem
-            elif isinstance(result, AttributeNode):
-                yield result.value
-            elif isinstance(result, NamespaceNode):  # pragma: no cover
+            elif isinstance(result, NamespaceNode):
                 if self.parser.compatibility_mode:
                     yield result.prefix, result.uri
                 else:
                     yield result.uri
+            else:
+                yield result.value
 
     def get_results(self, context: XPathContext) \
             -> Union[List[Any], AtomicValueType]:
@@ -726,7 +722,7 @@ class XPathToken(Token[XPathTokenType]):
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     if xsd_type is not None:
-                        yield ElementNode(xsd_node, xsd_type)
+                        yield ElementNode(xsd_node, xsd_type=xsd_type)
 
             except AttributeError:
                 pass
@@ -736,10 +732,8 @@ class XPathToken(Token[XPathTokenType]):
         Adds an XSD type association from an item. The association is
         added using the item's name and type.
         """
-        if isinstance(item, AttributeNode):
+        if isinstance(item, XPathNode):
             item = item.value
-        elif isinstance(item, ElementNode):
-            item = item.elem
 
         if not is_schema_node(item):
             return None

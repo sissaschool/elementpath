@@ -17,7 +17,8 @@ from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
-from .protocols import XsdAttributeProtocol, XsdTypeProtocol
+from .protocols import ElementProtocol, XsdElementProtocol, XsdAttributeProtocol, \
+    XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
     etree_iter_strings, ElementProxy, DocumentProxy
 
@@ -38,7 +39,7 @@ class XPathNode:
     is_id: bool
     is_idrefs: bool
     namespace_nodes: Optional[List['NamespaceNode']]
-    nilled: Optional[bool] = None
+    nilled: Any = None
     kind: str
     name: Any = None
     parent: Optional[ElementType] = None
@@ -50,7 +51,7 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> Any:
+    def typed_value(self) -> Optional[AtomicValueType]:
         raise NotImplementedError()
 
 
@@ -61,7 +62,7 @@ class DocumentNode(DocumentProxy, XPathNode):
     kind = 'document'
 
     @property
-    def value(self) -> str:
+    def value(self) -> DocumentType:
         return self.document
 
     @property
@@ -87,7 +88,7 @@ class ElementNode(ElementProxy, XPathNode):
         self.xsd_type = xsd_type
 
     @property
-    def value(self) -> str:
+    def value(self) -> ElementType:
         return self.elem
 
     @property
@@ -95,7 +96,7 @@ class ElementNode(ElementProxy, XPathNode):
         return self.elem.tag
 
     @property
-    def attributes(self):
+    def attributes(self) -> Dict[str, Any]:
         return self.elem.attrib
 
     @property
@@ -103,28 +104,30 @@ class ElementNode(ElementProxy, XPathNode):
         return self.elem.get(XML_BASE)  # FIXME
 
     @property
-    def children(self):
-        return self.elem[:]
+    def children(self) -> Any:
+        return self.elem[:]  # type: ignore[index]
 
     @property
     def nilled(self) -> bool:
         return self.elem.get(XSI_NIL) in ('true', '1')
 
     @property
-    def string_value(self):
+    def string_value(self) -> str:
         if is_schema_node(self.elem):
-            return str(get_atomic_value(self.elem.type))
+            schema_node = cast(XsdElementProtocol, self.elem)
+            return str(get_atomic_value(schema_node.type))
         elif self.xsd_type is not None and self.xsd_type.is_element_only():
             # Element-only text content is normalized
             return ''.join(etree_iter_strings(self.elem, normalize=True))
         return ''.join(etree_iter_strings(self.elem))
 
     @property
-    def typed_value(self):
+    def typed_value(self) -> Optional[AtomicValueType]:
         if is_schema_node(self.elem):
-            return get_atomic_value(self.elem.type)
+            schema_node = cast(XsdElementProtocol, self.elem)
+            return get_atomic_value(schema_node.type)
         elif self.xsd_type is None:
-            return self.value
+            return UntypedAtomic(self.elem.text or '')
         elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.elem.text or '')
         elif self.xsd_type.has_mixed_content():
@@ -137,10 +140,13 @@ class ElementNode(ElementProxy, XPathNode):
             return None
 
         if self.elem.text is not None:
-            return self.xsd_type.decode(self.elem.text)
+            value = self.xsd_type.decode(self.elem.text)
         elif self.elem.get(XSI_NIL) in ('1', 'true'):
             return ''
-        return self.xsd_type.decode(self.elem.text)
+        else:
+            value = self.xsd_type.decode(self.elem.text)
+
+        return cast(Optional[AtomicValueType], value)
 
 
 class AttributeNode(XPathNode):
@@ -192,11 +198,10 @@ class AttributeNode(XPathNode):
     @property
     def typed_value(self) -> AtomicValueType:
         if not isinstance(self.value, str):
-            xsd_attribute = cast(XsdAttributeProtocol, self.value)
-            return get_atomic_value(xsd_attribute.type)
+            return get_atomic_value(self.value.type)
         elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.value)
-        return self.xsd_type.decode(self.value)
+        return cast(AtomicValueType, self.xsd_type.decode(self.value))
 
 
 class NamespaceNode(XPathNode):
@@ -257,7 +262,7 @@ class CommentNode(ElementProxy, XPathNode):
     kind = 'comment'
 
     @property
-    def value(self) -> str:
+    def value(self) -> ElementType:
         return self.elem
 
     @property
@@ -268,11 +273,11 @@ class CommentNode(ElementProxy, XPathNode):
 
     @property
     def string_value(self) -> str:
-        return self.elem.text
+        return self.elem.text or ''
 
     @property
     def typed_value(self) -> str:
-        return self.elem.text
+        return self.elem.text or ''
 
 
 class ProcessingInstructionNode(ElementProxy, XPathNode):
@@ -280,25 +285,27 @@ class ProcessingInstructionNode(ElementProxy, XPathNode):
     A class for XPath processing instructions nodes.
     """
     kind = 'processing-instruction'
+    elem: ElementProtocol
 
     @property
-    def name(self):
+    def name(self) -> str:
         try:
-            return cast(str, self.elem.target)  # lxml PI
+            # an lxml PI
+            return cast(str, self.elem.target)  # type: ignore[attr-defined]
         except AttributeError:
-            return cast(str, self.elem.text.split(' ', maxsplit=1)[0])
+            return cast(str, self.elem.text).split(' ', maxsplit=1)[0]
 
     @property
-    def value(self) -> str:
+    def value(self) -> ElementType:
         return self.elem
 
     @property
     def string_value(self) -> str:
-        return self.elem.text
+        return self.elem.text or ''
 
     @property
     def typed_value(self) -> str:
-        return self.elem.text
+        return self.elem.text or ''
 
 
 class TextNode(XPathNode):
@@ -311,8 +318,7 @@ class TextNode(XPathNode):
     :param tail: provide `True` if the text node is the parent Element's tail.
     """
     kind = 'text'
-
-    text: None
+    value: str
     _tail = False
 
     def __init__(self, value: str, parent: Optional[ElementType] = None,

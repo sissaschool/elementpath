@@ -59,7 +59,7 @@ else:
 
     class DocumentProtocol(Iterable[ElementProtocol], Hashable, Protocol):
         def getroot(self) -> ElementProtocol: ...
-        def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementProtocol: ...
+        def parse(self, source: Any, *args: Any, **kwargs: Any) -> 'DocumentProtocol': ...
         def iter(self, tag: Optional[str] = ...) -> Iterator[ElementProtocol]: ...
 
     class XsdComponentProtocol(Protocol):
@@ -139,8 +139,8 @@ else:
 
         root_type: 'XsdTypeProtocol'
         """
-        The type at base of the definition of the XSD type. For a special type is the type 
-        itself. For an atomic type is the primitive type. For a list is the primitive type 
+        The type at base of the definition of the XSD type. For a special type is the type
+        itself. For an atomic type is the primitive type. For a list is the primitive type
         of the item. For a union is the base union type. For a complex type is xs:anyType.
         """
 

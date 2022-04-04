@@ -109,10 +109,10 @@ class DocumentProxy:
     def __init__(self, document: DocumentType) -> None:
         self.document = document
 
-    def getroot(self):
+    def getroot(self) -> ElementProtocol:
         return self.document.getroot()
 
-    def parse(self, source: Any, *args: Any, **kwargs: Any):
+    def parse(self, source: Any, *args: Any, **kwargs: Any) -> DocumentProtocol:
         return self.document.parse(source, *args, **kwargs)
 
     def iter(self, tag: Optional[str] = None) -> Iterator[ElementType]:
@@ -146,18 +146,18 @@ class ElementProxy:
         return self.elem.tag
 
     @property
-    def text(self) -> str:
+    def text(self) -> Optional[str]:
         return self.elem.text
 
     @property
-    def tail(self) -> str:
+    def tail(self) -> Optional[str]:
         return self.elem.tail
 
     @property
     def attrib(self) -> Dict[str, str]:
         return self.elem.attrib
 
-    def get(self, key, default: Optional[str] = None) -> Optional[str]:
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
         return self.elem.get(key, default)
 
 
