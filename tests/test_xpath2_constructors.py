@@ -423,7 +423,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
                     raise TypeError()
 
         context.item = AttributeNode('a', 'true', xsd_type=DummyXsdDateType())
-        self.check_value('xs:date(.)', ValueError, context=context)
+        self.check_value('xs:date(.)', TypeError, context=context)
 
         context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)

@@ -12,7 +12,7 @@ import unittest
 from copy import copy
 from textwrap import dedent
 
-from elementpath import TypedElement, XPath2Parser
+from elementpath import ElementNode, XPath2Parser
 from elementpath.datatypes import UntypedAtomic
 
 try:
@@ -58,7 +58,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
         result = token.evaluate(copy(context))
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
-        self.assertListEqual(result, [TypedElement(elem_a, elem_a.type, UntypedAtomic('1'))])
+        self.assertListEqual(result, [ElementNode(elem_a, xsd_type=elem_a.type)])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('a/b1')
@@ -68,7 +68,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         result = token.evaluate(copy(context))
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {"b1": elem_b1.type})
-        self.assertListEqual(result, [TypedElement(elem_b1, elem_b1.type, '  alpha\t')])
+        self.assertListEqual(result, [ElementNode(elem_b1, xsd_type=elem_b1.type)])
 
     def test_colon_token(self):
         parser = XPath2Parser(namespaces={'tst': "http://xpath.test/ns"})
@@ -81,7 +81,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
         result = token.evaluate(copy(context))
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
-        self.assertListEqual(result, [TypedElement(elem_a, elem_a.type, UntypedAtomic('1'))])
+        self.assertListEqual(result, [ElementNode(elem_a, xsd_type=elem_a.type)])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('tst:a/b1')
@@ -91,7 +91,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertIsNone(token[1].xsd_types)
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [TypedElement(elem_b1, elem_b1.type, '  alpha\t')])
+        self.assertListEqual(result, [ElementNode(elem_b1, xsd_type=elem_b1.type)])
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {"b1": elem_b1.type})
 
@@ -109,7 +109,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertIsNone(token[1].xsd_types)
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [TypedElement(elem_b3, elem_b3.type, 1.0)])
+        self.assertListEqual(result, [ElementNode(elem_b3, xsd_type=elem_b3.type)])
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {"{http://xpath.test/ns}b3": elem_b3.type})
 
@@ -126,7 +126,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(token[1].value, 'a')
 
         result = token.evaluate(context)
-        self.assertListEqual(result, [TypedElement(elem_a, elem_a.type, UntypedAtomic('1'))])
+        self.assertListEqual(result, [ElementNode(elem_a, xsd_type=elem_a.type)])
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertIsNone(token[0].xsd_types)
         self.assertIsNone(token[1].xsd_types)

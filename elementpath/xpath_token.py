@@ -37,7 +37,7 @@ from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_NIL
 from .etree import is_etree_element, etree_iter_strings
-from .xpath_nodes import XPathNode, TypedElement, AttributeNode, TextNode, \
+from .xpath_nodes import XPathNode, ElementNode, AttributeNode, TextNode, \
     NamespaceNode, is_comment_node, is_processing_instruction_node, \
     is_element_node, is_document_node, is_xpath_node, is_schema_node
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, get_atomic_value, \
@@ -76,7 +76,7 @@ _LEAF_ELEMENTS_TOKENS = {
 # Type annotations aliases
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
-PrincipalNodeType = Union[ElementProtocol, AttributeNode, TypedElement]
+PrincipalNodeType = Union[ElementProtocol, AttributeNode, ElementNode]
 OperandsType = Tuple[Optional[AtomicValueType], Optional[AtomicValueType]]
 SelectResultType = Union[AtomicValueType, ElementProtocol, XsdAttributeProtocol, Tuple[str, str]]
 
@@ -440,7 +440,7 @@ class XPathToken(Token[XPathTokenType]):
                 yield result
             elif isinstance(result, TextNode):
                 yield result.value
-            elif isinstance(result, TypedElement):
+            elif isinstance(result, ElementNode):
                 yield result.elem
             elif isinstance(result, AttributeNode):
                 yield result.value
@@ -672,7 +672,7 @@ class XPathToken(Token[XPathTokenType]):
     ###
     # XSD types related methods
     def select_xsd_nodes(self, schema_context: XPathSchemaContext, name: str) \
-            -> Iterator[Union[None, TypedElement, XMLSchemaProtocol]]:
+            -> Iterator[Union[None, ElementNode, XMLSchemaProtocol]]:
         """
         Selector for XSD nodes (elements, attributes and schemas). If there is
         a match with an attribute or an element the node's type is added to
@@ -726,8 +726,7 @@ class XPathToken(Token[XPathTokenType]):
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     if xsd_type is not None:
-                        value = get_atomic_value(xsd_type)
-                        yield TypedElement(xsd_node, xsd_type, value)
+                        yield ElementNode(xsd_node, xsd_type)
 
             except AttributeError:
                 pass
@@ -739,7 +738,7 @@ class XPathToken(Token[XPathTokenType]):
         """
         if isinstance(item, AttributeNode):
             item = item.value
-        elif isinstance(item, TypedElement):
+        elif isinstance(item, ElementNode):
             item = item.elem
 
         if not is_schema_node(item):
@@ -778,8 +777,8 @@ class XPathToken(Token[XPathTokenType]):
             if item.xsd_type is not None:
                 return item.xsd_type
             xsd_type = self.xsd_types.get(item.name)
-        elif isinstance(item, TypedElement):
-            return cast(XsdTypeProtocol, item.xsd_type)
+        elif isinstance(item, ElementNode) and item.xsd_type is not None:
+            return item.xsd_type
         else:
             xsd_type = self.xsd_types.get(item.tag)
 
@@ -815,67 +814,17 @@ class XPathToken(Token[XPathTokenType]):
         :return: a typed AttributeNode/ElementNode if the argument is matching \
         any associated XSD type.
         """
-        if isinstance(item, TypedElement):
-            return item
-        if isinstance(item, AttributeNode) and item.xsd_type is not None:
+        if isinstance(item, (ElementNode, AttributeNode)) and item.xsd_type is not None:
             return item
 
         xsd_type = self.get_xsd_type(item)
-        if not xsd_type:
+        if xsd_type is None:
             return item
-        elif xsd_type.name in _XSD_SPECIAL_TYPES:
-            if isinstance(item, AttributeNode):
-                item.xsd_type = xsd_type
-                return item
-            return TypedElement(item, xsd_type, UntypedAtomic(item.text or ''))
-
-        elif isinstance(item, AttributeNode):
-            pass
-        elif xsd_type.has_mixed_content():
-            value = UntypedAtomic(item.text or '')
-            return TypedElement(item, xsd_type, value)
-        elif xsd_type.is_element_only():
-            return TypedElement(item, xsd_type, None)
-        elif xsd_type.is_empty():
-            return TypedElement(item, xsd_type, None)
-        elif item.get(XSI_NIL) and getattr(xsd_type.parent, 'nillable', None):
-            return TypedElement(item, xsd_type, None)
-
-        if xsd_type.xsd_version == '1.0':
-            atomic_types = xsd10_atomic_types
+        elif isinstance(item, (ElementNode, AttributeNode)):
+            item.xsd_type = xsd_type
+            return item
         else:
-            atomic_types = xsd11_atomic_types
-
-        try:
-            builder: Any = atomic_types[xsd_type.name]
-        except KeyError:
-            try:
-                builder = atomic_types[xsd_type.root_type.name]
-            except KeyError:
-                builder = UntypedAtomic
-            else:
-                if isinstance(builder, (AbstractDateTime, Duration)):
-                    builder = builder.fromstring
-                elif issubclass(builder, QName):
-                    builder = self.cast_to_qname
-        else:
-            if issubclass(builder, (AbstractDateTime, Duration)):
-                builder = builder.fromstring
-            elif issubclass(builder, QName):
-                builder = self.cast_to_qname
-
-        if isinstance(item, AttributeNode):
-            if xsd_type.is_valid(item.value):
-                item.xsd_type = xsd_type
-                return item
-        elif item.text is not None:
-            if xsd_type.is_valid(item.text):
-                return TypedElement(item, xsd_type, builder(item.text))
-        elif item.get(XSI_NIL) in ('1', 'true'):
-            return TypedElement(item, atomic_types[XSD_ANY_ATOMIC_TYPE], '')
-
-        msg = "Type {!r} does not match sequence type of {!r}"
-        raise self.wrong_sequence_type(msg.format(xsd_type, item)) from None
+            return ElementNode(item, xsd_type=xsd_type)
 
     def cast_to_qname(self, qname: str) -> QName:
         """Cast a prefixed qname string to a QName object."""
@@ -969,7 +918,10 @@ class XPathToken(Token[XPathTokenType]):
         if obj is None:
             return None
         elif isinstance(obj, XPathNode):
-            return obj.typed_value
+            try:
+                return obj.typed_value
+            except (TypeError, ValueError) as err:
+                raise self.error('XPDY0050', str(err))
         elif isinstance(obj, XPathFunction):
             raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
         elif is_schema_node(obj):
@@ -994,17 +946,7 @@ class XPathToken(Token[XPathTokenType]):
         if obj is None:
             return ''
         elif isinstance(obj, XPathNode):
-            if isinstance(obj, TypedElement):
-                if obj.value is None:
-                    if obj.xsd_type.is_element_only():
-                        # Element-only text content is normalized
-                        return ''.join(etree_iter_strings(obj.elem, normalize=True))
-                    return ''.join(etree_iter_strings(obj.elem))
-                return str(obj.value)
-            elif isinstance(obj, AttributeNode):
-                return obj.string_value
-            else:
-                return cast(str, obj.value)  # TextNode or NamespaceNode
+            return obj.string_value
         elif is_schema_node(obj):
             return str(get_atomic_value(obj.type))
         elif hasattr(obj, 'tag'):

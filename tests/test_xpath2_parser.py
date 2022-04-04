@@ -556,8 +556,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 self.check_value('. le 20', True, context=XPathContext(root))
 
                 root = self.etree.XML('<root>eleven</root>')
-                self.wrong_type('. le 10', 'XPDY0050', 'does not match sequence type',
-                                context=XPathContext(root))
+                self.wrong_type('. le 10', 'XPDY0050', context=XPathContext(root))
 
                 root = self.etree.XML('<value>12</value>')
                 with self.assertRaises(TypeError) as err:
@@ -779,7 +778,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root = self.etree.XML('<root>hello</root>')
             context = XPathContext(root)
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
-                typed_element = TypedElement(root, schema.elements['root'], 'hello')
+                typed_element = ElementNode(root, xsd_type=schema.elements['root'])
                 self.check_select("self::element(*, xs:string)", [typed_element], context)
                 self.check_select("self::element(*, xs:int)", [], context)
 

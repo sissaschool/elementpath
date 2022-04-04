@@ -33,7 +33,7 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
     XSD_NAMESPACE, XML_NAMESPACE
 from ..etree import etree_iter_paths, is_etree_element
 from ..xpath_nodes import is_xpath_node, is_element_node, is_document_node, \
-    is_schema_node, node_document_uri, node_nilled, node_name, TypedElement, \
+    is_schema_node, node_document_uri, node_nilled, node_name, ElementNode, \
     TextNode, AttributeNode, NamespaceNode, is_processing_instruction_node, \
     is_comment_node
 from ..xpath_token import XPathFunction
@@ -855,7 +855,7 @@ def evaluate_path_function(self, context=None):
     suffix = ''
     if is_document_node(item):
         return '/'
-    elif isinstance(item, TypedElement):
+    elif isinstance(item, ElementNode):
         elem = item.elem
     elif is_etree_element(item):
         elem = item
@@ -919,7 +919,7 @@ def evaluate_has_children_function(self, context=None):
     return is_document_node(item) or \
         is_element_node(item) and not callable(item.tag) and \
         (len(item) > 0 or item.text is not None) or \
-        isinstance(item, TypedElement) and (len(item.elem) > 0 or item.elem.text is not None)
+        isinstance(item, ElementNode) and (len(item.elem) > 0 or item.elem.text is not None)
 
 
 @method(function('innermost', nargs=1, sequence_types=('node()*', 'node()*')))
@@ -1310,7 +1310,7 @@ def evaluate_serialize_function(self, context=None):
     for item in self[0].select(context):
         if is_document_node(item):
             item = item.getroot()
-        elif isinstance(item, TypedElement):
+        elif isinstance(item, ElementNode):
             item = item.elem
         elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise self.error('SENR0001')

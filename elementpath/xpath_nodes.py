@@ -17,7 +17,7 @@ from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
+from .protocols import XsdAttributeProtocol, XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
     etree_iter_strings, ElementProxy, DocumentProxy
 
@@ -38,7 +38,7 @@ class XPathNode:
     is_id: bool
     is_idrefs: bool
     namespace_nodes: Optional[List['NamespaceNode']]
-    nilled: Optional[bool]
+    nilled: Optional[bool] = None
     kind: str
     name: Any = None
     parent: Optional[ElementType] = None
@@ -80,6 +80,12 @@ class ElementNode(ElementProxy, XPathNode):
     kind = 'element'
     xsd_type: Optional[XsdTypeProtocol] = None
 
+    def __init__(self, elem: ElementType,
+                 parent: Optional[ElementType] = None,
+                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
+        super(ElementNode, self).__init__(elem, parent)
+        self.xsd_type = xsd_type
+
     @property
     def value(self) -> str:
         return self.elem
@@ -107,7 +113,10 @@ class ElementNode(ElementProxy, XPathNode):
     @property
     def string_value(self):
         if is_schema_node(self.elem):
-            return ''
+            return str(get_atomic_value(self.elem.type))
+        elif self.xsd_type is not None and self.xsd_type.is_element_only():
+            # Element-only text content is normalized
+            return ''.join(etree_iter_strings(self.elem, normalize=True))
         return ''.join(etree_iter_strings(self.elem))
 
     @property
@@ -342,50 +351,6 @@ class TextNode(XPathNode):
         return UntypedAtomic(self.value)
 
 
-class TypedElement(XPathNode):
-    """
-    A class for processing typed element nodes.
-
-    :param elem: the linked element. Can be an Element, or an XSD element \
-    when XPath is applied on a schema.
-    :param xsd_type: the reference XSD type.
-    :param value: the decoded value. Can be `None` for empty or element-only elements."
-    """
-    kind = 'element'
-
-    def __init__(self, elem: ElementProtocol, xsd_type: Any, value: Any) -> None:
-        self.elem = elem
-        self.xsd_type = xsd_type
-        self.value = value
-
-    @property
-    def name(self) -> str:
-        return self.elem.tag
-
-    @property
-    def tag(self) -> str:
-        return self.elem.tag
-
-    def __repr__(self) -> str:
-        return '%s(tag=%r)' % (self.__class__.__name__, self.elem.tag)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-            self.elem is other.elem and \
-            self.value == other.value
-
-    def __hash__(self) -> int:
-        return hash((self.elem, self.value))
-
-    @property
-    def string_value(self) -> str:
-        return str(self.value)
-
-    @property
-    def typed_value(self) -> Any:
-        return self.value
-
-
 XPathNodeType = Union[ElementType, DocumentType, XPathNode]
 
 
@@ -409,7 +374,7 @@ def match_element_node(obj: Any, tag: Optional[str] = None) -> Any:
     :param tag: a fully qualified name, a local name or a wildcard. The accepted
     wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
     """
-    if isinstance(obj, TypedElement):
+    if isinstance(obj, (ElementNode, CommentNode, ProcessingInstructionNode)):
         obj = obj.elem
     elif not is_etree_element(obj) or callable(obj.tag):
         return False
@@ -481,7 +446,7 @@ def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
 
 
 def is_element_node(obj: Any) -> bool:
-    return isinstance(obj, TypedElement) or \
+    return isinstance(obj, ElementNode) or \
         hasattr(obj, 'tag') and not callable(obj.tag) and \
         hasattr(obj, 'attrib') and hasattr(obj, 'text')
 
@@ -557,7 +522,7 @@ def node_children(obj: Any) -> Optional[Iterator[ElementType]]:
 
 def node_nilled(obj: Any) -> Optional[bool]:
     if is_element_node(obj):
-        if isinstance(obj, TypedElement):
+        if isinstance(obj, ElementNode):
             return obj.elem.get(XSI_NIL) in ('true', '1')
         return obj.get(XSI_NIL) in ('true', '1')
     return None

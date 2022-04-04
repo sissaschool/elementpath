@@ -14,7 +14,7 @@ XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 from copy import copy
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
-from ..xpath_nodes import TypedElement, XPathNode
+from ..xpath_nodes import XPathNode, ElementNode
 from ..xpath_token import XPathToken, ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import QName
@@ -134,7 +134,7 @@ def select_simple_map_operator(self, context=None):
         for result in self[1].select(copy(context)):
             if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
                 yield result
-            elif isinstance(result, TypedElement):
+            elif isinstance(result, ElementNode):
                 yield result
             else:
                 yield result

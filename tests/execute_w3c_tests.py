@@ -10,7 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Tests script for running W3C XPath tests on elementpath. This is a
+Test script for running W3C XPath tests on elementpath. This is a
 reworking of https://github.com/tjeb/elementpath_w3c_tests project
 that uses ElementTree for default and collapses the essential parts
 into only one module.
@@ -1171,7 +1171,7 @@ class Result(object):
         if type(result) == list:
             parts = []
             for item in result:
-                if isinstance(item, elementpath.TypedElement):
+                if isinstance(item, elementpath.ElementNode):
                     tail, item.elem.tail = item.elem.tail, None
                     parts.append(tostring(item.elem).decode('utf-8').strip())
                     item.elem.tail = tail

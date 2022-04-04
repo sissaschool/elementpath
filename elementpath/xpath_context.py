@@ -21,7 +21,7 @@ from .protocols import ElementProtocol, LxmlElementProtocol, \
     XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
     is_lxml_etree_element, etree_iter_root
-from .xpath_nodes import NamespaceNode, AttributeNode, TextNode, TypedElement, \
+from .xpath_nodes import ElementNode, AttributeNode, NamespaceNode, TextNode, \
     is_element_node, is_document_node, is_lxml_document_node, XPathNode, XPathNodeType
 
 if TYPE_CHECKING:
@@ -168,7 +168,7 @@ class XPathContext:
                     self._parent_map.update((c, e) for e in doc.iter() for c in e)
                     self._parent_map[doc.getroot()] = doc
                 elif is_element_node(v):
-                    if isinstance(v, TypedElement):
+                    if isinstance(v, ElementNode):
                         root = v.elem
                     else:
                         root = cast(ElementType, v)
@@ -202,10 +202,10 @@ class XPathContext:
 
         return None
 
-    def get_parent(self, elem: Union[ElementType, TypedElement]) \
+    def get_parent(self, elem: Union[ElementType, ElementNode]) \
             -> Union[None, ElementType, DocumentType]:
         """Returns the parent of the element or `None` if it has no parent."""
-        _elem = elem.elem if isinstance(elem, TypedElement) else elem
+        _elem = elem.elem if isinstance(elem, ElementNode) else elem
 
         try:
             return self.parent_map[_elem]
@@ -227,7 +227,7 @@ class XPathContext:
 
         if item is None:
             return '' if not path else path[0]
-        elif isinstance(item, TypedElement):
+        elif isinstance(item, ElementNode):
             item = item.elem
 
         while True:
@@ -312,7 +312,7 @@ class XPathContext:
             else:
                 with_root = True
             _root = document.getroot()
-        elif isinstance(root, TypedElement):
+        elif isinstance(root, ElementNode):
             _root = cast(ElementProtocol, root.elem)
         else:
             _root = cast(ElementProtocol, root)
@@ -418,7 +418,7 @@ class XPathContext:
 
                 elif is_etree_element(self.item):
                     # Match XSD decoded elements
-                    for typed_element in filter(lambda x: isinstance(x, TypedElement), results):
+                    for typed_element in filter(lambda x: isinstance(x, ElementNode), results):
                         if typed_element.elem is self.item:
                             yield typed_element
 
@@ -503,7 +503,7 @@ class XPathContext:
         status = self.item, self.axis
         self.axis = 'attribute'
 
-        if isinstance(self.item, TypedElement):
+        if isinstance(self.item, ElementNode):
             self.item = self.item.elem
 
         elem = cast(ElementType, self.item)
@@ -521,7 +521,7 @@ class XPathContext:
         status = self.item, self.axis
         self.axis = 'child'
 
-        if isinstance(self.item, TypedElement):
+        if isinstance(self.item, ElementNode):
             self.item = self.item.elem
 
         if self.item is None:
@@ -559,7 +559,7 @@ class XPathContext:
 
     def iter_parent(self) -> Iterator[ElementType]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
-        if isinstance(self.item, TypedElement):
+        if isinstance(self.item, ElementNode):
             parent = self.get_parent(self.item.elem)
         elif isinstance(self.item, TextNode):
             parent = self.item.parent
@@ -588,7 +588,7 @@ class XPathContext:
 
         :param axis: the context axis, default is 'following-sibling'.
         """
-        if isinstance(self.item, TypedElement):
+        if isinstance(self.item, ElementNode):
             item = self.item.elem
         elif not is_etree_element(self.item) or callable(getattr(self.item, 'tag')):
             return
@@ -677,7 +677,7 @@ class XPathContext:
 
         :param axis: the context axis, default is 'ancestor'.
         """
-        if isinstance(self.item, TypedElement):
+        if isinstance(self.item, ElementNode):
             parent = self.get_parent(self.item.elem)
         elif isinstance(self.item, TextNode):
             parent = self.item.parent
@@ -717,7 +717,7 @@ class XPathContext:
         item: Union[ElementType, XPathNode]
         parent: Union[None, ElementType, DocumentType]
 
-        if isinstance(self.item, TypedElement):
+        if isinstance(self.item, ElementNode):
             item = self.item.elem
             parent = self.get_parent(item)
         elif isinstance(self.item, XPathNode):
@@ -759,7 +759,7 @@ class XPathContext:
 
         if self.item is None or self.item is self.root:
             return
-        elif isinstance(self.item, TypedElement):
+        elif isinstance(self.item, ElementNode):
             self.item = self.item.elem
         elif not is_etree_element(self.item) \
                 or callable(getattr(self.item, 'tag')):

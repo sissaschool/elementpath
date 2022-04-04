@@ -19,10 +19,10 @@ from decimal import Decimal, DivisionByZero
 from ..exceptions import ElementPathError, ElementPathTypeError
 from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
-    XSI_NIL, get_namespace, get_expanded_name
+    get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
-from ..xpath_nodes import TypedElement, is_xpath_node, \
+from ..xpath_nodes import ElementNode, is_xpath_node, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
@@ -741,15 +741,16 @@ def select_element_kind_test(self, context=None):
         for item in self[0].select(context):
             if len(self) == 1:
                 yield item
-            elif isinstance(item, TypedElement):
+            elif isinstance(item, ElementNode) and item.xsd_type is not None:
                 try:
                     type_annotation = get_expanded_name(self[1].source, self.parser.namespaces)
                 except KeyError:
                     type_annotation = self[1].source
 
-                if type_annotation == item.xsd_type.name:
-                    yield item
-                elif item.elem.get(XSI_NIL) and type_annotation[-1] in ('*', '?'):
+                if item.nilled:
+                    if type_annotation[-1] in '*?':
+                        yield item
+                elif type_annotation == item.xsd_type.name:
                     yield item
 
 

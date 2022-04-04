@@ -23,7 +23,7 @@ from .exceptions import ElementPathError, MissingContextError, \
 from . import datatypes
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
-    NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode, TypedElement
+    NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode
 from .xpath_token import XPathToken, XPathFunction
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
@@ -31,6 +31,7 @@ from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
 from .regex import RegexError, translate_pattern
 
+TypedElement = ElementNode  # for backward compatibility with xmlschema<=1.10.0
 
 __all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
            'ElementPathKeyError', 'ElementPathLocaleError', 'ElementPathNameError',

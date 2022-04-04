@@ -32,7 +32,7 @@ from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
 from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
-from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, \
+from ..xpath_nodes import ElementNode, AttributeNode, NamespaceNode, \
     is_element_node, is_document_node, is_xpath_node, node_name, \
     node_nilled, node_document_uri, node_kind
 from ..xpath_token import XPathFunction
@@ -150,7 +150,7 @@ def select_in_scope_prefixes_function(self, context=None):
         raise self.missing_context()
 
     elem = self.get_argument(context)
-    if isinstance(elem, TypedElement):
+    if isinstance(elem, ElementNode):
         elem = elem.elem
     elif not is_element_node(elem):
         raise self.error('XPTY0004', 'argument %r is not an element node' % elem)
