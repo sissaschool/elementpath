@@ -14,13 +14,13 @@ from urllib.parse import urlparse
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
-from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
-    XSD_ANY_ATOMIC_TYPE
+from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
 from .protocols import ElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
-    etree_iter_strings, ElementProxyMixin
+    etree_iter_strings, etree_iter_root, ElementProxyMixin
 
 if TYPE_CHECKING:
     from .xpath_context import XPathContext
@@ -317,11 +317,73 @@ class ElementNode(XPathNode, ElementProxyMixin):
     def __init__(self, elem: ElementProtocol,
                  parent: Optional[ElementType] = None,
                  xsd_type: Optional[XsdTypeProtocol] = None,
+                 namespaces: Optional[Dict[str, str]] = None,
                  context: Optional['XPathContext'] = None) -> None:
         super().__init__(context)
         self.elem = elem
         self.parent = parent
         self.xsd_type = xsd_type
+        self.children = []
+        self.namespaces = {}
+
+        nsmap: Optional[Dict[str, str]] = getattr(elem, 'nsmap', namespaces)
+        if nsmap is None:
+            self.namespaces = []
+        else:
+            self.namespaces = [NamespaceNode(pfx, uri, elem, context=context)
+                               for pfx, uri in nsmap.items()]
+            if 'xml' not in nsmap:
+                self.namespaces.append(NamespaceNode('xml', XML_NAMESPACE, elem, context))
+
+        self.attributes = [AttributeNode(name, value, elem, context=context)
+                           for name, value in elem.attrib.items()]
+
+        if context and not is_schema_node(elem):
+            if elem.text is not None:
+                self.children.append(TextNode(elem.text, self, context=context))
+
+            for child in elem:
+                if not callable(child.tag):
+                    self.children.append(ElementNode(child, self, context=context))
+                    if child.text is not None:
+                        self.children.append(TextNode(child.text, self, context=context))
+
+                elif child.tag.__name__ == 'Comment':
+                    self.children.append(CommentNode(child, self, context))
+                else:
+                    self.children.append(ProcessingInstructionNode(child, self, context))
+
+                if child.tail is not None:
+                    self.children.append(TextNode(child.tail, self, True, context))
+
+    def iter(self, with_self=True):
+        if with_self:
+            yield self
+
+        iterators: List[Any] = []
+        children: Iterator[Any] = iter(self.children)
+
+        yield from self.namespaces
+        yield from self.attributes
+
+        while True:
+            try:
+                child = next(children)
+            except StopIteration:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
+            else:
+                if isinstance(child, TextNode) or callable(child.tag):
+                    yield child
+                else:
+                    yield child
+                    yield from child.namespaces
+                    yield from child.attributes
+
+                    iterators.append(children)
+                    children = iter(child.children)
 
     @property
     def value(self) -> ElementType:
@@ -382,11 +444,30 @@ class DocumentNode(XPathNode):
     A class for XPath document nodes.
     """
     kind = 'document'
+    children: List[Union[CommentNode, ProcessingInstructionNode, ElementNode]] = None
 
     def __init__(self, document: DocumentType,
                  context: Optional['XPathContext'] = None) -> None:
         super().__init__(context)
         self.document = document
+        self.children = []
+        for e in etree_iter_root(document.getroot()):
+            if not callable(e.tag):
+                self.children.append(ElementNode(e, self, context=context))
+            elif e.tag.__name__ == 'Comment':
+                self.children.append(CommentNode(e, self, context))
+            else:
+                self.children.append(ProcessingInstructionNode(e, self, context))
+
+    def iter(self, with_self=True):
+        if with_self:
+            yield self
+
+        for e in self.children:
+            if callable(e.tag):
+                yield e
+            else:
+                yield from e.iter()
 
     @property
     def value(self) -> DocumentType:

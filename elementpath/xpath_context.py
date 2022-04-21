@@ -21,7 +21,7 @@ from .protocols import ElementProtocol, LxmlElementProtocol, \
     XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
     is_lxml_etree_element, etree_iter_root
-from .xpath_nodes import ElementNode, AttributeNode, NamespaceNode, TextNode, \
+from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, TextNode, \
     is_element_node, is_document_node, is_lxml_document_node, XPathNode, XPathNodeType
 
 if TYPE_CHECKING:
@@ -102,12 +102,21 @@ class XPathContext:
         self.namespaces = namespaces
 
         if is_element_node(root):
+            _root = ElementNode(root, context=self)
             self.item = root if item is None else item
         elif is_document_node(root):
+            _root = DocumentNode(root, self)
             self.item = item
         else:
             msg = "invalid root {!r}, an Element or an ElementTree instance required"
             raise ElementPathTypeError(msg.format(root))
+
+        if isinstance(item, XPathNode):
+            # TODO  :refine matching for using the right item
+            for _item in _root.iter():
+                if item == _item:
+                    self.item = _item
+                    break
 
         self.position = position
         self.size = size
