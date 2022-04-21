@@ -100,43 +100,17 @@ class SafeXMLParser(PyElementTree.XMLParser):
         )  # pragma: no cover (EntityDeclHandler is called before)
 
 
-class DocumentProxy:
+class ElementProxyMixin:
     """
-    A proxy for ElementTree documents.
-
-    :param document: the wrapped ElementTree object.
+    A proxy mixin for ElementTree and XML Schema elements.
     """
-    def __init__(self, document: DocumentType) -> None:
-        self.document = document
-
-    def getroot(self) -> ElementProtocol:
-        return self.document.getroot()
-
-    def parse(self, source: Any, *args: Any, **kwargs: Any) -> DocumentProtocol:
-        return self.document.parse(source, *args, **kwargs)
-
-    def iter(self, tag: Optional[str] = None) -> Iterator[ElementType]:
-        return self.document.iter(tag)
-
-
-class ElementProxy:
-    """
-    A proxy for ElementTree elements.
-
-    :param elem: the wrapped Element object.
-    :param parent: the parent Element object.
-    """
-    def __init__(self, elem: ElementType, parent: Optional[ElementType] = None) -> None:
-        self.elem = elem
-        self.parent = parent
+    elem: ElementProtocol
 
     def __repr__(self) -> str:
-        if self.parent is None:
-            return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
-        return '%s(elem=%r, parent=%r)' % (self.__class__.__name__, self.elem, self.parent)
+        return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and self.elem is other.elem
+        return other == self.elem or isinstance(other, self.__class__) and self.elem == other.elem
 
     def __hash__(self) -> int:
         return hash(self.elem)
@@ -225,7 +199,7 @@ def etree_iter_paths(elem: ElementProtocol, path: str = '.') \
 
     for child in elem:
         if callable(child.tag):
-            if child.tag.__name__ != 'ProcessingInstruction':  # type: ignore[attr-defined]
+            if child.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
                 comment_nodes += 1
                 yield child, f'{path}/comment()[{comment_nodes}]'
                 continue
@@ -361,6 +335,6 @@ def etree_tostring(elem: ElementProtocol,
 
 
 __all__ = ['ElementType', 'DocumentType', 'ElementTree', 'PyElementTree',
-           'SafeXMLParser', 'DocumentProxy', 'ElementProxy', 'is_etree_element',
+           'SafeXMLParser', 'ElementProxyMixin', 'is_etree_element',
            'is_lxml_etree_element', 'etree_iter_root', 'etree_iter_strings',
            'etree_deep_equal', 'etree_iter_paths', 'etree_tostring']

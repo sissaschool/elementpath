@@ -75,6 +75,7 @@ class XPathContext:
     _etree: Optional[ModuleType] = None
     root: ContextRootType
     item: Optional[ContextItemType]
+    total_nodes: int = 0  # Number of nodes associated to the context
 
     def __init__(self,
                  root: ContextRootType,

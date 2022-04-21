@@ -11,18 +11,25 @@
 Helper functions for XPath nodes and basic data types.
 """
 from urllib.parse import urlparse
-from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_BASE, XSI_NIL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, XsdElementProtocol, XsdAttributeProtocol, \
-    XsdTypeProtocol
+from .protocols import ElementProtocol, DocumentProtocol, \
+    XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
-    etree_iter_strings, ElementProxy, DocumentProxy
+    etree_iter_strings, ElementProxyMixin
+
+if TYPE_CHECKING:
+    from .xpath_context import XPathContext
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+
+
+ParentNodeType = Union[ElementProtocol, DocumentProtocol]
+ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
 
 
 ###
@@ -42,10 +49,20 @@ class XPathNode:
     nilled: Any = None
     kind: str
     name: Any = None
-    parent: Optional[ElementType] = None
+    parent: Optional[ParentNodeType] = None
     type_name: Optional[str]
     value: Any = None
 
+    context: Optional['XPathContext'] = None
+    index: int = 0  # Document order
+
+    def __init__(self, context: Optional['XPathContext'] = None):
+        # TODO: mandatory context as first argument
+        if context is not None:
+            self.context = context
+            context.total_nodes += 1
+            self.index = context.total_nodes
+
     @property
     def string_value(self) -> str:
         raise NotImplementedError()
@@ -53,100 +70,6 @@ class XPathNode:
     @property
     def typed_value(self) -> Optional[AtomicValueType]:
         raise NotImplementedError()
-
-
-class DocumentNode(DocumentProxy, XPathNode):
-    """
-    A class for XPath document nodes.
-    """
-    kind = 'document'
-
-    @property
-    def value(self) -> DocumentType:
-        return self.document
-
-    @property
-    def string_value(self) -> str:
-        return ''.join(etree_iter_strings(self.document.getroot()))
-
-    @property
-    def typed_value(self) -> UntypedAtomic:
-        return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
-
-
-class ElementNode(ElementProxy, XPathNode):
-    """
-    A class for processing XPath element nodes.
-    """
-    kind = 'element'
-    xsd_type: Optional[XsdTypeProtocol] = None
-
-    def __init__(self, elem: ElementType,
-                 parent: Optional[ElementType] = None,
-                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
-        super(ElementNode, self).__init__(elem, parent)
-        self.xsd_type = xsd_type
-
-    @property
-    def value(self) -> ElementType:
-        return self.elem
-
-    @property
-    def name(self) -> str:
-        return self.elem.tag
-
-    @property
-    def attributes(self) -> Dict[str, Any]:
-        return self.elem.attrib
-
-    @property
-    def base_uri(self) -> Optional[str]:
-        return self.elem.get(XML_BASE)  # FIXME
-
-    @property
-    def children(self) -> Any:
-        return self.elem[:]  # type: ignore[index]
-
-    @property
-    def nilled(self) -> bool:
-        return self.elem.get(XSI_NIL) in ('true', '1')
-
-    @property
-    def string_value(self) -> str:
-        if is_schema_node(self.elem):
-            schema_node = cast(XsdElementProtocol, self.elem)
-            return str(get_atomic_value(schema_node.type))
-        elif self.xsd_type is not None and self.xsd_type.is_element_only():
-            # Element-only text content is normalized
-            return ''.join(etree_iter_strings(self.elem, normalize=True))
-        return ''.join(etree_iter_strings(self.elem))
-
-    @property
-    def typed_value(self) -> Optional[AtomicValueType]:
-        if is_schema_node(self.elem):
-            schema_node = cast(XsdElementProtocol, self.elem)
-            return get_atomic_value(schema_node.type)
-        elif self.xsd_type is None:
-            return UntypedAtomic(self.elem.text or '')
-        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
-            return UntypedAtomic(self.elem.text or '')
-        elif self.xsd_type.has_mixed_content():
-            return UntypedAtomic(self.elem.text or '')
-        elif self.xsd_type.is_element_only():
-            return None
-        elif self.xsd_type.is_empty():
-            return None
-        elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
-            return None
-
-        if self.elem.text is not None:
-            value = self.xsd_type.decode(self.elem.text)
-        elif self.elem.get(XSI_NIL) in ('1', 'true'):
-            return ''
-        else:
-            value = self.xsd_type.decode(self.elem.text)
-
-        return cast(Optional[AtomicValueType], value)
 
 
 class AttributeNode(XPathNode):
@@ -161,10 +84,11 @@ class AttributeNode(XPathNode):
     kind = 'attribute'
     xsd_type: Optional[XsdTypeProtocol] = None
 
-    def __init__(self, name: str,
-                 value: Union[str, XsdAttributeProtocol],
+    def __init__(self, name: str, value: Union[str, XsdAttributeProtocol],
                  parent: Optional[ElementType] = None,
-                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
+                 xsd_type: Optional[XsdTypeProtocol] = None,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
         self.name = name
         self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
@@ -214,7 +138,10 @@ class NamespaceNode(XPathNode):
     """
     kind = 'namespace'
 
-    def __init__(self, prefix: str, uri: str, parent: Optional[ElementType] = None) -> None:
+    def __init__(self, prefix: str, uri: str,
+                 parent: Optional[ElementType] = None,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
         self.prefix = prefix
         self.uri = uri
         self.parent = parent
@@ -255,59 +182,6 @@ class NamespaceNode(XPathNode):
         return self.uri
 
 
-class CommentNode(ElementProxy, XPathNode):
-    """
-    A class for processing XPath comment nodes.
-    """
-    kind = 'comment'
-
-    @property
-    def value(self) -> ElementType:
-        return self.elem
-
-    @property
-    def base_uri(self) -> Optional[str]:
-        if self.parent is None:
-            return None
-        return self.parent.get(XML_BASE)  # FIXME
-
-    @property
-    def string_value(self) -> str:
-        return self.elem.text or ''
-
-    @property
-    def typed_value(self) -> str:
-        return self.elem.text or ''
-
-
-class ProcessingInstructionNode(ElementProxy, XPathNode):
-    """
-    A class for XPath processing instructions nodes.
-    """
-    kind = 'processing-instruction'
-    elem: ElementProtocol
-
-    @property
-    def name(self) -> str:
-        try:
-            # an lxml PI
-            return cast(str, self.elem.target)  # type: ignore[attr-defined]
-        except AttributeError:
-            return cast(str, self.elem.text).split(' ', maxsplit=1)[0]
-
-    @property
-    def value(self) -> ElementType:
-        return self.elem
-
-    @property
-    def string_value(self) -> str:
-        return self.elem.text or ''
-
-    @property
-    def typed_value(self) -> str:
-        return self.elem.text or ''
-
-
 class TextNode(XPathNode):
     """
     A class for processing XPath text nodes. An Element's property
@@ -321,8 +195,11 @@ class TextNode(XPathNode):
     value: str
     _tail = False
 
-    def __init__(self, value: str, parent: Optional[ElementType] = None,
-                 tail: bool = False) -> None:
+    def __init__(self, value: str,
+                 parent: Optional[ElementType] = None,
+                 tail: bool = False,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
         self.value = value
         self.parent = parent
         if tail and parent is not None:
@@ -355,6 +232,173 @@ class TextNode(XPathNode):
     @property
     def typed_value(self) -> UntypedAtomic:
         return UntypedAtomic(self.value)
+
+
+class CommentNode(XPathNode, ElementProxyMixin):
+    """
+    A class for processing XPath comment nodes.
+    """
+    kind = 'comment'
+
+    def __init__(self, elem: ElementProtocol,
+                 parent: Optional[ParentNodeType] = None,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
+        self.elem = elem
+        self.parent = parent
+
+    @property
+    def value(self) -> ParentNodeType:
+        return self.elem
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        if self.parent is None:
+            return None
+        return self.parent.get(XML_BASE)  # FIXME
+
+    @property
+    def string_value(self) -> str:
+        return self.elem.text or ''
+
+    @property
+    def typed_value(self) -> str:
+        return self.elem.text or ''
+
+
+class ProcessingInstructionNode(XPathNode, ElementProxyMixin):
+    """
+    A class for XPath processing instructions nodes.
+    """
+    kind = 'processing-instruction'
+    elem: ElementProtocol
+
+    def __init__(self, elem: ElementProtocol,
+                 parent: Optional[ParentNodeType] = None,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
+        self.elem = elem
+        self.parent = parent
+
+    @property
+    def name(self) -> str:
+        try:
+            # an lxml PI
+            return cast(str, self.elem.target)  # type: ignore[attr-defined]
+        except AttributeError:
+            return cast(str, self.elem.text).split(' ', maxsplit=1)[0]
+
+    @property
+    def value(self) -> ElementProtocol:
+        return self.elem
+
+    @property
+    def string_value(self) -> str:
+        return self.elem.text or ''
+
+    @property
+    def typed_value(self) -> str:
+        return self.elem.text or ''
+
+
+class ElementNode(XPathNode, ElementProxyMixin):
+    """
+    A class for processing XPath element nodes that uses lazy properties to
+    diminish the average load for a tree processing.
+    """
+    kind = 'element'
+    xsd_type: Optional[XsdTypeProtocol] = None
+
+    text: Optional['TextNode'] = None
+    tail: Optional['TextNode'] = None
+    attrib: Optional[Dict[str, 'AttributeNode']] = None
+    children: Optional[List[ChildNodeType]] = None
+
+    def __init__(self, elem: ElementProtocol,
+                 parent: Optional[ElementType] = None,
+                 xsd_type: Optional[XsdTypeProtocol] = None,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
+        self.elem = elem
+        self.parent = parent
+        self.xsd_type = xsd_type
+
+    @property
+    def value(self) -> ElementType:
+        return self.elem
+
+    @property
+    def name(self) -> str:
+        return self.elem.tag
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        return self.elem.get(XML_BASE)  # FIXME
+
+    @property
+    def nilled(self) -> bool:
+        return self.elem.get(XSI_NIL) in ('true', '1')
+
+    @property
+    def string_value(self) -> str:
+        if is_schema_node(self.elem):
+            schema_node = cast(XsdElementProtocol, self.elem)
+            return str(get_atomic_value(schema_node.type))
+        elif self.xsd_type is not None and self.xsd_type.is_element_only():
+            # Element-only text content is normalized
+            return ''.join(etree_iter_strings(self.elem, normalize=True))
+        return ''.join(etree_iter_strings(self.elem))
+
+    @property
+    def typed_value(self) -> Optional[AtomicValueType]:
+        if is_schema_node(self.elem):
+            schema_node = cast(XsdElementProtocol, self.elem)
+            return get_atomic_value(schema_node.type)
+        elif self.xsd_type is None:
+            return UntypedAtomic(self.elem.text or '')
+        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
+            return UntypedAtomic(self.elem.text or '')
+        elif self.xsd_type.has_mixed_content():
+            return UntypedAtomic(self.elem.text or '')
+        elif self.xsd_type.is_element_only():
+            return None
+        elif self.xsd_type.is_empty():
+            return None
+        elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
+            return None
+
+        if self.elem.text is not None:
+            value = self.xsd_type.decode(self.elem.text)
+        elif self.elem.get(XSI_NIL) in ('1', 'true'):
+            return ''
+        else:
+            value = self.xsd_type.decode(self.elem.text)
+
+        return cast(Optional[AtomicValueType], value)
+
+
+class DocumentNode(XPathNode):
+    """
+    A class for XPath document nodes.
+    """
+    kind = 'document'
+
+    def __init__(self, document: DocumentType,
+                 context: Optional['XPathContext'] = None) -> None:
+        super().__init__(context)
+        self.document = document
+
+    @property
+    def value(self) -> DocumentType:
+        return self.document
+
+    @property
+    def string_value(self) -> str:
+        return ''.join(etree_iter_strings(self.document.getroot()))
+
+    @property
+    def typed_value(self) -> UntypedAtomic:
+        return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
 
 
 XPathNodeType = Union[ElementType, DocumentType, XPathNode]
@@ -462,15 +506,18 @@ def is_schema_node(obj: Any) -> bool:
 
 
 def is_comment_node(obj: Any) -> bool:
-    return hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'Comment'
+    return isinstance(obj, CommentNode) or \
+        hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'Comment'
 
 
 def is_processing_instruction_node(obj: Any) -> bool:
-    return hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
+    return isinstance(obj, ProcessingInstructionNode) or \
+        hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
 
 
 def is_document_node(obj: Any) -> bool:
-    return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
+    return isinstance(obj, DocumentNode) or \
+        hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
 def is_lxml_document_node(obj: Any) -> bool:

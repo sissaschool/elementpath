@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ElementTree
 from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
 from elementpath.xpath_nodes import ElementNode, AttributeNode, TextNode, NamespaceNode, \
-    match_element_node, match_attribute_node, is_comment_node, is_document_node, \
+    CommentNode, match_element_node, match_attribute_node, is_comment_node, is_document_node, \
     is_processing_instruction_node, node_attributes, node_base_uri, \
     node_document_uri, node_children, node_nilled, node_kind, node_name
 
@@ -123,6 +123,7 @@ class XPathNodesTest(unittest.TestCase):
     def test_is_comment_node_function(self):
         comment = ElementTree.Comment('nothing important')
         self.assertTrue(is_comment_node(comment))
+        self.assertTrue(is_comment_node(CommentNode(comment)))
         self.assertFalse(is_comment_node(self.elem))
 
     def test_is_document_node_function(self):
