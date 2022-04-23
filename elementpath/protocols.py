@@ -146,9 +146,11 @@ else:
 
     class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
         type: XsdTypeProtocol
+        ref: Optional['XsdElementProtocol']
 
     class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
         type: XsdTypeProtocol
+        ref: Optional['XsdAttributeProtocol']
 
     class GlobalMapsProtocol(Protocol):
         types: Dict[str, XsdTypeProtocol]

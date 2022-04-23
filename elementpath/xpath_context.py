@@ -21,8 +21,10 @@ from .protocols import ElementProtocol, LxmlElementProtocol, \
     XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
     is_lxml_etree_element, etree_iter_root
-from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, TextNode, \
-    is_element_node, is_document_node, is_lxml_document_node, XPathNode, XPathNodeType
+from .xpath_nodes import DocumentNode, ElementNode, CommentNode, \
+    ProcessingInstructionNode, AttributeNode, NamespaceNode, TextNode, \
+    is_element_node, is_document_node, is_lxml_document_node, XPathNode, \
+    XPathNodeType, is_schema, is_schema_node
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -98,20 +100,23 @@ class XPathContext:
                  default_calendar: Optional[str] = None,
                  default_place: Optional[str] = None) -> None:
 
-        self.root = root
         self.namespaces = namespaces
+        self.root = root
 
-        if is_element_node(root):
-            _root = ElementNode(root, context=self)
+        if is_schema(root):
+            _root = self._build_schema_nodes(root)
+            self.item = root if item is None else item
+        elif is_element_node(root):
+            _root = self._build_nodes(root)
             self.item = root if item is None else item
         elif is_document_node(root):
-            _root = DocumentNode(root, self)
+            _root = self._build_nodes(root)
             self.item = item
         else:
             msg = "invalid root {!r}, an Element or an ElementTree instance required"
             raise ElementPathTypeError(msg.format(root))
 
-        if isinstance(item, XPathNode):
+        if False and isinstance(item, XPathNode):
             # TODO  :refine matching for using the right item
             for _item in _root.iter():
                 if item == _item:
@@ -307,6 +312,92 @@ class XPathContext:
             return item_name == name
         else:
             return item_name == '{%s}%s' % (default_namespace, name)
+
+    def _build_nodes(self, root: Union[DocumentType, ElementType]) -> Union[DocumentNode, ElementNode]:
+        if hasattr(root, 'getroot'):
+            document = cast(DocumentType, root)
+            root_node = parent = DocumentNode(document)
+
+            _root = document.getroot()
+            for e in etree_iter_root(_root):
+                if not callable(e.tag):
+                    child = ElementNode(e, parent, context=self)
+                    parent.children.append(child)
+                elif e.tag.__name__ == 'Comment':
+                    parent.children.append(CommentNode(e, parent, self))
+                else:
+                    parent.children.append(ProcessingInstructionNode(e, parent, self))
+
+            children: Iterator[Any] = iter(_root)
+            parent = child
+        else:
+            children: Iterator[Any] = iter(root)
+            root_node = parent = ElementNode(root)
+
+        iterators: List[Any] = []
+        ancestors: List[Any] = []
+
+        while True:
+            try:
+                elem = next(children)
+            except StopIteration:
+                try:
+                    children, parent = iterators.pop(), ancestors.pop()
+                except IndexError:
+                    return root_node
+            else:
+                if not callable(elem.tag):
+                    child = ElementNode(elem, parent, context=self)
+                elif elem.tag.__name__ == 'Comment':
+                    child = CommentNode(elem, parent, context=self)
+                else:
+                    child = ProcessingInstructionNode(elem, parent, context=self)
+
+                parent.children.append(child)
+                if elem.tail is not None:
+                    parent.children.append(TextNode(elem.tail, parent, True, context=self))
+
+                if len(elem):
+                    ancestors.append(parent)
+                    parent = child
+                    iterators.append(children)
+                    children = iter(elem)
+
+    def _build_schema_nodes(self, root: XMLSchemaProtocol) -> ElementNode:
+        children: Iterator[Any] = iter(root)
+        root_node = parent = ElementNode(root)
+
+        elements = {root}
+        iterators: List[Any] = []
+        ancestors: List[Any] = []
+
+        while True:
+            try:
+                elem = next(children)
+            except StopIteration:
+                try:
+                    children, parent = iterators.pop(), ancestors.pop()
+                except IndexError:
+                    return root_node
+            else:
+                if elem in elements:
+                    continue
+
+                elements.add(elem)
+                child = ElementNode(elem, parent, context=self)
+                parent.children.append(child)
+
+                if elem.ref is None:
+                    ancestors.append(parent)
+                    parent = child
+                    iterators.append(children)
+                    children = iter(elem)
+                elif elem.ref not in elements:
+                    elements.add(elem.ref)
+                    ancestors.append(parent)
+                    parent = child
+                    iterators.append(children)
+                    children = iter(elem.ref)
 
     @staticmethod
     def _iter_nodes(root: Union[DocumentType, ElementType], with_root: bool = True) \

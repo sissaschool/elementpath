@@ -17,7 +17,7 @@ from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .exceptions import ElementPathValueError
-from .protocols import ElementProtocol, DocumentProtocol, \
+from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
     etree_iter_strings, etree_iter_root, ElementProxyMixin
@@ -311,50 +311,40 @@ class ElementNode(XPathNode, ElementProxyMixin):
 
     text: Optional['TextNode'] = None
     tail: Optional['TextNode'] = None
-    attrib: Optional[Dict[str, 'AttributeNode']] = None
-    children: Optional[List[ChildNodeType]] = None
+    nsmap: List['NamespaceNode']
+    attrib: List['AttributeNode']
+    children: List[ChildNodeType]
 
     def __init__(self, elem: ElementProtocol,
                  parent: Optional[ElementType] = None,
                  xsd_type: Optional[XsdTypeProtocol] = None,
-                 namespaces: Optional[Dict[str, str]] = None,
                  context: Optional['XPathContext'] = None) -> None:
+
+        if hasattr(elem, 'nsmap'):
+            self.namespaces = [
+                NamespaceNode(pfx, uri, self, context)
+                for pfx, uri in cast(LxmlElementProtocol, elem).nsmap.items()
+            ]
+        elif context is not None and context.namespaces and isinstance(parent, ElementNode):
+            self.namespaces = [
+                NamespaceNode(pfx, uri, self, context)
+                for pfx, uri in context.namespaces.items()
+            ]
+        else:
+            self.namespaces = []
+
         super().__init__(context)
         self.elem = elem
         self.parent = parent
         self.xsd_type = xsd_type
-        self.children = []
-        self.namespaces = {}
-
-        nsmap: Optional[Dict[str, str]] = getattr(elem, 'nsmap', namespaces)
-        if nsmap is None:
-            self.namespaces = []
-        else:
-            self.namespaces = [NamespaceNode(pfx, uri, elem, context=context)
-                               for pfx, uri in nsmap.items()]
-            if 'xml' not in nsmap:
-                self.namespaces.append(NamespaceNode('xml', XML_NAMESPACE, elem, context))
 
         self.attributes = [AttributeNode(name, value, elem, context=context)
                            for name, value in elem.attrib.items()]
 
-        if context and not is_schema_node(elem):
-            if elem.text is not None:
-                self.children.append(TextNode(elem.text, self, context=context))
-
-            for child in elem:
-                if not callable(child.tag):
-                    self.children.append(ElementNode(child, self, context=context))
-                    if child.text is not None:
-                        self.children.append(TextNode(child.text, self, context=context))
-
-                elif child.tag.__name__ == 'Comment':
-                    self.children.append(CommentNode(child, self, context))
-                else:
-                    self.children.append(ProcessingInstructionNode(child, self, context))
-
-                if child.tail is not None:
-                    self.children.append(TextNode(child.tail, self, True, context))
+        if elem.text is not None:
+            self.children = [TextNode(elem.text, self, context=context)]
+        else:
+            self.children = []
 
     def iter(self, with_self=True):
         if with_self:
@@ -444,20 +434,13 @@ class DocumentNode(XPathNode):
     A class for XPath document nodes.
     """
     kind = 'document'
-    children: List[Union[CommentNode, ProcessingInstructionNode, ElementNode]] = None
+    children: List[Union[CommentNode, ProcessingInstructionNode, ElementNode]]
 
     def __init__(self, document: DocumentType,
                  context: Optional['XPathContext'] = None) -> None:
         super().__init__(context)
         self.document = document
         self.children = []
-        for e in etree_iter_root(document.getroot()):
-            if not callable(e.tag):
-                self.children.append(ElementNode(e, self, context=context))
-            elif e.tag.__name__ == 'Comment':
-                self.children.append(CommentNode(e, self, context))
-            else:
-                self.children.append(ProcessingInstructionNode(e, self, context))
 
     def iter(self, with_self=True):
         if with_self:
@@ -580,6 +563,10 @@ def is_element_node(obj: Any) -> bool:
     return isinstance(obj, ElementNode) or \
         hasattr(obj, 'tag') and not callable(obj.tag) and \
         hasattr(obj, 'attrib') and hasattr(obj, 'text')
+
+
+def is_schema(obj: Any) -> bool:
+    return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps')
 
 
 def is_schema_node(obj: Any) -> bool:
