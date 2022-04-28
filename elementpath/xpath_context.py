@@ -317,23 +317,23 @@ class XPathContext:
     def _build_nodes(self, root: Union[DocumentType, ElementType]) -> Union[DocumentNode, ElementNode]:
         if hasattr(root, 'getroot'):
             document = cast(DocumentType, root)
-            root_node = parent = DocumentNode(document)
+            root_node = parent = DocumentNode(self, document)
 
             _root = document.getroot()
             for e in etree_iter_root(_root):
                 if not callable(e.tag):
-                    child = ElementNode(e, parent, context=self)
+                    child = ElementNode(self, e, parent)
                     parent.children.append(child)
                 elif e.tag.__name__ == 'Comment':
-                    parent.children.append(CommentNode(e, parent, self))
+                    parent.children.append(CommentNode(self, e, parent))
                 else:
-                    parent.children.append(ProcessingInstructionNode(e, parent, self))
+                    parent.children.append(ProcessingInstructionNode(self, e, parent))
 
             children: Iterator[Any] = iter(_root)
             parent = child
         else:
             children: Iterator[Any] = iter(root)
-            root_node = parent = ElementNode(root, context=self)
+            root_node = parent = ElementNode(self, root)
 
         iterators: List[Any] = []
         ancestors: List[Any] = []
@@ -348,15 +348,15 @@ class XPathContext:
                     return root_node
             else:
                 if not callable(elem.tag):
-                    child = ElementNode(elem, parent, context=self)
+                    child = ElementNode(self, elem, parent)
                 elif elem.tag.__name__ == 'Comment':
-                    child = CommentNode(elem, parent, context=self)
+                    child = CommentNode(self, elem, parent)
                 else:
-                    child = ProcessingInstructionNode(elem, parent, context=self)
+                    child = ProcessingInstructionNode(self, elem, parent)
 
                 parent.children.append(child)
                 if elem.tail is not None:
-                    parent.children.append(TextNode(elem.tail, parent, True, context=self))
+                    parent.children.append(TextNode(self, elem.tail, parent, tail=True))
 
                 if len(elem):
                     ancestors.append(parent)
@@ -366,7 +366,7 @@ class XPathContext:
 
     def _build_schema_nodes(self, root: XMLSchemaProtocol) -> ElementNode:
         children: Iterator[Any] = iter(root)
-        root_node = parent = ElementNode(root, context=self)
+        root_node = parent = ElementNode(self, root)
 
         elements = {root}
         iterators: List[Any] = []
@@ -385,7 +385,7 @@ class XPathContext:
                     continue
 
                 elements.add(elem)
-                child = ElementNode(elem, parent, context=self)
+                child = ElementNode(self, elem, parent)
                 parent.children.append(child)
 
                 if elem.ref is None:
@@ -548,7 +548,7 @@ class XPathContext:
             self.item = self.item.elem
 
         elem = cast(ElementType, self.item)
-        for self.item in (AttributeNode(x[0], x[1], parent=elem) for x in elem.attrib.items()):
+        for self.item in (AttributeNode(self, x[0], x[1], parent=elem) for x in elem.attrib.items()):
             yield self.item
 
         self.item, self.axis = status
@@ -592,7 +592,7 @@ class XPathContext:
             if callable(elem.tag):
                 return
             elif elem.text is not None:
-                self.item = TextNode(elem.text, elem)
+                self.item = TextNode(self, elem.text, elem)
                 yield self.item
 
             for child in elem:
@@ -600,7 +600,7 @@ class XPathContext:
                 yield child
 
                 if child.tail is not None:
-                    self.item = TextNode(child.tail, child, True)
+                    self.item = TextNode(self, child.tail, child, True)
                     yield self.item
 
         elif isinstance(self.root, DocumentNode):

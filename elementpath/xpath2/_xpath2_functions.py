@@ -1412,7 +1412,7 @@ def select_id_function(self, context=None):
                     yield parent
             continue  # pragma: no cover
 
-        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
+        for attr in elem.attributes:
             if attr.value in idrefs:
                 if attr.name == XML_ID:
                     idrefs.remove(attr.value)
@@ -1458,7 +1458,7 @@ def select_idref_function(self, context=None):
         if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
             yield elem
             continue
-        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):  # pragma: no cover
+        for attr in elem.attributes:  # pragma: no cover
             if attr.name != XML_ID and any(v in attr.value.split() for x in ids for v in x.split()):
                 yield elem
                 break

@@ -30,7 +30,7 @@ from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
     XML_NEWLINES_PATTERN, is_xml_codepoint
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
-    XSD_NAMESPACE, XML_NAMESPACE
+    XSD_NAMESPACE
 from ..etree import etree_iter_paths, is_etree_element
 from ..xpath_nodes import is_xpath_node, is_element_node, is_document_node, \
     is_schema_node, node_document_uri, node_nilled, node_name, ElementNode, \
@@ -1493,20 +1493,9 @@ def select_namespace_node_kind_test(self, context=None):
         raise self.missing_context()
     elif isinstance(context.item, NamespaceNode):
         yield context.item
-    elif is_etree_element(context.item):
+    elif isinstance(context.item, ElementNode):
         elem = context.item
-
-        nsmap = getattr(elem, 'nsmap', None)
-        if nsmap is None:
-            # missing in-scope namespaces, use static provided namespaces.
-            nsmap = self.parser.other_namespaces
-
-        for pfx, uri in nsmap.items():
-            context.item = NamespaceNode(pfx, uri, elem)
-            yield context.item
-
-        if 'xml' not in nsmap:
-            context.item = NamespaceNode('xml', XML_NAMESPACE, elem)
+        for context.item in elem.namespaces:
             yield context.item
 
 

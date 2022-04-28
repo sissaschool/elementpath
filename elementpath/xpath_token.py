@@ -722,7 +722,13 @@ class XPathToken(Token[XPathTokenType]):
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     if xsd_type is not None:
-                        yield ElementNode(xsd_node, xsd_type=xsd_type)
+                        # Add another node to schema context
+                        yield ElementNode(
+                            context=schema_context,
+                            elem=xsd_node,
+                            parent=xsd_node.parent,
+                            xsd_type=xsd_type
+                        )
 
             except AttributeError:
                 pass
@@ -817,8 +823,6 @@ class XPathToken(Token[XPathTokenType]):
         elif isinstance(item, (ElementNode, AttributeNode)):
             item.xsd_type = xsd_type
             return item
-        else:
-            return ElementNode(item, xsd_type=xsd_type)
 
     def cast_to_qname(self, qname: str) -> QName:
         """Cast a prefixed qname string to a QName object."""

@@ -53,15 +53,13 @@ class XPathNode:
     type_name: Optional[str]
     value: Any = None
 
-    context: Optional['XPathContext'] = None
-    index: int = 0  # Document order
+    context: 'XPathContext'
+    index: int  # documents total order
 
-    def __init__(self, context: Optional['XPathContext'] = None):
-        # TODO: mandatory context as first argument
-        if context is not None:
-            self.context = context
-            context.total_nodes += 1
-            self.index = context.total_nodes
+    def __init__(self, context: 'XPathContext') -> None:
+        self.context = context
+        context.total_nodes += 1
+        self.index = context.total_nodes
 
     @property
     def string_value(self) -> str:
@@ -84,10 +82,10 @@ class AttributeNode(XPathNode):
     kind = 'attribute'
     xsd_type: Optional[XsdTypeProtocol] = None
 
-    def __init__(self, name: str, value: Union[str, XsdAttributeProtocol],
+    def __init__(self, context: 'XPathContext',
+                 name: str, value: Union[str, XsdAttributeProtocol],
                  parent: Optional[ElementType] = None,
-                 xsd_type: Optional[XsdTypeProtocol] = None,
-                 context: Optional['XPathContext'] = None) -> None:
+                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
         super().__init__(context)
         self.name = name
         self.value: Union[str, XsdAttributeProtocol] = value
@@ -138,9 +136,9 @@ class NamespaceNode(XPathNode):
     """
     kind = 'namespace'
 
-    def __init__(self, prefix: str, uri: str,
-                 parent: Optional[ElementType] = None,
-                 context: Optional['XPathContext'] = None) -> None:
+    def __init__(self, context: 'XPathContext',
+                 prefix: str, uri: str,
+                 parent: Optional[ElementType] = None) -> None:
         super().__init__(context)
         self.prefix = prefix
         self.uri = uri
@@ -195,10 +193,10 @@ class TextNode(XPathNode):
     value: str
     _tail = False
 
-    def __init__(self, value: str,
+    def __init__(self, context: 'XPathContext',
+                 value: str,
                  parent: Optional[ElementType] = None,
-                 tail: bool = False,
-                 context: Optional['XPathContext'] = None) -> None:
+                 tail: bool = False) -> None:
         super().__init__(context)
         self.value = value
         self.parent = parent
@@ -240,9 +238,9 @@ class CommentNode(XPathNode, ElementProxyMixin):
     """
     kind = 'comment'
 
-    def __init__(self, elem: ElementProtocol,
-                 parent: Optional[ParentNodeType] = None,
-                 context: Optional['XPathContext'] = None) -> None:
+    def __init__(self, context: 'XPathContext',
+                 elem: ElementProtocol,
+                 parent: Optional[ParentNodeType] = None) -> None:
         super().__init__(context)
         self.elem = elem
         self.parent = parent
@@ -273,9 +271,9 @@ class ProcessingInstructionNode(XPathNode, ElementProxyMixin):
     kind = 'processing-instruction'
     elem: ElementProtocol
 
-    def __init__(self, elem: ElementProtocol,
-                 parent: Optional[ParentNodeType] = None,
-                 context: Optional['XPathContext'] = None) -> None:
+    def __init__(self, context: 'XPathContext',
+                 elem: ElementProtocol,
+                 parent: Optional[ParentNodeType] = None) -> None:
         super().__init__(context)
         self.elem = elem
         self.parent = parent
@@ -315,19 +313,19 @@ class ElementNode(XPathNode, ElementProxyMixin):
     attrib: List['AttributeNode']
     children: List[ChildNodeType]
 
-    def __init__(self, elem: ElementProtocol,
+    def __init__(self, context: 'XPathContext',
+                 elem: ElementProtocol,
                  parent: Optional[ElementType] = None,
-                 xsd_type: Optional[XsdTypeProtocol] = None,
-                 context: Optional['XPathContext'] = None) -> None:
+                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
 
         if hasattr(elem, 'nsmap'):
             self.namespaces = [
-                NamespaceNode(pfx, uri, self, context)
+                NamespaceNode(context, pfx, uri, self)
                 for pfx, uri in cast(LxmlElementProtocol, elem).nsmap.items()
             ]
         elif context is not None and context.namespaces and isinstance(parent, ElementNode):
             self.namespaces = [
-                NamespaceNode(pfx, uri, self, context)
+                NamespaceNode(context, pfx, uri, self)
                 for pfx, uri in context.namespaces.items()
             ]
         else:
@@ -338,11 +336,11 @@ class ElementNode(XPathNode, ElementProxyMixin):
         self.parent = parent
         self.xsd_type = xsd_type
 
-        self.attributes = [AttributeNode(name, value, self, context=context)
+        self.attributes = [AttributeNode(context, name, value, self)
                            for name, value in elem.attrib.items()]
 
         if elem.text is not None:
-            self.children = [TextNode(elem.text, self, context=context)]
+            self.children = [TextNode(context, elem.text, self)]
         else:
             self.children = []
 
@@ -468,8 +466,7 @@ class DocumentNode(XPathNode):
     kind = 'document'
     children: List[Union[CommentNode, ProcessingInstructionNode, ElementNode]]
 
-    def __init__(self, document: DocumentType,
-                 context: Optional['XPathContext'] = None) -> None:
+    def __init__(self, context: 'XPathContext', document: DocumentType) -> None:
         super().__init__(context)
         self.document = document
         self.children = []
