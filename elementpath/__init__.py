@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2022, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '2.5.0'
+__version__ = '2.5.1'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2022, SISSA"

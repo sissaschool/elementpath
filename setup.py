@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2022, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='2.5.0',
+    version='2.5.1',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     include_package_data=True,
     author='Davide Brunato',
@@ -24,12 +24,12 @@ setup(
     keywords=['XPath', 'XPath2', 'XPath3', 'Pratt-parser', 'ElementTree', 'lxml'],
     license='MIT',
     license_file='LICENSE',
-    description='XPath 1.0/2.0 parsers and selectors for ElementTree and lxml',
+    description='XPath 1.0/2.0/3.0 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     python_requires='>=3.7',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.8.0',
-                'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.910']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.9.0',
+                'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.950']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

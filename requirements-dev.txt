@@ -7,5 +7,5 @@ xmlschema>=1.9.0
 Sphinx
 memory-profiler
 flake8
-mypy==0.931
+mypy==0.950
 -e .

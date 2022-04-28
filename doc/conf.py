@@ -25,13 +25,13 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'elementpath'
-copyright = '2018-2021, SISSA (International School for Advanced Studies)'
+copyright = '2018-2022, SISSA (International School for Advanced Studies)'
 author = 'Davide Brunato'
 
 # The short X.Y version
 version = '2.5'
 # The full version, including alpha/beta/rc tags
-release = '2.5.0'
+release = '2.5.1'
 
 
 # -- General configuration ---------------------------------------------------

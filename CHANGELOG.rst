@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.5.1`_ (2022-04-28)
+======================
+* Fix for failed floats equality tests (issue #41)
+* Static typing tested with mypy==0.950
+
 `v2.5.0`_ (2022-03-04)
 ======================
 * Add XPath 3.0 support
@@ -350,3 +355,4 @@ CHANGELOG
 .. _v2.3.2: https://github.com/sissaschool/elementpath/compare/v2.3.1...v2.3.2
 .. _v2.4.0: https://github.com/sissaschool/elementpath/compare/v2.3.3...v2.4.0
 .. _v2.5.0: https://github.com/sissaschool/elementpath/compare/v2.4.0...v2.5.0
+.. _v2.5.1: https://github.com/sissaschool/elementpath/compare/v2.5.0...v2.5.1
