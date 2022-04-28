@@ -111,7 +111,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIn('XQST0046', str(ctx.exception))
 
         token = self.parser.parse('Q{http://www.w3.org/2005/xpath-functions/math}pi()')
-        self.assertEqual(token.evaluate(), math.pi)
+        self.assertAlmostEqual(token.evaluate(), math.pi)
 
         # '{' is unusable for non-standard braced URI literals
         # because is used for inline functions body
@@ -129,33 +129,33 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
     def test_exp_math_function(self):
         token = self.parser.parse('math:exp(())')
         self.assertIsNone(token.evaluate())
-        self.assertEqual(self.parser.parse('math:exp(0)').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:exp(1)').evaluate(), 2.718281828459045)
-        self.assertEqual(self.parser.parse('math:exp(2)').evaluate(), 7.38905609893065)
-        self.assertEqual(self.parser.parse('math:exp(-1)').evaluate(), 0.36787944117144233)
-        self.assertEqual(self.parser.parse('math:exp(math:pi())').evaluate(), 23.140692632779267)
+        self.assertAlmostEqual(self.parser.parse('math:exp(0)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:exp(1)').evaluate(), 2.718281828459045)
+        self.assertAlmostEqual(self.parser.parse('math:exp(2)').evaluate(), 7.38905609893065)
+        self.assertAlmostEqual(self.parser.parse('math:exp(-1)').evaluate(), 0.36787944117144233)
+        self.assertAlmostEqual(self.parser.parse('math:exp(math:pi())').evaluate(), 23.140692632779267)
         self.assertTrue(math.isnan(self.parser.parse('math:exp(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:exp(xs:double('INF'))").evaluate(), float('inf'))
-        self.assertEqual(self.parser.parse("math:exp(xs:double('-INF'))").evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse("math:exp(xs:double('-INF'))").evaluate(), 0.0)
 
     def test_exp10_math_function(self):
         token = self.parser.parse('math:exp10(())')
         self.assertIsNone(token.evaluate())
-        self.assertEqual(self.parser.parse('math:exp10(0)').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:exp10(1)').evaluate(), 10)
-        self.assertEqual(self.parser.parse('math:exp10(0.5)').evaluate(), 3.1622776601683795)
-        self.assertEqual(self.parser.parse('math:exp10(-1)').evaluate(), 0.1)
+        self.assertAlmostEqual(self.parser.parse('math:exp10(0)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:exp10(1)').evaluate(), 10)
+        self.assertAlmostEqual(self.parser.parse('math:exp10(0.5)').evaluate(), 3.1622776601683795)
+        self.assertAlmostEqual(self.parser.parse('math:exp10(-1)').evaluate(), 0.1)
         self.assertTrue(math.isnan(self.parser.parse('math:exp10(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:exp10(xs:double('INF'))").evaluate(), float('inf'))
-        self.assertEqual(self.parser.parse("math:exp10(xs:double('-INF'))").evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse("math:exp10(xs:double('-INF'))").evaluate(), 0.0)
 
     def test_log_math_function(self):
         token = self.parser.parse('math:log(())')
         self.assertIsNone(token.evaluate())
         self.assertEqual(self.parser.parse('math:log(0)').evaluate(), float('-inf'))
-        self.assertEqual(self.parser.parse('math:log(math:exp(1))').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:log(1.0e-3)').evaluate(), -6.907755278982137)
-        self.assertEqual(self.parser.parse('math:log(2)').evaluate(), 0.6931471805599453)
+        self.assertAlmostEqual(self.parser.parse('math:log(math:exp(1))').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:log(1.0e-3)').evaluate(), -6.907755278982137)
+        self.assertAlmostEqual(self.parser.parse('math:log(2)').evaluate(), 0.6931471805599453)
         self.assertTrue(math.isnan(self.parser.parse('math:log(-1)').evaluate()))
         self.assertTrue(math.isnan(self.parser.parse('math:log(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:log(xs:double('INF'))").evaluate(), float('inf'))
@@ -165,9 +165,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse('math:log10(())')
         self.assertIsNone(token.evaluate())
         self.assertEqual(self.parser.parse('math:log10(0)').evaluate(), float('-inf'))
-        self.assertEqual(self.parser.parse('math:log10(1.0e3)').evaluate(), 3.0)
-        self.assertEqual(self.parser.parse('math:log10(1.0e-3)').evaluate(), -3.0)
-        self.assertEqual(self.parser.parse('math:log10(2)').evaluate(), 0.3010299956639812)
+        self.assertAlmostEqual(self.parser.parse('math:log10(1.0e3)').evaluate(), 3.0)
+        self.assertAlmostEqual(self.parser.parse('math:log10(1.0e-3)').evaluate(), -3.0)
+        self.assertAlmostEqual(self.parser.parse('math:log10(2)').evaluate(), 0.3010299956639812)
         self.assertTrue(math.isnan(self.parser.parse('math:log10(-1)').evaluate()))
         self.assertTrue(math.isnan(self.parser.parse('math:log10(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:log10(xs:double('INF'))").evaluate(), float('inf'))
@@ -175,49 +175,49 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_pow_math_function(self):
         self.assertIsNone(self.parser.parse('math:pow((), 93.7)').evaluate())
-        self.assertEqual(self.parser.parse('math:pow(2, 3)').evaluate(), 8.0)
-        self.assertEqual(self.parser.parse('math:pow(-2, 3)').evaluate(), -8.0)
-        self.assertEqual(self.parser.parse('math:pow(2, -3)').evaluate(), 0.125)
-        self.assertEqual(self.parser.parse('math:pow(-2, -3)').evaluate(), -0.125)
-        self.assertEqual(self.parser.parse('math:pow(2, 0)').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:pow(0, 0)').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse("math:pow(xs:double('INF'), 0)").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse("math:pow(xs:double('NaN'), 0)").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse("math:pow(-math:pi(), 0)").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:pow(0e0, 3)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:pow(0e0, 4)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:pow(-0e0, 3)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:pow(0, 3)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(2, 3)').evaluate(), 8.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(-2, 3)').evaluate(), -8.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(2, -3)').evaluate(), 0.125)
+        self.assertAlmostEqual(self.parser.parse('math:pow(-2, -3)').evaluate(), -0.125)
+        self.assertAlmostEqual(self.parser.parse('math:pow(2, 0)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(0, 0)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(xs:double('INF'), 0)").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(xs:double('NaN'), 0)").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(-math:pi(), 0)").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(0e0, 3)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(0e0, 4)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(-0e0, 3)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(0, 3)').evaluate(), 0.0)
         self.assertEqual(self.parser.parse('math:pow(0e0, -3)').evaluate(), float('inf'))
         self.assertEqual(self.parser.parse('math:pow(0e0, -4)').evaluate(), float('inf'))
         # self.assertEqual(self.parser.parse('math:pow(-0e0, -3)').evaluate(), float('-inf'))
         self.assertEqual(self.parser.parse('math:pow(0, -4)').evaluate(), float('inf'))
-        self.assertEqual(self.parser.parse('math:pow(16, 0.5e0)').evaluate(), 4.0)
-        self.assertEqual(self.parser.parse('math:pow(16, 0.25e0)').evaluate(), 2.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(16, 0.5e0)').evaluate(), 4.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(16, 0.25e0)').evaluate(), 2.0)
         self.assertEqual(self.parser.parse('math:pow(0e0, -3.0e0)').evaluate(), float('inf'))
         # self.assertEqual(self.parser.parse('math:pow(-0e0, -3.0e0)').evaluate(), float('-inf'))
         self.assertEqual(self.parser.parse('math:pow(0e0, -3.1e0)').evaluate(), float('inf'))
         self.assertEqual(self.parser.parse('math:pow(-0e0, -3.1e0)').evaluate(), float('inf'))
-        self.assertEqual(self.parser.parse('math:pow(0e0, 3.0e0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:pow(-0e0, 3.0e0)').evaluate(), -0.0)
-        self.assertEqual(self.parser.parse('math:pow(0e0, 3.1e0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:pow(-0e0, 3.1e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(0e0, 3.0e0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(-0e0, 3.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(0e0, 3.1e0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(-0e0, 3.1e0)').evaluate(), -0.0)
 
-        self.assertEqual(self.parser.parse("math:pow(-1, xs:double('INF'))").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse("math:pow(-1, xs:double('-INF'))").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse("math:pow(1, xs:double('INF'))").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse("math:pow(1, xs:double('-INF'))").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(-1, xs:double('INF'))").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(-1, xs:double('-INF'))").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(1, xs:double('INF'))").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse("math:pow(1, xs:double('-INF'))").evaluate(), 1.0)
 
-        self.assertEqual(self.parser.parse("math:pow(1, xs:double('NaN'))").evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:pow(-2.5e0, 2.0e0)').evaluate(), 6.25)
+        self.assertAlmostEqual(self.parser.parse("math:pow(1, xs:double('NaN'))").evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:pow(-2.5e0, 2.0e0)').evaluate(), 6.25)
         self.assertTrue(math.isnan(self.parser.parse('math:pow(-2.5e0, 2.00000001e0)').evaluate()))
 
     def test_sqrt_math_function(self):
         self.assertIsNone(self.parser.parse('math:sqrt(())').evaluate())
-        self.assertEqual(self.parser.parse('math:sqrt(0.0e0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:sqrt(-0.0e0)').evaluate(), -0.0)
-        self.assertEqual(self.parser.parse('math:sqrt(1.0e6)').evaluate(), 1.0e3)
-        self.assertEqual(self.parser.parse('math:sqrt(2.0e0)').evaluate(), 1.4142135623730951)
+        self.assertAlmostEqual(self.parser.parse('math:sqrt(0.0e0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:sqrt(-0.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(self.parser.parse('math:sqrt(1.0e6)').evaluate(), 1.0e3)
+        self.assertAlmostEqual(self.parser.parse('math:sqrt(2.0e0)').evaluate(), 1.4142135623730951)
         self.assertTrue(math.isnan(self.parser.parse('math:sqrt(-2.0e0)').evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:sqrt(xs:double('NaN'))").evaluate()))
         self.assertEqual(self.parser.parse("math:sqrt(xs:double('INF'))").evaluate(), float('inf'))
@@ -225,69 +225,58 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_sin_math_function(self):
         self.assertIsNone(self.parser.parse('math:sin(())').evaluate())
-        self.assertEqual(self.parser.parse('math:sin(0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:sin(-0.0e0)').evaluate(), -0.0)
-        self.assertEqual(self.parser.parse('math:sin(math:pi() div 2)').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:sin(-math:pi() div 2)').evaluate(), -1.0)
-        self.assertTrue(
-            math.isclose(self.parser.parse('math:sin(math:pi())').evaluate(), 0.0, abs_tol=1e-14)
-        )
+        self.assertAlmostEqual(self.parser.parse('math:sin(0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:sin(-0.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(self.parser.parse('math:sin(math:pi() div 2)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:sin(-math:pi() div 2)').evaluate(), -1.0)
+        self.assertAlmostEqual(self.parser.parse('math:sin(math:pi())').evaluate(), 0.0, places=13)
         self.assertTrue(math.isnan(self.parser.parse("math:sin(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:sin(xs:double('INF'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:sin(xs:double('-INF'))").evaluate()))
 
     def test_cos_math_function(self):
         self.assertIsNone(self.parser.parse('math:cos(())').evaluate())
-        self.assertEqual(self.parser.parse('math:cos(0)').evaluate(), 1.0)
-        self.assertEqual(self.parser.parse('math:cos(-0.0e0)').evaluate(), 1.0)
-        self.assertTrue(math.isclose(
-            self.parser.parse('math:cos(math:pi() div 2)').evaluate(), 0.0, abs_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
-            self.parser.parse('math:cos(-math:pi() div 2)').evaluate(), 0.0, abs_tol=1e-14
-        ))
-        self.assertEqual(self.parser.parse('math:cos(math:pi())').evaluate(), -1.0)
+        self.assertAlmostEqual(self.parser.parse('math:cos(0)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:cos(-0.0e0)').evaluate(), 1.0)
+        self.assertAlmostEqual(self.parser.parse('math:cos(math:pi() div 2)').evaluate(), 0.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:cos(-math:pi() div 2)').evaluate(), 0.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:cos(math:pi())').evaluate(), -1.0)
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('INF'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('-INF'))").evaluate()))
 
     def test_tan_math_function(self):
         self.assertIsNone(self.parser.parse('math:tan(())').evaluate())
-        self.assertEqual(self.parser.parse('math:tan(0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:tan(-0.0e0)').evaluate(), -0.0)
-        self.assertTrue(math.isclose(
-            self.parser.parse('math:tan(math:pi() div 4)').evaluate(), 1.0, abs_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
-            self.parser.parse('math:tan(-math:pi() div 4)').evaluate(), -1.0, abs_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
-            self.parser.parse('math:tan(math:pi() div 2)').evaluate(),
-            1.633123935319537E16, rel_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
+        self.assertAlmostEqual(self.parser.parse('math:tan(0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:tan(-0.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 4)').evaluate(), 1.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 4)').evaluate(), -1.0, places=13)
+        self.assertAlmostEqual(
+            self.parser.parse('math:tan(math:pi() div 2)').evaluate(), 1.633123935319537E16, places=13
+        )
+        self.assertAlmostEqual(
             self.parser.parse('math:tan(-math:pi() div 2)').evaluate(),
-            -1.633123935319537E16, rel_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
-            self.parser.parse('math:tan(math:pi())').evaluate(), 0.0, abs_tol=1e-14
-        ))
+            -1.633123935319537E16, places=13
+        )
+        self.assertAlmostEqual(
+            self.parser.parse('math:tan(math:pi())').evaluate(), 0.0, places=13
+        )
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('INF'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('-INF'))").evaluate()))
 
     def test_asin_math_function(self):
         self.assertIsNone(self.parser.parse('math:asin(())').evaluate())
-        self.assertEqual(self.parser.parse('math:asin(0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:asin(-0.0e0)').evaluate(), -0.0)
-        self.assertTrue(math.isclose(
+        self.assertAlmostEqual(self.parser.parse('math:asin(0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:asin(-0.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(
             self.parser.parse('math:asin(1.0e0)').evaluate(),
-            1.5707963267948966e0, rel_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
+            1.5707963267948966e0, places=13
+        )
+        self.assertAlmostEqual(
             self.parser.parse('math:asin(-1.0e0)').evaluate(),
-            -1.5707963267948966e0, rel_tol=1e-14
-        ))
+            -1.5707963267948966e0, places=13
+        )
         self.assertTrue(math.isnan(self.parser.parse("math:asin(2.0e0)").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:asin(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:asin(xs:double('INF'))").evaluate()))
@@ -295,16 +284,16 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_acos_math_function(self):
         self.assertIsNone(self.parser.parse('math:acos(())').evaluate())
-        self.assertTrue(math.isclose(
+        self.assertAlmostEqual(
             self.parser.parse('math:acos(0.0e0)').evaluate(),
-            1.5707963267948966e0, rel_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
+            1.5707963267948966e0, places=13
+        )
+        self.assertAlmostEqual(
             self.parser.parse('math:acos(-0.0e0)').evaluate(),
-            1.5707963267948966e0, rel_tol=1e-14
-        ))
-        self.assertEqual(self.parser.parse('math:acos(1.0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:acos(-1.0e0)').evaluate(), math.pi)
+            1.5707963267948966e0, places=13
+        )
+        self.assertAlmostEqual(self.parser.parse('math:acos(1.0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:acos(-1.0e0)').evaluate(), math.pi)
         self.assertTrue(math.isnan(self.parser.parse("math:acos(2.0e0)").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:acos(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:acos(xs:double('INF'))").evaluate()))
@@ -312,37 +301,37 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
     def test_atan_math_function(self):
         self.assertIsNone(self.parser.parse('math:atan(())').evaluate())
-        self.assertEqual(self.parser.parse('math:atan(0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:atan(-0.0e0)').evaluate(), -0.0)
-        self.assertTrue(math.isclose(
+        self.assertAlmostEqual(self.parser.parse('math:atan(0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:atan(-0.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(
             self.parser.parse('math:atan(1.0e0)').evaluate(),
-            0.7853981633974483e0, rel_tol=1e-14
-        ))
-        self.assertTrue(math.isclose(
+            0.7853981633974483e0, places=13
+        )
+        self.assertAlmostEqual(
             self.parser.parse('math:atan(-1.0e0)').evaluate(),
-            -0.7853981633974483e0, rel_tol=1e-14
-        ))
+            -0.7853981633974483e0, places=13
+        )
         self.assertTrue(math.isnan(self.parser.parse("math:atan(xs:double('NaN'))").evaluate()))
-        self.assertTrue(math.isclose(
+        self.assertAlmostEqual(
             self.parser.parse("math:atan(xs:double('INF'))").evaluate(),
-            1.5707963267948966e0, rel_tol=1e-5
-        ))
-        self.assertTrue(math.isclose(
+            1.5707963267948966e0, places=5
+        )
+        self.assertAlmostEqual(
             self.parser.parse("math:atan(xs:double('-INF'))").evaluate(),
-            -1.5707963267948966e0, rel_tol=1e-5
-        ))
+            -1.5707963267948966e0, places=5
+        )
 
     def test_atan2_math_function(self):
-        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, 0.0e0)').evaluate(), 0.0)
-        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, 0.0e0)').evaluate(), -0.0)
-        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, -0.0e0)').evaluate(), math.pi)
-        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, -0.0e0)').evaluate(), -math.pi)
-        self.assertEqual(self.parser.parse('math:atan2(-1, 0.0e0)').evaluate(), -math.pi / 2)
-        self.assertEqual(self.parser.parse('math:atan2(+1, 0.0e0)').evaluate(), math.pi / 2)
-        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, -1)').evaluate(), -math.pi)
-        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, -1)').evaluate(), math.pi)
-        self.assertEqual(self.parser.parse('math:atan2(-0.0e0, +1)').evaluate(), -0.0e0)
-        self.assertEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(+0.0e0, 0.0e0)').evaluate(), 0.0)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(-0.0e0, 0.0e0)').evaluate(), -0.0)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(+0.0e0, -0.0e0)').evaluate(), math.pi)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(-0.0e0, -0.0e0)').evaluate(), -math.pi)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(-1, 0.0e0)').evaluate(), -math.pi / 2)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(+1, 0.0e0)').evaluate(), math.pi / 2)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(-0.0e0, -1)').evaluate(), -math.pi)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(+0.0e0, -1)').evaluate(), math.pi)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(-0.0e0, +1)').evaluate(), -0.0e0)
+        self.assertAlmostEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
 
     def test_analyze_string_function(self):
         token = self.parser.parse('fn:analyze-string("The cat sat on the mat.", "unmatchable")')
@@ -703,7 +692,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertEqual(token(context), 27.0)
+        self.assertAlmostEqual(token(context), 27.0)
 
         token = self.parser.parse("function($a) { $a } (10)")
         with self.assertRaises(MissingContextError):
