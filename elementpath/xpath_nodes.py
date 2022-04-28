@@ -338,7 +338,7 @@ class ElementNode(XPathNode, ElementProxyMixin):
         self.parent = parent
         self.xsd_type = xsd_type
 
-        self.attributes = [AttributeNode(name, value, elem, context=context)
+        self.attributes = [AttributeNode(name, value, self, context=context)
                            for name, value in elem.attrib.items()]
 
         if elem.text is not None:
@@ -374,6 +374,38 @@ class ElementNode(XPathNode, ElementProxyMixin):
 
                     iterators.append(children)
                     children = iter(child.children)
+
+    def iter_descendants(self, with_self=True):
+        if with_self:
+            yield self
+
+        iterators: List[Any] = []
+        children: Iterator[Any] = iter(self.children)
+
+        while True:
+            try:
+                child = next(children)
+            except StopIteration:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
+            else:
+                if isinstance(child, TextNode) or callable(child.tag):
+                    yield child
+                else:
+                    yield child
+                    iterators.append(children)
+                    children = iter(child.children)
+
+    def __getitem__(self, i: Union[int, slice]) -> Any:
+        return self.children[i]
+
+    def __len__(self) -> int:
+        return len(self.children)
+
+    def __iter__(self):
+        yield from self.children
 
     @property
     def value(self) -> ElementType:
@@ -451,6 +483,17 @@ class DocumentNode(XPathNode):
                 yield e
             else:
                 yield from e.iter()
+
+    iter_descendants = iter
+
+    def __getitem__(self, i: Union[int, slice]) -> Any:
+        return self.children[i]
+
+    def __len__(self) -> int:
+        return len(self.children)
+
+    def __iter__(self):
+        yield from self.children
 
     @property
     def value(self) -> DocumentType:
@@ -589,6 +632,8 @@ def is_document_node(obj: Any) -> bool:
 
 
 def is_lxml_document_node(obj: Any) -> bool:
+    if isinstance(obj, DocumentNode):
+        obj = obj.value
     return is_document_node(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
 
 
