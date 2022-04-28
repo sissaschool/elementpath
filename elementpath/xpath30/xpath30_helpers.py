@@ -453,6 +453,9 @@ def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str
     else:
         zero_cp, zero_ch = ord('0'), '0'
 
+    min_width: int
+    max_width: Optional[int]
+
     digits = sum(c.isdigit() for c in presentation)
     opt_digits = presentation.count('#')
     if not width or width == '*':

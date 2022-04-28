@@ -357,7 +357,7 @@ class Token(MutableSequence[TK]):
 
 class ParserMeta(ABCMeta):
 
-    token_base_class: Type[Token[Any]]
+    token_base_class: Type[Any]
     literals_pattern: Pattern[str]
     name_pattern: Pattern[str]
     tokenizer: Optional[Pattern[str]]

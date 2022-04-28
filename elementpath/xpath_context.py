@@ -12,7 +12,7 @@ import importlib
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, MutableMapping, Set, Tuple
+    Optional, Sequence, Union, Callable, MutableMapping, Set
 
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .namespaces import XML_NAMESPACE
@@ -586,7 +586,7 @@ class XPathContext:
         In this case set the context size at start and change both position and \
         item at each iteration. For default only context item is changed.
         """
-        descendants: Union[Iterator[Union[XPathNodeType, None]], Tuple[XPathNode]]
+        descendants: Any
         with_self = axis != 'descendant'
 
         if self.item is None:
