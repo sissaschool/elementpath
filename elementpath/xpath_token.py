@@ -692,13 +692,14 @@ class XPathToken(Token[XPathTokenType]):
                     if isinstance(xsd_node.value, str):
                         if xsd_node.name != name:
                             continue
-                        xsd_node = schema_context.root.maps.attributes.get(name)
+                        # FIXME
+                        xsd_node = schema_context.root.value.maps.attributes.get(name)
                         if xsd_node is None:
                             continue
                     elif xsd_node.value.is_matching(name):
                         if xsd_node.name is None:
-                            # node is an XSD attribute wildcard
-                            xsd_node = schema_context.root.maps.attributes.get(name)
+                            # node is an XSD attribute wildcard FIXME
+                            xsd_node = schema_context.root.value.maps.attributes.get(name)
                             if xsd_node is None:
                                 continue
                     else:
@@ -713,16 +714,16 @@ class XPathToken(Token[XPathTokenType]):
                     # The element is a schema
                     yield xsd_node
 
-                elif xsd_node.is_matching(name, self.parser.default_namespace):
-                    if xsd_node.name is None:
-                        # node is an XSD element wildcard
-                        xsd_node = schema_context.root.maps.elements.get(name)
+                elif xsd_node.value.is_matching(name, self.parser.default_namespace):
+                    if xsd_node.value.name is None:
+                        # node is an XSD element wildcard FIXME
+                        xsd_node = schema_context.root.value.maps.elements.get(name)
                         if xsd_node is None:
                             continue
 
-                    xsd_type = self.add_xsd_type(xsd_node)
+                    xsd_type = self.add_xsd_type(xsd_node.value)
                     if xsd_type is not None:
-                        # Add another node to schema context
+                        # Add another node to schema context FIXME
                         yield ElementNode(
                             context=schema_context,
                             elem=xsd_node,

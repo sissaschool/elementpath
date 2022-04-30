@@ -606,10 +606,14 @@ def is_element_node(obj: Any) -> bool:
 
 
 def is_schema(obj: Any) -> bool:
+    if isinstance(obj, XPathNode):
+        obj = obj.value
     return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps')
 
 
 def is_schema_node(obj: Any) -> bool:
+    if isinstance(obj, XPathNode):
+        obj = obj.value
     return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
 
 
