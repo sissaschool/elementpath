@@ -15,8 +15,6 @@ elementpath
    :target: https://travis-ci.org/sissaschool/elementpath
 .. image:: https://img.shields.io/pypi/dm/elementpath.svg
    :target: https://pypi.python.org/pypi/elementpath/
-.. image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg
-   :target: https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity
 
 .. elementpath-introduction
 
@@ -31,7 +29,7 @@ because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XP
 Installation and usage
 ======================
 
-You can install the package with *pip* in a Python 3.6+ environment::
+You can install the package with *pip* in a Python 3.7+ environment::
 
     pip install elementpath
 
