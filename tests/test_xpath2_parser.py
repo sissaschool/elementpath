@@ -744,7 +744,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_syntax("document-node(node())")
         self.wrong_type("document-node(element(A), 1)")
         self.check_select("document-node()", [], context)
-        self.check_select("self::document-node()", [document], context)
+        self.check_select("self::document-node()", [context.root], context)
         self.check_selector("self::document-node(element(A))", document, [document])
         self.check_selector("self::document-node(element(B))", document, [])
 

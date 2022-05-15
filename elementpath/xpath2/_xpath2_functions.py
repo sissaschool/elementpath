@@ -32,7 +32,7 @@ from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
 from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
-from ..xpath_nodes import ElementNode, AttributeNode, NamespaceNode, \
+from ..xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, \
     is_element_node, is_document_node, is_xpath_node, node_name, \
     node_nilled, node_document_uri, node_kind
 from ..xpath_token import XPathFunction
@@ -307,13 +307,11 @@ def evaluate_document_uri_function(self, context=None):
     uri = node_document_uri(arg)
     if uri is not None:
         return AnyURI(uri)
-    elif is_document_node(context.root):
-        try:
+    elif isinstance(context.root, DocumentNode):
+        if context.documents:
             for uri, doc in context.documents.items():
-                if doc is context.root:
+                if doc and doc.document is context.root.document:
                     return AnyURI(uri)
-        except AttributeError:
-            pass
 
 
 ###
@@ -722,6 +720,9 @@ def evaluate_deep_equal_function(self, context=None):
                     return False
             elif node_kind(value1) != node_kind(value2):
                 return False
+            elif isinstance(value1, ElementNode):
+                if not etree_deep_equal(value1.elem, value2.elem):
+                    return False
             elif hasattr(value1, 'tag') and hasattr(value1, 'text'):
                 if not callable(value1.tag):
                     if not etree_deep_equal(value1, value2):
@@ -1395,7 +1396,7 @@ def select_id_function(self, context=None):
         return None
 
     # TODO: PSVI bindings with also xsi:type evaluation
-    for elem in root.iter():
+    for elem in filter(lambda x: isinstance(x, ElementNode), root.iter()):
         if elem.text in idrefs:
             if self.parser.schema is not None:
                 path = context.get_path(elem)

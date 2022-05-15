@@ -410,13 +410,13 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=root)
         nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root)
+        self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=document)
         context.variables['nodes'] = [root, document]
@@ -452,13 +452,13 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=root)
         nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root)
+        self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=document)
         context.variables['nodes'] = [root, document]

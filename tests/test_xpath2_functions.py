@@ -1510,7 +1510,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('fn:doc-available(xs:untypedAtomic("2"))', 'FODC0002', context=context)
         self.wrong_type('fn:doc-available(2)', 'XPTY0004', context=context)
 
-        self.check_value("fn:doc('tns0')", doc, context=context)
+        self.check_value("fn:doc('tns0')", context.documents['tns0'], context=context)
         self.check_value("fn:doc-available('tns0')", True, context=context)
 
         self.check_value("fn:doc('tns1')", ValueError, context=context)

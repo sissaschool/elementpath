@@ -79,6 +79,8 @@ class XPathContext:
     item: Optional[ContextItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
+    documents: Optional[Dict[str, DocumentNode]] = None
+
     def __init__(self,
                  root: ContextRootType,
                  namespaces: Optional[Dict[str, str]] = None,
@@ -142,7 +144,10 @@ class XPathContext:
             self.timezone = Timezone.fromstring(timezone)
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
-        self.documents = documents
+        if documents is not None:
+            self.documents = {k: self._build_nodes(v) if v is not None else v
+                              for k, v in documents.items()}
+
         self.collections = collections
         self.default_collection = default_collection
         self.text_resources = text_resources if text_resources is not None else {}
@@ -385,7 +390,7 @@ class XPathContext:
                     continue
 
                 elements.add(elem)
-                child = ElementNode(self, elem, parent)
+                child = ElementNode(self, elem, parent, xsd_type=elem.type)
                 parent.children.append(child)
 
                 if elem.ref is None:
@@ -457,7 +462,8 @@ class XPathContext:
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
-        results = [x for x in token.select(self.copy(clear_axis=False))]
+        c1 = self.copy(clear_axis=False)
+        results = [x for x in token.select(c1)]
         self.axis = None
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
@@ -734,12 +740,12 @@ class XPathContext:
             elif with_self:
                 # Yields None in order to emulate position on document
                 # FIXME replacing the self.root with ElementTree(self.root)?
-                descendants = chain((None,), self.root.iter_descendats())
+                descendants = chain((None,), self.root.iter_descendants())
             else:
-                descendants = self.root.iter_descendats()
+                descendants = self.root.iter_descendants()
         elif is_element_node(self.item) or is_document_node(self.item):
-            print(f"Unwrapped {self.item}")
-            raise RuntimeError()
+            item = self._build_nodes(self.item)
+            descendants = item.iter_descendants(with_self)
         elif with_self and isinstance(self.item, XPathNode):
             descendants = self.item,
         else:

@@ -34,8 +34,8 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
 from ..etree import etree_iter_paths, is_etree_element
 from ..xpath_nodes import is_xpath_node, is_element_node, is_document_node, \
     is_schema_node, node_document_uri, node_nilled, node_name, ElementNode, \
-    TextNode, AttributeNode, NamespaceNode, is_processing_instruction_node, \
-    is_comment_node
+    TextNode, AttributeNode, NamespaceNode, DocumentNode, \
+    is_processing_instruction_node, is_comment_node
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -1212,6 +1212,7 @@ def evaluate_serialize_function(self, context=None):
     # TODO full implementation of serialization with
     #  https://www.w3.org/TR/xpath-functions-30/#xslt-xquery-serialization-30
 
+    breakpoint()
     params = self.get_argument(context, index=1) if len(self) == 2 else None
     if params is None:
         tmpl = '<output:serialization-parameters xmlns:output="{}"/>'
@@ -1536,13 +1537,11 @@ def evaluate_document_uri_function(self, context=None):
     uri = node_document_uri(arg)
     if uri is not None:
         return AnyURI(uri)
-    elif is_document_node(context.root):
-        try:
+    elif isinstance(context.root, DocumentNode):
+        if context.documents:
             for uri, doc in context.documents.items():
-                if doc is context.root:
+                if doc and doc.document is context.root.document:
                     return AnyURI(uri)
-        except AttributeError:
-            pass
 
 
 @method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))

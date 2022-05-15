@@ -471,6 +471,9 @@ class DocumentNode(XPathNode):
         self.document = document
         self.children = []
 
+    def getroot(self):
+        return self.document.getroot()
+
     def iter(self, with_self=True):
         if with_self:
             yield self

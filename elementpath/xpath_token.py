@@ -721,8 +721,9 @@ class XPathToken(Token[XPathTokenType]):
                         if xsd_node is None:
                             continue
 
-                    xsd_type = self.add_xsd_type(xsd_node.value)
-                    if xsd_type is not None:
+                    xsd_type = self.add_xsd_type(xsd_node)
+                    yield xsd_node
+                    if False and xsd_type is not None:
                         # Add another node to schema context FIXME
                         yield ElementNode(
                             context=schema_context,

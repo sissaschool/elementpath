@@ -50,25 +50,35 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_name_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
-        context = XMLSchemaContext(self.schema1)
+        schema_context = XMLSchemaContext(self.schema1)
 
         elem_a = self.schema1.elements['a']
         token = parser.parse('a')
         self.assertIsNone(token.xsd_types)
 
-        result = token.evaluate(copy(context))
+        context = copy(schema_context)
+        element_node = context.root[0]
+        self.assertIs(element_node.elem, elem_a)
+        self.assertIs(element_node.xsd_type, elem_a.type)
+
+        result = token.evaluate(context)
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
-        self.assertListEqual(result, [ElementNode(elem_a, xsd_type=elem_a.type)])
+        self.assertListEqual(result, [element_node])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('a/b1')
         self.assertIsNone(token[0].xsd_types)
         self.assertIsNone(token[1].xsd_types)
 
-        result = token.evaluate(copy(context))
+        context = copy(schema_context)
+        element_node = context.root[0][0]
+        self.assertIs(element_node.elem, elem_b1)
+        self.assertIs(element_node.xsd_type, elem_b1.type)
+
+        result = token.evaluate(context)
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {"b1": elem_b1.type})
-        self.assertListEqual(result, [ElementNode(elem_b1, xsd_type=elem_b1.type)])
+        self.assertListEqual(result, [element_node])
 
     def test_colon_token(self):
         parser = XPath2Parser(namespaces={'tst': "http://xpath.test/ns"})
