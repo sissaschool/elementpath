@@ -41,11 +41,16 @@ jobs:
         run: |
           pip install flake8
           flake8 elementpath --max-line-length=100 --statistics
-      - name: Lint with mypy
-        if: ${{ matrix.python-version != '3.7' && matrix.python-version == 'pypy-3.8' }}
+      - name: Lint with mypy if Python version != 3.7
+        if: ${{ matrix.python-version != '3.7' }}
         run: |
           pip install mypy==0.950
           mypy --show-error-codes --strict elementpath
+      - name: Lint with mypy if Python version == 3.7
+        if: ${{ matrix.python-version == '3.7' }}
+        run: |
+          pip install mypy==0.950
+          mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --strict elementpath
       - name: Test with unittest
         run: |
           pip install lxml xmlschema>=1.9.0
