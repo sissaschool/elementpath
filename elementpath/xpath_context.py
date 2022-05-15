@@ -554,6 +554,9 @@ class XPathContext:
         self.axis = axis or 'following-sibling'
 
         if axis == 'preceding-sibling':
+            if parent.text is not None:
+                self.item = TextNode(parent.text, parent)
+                yield self.item
             for child in parent:  # pragma: no cover
                 if child is item:
                     break
@@ -564,6 +567,9 @@ class XPathContext:
                     yield self.item
         else:
             follows = False
+            if parent.text is not None:
+                self.item = TextNode(parent.text, parent)
+                yield self.item
             for child in parent:
                 if follows:
                     self.item = child
@@ -573,6 +579,9 @@ class XPathContext:
                         yield self.item
                 elif child is item:
                     follows = True
+                    if child.tail is not None:
+                        self.item = TextNode(child.tail, child, True)
+                        yield self.item
 
         self.item, self.axis = status
 
