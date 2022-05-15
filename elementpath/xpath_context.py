@@ -539,14 +539,20 @@ class XPathContext:
 
         :param axis: the context axis, default is 'following-sibling'.
         """
+        item: Union[TextNode, ElementProtocol]
+
         if isinstance(self.item, TypedElement):
             item = self.item.elem
+            parent = self.get_parent(item)
+        elif isinstance(self.item, TextNode):
+            item = self.item
+            parent = item.parent
         elif not is_etree_element(self.item) or callable(getattr(self.item, 'tag')):
             return
         else:
             item = cast(ElementNode, self.item)
+            parent = self.get_parent(item)
 
-        parent = self.get_parent(item)
         if parent is None:
             return
 
@@ -554,9 +560,15 @@ class XPathContext:
         self.axis = axis or 'following-sibling'
 
         if axis == 'preceding-sibling':
-            if parent.text is not None:
-                self.item = TextNode(parent.text, parent)
-                yield self.item
+            if is_element_node(parent):
+                elem = cast(ElementNode, parent)
+                if elem.text is not None:
+                    self.item = TextNode(elem.text, elem)
+                    if self.item == item:
+                        self.item, self.axis = status
+                        return
+                    yield self.item
+
             for child in parent:  # pragma: no cover
                 if child is item:
                     break
@@ -564,12 +576,16 @@ class XPathContext:
                 yield child
                 if child.tail is not None:
                     self.item = TextNode(child.tail, child, True)
+                    if self.item == item:
+                        break
                     yield self.item
         else:
             follows = False
-            if parent.text is not None:
-                self.item = TextNode(parent.text, parent)
-                yield self.item
+            if is_element_node(parent):
+                elem = cast(ElementNode, parent)
+                if elem.text is not None and item == TextNode(elem.text, elem):
+                    follows = True
+
             for child in parent:
                 if follows:
                     self.item = child
@@ -582,6 +598,8 @@ class XPathContext:
                     if child.tail is not None:
                         self.item = TextNode(child.tail, child, True)
                         yield self.item
+                elif child.tail is not None and item == TextNode(child.tail, child, True):
+                    follows = True
 
         self.item, self.axis = status
 
