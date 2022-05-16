@@ -50,7 +50,7 @@ jobs:
         if: ${{ matrix.python-version == '3.7' }}
         run: |
           pip install mypy==0.950
-          mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --strict elementpath
+          mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --no-warn-return-any --strict elementpath
       - name: Test with unittest
         run: |
           pip install lxml xmlschema>=1.9.0
