@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v2.5.2`_ (2022-05-15)
+`v2.5.2`_ (2022-05-17)
 ======================
 * Include PR #43 with fixes for `XPathContext.iter_siblings()` (issues #42 and #44)
 
