@@ -655,68 +655,31 @@ class XPathContext:
 
         :param axis: the context axis, default is 'following-sibling'.
         """
-        if isinstance(self.item, (ElementNode, CommentNode, ProcessingInstructionNode)) \
-                and self.item.context is not None:
-            parent = self.item.parent
-            if parent is None:
-                return
-
-            item = self.item
-            status = self.item, self.axis
-            self.axis = axis or 'following-sibling'
-
-            if axis == 'preceding-sibling':
-                for child in parent.children:  # pragma: no cover
-                    if child is item:
-                        break
-                    self.item = child
-                    yield child
-            else:
-                follows = False
-                for child in parent:
-                    if follows:
-                        self.item = child
-                        yield child
-                    elif child is item:
-                        follows = True
-            self.item, self.axis = status
+        if not isinstance(self.item, XPathNode):
             return
 
-        if isinstance(self.item, ElementNode):
-            item = self.item.elem
-        elif not is_etree_element(self.item) or callable(getattr(self.item, 'tag')):
-            return
-        else:
-            item = cast(ElementType, self.item)
-
-        parent = self.get_parent(item)
+        parent = self.item.parent
         if parent is None:
             return
 
+        item = self.item
         status = self.item, self.axis
         self.axis = axis or 'following-sibling'
 
         if axis == 'preceding-sibling':
-            for child in parent:  # pragma: no cover
+            for child in parent.children:  # pragma: no cover
                 if child is item:
                     break
                 self.item = child
                 yield child
-                if child.tail is not None:
-                    self.item = child.tail
-                    yield self.item
         else:
             follows = False
             for child in parent:
                 if follows:
                     self.item = child
                     yield child
-                    if child.tail is not None:
-                        self.item = child.tail
-                        yield self.item
                 elif child is item:
                     follows = True
-
         self.item, self.axis = status
 
     def iter_descendants(self, axis: Optional[str] = None,
