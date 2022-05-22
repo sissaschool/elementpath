@@ -91,7 +91,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
         result = token.evaluate(copy(context))
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
-        self.assertListEqual(result, [ElementNode(elem_a, xsd_type=elem_a.type)])
+        self.assertListEqual(result, [context.root[0]])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('tst:a/b1')
@@ -101,7 +101,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertIsNone(token[1].xsd_types)
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [ElementNode(elem_b1, xsd_type=elem_b1.type)])
+        self.assertListEqual(result, [context.root[0][0]])
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {"b1": elem_b1.type})
 
@@ -119,7 +119,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertIsNone(token[1].xsd_types)
 
         result = token.evaluate(copy(context))
-        self.assertListEqual(result, [ElementNode(elem_b3, xsd_type=elem_b3.type)])
+        self.assertListEqual(result, [context.root[0][2]])
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {"{http://xpath.test/ns}b3": elem_b3.type})
 
@@ -136,7 +136,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(token[1].value, 'a')
 
         result = token.evaluate(context)
-        self.assertListEqual(result, [ElementNode(elem_a, xsd_type=elem_a.type)])
+        self.assertListEqual(result, [context.root[0]])
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertIsNone(token[0].xsd_types)
         self.assertIsNone(token[1].xsd_types)

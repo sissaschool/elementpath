@@ -1211,8 +1211,6 @@ def evaluate_parse_xml_fragment_function(self, context=None):
 def evaluate_serialize_function(self, context=None):
     # TODO full implementation of serialization with
     #  https://www.w3.org/TR/xpath-functions-30/#xslt-xquery-serialization-30
-
-    breakpoint()
     params = self.get_argument(context, index=1) if len(self) == 2 else None
     if params is None:
         tmpl = '<output:serialization-parameters xmlns:output="{}"/>'

@@ -386,7 +386,7 @@ class XPathContext:
                 except IndexError:
                     return root_node
             else:
-                if elem in elements:
+                if elem.parent is not None and elem in elements:
                     continue
 
                 elements.add(elem)
