@@ -214,13 +214,13 @@ class TextNode(XPathNode):
             )
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def __eq__(self, other: Any) -> bool:
+    def ex__eq____(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and \
             self.value == other.value and \
             self.parent is other.parent and \
             self._tail is other._tail
 
-    def __hash__(self) -> int:
+    def ex__hash__(self) -> int:
         return hash((self.value, self.parent, self._tail))
 
     @property
@@ -319,17 +319,21 @@ class ElementNode(XPathNode, ElementProxyMixin):
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
 
         if hasattr(elem, 'nsmap'):
+            nsmap = cast(LxmlElementProtocol, elem).nsmap
+        else:
+            nsmap = context.namespaces
+
+        if not nsmap:
+            self.namespaces = [NamespaceNode(context, 'xml', XML_NAMESPACE, self)]
+        elif 'xml' in nsmap:
             self.namespaces = [
-                NamespaceNode(context, pfx, uri, self)
-                for pfx, uri in cast(LxmlElementProtocol, elem).nsmap.items()
-            ]
-        elif context is not None and context.namespaces and isinstance(parent, ElementNode):
-            self.namespaces = [
-                NamespaceNode(context, pfx, uri, self)
-                for pfx, uri in context.namespaces.items()
+                NamespaceNode(context, pfx, uri, self) for pfx, uri in nsmap.items()
             ]
         else:
-            self.namespaces = []
+            self.namespaces = [NamespaceNode(context, 'xml', XML_NAMESPACE, self)]
+            self.namespaces.extend(
+                NamespaceNode(context, pfx, uri, self) for pfx, uri in nsmap.items()
+            )
 
         super().__init__(context)
         self.elem = elem

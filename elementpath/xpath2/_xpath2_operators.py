@@ -81,7 +81,7 @@ def evaluate_variable_reference(self, context=None):
                     except KeyError:
                         pass
                     else:
-                        xsd_type = context.root.xpath_proxy.get_type(type_name)
+                        xsd_type = context.root.elem.xpath_proxy.get_type(type_name)
                         if xsd_type is not None:
                             return get_atomic_value(xsd_type)
 

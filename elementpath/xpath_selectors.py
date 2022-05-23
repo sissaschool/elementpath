@@ -49,7 +49,7 @@ def select(root: ContextRootType,
     }
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
-    context = XPathContext(root, **context_kwargs)
+    context = XPathContext(root, namespaces, **context_kwargs)
     return root_token.get_results(context)
 
 
@@ -80,7 +80,7 @@ def iter_select(root: ContextRootType,
     }
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
-    context = XPathContext(root, **context_kwargs)
+    context = XPathContext(root, namespaces, **context_kwargs)
     return root_token.select_results(context)
 
 

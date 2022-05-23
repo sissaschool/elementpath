@@ -17,7 +17,7 @@ import decimal
 from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
-from ..xpath_nodes import TextNode, is_xpath_node, is_document_node, \
+from ..xpath_nodes import ElementNode, TextNode, is_xpath_node, is_document_node, \
     is_element_node, is_comment_node, is_processing_instruction_node, node_name
 from ..xpath_token import XPathFunction
 
@@ -134,7 +134,9 @@ def select_id_function(self, context=None):
             item = context.root
 
         if is_element_node(item) or is_document_node(item):
-            yield from filter(lambda e: e.get(XML_ID) == value, item.iter())
+            yield from filter(
+                lambda x: isinstance(x, ElementNode) and x.get(XML_ID) == value, item.iter()
+            )
 
 
 @method(function('name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))

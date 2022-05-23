@@ -102,7 +102,7 @@ class XPathContext:
                  default_calendar: Optional[str] = None,
                  default_place: Optional[str] = None) -> None:
 
-        self.namespaces = namespaces
+        self.namespaces = dict(namespaces) if namespaces else None
         self.root = root
 
         if is_element_node(root):

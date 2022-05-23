@@ -402,13 +402,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_types(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
-        comment = self.etree.Comment('nothing important')
-        pi = self.etree.ProcessingInstruction('action')
-        text = TextNode('aldebaran')
 
         context = XPathContext(element)
+        attribute = AttributeNode(context, 'id', '0212349350')
+        namespace = NamespaceNode(context, 'xs', 'http://www.w3.org/2001/XMLSchema')
+        comment = self.etree.Comment('nothing important')
+        pi = self.etree.ProcessingInstruction('action')
+        text = TextNode(context, 'aldebaran')
+
         self.check_select("node()", [document.getroot()], context=XPathContext(document))
         self.check_selector("node()", element, [])
 
