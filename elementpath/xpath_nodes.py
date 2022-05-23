@@ -441,7 +441,7 @@ class ElementNode(XPathNode, ElementProxyMixin):
             schema_node = cast(XsdElementProtocol, self.elem)
             return get_atomic_value(schema_node.type)
         elif self.xsd_type is None:
-            return UntypedAtomic(self.elem.text or '')
+            return UntypedAtomic(''.join(etree_iter_strings(self.elem)))
         elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.elem.text or '')
         elif self.xsd_type.has_mixed_content():

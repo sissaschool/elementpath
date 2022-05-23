@@ -269,7 +269,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:double(-5)', float)
 
         root = self.etree.XML('<root a="10.3"/>')
-        context = XPathContext(root, item=AttributeNode('a', '10.3'))
+        context = XPathContext(root)
+        context.item = context.root.attributes[0]
         self.check_value('xs:double(.)', float, context=context)
         self.check_value('xs:double(.)', 10.3, context=context)
 
@@ -286,7 +287,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:float("-INF")', float('-inf'))
 
         root = self.etree.XML('<root a="10.3"/>')
-        context = XPathContext(root, item=AttributeNode('a', '10.3'))
+        context = XPathContext(root)
+        context.item = context.root.attributes[0]
         self.check_value('xs:float(.)', float, context=context)
         self.check_value('xs:float(.)', 10.3, context=context)
 
@@ -334,10 +336,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('xs:dateTime(@a)', DateTime10(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode('a', str(DateTime10(1969, 7, 20, 20, 18)))
+        context.item = AttributeNode(context, 'a', str(DateTime10(1969, 7, 20, 20, 18)))
         self.check_value('xs:dateTime(.)', DateTime10(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode('a', 'true')
+        context.item = AttributeNode(context, 'a', 'true')
         self.check_value('xs:dateTime(.)', ValueError, context=context)
 
         context.item = DateTime10(1969, 7, 20, 20, 18)
@@ -422,13 +424,13 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
                 if not isinstance(obj, Date10):
                     raise TypeError()
 
-        context.item = AttributeNode('a', 'true', xsd_type=DummyXsdDateType())
+        context.item = AttributeNode(context, 'a', 'true', xsd_type=DummyXsdDateType())
         self.check_value('xs:date(.)', TypeError, context=context)
 
-        context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
+        context.item = AttributeNode(context, 'a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)
 
-        context.item = AttributeNode('a', 'true')
+        context.item = AttributeNode(context, 'a', 'true')
         self.check_value('xs:date(.)', ValueError, context=context)
 
         root = self.etree.XML("<root>2017-10-02</root>")
