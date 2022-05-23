@@ -27,7 +27,8 @@ else:
 from elementpath.exceptions import MissingContextError
 from elementpath.datatypes import UntypedAtomic
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
-from elementpath.xpath_nodes import ElementNode, AttributeNode, NamespaceNode, TextNode
+from elementpath.xpath_nodes import ElementNode, AttributeNode, NamespaceNode, \
+    CommentNode, ProcessingInstructionNode, TextNode, DocumentNode
 from elementpath.xpath_token import UNICODE_CODEPOINT_COLLATION
 from elementpath.helpers import ordinal
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
@@ -157,20 +158,18 @@ class XPath1TokenTest(unittest.TestCase):
         context = XPathContext(elem)
         self.assertListEqual(list(token.select_results(context)), [elem])
 
-        context = XPathContext(elem, item=ElementNode(elem, xsd_type=xsd_type))
+        context = XPathContext(elem, item=elem)
+        context.root.xsd_type = xsd_type
         self.assertListEqual(list(token.select_results(context)), [elem])
 
-        context = XPathContext(elem, item=AttributeNode('max', '30'))
+        context = XPathContext(elem)
+        context.item = context.root.attributes[0]
         self.assertListEqual(list(token.select_results(context)), ['30'])
 
-        item = AttributeNode('max', '30', xsd_type=xsd_type)
-        context = XPathContext(elem, item=item)
+        context = XPathContext(elem)
+        context.item = context.root.attributes[0]
+        context.item.xsd_type = xsd_type
         self.assertListEqual(list(token.select_results(context)), ['30'])
-
-        attribute = namedtuple('XsdAttribute', 'name local_name type')('max', 'max', xsd_type)
-        item = AttributeNode('max', attribute, xsd_type=xsd_type)
-        context = XPathContext(elem, item=item)
-        self.assertListEqual(list(token.select_results(context)), [attribute])
 
         context = XPathContext(elem, item=10)
         self.assertListEqual(list(token.select_results(context)), [10])
@@ -244,29 +243,35 @@ class XPath1TokenTest(unittest.TestCase):
 
         if self.parser.version != '1.0':
             xsd_type = DummyXsdType()
-            obj = ElementNode(ElementTree.XML('<age>19</age>'), xsd_type=xsd_type)
-            self.assertEqual(token.data_value(obj), 19)
+            context = XPathContext(ElementTree.XML('<age>19</age>'))
+            context.root.xsd_type = xsd_type
+            self.assertEqual(token.data_value(context.root), 19)
 
-        obj = AttributeNode('age', '19')
+        context = XPathContext(ElementTree.XML('<dummy/>'))
+        obj = AttributeNode(context, 'age', '19')
         self.assertEqual(token.data_value(obj), UntypedAtomic('19'))
 
-        obj = NamespaceNode('tns', 'http://xpath.test/ns')
+        obj = NamespaceNode(context, 'tns', 'http://xpath.test/ns')
         self.assertEqual(token.data_value(obj), 'http://xpath.test/ns')
 
-        obj = TextNode('19')
+        obj = TextNode(context, '19')
         self.assertEqual(token.data_value(obj), UntypedAtomic('19'))
 
         obj = ElementTree.XML('<root>a<e1>b</e1>c<e2>d</e2>e</root>')
-        self.assertEqual(token.data_value(obj), UntypedAtomic('abcde'))
+        element_node = ElementNode(context, obj)
+        self.assertEqual(token.data_value(element_node), UntypedAtomic('abcde'))
 
         obj = ElementTree.parse(io.StringIO('<root>a<e1>b</e1>c<e2>d</e2>e</root>'))
-        self.assertEqual(token.data_value(obj), UntypedAtomic('abcde'))
+        document_node = DocumentNode(context, obj)
+        self.assertEqual(token.data_value(document_node), UntypedAtomic('abcde'))
 
         obj = ElementTree.Comment("foo bar")
-        self.assertEqual(token.data_value(obj), 'foo bar')
+        comment_node = CommentNode(context, obj)
+        self.assertEqual(token.data_value(comment_node), 'foo bar')
 
         obj = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        self.assertEqual(token.data_value(obj), 'action nothing to do')
+        pi_node = ProcessingInstructionNode(context, obj)
+        self.assertEqual(token.data_value(pi_node), 'action nothing to do')
 
         self.assertIsNone(token.data_value(None))
         self.assertEqual(token.data_value(19), 19)
@@ -281,18 +286,26 @@ class XPath1TokenTest(unittest.TestCase):
 
         document = ElementTree.parse(io.StringIO(u'<A>123<B1>456</B1><B2>789</B2></A>'))
         element = ElementTree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
         comment = ElementTree.Comment('nothing important')
         pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        text = 'betelgeuse'
-        self.assertEqual(token.string_value(document), '123456789')
-        self.assertEqual(token.string_value(element), '')
-        self.assertEqual(token.string_value(attribute), '0212349350')
-        self.assertEqual(token.string_value(namespace), 'http://www.w3.org/2001/XMLSchema')
-        self.assertEqual(token.string_value(comment), 'nothing important')
-        self.assertEqual(token.string_value(pi), 'action nothing to do')
-        self.assertEqual(token.string_value(text), 'betelgeuse')
+
+        document_node = XPathContext(document).root
+
+        context = XPathContext(element)
+        element_node = context.root
+        attribute_node = AttributeNode(context, 'id', '0212349350')
+        namespace_node = NamespaceNode(context, 'xs', 'http://www.w3.org/2001/XMLSchema')
+        comment_node = CommentNode(context, comment)
+        pi_node = ProcessingInstructionNode(context, pi)
+        text_node = TextNode(context, 'betelgeuse')
+
+        self.assertEqual(token.string_value(document_node), '123456789')
+        self.assertEqual(token.string_value(element_node), '')
+        self.assertEqual(token.string_value(attribute_node), '0212349350')
+        self.assertEqual(token.string_value(namespace_node), 'http://www.w3.org/2001/XMLSchema')
+        self.assertEqual(token.string_value(comment_node), 'nothing important')
+        self.assertEqual(token.string_value(pi_node), 'action nothing to do')
+        self.assertEqual(token.string_value(text_node), 'betelgeuse')
         self.assertEqual(token.string_value(None), '')
 
         self.assertEqual(token.string_value(Decimal(+1999)), '1999')
@@ -317,7 +330,7 @@ class XPath1TokenTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
             element.text = '10'
-            typed_elem = ElementNode(elem=element, xsd_type=xsd_type)
+            typed_elem = ElementNode(context, elem=element, xsd_type=xsd_type)
             self.assertEqual(token.string_value(typed_elem), '10')
             self.assertEqual(token.data_value(typed_elem), 10)
 
@@ -678,8 +691,8 @@ class XPath2TokenTest(XPath1TokenTest):
             root_token = self.parser.parse('@a')
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['string']})
 
-            attribute = AttributeNode('a', schema.attributes['a'])
-            context = XPathSchemaContext(root=schema.meta_schema, item=attribute, axis='self')
+            context = XPathSchemaContext(root=schema.meta_schema, axis='self')
+            attribute = context.item = AttributeNode(context, 'a', schema.attributes['a'])
 
             obj = list(root_token.select_xsd_nodes(context, 'a'))
             self.assertIsInstance(obj[0], AttributeNode)
@@ -691,7 +704,9 @@ class XPath2TokenTest(XPath1TokenTest):
             list(root_token.select_xsd_nodes(context, 'a'))
             self.assertIsNone(root_token.xsd_types)
 
-            context = XPathSchemaContext(root=schema.meta_schema, item=attribute, axis='self')
+            context = XPathSchemaContext(root=schema.meta_schema, axis='self')
+            attribute = context.item = AttributeNode(context, 'a', schema.attributes['a'])
+
             obj = list(root_token.select_xsd_nodes(context, 'a'))
             self.assertIsInstance(obj[0], AttributeNode)
             self.assertEqual(obj[0], attribute)
@@ -738,17 +753,18 @@ class XPath2TokenTest(XPath1TokenTest):
             xsd_type = root_token.get_xsd_type('node')
             self.assertEqual(xsd_type, schema.meta_schema.types['float'])
 
-            xsd_type = root_token.get_xsd_type(AttributeNode('node', 'false'))
+            context = XPathContext(ElementTree.XML('<dummy/>'))
+            xsd_type = root_token.get_xsd_type(AttributeNode(context, 'node', 'false'))
             self.assertEqual(xsd_type, schema.meta_schema.types['boolean'])
-            xsd_type = root_token.get_xsd_type(AttributeNode('node', 'alpha'))
+            xsd_type = root_token.get_xsd_type(AttributeNode(context, 'node', 'alpha'))
             self.assertEqual(xsd_type, schema.meta_schema.types['float'])
 
             elem = ElementTree.Element('node')
             elem.text = 'false'
-            xsd_type = root_token.get_xsd_type(elem)
+            xsd_type = root_token.get_xsd_type(ElementNode(context, elem))
             self.assertEqual(xsd_type, schema.meta_schema.types['boolean'])
 
-            typed_element = ElementNode(elem, xsd_type=xsd_type)
+            typed_element = ElementNode(context, elem, xsd_type=xsd_type)
             self.assertIs(xsd_type, root_token.get_xsd_type(typed_element))
 
             elem.text = 'alpha'
