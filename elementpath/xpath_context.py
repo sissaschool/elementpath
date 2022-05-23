@@ -699,7 +699,7 @@ class XPathContext:
             descendants = self.item.iter_descendants(with_self)
         elif self.item is None:
             if isinstance(self.root, DocumentNode):
-                descendants = self.root.iter(with_self)
+                descendants = self.root.iter_descendants(with_self)
             elif with_self:
                 # Yields None in order to emulate position on document
                 # FIXME replacing the self.root with ElementTree(self.root)?

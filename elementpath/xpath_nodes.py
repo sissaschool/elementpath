@@ -488,7 +488,15 @@ class DocumentNode(XPathNode):
             else:
                 yield from e.iter()
 
-    iter_descendants = iter
+    def iter_descendants(self, with_self=True):
+        if with_self:
+            yield self
+
+        for e in self.children:
+            if callable(e.tag):
+                yield e
+            else:
+                yield from e.iter_descendants()
 
     def __getitem__(self, i: Union[int, slice]) -> Any:
         return self.children[i]

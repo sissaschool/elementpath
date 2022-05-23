@@ -1293,7 +1293,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('.', [context.root], context=context)
 
         context = XPathContext(root=document)
-        self.check_value('.', [context.root], context=context   )
+        self.check_value('.', [context.root], context=context)
 
     def test_self_axis(self):
         root = self.etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
