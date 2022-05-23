@@ -307,7 +307,6 @@ class ElementNode(XPathNode, ElementProxyMixin):
     kind = 'element'
     xsd_type: Optional[XsdTypeProtocol] = None
 
-    text: Optional['TextNode'] = None
     tail: Optional['TextNode'] = None
     nsmap: List['NamespaceNode']
     attrib: List['AttributeNode']
@@ -412,6 +411,10 @@ class ElementNode(XPathNode, ElementProxyMixin):
     @property
     def value(self) -> ElementType:
         return self.elem
+
+    @property
+    def text(self) -> Optional[str]:
+        return self.elem.text
 
     @property
     def name(self) -> str:

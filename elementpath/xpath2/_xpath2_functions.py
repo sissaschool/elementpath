@@ -133,7 +133,7 @@ def evaluate_namespace_uri_for_prefix_function(self, context=None):
     elem = self.get_argument(context, index=1)
     if not is_element_node(elem):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
-    ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+    ns_uris = {get_namespace(e.tag) for e in elem.iter() if isinstance(e, ElementNode)}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
             if p == prefix:
@@ -1455,7 +1455,7 @@ def select_idref_function(self, context=None):
     elif not is_element_node(node) and not is_document_node(node):
         return
 
-    for elem in node.iter():
+    for elem in filter(lambda x: isinstance(x, ElementNode), node.iter()):
         if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
             yield elem
             continue
