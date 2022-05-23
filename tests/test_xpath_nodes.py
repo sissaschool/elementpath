@@ -19,6 +19,7 @@ from elementpath.xpath_nodes import ElementNode, AttributeNode, TextNode, Namesp
     CommentNode, match_element_node, match_attribute_node, is_comment_node, is_document_node, \
     is_processing_instruction_node, node_attributes, node_base_uri, \
     node_document_uri, node_children, node_nilled, node_kind, node_name
+from elementpath.xpath_context import XPathContext
 
 
 class DummyXsdType:
@@ -201,33 +202,37 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_element = ElementNode(element, xsd_type=xsd_type)
-            self.assertTrue(repr(typed_element).startswith(
+            context = XPathContext(element)
+            context.root.xsd_type = xsd_type
+            self.assertTrue(repr(context.root).startswith(
                 "ElementNode(elem=<Element 'schema' at 0x"
             ))
 
     def test_text_nodes(self):
-        parent = ElementTree.Element('element')
-        self.assertEqual(TextNode('alpha'), TextNode('alpha'))
-        self.assertEqual(TextNode('alpha', parent), TextNode('alpha', parent))
-        self.assertEqual(TextNode('alpha', parent, tail=True),
-                         TextNode('alpha', parent, tail=True))
-        self.assertEqual(TextNode('alpha', tail=True), TextNode('alpha'))
-        self.assertNotEqual(TextNode('alpha', parent), TextNode('alpha'))
-        self.assertNotEqual(TextNode('alpha', parent, tail=True),
-                            TextNode('alpha', parent))
-        self.assertNotEqual(TextNode('alpha', parent),
-                            TextNode('alpha', parent=ElementTree.Element('element')))  # != id()
+        context = XPathContext(ElementTree.Element('element'))
+        parent = context.root
 
-        self.assertFalse(TextNode('alpha', parent).is_tail())
-        self.assertTrue(TextNode('alpha', parent, tail=True).is_tail())
-        self.assertFalse(TextNode('alpha', tail=True).is_tail())
+        # fail now because equality if and only if they are the same instance
+        self.assertEqual(TextNode(context, 'alpha'), TextNode(context, 'alpha'))
+        self.assertEqual(TextNode(context, 'alpha', parent), TextNode(context, 'alpha', parent))
+        self.assertEqual(TextNode(context, 'alpha', parent, tail=True),
+                         TextNode(context, 'alpha', parent, tail=True))
+        self.assertEqual(TextNode(context, 'alpha', tail=True), TextNode(context, 'alpha'))
+        self.assertNotEqual(TextNode(context, 'alpha', parent), TextNode(context, 'alpha'))
+        self.assertNotEqual(TextNode(context, 'alpha', parent, tail=True),
+                            TextNode(context, 'alpha', parent))
+        self.assertNotEqual(TextNode(context, 'alpha', parent),
+                            TextNode(context, 'alpha', parent=ElementTree.Element('element')))  # != id()
 
-        self.assertEqual(repr(TextNode('alpha')), "TextNode('alpha')")
-        text = TextNode('alpha', parent)
+        self.assertFalse(TextNode(context, 'alpha', parent).is_tail())
+        self.assertTrue(TextNode(context, 'alpha', parent, tail=True).is_tail())
+        self.assertFalse(TextNode(context, 'alpha', tail=True).is_tail())
+
+        self.assertEqual(repr(TextNode(context, 'alpha')), "TextNode('alpha')")
+        text = TextNode(context, 'alpha', parent)
         self.assertTrue(repr(text).startswith("TextNode('alpha', parent=<Element "))
         self.assertTrue(repr(text).endswith(", tail=False)"))
-        text = TextNode('alpha', parent, tail=True)
+        text = TextNode(context, 'alpha', parent, tail=True)
         self.assertTrue(repr(text).endswith(", tail=True)"))
 
     def test_namespace_nodes(self):

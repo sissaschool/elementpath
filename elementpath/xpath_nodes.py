@@ -102,15 +102,6 @@ class AttributeNode(XPathNode):
             )
         return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
 
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-               self.name == other.name and \
-               self.value == other.value and \
-               self.parent is other.parent
-
-    def __hash__(self) -> int:
-        return hash((self.name, self.value, self.parent))
-
     @property
     def string_value(self) -> str:
         if isinstance(self.value, str):
@@ -162,15 +153,6 @@ class NamespaceNode(XPathNode):
             )
         return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
 
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-            self.prefix == other.prefix and \
-            self.uri == other.uri and \
-            self.parent is other.parent
-
-    def __hash__(self) -> int:
-        return hash((self.prefix, self.uri, self.parent))
-
     @property
     def string_value(self) -> str:
         return self.uri
@@ -213,15 +195,6 @@ class TextNode(XPathNode):
                 self.__class__.__name__, self.value, self.parent, self._tail
             )
         return '%s(%r)' % (self.__class__.__name__, self.value)
-
-    def ex__eq____(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and \
-            self.value == other.value and \
-            self.parent is other.parent and \
-            self._tail is other._tail
-
-    def ex__hash__(self) -> int:
-        return hash((self.value, self.parent, self._tail))
 
     @property
     def string_value(self) -> str:
