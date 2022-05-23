@@ -826,7 +826,7 @@ class XPathContext:
             item = self.item
 
             descendants = set(item.iter_descendants())
-            for self.item in self.root.iter():
+            for self.item in self.root.iter_descendants():
                 if item.index < self.item.index and self.item not in descendants:
                     yield self.item
 
