@@ -318,20 +318,18 @@ class ElementNode(XPathNode, ElementProxyMixin):
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
 
         if hasattr(elem, 'nsmap'):
-            nsmap = cast(LxmlElementProtocol, elem).nsmap
+            self.nsmap = cast(LxmlElementProtocol, elem).nsmap
         else:
-            nsmap = context.namespaces
+            self.nsmap = context.namespaces
 
-        if not nsmap:
-            self.namespaces = [NamespaceNode(context, 'xml', XML_NAMESPACE, self)]
-        elif 'xml' in nsmap:
+        if 'xml' in self.nsmap:
             self.namespaces = [
-                NamespaceNode(context, pfx, uri, self) for pfx, uri in nsmap.items()
+                NamespaceNode(context, pfx, uri, self) for pfx, uri in self.nsmap.items()
             ]
         else:
             self.namespaces = [NamespaceNode(context, 'xml', XML_NAMESPACE, self)]
             self.namespaces.extend(
-                NamespaceNode(context, pfx, uri, self) for pfx, uri in nsmap.items()
+                NamespaceNode(context, pfx, uri, self) for pfx, uri in self.nsmap.items()
             )
 
         super().__init__(context)
