@@ -451,7 +451,9 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root)
         context.item = None
-        self.check_value("/self::node()", expected=[], context=context)
+        # lxml differs: doesn't consider the document position even if select from an ElementTree
+        self.check_value("/self::node()", expected=[root], context=context)
+
         context.item = 1
         self.check_value("self::node()", expected=[], context=context)
 
@@ -1254,7 +1256,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('/A', [root], context=context)
 
         context = XPathContext(root, item=root[0][0])
-        self.check_value('/A', [], context=context)
+        self.check_value('/A', [root], context=context)
 
     def test_path_step_operator_with_duplicates(self):
         root = self.etree.XML('<A>10<B a="2">11</B>10<B a="2"/>10<B>11</B></A>')
