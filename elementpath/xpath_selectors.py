@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Union, Type
-import typing
 
 from .namespaces import NamespacesType
 from .xpath_context import ContextRootType, XPathContext
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
     from .xpath1 import XPath1Parser
     from .xpath30 import XPath30Parser
 
-    ParserType = typing.Union[Type[XPath1Parser], Type[XPath2Parser], Type[XPath30Parser]]
+    ParserType = Union[Type[XPath1Parser], Type[XPath2Parser], Type[XPath30Parser]]
 else:
     ParserType = XPath2Parser
 

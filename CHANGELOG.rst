@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.5.3`_ (2022-05-30)
+======================
+* Fix unary path step operator (issue #46)
+* Fix sphinx warnings *'reference target not found'* (issue #45)
+
 `v2.5.2`_ (2022-05-17)
 ======================
 * Include PR #43 with fixes for `XPathContext.iter_siblings()` (issues #42 and #44)
@@ -361,3 +366,4 @@ CHANGELOG
 .. _v2.5.0: https://github.com/sissaschool/elementpath/compare/v2.4.0...v2.5.0
 .. _v2.5.1: https://github.com/sissaschool/elementpath/compare/v2.5.0...v2.5.1
 .. _v2.5.2: https://github.com/sissaschool/elementpath/compare/v2.5.1...v2.5.2
+.. _v2.5.3: https://github.com/sissaschool/elementpath/compare/v2.5.2...v2.5.3
