@@ -90,7 +90,7 @@ XML Schema proxy
 
 The XPath 2.0 parser can be interfaced with an XML Schema processor through a schema proxy.
 An :class:`XMLSchemaProxy` class is defined for interfacing schemas created with the *xmlschema* package.
-This class is based on an abstract class :class:`AbstractSchemaProxy`, that can be used for
+This class is based on an abstract class :class:`elementpath.AbstractSchemaProxy`, that can be used for
 implementing concrete interfaces to other types of XML Schema processors.
 
 .. autoclass:: elementpath.AbstractSchemaProxy
@@ -110,7 +110,10 @@ implementing concrete interfaces to other types of XML Schema processors.
 XPath nodes
 ===========
 
-XPath nodes are processed using a set of classes derived from :class:`XPathNode`:
+XPath nodes are processed using a set of classes derived from
+:class:`elementpath.XPathNode`:
+
+.. autoclass:: elementpath.XPathNode
 
 .. autoclass:: elementpath.AttributeNode
 .. autoclass:: elementpath.TextNode
@@ -133,7 +136,7 @@ Exception classes
 .. autoexception:: elementpath.RegexError
 
 There are also other exceptions, multiple derived from the base exception
-:class:`ElementPathError` and Python built-in exceptions:
+:class:`elementpath.ElementPathError` and Python built-in exceptions:
 
 .. autoexception:: elementpath.ElementPathKeyError
 .. autoexception:: elementpath.ElementPathLocaleError
