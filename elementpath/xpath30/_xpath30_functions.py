@@ -1220,7 +1220,7 @@ def evaluate_serialize_function(self, context=None):
     elif params.tag != SERIALIZATION_PARAMS:
         raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
 
-    if context is None:
+    if context is None or isinstance(context, XPathSchemaContext):
         etree = ElementTree
     else:
         etree = context.etree
@@ -1322,7 +1322,8 @@ def evaluate_serialize_function(self, context=None):
         elif not is_etree_element(item):
             chunks.append(str(item))
             continue
-        elif hasattr(item, 'xsd_version') or is_schema_node(item):
+
+        if hasattr(item, 'xsd_version') or is_schema_node(item):
             continue  # XSD schema or schema node
 
         try:
