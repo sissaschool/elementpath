@@ -52,7 +52,7 @@ def select_namespace_axis(self, context=None):
             name = self[0].value
 
         for context.item in elem.namespaces:
-            if name == '*' or name == context.item.pfx:
+            if name == '*' or name == context.item.prefix:
                 yield context.item
 
 

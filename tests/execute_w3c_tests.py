@@ -654,8 +654,12 @@ class TestCase(object):
         if not with_context:
             context = None
         elif environment is None:
-            context = XPathContext(root=self.etree.XML("<empty/>"), timezone='Z',
-                                   default_calendar=self.calendar)
+            context = XPathContext(
+                root=self.etree.XML("<empty/>"),
+                namespaces=test_namespaces,
+                timezone='Z',
+                default_calendar=self.calendar
+            )
         else:
             kwargs = {'timezone': 'Z'}
             variables = {}
@@ -691,6 +695,8 @@ class TestCase(object):
                 if 'non_empty_sequence_collection' in self.features:
                     kwargs['default_resource_collection'] = uri
 
+            if test_namespaces:
+                kwargs['namespaces'] = test_namespaces
             if variables:
                 kwargs['variables'] = variables
             if documents:
