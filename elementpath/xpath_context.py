@@ -609,8 +609,9 @@ class XPathContext:
                     self.item = TextNode(self, child.tail, child, True)
                     yield self.item
 
-        elif isinstance(self.root, DocumentNode):
-            for self.item in self.root:
+        elif isinstance(self.item, DocumentNode):
+            document = self.item
+            for self.item in document:
                 yield self.item
 
         elif is_document_node(self.item):
