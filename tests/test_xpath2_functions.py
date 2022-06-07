@@ -779,8 +779,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                               '  <B1><p2:C xmlns:p2="ns2"/></B1><B2/>'
                               '  <p0:B3><eg:C1 xmlns:eg="http://www.example.com/ns/"/><C2/></p0:B3>'
                               '</p1:A>')
-        context = XPathContext(root=root)
 
+        context = XPathContext(root=root, namespaces=self.namespaces)
         self.check_value("fn:resolve-QName((), .)", context=context)
 
         if self.etree is lxml_etree:

@@ -533,9 +533,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type("(1, 2) le (2, 3)", 'XPTY0004', 'sequence of length greater than one')
 
         root = self.etree.XML('<root min="10" max="7"/>')
-        attributes = [AttributeNode(*x, root) for x in root.attrib.items()]
-        self.check_value('@min', [attributes[0]], context=XPathContext(root=root))
-        self.check_value('@min le @max', True, context=XPathContext(root=root))
+        context = XPathContext(root=root)
+        self.check_value('@min', [context.root.attributes[0]], context=context)
+        self.check_value('@min le @max', True, context=context)
+
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))
         self.check_value('@min le @maximum', None, context=XPathContext(root=root))
@@ -778,7 +779,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root = self.etree.XML('<root>hello</root>')
             context = XPathContext(root)
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
-                typed_element = ElementNode(root, xsd_type=schema.elements['root'])
+                typed_element = ElementNode(context, root, xsd_type=schema.elements['root'])
                 self.check_select("self::element(*, xs:string)", [typed_element], context)
                 self.check_select("self::element(*, xs:int)", [], context)
 

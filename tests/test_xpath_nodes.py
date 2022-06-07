@@ -41,6 +41,10 @@ class DummyXsdType:
 class XPathNodesTest(unittest.TestCase):
     elem = ElementTree.XML('<node a1="10"/>')
 
+    def setUp(self):
+        root = ElementTree.Element('root')
+        self.context = XPathContext(root)  # Dummy context for creating nodes
+
     def test_is_etree_element_function(self):
         self.assertTrue(is_etree_element(self.elem))
         self.assertFalse(is_etree_element('text'))
@@ -53,13 +57,13 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = ElementNode(elem=root, xsd_type=xsd_type)
+            typed_root = ElementNode(self.context, elem=root, xsd_type=xsd_type)
             self.assertListEqual(list(etree_iter_strings(typed_root.elem)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = ElementNode(elem=root, xsd_type=xsd_type)
+            typed_root = ElementNode(self.context, elem=root, xsd_type=xsd_type)
             self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
             comment = ElementTree.Comment('foo')
@@ -101,11 +105,11 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_elem = ElementNode(elem=elem, xsd_type=xsd_type)
+            typed_elem = ElementNode(self.context, elem=elem, xsd_type=xsd_type)
             self.assertTrue(match_element_node(typed_elem, '*'))
 
     def test_match_attribute_node_function(self):
-        attr = AttributeNode('a1', '10', parent=None)
+        attr = AttributeNode(self.context, 'a1', '10', parent=None)
         self.assertTrue(match_attribute_node(attr, '*'))
         self.assertTrue(match_attribute_node(attr, 'a1'))
         with self.assertRaises(ValueError):
@@ -116,15 +120,20 @@ class XPathNodesTest(unittest.TestCase):
             match_attribute_node(attr, 'foo:*')
         self.assertTrue(match_attribute_node(attr, '*:a1'))
         self.assertFalse(match_attribute_node(attr, '{foo}*'))
-        self.assertTrue(match_attribute_node(AttributeNode('{foo}a1', '10'), '{foo}*'))
+        self.assertTrue(
+            match_attribute_node(AttributeNode(self.context, '{foo}a1', '10'), '{foo}*')
+        )
 
-        attr = AttributeNode('{http://xpath.test/ns}a1', '10', parent=None)
+        attr = AttributeNode(self.context, '{http://xpath.test/ns}a1', '10', parent=None)
         self.assertTrue(match_attribute_node(attr, '*:a1'))
 
     def test_is_comment_node_function(self):
         comment = ElementTree.Comment('nothing important')
         self.assertTrue(is_comment_node(comment))
-        self.assertTrue(is_comment_node(CommentNode(comment)))
+
+        root = ElementTree.Element('root')
+        context = XPathContext(root)
+        self.assertTrue(is_comment_node(CommentNode(context, comment)))
         self.assertFalse(is_comment_node(self.elem))
 
     def test_is_document_node_function(self):
@@ -171,26 +180,24 @@ class XPathNodesTest(unittest.TestCase):
         self.assertIsNone(node_document_uri(document))
 
     def test_attribute_nodes(self):
-        parent = ElementTree.Element('element')
-        attribute = AttributeNode('id', '0212349350')
+        parent = self.context.root
+        attribute = AttributeNode(self.context, 'id', '0212349350')
 
         self.assertEqual(repr(attribute),
                          "AttributeNode(name='id', value='0212349350')")
-        self.assertEqual(attribute, AttributeNode('id', '0212349350'))
+        self.assertNotEqual(attribute, AttributeNode(self.context, 'id', '0212349350'))
         self.assertEqual(attribute.as_item(), ('id', '0212349350'))
-        self.assertNotEqual(attribute.as_item(), AttributeNode('id', '0212349350'))
-        self.assertNotEqual(attribute, AttributeNode('id', '0212349350', parent))
+        self.assertNotEqual(attribute.as_item(),
+                            AttributeNode(self.context, 'id', '0212349350'))
+        self.assertNotEqual(attribute, AttributeNode(self.context, 'id', '0212349350', parent))
 
-        attribute = AttributeNode('id', '0212349350', parent)
-        self.assertEqual(attribute, AttributeNode('id', '0212349350', parent))
+        attribute = AttributeNode(self.context, 'id', '0212349350', parent)
+        self.assertNotEqual(attribute, AttributeNode(self.context, 'id', '0212349350', parent))
         self.assertEqual(attribute.as_item(), ('id', '0212349350'))
-        self.assertNotEqual(attribute, AttributeNode('id', '0212349350'))
-        self.assertNotEqual(attribute, AttributeNode('id', '0212349350',
-                                                     parent=ElementTree.Element('element')))
 
-        attribute = AttributeNode('value', '10', parent)
-        self.assertEqual(repr(attribute)[:65],
-                         "AttributeNode(name='value', value='10', parent=<Element 'element'")
+        attribute = AttributeNode(self.context, 'value', '10', parent)
+        self.assertEqual(repr(attribute)[:59],
+                         "AttributeNode(name='value', value='10', parent=ElementNode(")
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
@@ -209,53 +216,55 @@ class XPathNodesTest(unittest.TestCase):
             ))
 
     def test_text_nodes(self):
-        context = XPathContext(ElementTree.Element('element'))
-        parent = context.root
+        context, parent = self.context, self.context.root
 
-        # fail now because equality if and only if they are the same instance
-        self.assertEqual(TextNode(context, 'alpha'), TextNode(context, 'alpha'))
-        self.assertEqual(TextNode(context, 'alpha', parent), TextNode(context, 'alpha', parent))
-        self.assertEqual(TextNode(context, 'alpha', parent, tail=True),
-                         TextNode(context, 'alpha', parent, tail=True))
-        self.assertEqual(TextNode(context, 'alpha', tail=True), TextNode(context, 'alpha'))
-        self.assertNotEqual(TextNode(context, 'alpha', parent), TextNode(context, 'alpha'))
-        self.assertNotEqual(TextNode(context, 'alpha', parent, tail=True),
-                            TextNode(context, 'alpha', parent))
-        self.assertNotEqual(TextNode(context, 'alpha', parent),
-                            TextNode(context, 'alpha', parent=ElementTree.Element('element')))  # != id()
+        # equality if and only is the same instance
+        text_node = TextNode(context, 'alpha')
+        self.assertEqual(text_node, text_node)
+        self.assertNotEqual(text_node, TextNode(context, 'alpha'))
+
+        text_node = TextNode(context, 'alpha', parent)
+        self.assertEqual(text_node, text_node)
+        self.assertNotEqual(text_node, TextNode(context, 'alpha', parent))
+
+        text_node = TextNode(context, 'alpha', parent, tail=True)
+        self.assertEqual(text_node, text_node)
+        self.assertNotEqual(text_node, TextNode(context, 'alpha', parent, tail=True))
 
         self.assertFalse(TextNode(context, 'alpha', parent).is_tail())
         self.assertTrue(TextNode(context, 'alpha', parent, tail=True).is_tail())
         self.assertFalse(TextNode(context, 'alpha', tail=True).is_tail())
 
         self.assertEqual(repr(TextNode(context, 'alpha')), "TextNode('alpha')")
-        text = TextNode(context, 'alpha', parent)
-        self.assertTrue(repr(text).startswith("TextNode('alpha', parent=<Element "))
-        self.assertTrue(repr(text).endswith(", tail=False)"))
+        text_node = TextNode(context, 'alpha', parent)
+        self.assertTrue(repr(text_node).startswith("TextNode('alpha', parent=ElementNode("))
+        self.assertTrue(repr(text_node).endswith(", tail=False)"))
         text = TextNode(context, 'alpha', parent, tail=True)
         self.assertTrue(repr(text).endswith(", tail=True)"))
 
     def test_namespace_nodes(self):
-        parent = ElementTree.Element('element')
-        namespace = NamespaceNode('tns', 'http://xpath.test/ns')
+        context, parent = self.context, self.context.root
+        namespace = NamespaceNode(context, 'tns', 'http://xpath.test/ns')
 
         self.assertEqual(repr(namespace),
                          "NamespaceNode(prefix='tns', uri='http://xpath.test/ns')")
         self.assertEqual(namespace.value, 'http://xpath.test/ns')
-        self.assertEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
+        self.assertNotEqual(namespace, NamespaceNode(context, 'tns', 'http://xpath.test/ns'))
         self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
-        self.assertNotEqual(namespace,
-                            NamespaceNode('tns', 'http://xpath.test/ns', parent))
+        self.assertNotEqual(
+            namespace, NamespaceNode(context, 'tns', 'http://xpath.test/ns', parent=context.root)
+        )
 
-        namespace = NamespaceNode('tns', 'http://xpath.test/ns', parent)
-        self.assertEqual(repr(namespace)[:81],
+        namespace = NamespaceNode(context, 'tns', 'http://xpath.test/ns', parent=context.root)
+        self.assertEqual(repr(namespace)[:75],
                          "NamespaceNode(prefix='tns', uri='http://xpath.test/ns', "
-                         "parent=<Element 'element'")
+                         "parent=ElementNode(")
 
-        self.assertEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns', parent))
+        self.assertNotEqual(namespace,
+                            NamespaceNode(context, 'tns', 'http://xpath.test/ns', parent=context.root))
         self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
-        self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
-        self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns',
+        self.assertNotEqual(namespace, NamespaceNode(context, 'tns', 'http://xpath.test/ns'))
+        self.assertNotEqual(namespace, NamespaceNode(context, 'tns', 'http://xpath.test/ns',
                                                      parent=ElementTree.Element('element')))
 
     def test_node_children_function(self):
@@ -272,16 +281,16 @@ class XPathNodesTest(unittest.TestCase):
         xml_test = '<A xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="false" />'
         self.assertFalse(node_nilled(ElementTree.XML(xml_test)))
         self.assertFalse(node_nilled(ElementTree.XML('<A />')))
-        self.assertFalse(node_nilled(TextNode('foo')))
+        self.assertFalse(node_nilled(TextNode(self.context, 'foo')))
 
     def test_node_kind_function(self):
         document = ElementTree.parse(io.StringIO(u'<A/>'))
         element = ElementTree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
+        attribute = AttributeNode(self.context, 'id', '0212349350')
+        namespace = NamespaceNode(self.context, 'xs', 'http://www.w3.org/2001/XMLSchema')
         comment = ElementTree.Comment('nothing important')
         pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        text = TextNode('betelgeuse')
+        text = TextNode(self.context, 'betelgeuse')
         self.assertEqual(node_kind(document), 'document')
         self.assertEqual(node_kind(element), 'element')
         self.assertEqual(node_kind(attribute), 'attribute')
@@ -296,17 +305,20 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            attribute = AttributeNode('id', '0212349350', xsd_type=xsd_type)
+            attribute = AttributeNode(self.context, 'id', '0212349350', xsd_type=xsd_type)
             self.assertEqual(node_kind(attribute), 'attribute')
 
-            typed_element = ElementNode(element, xsd_type=xsd_type)
+            typed_element = ElementNode(self.context, element, xsd_type=xsd_type)
             self.assertEqual(node_kind(typed_element), 'element')
 
     def test_node_name_function(self):
-        elem = ElementTree.Element('root')
-        attr = AttributeNode('a1', '20')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
-        self.assertEqual(node_name(elem), 'root')
+        root = self.context.root.elem
+
+        attr = AttributeNode(self.context, 'a1', '20')
+        namespace = NamespaceNode(self.context, 'xs', 'http://www.w3.org/2001/XMLSchema')
+        self.assertEqual(node_name(root), 'root')
+        self.assertEqual(node_name(self.context.root), 'root')
+
         self.assertEqual(node_name(attr), 'a1')
         self.assertEqual(node_name(namespace), 'xs')
         self.assertIsNone(node_name(()))
@@ -315,10 +327,10 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            typed_elem = ElementNode(elem=elem, xsd_type=xsd_type)
+            typed_elem = ElementNode(self.context, elem=root, xsd_type=xsd_type)
             self.assertEqual(node_name(typed_elem), 'root')
 
-            typed_attr = AttributeNode('a1', value='20', xsd_type=xsd_type)
+            typed_attr = AttributeNode(self.context, 'a1', value='20', xsd_type=xsd_type)
             self.assertEqual(node_name(typed_attr), 'a1')
 
     def test_etree_iter_paths(self):
