@@ -21,7 +21,7 @@ from .etree import ElementType, DocumentType, is_etree_element, etree_iter_root
 from .xpath_nodes import DocumentNode, ElementNode, CommentNode, \
     ProcessingInstructionNode, AttributeNode, NamespaceNode, TextNode, \
     is_element_node, is_document_node, XPathNode, XPathNodeType, is_schema, \
-    is_schema_node
+    is_schema_node, is_comment_node, is_processing_instruction_node
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -77,6 +77,8 @@ class XPathContext:
     total_nodes: int = 0  # Number of nodes associated to the context
 
     documents: Optional[Dict[str, DocumentNode]] = None
+    collections = None
+    default_collection: Optional[List[XPathNode]] = None
 
     def __init__(self,
                  root: ContextRootType,
@@ -100,31 +102,19 @@ class XPathContext:
                  default_place: Optional[str] = None) -> None:
 
         self.namespaces = dict(namespaces) if namespaces else {}
-        self.root = root
 
-        if is_element_node(root):
-            if is_schema(root):
-                self.root = self._build_schema_nodes(root)
-            else:
-                self.root = self._build_nodes(root)
-            self.item = self.root if item is None else item
-        elif is_document_node(root):
+        assert not isinstance(root, XPathNode)
+        if is_document_node(root) or is_etree_element(root):
             self.root = self._build_nodes(root)
-            self.item = item
         else:
             msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
             raise ElementPathTypeError(msg.format(root))
 
-        if isinstance(item, XPathNode):
-            for _item in self.root.iter():
-                if item == _item:
-                    self.item = _item
-                    break
-        elif is_element_node(item):
-            for _item in self.root.iter():
-                if item is _item.value:
-                    self.item = _item
-                    break
+        assert not isinstance(item, XPathNode)
+        if item is None:
+            self.item = self.root if isinstance(self.root, ElementNode) else None
+        else:
+            self.item = self._get_effective_value(item)
 
         self.position = position
         self.size = size
@@ -133,7 +123,7 @@ class XPathContext:
         if variables is None:
             self.variables = {}
         else:
-            self.variables = {k: v for k, v in variables.items()}
+            self.variables = {k: self._get_effective_value(v) for k, v in variables.items()}
 
         if timezone is None or isinstance(timezone, Timezone):
             self.timezone = timezone
@@ -145,8 +135,13 @@ class XPathContext:
             self.documents = {k: self._build_nodes(v) if v is not None else v
                               for k, v in documents.items()}
 
-        self.collections = collections
-        self.default_collection = default_collection
+        if collections is not None:
+            self.collections = {k: self._get_effective_value(v) if v is not None else v
+                                for k, v in collections.items()}
+
+        if default_collection is not None:
+            self.default_collection = self._get_effective_value(default_collection)
+
         self.text_resources = text_resources if text_resources is not None else {}
         self.resource_collections = resource_collections
         self.default_resource_collection = default_resource_collection
@@ -212,7 +207,7 @@ class XPathContext:
         if self.documents is not None:
             try:
                 for uri, doc in self.documents.items():
-                    doc_context = XPathContext(root=doc)
+                    doc_context = XPathContext(root=doc.value)
                     if any(node == x for x in doc_context.iter()):
                         return doc
             except AttributeError:
@@ -316,7 +311,26 @@ class XPathContext:
         else:
             return item_name == '{%s}%s' % (default_namespace, name)
 
-    def _build_nodes(self, root: Union[DocumentType, ElementType]) -> Union[DocumentNode, ElementNode]:
+    def _get_effective_value(self, value):
+        if isinstance(value, XPathNode):
+            return value
+        elif isinstance(value, (list, tuple)):
+            return [self._get_effective_value(x) for x in value]
+        elif is_document_node(value):
+            if value is self.root.value:
+                return self.root
+        elif is_etree_element(value):
+            for node in self.root.iter():
+                if value is node.value:
+                    return node
+        else:
+            return value
+
+        return self._build_nodes(value)
+
+    def _build_nodes(self, root: Union[DocumentType, ElementType, XMLSchemaProtocol]) \
+            -> Union[DocumentNode, ElementNode]:
+
         if hasattr(root, 'getroot'):
             document = cast(DocumentType, root)
             root_node = parent = DocumentNode(self, document)
@@ -333,9 +347,16 @@ class XPathContext:
 
             children: Iterator[Any] = iter(_root)
             parent = child
-        else:
+
+        elif is_schema(root):
+            return self._build_schema_nodes(root)
+        elif not callable(root.tag):
             children: Iterator[Any] = iter(root)
             root_node = parent = ElementNode(self, root)
+        elif root.tag.__name__ == 'Comment':
+            return CommentNode(self, root)
+        else:
+            return ProcessingInstructionNode(self, root)
 
         iterators: List[Any] = []
         ancestors: List[Any] = []

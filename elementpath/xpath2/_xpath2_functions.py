@@ -34,7 +34,7 @@ from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, \
     is_element_node, is_document_node, is_xpath_node, node_name, \
-    node_nilled, node_document_uri, node_kind
+    node_nilled, node_document_uri, node_kind, XPathNode
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser

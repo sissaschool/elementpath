@@ -1542,16 +1542,17 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         doc2 = self.etree.parse(io.StringIO("<a1><b11><c11/></b11><b12/><b13/></a1>"))
         context = XPathContext(root, collections={'tns0': [doc1, doc2]})
 
-        self.check_value("fn:collection('tns0')", [doc1, doc2], context=context)
+        collection = context.collections['tns0']
+        self.check_value("fn:collection('tns0')", collection, context=context)
 
         self.parser.collection_types = {'tns0': 'node()*'}
-        self.check_value("fn:collection('tns0')", [doc1, doc2], context=context)
+        self.check_value("fn:collection('tns0')", collection, context=context)
         self.parser.collection_types = {'tns0': 'node()'}
         self.check_value("fn:collection('tns0')", TypeError, context=context)
 
         self.check_value("fn:collection()", ValueError, context=context)
         context.default_collection = context.collections['tns0']
-        self.check_value("fn:collection()", [doc1, doc2], context=context)
+        self.check_value("fn:collection()", collection, context=context)
         self.parser.default_collection_type = 'node()'
         self.check_value("fn:collection()", TypeError, context=context)
         self.parser.default_collection_type = 'node()*'
