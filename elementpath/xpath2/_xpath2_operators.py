@@ -741,7 +741,7 @@ def select_element_kind_test(self, context=None):
         for item in self[0].select(context):
             if len(self) == 1:
                 yield item
-            elif isinstance(item, ElementNode) and item.xsd_type is not None:
+            elif isinstance(item, ElementNode):
                 try:
                     type_annotation = get_expanded_name(self[1].source, self.parser.namespaces)
                 except KeyError:
@@ -750,7 +750,7 @@ def select_element_kind_test(self, context=None):
                 if item.nilled:
                     if type_annotation[-1] in '*?':
                         yield item
-                elif type_annotation == item.xsd_type.name:
+                elif item.xsd_type is not None and type_annotation == item.xsd_type.name:
                     yield item
 
 

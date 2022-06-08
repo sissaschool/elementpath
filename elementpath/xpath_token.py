@@ -717,9 +717,21 @@ class XPathToken(Token[XPathTokenType]):
                 elif xsd_node.value.is_matching(name, self.parser.default_namespace):
                     if xsd_node.value.name is None:
                         # node is an XSD element wildcard FIXME
-                        xsd_node = schema_context.root.value.maps.elements.get(name)
-                        if xsd_node is None:
+                        xsd_element = schema_context.root.value.maps.elements.get(name)
+                        if xsd_element is None:
                             continue
+
+                        for child in schema_context.root.children:
+                            if child.value is xsd_element:
+                                xsd_node = child
+                                break
+                        else:
+                            xsd_node = ElementNode(
+                                context=schema_context,
+                                elem=xsd_element,
+                                parent=schema_context.root,
+                                xsd_type=xsd_element.type,
+                            )
 
                     xsd_type = self.add_xsd_type(xsd_node)
                     yield xsd_node
