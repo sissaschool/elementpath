@@ -418,29 +418,32 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], context.root)
 
-        context = XPathContext(root=document)
-        context.variables['nodes'] = [root, document]
+        context = XPathContext(root=document, variables={'nodes': [root, document]})
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root)
+        self.assertIsInstance(nodes[0], ElementNode)
+        self.assertIs(nodes[0].value, root)
 
         root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document)
-
-        context.variables['nodes'] = [root, document, root[0], root[0]]
+        context = XPathContext(
+            root=document, variables={'nodes': [root, document, root[0], root[0]]}
+        )
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root[0])
+        self.assertIs(nodes[0].value, root[0])
 
-        context.variables['nodes'] = [document, root[0][0], root, document, root[0], root[1]]
+        context = XPathContext(
+            root=document,
+            variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
+        )
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 2)
-        self.assertIs(nodes[0], root[0][0])
-        self.assertIs(nodes[1], root[1])
+        self.assertIs(nodes[0].value, root[0][0])
+        self.assertIs(nodes[1].value, root[1])
 
     def test_outermost_function(self):
         with self.assertRaises(MissingContextError):
@@ -460,35 +463,40 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(len(nodes), 1)
         self.assertIs(nodes[0], context.root)
 
-        context = XPathContext(root=document)
-        context.variables['nodes'] = [root, document]
+        context = XPathContext(root=document, variables={'nodes': [root, document]})
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
 
         root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document)
+        context = XPathContext(root=document, variables={'nodes': [root, document, root[0], document]})
 
-        context.variables['nodes'] = [root, document, root[0], document]
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
 
-        context.variables['nodes'] = [document, root[0][0], root, document, root[0], root[1]]
+        context = XPathContext(
+            root=document, variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
+        )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
 
-        context.variables['nodes'] = [root[0][0], root[1], root[0]]
+        context = XPathContext(
+            root=document, variables={'nodes': [root[0][0], root[1], root[0]]}
+        )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 2)
-        self.assertIs(nodes[0], root[0])
-        self.assertIs(nodes[1], root[1])
+        self.assertIs(nodes[0].value, root[0])
+        self.assertIs(nodes[1].value, root[1])
 
     def test_parse_xml_function(self):
         document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
