@@ -1220,6 +1220,8 @@ def evaluate_serialize_function(self, context=None):
         pass
     elif params.tag != SERIALIZATION_PARAMS:
         raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
+    else:
+        params = params.value
 
     if context is None or isinstance(context, XPathSchemaContext):
         etree = ElementTree

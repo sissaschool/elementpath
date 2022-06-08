@@ -593,14 +593,18 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
     def test_serialize_function(self):
         root = self.etree.XML('<root/>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document)
-        context.variables['params'] = ElementTree.XML(
-            '<output:serialization-parameters '
-            '    xmlns:output="http://www.w3.org/2010/xslt-xquery-serialization">'
-            '  <output:omit-xml-declaration value="yes"/>'
-            '</output:serialization-parameters>'
+        context = XPathContext(
+            root=document,
+            variables={
+                'params': ElementTree.XML(
+                    '<output:serialization-parameters '
+                    '    xmlns:output="http://www.w3.org/2010/xslt-xquery-serialization">'
+                    '  <output:omit-xml-declaration value="yes"/>'
+                    '</output:serialization-parameters>'
+                 ),
+                'data': self.etree.XML("<a b='3'/>")
+            }
         )
-        context.variables['data'] = self.etree.XML("<a b='3'/>")
         result = self.parser.parse('fn:serialize($data, $params)').evaluate(context)
         self.assertEqual(result.replace(' />', '/>'), '<a b="3"/>')
 
