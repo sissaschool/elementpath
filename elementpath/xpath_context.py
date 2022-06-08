@@ -15,16 +15,13 @@ from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
     Optional, Sequence, Union, Callable, MutableMapping, Set, Tuple
 
 from .exceptions import ElementPathTypeError, ElementPathValueError
-from .namespaces import XML_NAMESPACE
 from .datatypes import AnyAtomicType, Timezone
-from .protocols import ElementProtocol, LxmlElementProtocol, \
-    XsdElementProtocol, XMLSchemaProtocol
-from .etree import ElementType, DocumentType, is_etree_element, \
-    is_lxml_etree_element, etree_iter_root
+from .protocols import ElementProtocol, XsdElementProtocol, XMLSchemaProtocol
+from .etree import ElementType, DocumentType, is_etree_element, etree_iter_root
 from .xpath_nodes import DocumentNode, ElementNode, CommentNode, \
     ProcessingInstructionNode, AttributeNode, NamespaceNode, TextNode, \
-    is_element_node, is_document_node, is_lxml_document_node, XPathNode, \
-    XPathNodeType, is_schema, is_schema_node
+    is_element_node, is_document_node, XPathNode, XPathNodeType, is_schema, \
+    is_schema_node
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -422,43 +419,6 @@ class XPathContext:
         """
         yield from self.root.iter()
 
-    def iter_results(self, results: Set[Any], namespaces: Optional[Dict[str, str]] = None) \
-            -> Iterator[Optional[ContextItemType]]:
-        """
-        Generate results in document order.
-
-        :param results: a container with selection results.
-        :param namespaces: a fallback mapping for generating namespaces nodes, \
-        used when element nodes do not have a property for in-scope namespaces.
-        """
-        status = self.root, self.item
-        roots: Any
-        root: Union[DocumentType, ElementType]
-
-        documents = [v for v in results if is_document_node(v)]
-        documents.append(self.root)
-        documents.extend(v for v in self.variables.values() if is_document_node(v))
-        visited_docs = set()
-
-        for doc in documents:
-            if doc in visited_docs:
-                continue
-            visited_docs.add(doc)
-
-            self.root = doc
-            for self.item in self.root.iter():
-                if self.item in results:
-                    yield self.item
-                    results.remove(self.item)
-
-                elif is_etree_element(self.item):
-                    # Match XSD decoded elements
-                    for typed_element in filter(lambda x: isinstance(x, ElementNode), results):
-                        if typed_element.elem is self.item:
-                            yield typed_element
-
-        self.root, self.item = status
-
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
@@ -828,7 +788,7 @@ class XPathContext:
 
             descendants = set(item.iter_descendants())
             for self.item in self.root.iter_descendants():
-                if item.index < self.item.index and self.item not in descendants:
+                if item.position < self.item.position and self.item not in descendants:
                     yield self.item
 
             self.item, self.axis = status

@@ -106,9 +106,9 @@ def select_intersect_and_except_operators(self, context=None):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
-        yield from context.iter_results(s1 - s2)
+        yield from sorted(s1 - s2, key=lambda x: x.position)
     else:
-        yield from context.iter_results(s1 & s2)
+        yield from sorted(s1 & s2, key=lambda x: x.position)
 
 
 ###

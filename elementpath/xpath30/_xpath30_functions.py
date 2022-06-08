@@ -934,7 +934,7 @@ def select_innermost_function(self, context=None):
 
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
     results = {x for x in nodes if x not in ancestors}
-    yield from context.iter_results(results, namespaces=self.parser.other_namespaces)
+    yield from sorted(results, key=lambda x: x.position)
 
 
 @method(function('outermost', nargs=1, sequence_types=('node()*', 'node()*')))
@@ -954,7 +954,8 @@ def select_outermost_function(self, context=None):
         if any(x in nodes for x in ancestors):
             continue
         results.add(item)
-    yield from context.iter_results(results, namespaces=self.parser.other_namespaces)
+
+    yield from sorted(results, key=lambda x: x.position)
 
 
 ##

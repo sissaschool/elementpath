@@ -635,7 +635,7 @@ def select_union_operator(self, context=None):
     elif not self.cut_and_sort:
         yield from results
     else:
-        yield from context.iter_results(results)
+        yield from sorted(results, key=lambda x: x.position)
 
 
 ###
@@ -755,7 +755,7 @@ def select_descendant_path(self, context=None):
                     if isinstance(context, XPathSchemaContext):
                         self[0].add_xsd_type(result)
 
-        yield from context.iter_results(items)
+        yield from sorted(items, key=lambda x: x.position)
 
 
 ###

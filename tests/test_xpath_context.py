@@ -420,44 +420,6 @@ class XPathContextTest(unittest.TestCase):
             context.root[1].xsd_type = xsd_type
             self.assertListEqual(list(context.iter_followings()), result)
 
-    def test_iter_results(self):
-        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
-
-        results = [root[2], root[0][0]]
-        context = XPathContext(root)
-        self.assertListEqual(list(context.iter_results(results)), [root[0][0], root[2]])
-
-        with patch.object(DummyXsdType(), 'is_empty', return_value=True) as xsd_type:
-            context = XPathContext(root, item=root)
-            context.root.xsd_type = xsd_type
-            results = [root[2], root[0][0]]
-            self.assertListEqual(list(context.iter_results(results)), [root[0][0], root[2]])
-
-            results = [root[2], context.root[0][0]]
-            context = XPathContext(root)
-            self.assertListEqual(list(context.iter_results(results)),
-                                 [context.root[0][0], root[2]])
-
-            context = XPathContext(root, item=root)
-            context.root.xsd_type = xsd_type
-            results = [root[2], context.root[0][0]]
-            self.assertListEqual(list(context.iter_results(results)),
-                                 [context.root[0][0], root[2]])
-
-        with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
-            context = XPathContext(root)
-            attribute = context.root[2][1].attributes[0]
-            attribute.xsd_type = xsd_type
-            results = [attribute, root[0]]
-            self.assertListEqual(list(context.iter_results(results.copy())), results[::-1])
-
-            context = XPathContext(root)
-            results = [
-                AttributeNode(context, 'max', '11', xsd_type=xsd_type),
-                root[0]
-            ]
-            self.assertListEqual(list(context.iter_results(results.copy())), results[1:])
-
 
 if __name__ == '__main__':
     unittest.main()

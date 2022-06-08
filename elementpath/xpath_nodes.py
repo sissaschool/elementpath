@@ -54,12 +54,12 @@ class XPathNode:
     value: Any = None
 
     context: 'XPathContext'
-    index: int  # documents total order
+    position: int  # position in context, for document total order.
 
     def __init__(self, context: 'XPathContext') -> None:
         self.context = context
         context.total_nodes += 1
-        self.index = context.total_nodes
+        self.position = context.total_nodes
 
     @property
     def string_value(self) -> str:
