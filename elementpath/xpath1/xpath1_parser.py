@@ -25,8 +25,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
-from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
-    ElementNode, AttributeNode
+from ..xpath_nodes import XPathNode, ElementNode, AttributeNode
 
 COMMON_SEQUENCE_TYPES = {
     'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
@@ -366,7 +365,7 @@ class XPath1Parser(Parser[XPathToken]):
             else:
                 return all(self.match_sequence_type(x, sequence_type) for x in value)
         elif sequence_type == 'item()':
-            return is_xpath_node(value) or isinstance(value, (AnyAtomicType, list, XPathFunction))
+            return isinstance(value, XPathNode) or isinstance(value, (AnyAtomicType, list, XPathFunction))
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
         elif sequence_type.startswith('function('):
@@ -374,7 +373,7 @@ class XPath1Parser(Parser[XPathToken]):
                 return False
             return value.match_function_test(sequence_type)
 
-        value_kind = node_kind(value)
+        value_kind = getattr(value, 'kind', None)
         if value_kind is None:
             try:
                 type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
@@ -402,7 +401,7 @@ class XPath1Parser(Parser[XPathToken]):
             name, type_name = params.split(',')
             if type_name.endswith('?'):
                 type_name = type_name[:-1]
-            elif node_nilled(value):
+            elif isinstance(value, ElementNode) and value.nilled:
                 return False
 
             if type_name == 'xs:untyped':
@@ -421,8 +420,8 @@ class XPath1Parser(Parser[XPathToken]):
             return True
 
         try:
-            return node_name(value) == get_expanded_name(name, self.namespaces)
-        except (KeyError, ValueError):
+            return value.name == get_expanded_name(name, self.namespaces)
+        except (KeyError, ValueError, AttributeError):
             return False
 
     def check_variables(self, values: MutableMapping[str, Any]) -> None:

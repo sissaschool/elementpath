@@ -396,7 +396,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertFalse(self.parser.parse('has-children()').evaluate(context))
         self.assertFalse(self.parser.parse('has-children(.)').evaluate(context))
 
-        context.variables['elem'] = self.etree.XML('<a><b1/><b2/></a>')
+        context.variables['elem'] = ElementNode(context, self.etree.XML('<a><b1/><b2/></a>'))
         self.assertTrue(self.parser.parse('has-children($elem)').evaluate(context))
         self.assertFalse(self.parser.parse('has-children($elem/b1)').evaluate(context))
 

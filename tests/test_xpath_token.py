@@ -220,10 +220,11 @@ class XPath1TokenTest(unittest.TestCase):
     def test_boolean_value_function(self):
         token = self.parser.parse('true()')
         elem = ElementTree.Element('A')
+        context = XPathContext(elem)
 
-        self.assertTrue(token.boolean_value(elem))
+        self.assertTrue(token.boolean_value(context.root))
         self.assertFalse(token.boolean_value([]))
-        self.assertTrue(token.boolean_value([elem]))
+        self.assertTrue(token.boolean_value([context.root]))
         self.assertFalse(token.boolean_value([0]))
         self.assertTrue(token.boolean_value([1]))
 
@@ -278,8 +279,9 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(token.data_value('19'), '19')
         self.assertFalse(token.data_value(False))
 
+        # Does not check type of non nodes, simply returns the object.
         tagged_object = Tagged()
-        self.assertIsNone(token.data_value(tagged_object))
+        self.assertIs(token.data_value(tagged_object), tagged_object)
 
     def test_string_value_function(self):
         token = self.parser.parse('true()')
@@ -886,8 +888,10 @@ class XPath2TokenTest(XPath1TokenTest):
 
             token = self.parser.parse('.')
             self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+            context = XPathContext(schema)
+
             try:
-                value = token.string_value(schema.elements['root'])
+                value = token.string_value(context.root[0])  # 'root' element
                 self.assertIsInstance(value, str)
                 self.assertEqual(value, '1')
             finally:

@@ -41,7 +41,6 @@ else:
 from elementpath import *
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
-from elementpath.xpath_nodes import node_kind
 
 try:
     from tests import test_xpath1_parser
@@ -63,7 +62,7 @@ def get_sequence_type(value, xsd_version='1.0'):
             else:
                 return 'node()+'
     else:
-        value_kind = node_kind(value)
+        value_kind = getattr(value, 'kind', None)
         if value_kind is not None:
             return '{}()'.format(value_kind)
         elif isinstance(value, UntypedAtomic):
@@ -141,7 +140,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.assertFalse(self.parser.match_sequence_type('', 'empty-sequence()'))
 
-        root = self.etree.XML('<root><e1/><e2/><e3/></root>')
+        context = XPathContext(self.etree.XML('<root><e1/><e2/><e3/></root>'))
+        root = context.root
         self.assertTrue(self.parser.match_sequence_type(root, 'element()'))
         self.assertTrue(self.parser.match_sequence_type([root], 'element()'))
         self.assertTrue(self.parser.match_sequence_type(root, 'element()', '?'))

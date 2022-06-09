@@ -33,8 +33,7 @@ from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
 from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, \
-    is_element_node, is_document_node, is_xpath_node, node_name, \
-    node_nilled, node_document_uri, node_kind, XPathNode
+    is_element_node, is_document_node, XPathNode
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
@@ -228,10 +227,10 @@ def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
-    name = node_name(arg)
+    name = arg.name
     if name is None:
         return
     elif name.startswith('{'):
@@ -251,9 +250,9 @@ def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
-    return node_nilled(arg)
+    return arg.nilled
 
 
 @method(function('data', nargs=1, sequence_types=('item()*', 'xs:anyAtomicType*')))
@@ -273,11 +272,10 @@ def evaluate_base_uri_function(self, context=None):
         raise self.missing_context("context item is undefined")
     elif item is None:
         return None
-    elif not is_xpath_node(item):
+    elif not isinstance(item, XPathNode):
         raise self.wrong_context_type("context item is not a node")
-    elif is_document_node(item):
-        base_uri = item.getroot().get(XML_BASE)
-        return AnyURI(base_uri if base_uri is not None else '')
+    elif isinstance(item, DocumentNode):
+        return AnyURI('')
     else:
         context.item = item
         base_uri = []
@@ -301,17 +299,17 @@ def evaluate_document_uri_function(self, context=None):
         raise self.missing_context()
 
     arg = self.get_argument(context)
-    if arg is None or not is_document_node(arg):
-        return
+    if isinstance(arg, DocumentNode):
+        uri = arg.document_uri
+        if uri is not None:
+            return AnyURI(uri)
+        elif isinstance(context.root, DocumentNode):
+            if context.documents:
+                for uri, doc in context.documents.items():
+                    if doc and doc.document is context.root.document:
+                        return AnyURI(uri)
 
-    uri = node_document_uri(arg)
-    if uri is not None:
-        return AnyURI(uri)
-    elif isinstance(context.root, DocumentNode):
-        if context.documents:
-            for uri, doc in context.documents.items():
-                if doc and doc.document is context.root.document:
-                    return AnyURI(uri)
+    return None
 
 
 ###
@@ -352,7 +350,7 @@ def evaluate_abs_function(self, context=None):
         return
     elif isinstance(item, float) and math.isnan(item):
         return item
-    elif is_xpath_node(item):
+    elif isinstance(item, XPathNode):
         value = self.string_value(item)
         try:
             return abs(Decimal(value))
@@ -667,9 +665,9 @@ def evaluate_deep_equal_function(self, context=None):
                 return False
             elif value1 is None:
                 return True
-            elif (is_xpath_node(value1)) ^ (is_xpath_node(value2)):
+            elif (isinstance(value1, XPathNode)) ^ (isinstance(value2, XPathNode)):
                 return False
-            elif not is_xpath_node(value1):
+            elif not isinstance(value1, XPathNode):
                 try:
                     if isinstance(value1, bool):
                         if not isinstance(value2, bool) or value1 is not value2:
@@ -718,7 +716,7 @@ def evaluate_deep_equal_function(self, context=None):
                         return False
                 except TypeError:
                     return False
-            elif node_kind(value1) != node_kind(value2):
+            elif value1.kind != value2.kind:
                 return False
             elif isinstance(value1, ElementNode):
                 if not etree_deep_equal(value1.elem, value2.elem):
@@ -1315,14 +1313,14 @@ def evaluate_root_function(self, context=None):
     elif not self:
         if context.item is None:
             return context.root
-        elif not is_xpath_node(context.item):
+        elif not isinstance(context.item, XPathNode):
             raise self.error('XPTY0004')
         return context.get_root(context.item)
     else:
         item = self.get_argument(context)
         if item is None:
             return None
-        elif not is_xpath_node(item):
+        elif not isinstance(item, XPathNode):
             raise self.error('XPTY0004')
         return context.get_root(item)
 
@@ -1385,7 +1383,7 @@ def select_id_function(self, context=None):
     else:
         node = self.get_argument(context, index=1)
 
-    if not is_xpath_node(node):
+    if not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
 
     if isinstance(context, XPathSchemaContext):
@@ -1450,7 +1448,7 @@ def select_idref_function(self, context=None):
     elif context.item is None:
         node = context.root
 
-    if not is_xpath_node(node):
+    if not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
     elif not is_element_node(node) and not is_document_node(node):
         return

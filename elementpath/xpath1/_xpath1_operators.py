@@ -25,7 +25,7 @@ from ..xpath_context import XPathSchemaContext
 from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    is_xpath_node, is_schema_node, is_document_node, is_element_node
+    is_schema_node, is_document_node, is_element_node
 
 from .xpath1_parser import XPath1Parser
 
@@ -630,7 +630,7 @@ def select_union_operator(self, context=None):
         raise self.missing_context()
 
     results = {item for k in range(2) for item in self[k].select(copy(context))}
-    if any(not is_xpath_node(x) for x in results):
+    if any(not isinstance(x, XPathNode) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif not self.cut_and_sort:
         yield from results
@@ -689,7 +689,7 @@ def select_child_path(self, context=None):
     else:
         items = set()
         for _ in context.inner_focus_select(self[0]):
-            if not is_xpath_node(context.item):
+            if not isinstance(context.item, XPathNode):
                 raise self.error('XPTY0019')
 
             for result in self[1].select(context):
@@ -716,7 +716,7 @@ def select_descendant_path(self, context=None):
     elif len(self) == 2:
         items = set()
         for _ in context.inner_focus_select(self[0]):
-            if not is_xpath_node(context.item):
+            if not isinstance(context.item, XPathNode):
                 raise self.error('XPTY0019')
 
             for _ in context.iter_descendants():
@@ -774,7 +774,7 @@ def select_predicate(self, context=None):
 
     for _ in context.inner_focus_select(self[0]):
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
-                and not is_xpath_node(context.item):
+                and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
 
         predicate = [x for x in self[1].select(copy(context))]

@@ -11,7 +11,7 @@
 Helper functions for XPath nodes and basic data types.
 """
 from urllib.parse import urlparse
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, cast, Any, Iterator, List, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
@@ -20,7 +20,7 @@ from .exceptions import ElementPathValueError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
-    etree_iter_strings, etree_iter_root, ElementProxyMixin
+    etree_iter_strings, ElementProxyMixin
 
 if TYPE_CHECKING:
     from .xpath_context import XPathContext
@@ -33,9 +33,10 @@ ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstr
 
 
 ###
-# Other node types, based on a class hierarchy. These nodes
-# include also wrappers for element and attribute nodes that
-# are associated with an XSD type.
+# XQuery and XPath Data Model: https://www.w3.org/TR/xpath-datamodel/
+#
+# Note: in this implementation empty sequence return value is replaced by None.
+#
 class XPathNode:
 
     # Accessors, empty sequences are represented with None values.
@@ -224,9 +225,9 @@ class CommentNode(XPathNode, ElementProxyMixin):
 
     @property
     def base_uri(self) -> Optional[str]:
-        if self.parent is None:
+        if self.parent is None or isinstance(self.parent, DocumentNode):
             return None
-        return self.parent.get(XML_BASE)  # FIXME
+        return self.parent.get(XML_BASE)
 
     @property
     def string_value(self) -> str:
@@ -393,7 +394,7 @@ class ElementNode(XPathNode, ElementProxyMixin):
 
     @property
     def base_uri(self) -> Optional[str]:
-        return self.elem.get(XML_BASE)  # FIXME
+        return self.elem.get(XML_BASE)
 
     @property
     def nilled(self) -> bool:
@@ -450,7 +451,10 @@ class DocumentNode(XPathNode):
         self.children = []
 
     def getroot(self):
-        return self.document.getroot()
+        for child in self.children:
+            if isinstance(child, ElementNode):
+                return child
+        raise RuntimeError("Missing document root")
 
     def iter(self, with_self=True):
         if with_self:
@@ -492,6 +496,18 @@ class DocumentNode(XPathNode):
     @property
     def typed_value(self) -> UntypedAtomic:
         return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
+
+    @property
+    def document_uri(self) -> Optional[str]:
+        try:
+            uri = cast(str, self.document.getroot().attrib[XML_BASE])
+            parts = urlparse(uri)
+        except (KeyError, ValueError):
+            pass
+        else:
+            if parts.scheme and parts.netloc or parts.path.startswith('/'):
+                return uri
+        return None
 
 
 XPathNodeType = Union[ElementType, DocumentType, XPathNode]
@@ -632,86 +648,3 @@ def is_xpath_node(obj: Any) -> bool:
         hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text') or \
         hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name') or \
         hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
-
-
-###
-# Node accessors: https://www.w3.org/TR/xpath-datamodel-30/#accessors-list
-#
-# Note: in this implementation empty sequence return value is replaced by None.
-#
-def node_attributes(obj: Any) -> Optional[Dict[str, Any]]:
-    return obj.attrib if is_element_node(obj) else None
-
-
-def node_base_uri(obj: Any) -> Optional[str]:
-    try:
-        if is_element_node(obj):
-            return cast(str, obj.attrib[XML_BASE])
-        elif is_document_node(obj):
-            return cast(str, obj.getroot().attrib[XML_BASE])
-        return None
-    except KeyError:
-        return None
-
-
-def node_document_uri(obj: Any) -> Optional[str]:
-    if is_document_node(obj):
-        try:
-            uri = cast(str, obj.getroot().attrib[XML_BASE])
-            parts = urlparse(uri)
-        except (KeyError, ValueError):
-            pass
-        else:
-            if parts.scheme and parts.netloc or parts.path.startswith('/'):
-                return uri
-    return None
-
-
-def node_children(obj: Any) -> Optional[Iterator[ElementType]]:
-    if is_element_node(obj):
-        return (child for child in obj)
-    elif is_document_node(obj):
-        return (child for child in [obj.getroot()])
-    else:
-        return None
-
-
-def node_nilled(obj: Any) -> Optional[bool]:
-    if is_element_node(obj):
-        if isinstance(obj, ElementNode):
-            return obj.elem.get(XSI_NIL) in ('true', '1')
-        return obj.get(XSI_NIL) in ('true', '1')
-    return None
-
-
-def node_kind(obj: Any) -> Optional[str]:
-    if isinstance(obj, XPathNode):
-        return obj.kind
-    elif is_element_node(obj):
-        return 'element'
-    elif is_document_node(obj):
-        return 'document'
-    elif is_comment_node(obj):
-        return 'comment'
-    elif is_processing_instruction_node(obj):
-        return 'processing-instruction'
-    else:
-        return None
-
-
-def node_name(obj: Any) -> Optional[str]:
-    if isinstance(obj, XPathNode):
-        return cast(Optional[str], obj.name)
-    elif not hasattr(obj, 'tag') or not hasattr(obj, 'text'):
-        return None
-    elif not callable(obj.tag):
-        return cast(str, obj.tag)
-    elif obj.tag.__name__ != 'ProcessingInstruction':
-        return None
-    else:
-        # Return pi target. ElementTree doesn't have a specific attribute
-        # for target but put it before the text, separated by a space.
-        try:
-            return cast(str, obj.target)
-        except AttributeError:
-            return cast(str, obj.text.split(' ', maxsplit=1)[0])

@@ -15,10 +15,10 @@ import xml.etree.ElementTree as ElementTree
 
 from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
-from elementpath.xpath_nodes import ElementNode, AttributeNode, TextNode, NamespaceNode, \
-    CommentNode, match_element_node, match_attribute_node, is_comment_node, is_document_node, \
-    is_processing_instruction_node, node_attributes, node_base_uri, \
-    node_document_uri, node_children, node_nilled, node_kind, node_name
+from elementpath.xpath_nodes import DocumentNode, ElementNode, AttributeNode, TextNode, \
+    NamespaceNode, CommentNode, ProcessingInstructionNode, match_element_node, \
+    match_attribute_node, is_comment_node, is_document_node, \
+    is_processing_instruction_node
 from elementpath.xpath_context import XPathContext
 
 
@@ -146,38 +146,42 @@ class XPathNodesTest(unittest.TestCase):
         self.assertTrue(is_processing_instruction_node(pi))
         self.assertFalse(is_processing_instruction_node(self.elem))
 
-    def test_node_attributes_function(self):
-        self.assertEqual(node_attributes(self.elem), self.elem.attrib)
-        self.assertIsNone(node_attributes('a text node'))
-
-    def test_node_base_uri_function(self):
+    def test_node_base_uri(self):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/" />'
-        self.assertEqual(node_base_uri(ElementTree.XML(xml_test)), '/')
+
+        context = XPathContext(ElementTree.XML('<empty/>'))
+
+        self.assertEqual(ElementNode(context, ElementTree.XML(xml_test)).base_uri, '/')
         document = ElementTree.parse(io.StringIO(xml_test))
-        self.assertEqual(node_base_uri(document), '/')
-        self.assertIsNone(node_base_uri(self.elem))
-        self.assertIsNone(node_base_uri('a text node'))
+        self.assertIsNone(DocumentNode(context, document).base_uri)
+        self.assertIsNone(ElementNode(context, self.elem).base_uri)
+        self.assertIsNone(TextNode(context, 'a text node').base_uri)
 
     def test_node_document_uri_function(self):
-        self.assertIsNone(node_document_uri(self.elem))
+        node = ElementNode(self.context, self.elem)
+        self.assertIsNone(node.document_uri)
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/root" />'
         document = ElementTree.parse(io.StringIO(xml_test))
-        self.assertEqual(node_document_uri(document), '/root')
+        node = DocumentNode(self.context, document)
+        self.assertEqual(node.document_uri, '/root')
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" ' \
                    'xml:base="http://xpath.test" />'
         document = ElementTree.parse(io.StringIO(xml_test))
-        self.assertEqual(node_document_uri(document), 'http://xpath.test')
+        node = DocumentNode(self.context, document)
+        self.assertEqual(node.document_uri, 'http://xpath.test')
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="dir1/dir2" />'
         document = ElementTree.parse(io.StringIO(xml_test))
-        self.assertIsNone(node_document_uri(document))
+        node = DocumentNode(self.context, document)
+        self.assertIsNone(node.document_uri)
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" ' \
                    'xml:base="http://[xpath.test" />'
         document = ElementTree.parse(io.StringIO(xml_test))
-        self.assertIsNone(node_document_uri(document))
+        node = DocumentNode(self.context, document)
+        self.assertIsNone(node.document_uri)
 
     def test_attribute_nodes(self):
         parent = self.context.root
@@ -268,70 +272,70 @@ class XPathNodesTest(unittest.TestCase):
                                                      parent=ElementTree.Element('element')))
 
     def test_node_children_function(self):
-        self.assertListEqual(list(node_children(self.elem)), [])
-        elem = ElementTree.XML("<A><B1/><B2/></A>")
-        self.assertListEqual(list(node_children(elem)), [x for x in elem])
-        document = ElementTree.parse(io.StringIO("<A><B1/><B2/></A>"))
-        self.assertListEqual(list(node_children(document)), [document.getroot()])
-        self.assertIsNone(node_children('a text node'))
+        self.assertListEqual(ElementNode(self.context, self.elem).children, [])
+        elem = ElementNode(self.context, ElementTree.XML("<A><B1/><B2/></A>"))
+        self.assertListEqual(elem.children, [x for x in elem])
+
+        document = DocumentNode(self.context, ElementTree.parse(io.StringIO("<A><B1/><B2/></A>")))
+        self.assertListEqual(document.children, [])  # not built document
+        document.children.append(ElementNode(self.context, document.value.getroot(), document))
+        self.assertListEqual(document.children, [document.getroot()])
+
+        self.assertIsNone(TextNode(self.context, 'a text node').children)
 
     def test_node_nilled_function(self):
         xml_test = '<A xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true" />'
-        self.assertTrue(node_nilled(ElementTree.XML(xml_test)))
+        self.assertTrue(ElementNode(self.context, ElementTree.XML(xml_test)).nilled)
         xml_test = '<A xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="false" />'
-        self.assertFalse(node_nilled(ElementTree.XML(xml_test)))
-        self.assertFalse(node_nilled(ElementTree.XML('<A />')))
-        self.assertFalse(node_nilled(TextNode(self.context, 'foo')))
+        self.assertFalse(ElementNode(self.context, ElementTree.XML(xml_test)).nilled)
+        self.assertFalse(ElementNode(self.context, ElementTree.XML('<A />')).nilled)
+        self.assertFalse(TextNode(self.context, 'foo').nilled)
 
     def test_node_kind_function(self):
-        document = ElementTree.parse(io.StringIO(u'<A/>'))
-        element = ElementTree.Element('schema')
+        document = DocumentNode(self.context, ElementTree.parse(io.StringIO(u'<A/>')))
+        element = ElementNode(self.context, ElementTree.Element('schema'))
         attribute = AttributeNode(self.context, 'id', '0212349350')
         namespace = NamespaceNode(self.context, 'xs', 'http://www.w3.org/2001/XMLSchema')
-        comment = ElementTree.Comment('nothing important')
-        pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
+        comment = CommentNode(self.context, ElementTree.Comment('nothing important'))
+        pi = ProcessingInstructionNode(
+            self.context, ElementTree.ProcessingInstruction('action', 'nothing to do')
+        )
         text = TextNode(self.context, 'betelgeuse')
-        self.assertEqual(node_kind(document), 'document')
-        self.assertEqual(node_kind(element), 'element')
-        self.assertEqual(node_kind(attribute), 'attribute')
-        self.assertEqual(node_kind(namespace), 'namespace')
-        self.assertEqual(node_kind(comment), 'comment')
-        self.assertEqual(node_kind(pi), 'processing-instruction')
-        self.assertEqual(node_kind(text), 'text')
-        self.assertIsNone(node_kind(()))
-        self.assertIsNone(node_kind(None))
-        self.assertIsNone(node_kind(10))
+
+        self.assertEqual(document.kind, 'document')
+        self.assertEqual(element.kind, 'element')
+        self.assertEqual(attribute.kind, 'attribute')
+        self.assertEqual(namespace.kind, 'namespace')
+        self.assertEqual(comment.kind, 'comment')
+        self.assertEqual(pi.kind, 'processing-instruction')
+        self.assertEqual(text.kind, 'text')
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
             attribute = AttributeNode(self.context, 'id', '0212349350', xsd_type=xsd_type)
-            self.assertEqual(node_kind(attribute), 'attribute')
+            self.assertEqual(attribute.kind, 'attribute')
 
             typed_element = ElementNode(self.context, element, xsd_type=xsd_type)
-            self.assertEqual(node_kind(typed_element), 'element')
+            self.assertEqual(typed_element.kind, 'element')
 
     def test_node_name_function(self):
-        root = self.context.root.elem
-
+        root = self.context.root
         attr = AttributeNode(self.context, 'a1', '20')
         namespace = NamespaceNode(self.context, 'xs', 'http://www.w3.org/2001/XMLSchema')
-        self.assertEqual(node_name(root), 'root')
-        self.assertEqual(node_name(self.context.root), 'root')
 
-        self.assertEqual(node_name(attr), 'a1')
-        self.assertEqual(node_name(namespace), 'xs')
-        self.assertIsNone(node_name(()))
-        self.assertIsNone(node_name(None))
+        self.assertEqual(root.name, 'root')
+        self.assertEqual(attr.name, 'a1')
+        self.assertEqual(namespace.name, 'xs')
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
             typed_elem = ElementNode(self.context, elem=root, xsd_type=xsd_type)
-            self.assertEqual(node_name(typed_elem), 'root')
+            self.assertEqual(typed_elem.name, 'root')
 
             typed_attr = AttributeNode(self.context, 'a1', value='20', xsd_type=xsd_type)
-            self.assertEqual(node_name(typed_attr), 'a1')
+            self.assertEqual(typed_attr.name, 'a1')
 
     def test_etree_iter_paths(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')

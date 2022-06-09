@@ -32,10 +32,9 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE
 from ..etree import etree_iter_paths, is_etree_element
-from ..xpath_nodes import is_xpath_node, is_element_node, is_document_node, \
-    is_schema_node, node_document_uri, node_nilled, node_name, ElementNode, \
-    TextNode, AttributeNode, NamespaceNode, DocumentNode, \
-    is_processing_instruction_node, is_comment_node
+from ..xpath_nodes import XPathNode, is_element_node, is_document_node, \
+    is_schema_node, ElementNode, TextNode, AttributeNode, NamespaceNode, \
+    DocumentNode, ProcessingInstructionNode, CommentNode
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -885,10 +884,9 @@ def evaluate_path_function(self, context=None):
     else:
         path = f'/Q{root.tag}[1]'
 
-    if is_processing_instruction_node(elem) and context.parent_map.get(elem) is None:
-        name = node_name(item)
-        return f'/processing-instruction({name})[{context.position}]'
-    elif is_comment_node(elem) and context.parent_map.get(elem) is None:
+    if isinstance(elem, ProcessingInstructionNode) and context.parent_map.get(elem) is None:
+        return f'/processing-instruction({item.name})[{context.position}]'
+    elif isinstance(elem, CommentNode) and context.parent_map.get(elem) is None:
         return f'/comment()[{context.position}]'
 
     for e, path in etree_iter_paths(root, path):
@@ -907,13 +905,13 @@ def evaluate_has_children_function(self, context=None):
             return is_document_node(context.root)
 
         item = context.item
-        if not is_xpath_node(item):
+        if not isinstance(item, XPathNode):
             raise self.error('XPTY0004', 'context item must be a node')
     else:
         item = self.get_argument(context)
         if item is None:
             return False
-        elif not is_xpath_node(item):
+        elif not isinstance(item, XPathNode):
             raise self.error('XPTY0004', 'argument must be a node')
 
     return is_document_node(item) or \
@@ -929,7 +927,7 @@ def select_innermost_function(self, context=None):
 
     context = copy(context)
     nodes = [e for e in self[0].select(context)]
-    if any(not is_xpath_node(x) for x in nodes):
+    if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
@@ -944,7 +942,7 @@ def select_outermost_function(self, context=None):
 
     context = copy(context)
     nodes = {e for e in self[0].select(context)}
-    if any(not is_xpath_node(x) for x in nodes):
+    if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
     results = set()
@@ -978,7 +976,7 @@ def evaluate_generate_id_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
         return ''
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         if self:
             raise self.error('XPTY0004', "argument is not a node")
         raise self.error('XPTY0004', "context item is not a node")
@@ -1533,27 +1531,25 @@ def evaluate_document_uri_function(self, context=None):
         raise self.missing_context()
 
     arg = self.get_argument(context, default_to_context=True)
-    if arg is None or not is_document_node(arg):
-        return
-
-    uri = node_document_uri(arg)
-    if uri is not None:
-        return AnyURI(uri)
-    elif isinstance(context.root, DocumentNode):
-        if context.documents:
-            for uri, doc in context.documents.items():
-                if doc and doc.document is context.root.document:
-                    return AnyURI(uri)
-
+    if isinstance(arg, DocumentNode):
+        uri = arg.document_uri
+        if uri is not None:
+            return AnyURI(uri)
+        elif isinstance(context.root, DocumentNode):
+            if context.documents:
+                for uri, doc in context.documents.items():
+                    if doc and doc.document is context.root.document:
+                        return AnyURI(uri)
+    return None
 
 @method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))
 def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
         return
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
-    return node_nilled(arg)
+    return arg.nilled
 
 
 @method(function('node-name', nargs=(0, 1), sequence_types=('node()?', 'xs:QName?')))
@@ -1561,10 +1557,10 @@ def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
         return
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
-    name = node_name(arg)
+    name = arg.name
     if name is None:
         return
     elif name.startswith('{'):
@@ -1598,7 +1594,7 @@ def evaluate_round_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return []
-    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+    elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
     if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):

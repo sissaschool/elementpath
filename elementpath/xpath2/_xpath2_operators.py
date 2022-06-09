@@ -22,7 +22,7 @@ from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
-from ..xpath_nodes import ElementNode, is_xpath_node, \
+from ..xpath_nodes import ElementNode, XPathNode, \
     match_attribute_node, is_element_node, is_document_node
 from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
@@ -102,7 +102,8 @@ def select_intersect_and_except_operators(self, context=None):
         raise self.missing_context()
 
     s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
-    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s2):
+    if any(not isinstance(x, XPathNode) for x in s1) \
+            or any(not isinstance(x, XPathNode) for x in s2):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
@@ -588,13 +589,13 @@ def evaluate_node_comparison(self, context=None):
     left = [x for x in self[0].select(context)]
     if not left:
         return
-    elif len(left) > 1 or not is_xpath_node(left[0]):
+    elif len(left) > 1 or not isinstance(left[0], XPathNode):
         raise self[0].error('XPTY0004', "left operand of %r must be a single node" % symbol)
 
     right = [x for x in self[1].select(context)]
     if not right:
         return
-    elif len(right) > 1 or not is_xpath_node(right[0]):
+    elif len(right) > 1 or not isinstance(right[0], XPathNode):
         raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 
     # For identity comparison use '==' operator instead of 'is'

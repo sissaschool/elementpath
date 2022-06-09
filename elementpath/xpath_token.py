@@ -36,12 +36,11 @@ from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .etree import is_etree_element, etree_iter_strings
+from .etree import is_etree_element
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    NamespaceNode, is_comment_node, is_processing_instruction_node, \
-    is_element_node, is_document_node, is_xpath_node, is_schema_node
-from .datatypes import xsd11_atomic_types, get_atomic_value, \
-    AbstractDateTime, AnyURI, UntypedAtomic, Timezone, DateTime10, Date10, \
+    NamespaceNode, is_element_node, is_document_node, is_schema_node
+from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
+    UntypedAtomic, Timezone, DateTime10, Date10, \
     DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy, QName, \
     DatetimeValueType, AtomicValueType, AnyAtomicType, Float10, Float
 from .protocols import ElementProtocol, DocumentProtocol, \
@@ -899,7 +898,7 @@ class XPathToken(Token[XPathTokenType]):
         if isinstance(obj, list):
             if not obj:
                 return False
-            elif is_xpath_node(obj[0]):
+            elif isinstance(obj[0], XPathNode):
                 return True
             elif len(obj) > 1:
                 message = "effective boolean value is not defined for a sequence " \
@@ -914,7 +913,7 @@ class XPathToken(Token[XPathTokenType]):
             return False if math.isnan(obj) else bool(obj)
         elif obj is None:
             return False
-        elif is_xpath_node(obj):
+        elif isinstance(obj, XPathNode):
             return True
         else:
             message = "effective boolean value is not defined for {!r}.".format(type(obj))
@@ -936,18 +935,6 @@ class XPathToken(Token[XPathTokenType]):
                 raise self.error('XPDY0050', str(err))
         elif isinstance(obj, XPathFunction):
             raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
-        elif is_schema_node(obj):
-            return get_atomic_value(obj.type)
-        elif hasattr(obj, 'tag'):
-            if is_comment_node(obj) or is_processing_instruction_node(obj):
-                return cast(str, obj.text)
-            elif hasattr(obj, 'attrib') and hasattr(obj, 'text'):
-                return UntypedAtomic(''.join(etree_iter_strings(obj)))
-            else:
-                return None
-        elif is_document_node(obj):
-            value = ''.join(etree_iter_strings(obj.getroot()))
-            return UntypedAtomic(value)
         else:
             return cast(AtomicValueType, obj)
 
@@ -959,15 +946,6 @@ class XPathToken(Token[XPathTokenType]):
             return ''
         elif isinstance(obj, XPathNode):
             return obj.string_value
-        elif is_schema_node(obj):
-            return str(get_atomic_value(obj.type))
-        elif hasattr(obj, 'tag'):
-            if is_comment_node(obj) or is_processing_instruction_node(obj):
-                return cast(str, obj.text)
-            elif hasattr(obj, 'attrib') and hasattr(obj, 'text'):
-                return ''.join(etree_iter_strings(obj))
-        elif is_document_node(obj):
-            return ''.join(etree_iter_strings(obj.getroot()))
         elif isinstance(obj, bool):
             return 'true' if obj else 'false'
         elif isinstance(obj, Decimal):
@@ -1001,7 +979,7 @@ class XPathToken(Token[XPathTokenType]):
         The numeric value, as computed by fn:number() on each item. Returns a float value.
         """
         try:
-            return float(self.string_value(obj) if is_xpath_node(obj) else obj)
+            return float(self.string_value(obj) if isinstance(obj, XPathNode) else obj)
         except (TypeError, ValueError):
             return float('nan')
 
