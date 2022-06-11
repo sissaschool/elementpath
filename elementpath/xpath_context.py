@@ -514,7 +514,7 @@ class XPathContext:
             yield self.item
             self.axis = status
             return
-        elif isinstance(self.item, ElementNode) and self.item.context is not None:
+        elif isinstance(self.item, ElementNode):
             status = self.item, self.axis
             self.axis = 'attribute'
 
@@ -522,105 +522,39 @@ class XPathContext:
                 yield self.item
 
             self.item, self.axis = status
-            return
-
-        # TODO: remove this part after transition
-        if not is_element_node(self.item):
-            return
-
-        status = self.item, self.axis
-        self.axis = 'attribute'
-
-        if isinstance(self.item, ElementNode):
-            self.item = self.item.elem
-
-        elem = cast(ElementType, self.item)
-        for self.item in (AttributeNode(self, x[0], x[1], parent=elem) for x in elem.attrib.items()):
-            yield self.item
-
-        self.item, self.axis = status
 
     def iter_children_or_self(self) -> Iterator[Any]:
         """Iterator for 'child' forward axis and '/' step."""
         if self.axis is not None:
             yield self.item
-            return
+        elif isinstance(self.item, (ElementNode, DocumentNode)):
+            status = self.item, self.axis
+            self.axis = 'child'
 
-        status = self.item, self.axis
-        self.axis = 'child'
+            for self.item in self.item.children:
+                yield self.item
 
-        if isinstance(self.item, ElementNode):
-            if self.item.context is None:
-                self.item = self.item.elem
-            else:
-                for self.item in self.item.children:
-                    yield self.item
-                self.item, self.axis = status
-                return
+            self.item, self.axis = status
 
-        if self.item is None:
+        elif self.item is None:
+            status = self.item, self.axis
+            self.axis = 'child'
+
             if isinstance(self.root, DocumentNode):
-                for self.item in self.root:
+                for self.item in self.root.children:
                     yield self.item
-                self.item, self.axis = status
-                return
-
-            if is_document_node(self.root):
-                document = cast(DocumentType, self.root)
-                root = document.getroot()
             else:
-                root = cast(ElementProtocol, self.root)
-
-            for self.item in etree_iter_root(root):
-                yield self.item
-
-        elif is_etree_element(self.item):
-            elem = cast(ElementType, self.item)
-            if callable(elem.tag):
-                return
-            elif elem.text is not None:
-                self.item = TextNode(self, elem.text, elem)
-                yield self.item
-
-            for child in elem:
-                self.item = child
-                yield child
-
-                if child.tail is not None:
-                    self.item = TextNode(self, child.tail, child, True)
+                for self.item in etree_iter_root(self.root):
                     yield self.item
 
-        elif isinstance(self.item, DocumentNode):
-            document = self.item
-            for self.item in document:
-                yield self.item
-
-        elif is_document_node(self.item):
-            document = cast(DocumentType, self.item)
-            for self.item in etree_iter_root(document.getroot()):
-                yield self.item
-
-        self.item, self.axis = status
+            self.item, self.axis = status
 
     def iter_parent(self) -> Iterator[ElementType]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
-        if isinstance(self.item, ElementNode):
-            if self.item.context is None:
-                parent = self.get_parent(self.item.elem)
-            else:
-                parent = self.item.parent
-
-        elif isinstance(self.item, TextNode):
-            parent = self.item.parent
-            if parent is not None and (callable(parent.tag) or self.item.is_tail()):
-                parent = self.get_parent(parent)
-        elif isinstance(self.item, XPathNode):
-            parent = self.item.parent
-        elif hasattr(self.item, 'tag'):
-            parent = self.get_parent(cast(ElementType, self.item))
-        else:
+        if not isinstance(self.item, XPathNode):
             return  # not applicable
 
+        parent = self.item.parent
         if parent is not None:
             status = self.item, self.axis
             self.axis = 'parent'
@@ -688,9 +622,6 @@ class XPathContext:
                 descendants = chain((None,), self.root.iter_descendants())
             else:
                 descendants = self.root.iter_descendants()
-        elif is_element_node(self.item) or is_document_node(self.item):
-            item = self._build_nodes(self.item)
-            descendants = item.iter_descendants(with_self)
         elif with_self and isinstance(self.item, XPathNode):
             descendants = self.item,
         else:
@@ -730,16 +661,8 @@ class XPathContext:
                 parent = self.get_parent(parent)
         elif isinstance(self.item, XPathNode):
             parent = self.item.parent
-        elif isinstance(self.item, AnyAtomicType):
-            return
-        elif self.item is None:
-            return  # document position without a document root
-        elif hasattr(self.item, 'tag'):
-            parent = self.get_parent(cast(ElementType, self.item))
-        elif is_document_node(self.item):
-            parent = None
         else:
-            return  # is not an XPath node
+            return  # item is not an XPath node or document position without a document root
 
         status = self.item, self.axis
         self.axis = axis or 'ancestor'

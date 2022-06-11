@@ -373,14 +373,26 @@ class XPath1Parser(Parser[XPathToken]):
                 return False
             return value.match_function_test(sequence_type)
 
-        value_kind = getattr(value, 'kind', None)
-        if value_kind is None:
+        if isinstance(value, XPathNode):
+            value_kind = value.kind
+        elif hasattr(value, 'getroot'):
+            value_kind = 'document'
+        elif hasattr(value, 'tag') and hasattr(value, 'text'):
+            if not callable(value.tag):
+                value_kind = 'element'
+
+            elif value.tag.__name__ == 'Comment':
+                value_kind = 'comment'
+            else:
+                value_kind = 'processing-instruction'
+        else:
             try:
                 type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
                 return self.is_instance(value, type_expanded_name)
             except (KeyError, ValueError):
                 return False
-        elif sequence_type == 'node()':
+
+        if sequence_type == 'node()':
             return True
         elif not sequence_type.startswith(value_kind) or not sequence_type.endswith(')'):
             return False
@@ -419,9 +431,10 @@ class XPath1Parser(Parser[XPathToken]):
         if name == '*':
             return True
 
+        value_name = value.name if isinstance(value, XPathNode) else value.tag
         try:
-            return value.name == get_expanded_name(name, self.namespaces)
-        except (KeyError, ValueError, AttributeError):
+            return value_name == get_expanded_name(name, self.namespaces)
+        except (KeyError, ValueError):
             return False
 
     def check_variables(self, values: MutableMapping[str, Any]) -> None:
