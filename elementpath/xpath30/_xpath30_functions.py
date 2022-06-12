@@ -852,23 +852,21 @@ def evaluate_path_function(self, context=None):
             return None
 
     suffix = ''
-    if is_document_node(item):
+    if isinstance(item, DocumentNode):
         return '/'
-    elif isinstance(item, ElementNode):
+    elif isinstance(item, (ElementNode, CommentNode, ProcessingInstructionNode)):
         elem = item.elem
-    elif is_etree_element(item):
-        elem = item
     elif isinstance(item, TextNode):
-        elem = item.parent
+        elem = item.parent.elem
         suffix = '/text()[1]'
     elif isinstance(item, AttributeNode):
-        elem = item.parent
+        elem = item.parent.elem
         if item.name.startswith('{'):
             suffix = f'/@Q{item.name}'
         else:
             suffix = f'/@{item.name}'
     elif isinstance(item, NamespaceNode):
-        elem = item.parent
+        elem = item.parent.elem
         if item.prefix:
             suffix = f'/namespace::{item.prefix}'
         else:
@@ -876,18 +874,19 @@ def evaluate_path_function(self, context=None):
     else:
         return None
 
-    try:
-        root = context.root.getroot()
-    except AttributeError:
-        root = context.root
-        path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
-    else:
+    if isinstance(context.root, DocumentNode):
+        root = context.root.getroot().elem
         path = f'/Q{root.tag}[1]'
+    else:
+        root = context.root.elem
+        path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
 
-    if isinstance(elem, ProcessingInstructionNode) and context.parent_map.get(elem) is None:
-        return f'/processing-instruction({item.name})[{context.position}]'
-    elif isinstance(elem, CommentNode) and context.parent_map.get(elem) is None:
-        return f'/comment()[{context.position}]'
+    if isinstance(item, ProcessingInstructionNode):
+        if item.parent is None or isinstance(item.parent, DocumentNode):
+            return f'/processing-instruction({item.name})[{context.position}]'
+    elif isinstance(item, CommentNode):
+        if item.parent is None or isinstance(item.parent, DocumentNode):
+            return f'/comment()[{context.position}]'
 
     for e, path in etree_iter_paths(root, path):
         if e is elem:
