@@ -345,13 +345,19 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
 
     def test_analyze_string_function(self):
+        context = XPathContext(root=self.etree.XML('<root/>'))
+
         token = self.parser.parse('fn:analyze-string("The cat sat on the mat.", "unmatchable")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 1)
         self.assertEqual(root[0].text, "The cat sat on the mat.")
 
         token = self.parser.parse(r'fn:analyze-string("The cat sat on the mat.", "\w+")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 12)
         chunks = ['The', ' ', 'cat', ' ', 'sat', ' ', 'on', ' ', 'the', ' ', 'mat', '.']
         for k in range(len(chunks)):
@@ -362,7 +368,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
             self.assertEqual(root[k].text, chunks[k])
 
         token = self.parser.parse(r'fn:analyze-string("2008-12-03", "^(\d+)\-(\d+)\-(\d+)$")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 1)
 
         ElementTree.register_namespace('', XPATH_FUNCTIONS_NAMESPACE)
@@ -372,7 +380,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         )
 
         token = self.parser.parse('fn:analyze-string("A1,C15,,D24, X50,", "([A-Z])([0-9]+)")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 8)
         self.assertEqual(
             ElementTree.tostring(root, encoding='utf-8').decode('utf-8'),

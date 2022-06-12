@@ -742,6 +742,9 @@ def evaluate_analyze_string_function(self, context=None):
     if compiled_pattern.match('') is not None:
         raise self.error('FORX0003', "pattern matches a zero-length string")
 
+    if context is None:
+        raise self.missing_context()
+
     level = 0
     escaped = False
     char_class = False
@@ -762,7 +765,6 @@ def evaluate_analyze_string_function(self, context=None):
         elif s == ')':
             level -= 1
 
-    etree = ElementTree if context is None else context.etree
     lines = ['<analyze-string-result xmlns="{}">'.format(XPATH_FUNCTIONS_NAMESPACE)]
     k = 0
 
@@ -831,7 +833,7 @@ def evaluate_analyze_string_function(self, context=None):
             lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
-    return etree.XML(''.join(lines))
+    return context.build_tree(context.etree.XML(''.join(lines)))
 
 
 ###

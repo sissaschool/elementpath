@@ -690,7 +690,8 @@ def select_child_path(self, context=None):
         items = set()
         for _ in context.inner_focus_select(self[0]):
             if not isinstance(context.item, XPathNode):
-                raise self.error('XPTY0019')
+                msg = f"Intermediate step contains an atomic value {context.item!r}"
+                raise self.error('XPTY0019', msg)
 
             for result in self[1].select(context):
                 if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
