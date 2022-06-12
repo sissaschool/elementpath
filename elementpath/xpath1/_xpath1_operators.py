@@ -776,6 +776,9 @@ def select_predicate(self, context=None):
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
+        elif isinstance(context, XPathSchemaContext):
+            yield context.item
+            continue
 
         predicate = [x for x in self[1].select(copy(context))]
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
