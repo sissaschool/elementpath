@@ -42,8 +42,8 @@ else:
 
 from elementpath import *
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
-from elementpath.etree import is_etree_element, is_lxml_etree_element
-from elementpath.xpath_nodes import is_document_node, is_lxml_document_node
+from elementpath.etree import is_etree_element
+from elementpath.xpath_nodes import ElementNode, DocumentNode, is_lxml_document_node
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
 from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
     int_to_roman, int_to_alphabetic, int_to_words
@@ -499,28 +499,25 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIs(nodes[1].value, root[1])
 
     def test_parse_xml_function(self):
-        document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
-        self.assertTrue(is_document_node(document))
-        self.assertTrue(is_etree_element(document.getroot()))
-        self.assertEqual(document.getroot().tag, 'alpha')
-        self.assertEqual(document.getroot().text, 'abcd')
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=self.etree.ElementTree(root))
         document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate(context)
 
-        self.assertTrue(is_document_node(document))
-        self.assertTrue(is_etree_element(document.getroot()))
+        self.assertIsInstance(document, DocumentNode)
+        self.assertTrue(is_etree_element(document.document.getroot()))
+        self.assertEqual(document.document.getroot().tag, 'alpha')
+        self.assertEqual(document.document.getroot().text, 'abcd')
 
         if self.etree is lxml_etree:
-            self.assertTrue(is_lxml_document_node(document))
-            self.assertTrue(is_lxml_etree_element(document.getroot()))
+            self.assertTrue(is_lxml_document_node(document.document))
         else:
-            self.assertFalse(is_lxml_document_node(document))
-            self.assertFalse(is_lxml_etree_element(document.getroot()))
+            self.assertFalse(is_lxml_document_node(document.document))
 
-        self.assertEqual(document.getroot().tag, 'alpha')
-        self.assertEqual(document.getroot().text, 'abcd')
+        self.assertEqual(document.document.getroot().tag, 'alpha')
+        self.assertEqual(document.document.getroot().text, 'abcd')
 
         self.assertEqual(self.parser.parse('fn:parse-xml(())').evaluate(), [])
 
@@ -531,10 +528,15 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIn('not a well-formed XML document', str(ctx.exception))
 
     def test_parse_xml_fragment_function(self):
-        document = self.parser.parse(
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=self.etree.ElementTree(root))
+
+        result = self.parser.parse(
             'fn:parse-xml-fragment("<root><alpha>abcd</alpha><beta>abcd</beta></root>")'
-        ).evaluate()
-        self.assertTrue(is_document_node(document))
+        ).evaluate(context)
+        self.assertIsInstance(result, DocumentNode)
+
+        document = result.document
         self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot().tag, 'root')
         self.assertEqual(document.getroot()[0].tag, 'alpha')
@@ -543,38 +545,43 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(document.getroot()[1].text, 'abcd')
 
         # Fragments that are not valid formal documents
-        document_root = self.parser.parse(
+        result = self.parser.parse(
             'fn:parse-xml-fragment("<alpha>abcd</alpha><beta>abcd</beta>")'
-        ).evaluate()
-        self.assertFalse(is_document_node(document_root))
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.tag, 'document')
-        self.assertEqual(document_root[0].tag, 'alpha')
-        self.assertEqual(document_root[0].text, 'abcd')
-        self.assertEqual(document_root[1].tag, 'beta')
-        self.assertEqual(document_root[1].text, 'abcd')
+        ).evaluate(context)
+        self.assertIsInstance(result, ElementNode)
 
-        document_root = self.parser.parse(
+        root = result.elem
+        self.assertTrue(is_etree_element(root))
+        self.assertEqual(root.tag, 'document')
+        self.assertEqual(root[0].tag, 'alpha')
+        self.assertEqual(root[0].text, 'abcd')
+        self.assertEqual(root[1].tag, 'beta')
+        self.assertEqual(root[1].text, 'abcd')
+
+        result = self.parser.parse(
             'fn:parse-xml-fragment("He was <i>so</i> kind")'
-        ).evaluate()
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.text, 'He was ')
-        self.assertEqual(document_root.tag, 'document')
-        self.assertEqual(document_root[0].tag, 'i')
-        self.assertEqual(document_root[0].text, 'so')
-        self.assertEqual(document_root[0].tail, ' kind')
+        ).evaluate(context)
+        self.assertIsInstance(result, ElementNode)
 
-        document_root = self.parser.parse('fn:parse-xml-fragment("")').evaluate()
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.tag, 'document')
-        self.assertIsNone(document_root.text)
+        root = result.elem
+        self.assertTrue(is_etree_element(root))
+        self.assertEqual(root.text, 'He was ')
+        self.assertEqual(root.tag, 'document')
+        self.assertEqual(root[0].tag, 'i')
+        self.assertEqual(root[0].text, 'so')
+        self.assertEqual(root[0].tail, ' kind')
 
-        document_root = self.parser.parse('fn:parse-xml-fragment(" ")').evaluate()
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.tag, 'document')
-        self.assertEqual(document_root.text, ' ')
+        element_node = self.parser.parse('fn:parse-xml-fragment("")').evaluate(context)
+        self.assertTrue(is_etree_element(element_node.elem))
+        self.assertEqual(element_node.elem.tag, 'document')
+        self.assertIsNone(element_node.elem.text)
 
-        with self.assertRaises(MissingContextError) as ctx:
+        element_node = self.parser.parse('fn:parse-xml-fragment(" ")').evaluate(context)
+        self.assertTrue(is_etree_element(element_node.elem))
+        self.assertEqual(element_node.elem.tag, 'document')
+        self.assertEqual(element_node.elem.text, ' ')
+
+        with self.assertRaises(MissingContextError):
             self.parser.parse(
                 'fn:parse-xml(\'<xml version="1.0" encoding="utf8" standalone="yes"?></a>\')'
             ).evaluate()

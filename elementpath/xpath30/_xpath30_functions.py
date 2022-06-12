@@ -1157,16 +1157,16 @@ def evaluate_parse_xml_function(self, context=None):
     arg = self.get_argument(context, cls=str)
     if arg is None:
         return []
+    elif context is None:
+        raise self.missing_context()
 
-    etree = ElementTree if context is None else context.etree
+    etree = context.etree
     try:
         root = etree.XML(arg.encode('utf-8'))
     except etree.ParseError:
-        if context is None:
-            raise self.missing_context()
         raise self.error('FODC0006')
     else:
-        return etree.ElementTree(root)
+        return context.build_tree(etree.ElementTree(root))
 
 
 @method(function('parse-xml-fragment', nargs=1,
@@ -1175,8 +1175,8 @@ def evaluate_parse_xml_fragment_function(self, context=None):
     arg = self.get_argument(context, cls=str)
     if arg is None:
         return []
-
-    etree = ElementTree if context is None else context.etree
+    elif context is None:
+        raise self.missing_context()
 
     # Wrap argument in a fake document because an
     # XML document can have only one root element
@@ -1194,15 +1194,16 @@ def evaluate_parse_xml_fragment_function(self, context=None):
     if arg.lstrip().startswith('<!DOCTYPE'):
         raise self.error('FODC0006', "<!DOCTYPE is not allowed")
 
+    etree = context.etree
     try:
         root = etree.XML(arg)
     except etree.ParseError:
         try:
-            return etree.XML(f'<document>{arg}</document>')
+            return context.build_tree(etree.XML(f'<document>{arg}</document>'))
         except etree.ParseError:
             raise self.error('FODC0006') from None
     else:
-        return etree.ElementTree(root)
+        return context.build_tree(etree.ElementTree(root))
 
 
 @method(function('serialize', nargs=(1, 2), sequence_types=(
@@ -1308,8 +1309,8 @@ def evaluate_serialize_function(self, context=None):
 
     chunks = []
     for item in self[0].select(context):
-        if is_document_node(item):
-            item = item.getroot()
+        if isinstance(item, DocumentNode):
+            item = item.document.getroot()
         elif isinstance(item, ElementNode):
             item = item.elem
         elif isinstance(item, (AttributeNode, NamespaceNode)):
@@ -1320,7 +1321,7 @@ def evaluate_serialize_function(self, context=None):
         elif isinstance(item, bool):
             chunks.append('true' if item else 'false')
             continue
-        elif not is_etree_element(item):
+        else:
             chunks.append(str(item))
             continue
 

@@ -105,7 +105,7 @@ class XPathContext:
 
         assert not isinstance(root, XPathNode)
         if is_document_node(root) or is_etree_element(root):
-            self.root = self._build_nodes(root)
+            self.root = self.build_tree(root)
         else:
             msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
             raise ElementPathTypeError(msg.format(root))
@@ -132,7 +132,7 @@ class XPathContext:
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         if documents is not None:
-            self.documents = {k: self._build_nodes(v) if v is not None else v
+            self.documents = {k: self.build_tree(v) if v is not None else v
                               for k, v in documents.items()}
 
         if collections is not None:
@@ -326,9 +326,9 @@ class XPathContext:
         else:
             return value
 
-        return self._build_nodes(value)
+        return self.build_tree(value)
 
-    def _build_nodes(self, root: Union[DocumentType, ElementType, XMLSchemaProtocol]) \
+    def build_tree(self, root: Union[DocumentType, ElementType, XMLSchemaProtocol]) \
             -> Union[DocumentNode, ElementNode]:
 
         if hasattr(root, 'getroot'):
@@ -349,7 +349,7 @@ class XPathContext:
             parent = child
 
         elif is_schema(root):
-            return self._build_schema_nodes(root)
+            return self._get_schema_nodes_tree(root)
         elif not callable(root.tag):
             children: Iterator[Any] = iter(root)
             root_node = parent = ElementNode(self, root)
@@ -387,7 +387,7 @@ class XPathContext:
                     iterators.append(children)
                     children = iter(elem)
 
-    def _build_schema_nodes(self, root: XMLSchemaProtocol) -> ElementNode:
+    def _get_schema_nodes_tree(self, root: XMLSchemaProtocol) -> ElementNode:
         children: Iterator[Any] = iter(root)
         root_node = parent = ElementNode(self, root)
 
