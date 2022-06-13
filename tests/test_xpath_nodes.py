@@ -337,6 +337,20 @@ class XPathNodesTest(unittest.TestCase):
             typed_attr = AttributeNode(self.context, 'a1', value='20', xsd_type=xsd_type)
             self.assertEqual(typed_attr.name, 'a1')
 
+    def test_element_node_iter(self):
+        root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')
+
+        context = XPathContext(root)
+        result = [context.root, context.root.namespaces[0],
+                  context.root[0],
+                  context.root[1], context.root[1].namespaces[0], context.root[1].attributes[0], context.root[1][0],
+                  context.root[2], context.root[2].namespaces[0],
+                  context.root[3], context.root[3].namespaces[0],
+                  context.root[3][0], context.root[3][0].namespaces[0], context.root[3][0][0]]
+
+        self.assertListEqual(list(context.root.iter()), result)
+        self.assertListEqual(list(context.root.iter(with_self=False)), result[1:])
+
     def test_etree_iter_paths(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
         root[2].append(ElementTree.Comment('a comment'))

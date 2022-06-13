@@ -349,7 +349,7 @@ class XPathContext:
             parent = child
 
         elif is_schema(root):
-            return self._get_schema_nodes_tree(root)
+            return self._get_schema_tree(root)
         elif not callable(root.tag):
             children: Iterator[Any] = iter(root)
             root_node = parent = ElementNode(self, root)
@@ -387,7 +387,7 @@ class XPathContext:
                     iterators.append(children)
                     children = iter(elem)
 
-    def _get_schema_nodes_tree(self, root: XMLSchemaProtocol) -> ElementNode:
+    def _get_schema_tree(self, root: XMLSchemaProtocol) -> ElementNode:
         children: Iterator[Any] = iter(root)
         root_node = parent = ElementNode(self, root)
 
@@ -422,13 +422,6 @@ class XPathContext:
                     parent = child
                     iterators.append(children)
                     children = iter(elem.ref)
-
-    @staticmethod
-    def _iter_nodes(root: Union[DocumentNode, ElementNode], with_root: bool = True) \
-            -> Iterator[Union[DocumentType, ElementType, TextNode]]:
-        for node in root.iter(with_self=with_root):
-            if isinstance(node, (DocumentNode, ElementNode, TextNode)):
-                yield node
 
     def iter(self, namespaces: Optional[Dict[str, str]] = None) \
             -> Iterator[Union[ElementType, DocumentType, TextNode, NamespaceNode, AttributeNode]]:
@@ -685,23 +678,11 @@ class XPathContext:
         item: Union[ElementType, XPathNode]
         parent: Union[None, ElementType, DocumentType]
 
-        if isinstance(self.item, ElementNode):
-            if self.item.context:
-                parent = self.item.parent
-                item = self.item
-                if parent is None:
-                    return
-            else:
-                item = self.item.elem
-                parent = self.get_parent(item)
-        elif isinstance(self.item, XPathNode):
-            item = self.item
-            parent = item.parent
-            if parent is None:
-                return
-            if callable(parent.tag):
-                parent = self.get_parent(parent)
-        else:
+        if not isinstance(self.item, XPathNode):
+            return
+
+        parent = self.item.parent
+        if parent is None:
             return
 
         status = self.item, self.axis
@@ -710,13 +691,15 @@ class XPathContext:
         ancestors = set()
         while parent is not None:
             ancestors.add(parent)
-            parent = self.get_parent(parent)  # type: ignore[arg-type]
+            parent = parent.parent
 
-        for elem in self._iter_nodes(self.root):  # pragma: no cover
-            if elem is item:
+        item = self.item
+        for self.item in self.root.iter(with_self=True):
+            if self.item is item:
                 break
-            elif elem not in ancestors:
-                self.item = cast(ElementType, elem)
+            if isinstance(self.item, (AttributeNode, NamespaceNode)):
+                continue
+            if self.item not in ancestors:
                 yield self.item
 
         self.item, self.axis = status

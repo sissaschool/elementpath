@@ -182,27 +182,6 @@ class XPathContextTest(unittest.TestCase):
         context.axis = 'attribute'
         self.assertTrue(context.is_principal_node_kind())
 
-    @unittest.SkipTest
-    def test__iter_nodes_static_method(self):
-        root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')
-
-        result = [root, TextNode('text1\n', root),
-                  root[0], TextNode('text2', root[0]), root[1],
-                  root[2], root[2][0], TextNode('text3', root[2][0])]
-
-        self.assertListEqual(list(XPathContext._iter_nodes(root)), result)
-        self.assertListEqual(list(XPathContext._iter_nodes(root, with_root=False)), result[1:])
-
-        with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
-            xsd_type = DummyXsdType()
-            typed_root = ElementNode(root, xsd_type=xsd_type)
-            self.assertListEqual(list(XPathContext._iter_nodes(typed_root)), result)
-
-        comment = ElementTree.Comment('foo')
-        root[1].append(comment)
-        self.assertListEqual(list(XPathContext._iter_nodes(root)),
-                             result[:5] + [comment] + result[5:])
-
     def test_iter_product(self):
         context = XPathContext(self.root)
 
