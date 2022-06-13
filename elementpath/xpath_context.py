@@ -12,7 +12,7 @@ import importlib
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, MutableMapping, Set, Tuple
+    Optional, Sequence, Union, Callable, MutableMapping, Tuple
 
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .datatypes import AnyAtomicType, Timezone
@@ -20,8 +20,7 @@ from .protocols import ElementProtocol, XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, etree_iter_root
 from .xpath_nodes import DocumentNode, ElementNode, CommentNode, \
     ProcessingInstructionNode, AttributeNode, NamespaceNode, TextNode, \
-    is_element_node, is_document_node, XPathNode, XPathNodeType, is_schema, \
-    is_schema_node, is_comment_node, is_processing_instruction_node
+    is_element_node, is_document_node, XPathNode, XPathNodeType, is_schema
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -643,18 +642,7 @@ class XPathContext:
 
         :param axis: the context axis, default is 'ancestor'.
         """
-        if isinstance(self.item, ElementNode):
-            if self.item.context:
-                parent = self.item.parent
-            else:
-                parent = self.get_parent(self.item.elem)
-        elif isinstance(self.item, TextNode):
-            parent = self.item.parent
-            if parent is not None and (callable(parent.tag) or self.item.is_tail()):
-                parent = self.get_parent(parent)
-        elif isinstance(self.item, XPathNode):
-            parent = self.item.parent
-        else:
+        if not isinstance(self.item, XPathNode):
             return  # item is not an XPath node or document position without a document root
 
         status = self.item, self.axis
@@ -664,9 +652,10 @@ class XPathContext:
         if axis == 'ancestor-or-self':
             ancestors.append(self.item)
 
+        parent = self.item.parent
         while parent is not None:
             ancestors.append(parent)
-            parent = self.get_parent(parent)  # type: ignore[arg-type]
+            parent = parent.parent
 
         for self.item in reversed(ancestors):
             yield self.item

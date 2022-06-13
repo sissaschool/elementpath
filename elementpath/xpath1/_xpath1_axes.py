@@ -11,7 +11,6 @@
 """
 XPath 1.0 implementation - part 4 (axes)
 """
-from ..exceptions import ElementPathTypeError
 from ..xpath_nodes import ElementNode
 from ._xpath1_functions import XPath1Parser
 
@@ -32,12 +31,9 @@ def nud_attribute_reference(self):
 def select_attribute_reference_or_axis(self, context=None):
     if context is None:
         raise self.missing_context()
-
-    for _ in context.iter_attributes():
-        try:
+    else:
+        for _ in context.iter_attributes():
             yield from self[0].select(context)
-        except ElementPathTypeError:
-            pass
 
 
 @method(axis('namespace'))
@@ -126,6 +122,6 @@ def select_following_axis(self, context=None):
 def select_preceding_axis(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif isinstance(context.item, ElementNode):
+    else:
         for _ in context.iter_preceding():
             yield from self[0].select(context)
