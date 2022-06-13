@@ -33,7 +33,7 @@ from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
 from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, \
-    is_element_node, is_document_node, XPathNode
+    CommentNode, ProcessingInstructionNode, is_element_node, is_document_node, XPathNode
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
@@ -718,19 +718,11 @@ def evaluate_deep_equal_function(self, context=None):
                     return False
             elif value1.kind != value2.kind:
                 return False
-            elif isinstance(value1, ElementNode):
+            elif isinstance(value1, (ElementNode, CommentNode, ProcessingInstructionNode)):
                 if not etree_deep_equal(value1.elem, value2.elem):
                     return False
-            elif hasattr(value1, 'tag') and hasattr(value1, 'text'):
-                if not callable(value1.tag):
-                    if not etree_deep_equal(value1, value2):
-                        return False
-                elif hasattr(value1, 'target'):
-                    return value1.target == value2.target
-                else:
-                    return value1.text == value2.text
-            elif is_document_node(value1):
-                if not etree_deep_equal(value1.getroot(), value2.getroot()):
+            elif isinstance(value1, DocumentNode):
+                if not etree_deep_equal(value1.document.getroot(), value2.document.getroot()):
                     return False
             elif value1.value != value2.value:
                 return False

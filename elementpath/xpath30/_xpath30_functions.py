@@ -1060,7 +1060,7 @@ def evaluate_unparsed_text_functions(self, context=None):
                     'unknown url type' in message or \
                     'HTTP Error 404' in message or \
                     'failure in name resolution' in message:
-                raise self.error('FOUT1170') from None
+                raise self.error('FOUT1170', message) from None
             raise self.error('FOUT1190') from None
         else:
             if context is not None:
