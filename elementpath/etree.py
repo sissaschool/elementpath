@@ -143,6 +143,14 @@ def is_lxml_etree_element(obj: Any) -> bool:
     return is_etree_element(obj) and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap')
 
 
+def is_etree_document(obj: Any) -> bool:
+    return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
+
+
+def is_lxml_etree_document(obj: Any) -> bool:
+    return is_etree_document(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
+
+
 def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) \
         -> Iterator[Union[ElementProtocol, LxmlElementProtocol]]:
     if not hasattr(root, 'itersiblings'):
@@ -336,5 +344,6 @@ def etree_tostring(elem: ElementProtocol,
 
 __all__ = ['ElementType', 'DocumentType', 'ElementTree', 'PyElementTree',
            'SafeXMLParser', 'ElementProxyMixin', 'is_etree_element',
-           'is_lxml_etree_element', 'etree_iter_root', 'etree_iter_strings',
-           'etree_deep_equal', 'etree_iter_paths', 'etree_tostring']
+           'is_lxml_etree_element', 'is_etree_document', 'is_lxml_etree_document',
+           'etree_iter_root', 'etree_iter_strings', 'etree_deep_equal',
+           'etree_iter_paths', 'etree_tostring']

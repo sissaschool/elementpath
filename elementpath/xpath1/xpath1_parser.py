@@ -365,7 +365,8 @@ class XPath1Parser(Parser[XPathToken]):
             else:
                 return all(self.match_sequence_type(x, sequence_type) for x in value)
         elif sequence_type == 'item()':
-            return isinstance(value, XPathNode) or isinstance(value, (AnyAtomicType, list, XPathFunction))
+            return isinstance(value, XPathNode) \
+                   or isinstance(value, (AnyAtomicType, list, XPathFunction))
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
         elif sequence_type.startswith('function('):

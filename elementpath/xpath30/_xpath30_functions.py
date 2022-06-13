@@ -32,9 +32,8 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE
 from ..etree import etree_iter_paths, is_etree_element
-from ..xpath_nodes import XPathNode, is_element_node, is_document_node, \
-    is_schema_node, ElementNode, TextNode, AttributeNode, NamespaceNode, \
-    DocumentNode, ProcessingInstructionNode, CommentNode
+from ..xpath_nodes import XPathNode, is_schema_node, ElementNode, TextNode, AttributeNode, \
+    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -903,7 +902,7 @@ def evaluate_has_children_function(self, context=None):
         raise self.missing_context()
     elif not self:
         if context.item is None:
-            return is_document_node(context.root)
+            return isinstance(context.root, DocumentNode)
 
         item = context.item
         if not isinstance(item, XPathNode):
@@ -915,9 +914,7 @@ def evaluate_has_children_function(self, context=None):
         elif not isinstance(item, XPathNode):
             raise self.error('XPTY0004', 'argument must be a node')
 
-    return is_document_node(item) or \
-        is_element_node(item) and not callable(item.tag) and \
-        (len(item) > 0 or item.text is not None) or \
+    return isinstance(item, DocumentNode) or \
         isinstance(item, ElementNode) and (len(item.elem) > 0 or item.elem.text is not None)
 
 
@@ -1543,6 +1540,7 @@ def evaluate_document_uri_function(self, context=None):
                     if doc and doc.document is context.root.document:
                         return AnyURI(uri)
     return None
+
 
 @method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))
 def evaluate_nilled_function(self, context=None):

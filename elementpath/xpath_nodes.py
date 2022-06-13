@@ -604,12 +604,6 @@ def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
         return obj.name == name
 
 
-def is_element_node(obj: Any) -> bool:
-    return isinstance(obj, ElementNode) or \
-        hasattr(obj, 'tag') and not callable(obj.tag) and \
-        hasattr(obj, 'attrib') and hasattr(obj, 'text')
-
-
 def is_schema(obj: Any) -> bool:
     if isinstance(obj, XPathNode):
         obj = obj.value
@@ -620,21 +614,3 @@ def is_schema_node(obj: Any) -> bool:
     if isinstance(obj, XPathNode):
         obj = obj.value
     return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
-
-
-def is_document_node(obj: Any) -> bool:
-    return isinstance(obj, DocumentNode) or \
-        hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
-
-
-def is_lxml_document_node(obj: Any) -> bool:
-    if isinstance(obj, DocumentNode):
-        obj = obj.value
-    return is_document_node(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
-
-
-def is_xpath_node(obj: Any) -> bool:
-    return isinstance(obj, XPathNode) or \
-        hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text') or \
-        hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name') or \
-        hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')

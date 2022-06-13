@@ -32,8 +32,8 @@ from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
 from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
-from ..xpath_nodes import DocumentNode, ElementNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, is_element_node, is_document_node, XPathNode
+from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
+    NamespaceNode, CommentNode, ProcessingInstructionNode
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
@@ -130,7 +130,7 @@ def evaluate_namespace_uri_for_prefix_function(self, context=None):
         raise self.error('FORG0006', '1st argument has an invalid type %r' % type(prefix))
 
     elem = self.get_argument(context, index=1)
-    if not is_element_node(elem):
+    if not isinstance(elem, ElementNode):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
     ns_uris = {get_namespace(e.tag) for e in elem.iter() if isinstance(e, ElementNode)}
     for p, uri in self.parser.namespaces.items():
@@ -151,7 +151,7 @@ def select_in_scope_prefixes_function(self, context=None):
     elem = self.get_argument(context)
     if isinstance(elem, ElementNode):
         elem = elem.elem
-    elif not is_element_node(elem):
+    elif not isinstance(elem, ElementNode):
         raise self.error('XPTY0004', 'argument %r is not an element node' % elem)
 
     if isinstance(context, XPathSchemaContext):
@@ -189,7 +189,7 @@ def evaluate_resolve_qname_function(self, context=None):
         raise self.missing_context()
 
     elem = self.get_argument(context, index=1)
-    if not is_element_node(elem):
+    if not isinstance(elem, ElementNode):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
 
     qname = qname.strip()
@@ -281,7 +281,7 @@ def evaluate_base_uri_function(self, context=None):
         context.item = item
         base_uri = []
         for item in context.iter_ancestors(axis='ancestor-or-self'):
-            if is_element_node(item):
+            if isinstance(item, ElementNode):
                 uri = item.get(XML_BASE)
                 if uri is not None:
                     if base_uri and urlsplit(uri).scheme:
@@ -1328,7 +1328,7 @@ def evaluate_lang_function(self, context=None):
     else:
         item = context.item
 
-    if not is_element_node(item):
+    if not isinstance(item, ElementNode):
         raise self.error('XPTY0004')
 
     try:
@@ -1443,7 +1443,7 @@ def select_idref_function(self, context=None):
 
     if not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
-    elif not is_element_node(node) and not is_document_node(node):
+    elif not isinstance(node, (ElementNode, DocumentNode)):
         return
 
     for elem in filter(lambda x: isinstance(x, ElementNode), node.iter()):

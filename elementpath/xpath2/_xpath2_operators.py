@@ -22,8 +22,7 @@ from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
-from ..xpath_nodes import ElementNode, XPathNode, \
-    match_attribute_node, is_element_node, is_document_node
+from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, match_attribute_node
 from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
 
@@ -610,7 +609,7 @@ def evaluate_node_comparison(self, context=None):
             return False
 
         documents = [context.root]
-        documents.extend(v for v in context.variables.values() if is_document_node(v))
+        documents.extend(v for v in context.variables.values() if isinstance(v, DocumentNode))
 
         for root in documents:
             for item in root.iter():  # pragma: no cover
@@ -703,15 +702,15 @@ def select_document_node_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
-        if is_document_node(context.item):
+        if isinstance(context.item, DocumentNode):
             yield context.item
-        elif is_document_node(context.root) and context.item is None:
+        elif isinstance(context.root, DocumentNode) and context.item is None:
             for item in context.iter_children_or_self():
                 if item is None:
                     yield context.root
     else:
-        elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
-        if is_document_node(context.root) and context.item is None:
+        elements = [e for e in self[0].select(copy(context)) if isinstance(e, ElementNode)]
+        if isinstance(context.root, DocumentNode) and context.item is None:
             if len(elements) == 1:
                 yield context.root
 
@@ -736,7 +735,7 @@ def select_element_kind_test(self, context=None):
         raise self.missing_context()
     elif not self:
         for item in context.iter_children_or_self():
-            if is_element_node(item):
+            if isinstance(item, ElementNode):
                 yield item
     else:
         for item in self[0].select(context):
@@ -805,7 +804,7 @@ def select_schema_element_kind_test(self, context=None):
                 and self.parser.schema.get_substitution_group(qname) is None:
             raise self.missing_name("element %r not found in schema" % element_name)
 
-        if is_element_node(context.item) and context.item.tag == qname:
+        if isinstance(context.item, ElementNode) and context.item.tag == qname:
             yield context.item
             return
 

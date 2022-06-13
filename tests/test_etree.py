@@ -10,6 +10,7 @@
 #
 import unittest
 import platform
+import io
 from pathlib import Path
 
 try:
@@ -18,7 +19,7 @@ except ImportError:
     lxml_etree = None
 
 from elementpath.etree import ElementTree, PyElementTree, \
-    SafeXMLParser, etree_tostring
+    SafeXMLParser, etree_tostring, is_etree_document
 
 
 class TestElementTree(unittest.TestCase):
@@ -175,6 +176,11 @@ class TestElementTree(unittest.TestCase):
             ElementTree.parse(str(xml_file), parser=parser)
         self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
                          str(ctx.exception))
+
+    def test_is_etree_document_function(self):
+        document = ElementTree.parse(io.StringIO('<A/>'))
+        self.assertTrue(is_etree_document(document))
+        self.assertFalse(is_etree_document(ElementTree.XML('<A/>')))
 
 
 if __name__ == '__main__':

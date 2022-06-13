@@ -24,8 +24,8 @@ from ..datatypes import AbstractDateTime, Duration, DayTimeDuration, \
 from ..xpath_context import XPathSchemaContext
 from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    is_schema_node, is_document_node, is_element_node
+from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
+    is_schema_node
 
 from .xpath1_parser import XPath1Parser
 
@@ -355,7 +355,7 @@ def select_wildcard(self, context=None):
             elif context.axis == 'attribute':
                 if isinstance(item, AttributeNode):
                     yield item
-            elif is_element_node(item):
+            elif isinstance(item, ElementNode):
                 yield item
 
     else:
@@ -389,7 +389,7 @@ def select_self_shortcut(self, context=None):
         for item in context.iter_self():
             if item is not None:
                 yield item
-            elif is_document_node(context.root):
+            elif isinstance(context.root, DocumentNode):
                 yield context.root
 
     else:
@@ -401,7 +401,7 @@ def select_self_shortcut(self, context=None):
                 else:
                     context.item = self.get_typed_node(item)
                     yield context.item
-            elif is_document_node(context.root):
+            elif isinstance(context.root, DocumentNode):
                 yield context.root
 
 
@@ -679,10 +679,10 @@ def select_child_path(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
-        if is_document_node(context.root):
+        if isinstance(context.root, DocumentNode):
             yield context.root
     elif len(self) == 1:
-        if is_document_node(context.root) or context.item is context.root:
+        if isinstance(context.root, DocumentNode) or context.item is context.root:
             if not isinstance(context, XPathSchemaContext):
                 context.item = None
             yield from self[0].select(context)
@@ -737,7 +737,7 @@ def select_descendant_path(self, context=None):
                         if isinstance(context, XPathSchemaContext):
                             self[1].add_xsd_type(result)
 
-    elif is_document_node(context.root) or context.item is context.root:
+    elif isinstance(context.root, DocumentNode) or context.item is context.root:
         context.item = None
 
         items = set()

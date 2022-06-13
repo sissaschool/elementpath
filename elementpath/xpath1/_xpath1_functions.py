@@ -18,7 +18,7 @@ from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
-    ProcessingInstructionNode, is_document_node, is_element_node
+    ProcessingInstructionNode, DocumentNode
 from ..xpath_token import XPathFunction
 
 from ._xpath1_operators import XPath1Parser
@@ -128,7 +128,7 @@ def select_id_function(self, context=None):
         if item is None:
             item = context.root
 
-        if is_element_node(item) or is_document_node(item):
+        if isinstance(item, (ElementNode, DocumentNode)):
             yield from filter(
                 lambda x: isinstance(x, ElementNode) and x.get(XML_ID) == value, item.iter()
             )
@@ -318,7 +318,7 @@ def evaluate_false_function(self, context=None):
 def evaluate_lang_function(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif not is_element_node(context.item):
+    elif not isinstance(context.item, ElementNode):
         return False
     else:
         try:

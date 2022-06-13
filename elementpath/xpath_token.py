@@ -36,9 +36,9 @@ from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .etree import is_etree_element
-from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    NamespaceNode, is_element_node, is_document_node, is_schema_node
+from .etree import is_etree_element, is_etree_document
+from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
+    NamespaceNode, is_schema_node
 from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, \
     DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy, QName, \
@@ -459,7 +459,7 @@ class XPathToken(Token[XPathTokenType]):
             res = results[0]
             if isinstance(res, (bool, int, float, Decimal)):
                 return res
-            elif is_etree_element(res) or is_document_node(res) or is_schema_node(res):
+            elif is_etree_element(res) or is_etree_document(res) or is_schema_node(res):
                 return results
             elif self.label in ('function', 'literal'):
                 return cast(AtomicValueType, res)
@@ -482,13 +482,13 @@ class XPathToken(Token[XPathTokenType]):
         op1 = self.get_argument(context, cls=cls)
         if op1 is None:
             return None, None
-        elif is_element_node(op1):
+        elif isinstance(op1, ElementNode):
             op1 = self._items[0].data_value(op1)
 
         op2 = self.get_argument(context, index=1, cls=cls)
         if op2 is None:
             return None, None
-        elif is_element_node(op2):
+        elif isinstance(op2, ElementNode):
             op2 = self._items[1].data_value(op2)
 
         if isinstance(op1, AbstractDateTime) and isinstance(op2, AbstractDateTime):
@@ -1220,7 +1220,7 @@ class XPathFunction(XPathToken):
                 raise self.missing_context()
             elif not args and self:
                 if context.item is None:
-                    if is_document_node(context.root):
+                    if isinstance(context.root, DocumentNode):
                         context.item = cast(DocumentProtocol, context.root).getroot()
                     else:
                         context.item = context.root

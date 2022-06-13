@@ -42,8 +42,8 @@ else:
 
 from elementpath import *
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
-from elementpath.etree import is_etree_element
-from elementpath.xpath_nodes import ElementNode, DocumentNode, is_lxml_document_node
+from elementpath.etree import is_etree_element, is_lxml_etree_document
+from elementpath.xpath_nodes import ElementNode, DocumentNode
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
 from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
     int_to_roman, int_to_alphabetic, int_to_words
@@ -522,9 +522,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(document.document.getroot().text, 'abcd')
 
         if self.etree is lxml_etree:
-            self.assertTrue(is_lxml_document_node(document.document))
+            self.assertTrue(is_lxml_etree_document(document.document))
         else:
-            self.assertFalse(is_lxml_document_node(document.document))
+            self.assertFalse(is_lxml_etree_document(document.document))
 
         self.assertEqual(document.document.getroot().tag, 'alpha')
         self.assertEqual(document.document.getroot().text, 'abcd')

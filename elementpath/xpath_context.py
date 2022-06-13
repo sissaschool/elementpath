@@ -12,15 +12,14 @@ import importlib
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, MutableMapping, Tuple
+    Optional, Sequence, Union, Callable, Tuple
 
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .datatypes import AnyAtomicType, Timezone
-from .protocols import ElementProtocol, XsdElementProtocol, XMLSchemaProtocol
-from .etree import ElementType, DocumentType, is_etree_element, etree_iter_root
-from .xpath_nodes import DocumentNode, ElementNode, CommentNode, \
-    ProcessingInstructionNode, AttributeNode, NamespaceNode, TextNode, \
-    is_element_node, is_document_node, XPathNode, XPathNodeType, is_schema
+from .protocols import XsdElementProtocol, XMLSchemaProtocol
+from .etree import ElementType, DocumentType, is_etree_element, is_etree_document, etree_iter_root
+from .xpath_nodes import DocumentNode, ElementNode, CommentNode, ProcessingInstructionNode, \
+    AttributeNode, NamespaceNode, TextNode, XPathNode, XPathNodeType, is_schema
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -102,7 +101,7 @@ class XPathContext:
         self.namespaces = dict(namespaces) if namespaces else {}
 
         assert not isinstance(root, XPathNode)
-        if is_document_node(root) or is_etree_element(root):
+        if is_etree_document(root) or is_etree_element(root):
             self.root = self.build_tree(root)
         else:
             msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
@@ -215,7 +214,7 @@ class XPathContext:
         elif self.axis == 'namespace':
             return isinstance(self.item, NamespaceNode)
         else:
-            return is_element_node(self.item)
+            return isinstance(self.item, ElementNode)
 
     def match_name(self, name: Optional[str] = None,
                    default_namespace: Optional[str] = None) -> bool:
@@ -231,8 +230,8 @@ class XPathContext:
             if not isinstance(self.item, AttributeNode):
                 return False
             item_name = self.item.name
-        elif is_element_node(self.item):
-            item_name = cast(ElementProtocol, self.item).tag
+        elif isinstance(self.item, ElementNode):
+            item_name = self.item.elem.tag
         else:
             return False
 
@@ -271,7 +270,7 @@ class XPathContext:
             return value
         elif isinstance(value, (list, tuple)):
             return [self._get_effective_value(x) for x in value]
-        elif is_document_node(value):
+        elif is_etree_document(value):
             if value is self.root.value:
                 return self.root
         elif is_etree_element(value):
