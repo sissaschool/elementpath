@@ -20,7 +20,7 @@ from .exceptions import ElementPathValueError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
 from .etree import ElementType, DocumentType, is_etree_element, \
-    etree_iter_strings, ElementProxyMixin
+    etree_iter_strings
 
 if TYPE_CHECKING:
     from .xpath_context import XPathContext
@@ -97,10 +97,6 @@ class AttributeNode(XPathNode):
         return self.name, self.value
 
     def __repr__(self) -> str:
-        if self.parent is not None:
-            return '%s(name=%r, value=%r, parent=%r)' % (
-                self.__class__.__name__, self.name, self.value, self.parent
-            )
         return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
 
     @property
@@ -148,10 +144,6 @@ class NamespaceNode(XPathNode):
         return self.prefix, self.uri
 
     def __repr__(self) -> str:
-        if self.parent is not None:
-            return '%s(prefix=%r, uri=%r, parent=%r)' % (
-                self.__class__.__name__, self.prefix, self.uri, self.parent
-            )
         return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.prefix, self.uri)
 
     @property
@@ -170,32 +162,19 @@ class TextNode(XPathNode):
 
     :param value: a string value.
     :param parent: the parent element.
-    :param tail: provide `True` if the text node is the parent Element's tail.
     """
     kind = 'text'
     value: str
-    _tail = False
 
     def __init__(self, context: 'XPathContext',
                  value: str,
-                 parent: Optional[ElementType] = None,
-                 tail: bool = False) -> None:
+                 parent: Optional[ElementType] = None) -> None:
         super().__init__(context)
         self.value = value
         self.parent = parent
-        if tail and parent is not None:
-            self._tail = True
-
-    def is_tail(self) -> bool:
-        """Returns `True` if the node has a parent and represents the tail text."""
-        return self._tail
 
     def __repr__(self) -> str:
-        if self.parent is not None:
-            return '%s(%r, parent=%r, tail=%r)' % (
-                self.__class__.__name__, self.value, self.parent, self._tail
-            )
-        return '%s(%r)' % (self.__class__.__name__, self.value)
+        return '%s(value=%r)' % (self.__class__.__name__, self.value)
 
     @property
     def string_value(self) -> str:
@@ -206,7 +185,7 @@ class TextNode(XPathNode):
         return UntypedAtomic(self.value)
 
 
-class CommentNode(XPathNode, ElementProxyMixin):
+class CommentNode(XPathNode):
     """
     A class for processing XPath comment nodes.
     """
@@ -218,6 +197,9 @@ class CommentNode(XPathNode, ElementProxyMixin):
         super().__init__(context)
         self.elem = elem
         self.parent = parent
+
+    def __repr__(self) -> str:
+        return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
     @property
     def value(self) -> ParentNodeType:
@@ -238,7 +220,7 @@ class CommentNode(XPathNode, ElementProxyMixin):
         return self.elem.text or ''
 
 
-class ProcessingInstructionNode(XPathNode, ElementProxyMixin):
+class ProcessingInstructionNode(XPathNode):
     """
     A class for XPath processing instructions nodes.
     """
@@ -251,6 +233,9 @@ class ProcessingInstructionNode(XPathNode, ElementProxyMixin):
         super().__init__(context)
         self.elem = elem
         self.parent = parent
+
+    def __repr__(self) -> str:
+        return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
     @property
     def name(self) -> str:
@@ -273,7 +258,7 @@ class ProcessingInstructionNode(XPathNode, ElementProxyMixin):
         return self.elem.text or ''
 
 
-class ElementNode(XPathNode, ElementProxyMixin):
+class ElementNode(XPathNode):
     """
     A class for processing XPath element nodes that uses lazy properties to
     diminish the average load for a tree processing.
@@ -319,6 +304,9 @@ class ElementNode(XPathNode, ElementProxyMixin):
         else:
             self.children = []
 
+    def __repr__(self) -> str:
+        return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
+
     def iter(self, with_self=True):
         if with_self:
             yield self
@@ -338,7 +326,7 @@ class ElementNode(XPathNode, ElementProxyMixin):
                 except IndexError:
                     return
             else:
-                if isinstance(child, TextNode) or callable(child.tag):
+                if isinstance(child, TextNode) or callable(child.elem.tag):
                     yield child
                 else:
                     yield child
@@ -364,7 +352,7 @@ class ElementNode(XPathNode, ElementProxyMixin):
                 except IndexError:
                     return
             else:
-                if isinstance(child, TextNode) or callable(child.tag):
+                if isinstance(child, TextNode) or callable(child.elem.tag):
                     yield child
                 else:
                     yield child
@@ -461,7 +449,7 @@ class DocumentNode(XPathNode):
             yield self
 
         for e in self.children:
-            if callable(e.tag):
+            if callable(e.elem.tag):
                 yield e
             else:
                 yield from e.iter()
@@ -471,7 +459,7 @@ class DocumentNode(XPathNode):
             yield self
 
         for e in self.children:
-            if callable(e.tag):
+            if callable(e.elem.tag):
                 yield e
             else:
                 yield from e.iter_descendants()

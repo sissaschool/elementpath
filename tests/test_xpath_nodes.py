@@ -179,8 +179,7 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(attribute.as_item(), ('id', '0212349350'))
 
         attribute = AttributeNode(self.context, 'value', '10', parent)
-        self.assertEqual(repr(attribute)[:59],
-                         "AttributeNode(name='value', value='10', parent=ElementNode(")
+        self.assertEqual(repr(attribute), "AttributeNode(name='value', value='10')")
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
@@ -210,20 +209,13 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(text_node, text_node)
         self.assertNotEqual(text_node, TextNode(context, 'alpha', parent))
 
-        text_node = TextNode(context, 'alpha', parent, tail=True)
-        self.assertEqual(text_node, text_node)
-        self.assertNotEqual(text_node, TextNode(context, 'alpha', parent, tail=True))
-
-        self.assertFalse(TextNode(context, 'alpha', parent).is_tail())
-        self.assertTrue(TextNode(context, 'alpha', parent, tail=True).is_tail())
-        self.assertFalse(TextNode(context, 'alpha', tail=True).is_tail())
-
-        self.assertEqual(repr(TextNode(context, 'alpha')), "TextNode('alpha')")
         text_node = TextNode(context, 'alpha', parent)
-        self.assertTrue(repr(text_node).startswith("TextNode('alpha', parent=ElementNode("))
-        self.assertTrue(repr(text_node).endswith(", tail=False)"))
-        text = TextNode(context, 'alpha', parent, tail=True)
-        self.assertTrue(repr(text).endswith(", tail=True)"))
+        self.assertEqual(text_node, text_node)
+        self.assertNotEqual(text_node, TextNode(context, 'alpha', parent))
+
+        self.assertEqual(repr(TextNode(context, 'alpha')), "TextNode(value='alpha')")
+        text_node = TextNode(context, 'alpha', parent)
+        self.assertEqual(repr(text_node), "TextNode(value='alpha')")
 
     def test_namespace_nodes(self):
         context, parent = self.context, self.context.root
@@ -239,9 +231,7 @@ class XPathNodesTest(unittest.TestCase):
         )
 
         namespace = NamespaceNode(context, 'tns', 'http://xpath.test/ns', parent=context.root)
-        self.assertEqual(repr(namespace)[:75],
-                         "NamespaceNode(prefix='tns', uri='http://xpath.test/ns', "
-                         "parent=ElementNode(")
+        self.assertEqual(repr(namespace), "NamespaceNode(prefix='tns', uri='http://xpath.test/ns')")
 
         self.assertNotEqual(namespace,
                             NamespaceNode(context, 'tns', 'http://xpath.test/ns', parent=context.root))

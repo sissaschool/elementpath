@@ -11,6 +11,7 @@
 """
 XPath 3.0 implementation - part 3 (functions)
 """
+import collections
 import decimal
 import os
 import re
@@ -1213,12 +1214,10 @@ def evaluate_serialize_function(self, context=None):
     if params is None:
         tmpl = '<output:serialization-parameters xmlns:output="{}"/>'
         params = ElementTree.XML(tmpl.format(XSLT_XQUERY_SERIALIZATION_NAMESPACE))
-    elif not is_etree_element(params):
-        pass
-    elif params.tag != SERIALIZATION_PARAMS:
-        raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
-    else:
+    elif isinstance(params, ElementNode):
         params = params.value
+        if params.tag != SERIALIZATION_PARAMS:
+            raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
 
     if context is None or isinstance(context, XPathSchemaContext):
         etree = ElementTree

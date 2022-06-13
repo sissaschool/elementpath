@@ -116,7 +116,7 @@ def select_name_literal(self, context=None):
                     elif isinstance(item, AttributeNode):
                         self.xsd_types = {item.name: xsd_node.type}
                     else:
-                        self.xsd_types = {item.tag: xsd_node.type}
+                        self.xsd_types = {item.elem.tag: xsd_node.type}
 
                     context.item = self.get_typed_node(item)
                     yield context.item

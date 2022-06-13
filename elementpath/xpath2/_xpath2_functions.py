@@ -132,7 +132,8 @@ def evaluate_namespace_uri_for_prefix_function(self, context=None):
     elem = self.get_argument(context, index=1)
     if not isinstance(elem, ElementNode):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
-    ns_uris = {get_namespace(e.tag) for e in elem.iter() if isinstance(e, ElementNode)}
+
+    ns_uris = {get_namespace(e.tag) for e in elem.elem.iter() if not callable(e.tag)}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
             if p == prefix:
@@ -282,7 +283,7 @@ def evaluate_base_uri_function(self, context=None):
         base_uri = []
         for item in context.iter_ancestors(axis='ancestor-or-self'):
             if isinstance(item, ElementNode):
-                uri = item.get(XML_BASE)
+                uri = item.elem.get(XML_BASE)
                 if uri is not None:
                     if base_uri and urlsplit(uri).scheme:
                         break
@@ -1332,15 +1333,15 @@ def evaluate_lang_function(self, context=None):
         raise self.error('XPTY0004')
 
     try:
-        lang = item.attrib[XML_LANG].strip()
+        lang = item.elem.attrib[XML_LANG].strip()
     except KeyError:
         if len(self) > 1:
             return False
 
         for elem in context.iter_ancestors():
             try:
-                if XML_LANG in elem.attrib:
-                    lang = elem.attrib[XML_LANG]
+                if XML_LANG in elem.elem.attrib:
+                    lang = elem.elem.attrib[XML_LANG]
                     break
             except AttributeError:
                 pass  # is a document node

@@ -12,7 +12,7 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
-from typing import cast, Any, Counter, Dict, Iterator, Optional, MutableMapping, \
+from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
     Tuple, Union
 
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
@@ -98,41 +98,6 @@ class SafeXMLParser(PyElementTree.XMLParser):
             "External references are forbidden (system_id={!r}, "
             "public_id={!r})".format(system_id, public_id)
         )  # pragma: no cover (EntityDeclHandler is called before)
-
-
-class ElementProxyMixin:
-    """
-    A proxy mixin for ElementTree and XML Schema elements.
-    """
-    elem: ElementProtocol
-
-    def __repr__(self) -> str:
-        return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
-
-    def __eq__(self, other: Any) -> bool:
-        return other == self.elem or isinstance(other, self.__class__) and self.elem == other.elem
-
-    def __hash__(self) -> int:
-        return hash(self.elem)
-
-    @property
-    def tag(self) -> str:
-        return self.elem.tag
-
-    @property
-    def text(self) -> Optional[str]:
-        return self.elem.text
-
-    @property
-    def tail(self) -> Optional[str]:
-        return self.elem.tail
-
-    @property
-    def attrib(self) -> Dict[str, str]:
-        return self.elem.attrib
-
-    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
-        return self.elem.get(key, default)
 
 
 def is_etree_element(obj: Any) -> bool:
@@ -343,7 +308,6 @@ def etree_tostring(elem: ElementProtocol,
 
 
 __all__ = ['ElementType', 'DocumentType', 'ElementTree', 'PyElementTree',
-           'SafeXMLParser', 'ElementProxyMixin', 'is_etree_element',
-           'is_lxml_etree_element', 'is_etree_document', 'is_lxml_etree_document',
-           'etree_iter_root', 'etree_iter_strings', 'etree_deep_equal',
-           'etree_iter_paths', 'etree_tostring']
+           'SafeXMLParser', 'is_etree_element', 'is_lxml_etree_element',
+           'is_etree_document', 'is_lxml_etree_document', 'etree_iter_root',
+           'etree_iter_strings', 'etree_deep_equal', 'etree_iter_paths', 'etree_tostring']

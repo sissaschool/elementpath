@@ -200,7 +200,7 @@ class XPathContext:
 
         while True:
             try:
-                path.append(item.tag)
+                path.append(item.elem.tag)
             except AttributeError:
                 pass  # is a document node
 
@@ -333,7 +333,7 @@ class XPathContext:
 
                 parent.children.append(child)
                 if elem.tail is not None:
-                    parent.children.append(TextNode(self, elem.tail, parent, tail=True))
+                    parent.children.append(TextNode(self, elem.tail, parent))
 
                 if len(elem):
                     ancestors.append(parent)

@@ -804,7 +804,7 @@ def select_schema_element_kind_test(self, context=None):
                 and self.parser.schema.get_substitution_group(qname) is None:
             raise self.missing_name("element %r not found in schema" % element_name)
 
-        if isinstance(context.item, ElementNode) and context.item.tag == qname:
+        if isinstance(context.item, ElementNode) and context.item.elem.tag == qname:
             yield context.item
             return
 

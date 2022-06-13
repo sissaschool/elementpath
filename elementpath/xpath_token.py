@@ -682,7 +682,7 @@ class XPathToken(Token[XPathTokenType]):
         xsd_node: Any
         for xsd_node in schema_context.iter_children_or_self():
             if xsd_node is None:
-                if name == XSD_SCHEMA == schema_context.root.tag:
+                if name == XSD_SCHEMA == schema_context.root.elem.tag:
                     yield None
                 continue  # pragma: no cover
 
@@ -709,7 +709,7 @@ class XPathToken(Token[XPathTokenType]):
                         xsd_node.xsd_type = xsd_type
                         yield xsd_node
 
-                elif name == XSD_SCHEMA == xsd_node.tag:
+                elif name == XSD_SCHEMA == xsd_node.elem.tag:
                     # The element is a schema
                     yield xsd_node
 
@@ -784,16 +784,18 @@ class XPathToken(Token[XPathTokenType]):
         """
         if not self.xsd_types or isinstance(self.xsd_types, AbstractSchemaProxy):
             return None
-        elif isinstance(item, str):
-            xsd_type = self.xsd_types.get(item)
         elif isinstance(item, AttributeNode):
             if item.xsd_type is not None:
                 return item.xsd_type
             xsd_type = self.xsd_types.get(item.name)
-        elif isinstance(item, ElementNode) and item.xsd_type is not None:
-            return item.xsd_type
+        elif isinstance(item, ElementNode):
+            if item.xsd_type is not None:
+                return item.xsd_type
+            xsd_type = self.xsd_types.get(item.elem.tag)
+        elif isinstance(item, str):
+            xsd_type = self.xsd_types.get(item)
         else:
-            xsd_type = self.xsd_types.get(item.tag)
+            return None
 
         x: XsdTypeProtocol
         if not xsd_type:
