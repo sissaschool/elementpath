@@ -17,8 +17,7 @@ from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
 from elementpath.xpath_nodes import DocumentNode, ElementNode, AttributeNode, TextNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode, match_element_node, \
-    match_attribute_node, is_comment_node, is_document_node, \
-    is_processing_instruction_node
+    match_attribute_node, is_document_node
 from elementpath.xpath_context import XPathContext
 
 
@@ -127,24 +126,10 @@ class XPathNodesTest(unittest.TestCase):
         attr = AttributeNode(self.context, '{http://xpath.test/ns}a1', '10', parent=None)
         self.assertTrue(match_attribute_node(attr, '*:a1'))
 
-    def test_is_comment_node_function(self):
-        comment = ElementTree.Comment('nothing important')
-        self.assertTrue(is_comment_node(comment))
-
-        root = ElementTree.Element('root')
-        context = XPathContext(root)
-        self.assertTrue(is_comment_node(CommentNode(context, comment)))
-        self.assertFalse(is_comment_node(self.elem))
-
     def test_is_document_node_function(self):
         document = ElementTree.parse(io.StringIO('<A/>'))
         self.assertTrue(is_document_node(document))
         self.assertFalse(is_document_node(self.elem))
-
-    def test_is_processing_instruction_node_function(self):
-        pi = ElementTree.ProcessingInstruction('action', 'nothing to do')
-        self.assertTrue(is_processing_instruction_node(pi))
-        self.assertFalse(is_processing_instruction_node(self.elem))
 
     def test_node_base_uri(self):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/" />'

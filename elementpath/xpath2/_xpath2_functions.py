@@ -1399,7 +1399,7 @@ def select_id_function(self, context=None):
             if self.symbol == 'id':
                 yield elem
             else:
-                parent = context.get_parent(elem)
+                parent = elem.parent
                 if parent is not None:
                     yield parent
             continue  # pragma: no cover

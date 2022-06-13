@@ -622,16 +622,6 @@ def is_schema_node(obj: Any) -> bool:
     return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
 
 
-def is_comment_node(obj: Any) -> bool:
-    return isinstance(obj, CommentNode) or \
-        hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'Comment'
-
-
-def is_processing_instruction_node(obj: Any) -> bool:
-    return isinstance(obj, ProcessingInstructionNode) or \
-        hasattr(obj, 'tag') and callable(obj.tag) and obj.tag.__name__ == 'ProcessingInstruction'
-
-
 def is_document_node(obj: Any) -> bool:
     return isinstance(obj, DocumentNode) or \
         hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')

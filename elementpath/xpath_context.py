@@ -69,7 +69,6 @@ class XPathContext:
     for default is `False`. Used by the XPath 3.0+ functions fn:environment-variable \
     and fn:available-environment-variables.
     """
-    _parent_map: Optional[MutableMapping[ElementType, ContextRootType]] = None
     _etree: Optional[ModuleType] = None
     root: ContextRootType
     item: Optional[ContextItemType]
@@ -169,30 +168,6 @@ class XPathContext:
         return obj
 
     @property
-    def parent_map(self) -> MutableMapping[ElementType, ContextRootType]:
-        if self._parent_map is None:
-            self._parent_map: Dict[ElementType, ContextRootType]
-            self._parent_map = {child: elem for elem in self.root.value.iter() for child in elem}
-            if isinstance(self.root, DocumentNode):
-                self._parent_map[cast(DocumentType, self.root.value).getroot()] = self.root
-
-            # Add parent mapping for trees bound to dynamic context variables
-            for v in self.variables.values():
-                if is_document_node(v):
-                    doc = cast(DocumentType, v)
-                    self._parent_map.update((c, e) for e in doc.iter() for c in e)
-                    self._parent_map[doc.getroot()] = doc
-                elif is_element_node(v):
-                    if isinstance(v, ElementNode):
-                        root = v.elem
-                    else:
-                        root = cast(ElementType, v)
-
-                    self._parent_map.update((c, e) for e in root.iter() for c in e)
-
-        return self._parent_map
-
-    @property
     def etree(self) -> ModuleType:
         if self._etree is None:
             etree_module_name = self.root.value.__class__.__module__
@@ -213,25 +188,6 @@ class XPathContext:
                 pass
 
         return None
-
-    def get_parent(self, elem: Union[ElementType, ElementNode]) \
-            -> Union[None, ElementType, DocumentType]:
-        """Returns the parent of the element or `None` if it has no parent."""
-        if isinstance(elem, XPathNode):
-            return elem.parent
-
-        _elem = elem.elem if isinstance(elem, ElementNode) else elem
-
-        try:
-            return self.parent_map[_elem]
-        except KeyError:
-            try:
-                # fallback for lxml elements
-                parent = _elem.getparent()  # type: ignore[union-attr]
-            except AttributeError:
-                return None
-            else:
-                return cast(Optional[ElementType], parent)
 
     def get_path(self, item: Any) -> str:
         """Cached path resolver for elements and attributes. Returns absolute paths."""

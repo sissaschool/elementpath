@@ -74,69 +74,6 @@ class XPathContextTest(unittest.TestCase):
         self.assertEqual(context.etree.__name__, 'lxml.etree')
         self.assertEqual(context.etree.__name__, 'lxml.etree')
 
-    def test_parent_map(self):
-        root = ElementTree.XML('<A><B1/><B2/></A>')
-        context = XPathContext(root)
-        self.assertEqual(context.parent_map, {root[0]: root, root[1]: root})
-
-        with patch.object(DummyXsdType(), 'is_element_only', return_value=True) as xsd_type:
-            context = XPathContext(root, item=root)
-            context.root.xsd_type = xsd_type
-            self.assertEqual(context.parent_map, {root[0]: root, root[1]: root})
-
-        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
-
-        context = XPathContext(root)
-        result = {
-            root[0]: root, root[0][0]: root[0], root[1]: root,
-            root[2]: root, root[2][0]: root[2], root[2][1]: root[2]
-        }
-        self.assertEqual(context.parent_map, result)
-        self.assertEqual(context.parent_map, result)  # Test property caching
-
-        with patch.object(DummyXsdType(), 'is_element_only', return_value=True) as xsd_type:
-            context = XPathContext(root, item=root)
-            context.root.xsd_type = xsd_type
-            self.assertEqual(context.parent_map, result)
-
-    def test_get_parent(self):
-        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
-
-        context = XPathContext(root)
-
-        self.assertIsNone(context._parent_map)
-        self.assertIsNone(context.get_parent(root))
-
-        self.assertIsInstance(context._parent_map, dict)
-        self.assertEqual(context.get_parent(root[0]), root)
-        parent_map_id = id(context._parent_map)
-
-        self.assertEqual(context.get_parent(root[1]), root)
-        self.assertEqual(context.get_parent(root[2]), root)
-        self.assertEqual(context.get_parent(root[2][1]), root[2])
-
-        with patch.object(DummyXsdType(), 'is_empty', return_value=True) as xsd_type:
-            elem_node = context.root[2][1]
-            elem_node.xsd_type = xsd_type
-            self.assertEqual(context.get_parent(elem_node), context.root[2])
-            self.assertEqual(id(context._parent_map), parent_map_id)
-
-        # self.assertIsNone(context.get_parent(AttributeNode('max', '10')))
-        self.assertEqual(id(context._parent_map), parent_map_id)
-
-        parent_map_id = id(context._parent_map)
-        # self.assertIsNone(context.get_parent(AttributeNode('max', '10')))
-        self.assertEqual(
-            id(context._parent_map), parent_map_id  # LRU cache prevents parent map rebuild
-        )
-
-        document = ElementTree.ElementTree(root)
-        context = XPathContext(root=document)
-
-        self.assertEqual(context.get_parent(root[1]), root)
-        self.assertEqual(context.get_parent(root[2]), root)
-        self.assertEqual(context.get_parent(root[2][1]), root[2])
-
     def test_get_path(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
 
