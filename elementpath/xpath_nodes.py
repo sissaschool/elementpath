@@ -19,8 +19,7 @@ from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
 from .exceptions import ElementPathValueError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
-from .etree import ElementType, DocumentType, is_etree_element, \
-    etree_iter_strings
+from .etree import ElementType, DocumentType, etree_iter_strings
 
 if TYPE_CHECKING:
     from .xpath_context import XPathContext
@@ -37,6 +36,10 @@ ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstr
 #
 # Note: in this implementation empty sequence return value is replaced by None.
 #
+# XPath has seven kinds of nodes:
+#
+#  element, attribute, text, namespace, processing-instruction, comment, document
+###
 class XPathNode:
 
     # Accessors, empty sequences are represented with None values.
@@ -69,6 +72,41 @@ class XPathNode:
     @property
     def typed_value(self) -> Optional[AtomicValueType]:
         raise NotImplementedError()
+
+    def match(self, name: Optional[str] = None) -> bool:
+        """
+        Returns `True` if the argument is matching the name of the node, `False` otherwise.
+        Raises a ValueError if the argument is used, but it's in a wrong format.
+
+        :param name: a fully qualified name, a local name or a wildcard. The accepted \
+        wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
+        """
+        if name is None or name == '*' or name == '*:*':
+            return True
+        elif self.name is None:
+            return False
+        elif not name:
+            return not self.name
+        elif name[0] == '*':
+            try:
+                _, _name = name.split(':')
+            except (ValueError, IndexError):
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            else:
+                if self.name.startswith('{'):
+                    return self.name.split('}')[1] == _name
+                else:
+                    return self.name == _name
+
+        elif name[-1] == '*':
+            if name[0] != '{' or '}' not in name:
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            elif self.name.startswith('{'):
+                return self.name.split('}')[0][1:] == name.split('}')[0][1:]
+            else:
+                return False
+        else:
+            return self.name == name
 
 
 class AttributeNode(XPathNode):
@@ -495,97 +533,6 @@ class DocumentNode(XPathNode):
 
 
 XPathNodeType = Union[ElementType, DocumentType, XPathNode]
-
-
-###
-# XPath node test functions
-#
-# XPath has there are seven kinds of nodes:
-#
-#  element, attribute, text, namespace, processing-instruction, comment, document
-#
-# Element-like objects are used for representing elements and comments,
-# ElementTree-like objects for documents. XPathNode subclasses are used
-# for representing other node types and typed elements/attributes.
-###
-def match_element_node(obj: Any, tag: Optional[str] = None) -> Any:
-    """
-    Returns `True` if the first argument is an element node matching the tag, `False` otherwise.
-    Raises a ValueError if the argument tag has to be used but it's in a wrong format.
-
-    :param obj: the node to be tested.
-    :param tag: a fully qualified name, a local name or a wildcard. The accepted
-    wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
-    """
-    if isinstance(obj, (ElementNode, CommentNode, ProcessingInstructionNode)):
-        obj = obj.elem
-    elif not is_etree_element(obj) or callable(obj.tag):
-        return False
-
-    if not tag:
-        return True
-    elif not obj.tag:
-        return obj.tag == tag
-    elif tag == '*' or tag == '*:*':
-        return obj.tag != ''
-    elif tag[0] == '*':
-        try:
-            _, name = tag.split(':')
-        except (ValueError, IndexError):
-            raise ElementPathValueError("unexpected format %r for argument 'tag'" % tag)
-        else:
-            if obj.tag[0] == '{':
-                return obj.tag.split('}')[1] == name
-            else:
-                return obj.tag == name
-
-    elif tag[-1] == '*':
-        if tag[0] != '{' or '}' not in tag:
-            raise ElementPathValueError("unexpected format %r for argument 'tag'" % tag)
-        elif obj.tag[0] == '{':
-            return obj.tag.split('}')[0][1:] == tag.split('}')[0][1:]
-        else:
-            return False
-    else:
-        return obj.tag == tag
-
-
-def match_attribute_node(obj: Any, name: Optional[str] = None) -> bool:
-    """
-    Returns `True` if the first argument is an attribute node matching the name, `False` otherwise.
-    Raises a ValueError if the argument name has to be used, but it's in a wrong format.
-
-    :param obj: the node to be tested.
-    :param name: a fully qualified name, a local name or a wildcard. The accepted wildcard formats \
-    are '*', '*:*', '*:local-name' and '{namespace}*'.
-    """
-    if name is None or name == '*' or name == '*:*':
-        return isinstance(obj, AttributeNode)
-    elif not isinstance(obj, AttributeNode):
-        return False
-
-    if not name:
-        return not obj.name
-    elif name[0] == '*':
-        try:
-            _, _name = name.split(':')
-        except (ValueError, IndexError):
-            raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-        else:
-            if obj.name.startswith('{'):
-                return obj.name.split('}')[1] == _name
-            else:
-                return obj.name == _name
-
-    elif name[-1] == '*':
-        if name[0] != '{' or '}' not in name:
-            raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-        elif obj.name.startswith('{'):
-            return obj.name.split('}')[0][1:] == name.split('}')[0][1:]
-        else:
-            return False
-    else:
-        return obj.name == name
 
 
 def is_schema(obj: Any) -> bool:

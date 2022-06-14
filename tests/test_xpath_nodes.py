@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ElementTree
 from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
 from elementpath.xpath_nodes import DocumentNode, ElementNode, AttributeNode, TextNode, \
-    NamespaceNode, CommentNode, ProcessingInstructionNode, match_element_node, match_attribute_node
+    NamespaceNode, CommentNode, ProcessingInstructionNode
 from elementpath.xpath_context import XPathContext
 
 
@@ -86,44 +86,24 @@ class XPathNodesTest(unittest.TestCase):
         elem = ElementTree.XML('<A><B1>10</B1><B2 max="20"><C1/></B2>end</A>')
         self.assertFalse(etree_deep_equal(root, elem))
 
-    def test_match_element_node_function(self):
-        elem = ElementTree.Element('alpha')
-        empty_tag_elem = ElementTree.Element('')
-        self.assertTrue(match_element_node(elem))
-        self.assertTrue(match_element_node(elem, '*'))
-        self.assertFalse(match_element_node(empty_tag_elem, '*'))
-        with self.assertRaises(ValueError):
-            match_element_node(elem, '**')
-        with self.assertRaises(ValueError):
-            match_element_node(elem, '*:*:*')
-        with self.assertRaises(ValueError):
-            match_element_node(elem, 'foo:*')
-        self.assertFalse(match_element_node(empty_tag_elem, 'foo:*'))
-        self.assertFalse(match_element_node(elem, '{foo}*'))
-
-        with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
-            xsd_type = DummyXsdType()
-            typed_elem = ElementNode(self.context, elem=elem, xsd_type=xsd_type)
-            self.assertTrue(match_element_node(typed_elem, '*'))
-
-    def test_match_attribute_node_function(self):
+    def test_match_method(self):
         attr = AttributeNode(self.context, 'a1', '10', parent=None)
-        self.assertTrue(match_attribute_node(attr, '*'))
-        self.assertTrue(match_attribute_node(attr, 'a1'))
+        self.assertTrue(attr.match('*'))
+        self.assertTrue(attr.match('a1'))
         with self.assertRaises(ValueError):
-            match_attribute_node(attr, '**')
+            attr.match('**')
         with self.assertRaises(ValueError):
-            match_attribute_node(attr, '*:*:*')
+            attr.match('*:*:*')
         with self.assertRaises(ValueError):
-            match_attribute_node(attr, 'foo:*')
-        self.assertTrue(match_attribute_node(attr, '*:a1'))
-        self.assertFalse(match_attribute_node(attr, '{foo}*'))
+            attr.match('foo:*')
+        self.assertTrue(attr.match('*:a1'))
+        self.assertFalse(attr.match('{foo}*'))
         self.assertTrue(
-            match_attribute_node(AttributeNode(self.context, '{foo}a1', '10'), '{foo}*')
+            AttributeNode(self.context, '{foo}a1', '10').match('{foo}*')
         )
 
         attr = AttributeNode(self.context, '{http://xpath.test/ns}a1', '10', parent=None)
-        self.assertTrue(match_attribute_node(attr, '*:a1'))
+        self.assertTrue(attr.match('*:a1'))
 
     def test_node_base_uri(self):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/" />'

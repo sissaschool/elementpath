@@ -22,7 +22,7 @@ from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
-from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, match_attribute_node
+from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
 
@@ -784,7 +784,7 @@ def select_schema_attribute_kind_test(self, context=None):
         if self.parser.schema.get_attribute(qname) is None:
             raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
-        if match_attribute_node(context.item, qname):
+        if isinstance(context.item, AttributeNode) and context.item.match(qname):
             yield context.item
             return
 
@@ -887,7 +887,7 @@ def select_attribute_kind_test_or_axis(self, context=None):
             type_name = None
 
         for attribute in context.iter_attributes():
-            if match_attribute_node(attribute, name):
+            if attribute.match(name):
                 if isinstance(context, XPathSchemaContext):
                     self.add_xsd_type(attribute)
                 elif not type_name:
