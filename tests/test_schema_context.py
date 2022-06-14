@@ -152,7 +152,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertIsNone(token.xsd_types)
 
         result = token.evaluate(context)
-        self.assertListEqual(result, [elem_a, elem_b3])
+        self.assertListEqual([e.value for e in result], [elem_a, elem_b3])
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
                                            "{http://xpath.test/ns}b3": elem_b3.type})
 
@@ -162,7 +162,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(token[1].symbol, '*')
 
         result = token.evaluate(context)
-        self.assertListEqual(result, elem_a.type.content[:])
+        self.assertListEqual([e.value for e in result], elem_a.type.content[:])
         self.assertIsNone(token.xsd_types)
         self.assertEqual(token[0].xsd_types, {"{http://xpath.test/ns}a": elem_a.type})
         self.assertEqual(token[1].xsd_types, {'b1': elem_a.type.content[0].type,
@@ -179,7 +179,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         token = parser.parse('.')
         self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
-        self.assertListEqual(result, [self.schema1])
+        self.assertListEqual(result, [context.root])
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
                                            "{http://xpath.test/ns}b3": elem_b3.type})
 
@@ -187,15 +187,16 @@ class XMLSchemaProxyTest(unittest.TestCase):
         token = parser.parse('.')
         self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
-        self.assertListEqual(result, [self.schema1])
+        self.assertListEqual(result, [context.root])
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
                                            "{http://xpath.test/ns}b3": elem_b3.type})
 
         context = XMLSchemaContext(self.schema1, item=self.schema2)
+        schema2_node = context.item
         token = parser.parse('.')
         self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
-        self.assertListEqual(result, [self.schema2])
+        self.assertListEqual(result, [schema2_node])
         self.assertIsNone(token.xsd_types)
 
     def test_schema_variables(self):

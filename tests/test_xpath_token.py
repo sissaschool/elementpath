@@ -648,7 +648,9 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertListEqual(list(root_token.select_xsd_nodes(context, 'root')), [])
 
             tag = '{%s}schema' % XSD_NAMESPACE
-            self.assertListEqual(list(root_token.select_xsd_nodes(context, tag)), [schema])
+            self.assertListEqual(
+                list(e.elem for e in root_token.select_xsd_nodes(context, tag)), [schema]
+            )
 
             context.item = None
             self.assertListEqual(list(root_token.select_xsd_nodes(context, 'root')), [])
@@ -721,6 +723,8 @@ class XPath2TokenTest(XPath1TokenTest):
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_xsd_type(self):
+        context = XPathContext(ElementTree.XML('<dummy/>'))
+
         schema = xmlschema.XMLSchema("""
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="root" type="xs:int"/>
@@ -755,7 +759,6 @@ class XPath2TokenTest(XPath1TokenTest):
             xsd_type = root_token.get_xsd_type('node')
             self.assertEqual(xsd_type, schema.meta_schema.types['float'])
 
-            context = XPathContext(ElementTree.XML('<dummy/>'))
             xsd_type = root_token.get_xsd_type(AttributeNode(context, 'node', 'false'))
             self.assertEqual(xsd_type, schema.meta_schema.types['boolean'])
             xsd_type = root_token.get_xsd_type(AttributeNode(context, 'node', 'alpha'))
@@ -770,7 +773,7 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertIs(xsd_type, root_token.get_xsd_type(typed_element))
 
             elem.text = 'alpha'
-            xsd_type = root_token.get_xsd_type(elem)
+            xsd_type = root_token.get_xsd_type(ElementNode(context, elem))
             self.assertEqual(xsd_type, schema.meta_schema.types['float'])
 
         finally:
@@ -796,18 +799,24 @@ class XPath2TokenTest(XPath1TokenTest):
             elem[0].text = 14
             elem[1].text = 'true'
 
-            self.assertEqual(root_token.get_xsd_type(elem), schema.types['aType'])
+            self.assertEqual(
+                root_token.get_xsd_type(ElementNode(context, elem)), schema.types['aType']
+            )
 
             TestElement = namedtuple('XsdElement', 'name local_name type')
             root_token.add_xsd_type(TestElement('a', 'a', schema.meta_schema.types['float']))
-            self.assertEqual(root_token.get_xsd_type(elem), schema.types['aType'])
+            self.assertEqual(
+                root_token.get_xsd_type(ElementNode(context, elem)), schema.types['aType']
+            )
 
             root_token.xsd_types['a'].insert(0, schema.meta_schema.types['boolean'])
-            self.assertEqual(root_token.get_xsd_type(elem), schema.types['aType'])
+            self.assertEqual(
+                root_token.get_xsd_type(ElementNode(context, elem)), schema.types['aType']
+            )
 
             del elem[1]
-            self.assertEqual(root_token.get_xsd_type(elem), schema.meta_schema.types['boolean'])
-
+            self.assertEqual(root_token.get_xsd_type(ElementNode(context, elem)),
+                             schema.meta_schema.types['boolean'])
         finally:
             self.parser.schema = None
 

@@ -130,7 +130,7 @@ def select_id_function(self, context=None):
 
         if isinstance(item, (ElementNode, DocumentNode)):
             yield from filter(
-                lambda x: isinstance(x, ElementNode) and x.get(XML_ID) == value, item.iter()
+                lambda x: isinstance(x, ElementNode) and x.elem.get(XML_ID) == value, item.iter()
             )
 
 
@@ -322,15 +322,12 @@ def evaluate_lang_function(self, context=None):
         return False
     else:
         try:
-            lang = context.item.attrib[XML_LANG].strip()
+            lang = context.item.elem.attrib[XML_LANG].strip()
         except KeyError:
-            for elem in context.iter_ancestors():
-                try:
-                    if XML_LANG in elem.attrib:
-                        lang = elem.attrib[XML_LANG]
-                        break
-                except AttributeError:
-                    pass  # is a document node
+            for e in context.iter_ancestors():
+                if isinstance(e, ElementNode) and XML_LANG in e.elem.attrib:
+                    lang = e.elem.attrib[XML_LANG]
+                    break
             else:
                 return False
 

@@ -1388,34 +1388,34 @@ def select_id_function(self, context=None):
         return None
 
     # TODO: PSVI bindings with also xsi:type evaluation
-    for elem in filter(lambda x: isinstance(x, ElementNode), root.iter()):
-        if elem.text in idrefs:
+    for element in filter(lambda x: isinstance(x, ElementNode), root.iter()):
+        if element.elem.text in idrefs:
             if self.parser.schema is not None:
-                path = context.get_path(elem)
+                path = context.get_path(element)
                 xsd_element = self.parser.schema.find(path, self.parser.namespaces)
                 if xsd_element is None or not xsd_element.type.is_key():
                     continue
 
-            idrefs.remove(elem.text)
+            idrefs.remove(element.elem.text)
             if self.symbol == 'id':
-                yield elem
+                yield element
             else:
-                parent = elem.parent
+                parent = element.parent
                 if parent is not None:
                     yield parent
             continue  # pragma: no cover
 
-        for attr in elem.attributes:
+        for attr in element.attributes:
             if attr.value in idrefs:
                 if attr.name == XML_ID:
                     idrefs.remove(attr.value)
-                    yield elem
+                    yield element
                     break
 
                 if self.parser.schema is None:
                     continue
 
-                path = context.get_path(elem)
+                path = context.get_path(element)
                 xsd_element = self.parser.schema.find(path, self.parser.namespaces)
                 if xsd_element is None:
                     continue
@@ -1425,7 +1425,7 @@ def select_id_function(self, context=None):
                     continue  # pragma: no cover
 
                 idrefs.remove(attr.value)
-                yield elem
+                yield element
                 break
 
 
@@ -1447,13 +1447,14 @@ def select_idref_function(self, context=None):
     elif not isinstance(node, (ElementNode, DocumentNode)):
         return
 
-    for elem in filter(lambda x: isinstance(x, ElementNode), node.iter()):
-        if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
-            yield elem
+    for element in filter(lambda x: isinstance(x, ElementNode), node.iter()):
+        text = element.elem.text
+        if text and is_idrefs(text) and any(v in text.split() for x in ids for v in x.split()):
+            yield element
             continue
-        for attr in elem.attributes:  # pragma: no cover
+        for attr in element.attributes:  # pragma: no cover
             if attr.name != XML_ID and any(v in attr.value.split() for x in ids for v in x.split()):
-                yield elem
+                yield element
                 break
 
 

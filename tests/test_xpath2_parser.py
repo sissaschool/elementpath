@@ -164,7 +164,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root = self.etree.XML('<a><b1/><b2/></a>')
 
         context = XPathContext(root=root, variables={'var1': root[0]})
-        self.check_value('$var1', root[0], context=context)
+        self.check_value('$var1', context.root[0], context=context)
 
         context = XPathContext(root=root, variables={'tns:var1': root[0]})
         self.check_raise('$tns:var1', NameError, 'XPST0081', context=context)
@@ -760,14 +760,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_syntax("element('name')")
         self.wrong_syntax("element(A, 'name')")
         self.check_select("element()", [], context)
-        self.check_select("self::element()", [element], context)
-        self.check_select("self::element(schema)", [element], context)
+        self.check_select("self::element()", [context.root], context)
+        self.check_select("self::element(schema)", [context.root], context)
         self.check_select("self::element(schema, xs:string)", [], context)
 
         root = self.etree.XML('<A a="10">text<B/>tail<B/></A>')
         context = XPathContext(root)
-        self.check_select("element(*)", root[:], context)
-        self.check_select("element(B)", root[:], context)
+        expected = [e for e in context.root if isinstance(e, ElementNode)]
+
+        self.check_select("element(*)", expected, context)
+        self.check_select("element(B)", expected, context)
         self.check_select("element(A)", [], context)
 
         if xmlschema is not None:
@@ -779,8 +781,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root = self.etree.XML('<root>hello</root>')
             context = XPathContext(root)
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
-                typed_element = ElementNode(context, root, xsd_type=schema.elements['root'])
-                self.check_select("self::element(*, xs:string)", [typed_element], context)
+                context.root.xsd_type = schema.elements['root'].type
+                self.check_select("self::element(*, xs:string)", [context.root], context)
                 self.check_select("self::element(*, xs:int)", [], context)
 
     def test_attribute_accessor(self):
@@ -812,7 +814,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         element.attrib.update([('id', '0212349350')])
 
         context = XPathContext(root=element)
-        self.check_select("self::node()", [element], context)
+        self.check_select("self::node()", [context.root], context)
         self.check_select("self::attribute()", ['0212349350'], context)
 
         context.item = 7
@@ -844,12 +846,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             'seq2': root[:2],  # (A, B)
             'seq3': root[1:],  # (B, C)
         })
-        self.check_select('$seq1 union $seq2', root[:2], context=context)
-        self.check_select('$seq2 union $seq3', root[:], context=context)
-        self.check_select('$seq1 intersect $seq2', root[:2], context=context)
-        self.check_select('$seq2 intersect $seq3', root[1:2], context=context)
+        self.check_select('$seq1 union $seq2', context.root[:2], context=context)
+        self.check_select('$seq2 union $seq3', context.root[:], context=context)
+        self.check_select('$seq1 intersect $seq2', context.root[:2], context=context)
+        self.check_select('$seq2 intersect $seq3', context.root[1:2], context=context)
         self.check_select('$seq1 except $seq2', [], context=context)
-        self.check_select('$seq2 except $seq3', root[:1], context=context)
+        self.check_select('$seq2 except $seq3', context.root[:1], context=context)
 
         self.wrong_type('1 intersect 1', 'XPTY0004',
                         'only XPath nodes are allowed', context=context)
@@ -995,7 +997,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("5 treat as xs:string", ElementPathTypeError)
         self.check_value("5 treat as xs:decimal", [5])
         self.check_value("(5, 6) treat as xs:integer+", [5, 6])
-        self.check_value(". treat as element()", [element], context)
+        self.check_value(". treat as element()", [context.root], context)
 
         self.check_value("(5, 6) treat as xs:integer", ElementPathTypeError)
         self.check_value("(5, 6) treat as xs:integer*", [5, 6])
@@ -1147,15 +1149,21 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('/and', [context.root], context)
 
         root = self.etree.XML('<and/>')
-        self.check_value('and', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('and', [context.root.getroot()], context)
+
         root = self.etree.XML('<eq/>')
-        self.check_value('eq', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('eq', [context.root.getroot()], context)
+
         root = self.etree.XML('<union/>')
-        self.check_value('union', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('union', [context.root.getroot()], context)
 
     def test_statements_ambiguity(self):
         root = self.etree.XML('<for/>')
-        self.check_value('for', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('for', [context.root.getroot()], context)
 
     def test_auxiliary_tokens(self):
         self.check_raise('as', MissingContextError)

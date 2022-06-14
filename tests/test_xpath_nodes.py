@@ -285,7 +285,7 @@ class XPathNodesTest(unittest.TestCase):
             attribute = AttributeNode(self.context, 'id', '0212349350', xsd_type=xsd_type)
             self.assertEqual(attribute.kind, 'attribute')
 
-            typed_element = ElementNode(self.context, element, xsd_type=xsd_type)
+            typed_element = ElementNode(self.context, element.elem, xsd_type=xsd_type)
             self.assertEqual(typed_element.kind, 'element')
 
     def test_node_name_function(self):
@@ -300,7 +300,7 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            typed_elem = ElementNode(self.context, elem=root, xsd_type=xsd_type)
+            typed_elem = ElementNode(self.context, elem=root.elem, xsd_type=xsd_type)
             self.assertEqual(typed_elem.name, 'root')
 
             typed_attr = AttributeNode(self.context, 'a1', value='20', xsd_type=xsd_type)

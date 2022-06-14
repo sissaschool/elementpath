@@ -1147,7 +1147,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertIn('XPTY0004', str(err.exception))
 
         context = XPathContext(doc, item=root, variables={'x': root})
-        self.check_value("id('ID21256', $x)", [root], context=context)
+        self.check_value("id('ID21256', $x)", [context.root.getroot()], context=context)
 
         # Id on root element
         root = self.etree.XML("<empnr>E21256</empnr>")
@@ -1183,7 +1183,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertTrue(schema.is_valid(root))
         with self.schema_bound_parser(schema.xpath_proxy):
             context = XPathContext(doc)
-            self.check_select("id('ID21256')", [root], context)
+            self.check_select("id('ID21256')", [context.root.getroot()], context)
             # self.check_select("id('E21256')", [root[0]], context)
 
         # Test with matching value of type xs:string
@@ -1225,7 +1225,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertFalse(schema.is_valid(root))
         with self.schema_bound_parser(schema.xpath_proxy):
             context = XPathContext(doc)
-            self.check_select("id('ID21256')", [root], context)
+            self.check_select("id('ID21256')", [context.root.getroot()], context)
             self.check_select("id('E21256')", [], context)
 
         schema = xmlschema.XMLSchema(dedent("""\
@@ -1236,7 +1236,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.assertFalse(schema.is_valid(root))
         with self.schema_bound_parser(schema.xpath_proxy):
             context = XPathContext(doc)
-            self.check_select("id('ID21256')", [root], context)
+            self.check_select("id('ID21256')", [context.root.getroot()], context)
             self.check_select("id('E21256')", [], context)
 
     def test_node_set_idref_function(self):
@@ -1563,11 +1563,15 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_root_function(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
-        self.check_value("root()", root, context=XPathContext(root))
-        self.check_value("root()", root, context=XPathContext(root, item=root[2]))
+        context = XPathContext(root)
+        self.check_value("root()", context.root, context=context)
+
+        context = XPathContext(root, item=root[2])
+        self.check_value("root()", context.root, context=context)
 
         with self.assertRaises(TypeError) as err:
-            self.check_value("root()", root, context=XPathContext(root, item=10))
+            context = XPathContext(root, item=10)
+            self.check_value("root()", context.root, context=context)
         self.assertIn('XPTY0004', str(err.exception))
 
         with self.assertRaises(TypeError) as err:
@@ -1576,7 +1580,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root, variables={'elem': root[1]})
         self.check_value("fn:root(())", context=context)
-        self.check_value("fn:root($elem)", root, context=context)
+        self.check_value("fn:root($elem)", context.root, context=context)
 
         doc = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
 
@@ -1587,7 +1591,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:root($elem)", context=context)
 
         context = XPathContext(root, variables={'elem': doc[1]}, documents={'.': doc})
-        self.check_value("root($elem)", doc, context=context)
+        self.check_value("root($elem)", context.documents['.'], context=context)
 
         doc2 = self.etree.XML("<a><b1><c1/></b1><b2/><b3/></a>")
 
@@ -1596,7 +1600,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(root, variables={'elem': doc2[1]},
                                documents={'.': doc, 'doc2': doc2})
-        self.check_value("root($elem)", doc2, context=context)
+        self.check_value("root($elem)", context.documents['doc2'], context=context)
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema(dedent("""\

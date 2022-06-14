@@ -117,11 +117,6 @@ class XPathContext:
         self.size = size
         self.axis = axis
 
-        if variables is None:
-            self.variables = {}
-        else:
-            self.variables = {k: self._get_effective_value(v) for k, v in variables.items()}
-
         if timezone is None or isinstance(timezone, Timezone):
             self.timezone = timezone
         else:
@@ -131,6 +126,11 @@ class XPathContext:
         if documents is not None:
             self.documents = {k: self.build_tree(v) if v is not None else v
                               for k, v in documents.items()}
+
+        if variables is None:
+            self.variables = {}
+        else:
+            self.variables = {k: self._get_effective_value(v) for k, v in variables.items()}
 
         if collections is not None:
             self.collections = {k: self._get_effective_value(v) if v is not None else v
@@ -174,14 +174,13 @@ class XPathContext:
         return self._etree
 
     def get_root(self, node: Any) -> Union[None, ElementType, DocumentType]:
-        if any(node == x for x in self.iter()):
+        if any(node is x for x in self.iter()):
             return self.root
 
         if self.documents is not None:
             try:
                 for uri, doc in self.documents.items():
-                    doc_context = XPathContext(root=doc.value)
-                    if any(node == x for x in doc_context.iter()):
+                    if any(node is x for x in doc.iter()):
                         return doc
             except AttributeError:
                 pass
@@ -273,10 +272,22 @@ class XPathContext:
         elif is_etree_document(value):
             if value is self.root.value:
                 return self.root
+
+            if self.documents:
+                for doc in self.documents.values():
+                    if value is doc.value:
+                        return doc
+
         elif is_etree_element(value):
             for node in self.root.iter():
                 if value is node.value:
                     return node
+
+            if self.documents:
+                for doc in self.documents.values():
+                    for node in doc.iter():
+                        if value is node.value:
+                            return node
         else:
             return value
 

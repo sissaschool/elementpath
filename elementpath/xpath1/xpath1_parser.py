@@ -19,6 +19,7 @@ from ..exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathValueError, xpath_error
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types
+from ..etree import is_etree_element
 from ..tdop import Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
@@ -378,10 +379,9 @@ class XPath1Parser(Parser[XPathToken]):
             value_kind = value.kind
         elif hasattr(value, 'getroot'):
             value_kind = 'document'
-        elif hasattr(value, 'tag') and hasattr(value, 'text'):
+        elif is_etree_element(value):
             if not callable(value.tag):
                 value_kind = 'element'
-
             elif value.tag.__name__ == 'Comment':
                 value_kind = 'comment'
             else:

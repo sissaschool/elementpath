@@ -112,7 +112,7 @@ class XPathContextTest(unittest.TestCase):
     def test_is_principal_node_kind(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
         context = XPathContext(root)
-        self.assertTrue(hasattr(context.item, 'tag'))
+        self.assertTrue(hasattr(context.item.elem, 'tag'))
         self.assertTrue(context.is_principal_node_kind())
         context.item = context.root.attributes[0]
         self.assertFalse(context.is_principal_node_kind())
@@ -181,14 +181,14 @@ class XPathContextTest(unittest.TestCase):
         self.assertIsInstance(context.root, DocumentNode)
         self.assertIsInstance(context.root[0], ElementNode)
 
-        self.assertListEqual(list(context.iter_children_or_self()), [self.root])
+        self.assertListEqual(list(e.elem for e in context.iter_children_or_self()), [self.root])
 
         context.item = context.root[0]  # root element
         self.assertListEqual(list(context.iter_children_or_self()),
                              [context.root[0].children[0]])
 
         context.item = context.root  # document node
-        self.assertListEqual(list(context.iter_children_or_self()), [self.root])
+        self.assertListEqual(list(e.elem for e in context.iter_children_or_self()), [self.root])
 
     def test_iter_parent(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
@@ -208,12 +208,12 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(list(context.iter_parent()), [])
 
         context = XPathContext(root, item=root[2][0])
-        self.assertListEqual(list(context.iter_parent()), [root[2]])
+        self.assertListEqual(list(e.elem for e in context.iter_parent()), [root[2]])
 
         with patch.object(DummyXsdType(), 'is_empty', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[2][0])
             context.root[2][0].xsd_type = xsd_type
-            self.assertListEqual(list(context.iter_parent()), [root[2]])
+            self.assertListEqual(list(e.elem for e in context.iter_parent()), [root[2]])
 
     def test_iter_siblings(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/></B3><B4/><B5/></A>')
@@ -222,20 +222,24 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(list(context.iter_siblings()), [])
 
         context = XPathContext(root, item=root[2])
-        self.assertListEqual(list(context.iter_siblings()), list(root[3:]))
+        self.assertListEqual(list(e.elem for e in context.iter_siblings()), list(root[3:]))
 
         with patch.object(DummyXsdType(), 'is_element_only', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[2])
             context.root[2].xsd_type = xsd_type
-            self.assertListEqual(list(context.iter_siblings()), list(root[3:]))
+            self.assertListEqual(list(e.elem for e in context.iter_siblings()), list(root[3:]))
 
         context = XPathContext(root, item=root[2])
-        self.assertListEqual(list(context.iter_siblings('preceding-sibling')), list(root[:2]))
+        self.assertListEqual(
+            list(e.elem for e in context.iter_siblings('preceding-sibling')), list(root[:2])
+        )
 
         with patch.object(DummyXsdType(), 'is_element_only', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[2])
             context.root[2].xsd_type = xsd_type
-            self.assertListEqual(list(context.iter_siblings('preceding-sibling')), list(root[:2]))
+            self.assertListEqual(
+                list(e.elem for e in context.iter_siblings('preceding-sibling')), list(root[:2])
+            )
 
     @unittest.skipIf(lxml_etree is None, 'lxml library is not installed')
     def test_iter_siblings__issue_44(self):
@@ -249,7 +253,8 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         attr = context.root.attributes[0]
 
-        self.assertListEqual(list(context.iter_descendants()), [root, root[0], root[1]])
+        self.assertListEqual(list(e.elem for e in context.iter_descendants()),
+                             [root, root[0], root[1]])
 
         context.item = attr
         self.assertListEqual(list(context.iter_descendants(axis='descendant')), [])
@@ -260,7 +265,9 @@ class XPathContextTest(unittest.TestCase):
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root)
             context.root.xsd_type = xsd_type
-            self.assertListEqual(list(context.iter_descendants()), [root, root[0], root[1]])
+            self.assertListEqual(
+                list(e.elem for e in context.iter_descendants()), [root, root[0], root[1]]
+            )
 
     def test_iter_ancestors(self):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')
@@ -272,7 +279,8 @@ class XPathContextTest(unittest.TestCase):
         context.item = attr
         self.assertListEqual(list(context.iter_ancestors()), [context.root])
 
-        self.assertListEqual(list(XPathContext(root, item=root[1]).iter_ancestors()), [root])
+        result = list(e.elem for e in XPathContext(root, item=root[1]).iter_ancestors())
+        self.assertListEqual(result, [root])
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[1])
             context.root[1].xsd_type = xsd_type
@@ -311,7 +319,7 @@ class XPathContextTest(unittest.TestCase):
 
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root, item=root[2][1])
-        self.assertListEqual(list(context.iter_preceding()),
+        self.assertListEqual(list(e.elem for e in context.iter_preceding()),
                              [root[0], root[0][0], root[1], root[2][0]])
 
     def test_iter_following(self):
@@ -325,16 +333,16 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(list(context.iter_followings()), [])
 
         context = XPathContext(root, item=root[2])
-        self.assertListEqual(list(context.iter_followings()), list(root[3:]))
+        self.assertListEqual(list(e.elem for e in context.iter_followings()), list(root[3:]))
 
         context = XPathContext(root, item=root[1])
         result = [root[2], root[2][0], root[3], root[4]]
-        self.assertListEqual(list(context.iter_followings()), result)
+        self.assertListEqual(list(e.elem for e in context.iter_followings()), result)
 
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[1])
             context.root[1].xsd_type = xsd_type
-            self.assertListEqual(list(context.iter_followings()), result)
+            self.assertListEqual(list(e.elem for e in context.iter_followings()), result)
 
 
 if __name__ == '__main__':

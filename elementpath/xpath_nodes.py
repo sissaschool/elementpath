@@ -207,9 +207,9 @@ class CommentNode(XPathNode):
 
     @property
     def base_uri(self) -> Optional[str]:
-        if self.parent is None or isinstance(self.parent, DocumentNode):
-            return None
-        return self.parent.get(XML_BASE)
+        if isinstance(self.parent, ElementNode):
+            return self.parent.elem.get(XML_BASE)
+        return None
 
     @property
     def string_value(self) -> str:
@@ -371,10 +371,6 @@ class ElementNode(XPathNode):
     @property
     def value(self) -> ElementType:
         return self.elem
-
-    @property
-    def text(self) -> Optional[str]:
-        return self.elem.text
 
     @property
     def name(self) -> str:

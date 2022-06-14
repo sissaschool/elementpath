@@ -806,12 +806,12 @@ class XPathToken(Token[XPathTokenType]):
             for x in xsd_type:
                 if x.is_valid(item.value):
                     return x
-        elif is_etree_element(item):
+        elif isinstance(item, ElementNode):
             for x in xsd_type:
                 if x.is_simple():
-                    if x.is_valid(item.text):  # type: ignore[union-attr]
+                    if x.is_valid(item.elem.text):
                         return x
-                elif x.is_valid(item):
+                elif x.is_valid(item.elem):
                     return x
 
         return xsd_type[0]
