@@ -104,22 +104,20 @@ def select_name_literal(self, context=None):
                 default_namespace = item.nsmap[None]
 
             if context.match_name(name, default_namespace):
-                if isinstance(item, (ElementNode, AttributeNode)) \
-                        and item.xsd_type is not None:
-                    yield item
-                else:
-                    path = context.get_path(item)
-
-                    xsd_node = self.parser.schema.find(path, self.parser.namespaces)
-                    if xsd_node is None:
-                        self.xsd_types = self.parser.schema
-                    elif isinstance(item, AttributeNode):
-                        self.xsd_types = {item.name: xsd_node.type}
+                if isinstance(item, (ElementNode, AttributeNode)):
+                    if item.xsd_type is not None:
+                        yield item
                     else:
-                        self.xsd_types = {item.elem.tag: xsd_node.type}
+                        xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
+                        if xsd_node is None:
+                            self.xsd_types = self.parser.schema
+                        elif isinstance(item, AttributeNode):
+                            self.xsd_types = {item.name: xsd_node.type}
+                        else:
+                            self.xsd_types = {item.elem.tag: xsd_node.type}
 
-                    context.item = self.get_typed_node(item)
-                    yield context.item
+                        context.item = self.get_typed_node(item)
+                        yield context.item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
@@ -206,19 +204,18 @@ def select_namespace_prefix(self, context=None):
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
         for item in context.iter_children_or_self():
             if context.match_name(name):
-                if isinstance(item, (ElementNode, AttributeNode)) and \
-                        item.xsd_type is not None:
-                    yield item
-                else:
-                    path = context.get_path(item)
-                    xsd_node = self.parser.schema.find(path, self.parser.namespaces)
-                    if xsd_node is not None:
-                        self.add_xsd_type(xsd_node)
+                if isinstance(item, (ElementNode, AttributeNode)):
+                    if item.xsd_type is not None:
+                        yield item
                     else:
-                        self.xsd_types = self.parser.schema
+                        xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
+                        if xsd_node is not None:
+                            self.add_xsd_type(xsd_node)
+                        else:
+                            self.xsd_types = self.parser.schema
 
-                    context.item = self.get_typed_node(item)
-                    yield context.item
+                        context.item = self.get_typed_node(item)
+                        yield context.item
 
     else:
         # XSD typed selection

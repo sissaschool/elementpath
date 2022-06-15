@@ -138,6 +138,12 @@ class AttributeNode(XPathNode):
         return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
 
     @property
+    def path(self) -> str:
+        if self.parent is None:
+            return f'@{self.name}'
+        return f'{self.parent.path}/@{self.name}'
+
+    @property
     def string_value(self) -> str:
         if isinstance(self.value, str):
             return self.value
@@ -345,6 +351,21 @@ class ElementNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
+    @property
+    def path(self) -> str:
+        """Returns an absolute path for the node."""
+        path = []
+        item = self
+        while True:
+            try:
+                path.append(item.elem.tag)
+            except AttributeError:
+                pass  # is a document node
+
+            item = item.parent
+            if item is None:
+                return '/{}'.format('/'.join(reversed(path)))
+
     def iter(self, with_self=True):
         if with_self:
             yield self
@@ -530,9 +551,6 @@ class DocumentNode(XPathNode):
             if parts.scheme and parts.netloc or parts.path.startswith('/'):
                 return uri
         return None
-
-
-XPathNodeType = Union[ElementType, DocumentType, XPathNode]
 
 
 def is_schema(obj: Any) -> bool:

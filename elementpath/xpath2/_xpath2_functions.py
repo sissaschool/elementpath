@@ -1391,8 +1391,7 @@ def select_id_function(self, context=None):
     for element in filter(lambda x: isinstance(x, ElementNode), root.iter()):
         if element.elem.text in idrefs:
             if self.parser.schema is not None:
-                path = context.get_path(element)
-                xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
                 if xsd_element is None or not xsd_element.type.is_key():
                     continue
 
@@ -1415,8 +1414,7 @@ def select_id_function(self, context=None):
                 if self.parser.schema is None:
                     continue
 
-                path = context.get_path(element)
-                xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
                 if xsd_element is None:
                     continue
 

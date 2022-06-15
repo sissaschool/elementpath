@@ -58,10 +58,6 @@ class XPathContextTest(unittest.TestCase):
         self.assertIsInstance(copy(context), XPathContext)
         self.assertIsNot(copy(context), context)
 
-        context = XPathContext(root, axis='children')
-        self.assertIsNone(context.copy().axis)
-        self.assertEqual(context.copy(clear_axis=False).axis, 'children')
-
     @unittest.skipIf(lxml_etree is None, 'lxml library is not installed')
     def test_etree_property(self):
         root = ElementTree.XML('<root/>')
@@ -73,41 +69,6 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         self.assertEqual(context.etree.__name__, 'lxml.etree')
         self.assertEqual(context.etree.__name__, 'lxml.etree')
-
-    def test_get_path(self):
-        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')
-
-        context = XPathContext(root)
-
-        self.assertEqual(context.get_path(None), '')
-        self.assertEqual(context.get_path(context.root), '/A')
-        self.assertEqual(context.get_path(context.root[0]), '/A/B1')
-        self.assertEqual(context.get_path(context.root[0][0]), '/A/B1/C1')
-        self.assertEqual(context.get_path(context.root[1]), '/A/B2')
-        self.assertEqual(context.get_path(context.root[2]), '/A/B3')
-        self.assertEqual(context.get_path(context.root[2][0]), '/A/B3/C1')
-        self.assertEqual(context.get_path(context.root[2][1]), '/A/B3/C2')
-
-        # self.assertEqual(context.get_path(AttributeNode('max', '10')), '@max')
-        attr = context.root[2][1].attributes[0]
-        self.assertEqual(context.get_path(attr), '/A/B3/C2/@max')
-
-        document = ElementTree.ElementTree(root)
-        context = XPathContext(root=document)
-        self.assertEqual(context.get_path(context.root[0][2][0]), '/A/B3/C1')
-
-        root = ElementTree.XML('<A><B1>10</B1><B2 min="1"/><B3/></A>')
-        context = XPathContext(root)
-        with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
-            elem = context.root[0]
-            elem.xsd_type = xsd_type
-            self.assertEqual(context.get_path(elem), '/A/B1')
-
-        with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
-            context = XPathContext(root)
-            attr = context.root[1].attributes[0]
-            attr.xsd_type = xsd_type
-            self.assertEqual(context.get_path(attr), '/A/B2/@min')
 
     def test_is_principal_node_kind(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')

@@ -9,6 +9,7 @@
 #
 import datetime
 import importlib
+from copy import copy
 from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
@@ -19,14 +20,14 @@ from .datatypes import AnyAtomicType, Timezone
 from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, is_etree_document, etree_iter_root
 from .xpath_nodes import DocumentNode, ElementNode, CommentNode, ProcessingInstructionNode, \
-    AttributeNode, NamespaceNode, TextNode, XPathNode, XPathNodeType, is_schema
+    AttributeNode, NamespaceNode, TextNode, XPathNode, is_schema
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
 
 
 ContextRootType = Union[ElementType, DocumentType]
-ContextItemType = Union[XPathNodeType, AnyAtomicType]
+ContextItemType = Union[XPathNode, AnyAtomicType]
 
 
 class XPathContext:
@@ -157,15 +158,6 @@ class XPathContext:
         obj.variables = {k: v for k, v in self.variables.items()}
         return obj
 
-    def copy(self, clear_axis: bool = True) -> 'XPathContext':
-        # Unused, so it could be deprecated in the future.
-        obj: XPathContext = object.__new__(self.__class__)
-        obj.__dict__.update(self.__dict__)
-        if clear_axis:
-            obj.axis = None
-        obj.variables = {k: v for k, v in self.variables.items()}
-        return obj
-
     @property
     def etree(self) -> ModuleType:
         if self._etree is None:
@@ -186,26 +178,6 @@ class XPathContext:
                 pass
 
         return None
-
-    def get_path(self, item: Any) -> str:
-        """Cached path resolver for elements and attributes. Returns absolute paths."""
-        path = []
-        if isinstance(item, AttributeNode):
-            path.append(f'@{item.name}')
-            item = item.parent
-
-        if item is None:
-            return '' if not path else path[0]
-
-        while True:
-            try:
-                path.append(item.elem.tag)
-            except AttributeError:
-                pass  # is a document node
-
-            item = item.parent
-            if item is None:
-                return '/{}'.format('/'.join(reversed(path)))
 
     def is_principal_node_kind(self) -> bool:
         if self.axis == 'attribute':
@@ -314,7 +286,7 @@ class XPathContext:
             parent = child
 
         elif is_schema(root):
-            return self._get_schema_tree(root)
+            return self._build_schema_tree(root)
         elif not callable(root.tag):
             children: Iterator[Any] = iter(root)
             root_node = parent = ElementNode(self, root)
@@ -352,7 +324,7 @@ class XPathContext:
                     iterators.append(children)
                     children = iter(elem)
 
-    def _get_schema_tree(self, root: XMLSchemaProtocol) -> ElementNode:
+    def _build_schema_tree(self, root: XMLSchemaProtocol) -> ElementNode:
         children: Iterator[Any] = iter(root)
         root_node = parent = ElementNode(self, root)
 
@@ -401,8 +373,7 @@ class XPathContext:
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
-        c1 = self.copy(clear_axis=False)
-        results = [x for x in token.select(c1)]
+        results = [x for x in token.select(copy(self))]
         self.axis = None
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
@@ -566,7 +537,7 @@ class XPathContext:
         In this case set the context size at start and change both position and \
         item at each iteration. For default only context item is changed.
         """
-        descendants: Union[Iterator[Union[XPathNodeType, None]], Tuple[XPathNode]]
+        descendants: Union[Iterator[Union[XPathNode, None]], Tuple[XPathNode]]
         with_self = axis != 'descendant'
 
         if isinstance(self.item, (ElementNode, DocumentNode)):
@@ -602,7 +573,7 @@ class XPathContext:
                 yield self.item
             self.item, self.axis = status_
 
-    def iter_ancestors(self, axis: Optional[str] = None) -> Iterator[XPathNodeType]:
+    def iter_ancestors(self, axis: Optional[str] = None) -> Iterator[XPathNode]:
         """
         Iterator for 'ancestor' and 'ancestor-or-self' reverse axes.
 
@@ -659,7 +630,7 @@ class XPathContext:
 
         self.item, self.axis = status
 
-    def iter_followings(self) -> Iterator[XPathNodeType]:
+    def iter_followings(self) -> Iterator[XPathNode]:
         """Iterator for 'following' forward axis."""
         if self.item is None or self.item is self.root:
             return
