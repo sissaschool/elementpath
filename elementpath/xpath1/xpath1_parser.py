@@ -85,6 +85,10 @@ class XPath1Parser(Parser[XPathToken]):
         '{', '}'
     }
 
+    RESERVED_FUNCTION_NAMES = {
+        'comment', 'element', 'node', 'processing-instruction', 'text'
+    }
+
     DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {'xml': XML_NAMESPACE}
     """
     The default prefix-to-namespace associations of the XPath class. These namespaces
@@ -104,9 +108,14 @@ class XPath1Parser(Parser[XPathToken]):
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
 
-    RESERVED_FUNCTION_NAMES = {
-        'comment', 'element', 'node', 'processing-instruction', 'text'
-    }
+    compatibility_mode: bool = True
+    """XPath 1.0 compatibility mode."""
+
+    default_namespace: Optional[str] = None
+    """
+    The default namespace. For XPath 1.0 this value is always `None` because the default
+    namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
+    """
 
     def __init__(self, namespaces: Optional[NamespacesType] = None, strict: bool = True,
                  *args: Any, **kwargs: Any) -> None:
@@ -115,19 +124,6 @@ class XPath1Parser(Parser[XPathToken]):
         if namespaces is not None:
             self.namespaces.update(namespaces)
         self.strict: bool = strict
-
-    @property
-    def compatibility_mode(self) -> bool:
-        """XPath 1.0 compatibility mode."""
-        return True
-
-    @property
-    def default_namespace(self) -> Optional[str]:
-        """
-        The default namespace. For XPath 1.0 this value is always `None` because the default
-        namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
-        """
-        return None
 
     @property
     def other_namespaces(self) -> Dict[str, str]:
