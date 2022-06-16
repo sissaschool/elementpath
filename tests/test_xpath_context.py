@@ -247,21 +247,6 @@ class XPathContextTest(unittest.TestCase):
             context.root[1].xsd_type = xsd_type
             self.assertListEqual(list(context.iter_ancestors()), [context.root])
 
-    def test_iter(self):
-        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
-        context = XPathContext(root)
-
-        # iter includes also xml namespace nodes
-        self.assertListEqual(
-            list(e.elem for e in context.iter() if isinstance(e, ElementNode)),
-            list(root.iter())
-        )
-
-        doc = ElementTree.ElementTree(root)
-        context = XPathContext(doc)
-        expected = [node for node in context.root.iter()]
-        self.assertListEqual(list(context.iter()), expected)
-
     def test_iter_preceding(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
         context = XPathContext(root, item=None)

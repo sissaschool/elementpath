@@ -682,7 +682,7 @@ def select_child_path(self, context=None):
                 raise self.error('XPTY0019', msg)
 
             for result in self[1].select(context):
-                if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
+                if not isinstance(result, XPathNode):
                     yield result
                 elif result in items:
                     pass
@@ -709,9 +709,8 @@ def select_descendant_path(self, context=None):
                 raise self.error('XPTY0019')
 
             for _ in context.iter_descendants():
-                inner_context = copy(context)
-                for result in self[1].select(inner_context):
-                    if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
+                for result in self[1].select(context):
+                    if not isinstance(result, XPathNode):
                         yield result
                     elif result in items:
                         pass
@@ -730,9 +729,8 @@ def select_descendant_path(self, context=None):
 
         items = set()
         for _ in context.iter_descendants():
-            inner_context = copy(context)
-            for result in self[0].select(inner_context):
-                if not isinstance(result, (tuple, XPathNode)) and not hasattr(result, 'tag'):
+            for result in self[0].select(context):
+                if not isinstance(result, XPathNode):
                     items.add(result)
                 elif result in items:
                     pass

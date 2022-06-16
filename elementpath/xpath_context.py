@@ -15,7 +15,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
     Optional, Sequence, Union, Callable, Tuple
 
-from .exceptions import ElementPathTypeError, ElementPathValueError
+from .exceptions import ElementPathTypeError
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, is_etree_document, etree_iter_root
@@ -166,7 +166,7 @@ class XPathContext:
         return self._etree
 
     def get_root(self, node: Any) -> Union[None, ElementType, DocumentType]:
-        if any(node is x for x in self.iter()):
+        if any(node is x for x in self.root.iter()):
             return self.root
 
         if self.documents is not None:
@@ -310,16 +310,6 @@ class XPathContext:
                     parent = child
                     iterators.append(children)
                     children = iter(elem.ref)
-
-    def iter(self, namespaces: Optional[Dict[str, str]] = None) \
-            -> Iterator[Union[ElementType, DocumentType, TextNode, NamespaceNode, AttributeNode]]:
-        """
-        Iterates context nodes in document order, including namespace and attribute nodes.
-
-        :param namespaces: a fallback mapping for generating namespaces nodes, \
-        used when element nodes do not have a property for in-scope namespaces.
-        """
-        yield from self.root.iter()
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
@@ -478,15 +468,11 @@ class XPathContext:
                     follows = True
         self.item, self.axis = status
 
-    def iter_descendants(self, axis: Optional[str] = None,
-                         inner_focus: bool = False) -> Iterator[Any]:
+    def iter_descendants(self, axis: Optional[str] = None) -> Iterator[Any]:
         """
         Iterator for 'descendant' and 'descendant-or-self' forward axes and '//' shortcut.
 
         :param axis: the context axis, for default has no explicit axis.
-        :param inner_focus: if `True` splits between outer focus and inner focus. \
-        In this case set the context size at start and change both position and \
-        item at each iteration. For default only context item is changed.
         """
         descendants: Union[Iterator[Union[XPathNode, None]], Tuple[XPathNode]]
         with_self = axis != 'descendant'
@@ -507,22 +493,11 @@ class XPathContext:
         else:
             return
 
-        if inner_focus:
-            status = self.item, self.position, self.size, self.axis
-            self.axis = axis
-            results = [e for e in descendants]
-
-            self.size = len(results)
-            for self.position, self.item in enumerate(results, start=1):
-                yield self.item
-
-            self.item, self.position, self.size, self.axis = status
-        else:
-            status_ = self.item, self.axis
-            self.axis = axis
-            for self.item in descendants:
-                yield self.item
-            self.item, self.axis = status_
+        status = self.item, self.axis
+        self.axis = axis
+        for self.item in descendants:
+            yield self.item
+        self.item, self.axis = status
 
     def iter_ancestors(self, axis: Optional[str] = None) -> Iterator[XPathNode]:
         """

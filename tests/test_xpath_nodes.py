@@ -333,6 +333,25 @@ class XPathNodesTest(unittest.TestCase):
         self.assertListEqual(list(context.root.iter()), result)
         self.assertListEqual(list(context.root.iter(with_self=False)), result[1:])
 
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        context = XPathContext(root)
+
+        # iter includes also xml namespace nodes
+        self.assertListEqual(
+            list(e.elem for e in context.root.iter() if isinstance(e, ElementNode)),
+            list(root.iter())
+        )
+
+    def test_document_node_iter(self):
+        root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
+        doc = ElementTree.ElementTree(root)
+        context = XPathContext(doc)
+
+        self.assertListEqual(
+            list(e.elem for e in context.root.iter() if isinstance(e, ElementNode)),
+            list(doc.iter())
+        )
+
     def test_etree_iter_paths(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
         root[2].append(ElementTree.Comment('a comment'))
