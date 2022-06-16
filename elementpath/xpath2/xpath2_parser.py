@@ -217,9 +217,7 @@ class XPath2Parser(XPath1Parser):
         self._xsd_version = xsd_version if xsd_version is not None else '1.0'
 
         if default_namespace is not None:
-            self.default_namespace = self.namespaces[''] = default_namespace
-        elif '' in self.namespaces:
-            self.default_namespace = self.namespaces['']
+            self.namespaces[''] = default_namespace
 
         if function_namespace is not None:
             self.function_namespace = function_namespace

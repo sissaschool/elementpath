@@ -713,7 +713,7 @@ class XPathToken(Token[XPathTokenType]):
                     # The element is a schema
                     yield xsd_node
 
-                elif xsd_node.value.is_matching(name, self.parser.default_namespace):
+                elif xsd_node.value.is_matching(name, self.parser.namespaces.get('')):
                     if xsd_node.value.name is None:
                         # node is an XSD element wildcard FIXME
                         xsd_element = schema_context.root.value.maps.elements.get(name)

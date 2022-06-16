@@ -187,55 +187,6 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    def match_name(self, name: Optional[str] = None,
-                   default_namespace: Optional[str] = None) -> bool:
-        """
-        Returns `True` if the context item is matching the name, `False` otherwise.
-
-        :param name: a fully qualified name, a local name or a wildcard. The accepted \
-        wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
-        :param default_namespace: the namespace URI associated with unqualified names. \
-        Used for matching element names (tag).
-        """
-        if self.axis == 'attribute':
-            if not isinstance(self.item, AttributeNode):
-                return False
-            item_name = self.item.name
-        elif isinstance(self.item, ElementNode):
-            item_name = self.item.elem.tag
-        else:
-            return False
-
-        if name is None or name == '*' or name == '*:*':
-            return True
-
-        if not name:
-            return not item_name
-        elif name[0] == '*':
-            try:
-                _, _name = name.split(':')
-            except (ValueError, IndexError):
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            else:
-                if item_name.startswith('{'):
-                    return item_name.split('}')[1] == _name
-                else:
-                    return item_name == _name
-
-        elif name[-1] == '*':
-            if name[0] != '{' or '}' not in name:
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            elif item_name.startswith('{'):
-                return item_name.split('}')[0][1:] == name.split('}')[0][1:]
-            else:
-                return False
-        elif name[0] == '{' or not default_namespace:
-            return item_name == name
-        elif self.axis == 'attribute':
-            return item_name == name
-        else:
-            return item_name == '{%s}%s' % (default_namespace, name)
-
     def _get_effective_value(self, value):
         if isinstance(value, XPathNode):
             return value

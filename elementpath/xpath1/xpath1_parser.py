@@ -90,10 +90,7 @@ class XPath1Parser(Parser[XPathToken]):
     }
 
     DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {'xml': XML_NAMESPACE}
-    """
-    The default prefix-to-namespace associations of the XPath class. These namespaces
-    are updated in the instance with the ones passed with the *namespaces* argument.
-    """
+    """Namespaces known statically by default."""
 
     # Labels and symbols admitted after a path step
     PATH_STEP_LABELS: ClassVar[Tuple[str, ...]] = ('axis', 'kind test')
@@ -111,12 +108,6 @@ class XPath1Parser(Parser[XPathToken]):
     compatibility_mode: bool = True
     """XPath 1.0 compatibility mode."""
 
-    default_namespace: Optional[str] = None
-    """
-    The default namespace. For XPath 1.0 this value is always `None` because the default
-    namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
-    """
-
     def __init__(self, namespaces: Optional[NamespacesType] = None, strict: bool = True,
                  *args: Any, **kwargs: Any) -> None:
         super(XPath1Parser, self).__init__()
@@ -127,7 +118,7 @@ class XPath1Parser(Parser[XPathToken]):
 
     @property
     def other_namespaces(self) -> Dict[str, str]:
-        """The subset of namespaces not provided by default."""
+        """The subset of namespaces not known by default."""
         return {k: v for k, v in self.namespaces.items() if k not in self.DEFAULT_NAMESPACES}
 
     @property

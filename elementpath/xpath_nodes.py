@@ -11,7 +11,7 @@
 Helper functions for XPath nodes and basic data types.
 """
 from urllib.parse import urlparse
-from typing import TYPE_CHECKING, cast, Any, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
@@ -43,13 +43,13 @@ ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstr
 class XPathNode:
 
     # Accessors, empty sequences are represented with None values.
+    namespaces: Any = None
     attributes: Any = None
     base_uri: Any = None
     children: Any = None
     document_uri: Any = None
     is_id: bool
     is_idrefs: bool
-    namespace_nodes: Optional[List['NamespaceNode']]
     nilled: Any = None
     kind: str
     name: Any = None
@@ -73,40 +73,16 @@ class XPathNode:
     def typed_value(self) -> Optional[AtomicValueType]:
         raise NotImplementedError()
 
-    def match(self, name: Optional[str] = None) -> bool:
+    def match(self, name: str, use_default_namespace: bool = True) -> bool:
         """
         Returns `True` if the argument is matching the name of the node, `False` otherwise.
         Raises a ValueError if the argument is used, but it's in a wrong format.
 
         :param name: a fully qualified name, a local name or a wildcard. The accepted \
         wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
+        :param use_default_namespace: use the default namespace for unprefixed names.
         """
-        if name is None or name == '*' or name == '*:*':
-            return True
-        elif self.name is None:
-            return False
-        elif not name:
-            return not self.name
-        elif name[0] == '*':
-            try:
-                _, _name = name.split(':')
-            except (ValueError, IndexError):
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            else:
-                if self.name.startswith('{'):
-                    return self.name.split('}')[1] == _name
-                else:
-                    return self.name == _name
-
-        elif name[-1] == '*':
-            if name[0] != '{' or '}' not in name:
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            elif self.name.startswith('{'):
-                return self.name.split('}')[0][1:] == name.split('}')[0][1:]
-            else:
-                return False
-        else:
-            return self.name == name
+        return False
 
 
 class AttributeNode(XPathNode):
@@ -156,6 +132,32 @@ class AttributeNode(XPathNode):
         elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.value)
         return cast(AtomicValueType, self.xsd_type.decode(self.value))
+
+    def match(self, name: str, use_default_namespace: bool = True) -> bool:
+        if name == '*' or name == '*:*':
+            return True
+        elif not name:
+            return not self.name
+        elif name[0] == '*':
+            try:
+                _, _name = name.split(':')
+            except (ValueError, IndexError):
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            else:
+                if self.name.startswith('{'):
+                    return self.name.split('}')[1] == _name
+                else:
+                    return self.name == _name
+
+        elif name[-1] == '*':
+            if name[0] != '{' or '}' not in name:
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            elif self.name.startswith('{'):
+                return self.name.split('}')[0][1:] == name.split('}')[0][1:]
+            else:
+                return False
+        else:
+            return self.name == name
 
 
 class NamespaceNode(XPathNode):
@@ -311,7 +313,8 @@ class ElementNode(XPathNode):
     xsd_type: Optional[XsdTypeProtocol] = None
 
     tail: Optional['TextNode'] = None
-    nsmap: List['NamespaceNode']
+    nsmap: Dict[Optional[str], str]
+    namespaces: List['NamespaceNode']
     attrib: List['AttributeNode']
     children: List[ChildNodeType]
 
@@ -365,6 +368,40 @@ class ElementNode(XPathNode):
             item = item.parent
             if item is None:
                 return '/{}'.format('/'.join(reversed(path)))
+
+    def match(self, name: str, use_default_namespace: bool = True) -> bool:
+        if name == '*' or name == '*:*':
+            return True
+        elif not name:
+            return not self.name
+        elif name[0] == '*':
+            try:
+                _, _name = name.split(':')
+            except (ValueError, IndexError):
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            else:
+                if self.name.startswith('{'):
+                    return self.name.split('}')[1] == _name
+                else:
+                    return self.name == _name
+
+        elif name[-1] == '*':
+            if name[0] != '{' or '}' not in name:
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            elif self.name.startswith('{'):
+                return self.name.split('}')[0][1:] == name.split('}')[0][1:]
+            else:
+                return False
+        elif name[0] == '{' or not use_default_namespace:
+            return self.name == name
+        else:
+            if None in self.nsmap:
+                default_namespace = self.nsmap[None]
+            else:
+                default_namespace = self.nsmap.get('')
+            if not default_namespace:
+                return self.name == name
+            return self.name == '{%s}%s' % (default_namespace, name)
 
     def iter(self, with_self=True):
         if with_self:

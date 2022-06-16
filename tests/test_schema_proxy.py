@@ -418,19 +418,21 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
                          schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>')
-        self.assertIsNone(token.evaluate(context=XPathContext(root)))
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
+        self.assertIsNone(token.evaluate(context))
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19">30</b></values>')
-        self.assertIsNone(token.evaluate(context=XPathContext(root)))
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
+        self.assertIsNone(token.evaluate(context))
 
         root = self.etree.XML(
             '<values xmlns="http://xpath.test/ns"><b min="19" max="40">30</b></values>')
-        context = XPathContext(root)
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
         self.assertTrue(token.evaluate(context))
 
         root = self.etree.XML(
             '<values xmlns="http://xpath.test/ns"><b min="19" max="10">30</b></values>')
-        context = XPathContext(root)
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
         self.assertFalse(token.evaluate(context))
 
     def test_issue_10(self):
