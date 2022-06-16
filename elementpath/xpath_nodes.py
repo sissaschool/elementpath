@@ -10,6 +10,7 @@
 """
 Helper functions for XPath nodes and basic data types.
 """
+from collections import deque
 from urllib.parse import urlparse
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -60,6 +61,8 @@ class XPathNode:
     context: 'XPathContext'
     position: int  # position in context, for document total order.
 
+    __slots__ = 'context', 'position'
+
     def __init__(self, context: 'XPathContext') -> None:
         self.context = context
         context.total_nodes += 1
@@ -95,7 +98,9 @@ class AttributeNode(XPathNode):
     """
     name: str
     kind = 'attribute'
-    xsd_type: Optional[XsdTypeProtocol] = None
+    xsd_type: Optional[XsdTypeProtocol]
+
+    __slots__ = 'name', 'value', 'parent', 'xsd_type'
 
     def __init__(self, context: 'XPathContext',
                  name: str, value: Union[str, XsdAttributeProtocol],
@@ -170,6 +175,8 @@ class NamespaceNode(XPathNode):
     """
     kind = 'namespace'
 
+    __slots__ = 'prefix', 'uri', 'parent'
+
     def __init__(self, context: 'XPathContext',
                  prefix: str, uri: str,
                  parent: Optional[ElementType] = None) -> None:
@@ -212,6 +219,8 @@ class TextNode(XPathNode):
     kind = 'text'
     value: str
 
+    __slots__ = 'value', 'parent'
+
     def __init__(self, context: 'XPathContext',
                  value: str,
                  parent: Optional[ElementType] = None) -> None:
@@ -236,6 +245,8 @@ class CommentNode(XPathNode):
     A class for processing XPath comment nodes.
     """
     kind = 'comment'
+
+    __slots__ = 'elem', 'parent'
 
     def __init__(self, context: 'XPathContext',
                  elem: ElementProtocol,
@@ -272,6 +283,8 @@ class ProcessingInstructionNode(XPathNode):
     """
     kind = 'processing-instruction'
     elem: ElementProtocol
+
+    __slots__ = 'elem', 'parent'
 
     def __init__(self, context: 'XPathContext',
                  elem: ElementProtocol,
@@ -310,13 +323,15 @@ class ElementNode(XPathNode):
     diminish the average load for a tree processing.
     """
     kind = 'element'
-    xsd_type: Optional[XsdTypeProtocol] = None
+    xsd_type: Optional[XsdTypeProtocol]
 
     tail: Optional['TextNode'] = None
     nsmap: Dict[Optional[str], str]
     namespaces: List['NamespaceNode']
     attrib: List['AttributeNode']
     children: List[ChildNodeType]
+
+    __slots__ = 'nsmap', 'namespaces', 'elem', 'parent', 'xsd_type', 'attributes', 'children'
 
     def __init__(self, context: 'XPathContext',
                  elem: ElementProtocol,
@@ -407,7 +422,7 @@ class ElementNode(XPathNode):
         if with_self:
             yield self
 
-        iterators: List[Any] = []
+        iterators: List[Any] = deque()
         children: Iterator[Any] = iter(self.children)
 
         yield from self.namespaces
@@ -422,15 +437,25 @@ class ElementNode(XPathNode):
                 except IndexError:
                     return
             else:
-                if isinstance(child, TextNode) or callable(child.elem.tag):
-                    yield child
-                else:
-                    yield child
+                yield child
+                if isinstance(child, ElementNode):
                     yield from child.namespaces
                     yield from child.attributes
 
                     iterators.append(children)
                     children = iter(child.children)
+
+    def iter2(self, with_self=True):
+        if with_self:
+            yield self
+
+        yield from self.namespaces
+        yield from self.attributes
+
+        for child in self.children:
+            yield child
+            if isinstance(child, ElementNode):
+                yield from child.iter2()
 
     def iter_descendants(self, with_self=True):
         if with_self:
@@ -524,6 +549,8 @@ class DocumentNode(XPathNode):
     """
     kind = 'document'
     children: List[Union[CommentNode, ProcessingInstructionNode, ElementNode]]
+
+    __slots__ = 'document', 'children'
 
     def __init__(self, context: 'XPathContext', document: DocumentType) -> None:
         super().__init__(context)

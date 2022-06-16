@@ -101,14 +101,12 @@ class XPathContext:
 
         self.namespaces = dict(namespaces) if namespaces else {}
 
-        assert not isinstance(root, XPathNode)
         if is_etree_document(root) or is_etree_element(root):
             self.root = self.build_tree(root)
         else:
             msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
             raise ElementPathTypeError(msg.format(root))
 
-        assert not isinstance(item, XPathNode)
         if item is None:
             self.item = self.root if isinstance(self.root, ElementNode) else None
         else:
