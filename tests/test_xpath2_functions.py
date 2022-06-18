@@ -1268,7 +1268,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(doc, item=root)
         context.variables = {
-            'x': AttributeNode(context, XML_ID, 'ID21256', parent=context.root[0])
+            'x': AttributeNode(XML_ID, 'ID21256', parent=context.root[0])
         }
         self.check_value("idref('ID21256', $x)", [], context=context)
 
@@ -1337,19 +1337,19 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal(3.1, xs:anyURI("http://xpath.test"))   ', False)
 
         context = XPathContext(root)
-        context.variables = {'a': [TextNode(context, 'alpha')],
-                             'b': [TextNode(context, 'beta')]}
+        context.variables = {'a': [TextNode('alpha')],
+                             'b': [TextNode('beta')]}
         self.check_value('deep-equal($a, $a)', True, context=context)
         self.check_value('deep-equal($a, $b)', False, context=context)
 
         context = XPathContext(root)
-        context.variables = {'a': [AttributeNode(context, 'a', '10')],
-                             'b': [AttributeNode(context, 'b', '10')]}
+        context.variables = {'a': [AttributeNode('a', '10')],
+                             'b': [AttributeNode('b', '10')]}
         self.check_value('deep-equal($a, $a)', True, context=context)
         self.check_value('deep-equal($a, $b)', False, context=context)
 
-        context.variables = {'a': [NamespaceNode(context, 'tns0', 'http://xpath.test/ns')],
-                             'b': [NamespaceNode(context, 'tns1', 'http://xpath.test/ns')]}
+        context.variables = {'a': [NamespaceNode('tns0', 'http://xpath.test/ns')],
+                             'b': [NamespaceNode('tns1', 'http://xpath.test/ns')]}
         self.check_value('deep-equal($a, $a)', True, context=context)
         self.check_value('deep-equal($a, $b)', False, context=context)
 

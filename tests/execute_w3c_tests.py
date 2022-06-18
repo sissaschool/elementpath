@@ -162,7 +162,9 @@ LXML_ONLY = {
     'fn-outermost__fn-outermost-017',
     'fn-outermost__fn-outermost-018',
     'fn-outermost__fn-outermost-019',
+    'fn-outermost__fn-outermost-020',
     'fn-outermost__fn-outermost-021',
+    'fn-outermost__fn-outermost-046',
     'fn-local-name__fn-local-name-77',
     'fn-local-name__fn-local-name-79',
     'fn-name__fn-name-27',
@@ -957,6 +959,8 @@ class Result(object):
             reason = "Unexpected error {!r}: {}".format(type(err), str(err))
 
         except (ParseError, EvaluateError) as err:
+            if verbose > 3:
+                err_traceback = ''.join(traceback.format_exception(None, err, err.__traceback__))
             reason = "Not an elementpath error {!r}: {}".format(type(err), str(err))
         else:
             reason = "Error not raised"

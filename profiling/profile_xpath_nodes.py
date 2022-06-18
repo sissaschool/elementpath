@@ -10,45 +10,50 @@
 #
 from timeit import timeit
 from memory_profiler import profile
-from xml.etree import ElementTree
+import lxml.etree as etree
 
-from elementpath.xpath_nodes import ElementType, is_element_node
+from elementpath.etree import PyElementTree
+from elementpath.xpath_nodes import build_nodes
+
+
+@profile
+def create_xpath_tree():
+    node_tree = build_nodes(root)
+    return node_tree
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
     seconds = timeit(stmt, setup=setup, number=number)
-    print("{}: {}s".format(stmt, seconds))
+    print("{}: {}s ({} times, about {}s each)".format(stmt, seconds, number, seconds/number))
 
 
 @profile
-def element_nodes_objects():
-    elem = ElementTree.XML(xml_source)
-    nodes = [ElementType(e) for e in elem.iter()]
-    return nodes
+def create_element_tree():
+    doc = etree.XML(xml_source)
+    return doc
+
+
+@profile
+def create_py_element_tree():
+    doc = PyElementTree.XML(xml_source)
+    return doc
 
 
 if __name__ == '__main__':
-    print('*' * 62)
-    print("*** Memory and timing profile of ElementNode class         ***")
-    print('*' * 62)
+    print('*' * 60)
+    print("*** Memory and timing profile of XPath node trees        ***")
+    print('*' * 60)
     print()
 
-    xml_source = '<a>' + '<b/>' * 2000 + '</a>'
-    element_nodes_objects()
+    xml_source = '<a>' + '<b>lorem ipsum</b>' * 1000 + '</a>'
+    root = create_element_tree()
+    create_py_element_tree()
+    xpath_tree = create_xpath_tree()
 
-    root = ElementTree.XML(xml_source)
-    setup = 'from __main__ import ElementNode, root, node, is_element_node'
-    node = ElementType(root)
+    setup = 'from __main__ import root, xpath_tree, build_nodes'
+    NUMBER = 5000
 
-    NUMBER = 10000
-
+    run_timeit('build_nodes(root)', setup, 100)
     run_timeit('for e in root.iter(): e', setup, NUMBER)
-    run_timeit('for e in root.iter(): ElementNode(e)', setup, NUMBER)
-    run_timeit('for e in map(ElementNode, root.iter()): e', setup, NUMBER)
-
-    run_timeit('for e in root: e', setup, NUMBER)
-    run_timeit('for e in root: ElementNode(e)', setup, NUMBER)
-    run_timeit('for e in map(ElementNode, root): e', setup, NUMBER)
-
-    run_timeit('isinstance(node, ElementNode)', setup, NUMBER)
-    run_timeit('is_element_node(root)', setup, NUMBER)
+    run_timeit('for e in xpath_tree.iter(): e', setup, NUMBER)
+    run_timeit('for e in xpath_tree.iter2(): e', setup, NUMBER)

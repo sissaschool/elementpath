@@ -19,8 +19,8 @@ from .exceptions import ElementPathTypeError
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, is_etree_document, etree_iter_root
-from .xpath_nodes import DocumentNode, ElementNode, CommentNode, ProcessingInstructionNode, \
-    AttributeNode, NamespaceNode, TextNode, XPathNode, is_schema
+from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, CommentNode, \
+    ProcessingInstructionNode, NamespaceNode, TextNode, XPathNode, build_nodes
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -102,7 +102,7 @@ class XPathContext:
         self.namespaces = dict(namespaces) if namespaces else {}
 
         if is_etree_document(root) or is_etree_element(root):
-            self.root = self.build_tree(root)
+            self.root = build_nodes(root, namespaces)
         else:
             msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
             raise ElementPathTypeError(msg.format(root))
@@ -110,7 +110,7 @@ class XPathContext:
         if item is None:
             self.item = self.root if isinstance(self.root, ElementNode) else None
         else:
-            self.item = self._get_effective_value(item)
+            self.item = self.get_xpath_items(item)
 
         self.position = position
         self.size = size
@@ -123,20 +123,20 @@ class XPathContext:
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         if documents is not None:
-            self.documents = {k: self.build_tree(v) if v is not None else v
+            self.documents = {k: build_nodes(v) if v is not None else v
                               for k, v in documents.items()}
 
         if variables is None:
             self.variables = {}
         else:
-            self.variables = {k: self._get_effective_value(v) for k, v in variables.items()}
+            self.variables = {k: self.get_xpath_items(v) for k, v in variables.items()}
 
         if collections is not None:
-            self.collections = {k: self._get_effective_value(v) if v is not None else v
+            self.collections = {k: self.get_xpath_items(v) if v is not None else v
                                 for k, v in collections.items()}
 
         if default_collection is not None:
-            self.default_collection = self._get_effective_value(default_collection)
+            self.default_collection = self.get_xpath_items(default_collection)
 
         self.text_resources = text_resources if text_resources is not None else {}
         self.resource_collections = resource_collections
@@ -185,129 +185,45 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    def _get_effective_value(self, value):
-        if isinstance(value, XPathNode):
-            return value
-        elif isinstance(value, (list, tuple)):
-            return [self._get_effective_value(x) for x in value]
-        elif is_etree_document(value):
-            if value is self.root.value:
+    def get_xpath_items(self, item):
+        """
+        Checks the item and returns an item suitable for XPath processing.
+        For XML trees and elements try a match with an existing node in the
+        context. If it fails then builds a new node.
+        """
+        if isinstance(item, XPathNode):
+            return item
+        elif isinstance(item, (list, tuple)):
+            return [self.get_xpath_items(x) for x in item]
+        elif is_etree_document(item):
+            if item is self.root.value:
                 return self.root
 
             if self.documents:
                 for doc in self.documents.values():
-                    if value is doc.value:
+                    if item is doc.value:
                         return doc
 
-        elif is_etree_element(value):
+        elif is_etree_element(item):
             for node in self.root.iter():
-                if value is node.value:
+                if item is node.value:
                     return node
 
             if self.documents:
                 for doc in self.documents.values():
                     for node in doc.iter():
-                        if value is node.value:
+                        if item is node.value:
                             return node
-        else:
-            return value
 
-        return self.build_tree(value)
-
-    def build_tree(self, root: Union[DocumentType, ElementType, XMLSchemaProtocol]) \
-            -> Union[DocumentNode, ElementNode]:
-
-        if hasattr(root, 'getroot'):
-            document = cast(DocumentType, root)
-            root_node = parent = DocumentNode(self, document)
-
-            _root = document.getroot()
-            for e in etree_iter_root(_root):
-                if not callable(e.tag):
-                    child = ElementNode(self, e, parent)
-                    parent.children.append(child)
-                elif e.tag.__name__ == 'Comment':
-                    parent.children.append(CommentNode(self, e, parent))
+            if callable(item.tag):
+                if item.tag.__name__ == 'Comment':
+                    return CommentNode(item)
                 else:
-                    parent.children.append(ProcessingInstructionNode(self, e, parent))
-
-            children: Iterator[Any] = iter(_root)
-            parent = child
-
-        elif is_schema(root):
-            return self._build_schema_tree(root)
-        elif not callable(root.tag):
-            children: Iterator[Any] = iter(root)
-            root_node = parent = ElementNode(self, root)
-        elif root.tag.__name__ == 'Comment':
-            return CommentNode(self, root)
+                    return ProcessingInstructionNode(elem)
         else:
-            return ProcessingInstructionNode(self, root)
+            return item
 
-        iterators: List[Any] = []
-        ancestors: List[Any] = []
-
-        while True:
-            try:
-                elem = next(children)
-            except StopIteration:
-                try:
-                    children, parent = iterators.pop(), ancestors.pop()
-                except IndexError:
-                    return root_node
-            else:
-                if not callable(elem.tag):
-                    child = ElementNode(self, elem, parent)
-                elif elem.tag.__name__ == 'Comment':
-                    child = CommentNode(self, elem, parent)
-                else:
-                    child = ProcessingInstructionNode(self, elem, parent)
-
-                parent.children.append(child)
-                if elem.tail is not None:
-                    parent.children.append(TextNode(self, elem.tail, parent))
-
-                if len(elem):
-                    ancestors.append(parent)
-                    parent = child
-                    iterators.append(children)
-                    children = iter(elem)
-
-    def _build_schema_tree(self, root: XMLSchemaProtocol) -> ElementNode:
-        children: Iterator[Any] = iter(root)
-        root_node = parent = ElementNode(self, root)
-
-        elements = {root}
-        iterators: List[Any] = []
-        ancestors: List[Any] = []
-
-        while True:
-            try:
-                elem = next(children)
-            except StopIteration:
-                try:
-                    children, parent = iterators.pop(), ancestors.pop()
-                except IndexError:
-                    return root_node
-            else:
-                if elem.parent is not None and elem in elements:
-                    continue
-
-                elements.add(elem)
-                child = ElementNode(self, elem, parent, xsd_type=elem.type)
-                parent.children.append(child)
-
-                if elem.ref is None:
-                    ancestors.append(parent)
-                    parent = child
-                    iterators.append(children)
-                    children = iter(elem)
-                elif elem.ref not in elements:
-                    elements.add(elem.ref)
-                    ancestors.append(parent)
-                    parent = child
-                    iterators.append(children)
-                    children = iter(elem.ref)
+        return build_nodes(item)
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
@@ -386,8 +302,9 @@ class XPathContext:
             status = self.item, self.axis
             self.axis = 'attribute'
 
-            for self.item in self.item.attributes:
-                yield self.item
+            if self.item.attributes:
+                for self.item in self.item.attributes:
+                    yield self.item
 
             self.item, self.axis = status
 

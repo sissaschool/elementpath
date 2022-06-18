@@ -12,18 +12,15 @@ Helper functions for XPath nodes and basic data types.
 """
 from collections import deque
 from urllib.parse import urlparse
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .exceptions import ElementPathValueError
+from .exceptions import ElementPathTypeError, ElementPathValueError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
-    XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol
-from .etree import ElementType, DocumentType, etree_iter_strings
-
-if TYPE_CHECKING:
-    from .xpath_context import XPathContext
+    XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
+from .etree import ElementType, DocumentType, etree_iter_strings, is_etree_document
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -54,19 +51,12 @@ class XPathNode:
     nilled: Any = None
     kind: str
     name: Any = None
-    parent: Optional[ParentNodeType] = None
     type_name: Optional[str]
-    value: Any = None
+    value: Any
 
-    context: 'XPathContext'
-    position: int  # position in context, for document total order.
-
-    __slots__ = 'context', 'position'
-
-    def __init__(self, context: 'XPathContext') -> None:
-        self.context = context
-        context.total_nodes += 1
-        self.position = context.total_nodes
+    parent: Optional[ParentNodeType] = None
+    size: int  # TODO ???
+    position: int  # for document total order
 
     @property
     def string_value(self) -> str:
@@ -100,16 +90,17 @@ class AttributeNode(XPathNode):
     kind = 'attribute'
     xsd_type: Optional[XsdTypeProtocol]
 
-    __slots__ = 'name', 'value', 'parent', 'xsd_type'
+    __slots__ = 'name', 'value', 'parent', 'position', 'xsd_type'
 
-    def __init__(self, context: 'XPathContext',
+    def __init__(self,
                  name: str, value: Union[str, XsdAttributeProtocol],
                  parent: Optional[ElementType] = None,
+                 position: int = 1,
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
-        super().__init__(context)
         self.name = name
         self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
+        self.position = position
         self.xsd_type = xsd_type
 
     def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
@@ -175,15 +166,16 @@ class NamespaceNode(XPathNode):
     """
     kind = 'namespace'
 
-    __slots__ = 'prefix', 'uri', 'parent'
+    __slots__ = 'prefix', 'uri', 'parent', 'position'
 
-    def __init__(self, context: 'XPathContext',
+    def __init__(self,
                  prefix: str, uri: str,
-                 parent: Optional[ElementType] = None) -> None:
-        super().__init__(context)
+                 parent: Optional[ElementType] = None,
+                 position: int = 1) -> None:
         self.prefix = prefix
         self.uri = uri
         self.parent = parent
+        self.position = position
 
     @property
     def name(self) -> str:
@@ -219,14 +211,15 @@ class TextNode(XPathNode):
     kind = 'text'
     value: str
 
-    __slots__ = 'value', 'parent'
+    __slots__ = 'value', 'parent', 'position'
 
-    def __init__(self, context: 'XPathContext',
+    def __init__(self,
                  value: str,
-                 parent: Optional[ElementType] = None) -> None:
-        super().__init__(context)
+                 parent: Optional[ElementType] = None,
+                 position: int = 1) -> None:
         self.value = value
         self.parent = parent
+        self.position = position
 
     def __repr__(self) -> str:
         return '%s(value=%r)' % (self.__class__.__name__, self.value)
@@ -246,14 +239,15 @@ class CommentNode(XPathNode):
     """
     kind = 'comment'
 
-    __slots__ = 'elem', 'parent'
+    __slots__ = 'elem', 'parent', 'position'
 
-    def __init__(self, context: 'XPathContext',
+    def __init__(self,
                  elem: ElementProtocol,
-                 parent: Optional[ParentNodeType] = None) -> None:
-        super().__init__(context)
+                 parent: Optional[ParentNodeType] = None,
+                 position: int = 1) -> None:
         self.elem = elem
         self.parent = parent
+        self.position = position
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
@@ -284,14 +278,15 @@ class ProcessingInstructionNode(XPathNode):
     kind = 'processing-instruction'
     elem: ElementProtocol
 
-    __slots__ = 'elem', 'parent'
+    __slots__ = 'elem', 'parent', 'position'
 
-    def __init__(self, context: 'XPathContext',
+    def __init__(self,
                  elem: ElementProtocol,
-                 parent: Optional[ParentNodeType] = None) -> None:
-        super().__init__(context)
+                 parent: Optional[ParentNodeType] = None,
+                 position: int = 1) -> None:
         self.elem = elem
         self.parent = parent
+        self.position = position
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
@@ -326,45 +321,28 @@ class ElementNode(XPathNode):
     xsd_type: Optional[XsdTypeProtocol]
 
     tail: Optional['TextNode'] = None
-    nsmap: Dict[Optional[str], str]
+    nsmap: Optional[Dict[Optional[str], str]]
     namespaces: List['NamespaceNode']
-    attrib: List['AttributeNode']
+    attributes: List['AttributeNode']
     children: List[ChildNodeType]
 
-    __slots__ = 'nsmap', 'namespaces', 'elem', 'parent', 'xsd_type', 'attributes', 'children'
+    __slots__ = 'nsmap', 'namespaces', 'elem', 'parent', 'position', 'xsd_type', 'attributes', 'children'
 
-    def __init__(self, context: 'XPathContext',
+    def __init__(self,
                  elem: ElementProtocol,
                  parent: Optional[ElementType] = None,
+                 position: int = 1,
+                 nsmap: Optional[Any] = None,
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
 
-        if hasattr(elem, 'nsmap'):
-            self.nsmap = cast(LxmlElementProtocol, elem).nsmap
-        else:
-            self.nsmap = context.namespaces
-
-        if 'xml' in self.nsmap:
-            self.namespaces = [
-                NamespaceNode(context, pfx, uri, self) for pfx, uri in self.nsmap.items()
-            ]
-        else:
-            self.namespaces = [NamespaceNode(context, 'xml', XML_NAMESPACE, self)]
-            self.namespaces.extend(
-                NamespaceNode(context, pfx, uri, self) for pfx, uri in self.nsmap.items()
-            )
-
-        super().__init__(context)
         self.elem = elem
         self.parent = parent
+        self.position = position
+        self.nsmap = {} if nsmap is None else nsmap
         self.xsd_type = xsd_type
-
-        self.attributes = [AttributeNode(context, name, value, self)
-                           for name, value in elem.attrib.items()]
-
-        if elem.text is not None:
-            self.children = [TextNode(context, elem.text, self)]
-        else:
-            self.children = []
+        self.namespaces = None
+        self.attributes = None
+        self.children = []
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
@@ -425,8 +403,10 @@ class ElementNode(XPathNode):
         iterators: List[Any] = deque()
         children: Iterator[Any] = iter(self.children)
 
-        yield from self.namespaces
-        yield from self.attributes
+        if self.namespaces:
+            yield from self.namespaces
+        if self.attributes:
+            yield from self.attributes
 
         while True:
             try:
@@ -439,8 +419,11 @@ class ElementNode(XPathNode):
             else:
                 yield child
                 if isinstance(child, ElementNode):
-                    yield from child.namespaces
-                    yield from child.attributes
+
+                    if child.namespaces:
+                        yield from child.namespaces
+                    if child.attributes:
+                        yield from child.attributes
 
                     iterators.append(children)
                     children = iter(child.children)
@@ -449,8 +432,10 @@ class ElementNode(XPathNode):
         if with_self:
             yield self
 
-        yield from self.namespaces
-        yield from self.attributes
+        if self.namespaces:
+            yield from self.namespaces
+        if self.attributes:
+            yield from self.attributes
 
         for child in self.children:
             yield child
@@ -550,11 +535,11 @@ class DocumentNode(XPathNode):
     kind = 'document'
     children: List[Union[CommentNode, ProcessingInstructionNode, ElementNode]]
 
-    __slots__ = 'document', 'children'
+    __slots__ = 'document', 'children', 'position'
 
-    def __init__(self, context: 'XPathContext', document: DocumentType) -> None:
-        super().__init__(context)
+    def __init__(self, document: DocumentType, position: int = 1) -> None:
         self.document = document
+        self.position = position
         self.children = []
 
     def getroot(self):
@@ -627,3 +612,271 @@ def is_schema_node(obj: Any) -> bool:
     if isinstance(obj, XPathNode):
         obj = obj.value
     return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
+
+
+def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) \
+        -> Iterator[Union[ElementProtocol, LxmlElementProtocol]]:
+    if not hasattr(root, 'itersiblings'):
+        yield root
+    else:
+        _root = cast(LxmlElementProtocol, root)
+        yield from reversed([e for e in _root.itersiblings(preceding=True)])
+        yield _root
+        yield from _root.itersiblings()
+
+
+def build_nodes(root: Union[DocumentType, ElementType], namespaces=None, namespace_axis=True) \
+        -> Union[DocumentNode, ElementNode]:
+
+    def build_element_node():
+        nonlocal position
+        nonlocal child
+
+        child = ElementNode(elem, parent, position, namespaces)
+        position += 1
+
+        if namespace_axis:
+            child.namespaces = [NamespaceNode('xml', XML_NAMESPACE, child, position)]
+            position += 1
+            if child.nsmap:
+                for pfx, uri in child.nsmap.items():
+                    if pfx != 'xml':
+                        child.namespaces.append(NamespaceNode(pfx, uri, child, position))
+                        position += 1
+
+        if elem.attrib:
+            child.attributes = []
+            for name, value in elem.attrib.items():
+                child.attributes.append(AttributeNode(name, value, child, position))
+                position += 1
+
+        if elem.text is not None:
+            child.children.append(TextNode(elem.text, child, position))
+            position += 1
+
+        return child
+
+    position = 1
+    if isinstance(namespaces, list):
+        namespaces = dict(namespaces)
+
+    if is_etree_document(root):
+        if hasattr(root, 'xpath'):
+            return build_lxml_nodes(root, namespace_axis)
+
+        document = cast(DocumentType, root)
+        root_node = parent = DocumentNode(document, position)
+        position += 1
+
+        elem = cast(ElementType, root.getroot())
+        child = build_element_node()
+        parent.children.append(child)
+        parent = child
+        children: Iterator[Any] = iter(elem)
+    elif is_schema(root) or is_schema_node(root):
+        return build_schema_tree(root)
+    elif not callable(root.tag):
+        if hasattr(root, 'nsmap'):
+            return build_lxml_nodes(cast(LxmlElementProtocol, root), namespace_axis)
+
+        elem = cast(ElementProtocol, root)
+        parent = None
+        root_node = parent = build_element_node()
+        children: Iterator[Any] = iter(root)
+    else:
+        msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
+        raise ElementPathTypeError(msg.format(root))
+
+    iterators: List[Any] = []
+    ancestors: List[Any] = []
+
+    while True:
+        try:
+            elem = next(children)
+        except StopIteration:
+            try:
+                children, parent = iterators.pop(), ancestors.pop()
+            except IndexError:
+                return root_node
+        else:
+            if not callable(elem.tag):
+                child = build_element_node()
+            elif elem.tag.__name__ == 'Comment':
+                child = CommentNode(elem, parent, position)
+                position += 1
+            else:
+                child = ProcessingInstructionNode(elem, parent, position)
+
+            parent.children.append(child)
+            if elem.tail is not None:
+                parent.children.append(TextNode(elem.tail, parent, position))
+                position += 1
+
+            if len(elem):
+                ancestors.append(parent)
+                parent = child
+                iterators.append(children)
+                children = iter(elem)
+
+
+def build_lxml_nodes(root: Union[DocumentType, LxmlElementProtocol], namespace_axis=True) \
+        -> Union[DocumentNode, ElementNode]:
+
+    def build_lxml_element_node():
+        nonlocal position
+        nonlocal child
+
+        child = ElementNode(elem, parent, position, elem.nsmap)
+        position += 1
+
+        if namespace_axis:
+            child.namespaces = [NamespaceNode('xml', XML_NAMESPACE, child, position)]
+            position += 1
+            if elem.nsmap:
+                for pfx, uri in child.nsmap.items():
+                    if pfx != 'xml':
+                        child.namespaces.append(NamespaceNode(pfx, uri, child, position))
+                        position += 1
+
+        if elem.attrib:
+            child.attributes = []
+            for name, value in elem.attrib.items():
+                child.attributes.append(AttributeNode(name, value, child, position))
+                position += 1
+
+        if elem.text is not None:
+            child.children.append(TextNode(elem.text, child, position))
+            position += 1
+
+        return child
+
+    position = 1
+    if hasattr(root, 'parse'):
+        document = cast(DocumentType, root)
+        root_node = parent = DocumentNode(document, position)
+        position += 1
+        elem = cast(LxmlElementProtocol, root.getroot())
+    else:
+        # create a new ElementTree for the root element at position==0
+        document = cast(LxmlElementProtocol, root).getroottree()
+        root_node = parent = DocumentNode(document, 0)
+        elem = document.getroot()  # the root argument may not be the actual root
+
+    # Add root siblings (comments and processing instructions)
+    for e in reversed([x for x in elem.itersiblings(preceding=True)]):
+        if e.tag.__name__ == 'Comment':
+            parent.children.append(CommentNode(e, parent, position))
+        else:
+            parent.children.append(ProcessingInstructionNode(e, parent, position))
+        position += 1
+
+    child = build_lxml_element_node()
+    parent.children.append(child)
+
+    for e in elem.itersiblings():
+        if e.tag.__name__ == 'Comment':
+            parent.children.append(CommentNode(e, parent, position))
+        else:
+            parent.children.append(ProcessingInstructionNode(e, parent, position))
+        position += 1
+
+    if not root_node.position and len(parent.children) == 1:
+        # Remove non-root document if root element has no siblings
+        root_node = child
+        root_node.parent = None
+
+    parent = child
+    iterators: List[Any] = []
+    ancestors: List[Any] = []
+
+    children: Iterator[Any] = iter(elem)
+    while True:
+        try:
+            elem = next(children)
+        except StopIteration:
+            try:
+                children, parent = iterators.pop(), ancestors.pop()
+            except IndexError:
+                if isinstance(root_node, ElementNode) and root_node.elem is not root:
+                    for node in root_node.iter_descendants():
+                        if isinstance(node, ElementNode) and node.elem is root:
+                            return node
+                return root_node
+
+        else:
+            if not callable(elem.tag):
+                child = build_lxml_element_node()
+            elif elem.tag.__name__ == 'Comment':
+                child = CommentNode(elem, parent, position)
+                position += 1
+            else:
+                child = ProcessingInstructionNode(elem, parent, position)
+
+            parent.children.append(child)
+            if elem.tail is not None:
+                parent.children.append(TextNode(elem.tail, parent, position))
+                position += 1
+
+            if len(elem):
+                ancestors.append(parent)
+                parent = child
+                iterators.append(children)
+                children = iter(elem)
+
+
+def build_schema_tree(schema: XMLSchemaProtocol) -> ElementNode:
+
+    def build_schema_element_node(xsd_type=None):
+        nonlocal position
+        nonlocal child
+
+        child = ElementNode(elem, parent, position, schema.namespaces, xsd_type)
+        position += 1
+
+        if elem.attributes:
+            child.attributes = []
+            for name, attr in elem.attributes.items():
+                child.attributes.append(
+                    AttributeNode(name, attr, child, position, attr.type)
+                )
+                position += 1
+
+        return child
+
+    position = 1
+    children: Iterator[Any] = iter(schema)
+    elem = schema
+    parent = None
+    root_node = parent = build_schema_element_node()
+
+    elements = {schema}
+    iterators: List[Any] = []
+    ancestors: List[Any] = []
+
+    while True:
+        try:
+            elem = next(children)
+        except StopIteration:
+            try:
+                children, parent = iterators.pop(), ancestors.pop()
+            except IndexError:
+                return root_node
+        else:
+            if elem.parent is not None and elem in elements:
+                continue
+
+            elements.add(elem)
+            child = build_schema_element_node(xsd_type=elem.type)
+            parent.children.append(child)
+
+            if elem.ref is None:
+                ancestors.append(parent)
+                parent = child
+                iterators.append(children)
+                children = iter(elem)
+            elif elem.ref not in elements:
+                elements.add(elem.ref)
+                ancestors.append(parent)
+                parent = child
+                iterators.append(children)
+                children = iter(elem.ref)

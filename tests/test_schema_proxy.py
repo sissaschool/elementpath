@@ -120,7 +120,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.check_value("self::schema-element(xs:schema)", [context.item], context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
 
-        attribute = context.item = AttributeNode(context, XML_LANG, 'en')
+        attribute = context.item = AttributeNode(XML_LANG, 'en')
         self.wrong_syntax("schema-attribute(*)")
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")

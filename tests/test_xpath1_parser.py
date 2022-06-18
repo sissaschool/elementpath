@@ -408,11 +408,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         element = self.etree.Element('schema')
 
         context = XPathContext(element)
-        attribute = AttributeNode(context, 'id', '0212349350')
-        namespace = NamespaceNode(context, 'xs', 'http://www.w3.org/2001/XMLSchema')
-        comment = CommentNode(context, self.etree.Comment('nothing important'))
-        pi = ProcessingInstructionNode(context, self.etree.ProcessingInstruction('action'))
-        text = TextNode(context, 'aldebaran')
+        attribute = AttributeNode('id', '0212349350')
+        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
+        comment = CommentNode(self.etree.Comment('nothing important'))
+        pi = ProcessingInstructionNode(self.etree.ProcessingInstruction('action'))
+        text = TextNode('aldebaran')
 
         self.check_selector("node()", element, [])
 
@@ -478,7 +478,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('id("foo")', expected=[context.root[0]], context=context)
         self.check_value('id("bar")', expected=[context.root[2]], context=context)
 
-        context.item = CommentNode(context, self.etree.Comment('a comment'))
+        context.item = CommentNode(self.etree.Comment('a comment'))
         self.check_value('id("foo")', expected=[], context=context)
 
     def test_node_set_functions(self):

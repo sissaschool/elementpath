@@ -336,10 +336,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('xs:dateTime(@a)', DateTime10(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode(context, 'a', str(DateTime10(1969, 7, 20, 20, 18)))
+        context.item = AttributeNode('a', str(DateTime10(1969, 7, 20, 20, 18)))
         self.check_value('xs:dateTime(.)', DateTime10(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode(context, 'a', 'true')
+        context.item = AttributeNode('a', 'true')
         self.check_value('xs:dateTime(.)', ValueError, context=context)
 
         context.item = DateTime10(1969, 7, 20, 20, 18)
@@ -424,13 +424,13 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
                 if not isinstance(obj, Date10):
                     raise TypeError()
 
-        context.item = AttributeNode(context, 'a', 'true', xsd_type=DummyXsdDateType())
+        context.item = AttributeNode('a', 'true', xsd_type=DummyXsdDateType())
         self.check_value('xs:date(.)', TypeError, context=context)
 
-        context.item = AttributeNode(context, 'a', str(Date10(2017, 1, 19)))
+        context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)
 
-        context.item = AttributeNode(context, 'a', 'true')
+        context.item = AttributeNode('a', 'true')
         self.check_value('xs:date(.)', ValueError, context=context)
 
         root = self.etree.XML("<root>2017-10-02</root>")

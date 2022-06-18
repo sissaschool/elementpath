@@ -47,9 +47,10 @@ def select_namespace_axis(self, context=None):
         else:
             name = self[0].value
 
-        for context.item in elem.namespaces:
-            if name == '*' or name == context.item.prefix:
-                yield context.item
+        if elem.namespaces:
+            for context.item in elem.namespaces:
+                if name == '*' or name == context.item.prefix:
+                    yield context.item
 
 
 @method(axis('self'))

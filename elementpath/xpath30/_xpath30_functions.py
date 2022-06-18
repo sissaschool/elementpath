@@ -32,9 +32,9 @@ from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE
-from ..etree import etree_iter_paths, is_etree_element
+from ..etree import etree_iter_paths
 from ..xpath_nodes import XPathNode, is_schema_node, ElementNode, TextNode, AttributeNode, \
-    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
+    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode, build_nodes
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -833,7 +833,10 @@ def evaluate_analyze_string_function(self, context=None):
             lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
-    return context.build_tree(context.etree.XML(''.join(lines)))
+    return build_nodes(
+        root=context.etree.XML(''.join(lines)),
+        namespaces=self.parser.namespaces
+    )
 
 
 ###
@@ -1165,7 +1168,7 @@ def evaluate_parse_xml_function(self, context=None):
     except etree.ParseError:
         raise self.error('FODC0006')
     else:
-        return context.build_tree(etree.ElementTree(root))
+        return build_nodes(etree.ElementTree(root), self.parser.namespaces)
 
 
 @method(function('parse-xml-fragment', nargs=1,
@@ -1198,11 +1201,17 @@ def evaluate_parse_xml_fragment_function(self, context=None):
         root = etree.XML(arg)
     except etree.ParseError:
         try:
-            return context.build_tree(etree.XML(f'<document>{arg}</document>'))
+            return build_nodes(
+                root=etree.XML(f'<document>{arg}</document>'),
+                namespaces=self.parser.namespaces
+            )
         except etree.ParseError:
             raise self.error('FODC0006') from None
     else:
-        return context.build_tree(etree.ElementTree(root))
+        return build_nodes(
+            root=etree.ElementTree(root),
+            namespaces=self.parser.namespaces
+        )
 
 
 @method(function('serialize', nargs=(1, 2), sequence_types=(
