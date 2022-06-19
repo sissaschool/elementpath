@@ -12,6 +12,7 @@
 XPath 1.0 implementation - part 4 (axes)
 """
 from ..xpath_nodes import ElementNode
+from ..xpath_context import XPathSchemaContext
 from ._xpath1_functions import XPath1Parser
 
 method = XPath1Parser.method
@@ -40,6 +41,8 @@ def select_attribute_reference_or_axis(self, context=None):
 def select_namespace_axis(self, context=None):
     if context is None:
         raise self.missing_context()
+    elif isinstance(context, XPathSchemaContext):
+        return  # deprecated for XP20+ and not needed for schema analysis
     elif isinstance(context.item, ElementNode):
         elem = context.item
         if self[0].symbol == 'namespace-node':
@@ -47,10 +50,9 @@ def select_namespace_axis(self, context=None):
         else:
             name = self[0].value
 
-        if elem.namespaces:
-            for context.item in elem.namespaces:
-                if name == '*' or name == context.item.prefix:
-                    yield context.item
+        for context.item in elem.namespaces:
+            if name == '*' or name == context.item.prefix:
+                yield context.item
 
 
 @method(axis('self'))

@@ -1501,6 +1501,8 @@ def select_namespace_node_kind_test(self, context=None):
         raise self.missing_context()
     elif isinstance(context.item, NamespaceNode):
         yield context.item
+    elif isinstance(context, XPathSchemaContext):
+        return  # deprecated for XP20+ and not needed for schema analysis
     elif isinstance(context.item, ElementNode):
         elem = context.item
         for context.item in elem.namespaces:

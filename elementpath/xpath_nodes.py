@@ -322,11 +322,12 @@ class ElementNode(XPathNode):
 
     tail: Optional['TextNode'] = None
     nsmap: Optional[Dict[Optional[str], str]]
-    namespaces: List['NamespaceNode']
+    _namespaces: Optional[List['NamespaceNode']]
     attributes: List['AttributeNode']
     children: List[ChildNodeType]
 
-    __slots__ = 'nsmap', 'namespaces', 'elem', 'parent', 'position', 'xsd_type', 'attributes', 'children'
+    __slots__ = 'nsmap', 'elem', 'parent', 'position', 'xsd_type', \
+                '_namespaces', 'attributes', 'children'
 
     def __init__(self,
                  elem: ElementProtocol,
@@ -340,12 +341,27 @@ class ElementNode(XPathNode):
         self.position = position
         self.nsmap = {} if nsmap is None else nsmap
         self.xsd_type = xsd_type
-        self.namespaces = None
+        self._namespaces = None
         self.attributes = None
         self.children = []
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
+
+    @property
+    def namespaces(self) -> List['NamespaceNode']:
+        if self._namespaces is None:
+            # Lazy generation of namespace nodes of the element
+            position = self.position + 1
+            self._namespaces = [NamespaceNode('xml', XML_NAMESPACE, self, position)]
+            position += 1
+            if self.nsmap:
+                for pfx, uri in self.nsmap.items():
+                    if pfx != 'xml':
+                        self._namespaces.append(NamespaceNode(pfx, uri, self, position))
+                        position += 1
+
+        return self._namespaces
 
     @property
     def path(self) -> str:
@@ -403,8 +419,8 @@ class ElementNode(XPathNode):
         iterators: List[Any] = deque()
         children: Iterator[Any] = iter(self.children)
 
-        if self.namespaces:
-            yield from self.namespaces
+        if self._namespaces:
+            yield from self._namespaces
         if self.attributes:
             yield from self.attributes
 
@@ -432,8 +448,8 @@ class ElementNode(XPathNode):
         if with_self:
             yield self
 
-        if self.namespaces:
-            yield from self.namespaces
+        if self._namespaces:
+            yield from self._namespaces
         if self.attributes:
             yield from self.attributes
 
@@ -625,7 +641,8 @@ def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) \
         yield from _root.itersiblings()
 
 
-def build_nodes(root: Union[DocumentType, ElementType], namespaces=None, namespace_axis=True) \
+def build_nodes(root: Union[DocumentType, ElementType],
+                namespaces=None) \
         -> Union[DocumentNode, ElementNode]:
 
     def build_element_node():
@@ -635,14 +652,11 @@ def build_nodes(root: Union[DocumentType, ElementType], namespaces=None, namespa
         child = ElementNode(elem, parent, position, namespaces)
         position += 1
 
-        if namespace_axis:
-            child.namespaces = [NamespaceNode('xml', XML_NAMESPACE, child, position)]
-            position += 1
-            if child.nsmap:
-                for pfx, uri in child.nsmap.items():
-                    if pfx != 'xml':
-                        child.namespaces.append(NamespaceNode(pfx, uri, child, position))
-                        position += 1
+        # Do not generate namespace nodes, only reserve positions.
+        if 'xml' in namespaces:
+            position += len(namespaces)
+        else:
+            position += len(namespaces) + 1
 
         if elem.attrib:
             child.attributes = []
@@ -657,12 +671,14 @@ def build_nodes(root: Union[DocumentType, ElementType], namespaces=None, namespa
         return child
 
     position = 1
-    if isinstance(namespaces, list):
+    if namespaces is None:
+        namespaces = {}
+    elif isinstance(namespaces, list):
         namespaces = dict(namespaces)
 
     if is_etree_document(root):
         if hasattr(root, 'xpath'):
-            return build_lxml_nodes(root, namespace_axis)
+            return build_lxml_nodes(root)
 
         document = cast(DocumentType, root)
         root_node = parent = DocumentNode(document, position)
@@ -677,7 +693,7 @@ def build_nodes(root: Union[DocumentType, ElementType], namespaces=None, namespa
         return build_schema_tree(root)
     elif not callable(root.tag):
         if hasattr(root, 'nsmap'):
-            return build_lxml_nodes(cast(LxmlElementProtocol, root), namespace_axis)
+            return build_lxml_nodes(cast(LxmlElementProtocol, root))
 
         elem = cast(ElementProtocol, root)
         parent = None
@@ -719,7 +735,7 @@ def build_nodes(root: Union[DocumentType, ElementType], namespaces=None, namespa
                 children = iter(elem)
 
 
-def build_lxml_nodes(root: Union[DocumentType, LxmlElementProtocol], namespace_axis=True) \
+def build_lxml_nodes(root: Union[DocumentType, LxmlElementProtocol]) \
         -> Union[DocumentNode, ElementNode]:
 
     def build_lxml_element_node():
@@ -729,14 +745,11 @@ def build_lxml_nodes(root: Union[DocumentType, LxmlElementProtocol], namespace_a
         child = ElementNode(elem, parent, position, elem.nsmap)
         position += 1
 
-        if namespace_axis:
-            child.namespaces = [NamespaceNode('xml', XML_NAMESPACE, child, position)]
-            position += 1
-            if elem.nsmap:
-                for pfx, uri in child.nsmap.items():
-                    if pfx != 'xml':
-                        child.namespaces.append(NamespaceNode(pfx, uri, child, position))
-                        position += 1
+        # Do not generate namespace nodes, only reserve positions.
+        if 'xml' in elem.nsmap:
+            position += len(elem.nsmap)
+        else:
+            position += len(elem.nsmap) + 1
 
         if elem.attrib:
             child.attributes = []
