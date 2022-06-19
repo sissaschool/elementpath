@@ -24,8 +24,7 @@ from ..datatypes import AbstractDateTime, Duration, DayTimeDuration, \
 from ..xpath_context import XPathSchemaContext
 from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
-    is_schema_node
+from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 from .xpath1_parser import XPath1Parser
 
@@ -365,7 +364,7 @@ def select_self_shortcut(self, context=None):
 
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_self():
-            if is_schema_node(item):
+            if item.is_schema_element():
                 self.add_xsd_type(item)
             elif item is context.root:
                 # item is the schema

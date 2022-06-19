@@ -20,7 +20,8 @@ from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
-from .etree import ElementType, DocumentType, etree_iter_strings, is_etree_document
+from .etree import ElementType, DocumentType, etree_iter_strings, \
+    is_etree_document, is_etree_element
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -348,6 +349,9 @@ class ElementNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
+    def is_schema_element(self):
+        return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
+
     @property
     def namespaces(self) -> List['NamespaceNode']:
         if self._namespaces is None:
@@ -553,7 +557,7 @@ class DocumentNode(XPathNode):
 
     __slots__ = 'document', 'children', 'position'
 
-    def __init__(self, document: DocumentType, position: int = 1) -> None:
+    def __init__(self, document: DocumentProtocol, position: int = 1) -> None:
         self.document = document
         self.position = position
         self.children = []
@@ -594,7 +598,7 @@ class DocumentNode(XPathNode):
         yield from self.children
 
     @property
-    def value(self) -> DocumentType:
+    def value(self) -> DocumentProtocol:
         return self.document
 
     @property
@@ -619,30 +623,46 @@ class DocumentNode(XPathNode):
 
 
 def is_schema(obj: Any) -> bool:
-    if isinstance(obj, XPathNode):
-        obj = obj.value
-    return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps')
+    return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps') and not hasattr(obj, 'type')
 
 
 def is_schema_node(obj: Any) -> bool:
-    if isinstance(obj, XPathNode):
-        obj = obj.value
     return hasattr(obj, 'local_name') and hasattr(obj, 'type') and hasattr(obj, 'name')
 
 
-def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) \
-        -> Iterator[Union[ElementProtocol, LxmlElementProtocol]]:
-    if not hasattr(root, 'itersiblings'):
-        yield root
+#
+# Node trees builders
+def get_node_tree(root: Union[DocumentNode, ElementNode, DocumentProtocol,
+                              ElementProtocol, XsdElementProtocol, XMLSchemaProtocol],
+                  namespaces: Optional[Dict[str, str]] = None) \
+        -> Union[DocumentNode, ElementNode]:
+    """
+    Returns a tree of XPath nodes that wrap the provided root tree.
+
+    :param root: an Element or an ElementTree or a schema or a schema element.
+    :param namespaces: an optional mapping from prefixes to namespace URIs, \
+    Ignored if root is a lxml etree or a schema structure.
+    """
+    if isinstance(root, (DocumentNode, ElementNode)):
+        return root
+    elif is_etree_document(root):
+        if hasattr(root, 'xpath'):
+            return build_lxml_node_tree(root)
+        return build_node_tree(root, namespaces)
+    elif hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
+        # schema or schema node
+        return build_schema_node_tree(root)
+    elif is_etree_element(root) and not callable(root.tag):
+        if hasattr(root, 'nsmap'):
+            return build_lxml_node_tree(cast(LxmlElementProtocol, root))
+        return build_node_tree(root, namespaces)
     else:
-        _root = cast(LxmlElementProtocol, root)
-        yield from reversed([e for e in _root.itersiblings(preceding=True)])
-        yield _root
-        yield from _root.itersiblings()
+        msg = "invalid root {!r}, an Element or an ElementTree or a schema node required"
+        raise ElementPathTypeError(msg.format(root))
 
 
-def build_nodes(root: Union[DocumentType, ElementType],
-                namespaces=None) \
+def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
+                    namespaces: Optional[Dict[str, str]] = None) \
         -> Union[DocumentNode, ElementNode]:
 
     def build_element_node():
@@ -676,11 +696,8 @@ def build_nodes(root: Union[DocumentType, ElementType],
     elif isinstance(namespaces, list):
         namespaces = dict(namespaces)
 
-    if is_etree_document(root):
-        if hasattr(root, 'xpath'):
-            return build_lxml_nodes(root)
-
-        document = cast(DocumentType, root)
+    if hasattr(root, 'parse'):
+        document = cast(DocumentProtocol, root)
         root_node = parent = DocumentNode(document, position)
         position += 1
 
@@ -689,19 +706,11 @@ def build_nodes(root: Union[DocumentType, ElementType],
         parent.children.append(child)
         parent = child
         children: Iterator[Any] = iter(elem)
-    elif is_schema(root) or is_schema_node(root):
-        return build_schema_tree(root)
-    elif not callable(root.tag):
-        if hasattr(root, 'nsmap'):
-            return build_lxml_nodes(cast(LxmlElementProtocol, root))
-
+    else:
         elem = cast(ElementProtocol, root)
         parent = None
         root_node = parent = build_element_node()
         children: Iterator[Any] = iter(root)
-    else:
-        msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
-        raise ElementPathTypeError(msg.format(root))
 
     iterators: List[Any] = []
     ancestors: List[Any] = []
@@ -735,7 +744,7 @@ def build_nodes(root: Union[DocumentType, ElementType],
                 children = iter(elem)
 
 
-def build_lxml_nodes(root: Union[DocumentType, LxmlElementProtocol]) \
+def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         -> Union[DocumentNode, ElementNode]:
 
     def build_lxml_element_node():
@@ -837,7 +846,7 @@ def build_lxml_nodes(root: Union[DocumentType, LxmlElementProtocol]) \
                 children = iter(elem)
 
 
-def build_schema_tree(schema: XMLSchemaProtocol) -> ElementNode:
+def build_schema_node_tree(schema: XMLSchemaProtocol) -> ElementNode:
 
     def build_schema_element_node(xsd_type=None):
         nonlocal position

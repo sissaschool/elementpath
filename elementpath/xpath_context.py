@@ -15,12 +15,11 @@ from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
     Optional, Sequence, Union, Callable, Tuple
 
-from .exceptions import ElementPathTypeError
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import XsdElementProtocol, XMLSchemaProtocol
 from .etree import ElementType, DocumentType, is_etree_element, is_etree_document, etree_iter_root
 from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, CommentNode, \
-    ProcessingInstructionNode, NamespaceNode, TextNode, XPathNode, build_nodes
+    ProcessingInstructionNode, NamespaceNode, TextNode, XPathNode, get_node_tree
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
@@ -100,17 +99,12 @@ class XPathContext:
                  default_place: Optional[str] = None) -> None:
 
         self.namespaces = dict(namespaces) if namespaces else {}
-
-        if is_etree_document(root) or is_etree_element(root):
-            self.root = build_nodes(root, namespaces)
-        else:
-            msg = "invalid root {!r}, an Element or an ElementTree or a schema instance required"
-            raise ElementPathTypeError(msg.format(root))
+        self.root = get_node_tree(root, self.namespaces)
 
         if item is None:
             self.item = self.root if isinstance(self.root, ElementNode) else None
         else:
-            self.item = self.get_xpath_items(item)
+            self.item = self.get_context_item(item)
 
         self.position = position
         self.size = size
@@ -123,20 +117,20 @@ class XPathContext:
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         if documents is not None:
-            self.documents = {k: build_nodes(v) if v is not None else v
+            self.documents = {k: get_node_tree(v, self.namespaces) if v is not None else v
                               for k, v in documents.items()}
 
         if variables is None:
             self.variables = {}
         else:
-            self.variables = {k: self.get_xpath_items(v) for k, v in variables.items()}
+            self.variables = {k: self.get_context_item(v) for k, v in variables.items()}
 
         if collections is not None:
-            self.collections = {k: self.get_xpath_items(v) if v is not None else v
+            self.collections = {k: self.get_context_item(v) if v is not None else v
                                 for k, v in collections.items()}
 
         if default_collection is not None:
-            self.default_collection = self.get_xpath_items(default_collection)
+            self.default_collection = self.get_context_item(default_collection)
 
         self.text_resources = text_resources if text_resources is not None else {}
         self.resource_collections = resource_collections
@@ -185,7 +179,7 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    def get_xpath_items(self, item):
+    def get_context_item(self, item):
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
@@ -194,7 +188,7 @@ class XPathContext:
         if isinstance(item, XPathNode):
             return item
         elif isinstance(item, (list, tuple)):
-            return [self.get_xpath_items(x) for x in item]
+            return [self.get_context_item(x) for x in item]
         elif is_etree_document(item):
             if item is self.root.value:
                 return self.root
@@ -219,11 +213,11 @@ class XPathContext:
                 if item.tag.__name__ == 'Comment':
                     return CommentNode(item)
                 else:
-                    return ProcessingInstructionNode(elem)
+                    return ProcessingInstructionNode(item)
         else:
             return item
 
-        return build_nodes(item)
+        return get_node_tree(item, self.namespaces)
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""

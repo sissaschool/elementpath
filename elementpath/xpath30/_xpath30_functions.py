@@ -11,7 +11,6 @@
 """
 XPath 3.0 implementation - part 3 (functions)
 """
-import collections
 import decimal
 import os
 import re
@@ -33,8 +32,8 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE
 from ..etree import etree_iter_paths
-from ..xpath_nodes import XPathNode, is_schema_node, ElementNode, TextNode, AttributeNode, \
-    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode, build_nodes
+from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
+    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode, get_node_tree
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -833,7 +832,7 @@ def evaluate_analyze_string_function(self, context=None):
             lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
-    return build_nodes(
+    return get_node_tree(
         root=context.etree.XML(''.join(lines)),
         namespaces=self.parser.namespaces
     )
@@ -1168,7 +1167,7 @@ def evaluate_parse_xml_function(self, context=None):
     except etree.ParseError:
         raise self.error('FODC0006')
     else:
-        return build_nodes(etree.ElementTree(root), self.parser.namespaces)
+        return get_node_tree(etree.ElementTree(root), self.parser.namespaces)
 
 
 @method(function('parse-xml-fragment', nargs=1,
@@ -1201,14 +1200,14 @@ def evaluate_parse_xml_fragment_function(self, context=None):
         root = etree.XML(arg)
     except etree.ParseError:
         try:
-            return build_nodes(
+            return get_node_tree(
                 root=etree.XML(f'<document>{arg}</document>'),
                 namespaces=self.parser.namespaces
             )
         except etree.ParseError:
             raise self.error('FODC0006') from None
     else:
-        return build_nodes(
+        return get_node_tree(
             root=etree.ElementTree(root),
             namespaces=self.parser.namespaces
         )
@@ -1331,8 +1330,8 @@ def evaluate_serialize_function(self, context=None):
             chunks.append(str(item))
             continue
 
-        if hasattr(item, 'xsd_version') or is_schema_node(item):
-            continue  # XSD schema or schema node
+        if isinstance(context, XPathSchemaContext):
+            continue
 
         try:
             ck = etree.tostringlist(item, encoding='utf-8', **kwargs)
