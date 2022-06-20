@@ -43,8 +43,8 @@ from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, \
     DayTimeDuration, Duration, Integer, DoubleProxy10, DoubleProxy, QName, \
     DatetimeValueType, AtomicValueType, AnyAtomicType, Float10, Float
-from .protocols import ElementProtocol, DocumentProtocol, \
-    XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
+from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, \
+    XsdElementProtocol, XsdTypeProtocol, XMLSchemaProtocol
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -77,7 +77,9 @@ NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 PrincipalNodeType = Union[ElementProtocol, AttributeNode, ElementNode]
 OperandsType = Tuple[Optional[AtomicValueType], Optional[AtomicValueType]]
-SelectResultType = Union[AtomicValueType, ElementProtocol, XsdAttributeProtocol, Tuple[str, str]]
+SelectResultType = Union[
+    AtomicValueType, ElementProtocol, XsdAttributeProtocol, Tuple[Optional[str], str]
+]
 
 XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
 
@@ -680,6 +682,9 @@ class XPathToken(Token[XPathTokenType]):
         :param name: a QName in extended format.
         """
         xsd_node: Any
+        xsd_root = cast(Union[XMLSchemaProtocol, XsdElementProtocol],
+                        schema_context.root.value)
+
         for xsd_node in schema_context.iter_children_or_self():
             if xsd_node is None:
                 if name == XSD_SCHEMA == schema_context.root.elem.tag:
@@ -692,7 +697,7 @@ class XPathToken(Token[XPathTokenType]):
                         if xsd_node.name != name:
                             continue
                         # FIXME
-                        xsd_node = schema_context.root.value.maps.attributes.get(name)
+                        xsd_node = xsd_root.maps.attributes.get(name)
                         if xsd_node is None:
                             continue
                     elif xsd_node.value.is_matching(name):
@@ -716,7 +721,7 @@ class XPathToken(Token[XPathTokenType]):
                 elif xsd_node.value.is_matching(name, self.parser.namespaces.get('')):
                     if xsd_node.value.name is None:
                         # node is an XSD element wildcard FIXME
-                        xsd_element = schema_context.root.value.maps.elements.get(name)
+                        xsd_element = xsd_root.maps.elements.get(name)
                         if xsd_element is None:
                             continue
 
@@ -726,7 +731,6 @@ class XPathToken(Token[XPathTokenType]):
                                 break
                         else:
                             xsd_node = ElementNode(
-                                context=schema_context,
                                 elem=xsd_element,
                                 parent=schema_context.root,
                                 xsd_type=xsd_element.type,
@@ -737,7 +741,6 @@ class XPathToken(Token[XPathTokenType]):
                     if False and xsd_type is not None:
                         # Add another node to schema context FIXME
                         yield ElementNode(
-                            context=schema_context,
                             elem=xsd_node,
                             parent=xsd_node.parent,
                             xsd_type=xsd_type
@@ -833,11 +836,9 @@ class XPathToken(Token[XPathTokenType]):
             return item
 
         xsd_type = self.get_xsd_type(item)
-        if xsd_type is None:
-            return item
-        elif isinstance(item, (ElementNode, AttributeNode)):
+        if xsd_type is not None and isinstance(item, (ElementNode, AttributeNode)):
             item.xsd_type = xsd_type
-            return item
+        return item
 
     def cast_to_qname(self, qname: str) -> QName:
         """Cast a prefixed qname string to a QName object."""
@@ -1223,7 +1224,7 @@ class XPathFunction(XPathToken):
             elif not args and self:
                 if context.item is None:
                     if isinstance(context.root, DocumentNode):
-                        context.item = cast(DocumentProtocol, context.root).getroot()
+                        context.item = context.root.getroot()
                     else:
                         context.item = context.root
 

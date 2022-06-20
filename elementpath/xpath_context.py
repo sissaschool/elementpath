@@ -12,21 +12,23 @@ import importlib
 from copy import copy
 from itertools import chain
 from types import ModuleType
-from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, Tuple
+from typing import TYPE_CHECKING, cast, overload, Dict, Any, List, Iterator, \
+    Optional, Sequence, Union, Callable, Set
 
+from .exceptions import ElementPathTypeError
+from .namespaces import NamespacesType
 from .datatypes import AnyAtomicType, Timezone
-from .protocols import XsdElementProtocol, XMLSchemaProtocol
-from .etree import ElementType, DocumentType, is_etree_element, is_etree_document, etree_iter_root
-from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, CommentNode, \
-    ProcessingInstructionNode, NamespaceNode, TextNode, XPathNode, get_node_tree
+from .protocols import ElementProtocol, DocumentProtocol
+from .etree import is_etree_element, is_etree_document
+from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, \
+    CommentNode, ProcessingInstructionNode, NamespaceNode, TextNode, \
+    XPathNode, ChildNodeType, RootArgType, is_xpath_node, get_node_tree
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
 
 
-ContextRootType = Union[ElementType, DocumentType]
-ContextItemType = Union[XPathNode, AnyAtomicType]
+ItemArgType = Union[RootArgType, XPathNode, AnyAtomicType]
 
 
 class XPathContext:
@@ -69,26 +71,26 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: ContextRootType
-    item: Optional[ContextItemType]
+    root: Union[DocumentNode, ElementNode]
+    item: Union[XPathNode, AnyAtomicType, None]
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    documents: Optional[Dict[str, DocumentNode]] = None
+    documents: Optional[Dict[str, Union[DocumentNode, ElementNode]]] = None
     collections = None
-    default_collection: Optional[List[XPathNode]] = None
+    default_collection: Optional[List[Union[XPathNode, ElementProtocol, DocumentProtocol]]] = None
 
     def __init__(self,
-                 root: ContextRootType,
-                 namespaces: Optional[Dict[str, str]] = None,
-                 item: Optional[ContextItemType] = None,
+                 root: RootArgType,
+                 namespaces: Optional[NamespacesType] = None,
+                 item: Optional[ItemArgType] = None,
                  position: int = 1,
                  size: int = 1,
                  axis: Optional[str] = None,
                  variables: Optional[Dict[str, Any]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
-                 documents: Optional[Dict[str, DocumentType]] = None,
-                 collections: Optional[Dict[str, ElementType]] = None,
+                 documents: Optional[Dict[str, RootArgType]] = None,
+                 collections: Optional[Dict[str, List[ItemArgType]]] = None,
                  default_collection: Optional[str] = None,
                  text_resources: Optional[Dict[str, str]] = None,
                  resource_collections: Optional[Dict[str, List[str]]] = None,
@@ -130,6 +132,12 @@ class XPathContext:
                                 for k, v in collections.items()}
 
         if default_collection is not None:
+            if not isinstance(default_collection, list) or \
+                    any(not is_xpath_node(x) for x in default_collection):
+                raise ElementPathTypeError(
+                    "default_collection argument must be a list of XPath nodes"
+                )
+
             self.default_collection = self.get_context_item(default_collection)
 
         self.text_resources = text_resources if text_resources is not None else {}
@@ -157,7 +165,7 @@ class XPathContext:
             self._etree: ModuleType = importlib.import_module(etree_module_name)
         return self._etree
 
-    def get_root(self, node: Any) -> Union[None, ElementType, DocumentType]:
+    def get_root(self, node: Any) -> Union[None, ElementNode, DocumentNode]:
         if any(node is x for x in self.root.iter()):
             return self.root
 
@@ -179,7 +187,16 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    def get_context_item(self, item):
+    @overload
+    def get_context_item(self, item: ItemArgType) \
+        -> Union[XPathNode, AnyAtomicType]: ...
+
+    @overload
+    def get_context_item(self, item: List[ItemArgType]) \
+        -> List[Union[XPathNode, AnyAtomicType]]: ...
+
+    def get_context_item(self, item: Union[ItemArgType, List[ItemArgType]]) \
+            -> Union[XPathNode, AnyAtomicType, List[Union[XPathNode, AnyAtomicType]]]:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
@@ -209,15 +226,18 @@ class XPathContext:
                         if item is node.value:
                             return node
 
-            if callable(item.tag):
-                if item.tag.__name__ == 'Comment':
-                    return CommentNode(item)
+            if callable(item.tag):  # type: ignore[union-attr]
+                if item.tag.__name__ == 'Comment':  # type: ignore[union-attr]
+                    return CommentNode(cast(ElementProtocol, item))
                 else:
-                    return ProcessingInstructionNode(item)
+                    return ProcessingInstructionNode(cast(ElementProtocol, item))
         else:
-            return item
+            return cast(AnyAtomicType, item)
 
-        return get_node_tree(item, self.namespaces)
+        return get_node_tree(
+            root=cast(Union[RootArgType], item),
+            namespaces=self.namespaces
+        )
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""
@@ -307,28 +327,27 @@ class XPathContext:
         if self.axis is not None:
             yield self.item
         elif isinstance(self.item, (ElementNode, DocumentNode)):
-            status = self.item, self.axis
+            _status = self.item, self.axis
             self.axis = 'child'
 
             for self.item in self.item.children:
                 yield self.item
 
-            self.item, self.axis = status
+            self.item, self.axis = _status
 
         elif self.item is None:
-            status = self.item, self.axis
             self.axis = 'child'
 
             if isinstance(self.root, DocumentNode):
                 for self.item in self.root.children:
                     yield self.item
             else:
-                for self.item in etree_iter_root(self.root):
-                    yield self.item
+                # document position without a document node -> yield root ElementNode
+                yield self.root
 
-            self.item, self.axis = status
+            self.item = self.axis = None
 
-    def iter_parent(self) -> Iterator[ElementType]:
+    def iter_parent(self) -> Iterator[Union[ElementNode, DocumentNode]]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if not isinstance(self.item, XPathNode):
             return  # not applicable
@@ -339,12 +358,12 @@ class XPathContext:
             self.axis = 'parent'
 
             self.item = parent
-            yield cast(ElementType, self.item)
+            yield self.item
 
             self.item, self.axis = status
 
     def iter_siblings(self, axis: Optional[str] = None) \
-            -> Iterator[Union[ElementType, TextNode]]:
+            -> Iterator[Union[TextNode, ElementNode, CommentNode, ProcessingInstructionNode]]:
         """
         Iterator for 'following-sibling' forward axis and 'preceding-sibling' reverse axis.
 
@@ -383,7 +402,7 @@ class XPathContext:
 
         :param axis: the context axis, for default has no explicit axis.
         """
-        descendants: Union[Iterator[Union[XPathNode, None]], Tuple[XPathNode]]
+        descendants: Any
         with_self = axis != 'descendant'
 
         if isinstance(self.item, (ElementNode, DocumentNode)):
@@ -420,7 +439,7 @@ class XPathContext:
         status = self.item, self.axis
         self.axis = axis or 'ancestor'
 
-        ancestors: List[Union[ElementType, DocumentType, XPathNode]] = []
+        ancestors: List[XPathNode] = []
         if axis == 'ancestor-or-self':
             ancestors.append(self.item)
 
@@ -434,10 +453,11 @@ class XPathContext:
 
         self.item, self.axis = status
 
-    def iter_preceding(self) -> Iterator[ElementType]:
+    def iter_preceding(self) -> Iterator[ChildNodeType]:
         """Iterator for 'preceding' reverse axis."""
-        item: Union[ElementType, XPathNode]
-        parent: Union[None, ElementType, DocumentType]
+        ancestors: Set[Union[ElementNode, DocumentNode]]
+        item: XPathNode
+        parent: Union[None, ElementNode, DocumentNode]
 
         if not isinstance(self.item, XPathNode):
             return
@@ -455,13 +475,13 @@ class XPathContext:
             parent = parent.parent
 
         item = self.item
-        for self.item in self.root.iter(with_self=True):
+        for self.item in self.root.iter():
             if self.item is item:
                 break
             if isinstance(self.item, (AttributeNode, NamespaceNode)):
                 continue
             if self.item not in ancestors:
-                yield self.item
+                yield cast(ChildNodeType, self.item)
 
         self.item, self.axis = status
 
@@ -489,5 +509,4 @@ class XPathSchemaContext(XPathContext):
     checking during the static analysis phase. Don't use this as dynamic context on
     XML instances.
     """
-    iter_children_or_self: Callable[..., Iterator[Union[XsdElementProtocol, XMLSchemaProtocol]]]
-    root: XMLSchemaProtocol
+    root: ElementNode

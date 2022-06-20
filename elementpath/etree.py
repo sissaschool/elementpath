@@ -15,11 +15,7 @@ import re
 from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
     Tuple, Union
 
-from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
-    XsdElementProtocol, XMLSchemaProtocol
-
-ElementType = Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
-DocumentType = DocumentProtocol
+from .protocols import ElementProtocol, DocumentProtocol
 
 _REGEX_NS_PREFIX = re.compile(r'ns\d+$')
 
@@ -114,17 +110,6 @@ def is_etree_document(obj: Any) -> bool:
 
 def is_lxml_etree_document(obj: Any) -> bool:
     return is_etree_document(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
-
-
-def etree_iter_root(root: Union[ElementProtocol, LxmlElementProtocol]) \
-        -> Iterator[Union[ElementProtocol, LxmlElementProtocol]]:
-    if not hasattr(root, 'itersiblings'):
-        yield root
-    else:
-        _root = cast(LxmlElementProtocol, root)
-        yield from reversed([e for e in _root.itersiblings(preceding=True)])
-        yield _root
-        yield from _root.itersiblings()
 
 
 def etree_iter_strings(elem: Union[DocumentProtocol, ElementProtocol],
@@ -307,7 +292,6 @@ def etree_tostring(elem: ElementProtocol,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementType', 'DocumentType', 'ElementTree', 'PyElementTree',
-           'SafeXMLParser', 'is_etree_element', 'is_lxml_etree_element',
-           'is_etree_document', 'is_lxml_etree_document', 'etree_iter_root',
+__all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'is_etree_element',
+           'is_lxml_etree_element', 'is_etree_document', 'is_lxml_etree_document',
            'etree_iter_strings', 'etree_deep_equal', 'etree_iter_paths', 'etree_tostring']

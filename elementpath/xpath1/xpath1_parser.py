@@ -20,7 +20,7 @@ from ..exceptions import MissingContextError, ElementPathKeyError, \
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types
 from ..etree import is_etree_element
-from ..tdop import Parser
+from ..tdop import Token, Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
@@ -48,7 +48,7 @@ class XPath1Parser(Parser[XPathToken]):
     version = '1.0'
     """The XPath version string."""
 
-    token_base_class = XPathToken
+    token_base_class: Type[Token[Any]] = XPathToken
     literals_pattern = re.compile(
         r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
     )
@@ -421,7 +421,7 @@ class XPath1Parser(Parser[XPathToken]):
 
         value_name = value.name if isinstance(value, XPathNode) else value.tag
         try:
-            return value_name == get_expanded_name(name, self.namespaces)
+            return bool(value_name == get_expanded_name(name, self.namespaces))
         except (KeyError, ValueError):
             return False
 

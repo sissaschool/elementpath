@@ -326,7 +326,7 @@ class UnicodeSubset(MutableSet[CodePoint]):
         else:
             return self._codepoints == other
 
-    def __ior__(self, other: object) -> 'UnicodeSubset':  # type: ignore[override]
+    def __ior__(self, other: object) -> 'UnicodeSubset':
         if not isinstance(other, Iterable):
             return NotImplemented
         elif isinstance(other, UnicodeSubset):
@@ -376,7 +376,7 @@ class UnicodeSubset(MutableSet[CodePoint]):
         obj = self.copy()
         return obj.__iand__(other)
 
-    def __ixor__(self, other: object) -> 'UnicodeSubset':  # type: ignore[override]
+    def __ixor__(self, other: object) -> 'UnicodeSubset':
         if other is self:
             self.clear()
             return self

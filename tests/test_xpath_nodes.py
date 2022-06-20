@@ -334,7 +334,6 @@ class XPathNodesTest(unittest.TestCase):
 
         result = list(context.root.iter())
         self.assertListEqual(result, expected)
-        self.assertListEqual(list(context.root.iter(with_self=False)), expected[1:])
 
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
         context = XPathContext(root)

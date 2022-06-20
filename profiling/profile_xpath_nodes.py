@@ -13,12 +13,12 @@ from memory_profiler import profile
 import lxml.etree as etree
 
 from elementpath.etree import PyElementTree
-from elementpath.xpath_nodes import build_nodes
+from elementpath.xpath_nodes import get_node_tree
 
 
 @profile
 def create_xpath_tree():
-    node_tree = build_nodes(root)
+    node_tree = get_node_tree(root)
     return node_tree
 
 
@@ -50,10 +50,10 @@ if __name__ == '__main__':
     create_py_element_tree()
     xpath_tree = create_xpath_tree()
 
-    setup = 'from __main__ import root, xpath_tree, build_nodes'
+    setup = 'from __main__ import root, xpath_tree, get_node_tree'
     NUMBER = 5000
 
-    run_timeit('build_nodes(root)', setup, 100)
+    run_timeit('get_node_tree(root)', setup, 100)
     run_timeit('for e in root.iter(): e', setup, NUMBER)
     run_timeit('for e in xpath_tree.iter(): e', setup, NUMBER)
     run_timeit('for e in xpath_tree.iter2(): e', setup, NUMBER)

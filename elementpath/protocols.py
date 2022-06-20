@@ -50,6 +50,7 @@ else:
 
     @runtime_checkable
     class LxmlElementProtocol(ElementProtocol, Protocol):
+        def getroottree(self) -> 'DocumentProtocol': ...
         def getnext(self) -> Optional['LxmlElementProtocol']: ...
         def getparent(self) -> Optional['LxmlElementProtocol']: ...
         def getprevious(self) -> Optional['LxmlElementProtocol']: ...
@@ -69,6 +70,8 @@ else:
         name: Optional[str]
         local_name: Optional[str]
         parent: Optional['XsdComponentProtocol']
+        namespaces: Dict[str, str]
+        maps: 'GlobalMapsProtocol'
 
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         def is_simple(self) -> bool:
@@ -144,13 +147,14 @@ else:
         of the item. For a union is the base union type. For a complex type is xs:anyType.
         """
 
-    class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
-        type: XsdTypeProtocol
-        ref: Optional['XsdElementProtocol']
-
     class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
         type: XsdTypeProtocol
         ref: Optional['XsdAttributeProtocol']
+
+    class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
+        type: XsdTypeProtocol
+        attributes: Dict[str, XsdAttributeProtocol]
+        ref: Optional['XsdElementProtocol']
 
     class GlobalMapsProtocol(Protocol):
         types: Dict[str, XsdTypeProtocol]
@@ -161,8 +165,11 @@ else:
     class XMLSchemaProtocol(ElementProtocol, Protocol):
         xsd_version: Literal['1.0', '1.1']
         tag: Literal['{http://www.w3.org/2001/XMLSchema}schema']
+        attributes: Dict[str, XsdAttributeProtocol]
+
         attrib: Dict[str, Any]
         text: None
+        namespaces: Dict[str, str]
         maps: GlobalMapsProtocol
 
 
