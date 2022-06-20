@@ -40,7 +40,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
     def setUpClass(cls):
         cls.schema = xmlschema.XMLSchema('''
         <!-- Dummy schema for testing proxy API -->
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
               targetNamespace="http://xpath.test/ns">
           <xs:element name="test_element" type="xs:string"/>
           <xs:attribute name="test_attribute" type="xs:string"/>

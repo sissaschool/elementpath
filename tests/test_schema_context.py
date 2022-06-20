@@ -12,7 +12,7 @@ import unittest
 from copy import copy
 from textwrap import dedent
 
-from elementpath import ElementNode, XPath2Parser
+from elementpath import XPath2Parser
 from elementpath.datatypes import UntypedAtomic
 
 try:

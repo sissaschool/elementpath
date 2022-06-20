@@ -137,7 +137,7 @@ class XPathTestCase(unittest.TestCase):
         except ElementPathError as err:
             if isinstance(expected, type) and isinstance(err, expected):
                 return
-            raise 
+            raise
 
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, root_token.evaluate, context)

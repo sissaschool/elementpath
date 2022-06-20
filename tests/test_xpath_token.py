@@ -723,8 +723,6 @@ class XPath2TokenTest(XPath1TokenTest):
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
     def test_get_xsd_type(self):
-        context = XPathContext(ElementTree.XML('<dummy/>'))
-
         schema = xmlschema.XMLSchema("""
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="root" type="xs:int"/>

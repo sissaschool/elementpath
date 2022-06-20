@@ -42,7 +42,9 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import *
+from elementpath import XPath2Parser, XPathContext, ElementPathError, \
+    MissingContextError, select, Selector, datatypes, AttributeNode, \
+    NamespaceNode, TextNode
 from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE, XML_ID
 from elementpath.datatypes import DateTime10, DateTime, Date10, Date, Time, \
     Timezone, DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
@@ -318,7 +320,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('fn:normalize-unicode("menù")', 'menù')
         self.wrong_type('fn:normalize-unicode(xs:hexBinary("84"))', 'XPTY0004')
 
-        self.assertRaises(ElementPathValueError, self.parser.parse,
+        self.assertRaises(ValueError, self.parser.parse,
                           'fn:normalize-unicode("à", "FULLY-NORMALIZED")')
         self.check_value('fn:normalize-unicode("à", "")', 'à')
         self.wrong_value('fn:normalize-unicode("à", "UNKNOWN")')
@@ -729,7 +731,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     xmlns:tns="http://foo.test">
                   <xs:element name="root"/>
                 </xs:schema>""")
@@ -784,11 +786,15 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("fn:resolve-QName((), .)", context=context)
 
         if self.etree is lxml_etree:
-            self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", KeyError, context=context)
-            self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError, namespaces={'p3': ''})
+            self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", KeyError,
+                             context=context)
+            self.check_selector("fn:resolve-QName('p3:C3', .)", root, KeyError,
+                                namespaces={'p3': ''})
         else:
-            self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2', context=context)
-            self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError, namespaces={'p3': ''})
+            self.check_value("fn:string(fn:resolve-QName('eg:C2', .))", 'eg:C2',
+                             context=context)
+            self.check_selector("fn:resolve-QName('p3:C3', .)", root, ValueError,
+                                namespaces={'p3': ''})
 
         self.check_raise("fn:resolve-QName('p3:C3', .)", KeyError, 'FONS0004',
                          "no namespace found for prefix 'p3'", context=context)
@@ -873,7 +879,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     xmlns:tns="http://foo.test">
                   <xs:element name="root"/>
                 </xs:schema>""")
@@ -1278,7 +1284,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
     def test_deep_equal_function(self):
         root = self.etree.XML("""
-            <attendees> 
+            <attendees>
                 <name last='Parker' first='Peter'/>
                 <name last='Barker' first='Bob'/>
                 <name last='Parker' first='Peter'/>
@@ -1604,7 +1610,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     xmlns:tns="http://foo.test">
                   <xs:element name="root"/>
                 </xs:schema>"""))

@@ -40,7 +40,7 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import *
+from elementpath import XPathContext, MissingContextError, datatypes, XPathFunction
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.etree import is_etree_element, is_lxml_etree_document
 from elementpath.xpath_nodes import ElementNode, DocumentNode
@@ -49,12 +49,10 @@ from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
     int_to_roman, int_to_alphabetic, int_to_words
 
 try:
-    from tests import xpath_test_class
     from tests import test_xpath2_parser
     from tests import test_xpath2_functions
     from tests import test_xpath2_constructors
 except ImportError:
-    import xpath_test_class
     import test_xpath2_parser
     import test_xpath2_functions
     import test_xpath2_constructors
@@ -482,7 +480,10 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document, variables={'nodes': [root, document, root[0], document]})
+        context = XPathContext(
+            root=document,
+            variables={'nodes': [root, document, root[0], document]}
+        )
 
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
@@ -491,7 +492,8 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIs(nodes[0].value, document)
 
         context = XPathContext(
-            root=document, variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
+            root=document,
+            variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
         )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)

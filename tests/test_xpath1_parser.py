@@ -38,7 +38,9 @@ try:
 except ImportError:
     xmlschema = None
 
-from elementpath import *
+from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextError, \
+    AttributeNode, NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, \
+    ElementNode, select, XPathFunction
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_UNTYPED_ATOMIC
@@ -342,7 +344,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             <tst:B1 b1="beta1"/>
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
-            <tst:B2/>            
+            <tst:B2/>
         </A>""")
 
         # Prefix references
@@ -376,7 +378,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             <tst:B1 b1="beta1"/>
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
-            <tst:B2/>            
+            <tst:B2/>
         </A>""")
 
         self.parser.strict = False
@@ -872,7 +874,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.assertEqual(True, root_token.evaluate(context))
 
         if self.parser.version > '1.0':
-            with self.assertRaises(ElementPathTypeError) as ctx:
+            with self.assertRaises(TypeError) as ctx:
                 root_token.evaluate(
                     context=XPathContext(
                         root=self.etree.XML("<a> <b>text</b> </a>")  # Two text nodes ...
@@ -1551,7 +1553,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_parenthesized_expression(self):
         self.check_value('(6 + 9)', 15)
         if self.parser.version == '1.0':
-            self.check_value('()', ElementPathSyntaxError)
+            self.check_value('()', SyntaxError)
         else:
             self.check_value('()', [])
 

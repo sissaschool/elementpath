@@ -11,7 +11,7 @@
 import unittest
 import xml.etree.ElementTree as ElementTree
 
-from elementpath import *
+from elementpath import select, iter_select, Selector, XPath2Parser
 
 
 class XPathSelectorsTest(unittest.TestCase):

@@ -108,8 +108,6 @@ class XPathNodesTest(unittest.TestCase):
     def test_node_base_uri(self):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/" />'
 
-        context = XPathContext(ElementTree.XML('<empty/>'))
-
         self.assertEqual(ElementNode(ElementTree.XML(xml_test)).base_uri, '/')
         document = ElementTree.parse(io.StringIO(xml_test))
         self.assertIsNone(DocumentNode(document).base_uri)
@@ -178,7 +176,7 @@ class XPathNodesTest(unittest.TestCase):
             ))
 
     def test_text_nodes(self):
-        context, parent = self.context, self.context.root
+        parent = self.context.root
 
         # equality if and only is the same instance
         text_node = TextNode('alpha')
@@ -198,7 +196,7 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(repr(text_node), "TextNode(value='alpha')")
 
     def test_namespace_nodes(self):
-        context, parent = self.context, self.context.root
+        context = self.context
         namespace = NamespaceNode('tns', 'http://xpath.test/ns')
 
         self.assertEqual(repr(namespace),
@@ -217,8 +215,6 @@ class XPathNodesTest(unittest.TestCase):
                             NamespaceNode('tns', 'http://xpath.test/ns', parent=context.root))
         self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
         self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
-        self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns',
-                                                     parent=ElementTree.Element('element')))
 
     def test_node_children_function(self):
         self.assertListEqual(ElementNode(self.elem).children, [])
@@ -326,7 +322,8 @@ class XPathNodesTest(unittest.TestCase):
         expected = [
             context.root, context.root.namespaces[0],
             context.root[0],
-            context.root[1], context.root[1].namespaces[0], context.root[1].attributes[0], context.root[1][0],
+            context.root[1], context.root[1].namespaces[0],
+            context.root[1].attributes[0], context.root[1][0],
             context.root[2], context.root[2].namespaces[0],
             context.root[3], context.root[3].namespaces[0],
             context.root[3][0], context.root[3][0].namespaces[0], context.root[3][0][0]

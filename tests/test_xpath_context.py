@@ -18,7 +18,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import *
+from elementpath import XPathContext, DocumentNode, ElementNode, datatypes, select
 
 
 class DummyXsdType:

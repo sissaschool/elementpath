@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-#
+# flake8: noqa
 
 from memory_profiler import profile
 
