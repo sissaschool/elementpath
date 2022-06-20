@@ -29,10 +29,9 @@ copyright = '2018-2022, SISSA (International School for Advanced Studies)'
 author = 'Davide Brunato'
 
 # The short X.Y version
-version = '2.6'
+version = '3.0'
 # The full version, including alpha/beta/rc tags
-release = '2.6.0'
-
+release = '3.0.0b1'
 
 # -- General configuration ---------------------------------------------------
 
@@ -48,8 +47,13 @@ extensions = [
     'sphinx.ext.doctest',
 ]
 
-# Option for autodoc: do not add module name as prefix to classes or functions.
-add_module_names = False
+# Options for autodoc
+add_module_names = False  # do not add module name as prefix to classes or functions.
+autodoc_typehints = 'none'  # do not add type annotations
+
+nitpick_ignore = [
+    ('py:class', 'XMLSchemaProxy')
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -68,7 +72,8 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+# language = None
+language = 'en'  # required by Sphinx v5.0.0
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

@@ -8,8 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Subpackage for processing regular expression. Patterns are translated to an
-equivalent Python's regex pattern with get_python_pattern().
+Subpackage for processing XML regular expressions and for converting them to 
+Python-compatible regexps.
 
 XPath/XQuery/XML-Schema regex flavors are supported through translate_pattern()
 API options. Default options process XPath/XQuery patterns.

@@ -669,10 +669,11 @@ def select_child_path(self, context=None):
         if isinstance(context.root, DocumentNode):
             yield context.root
     elif len(self) == 1:
-        if isinstance(context.root, DocumentNode) or context.item is context.root:
-            if not isinstance(context, XPathSchemaContext):
-                context.item = None
-            yield from self[0].select(context)
+        if not isinstance(context, XPathSchemaContext):
+            context.item = None
+        else:
+            context.item = context.root
+        yield from self[0].select(context)
     else:
         items = set()
         for _ in context.inner_focus_select(self[0]):

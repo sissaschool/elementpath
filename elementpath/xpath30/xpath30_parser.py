@@ -30,9 +30,9 @@ class XPath30Parser(XPath2Parser):
     arguments, but the *strict* option is ignored because XPath 3.0+ has braced
     URI literals and the expanded name syntax is not compatible.
 
-    :param args: the same positional arguments of class :class:`XPath2Parser`.
+    :param args: the same positional arguments of class :class:`elementpath.XPath2Parser`.
     :param decimal_formats: a mapping with statically known decimal formats.
-    :param kwargs: the same keyword arguments of class :class:`XPath2Parser`.
+    :param kwargs: the same keyword arguments of class :class:`elementpath.XPath2Parser`.
     """
     version = '3.0'
 
