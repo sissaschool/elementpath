@@ -16,27 +16,27 @@ from elementpath.etree import PyElementTree
 from elementpath.xpath_nodes import get_node_tree
 
 
-@profile
-def create_xpath_tree():
-    node_tree = get_node_tree(root)
-    return node_tree
-
-
 def run_timeit(stmt='pass', setup='pass', number=1000):
     seconds = timeit(stmt, setup=setup, number=number)
     print("{}: {}s ({} times, about {}s each)".format(stmt, seconds, number, seconds/number))
 
 
 @profile
-def create_element_tree():
-    doc = etree.XML(xml_source)
+def create_element_tree(source):
+    doc = etree.XML(source)
     return doc
 
 
 @profile
-def create_py_element_tree():
-    doc = PyElementTree.XML(xml_source)
+def create_py_element_tree(source):
+    doc = PyElementTree.XML(source)
     return doc
+
+
+@profile
+def create_xpath_tree(root_):
+    node_tree = get_node_tree(root_)
+    return node_tree
 
 
 if __name__ == '__main__':
@@ -45,15 +45,20 @@ if __name__ == '__main__':
     print('*' * 60)
     print()
 
-    xml_source = '<a>' + '<b>lorem ipsum</b>' * 1000 + '</a>'
-    root = create_element_tree()
-    create_py_element_tree()
-    xpath_tree = create_xpath_tree()
-
-    setup = 'from __main__ import root, xpath_tree, get_node_tree'
+    XML_DEPTH = 7
+    XML_CHILDREN = 3
+    SETUP = 'from __main__ import root, xpath_tree, get_node_tree'
     NUMBER = 5000
 
-    run_timeit('get_node_tree(root)', setup, 100)
-    run_timeit('for e in root.iter(): e', setup, NUMBER)
-    run_timeit('for e in xpath_tree.iter(): e', setup, NUMBER)
-    run_timeit('for e in xpath_tree.iter2(): e', setup, NUMBER)
+    chunk = 'lorem ipsum'
+    for k in range(XML_DEPTH - 1, 0, -1):
+        chunk = f'<a{k}>{chunk}</a{k}>' * XML_CHILDREN
+    xml_source = f'<a0>{chunk}</a0>'
+
+    root = create_element_tree(xml_source)
+    create_py_element_tree(xml_source)
+    xpath_tree = create_xpath_tree(root)
+
+    run_timeit('get_node_tree(root)', SETUP, 100)
+    run_timeit('for e in root.iter(): e', SETUP, NUMBER)
+    run_timeit('for e in xpath_tree.iter(): e', SETUP, NUMBER)

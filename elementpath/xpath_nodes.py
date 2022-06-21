@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2022, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,7 +10,6 @@
 """
 Helper functions for XPath nodes and basic data types.
 """
-from collections import deque
 from urllib.parse import urlparse
 from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -417,7 +416,7 @@ class ElementNode(XPathNode):
     def iter(self) -> Iterator[XPathNode]:
         yield self
 
-        iterators: deque[Any] = deque()
+        iterators: List[Any] = []
         children: Iterator[Any] = iter(self.children)
 
         if self._namespaces:
@@ -445,24 +444,11 @@ class ElementNode(XPathNode):
                     iterators.append(children)
                     children = iter(child.children)
 
-    def iter2(self) -> Iterator[XPathNode]:
-        yield self
-
-        if self._namespaces:
-            yield from self._namespaces
-        if self.attributes:
-            yield from self.attributes
-
-        for child in self.children:
-            yield child
-            if isinstance(child, ElementNode):
-                yield from child.iter2()
-
     def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
         if with_self:
             yield self
 
-        iterators: deque[Any] = deque()
+        iterators: List[Any] = []
         children: Iterator[Any] = iter(self.children)
 
         while True:
