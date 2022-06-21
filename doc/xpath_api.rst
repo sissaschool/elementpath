@@ -27,7 +27,6 @@ XPath parsers
 
     .. autoattribute:: DEFAULT_NAMESPACES
     .. autoattribute:: version
-    .. autoattribute:: default_namespace
 
     Helper methods for defining token classes:
 
@@ -114,12 +113,19 @@ XPath nodes are processed using a set of classes derived from
 
 .. autoclass:: elementpath.XPathNode
 
-
 .. autoclass:: elementpath.AttributeNode
-.. autoclass:: elementpath.TextNode
-.. autoclass:: elementpath.TypedAttribute
-.. autoclass:: elementpath.TypedElement
 .. autoclass:: elementpath.NamespaceNode
+.. autoclass:: elementpath.TextNode
+.. autoclass:: elementpath.CommentNode
+.. autoclass:: elementpath.ProcessingInstructionNode
+.. autoclass:: elementpath.ElementNode
+.. autoclass:: elementpath.DocumentNode
+
+Node trees are automatically created during the initialization of an
+:class:`elementpath.XPathContext`. But if you need to process the same XML data
+more times there is an helper API for creating document or element based node trees:
+
+.. autofunction:: elementpath.get_node_tree
 
 
 XPath regular expressions

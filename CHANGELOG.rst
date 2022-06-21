@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.0.0`_ (TBD)
+======================
+* Transition to full XPath node implementation (more memory usage but
+  better control and overall faster)
+
 `v2.5.3`_ (2022-05-30)
 ======================
 * Fix unary path step operator (issue #46)
@@ -367,3 +372,4 @@ CHANGELOG
 .. _v2.5.1: https://github.com/sissaschool/elementpath/compare/v2.5.0...v2.5.1
 .. _v2.5.2: https://github.com/sissaschool/elementpath/compare/v2.5.1...v2.5.2
 .. _v2.5.3: https://github.com/sissaschool/elementpath/compare/v2.5.2...v2.5.3
+.. _v3.0.0: https://github.com/sissaschool/elementpath/compare/v2.5.3...v3.0.0
