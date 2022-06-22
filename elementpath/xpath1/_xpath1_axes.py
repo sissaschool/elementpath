@@ -50,7 +50,7 @@ def select_namespace_axis(self, context=None):
         else:
             name = self[0].value
 
-        for context.item in elem.namespaces:
+        for context.item in elem.namespace_nodes:
             if name == '*' or name == context.item.prefix:
                 yield context.item
 

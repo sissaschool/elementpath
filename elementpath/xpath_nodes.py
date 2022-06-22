@@ -38,21 +38,42 @@ ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstr
 class XPathNode:
 
     # Accessors, empty sequences are represented with None values.
-    namespaces: Any = None
-    attributes: Any = None
-    base_uri: Any = None
-    children: Any = None
-    document_uri: Any = None
-    is_id: bool
-    is_idrefs: bool
-    nilled: Any = None
-    kind: str
-    name: Any = None
-    type_name: Optional[str]
-    value: Any
-
+    kind: str = ''
+    attributes: Optional[List['AttributeNode']] = None
+    children: Optional[List[ChildNodeType]] = None
     parent: Union['ElementNode', 'DocumentNode', None] = None
-    position: int  # for document total order
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        return None
+
+    @property
+    def document_uri(self) -> Optional[str]:
+        return None
+
+    @property
+    def is_id(self) -> Optional[bool]:
+        return None
+
+    @property
+    def is_idrefs(self) -> Optional[bool]:
+        return None
+
+    @property
+    def namespace_nodes(self) -> Optional[List['NamespaceNode']]:
+        return None
+
+    @property
+    def nilled(self) -> Optional[bool]:
+        return None
+
+    @property
+    def name(self) -> Optional[str]:
+        return None
+
+    @property
+    def type_name(self) -> Optional[str]:
+        return None
 
     @property
     def string_value(self) -> str:
@@ -61,6 +82,10 @@ class XPathNode:
     @property
     def typed_value(self) -> Optional[AtomicValueType]:
         raise NotImplementedError()
+
+    # Other common attributes and methods
+    value: Any
+    position: int  # for document total order
 
     def match(self, name: str, use_default_namespace: bool = True) -> bool:
         """
@@ -82,35 +107,42 @@ class AttributeNode(XPathNode):
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
     :param parent: the parent element.
     """
-    name: str
-    kind = 'attribute'
+    attributes: None
+    base_uri: None
+    children: None
+    document_uri: None
+    namespace_nodes: None
+    nilled: None
     parent: Optional['ElementNode']
-    xsd_type: Optional[XsdTypeProtocol]
 
-    __slots__ = 'name', 'value', 'parent', 'position', 'xsd_type'
+    kind = 'attribute'
+
+    __slots__ = '_name', 'value', 'parent', 'position', 'xsd_type'
 
     def __init__(self,
                  name: str, value: Union[str, XsdAttributeProtocol],
                  parent: Optional['ElementNode'] = None,
                  position: int = 1,
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
-        self.name = name
+        self._name = name
         self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
         self.position = position
         self.xsd_type = xsd_type
 
-    def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
-        return self.name, self.value
-
-    def __repr__(self) -> str:
-        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
+    @property
+    def is_id(self) -> bool:
+        return True
 
     @property
-    def path(self) -> str:
-        if self.parent is None:
-            return f'@{self.name}'
-        return f'{self.parent.path}/@{self.name}'
+    def name(self) -> Optional[str]:
+        return self._name
+
+    @property
+    def type_name(self) -> Optional[str]:
+        if self.xsd_type is None:
+            return None
+        return self.xsd_type.name
 
     @property
     def string_value(self) -> str:
@@ -126,31 +158,43 @@ class AttributeNode(XPathNode):
             return UntypedAtomic(self.value)
         return cast(AtomicValueType, self.xsd_type.decode(self.value))
 
+    def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
+        return self._name, self.value
+
+    def __repr__(self) -> str:
+        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self._name, self.value)
+
+    @property
+    def path(self) -> str:
+        if self.parent is None:
+            return f'@{self._name}'
+        return f'{self.parent.path}/@{self._name}'
+
     def match(self, name: str, use_default_namespace: bool = True) -> bool:
         if name == '*' or name == '*:*':
             return True
         elif not name:
-            return not self.name
+            return not self._name
         elif name[0] == '*':
             try:
                 _, _name = name.split(':')
             except (ValueError, IndexError):
                 raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
             else:
-                if self.name.startswith('{'):
-                    return self.name.split('}')[1] == _name
+                if self._name.startswith('{'):
+                    return self._name.split('}')[1] == _name
                 else:
-                    return self.name == _name
+                    return self._name == _name
 
         elif name[-1] == '*':
             if name[0] != '{' or '}' not in name:
                 raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            elif self.name.startswith('{'):
-                return self.name.split('}')[0][1:] == name.split('}')[0][1:]
+            elif self._name.startswith('{'):
+                return self._name.split('}')[0][1:] == name.split('}')[0][1:]
             else:
                 return False
         else:
-            return self.name == name
+            return self._name == name
 
 
 class NamespaceNode(XPathNode):
@@ -161,8 +205,18 @@ class NamespaceNode(XPathNode):
     :param uri: the namespace URI.
     :param parent: the parent element.
     """
-    kind = 'namespace'
+    attributes: None
+    base_uri: None
+    children: None
+    document_uri: None
+    is_id: None
+    is_idrefs: None
+    namespace_nodes: None
+    nilled: None
     parent: Optional['ElementNode']
+    type_name: None
+
+    kind = 'namespace'
 
     __slots__ = 'prefix', 'uri', 'parent', 'position'
 
@@ -206,9 +260,19 @@ class TextNode(XPathNode):
     :param value: a string value.
     :param parent: the parent element.
     """
+    attributes: None
+    children: None
+    document_uri: None
+    is_id: None
+    is_idrefs: None
+    namespace_nodes: None
+    nilled: None
+    name: None
+    parent: Optional['ElementNode']
+    type_name: None
+
     kind = 'text'
     value: str
-    parent: Optional['ElementNode']
 
     __slots__ = 'value', 'parent', 'position'
 
@@ -224,6 +288,12 @@ class TextNode(XPathNode):
         return '%s(value=%r)' % (self.__class__.__name__, self.value)
 
     @property
+    def base_uri(self) -> Optional[str]:
+        if isinstance(self.parent, ElementNode):
+            return self.parent.elem.get(XML_BASE)
+        return None
+
+    @property
     def string_value(self) -> str:
         return self.value
 
@@ -236,6 +306,16 @@ class CommentNode(XPathNode):
     """
     A class for processing XPath comment nodes.
     """
+    attributes: None
+    children:  None
+    document_uri: None
+    is_id: None
+    is_idrefs: None
+    namespace_nodes: None
+    nilled: None
+    name: None
+    type_name: None
+
     kind = 'comment'
 
     __slots__ = 'elem', 'parent', 'position'
@@ -257,8 +337,8 @@ class CommentNode(XPathNode):
 
     @property
     def base_uri(self) -> Optional[str]:
-        if isinstance(self.parent, ElementNode):
-            return self.parent.elem.get(XML_BASE)
+        if self.parent is not None:
+            return self.parent.base_uri
         return None
 
     @property
@@ -274,8 +354,16 @@ class ProcessingInstructionNode(XPathNode):
     """
     A class for XPath processing instructions nodes.
     """
+    attributes: None
+    children:  None
+    document_uri: None
+    is_id: None
+    is_idrefs: None
+    namespace_nodes: None
+    nilled: None
+    type_name: None
+
     kind = 'processing-instruction'
-    elem: ElementProtocol
 
     __slots__ = 'elem', 'parent', 'position'
 
@@ -291,16 +379,22 @@ class ProcessingInstructionNode(XPathNode):
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
     @property
+    def value(self) -> ElementProtocol:
+        return self.elem
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        if self.parent is not None:
+            return self.parent.base_uri
+        return None
+
+    @property
     def name(self) -> str:
         try:
             # an lxml PI
             return cast(str, self.elem.target)  # type: ignore[attr-defined]
         except AttributeError:
             return cast(str, self.elem.text).split(' ', maxsplit=1)[0]
-
-    @property
-    def value(self) -> ElementProtocol:
-        return self.elem
 
     @property
     def string_value(self) -> str:
@@ -316,22 +410,23 @@ class ElementNode(XPathNode):
     A class for processing XPath element nodes that uses lazy properties to
     diminish the average load for a tree processing.
     """
+    attributes: Optional[List['AttributeNode']]
+    children: List[ChildNodeType]
+    document_uri: None
+
     kind = 'element'
     elem: Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol]
     nsmap: Dict[Optional[str], str]
-    xsd_type: Optional[XsdTypeProtocol]
-    _namespaces: Optional[List['NamespaceNode']]
-    attributes: Optional[List['AttributeNode']]
-    children: List[ChildNodeType]
+    _namespace_nodes: Optional[List['NamespaceNode']]
 
     __slots__ = 'nsmap', 'elem', 'parent', 'position', 'xsd_type', \
-                '_namespaces', 'attributes', 'children'
+                '_namespace_nodes', 'attributes', 'children'
 
     def __init__(self,
                  elem: Union[ElementProtocol, XsdElementProtocol, XMLSchemaProtocol],
                  parent: Optional[Union['ElementNode', 'DocumentNode']] = None,
                  position: int = 1,
-                 nsmap: Optional[Any] = None,
+                 nsmap: Optional[Dict[Any, str]] = None,
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
 
         self.elem = elem
@@ -339,132 +434,12 @@ class ElementNode(XPathNode):
         self.position = position
         self.nsmap = {} if nsmap is None else nsmap
         self.xsd_type = xsd_type
-        self._namespaces = None
+        self._namespace_nodes = None
         self.attributes = None
         self.children = []
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
-
-    def is_schema_element(self) -> bool:
-        return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
-
-    @property
-    def namespaces(self) -> List['NamespaceNode']:
-        if self._namespaces is None:
-            # Lazy generation of namespace nodes of the element
-            position = self.position + 1
-            self._namespaces = [NamespaceNode('xml', XML_NAMESPACE, self, position)]
-            position += 1
-            if self.nsmap:
-                for pfx, uri in self.nsmap.items():
-                    if pfx != 'xml':
-                        self._namespaces.append(NamespaceNode(pfx, uri, self, position))
-                        position += 1
-
-        return self._namespaces
-
-    @property
-    def path(self) -> str:
-        """Returns an absolute path for the node."""
-        path = []
-        item: Any = self
-        while True:
-            if isinstance(item, ElementNode):
-                path.append(item.elem.tag)
-
-            item = item.parent
-            if item is None:
-                return '/{}'.format('/'.join(reversed(path)))
-
-    def match(self, name: str, use_default_namespace: bool = True) -> bool:
-        if name == '*' or name == '*:*':
-            return True
-        elif not name:
-            return not self.name
-        elif name[0] == '*':
-            try:
-                _, _name = name.split(':')
-            except (ValueError, IndexError):
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            else:
-                if self.name.startswith('{'):
-                    return self.name.split('}')[1] == _name
-                else:
-                    return self.name == _name
-
-        elif name[-1] == '*':
-            if name[0] != '{' or '}' not in name:
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            elif self.name.startswith('{'):
-                return self.name.split('}')[0][1:] == name.split('}')[0][1:]
-            else:
-                return False
-        elif name[0] == '{' or not use_default_namespace:
-            return self.name == name
-        else:
-            default_namespace: Optional[str]
-
-            if None in self.nsmap:
-                default_namespace = self.nsmap[None]
-            else:
-                default_namespace = self.nsmap.get('')
-            if not default_namespace:
-                return self.name == name
-            return self.name == '{%s}%s' % (default_namespace, name)
-
-    def iter(self) -> Iterator[XPathNode]:
-        yield self
-
-        iterators: List[Any] = []
-        children: Iterator[Any] = iter(self.children)
-
-        if self._namespaces:
-            yield from self._namespaces
-        if self.attributes:
-            yield from self.attributes
-
-        while True:
-            try:
-                child = next(children)
-            except StopIteration:
-                try:
-                    children = iterators.pop()
-                except IndexError:
-                    return
-            else:
-                yield child
-
-                if isinstance(child, ElementNode):
-                    if child.namespaces:
-                        yield from child.namespaces
-                    if child.attributes:
-                        yield from child.attributes
-
-                    iterators.append(children)
-                    children = iter(child.children)
-
-    def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
-        if with_self:
-            yield self
-
-        iterators: List[Any] = []
-        children: Iterator[Any] = iter(self.children)
-
-        while True:
-            try:
-                child = next(children)
-            except StopIteration:
-                try:
-                    children = iterators.pop()
-                except IndexError:
-                    return
-            else:
-                yield child
-
-                if isinstance(child, ElementNode):
-                    iterators.append(children)
-                    children = iter(child.children)
 
     def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, List[ChildNodeType]]:
         return self.children[i]
@@ -482,6 +457,12 @@ class ElementNode(XPathNode):
     @property
     def name(self) -> str:
         return self.elem.tag
+
+    @property
+    def type_name(self) -> Optional[str]:
+        if self.xsd_type is None:
+            return None
+        return self.xsd_type.name
 
     @property
     def base_uri(self) -> Optional[str]:
@@ -528,13 +509,142 @@ class ElementNode(XPathNode):
 
         return cast(Optional[AtomicValueType], value)
 
+    @property
+    def namespace_nodes(self) -> List['NamespaceNode']:
+        if self._namespace_nodes is None:
+            # Lazy generation of namespace nodes of the element
+            position = self.position + 1
+            self._namespace_nodes = [NamespaceNode('xml', XML_NAMESPACE, self, position)]
+            position += 1
+            if self.nsmap:
+                for pfx, uri in self.nsmap.items():
+                    if pfx != 'xml':
+                        self._namespace_nodes.append(NamespaceNode(pfx, uri, self, position))
+                        position += 1
+
+        return self._namespace_nodes
+
+    def is_schema_element(self) -> bool:
+        return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
+
+    @property
+    def path(self) -> str:
+        """Returns an absolute path for the node."""
+        path = []
+        item: Any = self
+        while True:
+            if isinstance(item, ElementNode):
+                path.append(item.elem.tag)
+
+            item = item.parent
+            if item is None:
+                return '/{}'.format('/'.join(reversed(path)))
+
+    def match(self, name: str, use_default_namespace: bool = True) -> bool:
+        if name == '*' or name == '*:*':
+            return True
+        elif not name:
+            return not self.elem.tag
+        elif name[0] == '*':
+            try:
+                _, _name = name.split(':')
+            except (ValueError, IndexError):
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            else:
+                if self.elem.tag.startswith('{'):
+                    return self.elem.tag.split('}')[1] == _name
+                else:
+                    return self.elem.tag == _name
+
+        elif name[-1] == '*':
+            if name[0] != '{' or '}' not in name:
+                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
+            elif self.elem.tag.startswith('{'):
+                return self.elem.tag.split('}')[0][1:] == name.split('}')[0][1:]
+            else:
+                return False
+        elif name[0] == '{' or not use_default_namespace:
+            return self.elem.tag == name
+        else:
+            default_namespace: Optional[str]
+
+            if None in self.nsmap:
+                default_namespace = self.nsmap[None]
+            else:
+                default_namespace = self.nsmap.get('')
+            if not default_namespace:
+                return self.elem.tag == name
+            return self.elem.tag == '{%s}%s' % (default_namespace, name)
+
+    def iter(self) -> Iterator[XPathNode]:
+        yield self
+
+        iterators: List[Any] = []
+        children: Iterator[Any] = iter(self.children)
+
+        if self._namespace_nodes:
+            yield from self._namespace_nodes
+        if self.attributes:
+            yield from self.attributes
+
+        while True:
+            try:
+                child = next(children)
+            except StopIteration:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
+            else:
+                yield child
+
+                if isinstance(child, ElementNode):
+                    if child._namespace_nodes:
+                        yield from child._namespace_nodes
+                    if child.attributes:
+                        yield from child.attributes
+
+                    iterators.append(children)
+                    children = iter(child.children)
+
+    def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
+        if with_self:
+            yield self
+
+        iterators: List[Any] = []
+        children: Iterator[Any] = iter(self.children)
+
+        while True:
+            try:
+                child = next(children)
+            except StopIteration:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
+            else:
+                yield child
+
+                if isinstance(child, ElementNode):
+                    iterators.append(children)
+                    children = iter(child.children)
+
 
 class DocumentNode(XPathNode):
     """
     A class for XPath document nodes.
     """
-    kind = 'document'
+    attributes: None
     children: List[ChildNodeType]
+    is_id: None
+    is_idrefs: None
+    namespace_nodes: None
+    nilled: None
+    name: None
+    parent: None
+    type_name: None
+
+    kind = 'document'
 
     __slots__ = 'document', 'children', 'position'
 
@@ -542,6 +652,12 @@ class DocumentNode(XPathNode):
         self.document = document
         self.position = position
         self.children = []
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        if not self.children:
+            return None
+        return self.getroot().base_uri
 
     def getroot(self) -> ElementNode:
         for child in self.children:

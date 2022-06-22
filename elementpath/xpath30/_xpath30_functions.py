@@ -1504,7 +1504,7 @@ def select_namespace_node_kind_test(self, context=None):
         return  # deprecated for XP20+ and not needed for schema analysis
     elif isinstance(context.item, ElementNode):
         elem = context.item
-        for context.item in elem.namespaces:
+        for context.item in elem.namespace_nodes:
             yield context.item
 
 

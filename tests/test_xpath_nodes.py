@@ -320,13 +320,14 @@ class XPathNodesTest(unittest.TestCase):
 
         context = XPathContext(root)
         expected = [
-            context.root, context.root.namespaces[0],
+            context.root, context.root.namespace_nodes[0],
             context.root[0],
-            context.root[1], context.root[1].namespaces[0],
+            context.root[1], context.root[1].namespace_nodes[0],
             context.root[1].attributes[0], context.root[1][0],
-            context.root[2], context.root[2].namespaces[0],
-            context.root[3], context.root[3].namespaces[0],
-            context.root[3][0], context.root[3][0].namespaces[0], context.root[3][0][0]
+            context.root[2], context.root[2].namespace_nodes[0],
+            context.root[3], context.root[3].namespace_nodes[0],
+            context.root[3][0], context.root[3][0].namespace_nodes[0],
+            context.root[3][0][0]
         ]
 
         result = list(context.root.iter())

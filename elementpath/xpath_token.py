@@ -86,7 +86,7 @@ XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstru
 class XPathToken(Token[XPathTokenType]):
     """Base class for XPath tokens."""
     parser: XPathParserType
-    xsd_types: Optional[Dict[str, Union[XsdTypeProtocol, List[XsdTypeProtocol]]]]
+    xsd_types: Optional[Dict[Optional[str], Union[XsdTypeProtocol, List[XsdTypeProtocol]]]]
     namespace: Optional[str]
     occurrence: Optional[str]
 
@@ -711,7 +711,7 @@ class XPathToken(Token[XPathTokenType]):
                     elif xsd_node.value.is_matching(name):
                         if xsd_node.name is None:
                             # node is an XSD attribute wildcard FIXME
-                            xsd_node = schema_context.root.value.maps.attributes.get(name)
+                            xsd_node = xsd_root.maps.attributes.get(name)
                             if xsd_node is None:
                                 continue
                     else:
