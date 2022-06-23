@@ -226,7 +226,7 @@ def get_context_result(item):
                 return CommentNode(item)
             else:
                 return ProcessingInstructionNode(item)
-    else:
+    elif not hasattr(item, 'getroot'):
         return item
 
     return get_node_tree(root=item)

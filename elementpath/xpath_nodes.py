@@ -817,16 +817,14 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         position += 1
 
         # Do not generate namespace nodes, only reserve positions.
-        if 'xml' in nsmap:
-            position += len(nsmap)
-        else:
-            position += len(nsmap) + 1
+        position += len(nsmap) if 'xml' in nsmap else len(nsmap) + 1
 
         if elem.attrib:
-            node.attributes = []
-            for name, value in elem.attrib.items():
-                node.attributes.append(AttributeNode(name, value, node, position))
-                position += 1
+            node.attributes = [
+                AttributeNode(name, value, node, pos)
+                for pos, (name, value) in enumerate(elem.attrib.items(), position)
+            ]
+            position += len(node.attributes)
 
         if elem.text is not None:
             node.children.append(TextNode(elem.text, node, position))
@@ -861,14 +859,7 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
     ancestors: List[Any] = []
 
     while True:
-        try:
-            elem = next(children)
-        except StopIteration:
-            try:
-                children, parent = iterators.pop(), ancestors.pop()
-            except IndexError:
-                return root_node
-        else:
+        for elem in children:
             if not callable(elem.tag):
                 child = build_element_node()
             elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
@@ -887,6 +878,12 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
                 parent = child
                 iterators.append(children)
                 children = iter(elem)
+                break
+        else:
+            try:
+                children, parent = iterators.pop(), ancestors.pop()
+            except IndexError:
+                return root_node
 
 
 def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
@@ -905,16 +902,14 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         position += 1
 
         # Do not generate namespace nodes, only reserve positions.
-        if 'xml' in elem.nsmap:
-            position += len(elem.nsmap)
-        else:
-            position += len(elem.nsmap) + 1
+        position += len(elem.nsmap) if 'xml' in elem.nsmap else len(elem.nsmap) + 1
 
         if elem.attrib:
-            node.attributes = []
-            for name, value in elem.attrib.items():
-                node.attributes.append(AttributeNode(name, value, node, position))
-                position += 1
+            node.attributes = [
+                AttributeNode(name, value, node, pos)
+                for pos, (name, value) in enumerate(elem.attrib.items(), position)
+            ]
+            position += len(node.attributes)
 
         if elem.text is not None:
             node.children.append(TextNode(elem.text, node, position))
@@ -962,19 +957,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
     children = iter(elem)
     while True:
-        try:
-            elem = next(children)
-        except StopIteration:
-            try:
-                children, parent = iterators.pop(), ancestors.pop()
-            except IndexError:
-                if isinstance(root_node, ElementNode) and root_node.elem is not root:
-                    for _node in root_node.iter_descendants():
-                        if isinstance(_node, ElementNode) and _node.elem is root:
-                            return _node
-                return root_node
-
-        else:
+        for elem in children:
             if not callable(elem.tag):
                 child = build_lxml_element_node()
             elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
@@ -993,6 +976,16 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
                 parent = child
                 iterators.append(children)
                 children = iter(elem)
+                break
+        else:
+            try:
+                children, parent = iterators.pop(), ancestors.pop()
+            except IndexError:
+                if isinstance(root_node, ElementNode) and root_node.elem is not root:
+                    for _node in root_node.iter_descendants():
+                        if isinstance(_node, ElementNode) and _node.elem is root:
+                            return _node
+                return root_node
 
 
 def build_schema_node_tree(root: Union[XsdElementProtocol, XMLSchemaProtocol]) -> ElementNode:
@@ -1011,12 +1004,11 @@ def build_schema_node_tree(root: Union[XsdElementProtocol, XMLSchemaProtocol]) -
         position += 1
 
         if elem.attributes:
-            node.attributes = []
-            for name, attr in elem.attributes.items():
-                node.attributes.append(
-                    AttributeNode(name, attr, node, position, attr.type)
-                )
-                position += 1
+            node.attributes = [
+                AttributeNode(name, attr, elem, pos, attr.type)
+                for pos, (name, attr) in enumerate(elem.attributes.items(), position)
+            ]
+            position += len(node.attributes)
 
         return node
 
@@ -1030,14 +1022,7 @@ def build_schema_node_tree(root: Union[XsdElementProtocol, XMLSchemaProtocol]) -
     ancestors: List[Any] = []
 
     while True:
-        try:
-            elem = next(children)
-        except StopIteration:
-            try:
-                children, parent = iterators.pop(), ancestors.pop()
-            except IndexError:
-                return root_node
-        else:
+        for elem in children:
             if elem.parent is not None and elem in elements:
                 continue
 
@@ -1056,3 +1041,9 @@ def build_schema_node_tree(root: Union[XsdElementProtocol, XMLSchemaProtocol]) -
                 parent = child
                 iterators.append(children)
                 children = iter(elem.ref)
+            break
+        else:
+            try:
+                children, parent = iterators.pop(), ancestors.pop()
+            except IndexError:
+                return root_node
