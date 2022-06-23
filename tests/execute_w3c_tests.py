@@ -34,7 +34,8 @@ import lxml.etree
 import elementpath
 import xmlschema
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode, \
+    CommentNode, ProcessingInstructionNode, get_node_tree
 from elementpath.namespaces import get_expanded_name
 from elementpath.xpath_token import XPathFunction
 from elementpath.datatypes import AnyAtomicType
@@ -212,6 +213,23 @@ def working_directory(dirpath):
         yield
     finally:
         os.chdir(orig_wd)
+
+
+def get_context_result(item):
+    if isinstance(item, XPathNode):
+        raise TypeError("Unexpected XPath node in external results")
+    elif isinstance(item, (list, tuple)):
+        return [get_context_result(x) for x in item]
+    elif hasattr(item, 'tag'):
+        if callable(item.tag):
+            if item.tag.__name__ == 'Comment':
+                return CommentNode(item)
+            else:
+                return ProcessingInstructionNode(item)
+    else:
+        return item
+
+    return get_node_tree(root=item)
 
 
 def etree_is_equal(root1, root2, strict=True):
@@ -892,7 +910,8 @@ class Result(object):
             print(msg.format(self.test_case.name, self.value))
             type_check = False
         else:
-            type_check = self.parser.match_sequence_type(result, self.value)
+            context_result = get_context_result(result)
+            type_check = self.parser.match_sequence_type(context_result, self.value)
 
         if not type_check:
             self.report_failure(

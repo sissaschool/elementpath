@@ -364,15 +364,6 @@ class XPath1Parser(Parser[XPathToken]):
 
         if isinstance(value, XPathNode):
             value_kind = value.kind
-        elif hasattr(value, 'getroot'):
-            value_kind = 'document'
-        elif is_etree_element(value):
-            if not callable(value.tag):
-                value_kind = 'element'
-            elif value.tag.__name__ == 'Comment':
-                value_kind = 'comment'
-            else:
-                value_kind = 'processing-instruction'
         else:
             try:
                 type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
