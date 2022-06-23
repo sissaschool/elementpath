@@ -27,7 +27,7 @@ except ImportError:
 
 from ..exceptions import ElementPathError
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
-    XML_NEWLINES_PATTERN, is_xml_codepoint
+    XML_NEWLINES_PATTERN, is_xml_codepoint, node_position
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE
@@ -933,7 +933,7 @@ def select_innermost_function(self, context=None):
 
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
     results = {x for x in nodes if x not in ancestors}
-    yield from sorted(results, key=lambda x: x.position)
+    yield from sorted(results, key=node_position)
 
 
 @method(function('outermost', nargs=1, sequence_types=('node()*', 'node()*')))
@@ -954,7 +954,7 @@ def select_outermost_function(self, context=None):
             continue
         results.add(item)
 
-    yield from sorted(results, key=lambda x: x.position)
+    yield from sorted(results, key=node_position)
 
 
 ##

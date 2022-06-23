@@ -18,7 +18,7 @@ from copy import copy
 
 from ..datatypes import AnyURI
 from ..exceptions import ElementPathKeyError, ElementPathTypeError
-from ..helpers import collapse_white_spaces
+from ..helpers import collapse_white_spaces, node_position
 from ..datatypes import AbstractDateTime, Duration, DayTimeDuration, \
     YearMonthDuration, NumericProxy, ArithmeticProxy
 from ..xpath_context import XPathSchemaContext
@@ -622,7 +622,7 @@ def select_union_operator(self, context=None):
     elif not self.cut_and_sort:
         yield from results
     else:
-        yield from sorted(results, key=lambda x: x.position)
+        yield from sorted(results, key=node_position)
 
 
 ###
@@ -742,7 +742,7 @@ def select_descendant_path(self, context=None):
                     if isinstance(context, XPathSchemaContext):
                         self[0].add_xsd_type(result)
 
-        yield from sorted(items, key=lambda x: x.position)
+        yield from sorted(items, key=node_position)
 
 
 ###

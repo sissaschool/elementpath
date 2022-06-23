@@ -17,7 +17,8 @@ from copy import copy
 from decimal import Decimal, DivisionByZero
 
 from ..exceptions import ElementPathError, ElementPathTypeError
-from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal
+from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
+    node_position
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
@@ -106,9 +107,9 @@ def select_intersect_and_except_operators(self, context=None):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
-        yield from sorted(s1 - s2, key=lambda x: x.position)
+        yield from sorted(s1 - s2, key=node_position)
     else:
-        yield from sorted(s1 & s2, key=lambda x: x.position)
+        yield from sorted(s1 & s2, key=node_position)
 
 
 ###
