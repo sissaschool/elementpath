@@ -129,9 +129,9 @@ def select_id_function(self, context=None):
             item = context.root
 
         if isinstance(item, (ElementNode, DocumentNode)):
-            yield from filter(
-                lambda x: isinstance(x, ElementNode) and x.elem.get(XML_ID) == value, item.iter()
-            )
+            for element in item.iter():
+                if isinstance(element, ElementNode) and element.elem.get(XML_ID) == value:
+                    yield element
 
 
 @method(function('name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
