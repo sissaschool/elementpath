@@ -19,14 +19,13 @@ from ..exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathValueError, xpath_error
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types
-from ..etree import is_etree_element
 from ..tdop import Token, Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
-from ..xpath_nodes import XPathNode, ElementNode, AttributeNode
+from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 COMMON_SEQUENCE_TYPES = {
     'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
@@ -381,7 +380,8 @@ class XPath1Parser(Parser[XPathToken]):
             element_test = sequence_type[14:-1]
             if not element_test:
                 return True
-            return self.match_sequence_type(value.getroot(), element_test)
+            element_node = cast(DocumentNode, value).getroot()
+            return self.match_sequence_type(element_node, element_test)
         elif value_kind not in ('element', 'attribute'):
             return False
 
@@ -410,10 +410,9 @@ class XPath1Parser(Parser[XPathToken]):
         if name == '*':
             return True
 
-        value_name = value.name if isinstance(value, XPathNode) else value.tag
         try:
-            return bool(value_name == get_expanded_name(name, self.namespaces))
-        except (KeyError, ValueError):
+            return bool(value.name == get_expanded_name(name, self.namespaces))
+        except (KeyError, ValueError, AttributeError):
             return False
 
     def check_variables(self, values: MutableMapping[str, Any]) -> None:

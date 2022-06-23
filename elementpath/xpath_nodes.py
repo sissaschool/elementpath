@@ -15,7 +15,8 @@ from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
+    XML_ID, XSD_IDREF, XSD_IDREFS
 from .exceptions import ElementPathTypeError, ElementPathValueError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
@@ -132,7 +133,14 @@ class AttributeNode(XPathNode):
 
     @property
     def is_id(self) -> bool:
-        return True
+        return self._name == XML_ID or self.xsd_type is not None and self.xsd_type.is_key()
+
+    @property
+    def is_idrefs(self) -> bool:
+        if self.xsd_type is None:
+            return False
+        root_type = self.xsd_type.root_type
+        return root_type.name == XSD_IDREF or root_type.name == XSD_IDREFS
 
     @property
     def name(self) -> Optional[str]:
@@ -455,6 +463,14 @@ class ElementNode(XPathNode):
         return self.elem
 
     @property
+    def is_id(self) -> bool:
+        return False
+
+    @property
+    def is_idrefs(self) -> bool:
+        return False
+
+    @property
     def name(self) -> str:
         return self.elem.tag
 
@@ -588,14 +604,7 @@ class ElementNode(XPathNode):
             yield from self.attributes
 
         while True:
-            try:
-                child = next(children)
-            except StopIteration:
-                try:
-                    children = iterators.pop()
-                except IndexError:
-                    return
-            else:
+            for child in children:
                 yield child
 
                 if isinstance(child, ElementNode):
@@ -606,8 +615,14 @@ class ElementNode(XPathNode):
 
                     iterators.append(children)
                     children = iter(child.children)
+                    break
+            else:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
 
-    def iter2(self):
+    def iter2(self) -> Iterator[XPathNode]:
         yield self
 
         if self._namespace_nodes:
@@ -628,19 +643,18 @@ class ElementNode(XPathNode):
         children: Iterator[Any] = iter(self.children)
 
         while True:
-            try:
-                child = next(children)
-            except StopIteration:
-                try:
-                    children = iterators.pop()
-                except IndexError:
-                    return
-            else:
+            for child in children:
                 yield child
 
                 if isinstance(child, ElementNode):
                     iterators.append(children)
                     children = iter(child.children)
+                    break
+            else:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
 
 
 class DocumentNode(XPathNode):
