@@ -607,6 +607,19 @@ class ElementNode(XPathNode):
                     iterators.append(children)
                     children = iter(child.children)
 
+    def iter2(self):
+        yield self
+
+        if self._namespace_nodes:
+            yield from self._namespace_nodes
+        if self.attributes:
+            yield from self.attributes
+
+        for child in self.children:
+            yield child
+            if isinstance(child, ElementNode):
+                yield from child.iter2()
+
     def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
         if with_self:
             yield self
