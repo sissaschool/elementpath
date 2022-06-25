@@ -1573,7 +1573,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML('<foo>bar</foo>')
         self.check_selector('/foo', root, [root])
         if self.parser.version == '1.0' or self.etree is lxml_etree:
-            # XPath 1.0 ignores the default namespace and lxml uses its namespaces map
+            # XPath 1.0 ignores the default namespace and lxml has in-scope namespaces
             self.check_selector('/foo', root, [root], namespaces={'': 'ns'})  # foo --> foo
         else:
             self.check_selector('/foo', root, [], namespaces={'': 'ns'})  # foo --> {ns}foo

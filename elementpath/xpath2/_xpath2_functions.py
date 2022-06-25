@@ -149,12 +149,11 @@ def select_in_scope_prefixes_function(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    elem = self.get_argument(context)
-    if isinstance(elem, ElementNode):
-        elem = elem.elem
-    elif not isinstance(elem, ElementNode):
-        raise self.error('XPTY0004', 'argument %r is not an element node' % elem)
+    arg = self.get_argument(context, required=True)
+    if not isinstance(arg, ElementNode):
+        raise self.error('XPTY0004', 'argument %r is not an element node' % arg)
 
+    elem = arg.elem
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
         for pfx, uri in self.parser.namespaces.items():

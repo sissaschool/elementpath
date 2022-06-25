@@ -330,7 +330,7 @@ class XPathContext:
             _status = self.item, self.axis
             self.axis = 'child'
 
-            for self.item in self.item.children:
+            for self.item in self.item:
                 yield self.item
 
             self.item, self.axis = _status
@@ -339,7 +339,7 @@ class XPathContext:
             self.axis = 'child'
 
             if isinstance(self.root, DocumentNode):
-                for self.item in self.root.children:
+                for self.item in self.root:
                     yield self.item
             else:
                 # document position without a document node -> yield root ElementNode
@@ -381,7 +381,7 @@ class XPathContext:
         self.axis = axis or 'following-sibling'
 
         if axis == 'preceding-sibling':
-            for child in parent.children:  # pragma: no cover
+            for child in parent:  # pragma: no cover
                 if child is item:
                     break
                 self.item = child

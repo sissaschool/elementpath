@@ -74,13 +74,15 @@ def evaluate_name_literal(self, context=None):
 def select_name_literal(self, context=None):
     if context is None:
         raise self.missing_context()
-
-    if isinstance(context, XPathSchemaContext):
+    elif isinstance(context, XPathSchemaContext):
         yield from self.select_xsd_nodes(context, self.value)
         return
-
-    name = self.value
-    use_default_namespace = self.parser.version != '1.0'
+    else:
+        name = self.value
+        if not self.parser.use_default_namespace or context.axis in ('attribute', 'namespace'):
+            default_namespace = ''
+        else:
+            default_namespace = None
 
     # With an ElementTree context checks if the token is bound to an XSD type. If not
     # try a match using the element path. If this match fails the xsd_type attribute
@@ -89,14 +91,14 @@ def select_name_literal(self, context=None):
 
         # Untyped selection
         for item in context.iter_children_or_self():
-            if item.match(name, use_default_namespace):
+            if item.match_name(name, default_namespace):
                 yield item
 
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
 
         # Try to match the type using the item's path
         for item in context.iter_children_or_self():
-            if item.match(name, use_default_namespace):
+            if item.match_name(name, default_namespace):
 
                 if item.xsd_type is not None:
                     yield item
@@ -115,7 +117,7 @@ def select_name_literal(self, context=None):
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if item.match(name, use_default_namespace):
+            if item.match_name(name, default_namespace):
                 if item.xsd_type is not None:
                     yield item
                 else:
@@ -188,12 +190,12 @@ def select_namespace_prefix(self, context=None):
 
     elif self.xsd_types is self.parser.schema:
         for item in context.iter_children_or_self():
-            if item.match(name):
+            if item.match_name(name):
                 yield item
 
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
         for item in context.iter_children_or_self():
-            if item.match(name):
+            if item.match_name(name):
                 assert isinstance(item, (ElementNode, AttributeNode))
                 if item.xsd_type is not None:
                     yield item
@@ -210,7 +212,7 @@ def select_namespace_prefix(self, context=None):
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if item.match(name):
+            if item.match_name(name):
                 assert isinstance(item, (ElementNode, AttributeNode))
                 if item.xsd_type is not None:
                     yield item
@@ -278,12 +280,12 @@ def select_namespace_uri(self, context=None):
 
     elif self.xsd_types is None:
         for item in context.iter_children_or_self():
-            if item.match(self.value):
+            if item.match_name(self.value):
                 yield item
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if item.match(self.value):
+            if item.match_name(self.value):
                 assert isinstance(item, (ElementNode, AttributeNode))
                 if item.xsd_type is not None:
                     yield item
@@ -364,12 +366,13 @@ def select_self_shortcut(self, context=None):
 
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_self():
-            if item.is_schema_element():
-                self.add_xsd_type(item)
-            elif item is context.root:
-                # item is the schema
-                for xsd_element in item:
-                    self.add_xsd_type(xsd_element)
+            if isinstance(item, (AttributeNode, ElementNode)):
+                if item.is_schema_element():
+                    self.add_xsd_type(item)
+                elif item is context.root:
+                    # item is the schema
+                    for xsd_element in item:
+                        self.add_xsd_type(xsd_element)
             yield item
 
     elif self.xsd_types is None:
@@ -763,7 +766,7 @@ def select_predicate(self, context=None):
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
-        elif isinstance(context, XPathSchemaContext):
+        elif False and isinstance(context, XPathSchemaContext):
             yield context.item
             continue
 

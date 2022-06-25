@@ -208,7 +208,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         token = parser.parse('$a')
         result = token.evaluate(context)
         self.assertIsInstance(result, UntypedAtomic)
-        self.assertEqual(result.value, '')
+        self.assertEqual(result.value, '1')
 
         token = parser.parse('$b')
         result = token.evaluate(context)

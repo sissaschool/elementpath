@@ -84,7 +84,6 @@ if __name__ == '__main__':
 
     run_timeit('for e in root.iter(): e', SETUP, NUMBER)
     run_timeit('for e in xpath_tree.iter(): e', SETUP, NUMBER)
-    run_timeit('for e in xpath_tree.iter2(): e', SETUP, NUMBER)
     print()
 
     run_timeit('for e in root.iter(): is_xpath_node(e)', SETUP, NUMBER)

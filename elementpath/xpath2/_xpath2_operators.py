@@ -85,7 +85,7 @@ def evaluate_variable_reference(self, context=None):
                         if xsd_type is not None:
                             return get_atomic_value(xsd_type)
 
-                return UntypedAtomic('')
+                return UntypedAtomic('1')
 
     raise self.missing_name('unknown variable %r' % str(varname))
 
@@ -785,7 +785,7 @@ def select_schema_attribute_kind_test(self, context=None):
         if self.parser.schema.get_attribute(qname) is None:
             raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
-        if isinstance(context.item, AttributeNode) and context.item.match(qname):
+        if isinstance(context.item, AttributeNode) and context.item.match_name(qname):
             yield context.item
             return
 
@@ -888,7 +888,7 @@ def select_attribute_kind_test_or_axis(self, context=None):
             type_name = None
 
         for attribute in context.iter_attributes():
-            if attribute.match(name):
+            if attribute.match_name(name):
                 if isinstance(context, XPathSchemaContext):
                     self.add_xsd_type(attribute)
                 elif not type_name:

@@ -209,13 +209,6 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(result, [root[0], 'text 2', root[1], ' text 3'])
         self.assertListEqual(result, root.xpath('node()[1]/following-sibling::node()'))
 
-    @unittest.skipIf(lxml_etree is None, 'lxml library is not installed')
-    def test_iter_siblings__issue_44(self):
-        root = lxml_etree.XML('<root>text 1<!-- comment -->text 2<!-- comment --> text 3</root>')
-        result = select(root, 'node()[1]/following-sibling::node()')
-        self.assertListEqual(result, [root[0], 'text 2', root[1], ' text 3'])
-        self.assertListEqual(result, root.xpath('node()[1]/following-sibling::node()'))
-
     def test_iter_descendants(self):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')
         context = XPathContext(root)

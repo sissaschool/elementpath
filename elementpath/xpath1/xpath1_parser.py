@@ -107,6 +107,9 @@ class XPath1Parser(Parser[XPathToken]):
     compatibility_mode: bool = True
     """XPath 1.0 compatibility mode."""
 
+    use_default_namespace: bool = False
+    """Whether to use the default namespace registrations. XPath 1.0 ignores them."""
+
     def __init__(self, namespaces: Optional[NamespacesType] = None, strict: bool = True,
                  *args: Any, **kwargs: Any) -> None:
         super(XPath1Parser, self).__init__()

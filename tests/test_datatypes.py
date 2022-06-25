@@ -1520,9 +1520,8 @@ class AtomicValuesTest(unittest.TestCase):
 
         self.assertEqual(get_atomic_value(schema.elements['d'].type), UntypedAtomic('1'))
 
-        value = get_atomic_value(schema)
-        self.assertIsInstance(value, UntypedAtomic)
-        self.assertEqual(value, UntypedAtomic(value='1'))
+        with self.assertRaises(AttributeError):
+            value = get_atomic_value(schema)
 
         value = get_atomic_value(schema.elements['a'].type)
         self.assertIsInstance(value, UntypedAtomic)

@@ -74,7 +74,6 @@ AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, Normal
 
 
 ATOMIC_VALUES: Dict[Optional[str], AtomicValueType] = {
-    None: UntypedAtomic('1'),
     f'{{{XSD_NAMESPACE}}}untypedAtomic': UntypedAtomic('1'),
     f'{{{XSD_NAMESPACE}}}anyType': UntypedAtomic('1'),
     f'{{{XSD_NAMESPACE}}}anySimpleType': UntypedAtomic('1'),

@@ -128,10 +128,14 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse('math:exp(())')
         self.assertIsNone(token.evaluate())
         self.assertAlmostEqual(self.parser.parse('math:exp(0)').evaluate(), 1.0)
-        self.assertAlmostEqual(self.parser.parse('math:exp(1)').evaluate(), 2.718281828459045)
-        self.assertAlmostEqual(self.parser.parse('math:exp(2)').evaluate(), 7.38905609893065)
-        self.assertAlmostEqual(self.parser.parse('math:exp(-1)').evaluate(), 0.36787944117144233)
-        self.assertAlmostEqual(self.parser.parse('math:exp(math:pi())').evaluate(), 23.140692632779267)
+        self.assertAlmostEqual(self.parser.parse('math:exp(1)').evaluate(),
+                               2.718281828459045)
+        self.assertAlmostEqual(self.parser.parse('math:exp(2)').evaluate(),
+                               7.38905609893065)
+        self.assertAlmostEqual(self.parser.parse('math:exp(-1)').evaluate(),
+                               0.36787944117144233)
+        self.assertAlmostEqual(self.parser.parse('math:exp(math:pi())').evaluate(),
+                               23.140692632779267)
         self.assertTrue(math.isnan(self.parser.parse('math:exp(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:exp(xs:double('INF'))").evaluate(), float('inf'))
         self.assertAlmostEqual(self.parser.parse("math:exp(xs:double('-INF'))").evaluate(), 0.0)
@@ -141,7 +145,8 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(token.evaluate())
         self.assertAlmostEqual(self.parser.parse('math:exp10(0)').evaluate(), 1.0)
         self.assertAlmostEqual(self.parser.parse('math:exp10(1)').evaluate(), 10)
-        self.assertAlmostEqual(self.parser.parse('math:exp10(0.5)').evaluate(), 3.1622776601683795)
+        self.assertAlmostEqual(self.parser.parse('math:exp10(0.5)').evaluate(),
+                               3.1622776601683795)
         self.assertAlmostEqual(self.parser.parse('math:exp10(-1)').evaluate(), 0.1)
         self.assertTrue(math.isnan(self.parser.parse('math:exp10(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:exp10(xs:double('INF'))").evaluate(), float('inf'))
@@ -236,8 +241,10 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(self.parser.parse('math:cos(())').evaluate())
         self.assertAlmostEqual(self.parser.parse('math:cos(0)').evaluate(), 1.0)
         self.assertAlmostEqual(self.parser.parse('math:cos(-0.0e0)').evaluate(), 1.0)
-        self.assertAlmostEqual(self.parser.parse('math:cos(math:pi() div 2)').evaluate(), 0.0, places=13)
-        self.assertAlmostEqual(self.parser.parse('math:cos(-math:pi() div 2)').evaluate(), 0.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:cos(math:pi() div 2)').evaluate(),
+                               0.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:cos(-math:pi() div 2)').evaluate(),
+                               0.0, places=13)
         self.assertAlmostEqual(self.parser.parse('math:cos(math:pi())').evaluate(), -1.0)
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('INF'))").evaluate()))
@@ -247,18 +254,16 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(self.parser.parse('math:tan(())').evaluate())
         self.assertAlmostEqual(self.parser.parse('math:tan(0)').evaluate(), 0.0)
         self.assertAlmostEqual(self.parser.parse('math:tan(-0.0e0)').evaluate(), -0.0)
-        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 4)').evaluate(), 1.0, places=13)
-        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 4)').evaluate(), -1.0, places=13)
-        self.assertAlmostEqual(
-            self.parser.parse('math:tan(math:pi() div 2)').evaluate(), 1.633123935319537E16, places=13
-        )
-        self.assertAlmostEqual(
-            self.parser.parse('math:tan(-math:pi() div 2)').evaluate(),
-            -1.633123935319537E16, places=13
-        )
-        self.assertAlmostEqual(
-            self.parser.parse('math:tan(math:pi())').evaluate(), 0.0, places=13
-        )
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 4)').evaluate(),
+                               1.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 4)').evaluate(),
+                               -1.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 2)').evaluate(),
+                               1.633123935319537E16, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 2)').evaluate(),
+                               -1.633123935319537E16, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi())').evaluate(),
+                               0.0, places=13)
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('INF'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('-INF'))").evaluate()))

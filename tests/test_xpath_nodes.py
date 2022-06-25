@@ -86,24 +86,24 @@ class XPathNodesTest(unittest.TestCase):
         elem = ElementTree.XML('<A><B1>10</B1><B2 max="20"><C1/></B2>end</A>')
         self.assertFalse(etree_deep_equal(root, elem))
 
-    def test_match_method(self):
+    def test_match_name_method(self):
         attr = AttributeNode('a1', '10', parent=None)
-        self.assertTrue(attr.match('*'))
-        self.assertTrue(attr.match('a1'))
+        self.assertTrue(attr.match_name('*'))
+        self.assertTrue(attr.match_name('a1'))
         with self.assertRaises(ValueError):
-            attr.match('**')
+            attr.match_name('**')
         with self.assertRaises(ValueError):
-            attr.match('*:*:*')
+            attr.match_name('*:*:*')
         with self.assertRaises(ValueError):
-            attr.match('foo:*')
-        self.assertTrue(attr.match('*:a1'))
-        self.assertFalse(attr.match('{foo}*'))
+            attr.match_name('foo:*')
+        self.assertTrue(attr.match_name('*:a1'))
+        self.assertFalse(attr.match_name('{foo}*'))
         self.assertTrue(
-            AttributeNode('{foo}a1', '10').match('{foo}*')
+            AttributeNode('{foo}a1', '10').match_name('{foo}*')
         )
 
         attr = AttributeNode('{http://xpath.test/ns}a1', '10', parent=None)
-        self.assertTrue(attr.match('*:a1'))
+        self.assertTrue(attr.match_name('*:a1'))
 
     def test_node_base_uri(self):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/" />'
