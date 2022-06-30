@@ -79,10 +79,7 @@ def select_name_literal(self, context=None):
         return
     else:
         name = self.value
-        if not self.parser.use_default_namespace or context.axis in ('attribute', 'namespace'):
-            default_namespace = ''
-        else:
-            default_namespace = None
+        default_namespace = self.parser.default_namespace
 
     # With an ElementTree context checks if the token is bound to an XSD type. If not
     # try a match using the element path. If this match fails the xsd_type attribute

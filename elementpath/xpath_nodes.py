@@ -575,18 +575,15 @@ class ElementNode(XPathNode):
                 return self.elem.tag.split('}')[0][1:] == name.split('}')[0][1:]
             else:
                 return False
-        elif name[0] == '{':
+        elif hasattr(self.elem, 'type'):
+            return self.elem.is_matching(name, default_namespace)
+        elif name[0] == '{' or default_namespace is None:
             return self.elem.tag == name
 
-        if default_namespace is None:
-            if None in self.nsmap:
-                default_namespace = self.nsmap[None]
-            elif '' in self.nsmap:
-                default_namespace = self.nsmap['']
+        if None in self.nsmap:
+            default_namespace = self.nsmap[None]  # lxml element in-scope namespaces
 
-        if hasattr(self.elem, 'type'):
-            return self.elem.is_matching(name, default_namespace)
-        elif default_namespace:
+        if default_namespace:
             return self.elem.tag == '{%s}%s' % (default_namespace, name)
         return self.elem.tag == name
 

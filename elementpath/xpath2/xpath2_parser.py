@@ -192,7 +192,6 @@ class XPath2Parser(XPath1Parser):
         'schema-element', 'text', 'typeswitch',
     }
 
-    use_default_namespace: bool = True
     function_signatures: Dict[Tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
     namespaces: Dict[str, str]
     token: XPathToken
@@ -220,7 +219,7 @@ class XPath2Parser(XPath1Parser):
         if default_namespace is not None:
             self.default_namespace = self.namespaces[''] = default_namespace
         else:
-            self.default_namespace = self.namespaces.get('')
+            self.default_namespace = self.namespaces.get('', '')
 
         if function_namespace is not None:
             self.function_namespace = function_namespace
