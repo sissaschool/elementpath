@@ -551,6 +551,8 @@ def evaluate_value_comparison_operators(self, context=None):
         pass
     elif all(isinstance(x, (str, UntypedAtomic, AnyURI)) for x in operands):
         pass
+    elif all(isinstance(x, (str, UntypedAtomic, QName)) for x in operands):
+        pass
     elif all(isinstance(x, (float, Decimal, int)) for x in operands):
         if isinstance(operands[0], float):
             operands[1] = float(operands[1])
