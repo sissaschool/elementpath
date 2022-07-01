@@ -630,6 +630,41 @@ class SchemaNode(ElementNode):
         schema_node = cast(XsdElementProtocol, self.elem)
         return get_atomic_value(schema_node.type)
 
+    def iter(self) -> Iterator[XPathNode]:
+        yield self
+
+        iterators: List[Any] = []
+        children: Iterator[Any] = iter(self.children)
+
+        if self._namespace_nodes:
+            yield from self._namespace_nodes
+        if self.attributes:
+            yield from self.attributes
+
+        elements = {self}
+        while True:
+            for child in children:
+                if child in elements:
+                    continue
+                yield child
+                elements.add(child)
+
+                if isinstance(child, ElementNode):
+                    if child._namespace_nodes:
+                        yield from child._namespace_nodes
+                    if child.attributes:
+                        yield from child.attributes
+
+                    if child.children:
+                        iterators.append(children)
+                        children = iter(child.children)
+                        break
+            else:
+                try:
+                    children = iterators.pop()
+                except IndexError:
+                    return
+
     def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
         if with_self:
             yield self
@@ -1023,30 +1058,32 @@ def build_schema_node_tree(root: Union[XsdElementProtocol, XMLSchemaProtocol],
         # Track global elements even if the initial root is not a schema to avoid circularity
         global_elements = []
 
-    local_elements = {root}
+    local_nodes = {root: root_node}  # Irrelevant even if it's the schema
     ref_nodes: List[SchemaNode] = []
     iterators: List[Any] = []
     ancestors: List[Any] = []
 
     while True:
         for elem in children:
-            if elem.parent is not None:
-                if elem in local_elements:
-                    continue
-                local_elements.add(elem)
-
             child = build_schema_element_node()
             child.xsd_type = elem.type
             parent.children.append(child)
 
-            if elem.ref is None:
-                ancestors.append(parent)
-                parent = child
-                iterators.append(children)
-                children = iter(elem)
+            if elem in local_nodes:
+                if elem.ref is None:
+                    child.children = local_nodes[elem].children
+                else:
+                    ref_nodes.append(child)
             else:
-                ref_nodes.append(child)
-            break
+                local_nodes[elem] = child
+                if elem.ref is None:
+                    ancestors.append(parent)
+                    parent = child
+                    iterators.append(children)
+                    children = iter(elem)
+                    break
+                else:
+                    ref_nodes.append(child)
         else:
             try:
                 children, parent = iterators.pop(), ancestors.pop()
