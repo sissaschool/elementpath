@@ -17,9 +17,10 @@ from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS
-from .exceptions import ElementPathTypeError, ElementPathValueError
+from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
     XsdElementProtocol, XsdAttributeProtocol, XsdTypeProtocol, XMLSchemaProtocol
+from .helpers import match_wildcard
 from .etree import etree_iter_strings, is_etree_document, is_etree_element
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
@@ -181,28 +182,8 @@ class AttributeNode(XPathNode):
         return f'{self.parent.path}/@{self._name}'
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
-        if name == '*' or name == '*:*':
-            return True
-        elif not name:
-            return not self._name
-        elif name[0] == '*':
-            try:
-                _, _name = name.split(':')
-            except (ValueError, IndexError):
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            else:
-                if self._name.startswith('{'):
-                    return self._name.split('}')[1] == _name
-                else:
-                    return self._name == _name
-
-        elif name[-1] == '*':
-            if name[0] != '{' or '}' not in name:
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            elif self._name.startswith('{'):
-                return self._name.split('}')[0][1:] == name.split('}')[0][1:]
-            else:
-                return False
+        if '*' in name:
+            return match_wildcard(self._name, name)
         else:
             return self._name == name
 
@@ -553,30 +534,12 @@ class ElementNode(XPathNode):
                 return '/{}'.format('/'.join(reversed(path)))
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
-        if name == '*' or name == '*:*':
-            return True
+        if '*' in name:
+            return match_wildcard(self.elem.tag, name)
         elif not name:
             return not self.elem.tag
-        elif name[0] == '*':
-            try:
-                _, _name = name.split(':')
-            except (ValueError, IndexError):
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            else:
-                if self.elem.tag.startswith('{'):
-                    return self.elem.tag.split('}')[1] == _name
-                else:
-                    return self.elem.tag == _name
-
-        elif name[-1] == '*':
-            if name[0] != '{' or '}' not in name:
-                raise ElementPathValueError("unexpected format %r for argument 'name'" % name)
-            elif self.elem.tag.startswith('{'):
-                return self.elem.tag.split('}')[0][1:] == name.split('}')[0][1:]
-            else:
-                return False
         elif hasattr(self.elem, 'type'):
-            return self.elem.is_matching(name, default_namespace)
+            return cast(XsdElementProtocol, self.elem).is_matching(name, default_namespace)
         elif name[0] == '{' or default_namespace is None:
             return self.elem.tag == name
 
