@@ -13,6 +13,7 @@ import glob
 import fileinput
 import os
 import re
+import platform
 
 
 class PackageTest(unittest.TestCase):
@@ -27,11 +28,12 @@ class PackageTest(unittest.TestCase):
         cls.get_version = re.compile(
             r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 
+    @unittest.skipIf(platform.system() == 'Windows', 'Skip on Windows platform')
     def test_missing_debug_statements(self):
         message = "\nFound a debug missing statement at line %d of file %r: %r"
         filename = None
         source_files = glob.glob(os.path.join(self.source_dir, '*.py')) + \
-            glob.glob(os.path.join(self.source_dir, '**/*.py'))
+            glob.glob(os.path.join(self.source_dir, '*/*.py'))
 
         for line in fileinput.input(source_files):
             if fileinput.isfirstline():
