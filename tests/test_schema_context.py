@@ -12,13 +12,12 @@ import unittest
 from copy import copy
 from textwrap import dedent
 
-from elementpath import XPath2Parser
+from elementpath import XPath2Parser, XPathSchemaContext
 from elementpath.datatypes import UntypedAtomic
 
 try:
     # noinspection PyPackageRequirements
     import xmlschema
-    from xmlschema.xpath import XMLSchemaContext
 except (ImportError, AttributeError):
     xmlschema = None
 
@@ -50,7 +49,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_name_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
-        schema_context = XMLSchemaContext(self.schema1)
+        schema_context = XPathSchemaContext(self.schema1)
 
         elem_a = self.schema1.elements['a']
         token = parser.parse('a')
@@ -82,7 +81,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_colon_token(self):
         parser = XPath2Parser(namespaces={'tst': "http://xpath.test/ns"})
-        context = XMLSchemaContext(self.schema1)
+        context = XPathSchemaContext(self.schema1)
 
         elem_a = self.schema1.elements['a']
         token = parser.parse('tst:a')
@@ -125,7 +124,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_extended_name_token(self):
         parser = XPath2Parser(strict=False)
-        context = XMLSchemaContext(self.schema1)
+        context = XPathSchemaContext(self.schema1)
 
         elem_a = self.schema1.elements['a']
         token = parser.parse('{http://xpath.test/ns}a')
@@ -143,7 +142,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_wildcard_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
-        context = XMLSchemaContext(self.schema1)
+        context = XPathSchemaContext(self.schema1)
 
         elem_a = self.schema1.elements['a']
         elem_b3 = self.schema1.elements['b3']
@@ -171,7 +170,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_dot_shortcut_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
-        context = XMLSchemaContext(self.schema1)
+        context = XPathSchemaContext(self.schema1)
 
         elem_a = self.schema1.elements['a']
         elem_b3 = self.schema1.elements['b3']
@@ -183,7 +182,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
                                            "{http://xpath.test/ns}b3": elem_b3.type})
 
-        context = XMLSchemaContext(self.schema1, item=self.schema1)
+        context = XPathSchemaContext(self.schema1, item=self.schema1)
         token = parser.parse('.')
         self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
@@ -191,7 +190,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(token.xsd_types, {"{http://xpath.test/ns}a": elem_a.type,
                                            "{http://xpath.test/ns}b3": elem_b3.type})
 
-        context = XMLSchemaContext(self.schema1, item=self.schema2)
+        context = XPathSchemaContext(self.schema1, item=self.schema2)
         schema2_node = context.item
         token = parser.parse('.')
         self.assertIsNone(token.xsd_types)
@@ -203,7 +202,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}
         parser = XPath2Parser(default_namespace="http://xpath.test/ns",
                               variable_types=variable_types)
-        context = XMLSchemaContext(self.schema1)
+        context = XPathSchemaContext(self.schema1)
 
         token = parser.parse('$a')
         result = token.evaluate(context)
@@ -226,7 +225,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
 
     def test_not_applicable_functions(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
-        context = XMLSchemaContext(self.schema1)
+        context = XPathSchemaContext(self.schema1)
 
         token = parser.parse("fn:collection('filepath')")
         self.assertIsNone(token.evaluate(context))
