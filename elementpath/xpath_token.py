@@ -36,14 +36,14 @@ from .helpers import ordinal
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
-    NamespaceNode, is_schema_node
+from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
+    DocumentNode, NamespaceNode
 from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, \
     AtomicValueType, AnyAtomicType, Float10, Float
 from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XsdTypeProtocol, XMLSchemaProtocol
+    XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -677,7 +677,7 @@ class XPathToken(Token[XPathTokenType]):
     ###
     # XSD types related methods
     def select_xsd_nodes(self, schema_context: XPathSchemaContext, name: str) \
-            -> Iterator[Union[None, ElementNode, XMLSchemaProtocol]]:
+            -> Iterator[Union[None, ElementNode, XsdSchemaProtocol]]:
         """
         Selector for XSD nodes (elements, attributes and schemas). If there is
         a match with an attribute or an element the node's type is added to
@@ -690,7 +690,7 @@ class XPathToken(Token[XPathTokenType]):
         :param name: a QName in extended format.
         """
         xsd_node: Any
-        xsd_root = cast(Union[XMLSchemaProtocol, XsdElementProtocol],
+        xsd_root = cast(Union[XsdSchemaProtocol, XsdElementProtocol],
                         schema_context.root.value)
 
         for xsd_node in schema_context.iter_children_or_self():
@@ -765,7 +765,8 @@ class XPathToken(Token[XPathTokenType]):
         if isinstance(item, XPathNode):
             item = item.value
 
-        if not is_schema_node(item):
+        # TODO: replace with protocol check (XsdAttributeProtocol, XsdElementProtocol)
+        if not hasattr(item, 'type') or not hasattr(item, 'xsd_version'):
             return None
 
         name: str = item.name

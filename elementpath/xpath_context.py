@@ -20,15 +20,21 @@ from .namespaces import NamespacesType
 from .datatypes import AnyAtomicType, Timezone
 from .protocols import ElementProtocol, DocumentProtocol
 from .etree import is_etree_element, is_etree_document
-from .xpath_nodes import DocumentNode, ElementNode, AttributeNode, \
-    CommentNode, ProcessingInstructionNode, NamespaceNode, TextNode, \
-    XPathNode, ChildNodeType, RootArgType, is_xpath_node, get_node_tree
+from .xpath_nodes import RootArgType, ChildNodeType, XPathNode, \
+    AttributeNode, NamespaceNode, TextNode, CommentNode, \
+    ProcessingInstructionNode, ElementNode, DocumentNode
+from .tree_builders import get_node_tree
 
 if TYPE_CHECKING:
     from .xpath_token import XPathToken, XPathAxis
 
+__all__ = ['XPathContext', 'XPathSchemaContext']
 
 ItemArgType = Union[RootArgType, XPathNode, AnyAtomicType]
+
+
+def is_xpath_node(obj: Any) -> bool:
+    return isinstance(obj, XPathNode) or is_etree_element(obj) or is_etree_document(obj)
 
 
 class XPathContext:
@@ -132,13 +138,12 @@ class XPathContext:
                                 for k, v in collections.items()}
 
         if default_collection is not None:
-            if not isinstance(default_collection, list) or \
-                    any(not is_xpath_node(x) for x in default_collection):
-                raise ElementPathTypeError(
-                    "default_collection argument must be a list of XPath nodes"
-                )
-
-            self.default_collection = self.get_context_item(default_collection)
+            if isinstance(default_collection, list) and \
+                    all(is_xpath_node(x) for x in default_collection):
+                self.default_collection = self.get_context_item(default_collection)
+            else:
+                msg = "'default_collection' argument must be a list of XPath nodes"
+                raise ElementPathTypeError(msg)
 
         self.text_resources = text_resources if text_resources is not None else {}
         self.resource_collections = resource_collections

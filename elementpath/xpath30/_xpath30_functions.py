@@ -33,7 +33,8 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
     XSD_NAMESPACE
 from ..etree import etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
-    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode, get_node_tree
+    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
+from ..tree_builders import get_node_tree
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \

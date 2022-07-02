@@ -743,15 +743,15 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertEqual(xsd_type, schema.meta_schema.types['int'])
             self.assertIsNone(root_token.get_xsd_type('node'))
 
-            TestElement = namedtuple('XsdElement', 'name local_name type')
+            TestElement = namedtuple('XsdElement', 'name xsd_version type')
             root_token.add_xsd_type(
-                TestElement('node', 'node', schema.meta_schema.types['float'])
+                TestElement('node', '1.0', schema.meta_schema.types['float'])
             )
             root_token.add_xsd_type(
-                TestElement('node', 'node', schema.meta_schema.types['boolean'])
+                TestElement('node', '1.0', schema.meta_schema.types['boolean'])
             )
             root_token.add_xsd_type(
-                TestElement('node', 'node', schema.meta_schema.types['decimal'])
+                TestElement('node', '1.0', schema.meta_schema.types['decimal'])
             )
 
             xsd_type = root_token.get_xsd_type('node')
@@ -801,8 +801,8 @@ class XPath2TokenTest(XPath1TokenTest):
                 root_token.get_xsd_type(ElementNode(elem)), schema.types['aType']
             )
 
-            TestElement = namedtuple('XsdElement', 'name local_name type')
-            root_token.add_xsd_type(TestElement('a', 'a', schema.meta_schema.types['float']))
+            TestElement = namedtuple('XsdElement', 'name xsd_version type')
+            root_token.add_xsd_type(TestElement('a', '1.0', schema.meta_schema.types['float']))
             self.assertEqual(
                 root_token.get_xsd_type(ElementNode(elem)), schema.types['aType']
             )

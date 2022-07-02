@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Iterator, Uni
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XMLSchemaProtocol
+    XsdElementProtocol, XsdSchemaProtocol
 from .datatypes import AtomicValueType
 from .etree import is_etree_element
 from .xpath_context import XPathSchemaContext
@@ -33,7 +33,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
     :param base_element: the schema element used as base item for static analysis.
     """
-    def __init__(self, schema: XMLSchemaProtocol,
+    def __init__(self, schema: XsdSchemaProtocol,
                  base_element: Optional[ElementProtocol] = None) -> None:
         if not is_etree_element(schema):
             raise ElementPathTypeError(

@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '3.0.0b1'
+__version__ = '3.0.0b2'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2022, SISSA"
@@ -23,7 +23,9 @@ from .exceptions import ElementPathError, MissingContextError, \
 from . import datatypes
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
-    NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode, get_node_tree
+    NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode, SchemaNode
+from .tree_builders import get_node_tree, build_node_tree, build_lxml_node_tree, \
+    build_schema_node_tree
 from .xpath_token import XPathToken, XPathFunction
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
@@ -41,7 +43,8 @@ __all__ = ['ElementPathError', 'MissingContextError',
            'datatypes', 'XPathContext', 'XPathSchemaContext',
            'XPathNode', 'DocumentNode', 'ElementNode', 'AttributeNode',
            'NamespaceNode', 'CommentNode', 'ProcessingInstructionNode',
-           'TextNode', 'TypedElement', 'get_node_tree',
+           'TextNode', 'SchemaNode', 'TypedElement', 'get_node_tree',
+           'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree',
            'XPathToken', 'XPathFunction', 'XPath1Parser', 'XPath2Parser',
            'select', 'iter_select', 'Selector', 'AbstractSchemaProxy',
            'RegexError', 'translate_pattern']
