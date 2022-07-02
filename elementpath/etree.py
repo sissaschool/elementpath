@@ -12,6 +12,7 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
+import io
 from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
     Tuple, Union
 
@@ -94,6 +95,28 @@ class SafeXMLParser(PyElementTree.XMLParser):
             "External references are forbidden (system_id={!r}, "
             "public_id={!r})".format(system_id, public_id)
         )  # pragma: no cover (EntityDeclHandler is called before)
+
+
+def defuse_xml(xml_source: Union[str, bytes]) -> Union[str, bytes]:
+    resource: Any
+    if isinstance(xml_source, str):
+        resource = io.StringIO(xml_source)
+    else:
+        resource = io.BytesIO(xml_source)
+
+    safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+
+    try:
+        for _ in PyElementTree.iterparse(resource, ('start',), safe_parser):
+            break
+    except PyElementTree.ParseError as err:
+        msg = str(err)
+        if "Entities are forbidden" in msg or \
+                "Unparsed entities are forbidden" in msg or \
+                "External references are forbidden" in msg:
+            raise ElementTree.ParseError(f"Unsafe XML data: {msg}") from None
+
+    return xml_source
 
 
 def is_etree_element(obj: Any) -> bool:
@@ -292,6 +315,7 @@ def etree_tostring(elem: ElementProtocol,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'is_etree_element',
-           'is_lxml_etree_element', 'is_etree_document', 'is_lxml_etree_document',
-           'etree_iter_strings', 'etree_deep_equal', 'etree_iter_paths', 'etree_tostring']
+__all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'defuse_xml',
+           'is_etree_element', 'is_lxml_etree_element', 'is_etree_document',
+           'is_lxml_etree_document', 'etree_iter_strings', 'etree_deep_equal',
+           'etree_iter_paths', 'etree_tostring']

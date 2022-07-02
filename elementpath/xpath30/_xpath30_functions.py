@@ -31,7 +31,7 @@ from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
     XSD_NAMESPACE
-from ..etree import etree_iter_paths
+from ..etree import defuse_xml, etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from ..tree_builders import get_node_tree
@@ -834,7 +834,7 @@ def evaluate_analyze_string_function(self, context=None):
 
     lines.append('</analyze-string-result>')
     return get_node_tree(
-        root=context.etree.XML(''.join(lines)),
+        root=context.etree.XML(defuse_xml(''.join(lines))),
         namespaces=self.parser.namespaces
     )
 
@@ -1164,7 +1164,7 @@ def evaluate_parse_xml_function(self, context=None):
 
     etree = context.etree
     try:
-        root = etree.XML(arg.encode('utf-8'))
+        root = etree.XML(defuse_xml(arg.encode('utf-8')))
     except etree.ParseError:
         raise self.error('FODC0006')
     else:
@@ -1198,11 +1198,11 @@ def evaluate_parse_xml_fragment_function(self, context=None):
 
     etree = context.etree
     try:
-        root = etree.XML(arg)
+        root = etree.XML(defuse_xml(arg))
     except etree.ParseError:
         try:
             return get_node_tree(
-                root=etree.XML(f'<document>{arg}</document>'),
+                root=etree.XML(defuse_xml(f'<document>{arg}</document>')),
                 namespaces=self.parser.namespaces
             )
         except etree.ParseError:
