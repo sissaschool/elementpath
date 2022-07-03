@@ -666,7 +666,7 @@ def evaluate_deep_equal_function(self, context=None):
                 return False
             elif value1 is None:
                 return True
-            elif (isinstance(value1, XPathNode)) ^ (isinstance(value2, XPathNode)):
+            elif isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
                 return False
             elif not isinstance(value1, XPathNode):
                 try:

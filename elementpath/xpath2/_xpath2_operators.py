@@ -590,25 +590,20 @@ def evaluate_node_comparison(self, context=None):
 
     left = [x for x in self[0].select(context)]
     if not left:
-        return
+        return None
     elif len(left) > 1 or not isinstance(left[0], XPathNode):
         raise self[0].error('XPTY0004', "left operand of %r must be a single node" % symbol)
 
     right = [x for x in self[1].select(context)]
     if not right:
-        return
+        return None
     elif len(right) > 1 or not isinstance(right[0], XPathNode):
         raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 
-    # For identity comparison use '==' operator instead of 'is'
-    # because elem1 == elem2 if and only if elem1 is elem2.
-    # For example two AttributeNode objects (a1, a2) represent
-    # the same node if they have the same name, the same value
-    # and the same parent.
     if symbol == 'is':
-        return left[0] == right[0]
+        return left[0] is right[0]
     else:
-        if left[0] == right[0]:
+        if left[0] is right[0]:
             return False
 
         documents = [context.root]
@@ -616,9 +611,9 @@ def evaluate_node_comparison(self, context=None):
 
         for root in documents:
             for item in root.iter():  # pragma: no cover
-                if left[0] == item:
+                if left[0] is item:
                     return True if symbol == '<<' else False
-                elif right[0] == item:
+                elif right[0] is item:
                     return False if symbol == '<<' else True
         else:
             raise self.error('FOCA0002', "operands are not nodes of the XML tree!")

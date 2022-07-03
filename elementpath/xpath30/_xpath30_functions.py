@@ -1556,7 +1556,7 @@ def evaluate_document_uri_function(self, context=None):
 def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
-        return
+        return None
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
     return arg.nilled
@@ -1566,13 +1566,13 @@ def evaluate_nilled_function(self, context=None):
 def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
-        return
+        return None
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
     name = arg.name
     if name is None:
-        return
+        return None
     elif name.startswith('{'):
         # name is a QName in extended format
         namespace, local_name = split_expanded_name(name)
