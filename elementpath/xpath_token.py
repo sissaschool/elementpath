@@ -37,7 +37,7 @@ from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    DocumentNode, NamespaceNode
+    DocumentNode, NamespaceNode, SchemaNode
 from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, \
@@ -677,7 +677,7 @@ class XPathToken(Token[XPathTokenType]):
     ###
     # XSD types related methods
     def select_xsd_nodes(self, schema_context: XPathSchemaContext, name: str) \
-            -> Iterator[Union[None, ElementNode, XsdSchemaProtocol]]:
+            -> Iterator[Union[None, AttributeNode, ElementNode]]:
         """
         Selector for XSD nodes (elements, attributes and schemas). If there is
         a match with an attribute or an element the node's type is added to
@@ -697,65 +697,43 @@ class XPathToken(Token[XPathTokenType]):
             if xsd_node is None:
                 if name == XSD_SCHEMA == schema_context.root.elem.tag:
                     yield None
-                continue  # pragma: no cover
 
-            try:
-                if isinstance(xsd_node, AttributeNode):
-                    if isinstance(xsd_node.value, str):
-                        if xsd_node.name != name:
-                            continue
-                        # FIXME
-                        xsd_node = xsd_root.maps.attributes.get(name)
-                        if xsd_node is None:
-                            continue
-                    elif xsd_node.value.is_matching(name):
-                        if xsd_node.name is None:
-                            # node is an XSD attribute wildcard FIXME
-                            xsd_node = xsd_root.maps.attributes.get(name)
-                            if xsd_node is None:
-                                continue
-                    else:
-                        continue
+            elif isinstance(xsd_node, AttributeNode):
+                assert not isinstance(xsd_node.value, str)
+                if not xsd_node.value.is_matching(name):
+                    continue
 
-                    xsd_type = self.add_xsd_type(xsd_node)
-                    if xsd_type is not None:
-                        xsd_node.xsd_type = xsd_type
-                        yield xsd_node
+                if xsd_node.name is not None:
+                    self.add_xsd_type(xsd_node)
+                else:
+                    # node is an XSD attribute wildcard
+                    xsd_attribute = xsd_root.maps.attributes.get(name)
+                    if xsd_attribute is not None:
+                        self.add_xsd_type(xsd_attribute)
 
-                elif name == XSD_SCHEMA == xsd_node.elem.tag:
+                yield xsd_node
+
+            elif isinstance(xsd_node, SchemaNode):
+                if name == XSD_SCHEMA == xsd_node.elem.tag:
                     # The element is a schema
                     yield xsd_node
 
-                elif xsd_node.value.is_matching(name, self.parser.namespaces.get('')):
-                    if xsd_node.value.name is None:
-                        # node is an XSD element wildcard FIXME
+                elif xsd_node.elem.is_matching(name, self.parser.namespaces.get('')):
+                    if xsd_node.elem.name is not None:
+                        self.add_xsd_type(xsd_node)
+                    else:
+                        # node is an XSD element wildcard
                         xsd_element = xsd_root.maps.elements.get(name)
-                        if xsd_element is None:
-                            continue
+                        if xsd_element is not None:
+                            for child in schema_context.root.children:
+                                if child.value is xsd_element:
+                                    xsd_node = child
+                                    self.add_xsd_type(xsd_node)
+                                    break
+                            else:
+                                self.add_xsd_type(xsd_element)
 
-                        for child in schema_context.root.children:
-                            if child.value is xsd_element:
-                                xsd_node = child
-                                break
-                        else:
-                            xsd_node = ElementNode(
-                                elem=xsd_element,
-                                parent=schema_context.root,
-                                xsd_type=xsd_element.type,
-                            )
-
-                    xsd_type = self.add_xsd_type(xsd_node)
                     yield xsd_node
-                    if False and xsd_type is not None:
-                        # Add another node to schema context FIXME
-                        yield ElementNode(
-                            elem=xsd_node,
-                            parent=xsd_node.parent,
-                            xsd_type=xsd_type
-                        )
-
-            except AttributeError:
-                pass
 
     def add_xsd_type(self, item: Any) -> Optional[XsdTypeProtocol]:
         """

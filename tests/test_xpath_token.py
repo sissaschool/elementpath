@@ -696,7 +696,8 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['string']})
 
             context = XPathSchemaContext(root=schema.meta_schema, axis='self')
-            attribute = context.item = AttributeNode('a', schema.attributes['a'])
+            xsd_attribute = schema.attributes['a']
+            context.item = AttributeNode('a', xsd_attribute, xsd_type=xsd_attribute.type)
 
             obj = list(root_token.select_xsd_nodes(context, 'a'))
             self.assertIsInstance(obj[0], AttributeNode)
