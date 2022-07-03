@@ -655,6 +655,7 @@ class TestCase(object):
         )
         if environment is not None and xpath_parser.version >= '3.0':
             kwargs['decimal_formats'] = environment.decimal_formats
+            kwargs['defuse_xml'] = False
 
         parser = xpath_parser(**kwargs)
 

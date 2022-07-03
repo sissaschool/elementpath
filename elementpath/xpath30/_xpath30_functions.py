@@ -833,10 +833,12 @@ def evaluate_analyze_string_function(self, context=None):
             lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
-    return get_node_tree(
-        root=context.etree.XML(defuse_xml(''.join(lines))),
-        namespaces=self.parser.namespaces
-    )
+    if self.parser.defuse_xml:
+        root = context.etree.XML(defuse_xml(''.join(lines)))
+    else:
+        root = context.etree.XML(''.join(lines))
+
+    return get_node_tree(root=root, namespaces=self.parser.namespaces)
 
 
 ###
@@ -1164,7 +1166,10 @@ def evaluate_parse_xml_function(self, context=None):
 
     etree = context.etree
     try:
-        root = etree.XML(defuse_xml(arg.encode('utf-8')))
+        if self.parser.defuse_xml:
+            root = etree.XML(defuse_xml(arg.encode('utf-8')))
+        else:
+            root = etree.XML(arg.encode('utf-8'))
     except etree.ParseError:
         raise self.error('FODC0006')
     else:
@@ -1198,15 +1203,18 @@ def evaluate_parse_xml_fragment_function(self, context=None):
 
     etree = context.etree
     try:
-        root = etree.XML(defuse_xml(arg))
-    except etree.ParseError:
+        if self.parser.defuse_xml:
+            root = etree.XML(defuse_xml(arg))
+        else:
+            root = etree.XML(arg)
+    except etree.ParseError as err:
         try:
             return get_node_tree(
-                root=etree.XML(defuse_xml(f'<document>{arg}</document>')),
+                root=etree.XML(f'<document>{arg}</document>'),
                 namespaces=self.parser.namespaces
             )
         except etree.ParseError:
-            raise self.error('FODC0006') from None
+            raise self.error('FODC0006', str(err)) from None
     else:
         return get_node_tree(
             root=etree.ElementTree(root),

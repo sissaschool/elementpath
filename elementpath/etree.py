@@ -114,7 +114,7 @@ def defuse_xml(xml_source: Union[str, bytes]) -> Union[str, bytes]:
         if "Entities are forbidden" in msg or \
                 "Unparsed entities are forbidden" in msg or \
                 "External references are forbidden" in msg:
-            raise ElementTree.ParseError(f"Unsafe XML data: {msg}") from None
+            raise
 
     return xml_source
 
