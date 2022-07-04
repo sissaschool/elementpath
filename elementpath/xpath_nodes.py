@@ -45,11 +45,14 @@ class XPathNode:
 
     # Accessors, empty sequences are represented with None values.
     kind: str = ''
-    attributes: Optional[List['AttributeNode']]
     children: Optional[List[ChildNodeType]]
     parent: Union['ElementNode', 'DocumentNode', None]
 
     __slots__ = 'parent', 'position'
+
+    @property
+    def attributes(self) -> Optional[List['AttributeNode']]:
+        return None
 
     @property
     def base_uri(self) -> Optional[str]:
@@ -115,7 +118,7 @@ class AttributeNode(XPathNode):
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
     :param parent: the parent element.
     """
-    attributes: None = None
+    attributes: None
     children: None = None
     base_uri: None
     document_uri: None
@@ -200,7 +203,7 @@ class NamespaceNode(XPathNode):
     :param uri: the namespace URI.
     :param parent: the parent element.
     """
-    attributes: None = None
+    attributes: None
     children: None = None
     base_uri: None
     document_uri: None
@@ -255,7 +258,7 @@ class TextNode(XPathNode):
     :param value: a string value.
     :param parent: the parent element.
     """
-    attributes: None = None
+    attributes: None
     children: None = None
     document_uri: None
     is_id: None
@@ -301,7 +304,7 @@ class CommentNode(XPathNode):
     """
     A class for processing XPath comment nodes.
     """
-    attributes: None = None
+    attributes: None
     children:  None = None
     document_uri: None
     is_id: None
@@ -349,7 +352,7 @@ class ProcessingInstructionNode(XPathNode):
     """
     A class for XPath processing instructions nodes.
     """
-    attributes: None = None
+    attributes: None
     children:  None = None
     document_uri: None
     is_id: None
@@ -405,7 +408,6 @@ class ElementNode(XPathNode):
     A class for processing XPath element nodes that uses lazy properties to
     diminish the average load for a tree processing.
     """
-    attributes: Optional[List['AttributeNode']]
     children: List[ChildNodeType]
     document_uri: None
 
@@ -413,9 +415,10 @@ class ElementNode(XPathNode):
     elem: Union[ElementProtocol, SchemaElemType]
     nsmap: Dict[Optional[str], str]
     _namespace_nodes: Optional[List['NamespaceNode']]
+    _attributes: Optional[List['AttributeNode']]
 
     __slots__ = 'nsmap', 'elem', 'xsd_type', \
-                '_namespace_nodes', 'attributes', 'children'
+                '_namespace_nodes', '_attributes', 'children'
 
     def __init__(self,
                  elem: Union[ElementProtocol, SchemaElemType],
@@ -430,7 +433,7 @@ class ElementNode(XPathNode):
         self.nsmap = {} if nsmap is None else nsmap
         self.xsd_type = xsd_type
         self._namespace_nodes = None
-        self.attributes = None
+        self._attributes = None
         self.children = []
 
     def __repr__(self) -> str:
@@ -521,6 +524,16 @@ class ElementNode(XPathNode):
 
         return self._namespace_nodes
 
+    @property
+    def attributes(self) -> List['AttributeNode']:
+        if self._attributes is None:
+            position = self.position + len(self.nsmap) + int('xml' not in self.nsmap)
+            self._attributes = [
+                AttributeNode(name, value, self, pos)
+                for pos, (name, value) in enumerate(self.elem.attrib.items(), position)
+            ]
+        return self._attributes
+
     def is_schema_element(self) -> bool:
         return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
 
@@ -562,8 +575,8 @@ class ElementNode(XPathNode):
 
         if self._namespace_nodes:
             yield from self._namespace_nodes
-        if self.attributes:
-            yield from self.attributes
+        if self._attributes:
+            yield from self._attributes
 
         while True:
             for child in children:
@@ -572,8 +585,8 @@ class ElementNode(XPathNode):
                 if isinstance(child, ElementNode):
                     if child._namespace_nodes:
                         yield from child._namespace_nodes
-                    if child.attributes:
-                        yield from child.attributes
+                    if child._attributes:
+                        yield from child._attributes
 
                     if child.children:
                         iterators.append(children)
@@ -633,6 +646,16 @@ class SchemaNode(ElementNode):
             yield from self.ref.children
 
     @property
+    def attributes(self) -> List['AttributeNode']:
+        if self._attributes is None:
+            position = self.position + len(self.nsmap) + int('xml' not in self.nsmap)
+            self._attributes = [
+                AttributeNode(name, attr, self, pos, attr.type)
+                for pos, (name, attr) in enumerate(self.elem.attrib.items(), position)
+            ]
+        return self._attributes
+
+    @property
     def string_value(self) -> str:
         if not hasattr(self.elem, 'type'):
             return ''
@@ -654,8 +677,8 @@ class SchemaNode(ElementNode):
 
         if self._namespace_nodes:
             yield from self._namespace_nodes
-        if self.attributes:
-            yield from self.attributes
+        if self._attributes:
+            yield from self._attributes
 
         elements = {self}
         while True:
@@ -668,8 +691,8 @@ class SchemaNode(ElementNode):
                 if isinstance(child, ElementNode):
                     if child._namespace_nodes:
                         yield from child._namespace_nodes
-                    if child.attributes:
-                        yield from child.attributes
+                    if child._attributes:
+                        yield from child._attributes
 
                     if child.children:
                         iterators.append(children)

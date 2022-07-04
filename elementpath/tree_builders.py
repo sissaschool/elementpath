@@ -13,9 +13,8 @@ from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, \
-    AttributeNode, TextNode, CommentNode, ProcessingInstructionNode, \
-    ElementNode, SchemaNode, DocumentNode
+from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, TextNode, \
+    CommentNode, ProcessingInstructionNode, ElementNode, SchemaNode, DocumentNode
 
 __all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
 
@@ -73,15 +72,8 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         node = ElementNode(elem, parent, position, nsmap)
         position += 1
 
-        # Do not generate namespace nodes, only reserve positions.
-        position += len(nsmap) if 'xml' in nsmap else len(nsmap) + 1
-
-        if elem.attrib:
-            node.attributes = [
-                AttributeNode(name, value, node, pos)
-                for pos, (name, value) in enumerate(elem.attrib.items(), position)
-            ]
-            position += len(node.attributes)
+        # Do not generate namespace and attribute nodes, only reserve positions.
+        position += len(nsmap) + int('xml' not in nsmap) + len(elem.attrib)
 
         if elem.text is not None:
             node.children.append(TextNode(elem.text, node, position))
@@ -153,15 +145,8 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         node = ElementNode(elem, parent, position, elem.nsmap)
         position += 1
 
-        # Do not generate namespace nodes, only reserve positions.
-        position += len(elem.nsmap) if 'xml' in elem.nsmap else len(elem.nsmap) + 1
-
-        if elem.attrib:
-            node.attributes = [
-                AttributeNode(name, value, node, pos)
-                for pos, (name, value) in enumerate(elem.attrib.items(), position)
-            ]
-            position += len(node.attributes)
+        # Do not generate namespace and attribute nodes, only reserve positions.
+        position += len(elem.nsmap) + int('xml' not in elem.nsmap) + len(elem.attrib)
 
         if elem.text is not None:
             node.children.append(TextNode(elem.text, node, position))
@@ -257,12 +242,8 @@ def build_schema_node_tree(root: SchemaElemType,
         position += 1
         elements[elem] = node
 
-        if elem.attrib:
-            node.attributes = [
-                AttributeNode(name, attr, elem, pos, attr.type)
-                for pos, (name, attr) in enumerate(elem.attrib.items(), position)
-            ]
-            position += len(node.attributes)
+        # Do not generate namespace and attribute nodes, only reserve positions.
+        position += len(elem.namespaces) + int('xml' not in elem.namespaces) + len(elem.attrib)
 
         return node
 

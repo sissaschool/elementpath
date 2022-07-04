@@ -321,9 +321,8 @@ class XPathContext:
             status = self.item, self.axis
             self.axis = 'attribute'
 
-            if self.item.attributes:
-                for self.item in self.item.attributes:
-                    yield self.item
+            for self.item in self.item.attributes:
+                yield self.item
 
             self.item, self.axis = status
 

@@ -62,16 +62,9 @@ if __name__ == '__main__':
             node = ElementNode(elem, parent, position, nsmap)
             position += 1
 
-            # Do not generate namespace nodes, only reserve positions.
             position += len(nsmap) if 'xml' in nsmap else len(nsmap) + 1
-
-            if elem.attrib:
-                node.attributes = [
-                    AttributeNode(name, value, node, pos)
-                    for pos, (name, value) in enumerate(elem.attrib.items(), position)
-                ]
-                position += len(node.attributes)
-
+            position += len(elem.attrib)
+            
             if elem.text is not None:
                 node.children.append(TextNode(elem.text, node, position))
                 position += 1

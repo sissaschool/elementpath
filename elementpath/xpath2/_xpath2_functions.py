@@ -1403,28 +1403,27 @@ def select_id_function(self, context=None):
                     yield parent
             continue  # pragma: no cover
 
-        if element.attributes:
-            for attr in element.attributes:
-                if attr.value in idrefs:
-                    if attr.name == XML_ID:
-                        idrefs.remove(attr.value)
-                        yield element
-                        break
-
-                    if self.parser.schema is None:
-                        continue
-
-                    xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
-                    if xsd_element is None:
-                        continue
-
-                    xsd_attribute = xsd_element.attrib.get(attr.name)
-                    if xsd_attribute is None or not xsd_attribute.type.is_key():
-                        continue  # pragma: no cover
-
+        for attr in element.attributes:
+            if attr.value in idrefs:
+                if attr.name == XML_ID:
                     idrefs.remove(attr.value)
                     yield element
                     break
+
+                if self.parser.schema is None:
+                    continue
+
+                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
+                if xsd_element is None:
+                    continue
+
+                xsd_attribute = xsd_element.attrib.get(attr.name)
+                if xsd_attribute is None or not xsd_attribute.type.is_key():
+                    continue  # pragma: no cover
+
+                idrefs.remove(attr.value)
+                yield element
+                break
 
 
 @method(function('idref', nargs=(1, 2), sequence_types=('xs:string*', 'node()', 'node()*')))
@@ -1450,12 +1449,12 @@ def select_idref_function(self, context=None):
         if text and is_idrefs(text) and any(v in text.split() for x in ids for v in x.split()):
             yield element
             continue
-        if element.attributes:
-            for attr in element.attributes:  # pragma: no cover
-                if attr.name != XML_ID and \
-                        any(v in attr.value.split() for x in ids for v in x.split()):
-                    yield element
-                    break
+
+        for attr in element.attributes:  # pragma: no cover
+            if attr.name != XML_ID and \
+                    any(v in attr.value.split() for x in ids for v in x.split()):
+                yield element
+                break
 
 
 @method(function('doc', nargs=1, sequence_types=('xs:string?', 'document-node()?')))
