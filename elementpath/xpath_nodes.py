@@ -19,15 +19,16 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
 from .helpers import match_wildcard
 from .etree import etree_iter_strings
 
-__all__ = ['RootArgType', 'ChildNodeType', 'XPathNode',
-           'AttributeNode', 'NamespaceNode', 'TextNode',
-           'CommentNode', 'ProcessingInstructionNode',
+__all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType',
+           'XPathNode', 'AttributeNode', 'NamespaceNode',
+           'TextNode', 'CommentNode', 'ProcessingInstructionNode',
            'ElementNode', 'SchemaNode', 'DocumentNode']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
-RootArgType = Union[DocumentProtocol, ElementProtocol, XsdElementProtocol,
-                    XsdSchemaProtocol, 'DocumentNode', 'ElementNode']
+SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
+RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
+                    'DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
 
 
@@ -409,7 +410,7 @@ class ElementNode(XPathNode):
     document_uri: None
 
     kind = 'element'
-    elem: Union[ElementProtocol, XsdElementProtocol, XsdSchemaProtocol]
+    elem: Union[ElementProtocol, SchemaElemType]
     nsmap: Dict[Optional[str], str]
     _namespace_nodes: Optional[List['NamespaceNode']]
 
@@ -417,7 +418,7 @@ class ElementNode(XPathNode):
                 '_namespace_nodes', 'attributes', 'children'
 
     def __init__(self,
-                 elem: Union[ElementProtocol, XsdElementProtocol, XsdSchemaProtocol],
+                 elem: Union[ElementProtocol, SchemaElemType],
                  parent: Optional[Union['ElementNode', 'DocumentNode']] = None,
                  position: int = 1,
                  nsmap: Optional[Dict[Any, str]] = None,
@@ -445,7 +446,7 @@ class ElementNode(XPathNode):
         yield from self.children
 
     @property
-    def value(self) -> Union[ElementProtocol, XsdElementProtocol, XsdSchemaProtocol]:
+    def value(self) -> Union[ElementProtocol, SchemaElemType]:
         return self.elem
 
     @property
@@ -608,10 +609,22 @@ class ElementNode(XPathNode):
 
 class SchemaNode(ElementNode):
 
-    __slots__ = '__dict__',
+    __slots__ = 'ref', 'elements'
 
-    elem: Union[XsdElementProtocol, XsdSchemaProtocol]
-    ref: Optional['SchemaNode'] = None
+    elem: SchemaElemType
+    ref: Optional['SchemaNode']
+    elements: Dict[SchemaElemType, 'SchemaNode']
+
+    def __init__(self,
+                 elem: SchemaElemType,
+                 parent: Optional['SchemaNode'] = None,
+                 position: int = 1,
+                 nsmap: Optional[Dict[Any, str]] = None,
+                 elements: Optional[Dict[SchemaElemType, 'SchemaNode']] = None) -> None:
+
+        super().__init__(elem, parent, position, nsmap)
+        self.ref = None
+        self.elements = {} if elements is None else elements
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         if self.ref is None:

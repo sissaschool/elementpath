@@ -10,11 +10,12 @@
 from typing import cast, Any, Dict, Iterator, List, Optional, Union
 
 from .exceptions import ElementPathTypeError
-from .protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
-    XsdElementProtocol, XsdSchemaProtocol
+from .protocols import ElementProtocol, LxmlElementProtocol, \
+    DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import RootArgType, ChildNodeType, AttributeNode, TextNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, SchemaNode, DocumentNode
+from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, \
+    AttributeNode, TextNode, CommentNode, ProcessingInstructionNode, \
+    ElementNode, SchemaNode, DocumentNode
 
 __all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
 
@@ -43,7 +44,7 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
     elif hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
         # schema or schema node
         return build_schema_node_tree(
-            cast(Union[XsdElementProtocol, XsdSchemaProtocol], root)
+            cast(SchemaElemType, root)
         )
     elif is_etree_element(root) and not callable(root.tag):  # type: ignore[union-attr]
         if hasattr(root, 'nsmap') and hasattr(root, 'xpath'):
@@ -239,10 +240,11 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
                 return root_node
 
 
-def build_schema_node_tree(root: Union[XsdElementProtocol, XsdSchemaProtocol],
+def build_schema_node_tree(root: SchemaElemType,
                            global_elements: Optional[List[ChildNodeType]] = None) -> SchemaNode:
     parent: Any
     elem: Any
+    elements: Any
     child: SchemaNode
     children: Iterator[Any]
 
@@ -251,8 +253,9 @@ def build_schema_node_tree(root: Union[XsdElementProtocol, XsdSchemaProtocol],
     def build_schema_element_node() -> SchemaNode:
         nonlocal position
 
-        node = SchemaNode(elem, parent, position, elem.namespaces)
+        node = SchemaNode(elem, parent, position, elem.namespaces, elements)
         position += 1
+        elements[elem] = node
 
         if elem.attrib:
             node.attributes = [
@@ -266,6 +269,7 @@ def build_schema_node_tree(root: Union[XsdElementProtocol, XsdSchemaProtocol],
     children = iter(root)
     elem = root
     parent = None
+    elements = {}
     root_node = parent = build_schema_element_node()
 
     if global_elements is not None:
