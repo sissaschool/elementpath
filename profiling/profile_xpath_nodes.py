@@ -8,12 +8,13 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 from timeit import timeit
 from memory_profiler import profile
 import lxml.etree as etree
 
+from elementpath import XPathNode, build_node_tree
 from elementpath.etree import PyElementTree
-from elementpath.xpath_nodes import XPathNode, get_node_tree
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -34,8 +35,8 @@ def create_py_element_tree(source):
 
 
 @profile
-def create_xpath_tree(root_):
-    node_tree = get_node_tree(root_)
+def create_xpath_tree(et_root):
+    node_tree = build_node_tree(et_root)
     return node_tree
 
 
@@ -55,6 +56,8 @@ if __name__ == '__main__':
                         help="the depth of the test XML tree (7 for default)")
     parser.add_argument('--children', type=int, default=3,
                         help="the number of children for each element (3 for default)")
+    parser.add_argument('--speed', action='store_true', default=False,
+                        help="run also speed tests (disabled for default)")
     params = parser.parse_args()
 
     print('*' * 60)
@@ -62,7 +65,7 @@ if __name__ == '__main__':
     print('*' * 60)
     print()
 
-    SETUP = 'from __main__ import root, xpath_tree, get_node_tree, is_xpath_node, XPathNode'
+    SETUP = 'from __main__ import root, xpath_tree, build_node_tree, is_xpath_node, XPathNode'
     NUMBER = 5000
 
     chunk = 'lorem ipsum'
@@ -74,7 +77,11 @@ if __name__ == '__main__':
     create_py_element_tree(xml_source)
     xpath_tree = create_xpath_tree(root)
 
-    run_timeit('get_node_tree(root)', SETUP, 100)
+    if not params.speed:
+        print('Speed tests skipped ... exit')
+        sys.exit()
+
+    run_timeit('build_node_tree(root)', SETUP, 100)
     print()
 
     run_timeit('is_xpath_node(root)', SETUP, NUMBER)
