@@ -430,11 +430,18 @@ class ElementNode(XPathNode):
         self.elem = elem
         self.parent = parent
         self.position = position
-        self.nsmap = {} if nsmap is None else nsmap
         self.xsd_type = xsd_type
         self._namespace_nodes = None
         self._attributes = None
         self.children = []
+
+        if nsmap is not None:
+            self.nsmap = nsmap
+        else:
+            try:
+                self.nsmap = cast(Dict[Any, str], getattr(elem, 'nsmap'))
+            except AttributeError:
+                self.nsmap = {}
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)

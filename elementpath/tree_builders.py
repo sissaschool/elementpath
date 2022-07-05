@@ -69,20 +69,17 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
     def build_element_node() -> ElementNode:
         nonlocal position
 
-        node = ElementNode(elem, parent, position, nsmap)
+        node = ElementNode(elem, parent, position, namespaces)
         position += 1
 
         # Do not generate namespace and attribute nodes, only reserve positions.
-        position += len(nsmap) + int('xml' not in nsmap) + len(elem.attrib)
+        position += len(node.nsmap) + int('xml' not in node.nsmap) + len(elem.attrib)
 
         if elem.text is not None:
             node.children.append(TextNode(elem.text, node, position))
             position += 1
 
         return node
-
-    # Common nsmap
-    nsmap = {} if namespaces is None else dict(namespaces)
 
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
