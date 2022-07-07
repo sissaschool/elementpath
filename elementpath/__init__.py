@@ -15,10 +15,13 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 
-from .exceptions import ElementPathError, MissingContextError
-
 from . import datatypes
 from . import protocols  # only for type annotations
+from . import tdop
+
+# Expose only exceptions that are not derived from builtins or from other libraries
+from .exceptions import ElementPathError, MissingContextError, ElementPathParseError
+
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
     NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode, SchemaNode
@@ -33,8 +36,9 @@ from .regex import RegexError, translate_pattern
 
 TypedElement = ElementNode  # for backward compatibility with xmlschema<=1.10.0
 
-__all__ = ['ElementPathError', 'MissingContextError', 'datatypes',
-           'protocols', 'XPathContext', 'XPathSchemaContext',
+__all__ = ['datatypes', 'protocols', 'tdop',
+           'ElementPathError', 'MissingContextError', 'ElementPathParseError',
+           'XPathContext', 'XPathSchemaContext',
            'XPathNode', 'DocumentNode', 'ElementNode', 'AttributeNode',
            'NamespaceNode', 'CommentNode', 'ProcessingInstructionNode',
            'TextNode', 'SchemaNode', 'TypedElement', 'get_node_tree',

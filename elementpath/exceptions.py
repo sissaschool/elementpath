@@ -9,7 +9,7 @@
 #
 import locale
 from typing import Optional, Any
-from .tdop import Token
+from .tdop import Token, ParseError
 
 
 class ElementPathError(Exception):
@@ -67,6 +67,10 @@ class ElementPathRuntimeError(ElementPathError, RuntimeError):
 
 
 class ElementPathSyntaxError(ElementPathError, SyntaxError):
+    pass
+
+
+class ElementPathParseError(ElementPathError, ParseError):
     pass
 
 

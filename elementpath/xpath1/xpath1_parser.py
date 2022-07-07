@@ -11,8 +11,9 @@
 XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
+from abc import ABCMeta
 from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
-    Optional, Tuple, Type, Set
+    Optional, Tuple, Type, Set, Sequence
 
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
@@ -140,6 +141,19 @@ class XPath1Parser(Parser[XPathToken]):
                 return '%s:%s' % (pfx, local_name) if pfx else local_name
 
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
+
+    @classmethod
+    def create_restricted_parser(cls, name: str, symbols: Sequence[str]) \
+            -> Type['XPath1Parser']:
+        """Get a parser subclass with a restricted set of symbols.s"""
+        _symbols = frozenset(symbols)
+        symbol_table = {
+            k: v for k, v in cls.symbol_table.items()
+            if k in _symbols
+        }
+        return cast(Type['XPath1Parser'], ABCMeta(
+            f"{name}{cls.__name__}", (cls,), {'symbol_table': symbol_table, 'SYMBOLS': _symbols}
+        ))
 
     @staticmethod
     def unescape(string_literal: str) -> str:

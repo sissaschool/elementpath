@@ -414,10 +414,11 @@ class ElementNode(XPathNode):
     kind = 'element'
     elem: Union[ElementProtocol, SchemaElemType]
     nsmap: Dict[Optional[str], str]
+    elements: Optional[Dict[Union[ElementProtocol, SchemaElemType], 'ElementNode']]
     _namespace_nodes: Optional[List['NamespaceNode']]
     _attributes: Optional[List['AttributeNode']]
 
-    __slots__ = 'nsmap', 'elem', 'xsd_type', \
+    __slots__ = 'nsmap', 'elem', 'xsd_type', 'elements', \
                 '_namespace_nodes', '_attributes', 'children'
 
     def __init__(self,
@@ -431,6 +432,7 @@ class ElementNode(XPathNode):
         self.parent = parent
         self.position = position
         self.xsd_type = xsd_type
+        self.elements = None
         self._namespace_nodes = None
         self._attributes = None
         self.children = []
@@ -629,22 +631,10 @@ class ElementNode(XPathNode):
 
 class SchemaNode(ElementNode):
 
-    __slots__ = 'ref', 'elements'
+    __slots__ = '__dict__'
 
+    ref: Optional['SchemaNode'] = None
     elem: SchemaElemType
-    ref: Optional['SchemaNode']
-    elements: Dict[SchemaElemType, 'SchemaNode']
-
-    def __init__(self,
-                 elem: SchemaElemType,
-                 parent: Optional['SchemaNode'] = None,
-                 position: int = 1,
-                 nsmap: Optional[Dict[Any, str]] = None,
-                 elements: Optional[Dict[SchemaElemType, 'SchemaNode']] = None) -> None:
-
-        super().__init__(elem, parent, position, nsmap)
-        self.ref = None
-        self.elements = {} if elements is None else elements
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         if self.ref is None:
@@ -755,13 +745,15 @@ class DocumentNode(XPathNode):
     type_name: None
 
     kind = 'document'
+    elements: Optional[Dict[Union[ElementProtocol, SchemaElemType], ElementNode]]
 
-    __slots__ = 'document', 'children'
+    __slots__ = 'document', 'elements', 'children'
 
     def __init__(self, document: DocumentProtocol, position: int = 1) -> None:
         self.document = document
         self.parent = None
         self.position = position
+        self.elements = None
         self.children = []
 
     @property

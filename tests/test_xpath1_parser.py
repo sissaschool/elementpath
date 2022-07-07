@@ -200,8 +200,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_source('(1 + 2) * 3', '(1 + 2) * 3')
         self.check_source(' eg:example ', 'eg:example')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
-        self.check_source(".//eg:a | .//eg:b", '. // eg:a | . // eg:b')
-        self.check_source("/A/B[C]", '/ A / B[C]')
+        self.check_source(".//eg:a | .//eg:b", './/eg:a | .//eg:b')
+        self.check_source("/A/B[C]", '/A/B[C]')
 
         if self.parser.version < '3.0':
             try:

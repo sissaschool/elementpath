@@ -143,14 +143,21 @@ class XPathToken(Token[XPathTokenType]):
                 return str(self.value) + self.occurrence
             else:
                 return str(self.value)
+        elif symbol == '/' or symbol == '//':
+            if not self:
+                return symbol
+            elif len(self) == 1:
+                return f'{symbol}{self[0].source}'
+            else:
+                return f'{self[0].source}{symbol}{self[1].source}'
         elif symbol == '(':
             return '()' if not self else '(%s)' % self[0].source
         elif symbol == '[':
             return '%s[%s]' % (self[0].source, self[1].source)
         elif symbol == ',':
             return '%s, %s' % (self[0].source, self[1].source)
-        elif symbol == '$':
-            return '$%s' % self[0].source
+        elif symbol == '$' or symbol == '@':
+            return f'{symbol}{self[0].source}'
         elif symbol == '{':
             return '{%s}%s' % (self[0].value, self[1].value)
         elif symbol == 'if':

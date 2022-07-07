@@ -220,24 +220,6 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.assertEqual(schema_proxy.get_type('{%s}string' % XSD_NAMESPACE),
                          xmlschema.XMLSchema.builtin_types()['string'])
 
-    def test_get_primitive_type_api(self):
-        schema_proxy = XMLSchemaProxy()
-        short_type = schema_proxy.get_type('{%s}short' % XSD_NAMESPACE)
-        decimal_type = schema_proxy.get_type('{%s}decimal' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(short_type), decimal_type)
-
-        ntokens_type = schema_proxy.get_type('{%s}NMTOKENS' % XSD_NAMESPACE)
-        string_type = schema_proxy.get_type('{%s}string' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(ntokens_type), string_type)
-
-        facet_type = schema_proxy.get_type('{%s}facet' % XSD_NAMESPACE)
-        any_type = schema_proxy.get_type('{%s}anyType' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(facet_type), any_type)
-        self.assertEqual(schema_proxy.get_primitive_type(any_type), any_type)
-
-        any_simple_type = schema_proxy.get_type('{%s}anySimpleType' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(any_simple_type), any_simple_type)
-
     def test_xsd_version_api(self):
         self.assertEqual(self.schema_proxy.xsd_version, '1.0')
 

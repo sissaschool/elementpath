@@ -61,16 +61,19 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         -> Union[DocumentNode, ElementNode]:
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
+    elements: Any
     child: ChildNodeType
     children: Iterator[Any]
 
     position = 1
+    elements = {}
 
     def build_element_node() -> ElementNode:
         nonlocal position
 
         node = ElementNode(elem, parent, position, namespaces)
         position += 1
+        elements[elem] = node
 
         # Do not generate namespace and attribute nodes, only reserve positions.
         position += len(node.nsmap) + int('xml' not in node.nsmap) + len(elem.attrib)
@@ -95,6 +98,7 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         parent = None
         root_node = parent = build_element_node()
 
+    root_node.elements = elements
     children = iter(elem)
     iterators: List[Any] = []
     ancestors: List[Any] = []
@@ -131,16 +135,19 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         -> Union[DocumentNode, ElementNode]:
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
+    elements: Any
     child: ChildNodeType
     children: Iterator[Any]
 
     position = 1
+    elements = {}
 
     def build_lxml_element_node() -> ElementNode:
         nonlocal position
 
         node = ElementNode(elem, parent, position, elem.nsmap)
         position += 1
+        elements[elem] = node
 
         # Do not generate namespace and attribute nodes, only reserve positions.
         position += len(elem.nsmap) + int('xml' not in elem.nsmap) + len(elem.attrib)
@@ -161,6 +168,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         root_node = parent = DocumentNode(document, 0)
 
     elem = cast(LxmlElementProtocol, document.getroot())
+    root_node.elements = elements = {}
 
     # Add root siblings (comments and processing instructions)
     for e in reversed([x for x in elem.itersiblings(preceding=True)]):
@@ -182,6 +190,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
     if not root_node.position and len(parent.children) == 1:
         # Remove non-root document if root element has no siblings
+        child.elements = root_node.elements
         root_node = child
         root_node.parent = None
 
@@ -235,7 +244,7 @@ def build_schema_node_tree(root: SchemaElemType,
     def build_schema_element_node() -> SchemaNode:
         nonlocal position
 
-        node = SchemaNode(elem, parent, position, elem.namespaces, elements)
+        node = SchemaNode(elem, parent, position, elem.namespaces)
         position += 1
         elements[elem] = node
 
@@ -249,6 +258,7 @@ def build_schema_node_tree(root: SchemaElemType,
     parent = None
     elements = {}
     root_node = parent = build_schema_element_node()
+    root_node.elements = elements
 
     if global_elements is not None:
         global_elements.append(root_node)
