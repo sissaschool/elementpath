@@ -25,7 +25,7 @@ from .exceptions import ElementPathError, MissingContextError, ElementPathParseE
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
     NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode, \
-    LazyElementNode, SchemaNode
+    LazyElementNode, SchemaElementNode
 from .tree_builders import get_node_tree, build_node_tree, build_lxml_node_tree, \
     build_schema_node_tree
 from .xpath_token import XPathToken, XPathFunction
@@ -42,7 +42,7 @@ __all__ = ['datatypes', 'protocols', 'tdop',
            'XPathContext', 'XPathSchemaContext',
            'XPathNode', 'DocumentNode', 'ElementNode', 'AttributeNode',
            'NamespaceNode', 'CommentNode', 'ProcessingInstructionNode',
-           'TextNode', 'LazyElementNode', 'SchemaNode', 'TypedElement',
+           'TextNode', 'LazyElementNode', 'SchemaElementNode', 'TypedElement',
            'get_node_tree', 'build_node_tree', 'build_lxml_node_tree',
            'build_schema_node_tree', 'XPathToken', 'XPathFunction',
            'XPath1Parser', 'XPath2Parser', 'select', 'iter_select', 'Selector',

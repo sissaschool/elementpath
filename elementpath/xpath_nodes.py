@@ -22,7 +22,7 @@ from .etree import etree_iter_strings
 __all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType',
            'XPathNode', 'AttributeNode', 'NamespaceNode',
            'TextNode', 'CommentNode', 'ProcessingInstructionNode',
-           'ElementNode', 'LazyElementNode', 'SchemaNode', 'DocumentNode']
+           'ElementNode', 'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -629,6 +629,101 @@ class ElementNode(XPathNode):
                     return
 
 
+class DocumentNode(XPathNode):
+    """
+    A class for XPath document nodes.
+    """
+    attributes: None = None
+    children: List[ChildNodeType]
+    is_id: None
+    is_idrefs: None
+    namespace_nodes: None
+    nilled: None
+    name: None
+    parent: None
+    type_name: None
+
+    kind = 'document'
+    elements: Optional[Dict[Union[ElementProtocol, SchemaElemType], ElementNode]]
+
+    __slots__ = 'document', 'elements', 'children'
+
+    def __init__(self, document: DocumentProtocol, position: int = 1) -> None:
+        self.document = document
+        self.parent = None
+        self.position = position
+        self.elements = None
+        self.children = []
+
+    @property
+    def base_uri(self) -> Optional[str]:
+        if not self.children:
+            return None
+        return self.getroot().base_uri
+
+    def getroot(self) -> ElementNode:
+        for child in self.children:
+            if isinstance(child, ElementNode):
+                return child
+        raise RuntimeError("Missing document root")
+
+    def iter(self) -> Iterator[XPathNode]:
+        yield self
+
+        for e in self.children:
+            if isinstance(e, ElementNode):
+                yield from e.iter()
+            else:
+                yield e
+
+    def iter_descendants(self, with_self: bool = True) \
+            -> Iterator[Union['DocumentNode', ChildNodeType]]:
+        if with_self:
+            yield self
+
+        for e in self.children:
+            if isinstance(e, ElementNode):
+                yield from e.iter_descendants()
+            else:
+                yield e
+
+    def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, List[ChildNodeType]]:
+        return self.children[i]
+
+    def __len__(self) -> int:
+        return len(self.children)
+
+    def __iter__(self) -> Iterator[ChildNodeType]:
+        yield from self.children
+
+    @property
+    def value(self) -> DocumentProtocol:
+        return self.document
+
+    @property
+    def string_value(self) -> str:
+        return ''.join(etree_iter_strings(self.document.getroot()))
+
+    @property
+    def typed_value(self) -> UntypedAtomic:
+        return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
+
+    @property
+    def document_uri(self) -> Optional[str]:
+        try:
+            uri = cast(str, self.document.getroot().attrib[XML_BASE])
+            parts = urlparse(uri)
+        except (KeyError, ValueError):
+            pass
+        else:
+            if parts.scheme and parts.netloc or parts.path.startswith('/'):
+                return uri
+        return None
+
+
+###
+# Specialized element nodes
+
 class LazyElementNode(ElementNode):
     """
     A fully lazy element node, slower but better if the node does not
@@ -681,11 +776,15 @@ class LazyElementNode(ElementNode):
                 yield child
 
 
-class SchemaNode(ElementNode):
-
+class SchemaElementNode(ElementNode):
+    """
+    An element node class for wrapping the XSD schema and its elements.
+    The resulting structure can be a tree or a set of disjoint trees.
+    With more roots only one of them is the schema node.
+    """
     __slots__ = '__dict__'
 
-    ref: Optional['SchemaNode'] = None
+    ref: Optional['SchemaElementNode'] = None
     elem: SchemaElemType
 
     def __iter__(self) -> Iterator[ChildNodeType]:
@@ -780,95 +879,3 @@ class SchemaNode(ElementNode):
                     children = iterators.pop()
                 except IndexError:
                     return
-
-
-class DocumentNode(XPathNode):
-    """
-    A class for XPath document nodes.
-    """
-    attributes: None = None
-    children: List[ChildNodeType]
-    is_id: None
-    is_idrefs: None
-    namespace_nodes: None
-    nilled: None
-    name: None
-    parent: None
-    type_name: None
-
-    kind = 'document'
-    elements: Optional[Dict[Union[ElementProtocol, SchemaElemType], ElementNode]]
-
-    __slots__ = 'document', 'elements', 'children'
-
-    def __init__(self, document: DocumentProtocol, position: int = 1) -> None:
-        self.document = document
-        self.parent = None
-        self.position = position
-        self.elements = None
-        self.children = []
-
-    @property
-    def base_uri(self) -> Optional[str]:
-        if not self.children:
-            return None
-        return self.getroot().base_uri
-
-    def getroot(self) -> ElementNode:
-        for child in self.children:
-            if isinstance(child, ElementNode):
-                return child
-        raise RuntimeError("Missing document root")
-
-    def iter(self) -> Iterator[XPathNode]:
-        yield self
-
-        for e in self.children:
-            if isinstance(e, ElementNode):
-                yield from e.iter()
-            else:
-                yield e
-
-    def iter_descendants(self, with_self: bool = True) \
-            -> Iterator[Union['DocumentNode', ChildNodeType]]:
-        if with_self:
-            yield self
-
-        for e in self.children:
-            if isinstance(e, ElementNode):
-                yield from e.iter_descendants()
-            else:
-                yield e
-
-    def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, List[ChildNodeType]]:
-        return self.children[i]
-
-    def __len__(self) -> int:
-        return len(self.children)
-
-    def __iter__(self) -> Iterator[ChildNodeType]:
-        yield from self.children
-
-    @property
-    def value(self) -> DocumentProtocol:
-        return self.document
-
-    @property
-    def string_value(self) -> str:
-        return ''.join(etree_iter_strings(self.document.getroot()))
-
-    @property
-    def typed_value(self) -> UntypedAtomic:
-        return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
-
-    @property
-    def document_uri(self) -> Optional[str]:
-        try:
-            uri = cast(str, self.document.getroot().attrib[XML_BASE])
-            parts = urlparse(uri)
-        except (KeyError, ValueError):
-            pass
-        else:
-            if parts.scheme and parts.netloc or parts.path.startswith('/'):
-                return uri
-        return None

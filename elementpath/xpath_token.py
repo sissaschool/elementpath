@@ -37,7 +37,7 @@ from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    DocumentNode, NamespaceNode, SchemaNode
+    DocumentNode, NamespaceNode, SchemaElementNode
 from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, \
@@ -720,7 +720,7 @@ class XPathToken(Token[XPathTokenType]):
 
                 yield xsd_node
 
-            elif isinstance(xsd_node, SchemaNode):
+            elif isinstance(xsd_node, SchemaElementNode):
                 if name == XSD_SCHEMA == xsd_node.elem.tag:
                     # The element is a schema
                     yield xsd_node

@@ -14,7 +14,7 @@ from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
 from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, TextNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, SchemaNode, DocumentNode
+    CommentNode, ProcessingInstructionNode, ElementNode, SchemaElementNode, DocumentNode
 
 __all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
 
@@ -232,19 +232,20 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
 
 def build_schema_node_tree(root: SchemaElemType,
-                           global_elements: Optional[List[ChildNodeType]] = None) -> SchemaNode:
+                           elements: Optional[Dict[SchemaElemType, 'ElementNode']] = None,
+                           global_elements: Optional[List[ChildNodeType]] = None) -> SchemaElementNode:
     parent: Any
     elem: Any
-    elements: Any
-    child: SchemaNode
+    child: SchemaElementNode
     children: Iterator[Any]
 
     position = 1
+    elements = {} if elements is None else elements
 
-    def build_schema_element_node() -> SchemaNode:
+    def build_schema_element_node() -> SchemaElementNode:
         nonlocal position
 
-        node = SchemaNode(elem, parent, position, elem.namespaces)
+        node = SchemaElementNode(elem, parent, position, elem.namespaces)
         position += 1
         elements[elem] = node
 
@@ -256,7 +257,6 @@ def build_schema_node_tree(root: SchemaElemType,
     children = iter(root)
     elem = root
     parent = None
-    elements = {}
     root_node = parent = build_schema_element_node()
     root_node.elements = elements
 
@@ -269,7 +269,7 @@ def build_schema_node_tree(root: SchemaElemType,
         global_elements = []
 
     local_nodes = {root: root_node}  # Irrelevant even if it's the schema
-    ref_nodes: List[SchemaNode] = []
+    ref_nodes: List[SchemaElementNode] = []
     iterators: List[Any] = []
     ancestors: List[Any] = []
 
@@ -310,6 +310,8 @@ def build_schema_node_tree(root: SchemaElemType,
                             break
                     else:
                         # Extend node tree with other globals
-                        element_node.ref = build_schema_node_tree(ref, global_elements)
+                        element_node.ref = build_schema_node_tree(
+                            ref, elements, global_elements
+                        )
 
                 return root_node
