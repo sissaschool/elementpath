@@ -1387,7 +1387,7 @@ def select_id_function(self, context=None):
         return None
 
     # TODO: PSVI bindings with also xsi:type evaluation
-    for element in filter(lambda x: isinstance(x, ElementNode), root.iter()):
+    for element in filter(lambda x: isinstance(x, ElementNode), root.iter_descendants()):
         if element.elem.text in idrefs:
             if self.parser.schema is not None:
                 xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
@@ -1444,7 +1444,7 @@ def select_idref_function(self, context=None):
     elif not isinstance(node, (ElementNode, DocumentNode)):
         return
 
-    for element in filter(lambda x: isinstance(x, ElementNode), node.iter()):
+    for element in filter(lambda x: isinstance(x, ElementNode), node.iter_descendants()):
         text = element.elem.text
         if text and is_idrefs(text) and any(v in text.split() for x in ids for v in x.split()):
             yield element

@@ -129,7 +129,7 @@ def select_id_function(self, context=None):
             item = context.root
 
         if isinstance(item, (ElementNode, DocumentNode)):
-            for element in item.iter():
+            for element in item.iter_descendants():
                 if isinstance(element, ElementNode) and element.elem.get(XML_ID) == value:
                     yield element
 
