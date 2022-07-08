@@ -22,7 +22,7 @@ from .etree import etree_iter_strings
 __all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType',
            'XPathNode', 'AttributeNode', 'NamespaceNode',
            'TextNode', 'CommentNode', 'ProcessingInstructionNode',
-           'ElementNode', 'SchemaNode', 'DocumentNode']
+           'ElementNode', 'LazyElementNode', 'SchemaNode', 'DocumentNode']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -627,6 +627,58 @@ class ElementNode(XPathNode):
                     children = iterators.pop()
                 except IndexError:
                     return
+
+
+class LazyElementNode(ElementNode):
+    """
+    A fully lazy element node, slower but better if the node does not
+    to be used in a document context. The node extends descendants but
+    does not record positions and a map of elements.
+    """
+    __slots__ = ()
+
+    def __iter__(self) -> Iterator[ChildNodeType]:
+        if not self.children:
+            if self.elem.text is not None:
+                self.children.append(TextNode(self.elem.text, self))
+            if len(self.elem):
+                for elem in self.elem:
+                    if not callable(elem.tag):
+                        nsmap = cast(Dict[Any, str], getattr(elem, 'nsmap', self.nsmap))
+                        self.children.append(LazyElementNode(elem, self, nsmap=nsmap))
+                    elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                        self.children.append(CommentNode(elem, self))
+                    else:
+                        self.children.append(ProcessingInstructionNode(elem, self))
+
+                    if elem.tail is not None:
+                        self.children.append(TextNode(elem.tail, self))
+
+        yield from self.children
+
+    def iter(self) -> Iterator[XPathNode]:
+        yield self
+
+        if self._namespace_nodes:
+            yield from self._namespace_nodes
+        if self._attributes:
+            yield from self._attributes
+
+        for child in self:
+            if isinstance(child, ElementNode):
+                yield from child.iter()
+            else:
+                yield child
+
+    def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
+        if with_self:
+            yield self
+
+        for child in self:
+            if isinstance(child, ElementNode):
+                yield from child.iter_descendants()
+            else:
+                yield child
 
 
 class SchemaNode(ElementNode):

@@ -221,15 +221,15 @@ class XPathContext:
                         return doc
 
         elif is_etree_element(item):
-            for node in self.root.iter():
-                if item is node.value:
-                    return node
+            try:
+                return self.root.elements[item]  # type: ignore[index]
+            except (TypeError, KeyError):
+                pass
 
             if self.documents:
                 for doc in self.documents.values():
-                    for node in doc.iter():
-                        if item is node.value:
-                            return node
+                    if doc.elements is not None and item in doc.elements:
+                        return doc.elements[item]  # type: ignore[index]
 
             if callable(item.tag):  # type: ignore[union-attr]
                 if item.tag.__name__ == 'Comment':  # type: ignore[union-attr]
