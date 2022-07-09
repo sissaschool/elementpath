@@ -19,10 +19,10 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
 from .helpers import match_wildcard
 from .etree import etree_iter_strings
 
-__all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType',
-           'XPathNode', 'AttributeNode', 'NamespaceNode',
-           'TextNode', 'CommentNode', 'ProcessingInstructionNode',
-           'ElementNode', 'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
+__all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType', 'ElementMapType',
+           'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode',
+           'CommentNode', 'ProcessingInstructionNode', 'ElementNode',
+           'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -30,6 +30,7 @@ SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
 RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
                     'DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
+ElementMapType = Dict[Union[ElementProtocol, SchemaElemType], 'ElementNode']
 
 
 ###
@@ -42,6 +43,7 @@ ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstr
 #  element, attribute, text, namespace, processing-instruction, comment, document
 ###
 class XPathNode:
+    """The base class of all XPath nodes. Used only for type checking."""
 
     # Accessors, empty sequences are represented with None values.
     kind: str = ''
@@ -116,7 +118,9 @@ class AttributeNode(XPathNode):
 
     :param name: the attribute name.
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
-    :param parent: the parent element.
+    :param parent: the parent element node.
+    :param position: the position of the node in the document.
+    :param xsd_type: an optional XSD type associated with the attribute node.
     """
     attributes: None
     children: None = None
@@ -201,7 +205,8 @@ class NamespaceNode(XPathNode):
 
     :param prefix: the namespace prefix.
     :param uri: the namespace URI.
-    :param parent: the parent element.
+    :param parent: the parent element node.
+    :param position: the position of the node in the document.
     """
     attributes: None
     children: None = None
@@ -256,7 +261,8 @@ class TextNode(XPathNode):
     (elem.text or elem.tail) with a `None` value is not a text node.
 
     :param value: a string value.
-    :param parent: the parent element.
+    :param parent: the parent element node.
+    :param position: the position of the node in the document.
     """
     attributes: None
     children: None = None
@@ -303,6 +309,10 @@ class TextNode(XPathNode):
 class CommentNode(XPathNode):
     """
     A class for processing XPath comment nodes.
+
+    :param elem: the wrapped Comment Element.
+    :param parent: the parent element node.
+    :param position: the position of the node in the document.
     """
     attributes: None
     children:  None = None
@@ -351,6 +361,10 @@ class CommentNode(XPathNode):
 class ProcessingInstructionNode(XPathNode):
     """
     A class for XPath processing instructions nodes.
+
+    :param elem: the wrapped Processing Instruction Element.
+    :param parent: the parent element node.
+    :param position: the position of the node in the document.
     """
     attributes: None
     children:  None = None
@@ -407,6 +421,12 @@ class ElementNode(XPathNode):
     """
     A class for processing XPath element nodes that uses lazy properties to
     diminish the average load for a tree processing.
+
+    :param elem: the wrapped Element or XSD schema/element.
+    :param parent: the parent document node or element node.
+    :param position: the position of the node in the document.
+    :param nsmap: an optional mapping from prefix to namespace URI.
+    :param xsd_type: an optional XSD type associated with the element node.
     """
     children: List[ChildNodeType]
     document_uri: None
@@ -414,7 +434,7 @@ class ElementNode(XPathNode):
     kind = 'element'
     elem: Union[ElementProtocol, SchemaElemType]
     nsmap: Dict[Optional[str], str]
-    elements: Optional[Dict[Union[ElementProtocol, SchemaElemType], 'ElementNode']]
+    elements: Optional[ElementMapType]
     _namespace_nodes: Optional[List['NamespaceNode']]
     _attributes: Optional[List['AttributeNode']]
 
@@ -632,6 +652,10 @@ class ElementNode(XPathNode):
 class DocumentNode(XPathNode):
     """
     A class for XPath document nodes.
+
+    :param document: the wrapped ElementTree instance.
+    :param position: the position of the node in the document, usually 1, \
+    or 0 for lxml standalone root elements with siblings.
     """
     attributes: None = None
     children: List[ChildNodeType]

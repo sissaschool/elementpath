@@ -13,8 +13,9 @@ from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, TextNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, SchemaElementNode, DocumentNode
+from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, \
+    ElementMapType, TextNode, CommentNode, ProcessingInstructionNode, \
+    ElementNode, SchemaElementNode, DocumentNode
 
 __all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
 
@@ -59,6 +60,12 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
 def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
                     namespaces: Optional[Dict[str, str]] = None) \
         -> Union[DocumentNode, ElementNode]:
+    """
+    Returns a tree of XPath nodes that wrap the provided root tree.
+
+    :param root: an Element or an ElementTree.
+    :param namespaces: an optional mapping from prefixes to namespace URIs.
+    """
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
     elements: Any
@@ -133,6 +140,11 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
 
 def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         -> Union[DocumentNode, ElementNode]:
+    """
+    Returns a tree of XPath nodes that wrap the provided lxml root tree.
+
+    :param root: a lxml Element or a lxml ElementTree.
+    """
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
     elements: Any
@@ -232,22 +244,32 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
 
 def build_schema_node_tree(root: SchemaElemType,
-                           elements: Optional[Dict[SchemaElemType, 'ElementNode']] = None,
-                           global_elements: Optional[List[ChildNodeType]] = None) -> SchemaElementNode:
+                           elements: Optional[ElementMapType] = None,
+                           global_elements: Optional[List[ChildNodeType]] = None) \
+        -> SchemaElementNode:
+    """
+    Returns a tree of XPath nodes that wrap the provided XSD schema structure.
+
+    :param root: a schema or a schema element.
+    :param elements: a shared map from XSD elements to tree nodes. Provided for \
+    linking together parts of the same schema or other schemas.
+    :param global_elements: a list for schema global elements, used for linking \
+    the elements declared by reference.
+    """
     parent: Any
     elem: Any
     child: SchemaElementNode
     children: Iterator[Any]
 
     position = 1
-    elements = {} if elements is None else elements
+    _elements = {} if elements is None else elements
 
     def build_schema_element_node() -> SchemaElementNode:
         nonlocal position
 
         node = SchemaElementNode(elem, parent, position, elem.namespaces)
         position += 1
-        elements[elem] = node
+        _elements[elem] = node
 
         # Do not generate namespace and attribute nodes, only reserve positions.
         position += len(elem.namespaces) + int('xml' not in elem.namespaces) + len(elem.attrib)
@@ -258,7 +280,7 @@ def build_schema_node_tree(root: SchemaElemType,
     elem = root
     parent = None
     root_node = parent = build_schema_element_node()
-    root_node.elements = elements
+    root_node.elements = _elements
 
     if global_elements is not None:
         global_elements.append(root_node)
@@ -311,7 +333,7 @@ def build_schema_node_tree(root: SchemaElemType,
                     else:
                         # Extend node tree with other globals
                         element_node.ref = build_schema_node_tree(
-                            ref, elements, global_elements
+                            ref, _elements, global_elements
                         )
 
                 return root_node

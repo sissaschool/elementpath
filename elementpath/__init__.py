@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '3.0.0b3'
+__version__ = '3.0.0rc1'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2022, SISSA"
@@ -16,11 +16,12 @@ __status__ = "Production/Stable"
 
 
 from . import datatypes
-from . import protocols  # only for type annotations
-from . import tdop
+from . import protocols  # for exporting type annotations
 
-# Expose only exceptions that are not derived from builtins or from other libraries
-from .exceptions import ElementPathError, MissingContextError, ElementPathParseError
+from .exceptions import ElementPathError, MissingContextError, ElementPathKeyError, \
+    ElementPathZeroDivisionError, ElementPathNameError, ElementPathOverflowError, \
+    ElementPathRuntimeError, ElementPathSyntaxError, ElementPathTypeError, \
+    ElementPathValueError, ElementPathLocaleError
 
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
@@ -37,13 +38,14 @@ from .regex import RegexError, translate_pattern
 
 TypedElement = ElementNode  # for backward compatibility with xmlschema<=1.10.0
 
-__all__ = ['datatypes', 'protocols', 'tdop',
-           'ElementPathError', 'MissingContextError', 'ElementPathParseError',
-           'XPathContext', 'XPathSchemaContext',
-           'XPathNode', 'DocumentNode', 'ElementNode', 'AttributeNode',
-           'NamespaceNode', 'CommentNode', 'ProcessingInstructionNode',
-           'TextNode', 'LazyElementNode', 'SchemaElementNode', 'TypedElement',
-           'get_node_tree', 'build_node_tree', 'build_lxml_node_tree',
-           'build_schema_node_tree', 'XPathToken', 'XPathFunction',
-           'XPath1Parser', 'XPath2Parser', 'select', 'iter_select', 'Selector',
-           'AbstractSchemaProxy', 'RegexError', 'translate_pattern']
+__all__ = ['datatypes', 'protocols', 'ElementPathError', 'MissingContextError',
+           'ElementPathKeyError', 'ElementPathZeroDivisionError', 'ElementPathNameError',
+           'ElementPathOverflowError', 'ElementPathRuntimeError', 'ElementPathSyntaxError',
+           'ElementPathTypeError', 'ElementPathValueError', 'ElementPathLocaleError',
+           'XPathContext', 'XPathSchemaContext', 'XPathNode', 'DocumentNode',
+           'ElementNode', 'AttributeNode', 'NamespaceNode', 'CommentNode',
+           'ProcessingInstructionNode', 'TextNode', 'LazyElementNode',
+           'SchemaElementNode', 'TypedElement', 'get_node_tree', 'build_node_tree',
+           'build_lxml_node_tree', 'build_schema_node_tree', 'XPathToken',
+           'XPathFunction', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select',
+           'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern']

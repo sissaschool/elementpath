@@ -24,7 +24,7 @@ from xml.etree import ElementTree
 try:
     import xmlschema
 except ImportError:
-        xmlschema = None
+    xmlschema = None
 
 from elementpath.helpers import MONTH_DAYS, MONTH_DAYS_LEAP
 from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, \
