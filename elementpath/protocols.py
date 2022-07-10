@@ -161,12 +161,12 @@ else:
 
     @runtime_checkable
     class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
-        type: XsdTypeProtocol
+        type: Optional[XsdTypeProtocol]
         ref: Optional['XsdAttributeProtocol']
 
     @runtime_checkable
     class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
-        type: XsdTypeProtocol
+        type: Optional[XsdTypeProtocol]
         ref: Optional['XsdElementProtocol']
         attrib: Dict[str, XsdAttributeProtocol]
         text: None

@@ -124,8 +124,11 @@ ATOMIC_VALUES: Dict[Optional[str], AtomicValueType] = {
 }
 
 
-def get_atomic_value(xsd_type: XsdTypeProtocol) -> AtomicValueType:
+def get_atomic_value(xsd_type: Optional[XsdTypeProtocol]) -> AtomicValueType:
     """Gets an atomic value for an XSD type instance. Used for schema contexts."""
+    if xsd_type is None:
+        return UntypedAtomic('1')
+
     try:
         return ATOMIC_VALUES[xsd_type.name]
     except KeyError:
