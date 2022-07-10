@@ -596,7 +596,20 @@ class ElementNode(XPathNode):
             return self.elem.tag == '{%s}%s' % (default_namespace, name)
         return self.elem.tag == name
 
+    def get_element_node(self, elem: Union[ElementProtocol, SchemaElemType]) \
+            -> Optional['ElementNode']:
+        if self.elements is not None:
+            return self.elements.get(elem)
+
+        # Fallback if there is not the map of elements but do not expand lazy elements
+        for node in self.iter():
+            if isinstance(node, ElementNode) and elem is node.elem:
+                return node
+        else:
+            return None
+
     def iter(self) -> Iterator[XPathNode]:
+        # Iterate the tree not including the not built lazy components.
         yield self
 
         iterators: List[Any] = []
@@ -626,6 +639,19 @@ class ElementNode(XPathNode):
                     children = iterators.pop()
                 except IndexError:
                     return
+
+    def iter_document(self) -> Iterator[XPathNode]:
+        # Iterate the tree but building lazy components.
+        # Rarely used, don't need optimization.
+        yield self
+        yield from self.namespace_nodes
+        yield from self.attributes
+
+        for child in self:
+            if isinstance(child, ElementNode):
+                yield from child.iter()
+            else:
+                yield child
 
     def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
         if with_self:
@@ -668,7 +694,7 @@ class DocumentNode(XPathNode):
     type_name: None
 
     kind = 'document'
-    elements: Optional[Dict[Union[ElementProtocol, SchemaElemType], ElementNode]]
+    elements: Dict[ElementProtocol, ElementNode]
 
     __slots__ = 'document', 'elements', 'children'
 
@@ -676,7 +702,7 @@ class DocumentNode(XPathNode):
         self.document = document
         self.parent = None
         self.position = position
-        self.elements = None
+        self.elements = {}
         self.children = []
 
     @property
@@ -691,12 +717,24 @@ class DocumentNode(XPathNode):
                 return child
         raise RuntimeError("Missing document root")
 
+    def get_element_node(self, elem: ElementProtocol) -> Optional[ElementNode]:
+        return self.elements.get(elem)
+
     def iter(self) -> Iterator[XPathNode]:
         yield self
 
         for e in self.children:
             if isinstance(e, ElementNode):
                 yield from e.iter()
+            else:
+                yield e
+
+    def iter_document(self) -> Iterator[XPathNode]:
+        yield self
+
+        for e in self.children:
+            if isinstance(e, ElementNode):
+                yield from e.iter_document()
             else:
                 yield e
 
@@ -774,20 +812,6 @@ class LazyElementNode(ElementNode):
                         self.children.append(TextNode(elem.tail, self))
 
         yield from self.children
-
-    def iter(self) -> Iterator[XPathNode]:
-        yield self
-
-        if self._namespace_nodes:
-            yield from self._namespace_nodes
-        if self._attributes:
-            yield from self._attributes
-
-        for child in self:
-            if isinstance(child, ElementNode):
-                yield from child.iter()
-            else:
-                yield child
 
     def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
         if with_self:

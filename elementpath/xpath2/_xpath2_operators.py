@@ -610,7 +610,7 @@ def evaluate_node_comparison(self, context=None):
         documents.extend(v for v in context.variables.values() if isinstance(v, DocumentNode))
 
         for root in documents:
-            for item in root.iter():  # pragma: no cover
+            for item in root.iter_document():  # pragma: no cover
                 if left[0] is item:
                     return True if symbol == '<<' else False
                 elif right[0] is item:

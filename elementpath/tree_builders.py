@@ -73,7 +73,6 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
     children: Iterator[Any]
 
     position = 1
-    elements = {}
 
     def build_element_node() -> ElementNode:
         nonlocal position
@@ -95,6 +94,7 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         document = cast(DocumentProtocol, root)
         root_node = parent = DocumentNode(document, position)
         position += 1
+        elements = root_node.elements
 
         elem = document.getroot()
         child = build_element_node()
@@ -103,9 +103,10 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
     else:
         elem = cast(ElementProtocol, root)
         parent = None
+        elements = {}
         root_node = parent = build_element_node()
+        root_node.elements = elements
 
-    root_node.elements = elements
     children = iter(elem)
     iterators: List[Any] = []
     ancestors: List[Any] = []
@@ -152,7 +153,6 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
     children: Iterator[Any]
 
     position = 1
-    elements = {}
 
     def build_lxml_element_node() -> ElementNode:
         nonlocal position
@@ -180,7 +180,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         root_node = parent = DocumentNode(document, 0)
 
     elem = cast(LxmlElementProtocol, document.getroot())
-    root_node.elements = elements = {}
+    elements = root_node.elements
 
     # Add root siblings (comments and processing instructions)
     for e in reversed([x for x in elem.itersiblings(preceding=True)]):
