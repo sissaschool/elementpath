@@ -13,7 +13,7 @@ import operator
 import re
 import datetime
 from calendar import isleap
-from decimal import Decimal
+from decimal import Decimal, Context
 from typing import cast, Any, Callable, Dict, Optional, Tuple, Union
 
 from ..helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
@@ -754,7 +754,7 @@ class Duration(AnyAtomicType):
             raise OverflowError("seconds duration overflow")
 
         self.months = months
-        self.seconds = Decimal(seconds).quantize(Decimal('1.000000'))
+        self.seconds = Decimal(seconds).quantize(Decimal('1.000000', context=Context(prec=30)))
 
     def __repr__(self) -> str:
         return '{}(months={!r}, seconds={})'.format(
