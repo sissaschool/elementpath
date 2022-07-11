@@ -1103,9 +1103,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
         try:
             root = self.etree.XML('<root/>')
-            self.wrong_value("data(/root)", 'FOTY0012', 'node does not have a typed value',
+            self.wrong_value("data(/root)", 'FOTY0012',
+                             'argument node', 'does not have a typed value',
                              context=XPathContext(root))
-            self.wrong_value("data(.)", 'FOTY0012', 'node does not have a typed value',
+            self.wrong_value("data(.)", 'FOTY0012',
+                             'argument node', 'does not have a typed value',
                              context=XPathContext(root))
         finally:
             self.parser.schema = None

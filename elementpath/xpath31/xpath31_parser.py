@@ -36,6 +36,9 @@ class XPath31Parser(XPath30Parser):
 
         # Functions on JSON Data
         'parse-json', 'json-doc', 'json-to-xml', 'xml-to-json',
+
+        # Arrow operator
+        '=>',
     }
     """
 

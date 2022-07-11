@@ -120,6 +120,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse("10 || '/' || 6")
         self.assertEqual(token.evaluate(), "10/6")
 
+        self.check_tree('"true" || "false"', "(|| ('true') ('false'))")
+        self.check_tree('"true"||"false"', "(|| ('true') ('false'))")
+
     def test_pi_math_function(self):
         token = self.parser.parse('math:pi()')
         self.assertEqual(token.evaluate(), math.pi)

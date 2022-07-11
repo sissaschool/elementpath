@@ -257,12 +257,7 @@ def evaluate_nilled_function(self, context=None):
 
 @method(function('data', nargs=1, sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self, context=None):
-    for item in self[0].select(context):
-        value = self.data_value(item)
-        if value is None:
-            raise self.error('FOTY0012', "argument node does not have a typed value")
-        else:
-            yield value
+    yield from self[0].atomization(context)
 
 
 @method(function('base-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI?')))
@@ -368,7 +363,7 @@ def evaluate_abs_function(self, context=None):
 @method(function('avg', nargs=1, sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType')))
 def evaluate_avg_function(self, context=None):
     values = []
-    for item in self[0].select_data_values(context):
+    for item in self[0].atomization(context):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item.value))
         elif isinstance(item, (AnyURI, bool)):
@@ -431,7 +426,7 @@ def evaluate_max_min_functions(self, context=None):
     to_any_uri = None
     aggregate_func = max if self.symbol == 'max' else min
 
-    for item in self[0].select_data_values(context):
+    for item in self[0].atomization(context):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item))
             float_class = float
@@ -497,10 +492,7 @@ def select_distinct_values_function(self, context=None):
     def distinct_values():
         nan = False
         results = []
-        for item in self[0].select(context):
-            value = self.data_value(item)
-            if context is not None:
-                context.item = value
+        for value in self[0].atomization(context):
             if isinstance(value, (float, Decimal)):
                 if math.isnan(value):
                     if not nan:
@@ -547,13 +539,13 @@ def select_index_of_function(self, context=None):
         raise self.error('XPTY0004', "2nd argument cannot be an empty sequence")
 
     if len(self) < 3:
-        for pos, result in enumerate(self[0].select(context), start=1):
-            if self.data_value(result) == value:
+        for pos, result in enumerate(self[0].atomization(context), start=1):
+            if result == value:
                 yield pos
     else:
         with self.use_locale(collation=self.get_argument(context, 2)):
-            for pos, result in enumerate(self[0].select(context), start=1):
-                if self.data_value(result) == value:
+            for pos, result in enumerate(self[0].atomization(context), start=1):
+                if result == value:
                     yield pos
 
 
@@ -955,7 +947,7 @@ def evaluate_codepoint_equal_function(self, context=None):
 def evaluate_string_join_function(self, context=None):
     items = [
         self.validated_value(s, cls=str, promote=AnyURI)
-        for s in self[0].select(context)
+        for s in self[0].atomization(context)
     ]
     return self.get_argument(context, 1, required=True, cls=str).join(items)
 

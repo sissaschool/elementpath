@@ -1530,16 +1530,16 @@ XPath30Parser.unregister('round')
 @method(function('data', nargs=(0, 1), sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self, context=None):
     if not self:
-        items = [self.get_argument(context, default_to_context=True)]
-    else:
-        items = self[0].select(context)
-
-    for item in items:
+        item = self.get_argument(context, default_to_context=True)
         value = self.data_value(item)
         if value is None:
             raise self.error('FOTY0012', "argument node does not have a typed value")
+        elif isinstance(value, list):
+            yield from value
         else:
             yield value
+    else:
+        yield from self[0].atomization(context)
 
 
 @method(function('document-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI?')))
@@ -1598,7 +1598,7 @@ def evaluate_node_name_function(self, context=None):
 def evaluate_string_join_function(self, context=None):
     items = [
         self.validated_value(s, cls=str, promote=AnyURI)
-        for s in self[0].select(context)
+        for s in self[0].atomization(context)
     ]
 
     if len(self) == 1:

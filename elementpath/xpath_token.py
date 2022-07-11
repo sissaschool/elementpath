@@ -306,16 +306,6 @@ class XPathToken(Token[XPathTokenType]):
         message = "item type is {!r} instead of {!r}"
         raise self.error(code, message.format(type(item), cls))
 
-    def select_data_values(self, context: Optional[XPathContext] = None) \
-            -> Iterator[Optional[AtomicValueType]]:
-        """
-        Yields data value of selected items.
-
-        :param context: the XPath dynamic context.
-        """
-        for item in self.select(context):
-            yield self.data_value(item)
-
     def atomization(self, context: Optional[XPathContext] = None) \
             -> Iterator[AtomicValueType]:
         """
@@ -330,6 +320,8 @@ class XPathToken(Token[XPathTokenType]):
             if value is None:
                 msg = "argument node {!r} does not have a typed value"
                 raise self.error('FOTY0012', msg.format(item))
+            elif isinstance(value, list):
+                yield from value
             else:
                 yield value
 
@@ -385,36 +377,37 @@ class XPathToken(Token[XPathTokenType]):
 
         :param context: the XPath dynamic context.
         """
-        if self.parser.compatibility_mode:
-            operand1 = [x for x in self._items[0].select(copy(context))]
-            operand2 = [x for x in self._items[1].select(copy(context))]
+        left_values: Any
+        right_values: Any
 
+        if self.parser.compatibility_mode:
+            left_values = [x for x in self._items[0].atomization(copy(context))]
+            right_values = [x for x in self._items[1].atomization(copy(context))]
             # Boolean comparison if one of the results is a single boolean value (1.)
             try:
-                if isinstance(operand1[0], bool):
-                    if len(operand1) == 1:
-                        yield operand1[0], self.boolean_value(operand2)
+                if isinstance(left_values[0], bool):
+                    if len(left_values) == 1:
+                        yield left_values[0], self.boolean_value(right_values)
                         return
-                if isinstance(operand2[0], bool):
-                    if len(operand2) == 1:
-                        yield self.boolean_value(operand1), operand2[0]
+                if isinstance(right_values[0], bool):
+                    if len(right_values) == 1:
+                        yield self.boolean_value(left_values), right_values[0]
                         return
             except IndexError:
                 return
 
             # Converts to float for lesser-greater operators (3.)
             if self.symbol in ('<', '<=', '>', '>='):
-                yield from product(
-                    map(float, map(self.data_value, operand1)),  # type: ignore[arg-type]
-                    map(float, map(self.data_value, operand2)),  # type: ignore[arg-type]
-                )
+                yield from product(map(float, left_values), map(float, right_values))
                 return
             elif self.parser.version == '1.0':
-                yield from product(map(self.data_value, operand1), map(self.data_value, operand2))
+                yield from product(left_values, right_values)
                 return
+        else:
+            left_values = self._items[0].atomization(copy(context))
+            right_values = self._items[1].atomization(copy(context))
 
-        for values in product(map(self.data_value, self._items[0].select(copy(context))),
-                              map(self.data_value, self._items[1].select(copy(context)))):
+        for values in product(left_values, right_values):
             if any(isinstance(x, bool) for x in values):
                 if any(isinstance(x, (str, Integer)) for x in values):
                     msg = "cannot compare {!r} and {!r}"
