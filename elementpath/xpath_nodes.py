@@ -516,12 +516,10 @@ class ElementNode(XPathNode):
 
     @property
     def typed_value(self) -> Optional[AtomicValueType]:
-        if self.xsd_type is None:
+        if self.xsd_type is None or \
+                self.xsd_type.name in _XSD_SPECIAL_TYPES or \
+                self.xsd_type.has_mixed_content():
             return UntypedAtomic(''.join(etree_iter_strings(self.elem)))
-        elif self.xsd_type.name in _XSD_SPECIAL_TYPES:
-            return UntypedAtomic(self.elem.text or '')
-        elif self.xsd_type.has_mixed_content():
-            return UntypedAtomic(self.elem.text or '')
         elif self.xsd_type.is_element_only():
             return None
         elif self.xsd_type.is_empty():

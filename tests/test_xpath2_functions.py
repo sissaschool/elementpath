@@ -480,6 +480,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.wrong_value('fn:matches("abracadabra", "a{1,99999999999999999999999999}")',
                          'FORX0002')
 
+        self.check_value('fn:matches("1", "\\S")', True)
+        self.check_value('fn:matches(" ", "\\S")', False)
+        self.check_value('fn:matches("", "\\S")', False)
+        self.check_value('fn:matches("\t", "\\S")', False)
+        self.check_value('fn:matches(" foo bar", "\\S")', True)
+
         if platform.python_implementation() != 'PyPy' or self.etree is not lxml_etree:
             poem_context = XPathContext(root=self.etree.XML(XML_POEM_TEST))
             self.check_value('fn:matches(., "Kaum.*krähen")', False, context=poem_context)
