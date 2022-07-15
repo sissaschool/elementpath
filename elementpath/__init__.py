@@ -14,9 +14,11 @@ __copyright__ = "Copyright 2018-2022, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
+# Imports here are considered as stable API, other internal calls may change.
 
-from . import datatypes
-from . import protocols  # for exporting type annotations
+from . import datatypes  # XSD datatypes
+from . import etree      # Safe parser and helper functions for ElementTree
+from . import protocols  # Protocols for type annotations
 
 from .exceptions import ElementPathError, MissingContextError, ElementPathKeyError, \
     ElementPathZeroDivisionError, ElementPathNameError, ElementPathOverflowError, \
@@ -38,7 +40,7 @@ from .regex import RegexError, translate_pattern
 
 TypedElement = ElementNode  # for backward compatibility with xmlschema<=1.10.0
 
-__all__ = ['datatypes', 'protocols', 'ElementPathError', 'MissingContextError',
+__all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContextError',
            'ElementPathKeyError', 'ElementPathZeroDivisionError', 'ElementPathNameError',
            'ElementPathOverflowError', 'ElementPathRuntimeError', 'ElementPathSyntaxError',
            'ElementPathTypeError', 'ElementPathValueError', 'ElementPathLocaleError',

@@ -8,58 +8,38 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-A unified setup module for ElementTree with a safe parser and helper functions.
+A unified loader module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
 import io
 from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
     Tuple, Union
-
 from .protocols import ElementProtocol, DocumentProtocol
 
-_REGEX_NS_PREFIX = re.compile(r'ns\d+$')
-
 ###
-# Programmatic import of xml.etree.ElementTree
+# Programmatic import of the pure Python ElementTree module.
 #
-# In Python 3 the pure python implementation is overwritten by the C module API,
+# In Python 3 the pure Python implementation is overwritten by the C module API,
 # so use a programmatic re-import to obtain the pure Python module, necessary for
 # defining a safer XMLParser.
-#
-if '_elementtree' in sys.modules:
-    if 'xml.etree.ElementTree' not in sys.modules:
-        raise RuntimeError("Inconsistent status for ElementTree module: module "
-                           "is missing but the C optimized version is imported.")
 
-    import xml.etree.ElementTree as ElementTree
+###
+# Temporary remove the loaded modules
+import xml.etree.ElementTree as ElementTree
+sys.modules.pop('xml.etree.ElementTree')
+_cmod = sys.modules.pop('_elementtree', None)
 
-    # Temporary remove the loaded modules
-    sys.modules.pop('xml.etree.ElementTree')
-    _cmod = sys.modules.pop('_elementtree')
+# Load the pure Python module
+sys.modules['_elementtree'] = None  # type: ignore[assignment]
+import xml.etree.ElementTree as PyElementTree  # noqa
+import xml.etree  # noqa
 
-    # Load the pure Python module
-    sys.modules['_elementtree'] = None  # type: ignore[assignment]
-    import xml.etree.ElementTree as PyElementTree
-    import xml.etree
-
-    # Restore original modules
+# Restore original modules
+if _cmod is not None:
     sys.modules['_elementtree'] = _cmod
-    xml.etree.ElementTree = ElementTree
-    sys.modules['xml.etree.ElementTree'] = ElementTree
-
-else:
-    # Load the pure Python module
-    sys.modules['_elementtree'] = None  # type: ignore[assignment]
-    import xml.etree.ElementTree as PyElementTree
-
-    # Remove the pure Python module from imported modules
-    del sys.modules['xml.etree']
-    del sys.modules['xml.etree.ElementTree']
-    del sys.modules['_elementtree']
-
-    # Load the C optimized ElementTree module
-    import xml.etree.ElementTree as ElementTree
+xml.etree.ElementTree = ElementTree
+sys.modules['xml.etree.ElementTree'] = ElementTree
 
 
 class SafeXMLParser(PyElementTree.XMLParser):
@@ -259,7 +239,7 @@ def etree_tostring(elem: ElementProtocol,
     if namespaces:
         default_namespace = namespaces.get('')
         for prefix, uri in namespaces.items():
-            if prefix and not _REGEX_NS_PREFIX.match(prefix):
+            if prefix and not re.match(r'ns\d+$', prefix):
                 etree_module.register_namespace(prefix, uri)
                 if uri == default_namespace:
                     default_namespace = None

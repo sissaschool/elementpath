@@ -10,6 +10,7 @@
 #
 import unittest
 import platform
+import importlib
 import io
 from pathlib import Path
 
@@ -23,6 +24,13 @@ from elementpath.etree import ElementTree, PyElementTree, \
 
 
 class TestElementTree(unittest.TestCase):
+
+    @unittest.skipUnless(platform.python_implementation() == 'CPython', "requires CPython")
+    def test_imported_modules(self):
+        self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+        self.assertIs(importlib.import_module('xml.etree').ElementTree, ElementTree)
+        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py,
+                         msg="cElementTree is not available!")
 
     def test_element_string_serialization(self):
         self.assertRaises(TypeError, etree_tostring, '<element/>')
