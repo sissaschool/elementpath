@@ -270,7 +270,6 @@ class XPath2Parser(XPath1Parser):
             return self._default_collation
 
         language_code, encoding = locale.getdefaultlocale()
-
         if language_code is None:
             return UNICODE_CODEPOINT_COLLATION
         elif encoding is None or not encoding:

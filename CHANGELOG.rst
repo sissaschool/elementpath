@@ -2,10 +2,11 @@
 CHANGELOG
 *********
 
-`v3.0.0`_ (TBD)
+`v3.0.0`_ (2022-07-16)
 ======================
 * Transition to full XPath node implementation (more memory usage but
   better control and overall faster)
+* Add etree.py module with a safe XML parser (ported from xmlschema)
 
 `v2.5.3`_ (2022-05-30)
 ======================
