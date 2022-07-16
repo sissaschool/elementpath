@@ -11,9 +11,8 @@
 """
 XPath 1.0 implementation - part 4 (axes)
 """
-from ..exceptions import ElementPathTypeError
-from ..namespaces import XML_NAMESPACE
-from ..xpath_nodes import NamespaceNode, is_element_node
+from ..xpath_nodes import ElementNode
+from ..xpath_context import XPathSchemaContext
 from ._xpath1_functions import XPath1Parser
 
 method = XPath1Parser.method
@@ -33,38 +32,26 @@ def nud_attribute_reference(self):
 def select_attribute_reference_or_axis(self, context=None):
     if context is None:
         raise self.missing_context()
-
-    for _ in context.iter_attributes():
-        try:
+    else:
+        for _ in context.iter_attributes():
             yield from self[0].select(context)
-        except ElementPathTypeError:
-            pass
 
 
 @method(axis('namespace'))
 def select_namespace_axis(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif is_element_node(context.item):
+    elif isinstance(context, XPathSchemaContext):
+        return  # deprecated for XP20+ and not needed for schema analysis
+    elif isinstance(context.item, ElementNode):
         elem = context.item
         if self[0].symbol == 'namespace-node':
             name = '*'
         else:
             name = self[0].value
 
-        nsmap = getattr(elem, 'nsmap', None)
-        if nsmap is None:
-            # missing in-scope namespaces, use static provided namespaces.
-            nsmap = self.parser.other_namespaces
-
-        for pfx, uri in nsmap.items():
-            if name == '*' or name == pfx:
-                context.item = NamespaceNode(pfx, uri, elem)
-                yield context.item
-
-        if 'xml' not in nsmap:
-            if name == '*' or name == 'xml':
-                context.item = NamespaceNode('xml', XML_NAMESPACE, elem)
+        for context.item in elem.namespace_nodes:
+            if name == '*' or name == context.item.prefix:
                 yield context.item
 
 
@@ -138,6 +125,6 @@ def select_following_axis(self, context=None):
 def select_preceding_axis(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif is_element_node(context.item):
+    else:
         for _ in context.iter_preceding():
             yield from self[0].select(context)

@@ -38,7 +38,9 @@ try:
 except ImportError:
     xmlschema = None
 
-from elementpath import *
+from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextError, \
+    AttributeNode, NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, \
+    ElementNode, select, XPathFunction
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_UNTYPED_ATOMIC
@@ -198,8 +200,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_source('(1 + 2) * 3', '(1 + 2) * 3')
         self.check_source(' eg:example ', 'eg:example')
         self.check_source('attribute::name="Galileo"', "attribute::name = 'Galileo'")
-        self.check_source(".//eg:a | .//eg:b", '. // eg:a | . // eg:b')
-        self.check_source("/A/B[C]", '/ A / B[C]')
+        self.check_source(".//eg:a | .//eg:b", './/eg:a | .//eg:b')
+        self.check_source("/A/B[C]", '/A/B[C]')
 
         if self.parser.version < '3.0':
             try:
@@ -328,10 +330,12 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_selection(self):
         root = self.etree.XML('<A><B1/><B2/><B3/><B2/></A>')
         self.check_value("mars", MissingContextError)
-        self.check_value("mars", [], context=XPathContext(root))
-        self.check_value("B1", [root[0]], context=XPathContext(root))
-        self.check_value("B2", [root[1], root[3]], context=XPathContext(root))
-        self.check_value("B4", [], context=XPathContext(root))
+
+        context = XPathContext(root)
+        self.check_value("mars", [], context=context)
+        self.check_value("B1", [context.root[0]], context=context)
+        self.check_value("B2", [context.root[1], context.root[3]], context=context)
+        self.check_value("B4", [], context=context)
 
     def test_prefixed_references(self):
         namespaces = {'tst': "http://xpath.test/ns"}
@@ -340,7 +344,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             <tst:B1 b1="beta1"/>
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
-            <tst:B2/>            
+            <tst:B2/>
         </A>""")
 
         # Prefix references
@@ -350,8 +354,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         # Test evaluate method
         self.check_value("fn:true()", True)
         self.check_value("fx:true()", NameError)
-        self.check_value("tst:B1", [root[0]], context=XPathContext(root))
-        self.check_value("tst:B2", [root[1], root[3]], context=XPathContext(root))
+
+        context = XPathContext(root)
+        self.check_value("tst:B1", [context.root[1]], context=context)
+        self.check_value("tst:B2", [context.root[3], context.root[7]], context=context)
         self.check_value("tst:B1:B2", NameError)
 
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
@@ -372,7 +378,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             <tst:B1 b1="beta1"/>
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
-            <tst:B2/>            
+            <tst:B2/>
         </A>""")
 
         self.parser.strict = False
@@ -402,14 +408,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_types(self):
         document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-        attribute = AttributeNode('id', '0212349350')
-        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
-        comment = self.etree.Comment('nothing important')
-        pi = self.etree.ProcessingInstruction('action')
-        text = TextNode('aldebaran')
 
         context = XPathContext(element)
-        self.check_select("node()", [document.getroot()], context=XPathContext(document))
+        attribute = AttributeNode('id', '0212349350')
+        namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
+        comment = CommentNode(self.etree.Comment('nothing important'))
+        pi = ProcessingInstructionNode(self.etree.ProcessingInstruction('action'))
+        text = TextNode('aldebaran')
+
         self.check_selector("node()", element, [])
 
         context.item = attribute
@@ -449,10 +455,13 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         self.check_selector("//self::text()", root, ['Dickens'])
 
+        context = XPathContext(document)
+        self.check_select("node()", [context.root.getroot()], context)
+
         context = XPathContext(root)
         context.item = None
         # lxml differs: doesn't consider the document position even if select from an ElementTree
-        self.check_value("/self::node()", expected=[root], context=context)
+        self.check_value("/self::node()", expected=[context.root], context=context)
 
         context.item = 1
         self.check_value("self::node()", expected=[], context=context)
@@ -470,10 +479,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         context.item = None
         self.check_value('id("none")', expected=[], context=context)
-        self.check_value('id("foo")', expected=[root[0]], context=context)
-        self.check_value('id("bar")', expected=[root[2]], context=context)
+        self.check_value('id("foo")', expected=[context.root[0]], context=context)
+        self.check_value('id("bar")', expected=[context.root[2]], context=context)
 
-        context.item = self.etree.Comment('a comment')
+        context.item = CommentNode(self.etree.Comment('a comment'))
         self.check_value('id("foo")', expected=[], context=context)
 
     def test_node_set_functions(self):
@@ -867,7 +876,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.assertEqual(True, root_token.evaluate(context))
 
         if self.parser.version > '1.0':
-            with self.assertRaises(ElementPathTypeError) as ctx:
+            with self.assertRaises(TypeError) as ctx:
                 root_token.evaluate(
                     context=XPathContext(
                         root=self.etree.XML("<a> <b>text</b> </a>")  # Two text nodes ...
@@ -1253,10 +1262,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML("<A><B><C><D><E/></D></C></B></A>")
         context = XPathContext(root)
-        self.check_value('/A', [root], context=context)
+        self.check_value('/A', [context.root], context=context)
 
         context = XPathContext(root, item=root[0][0])
-        self.check_value('/A', [root], context=context)
+        self.check_value('/A', [context.root], context=context)
 
     def test_path_step_operator_with_duplicates(self):
         root = self.etree.XML('<A>10<B a="2">11</B>10<B a="2"/>10<B>11</B></A>')
@@ -1289,8 +1298,12 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_selector('1/.', root, TypeError)
 
         document = self.etree.ElementTree(root)
-        self.check_value('.', [root], context=XPathContext(root))
-        self.check_value('.', [document], context=XPathContext(root=document))
+
+        context = XPathContext(root)
+        self.check_value('.', [context.root], context=context)
+
+        context = XPathContext(root=document)
+        self.check_value('.', [context.root], context=context)
 
     def test_self_axis(self):
         root = self.etree.XML('<A>A text<B1>B1 text</B1><B2/><B3>B3 text</B3></A>')
@@ -1348,14 +1361,16 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML("<A><B><C><D><E/></D></C></B></A>")
         context = XPathContext(root)
-        self.check_value('//*', list(root.iter()), context=context)
+        expected = list(e for e in context.root.iter() if isinstance(e, ElementNode))
+        self.check_value('//*', expected=expected, context=context)
 
         context = XPathContext(root, item=root[0][0])
-        self.check_value('//*', [], context=context)
+        self.check_value('//*', expected=[], context=context)
 
         root = self.etree.XML("<A><A><A><A><A/></A></A></A></A>")
         context = XPathContext(root)
-        self.check_value('//A', list(root.iter()), context=context)
+        expected = list(e for e in context.root.iter() if isinstance(e, ElementNode))
+        self.check_value('//A', expected=expected, context=context)
 
     def test_double_slash_shortcut_pr16(self):
         # Pull-Request #16
@@ -1526,7 +1541,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_tree("a[not(b)]", '([ (a) (not (b)))')
 
         self.check_value("a[not(b)]", [], context=XPathContext(root, item=root[0]))
-        self.check_value("a[not(b)]", [root[1][0]], context=XPathContext(root, item=root[1]))
+        context = XPathContext(root, item=root[1])
+        self.check_value("a[not(b)]", [context.root[1][0]], context)
 
         self.check_raise('88[..]', TypeError, 'XPTY0020', 'Context item is not a node',
                          context=XPathContext(root))
@@ -1539,7 +1555,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_parenthesized_expression(self):
         self.check_value('(6 + 9)', 15)
         if self.parser.version == '1.0':
-            self.check_value('()', ElementPathSyntaxError)
+            self.check_value('()', SyntaxError)
         else:
             self.check_value('()', [])
 
@@ -1561,6 +1577,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector('/foo', root, [root], namespaces={'': 'ns'})  # foo --> foo
         else:
             self.check_selector('/foo', root, [], namespaces={'': 'ns'})  # foo --> {ns}foo
+
+        if self.parser.version != '1.0':
             self.check_selector('/*:foo', root, [root], namespaces={'': 'ns'})  # foo --> {ns}foo
 
         root = self.etree.XML('<foo xmlns="ns">bar</foo>')

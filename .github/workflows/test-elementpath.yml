@@ -44,13 +44,8 @@ jobs:
       - name: Lint with mypy if Python version != 3.7
         if: ${{ matrix.python-version != '3.7' }}
         run: |
-          pip install mypy==0.950
+          pip install mypy==0.961 lxml-stubs
           mypy --show-error-codes --strict elementpath
-      - name: Lint with mypy if Python version == 3.7
-        if: ${{ matrix.python-version == '3.7' }}
-        run: |
-          pip install mypy==0.950
-          mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --no-warn-return-any --strict elementpath
       - name: Test with unittest
         run: |
           pip install lxml xmlschema>=1.9.0

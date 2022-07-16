@@ -27,7 +27,6 @@ XPath parsers
 
     .. autoattribute:: DEFAULT_NAMESPACES
     .. autoattribute:: version
-    .. autoattribute:: default_namespace
 
     Helper methods for defining token classes:
 
@@ -104,22 +103,45 @@ implementing concrete interfaces to other types of XML Schema processors.
     .. automethod:: is_instance
     .. automethod:: cast_as
     .. automethod:: iter_atomic_types
-    .. automethod:: get_primitive_type
 
 
 XPath nodes
 ===========
 
 XPath nodes are processed using a set of classes derived from
-:class:`elementpath.XPathNode`:
+:class:`elementpath.XPathNode`. This class hierarchy is as simple
+as possible, with a focus on speed a low memory consumption.
 
 .. autoclass:: elementpath.XPathNode
 
+The seven XPath node types:
+
 .. autoclass:: elementpath.AttributeNode
-.. autoclass:: elementpath.TextNode
-.. autoclass:: elementpath.TypedAttribute
-.. autoclass:: elementpath.TypedElement
 .. autoclass:: elementpath.NamespaceNode
+.. autoclass:: elementpath.TextNode
+.. autoclass:: elementpath.CommentNode
+.. autoclass:: elementpath.ProcessingInstructionNode
+.. autoclass:: elementpath.ElementNode
+.. autoclass:: elementpath.DocumentNode
+
+There are also other two specialized versions of ElementNode
+usable on specific cases:
+
+.. autoclass:: elementpath.LazyElementNode
+.. autoclass:: elementpath.SchemaElementNode
+
+
+Node tree builders
+==================
+
+Node trees are automatically created during the initialization of an
+:class:`elementpath.XPathContext`. But if you need to process the same XML data
+more times there is an helper API for creating document or element based node trees:
+
+.. autofunction:: elementpath.get_node_tree
+.. autofunction:: elementpath.build_node_tree
+.. autofunction:: elementpath.build_lxml_node_tree
+.. autofunction:: elementpath.build_schema_node_tree
 
 
 XPath regular expressions
@@ -134,14 +156,15 @@ Exception classes
 .. autoexception:: elementpath.ElementPathError
 .. autoexception:: elementpath.MissingContextError
 .. autoexception:: elementpath.RegexError
+.. autoexception:: elementpath.ElementPathLocaleError
 
 There are also other exceptions, multiple derived from the base exception
 :class:`elementpath.ElementPathError` and Python built-in exceptions:
 
 .. autoexception:: elementpath.ElementPathKeyError
-.. autoexception:: elementpath.ElementPathLocaleError
 .. autoexception:: elementpath.ElementPathNameError
 .. autoexception:: elementpath.ElementPathOverflowError
+.. autoexception:: elementpath.ElementPathRuntimeError
 .. autoexception:: elementpath.ElementPathSyntaxError
 .. autoexception:: elementpath.ElementPathTypeError
 .. autoexception:: elementpath.ElementPathValueError

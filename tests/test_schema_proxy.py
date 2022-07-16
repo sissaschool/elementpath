@@ -40,7 +40,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
     def setUpClass(cls):
         cls.schema = xmlschema.XMLSchema('''
         <!-- Dummy schema for testing proxy API -->
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
               targetNamespace="http://xpath.test/ns">
           <xs:element name="test_element" type="xs:string"/>
           <xs:attribute name="test_attribute" type="xs:string"/>
@@ -120,7 +120,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.check_value("self::schema-element(xs:schema)", [context.item], context)
         self.check_tree("schema-element(xs:group)", '(schema-element (: (xs) (group)))')
 
-        context.item = AttributeNode(XML_LANG, 'en')
+        attribute = context.item = AttributeNode(XML_LANG, 'en')
         self.wrong_syntax("schema-attribute(*)")
         self.wrong_name("schema-attribute(nil)")
         self.wrong_name("schema-attribute(xs:string)")
@@ -131,7 +131,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
                         '(schema-attribute (: (xsi) (schemaLocation)))')
 
         token = self.parser.parse("self::schema-attribute(xml:lang)")
-        context.item = AttributeNode(XML_LANG, 'en')
+        context.item = attribute
         context.axis = 'attribute'
         self.assertEqual(list(token.select(context)), [context.item])
 
@@ -219,24 +219,6 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.assertIsNone(schema_proxy.get_type('unknown'))
         self.assertEqual(schema_proxy.get_type('{%s}string' % XSD_NAMESPACE),
                          xmlschema.XMLSchema.builtin_types()['string'])
-
-    def test_get_primitive_type_api(self):
-        schema_proxy = XMLSchemaProxy()
-        short_type = schema_proxy.get_type('{%s}short' % XSD_NAMESPACE)
-        decimal_type = schema_proxy.get_type('{%s}decimal' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(short_type), decimal_type)
-
-        ntokens_type = schema_proxy.get_type('{%s}NMTOKENS' % XSD_NAMESPACE)
-        string_type = schema_proxy.get_type('{%s}string' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(ntokens_type), string_type)
-
-        facet_type = schema_proxy.get_type('{%s}facet' % XSD_NAMESPACE)
-        any_type = schema_proxy.get_type('{%s}anyType' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(facet_type), any_type)
-        self.assertEqual(schema_proxy.get_primitive_type(any_type), any_type)
-
-        any_simple_type = schema_proxy.get_type('{%s}anySimpleType' % XSD_NAMESPACE)
-        self.assertEqual(schema_proxy.get_primitive_type(any_simple_type), any_simple_type)
 
     def test_xsd_version_api(self):
         self.assertEqual(self.schema_proxy.xsd_version, '1.0')
@@ -418,19 +400,21 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
                          schema.maps.types['{%s}integer' % XSD_NAMESPACE])
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>')
-        self.assertIsNone(token.evaluate(context=XPathContext(root)))
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
+        self.assertIsNone(token.evaluate(context))
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19">30</b></values>')
-        self.assertIsNone(token.evaluate(context=XPathContext(root)))
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
+        self.assertIsNone(token.evaluate(context))
 
         root = self.etree.XML(
             '<values xmlns="http://xpath.test/ns"><b min="19" max="40">30</b></values>')
-        context = XPathContext(root)
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
         self.assertTrue(token.evaluate(context))
 
         root = self.etree.XML(
             '<values xmlns="http://xpath.test/ns"><b min="19" max="10">30</b></values>')
-        context = XPathContext(root)
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
         self.assertFalse(token.evaluate(context))
 
     def test_issue_10(self):

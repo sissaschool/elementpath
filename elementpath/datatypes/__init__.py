@@ -13,9 +13,11 @@ classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
 from decimal import Decimal
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from ..helpers import QNAME_PATTERN  # For backward compatibility
+from ..namespaces import XSD_NAMESPACE
+from ..protocols import XsdTypeProtocol
 
 from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, \
     AtomicTypeMeta, AnyAtomicType
@@ -71,58 +73,73 @@ AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, Normal
                         UntypedAtomic, DatetimeValueType]
 
 
-ATOMIC_VALUES: Dict[str, AtomicValueType] = {
-    'untypedAtomic': UntypedAtomic('1'),
-    'anyType': UntypedAtomic('1'),
-    'anySimpleType': UntypedAtomic('1'),
-    'anyAtomicType': UntypedAtomic('1'),
-    'boolean': True,
-    'decimal': Decimal('1.0'),
-    'double': 1.0,
-    'float': Float10(1.0),
-    'string': '  alpha\t',
-    'date': Date.fromstring('2000-01-01'),
-    'dateTime': DateTime.fromstring('2000-01-01T12:00:00'),
-    'gDay': GregorianDay.fromstring('---31'),
-    'gMonth': GregorianMonth.fromstring('--12'),
-    'gMonthDay': GregorianMonthDay.fromstring('--12-01'),
-    'gYear': GregorianYear.fromstring('1999'),
-    'gYearMonth': GregorianYearMonth.fromstring('1999-09'),
-    'time': Time.fromstring('09:26:54'),
-    'duration': Duration.fromstring('P1MT1S'),
-    'dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
-    'yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
-    'QName': QName("http://www.w3.org/2001/XMLSchema", 'xs:element'),
-    'anyURI': AnyURI('https://example.com'),
-    'normalizedString': NormalizedString(' alpha  '),
-    'token': XsdToken('a token'),
-    'language': Language('en-US'),
-    'Name': Name('_a.name::'),
-    'NCName': NCName('nc-name'),
-    'ID': Id('id1'),
-    'IDREF': Idref('id_ref1'),
-    'ENTITY': Entity('entity1'),
-    'NMTOKEN': NMToken('a_token'),
-    'base64Binary': Base64Binary(b'YWxwaGE='),
-    'hexBinary': HexBinary(b'31'),
-    'dateTimeStamp': DateTimeStamp.fromstring('2000-01-01T12:00:00+01:00'),
-    'integer': Integer(1),
-    'long': Long(1),
-    'int': Int(1),
-    'short': Short(1),
-    'byte': Byte(1),
-    'positiveInteger': PositiveInteger(1),
-    'negativeInteger': NegativeInteger(-1),
-    'nonPositiveInteger': NonPositiveInteger(0),
-    'nonNegativeInteger': NonNegativeInteger(0),
-    'unsignedLong': UnsignedLong(1),
-    'unsignedInt': UnsignedInt(1),
-    'unsignedShort': UnsignedShort(1),
-    'unsignedByte': UnsignedByte(1),
+ATOMIC_VALUES: Dict[Optional[str], AtomicValueType] = {
+    f'{{{XSD_NAMESPACE}}}untypedAtomic': UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}anyType': UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}anySimpleType': UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}anyAtomicType': UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}boolean': True,
+    f'{{{XSD_NAMESPACE}}}decimal': Decimal('1.0'),
+    f'{{{XSD_NAMESPACE}}}double': 1.0,
+    f'{{{XSD_NAMESPACE}}}float': Float10(1.0),
+    f'{{{XSD_NAMESPACE}}}string': '  alpha\t',
+    f'{{{XSD_NAMESPACE}}}date': Date.fromstring('2000-01-01'),
+    f'{{{XSD_NAMESPACE}}}dateTime': DateTime.fromstring('2000-01-01T12:00:00'),
+    f'{{{XSD_NAMESPACE}}}gDay': GregorianDay.fromstring('---31'),
+    f'{{{XSD_NAMESPACE}}}gMonth': GregorianMonth.fromstring('--12'),
+    f'{{{XSD_NAMESPACE}}}gMonthDay': GregorianMonthDay.fromstring('--12-01'),
+    f'{{{XSD_NAMESPACE}}}gYear': GregorianYear.fromstring('1999'),
+    f'{{{XSD_NAMESPACE}}}gYearMonth': GregorianYearMonth.fromstring('1999-09'),
+    f'{{{XSD_NAMESPACE}}}time': Time.fromstring('09:26:54'),
+    f'{{{XSD_NAMESPACE}}}duration': Duration.fromstring('P1MT1S'),
+    f'{{{XSD_NAMESPACE}}}dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
+    f'{{{XSD_NAMESPACE}}}yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
+    f'{{{XSD_NAMESPACE}}}QName': QName("http://www.w3.org/2001/XMLSchema", 'xs:element'),
+    f'{{{XSD_NAMESPACE}}}anyURI': AnyURI('https://example.com'),
+    f'{{{XSD_NAMESPACE}}}normalizedString': NormalizedString(' alpha  '),
+    f'{{{XSD_NAMESPACE}}}token': XsdToken('a token'),
+    f'{{{XSD_NAMESPACE}}}language': Language('en-US'),
+    f'{{{XSD_NAMESPACE}}}Name': Name('_a.name::'),
+    f'{{{XSD_NAMESPACE}}}NCName': NCName('nc-name'),
+    f'{{{XSD_NAMESPACE}}}ID': Id('id1'),
+    f'{{{XSD_NAMESPACE}}}IDREF': Idref('id_ref1'),
+    f'{{{XSD_NAMESPACE}}}ENTITY': Entity('entity1'),
+    f'{{{XSD_NAMESPACE}}}NMTOKEN': NMToken('a_token'),
+    f'{{{XSD_NAMESPACE}}}base64Binary': Base64Binary(b'YWxwaGE='),
+    f'{{{XSD_NAMESPACE}}}hexBinary': HexBinary(b'31'),
+    f'{{{XSD_NAMESPACE}}}dateTimeStamp': DateTimeStamp.fromstring('2000-01-01T12:00:00+01:00'),
+    f'{{{XSD_NAMESPACE}}}integer': Integer(1),
+    f'{{{XSD_NAMESPACE}}}long': Long(1),
+    f'{{{XSD_NAMESPACE}}}int': Int(1),
+    f'{{{XSD_NAMESPACE}}}short': Short(1),
+    f'{{{XSD_NAMESPACE}}}byte': Byte(1),
+    f'{{{XSD_NAMESPACE}}}positiveInteger': PositiveInteger(1),
+    f'{{{XSD_NAMESPACE}}}negativeInteger': NegativeInteger(-1),
+    f'{{{XSD_NAMESPACE}}}nonPositiveInteger': NonPositiveInteger(0),
+    f'{{{XSD_NAMESPACE}}}nonNegativeInteger': NonNegativeInteger(0),
+    f'{{{XSD_NAMESPACE}}}unsignedLong': UnsignedLong(1),
+    f'{{{XSD_NAMESPACE}}}unsignedInt': UnsignedInt(1),
+    f'{{{XSD_NAMESPACE}}}unsignedShort': UnsignedShort(1),
+    f'{{{XSD_NAMESPACE}}}unsignedByte': UnsignedByte(1),
 }
 
-__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'AtomicTypeMeta', 'AnyAtomicType',
-           'ATOMIC_VALUES', 'XSD_BUILTIN_TYPES', 'NumericProxy', 'ArithmeticProxy',
+
+def get_atomic_value(xsd_type: Optional[XsdTypeProtocol]) -> AtomicValueType:
+    """Gets an atomic value for an XSD type instance. Used for schema contexts."""
+    if xsd_type is None:
+        return UntypedAtomic('1')
+
+    try:
+        return ATOMIC_VALUES[xsd_type.name]
+    except KeyError:
+        try:
+            return ATOMIC_VALUES[xsd_type.root_type.name]
+        except KeyError:
+            return UntypedAtomic('1')
+
+
+__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value', 'AtomicTypeMeta',
+           'AnyAtomicType', 'XSD_BUILTIN_TYPES', 'NumericProxy', 'ArithmeticProxy',
            'QNAME_PATTERN', 'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp',
            'Date10', 'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
            'GregorianYear10', 'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth',

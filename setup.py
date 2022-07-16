@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='2.5.3',
+    version='3.0.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     include_package_data=True,
     author='Davide Brunato',
@@ -28,8 +28,8 @@ setup(
     long_description=long_description,
     python_requires='>=3.7',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.9.0',
-                'Sphinx', 'memory-profiler', 'flake8', 'mypy==0.950']
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=1.9.0', 'Sphinx',
+                'memory-profiler', 'memray', 'flake8', 'mypy==0.961', 'lxml-stubs']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

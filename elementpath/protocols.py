@@ -19,13 +19,14 @@ if sys.version_info < (3, 8):
     ElementProtocol = Any
     LxmlElementProtocol = Any
     DocumentProtocol = Any
+    XsdValidatorProtocol = Any
+    XsdSchemaProtocol = Any
     XsdComponentProtocol = Any
     XsdTypeProtocol = Any
     XsdElementProtocol = Any
     XsdAttributeProtocol = Any
     GlobalMapsProtocol = Any
     XMLSchemaProtocol = Any
-    XPathParserProtocol = Any
 else:
     from typing import Dict, Iterator, Iterable, List, Literal, \
         Optional, Protocol, Sized, Hashable, Union, TypeVar, runtime_checkable
@@ -50,6 +51,7 @@ else:
 
     @runtime_checkable
     class LxmlElementProtocol(ElementProtocol, Protocol):
+        def getroottree(self) -> 'DocumentProtocol': ...
         def getnext(self) -> Optional['LxmlElementProtocol']: ...
         def getparent(self) -> Optional['LxmlElementProtocol']: ...
         def getprevious(self) -> Optional['LxmlElementProtocol']: ...
@@ -57,18 +59,32 @@ else:
                          *tags: str) -> Iterable['LxmlElementProtocol']: ...
         nsmap: Dict[Optional[str], str]
 
+    @runtime_checkable
     class DocumentProtocol(Iterable[ElementProtocol], Hashable, Protocol):
         def getroot(self) -> ElementProtocol: ...
-        def parse(self, source: Any, *args: Any, **kwargs: Any) -> ElementProtocol: ...
+        def parse(self, source: Any, *args: Any, **kwargs: Any) -> 'DocumentProtocol': ...
         def iter(self, tag: Optional[str] = ...) -> Iterator[ElementProtocol]: ...
 
-    class XsdComponentProtocol(Protocol):
+    @runtime_checkable
+    class XsdValidatorProtocol(Protocol):
         def is_matching(self, name: Optional[str],
                         default_namespace: Optional[str] = None) -> bool: ...
+        xsd_version: Literal['1.0', '1.1']
         name: Optional[str]
-        local_name: Optional[str]
+        maps: 'GlobalMapsProtocol'
+
+    @runtime_checkable
+    class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
+        tag: Literal['{http://www.w3.org/2001/XMLSchema}schema']
+        attrib: Dict[str, 'XsdAttributeProtocol']
+        text: None
+    XMLSchemaProtocol = XsdSchemaProtocol  # for backward compatibility
+
+    @runtime_checkable
+    class XsdComponentProtocol(XsdValidatorProtocol, Protocol):
         parent: Optional['XsdComponentProtocol']
 
+    @runtime_checkable
     class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         def is_simple(self) -> bool:
             """Returns `True` if it's a simpleType instance, `False` if it's a complexType."""
@@ -136,11 +152,24 @@ else:
             """
             ...
 
-    class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
-        type: XsdTypeProtocol
+        root_type: 'XsdTypeProtocol'
+        """
+        The type at base of the definition of the XSD type. For a special type is the type
+        itself. For an atomic type is the primitive type. For a list is the primitive type
+        of the item. For a union is the base union type. For a complex type is xs:anyType.
+        """
 
+    @runtime_checkable
     class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
-        type: XsdTypeProtocol
+        type: Optional[XsdTypeProtocol]
+        ref: Optional['XsdAttributeProtocol']
+
+    @runtime_checkable
+    class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
+        type: Optional[XsdTypeProtocol]
+        ref: Optional['XsdElementProtocol']
+        attrib: Dict[str, XsdAttributeProtocol]
+        text: None
 
     class GlobalMapsProtocol(Protocol):
         types: Dict[str, XsdTypeProtocol]
@@ -148,14 +177,8 @@ else:
         elements: Dict[str, XsdElementProtocol]
         substitution_groups: Dict[str, List[XsdElementProtocol]]
 
-    class XMLSchemaProtocol(ElementProtocol, Protocol):
-        xsd_version: Literal['1.0', '1.1']
-        tag: Literal['{http://www.w3.org/2001/XMLSchema}schema']
-        attrib: Dict[str, Any]
-        text: None
-        maps: GlobalMapsProtocol
-
 
 __all__ = ['ElementProtocol', 'LxmlElementProtocol', 'DocumentProtocol',
-           'XsdComponentProtocol', 'XsdTypeProtocol', 'XsdElementProtocol',
-           'XsdAttributeProtocol', 'GlobalMapsProtocol', 'XMLSchemaProtocol']
+           'XsdValidatorProtocol', 'XsdSchemaProtocol', 'XsdComponentProtocol',
+           'XsdTypeProtocol', 'XsdElementProtocol', 'XsdAttributeProtocol',
+           'GlobalMapsProtocol', 'XMLSchemaProtocol']

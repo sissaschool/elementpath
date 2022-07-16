@@ -18,16 +18,22 @@ import platform
 import random
 from decimal import Decimal
 from calendar import isleap
+from textwrap import dedent
 from xml.etree import ElementTree
+
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
 
 from elementpath.helpers import MONTH_DAYS, MONTH_DAYS_LEAP
 from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, \
     Timezone, Duration, DayTimeDuration, YearMonthDuration, UntypedAtomic, \
     GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
     GregorianMonthDay, GregorianMonth, GregorianDay, AbstractDateTime, NumericProxy, \
-    ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, \
-    NormalizedString, XsdToken, Language, Float, Float10, Integer, AnyURI, \
-    BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy
+    ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
+    XsdToken, Language, Float, Float10, Integer, AnyURI, BooleanProxy, DecimalProxy, \
+    DoubleProxy10, DoubleProxy, StringProxy, get_atomic_value
 from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.datetime import OrderedDateTime
 
@@ -245,10 +251,7 @@ class UntypedAtomicTest(unittest.TestCase):
             int(UntypedAtomic(25.1))
         self.assertEqual(float(UntypedAtomic(25.1)), 25.1)
         self.assertEqual(bool(UntypedAtomic(True)), True)
-        if sys.version_info >= (3,):
-            self.assertEqual(str(UntypedAtomic(u'Joan Miró')), u'Joan Miró')
-        else:
-            self.assertEqual(unicode(UntypedAtomic(u'Joan Miró')), u'Joan Miró')
+        self.assertEqual(str(UntypedAtomic(u'Joan Miró')), u'Joan Miró')
         self.assertEqual(bytes(UntypedAtomic(u'Joan Miró')), b'Joan Mir\xc3\xb3')
 
     def test_numerical_operators(self):
@@ -1286,8 +1289,10 @@ class QNameTypesTest(unittest.TestCase):
         self.assertNotEqual(qname1, qname3)
         self.assertNotEqual(qname2, qname3)
 
+        self.assertEqual(qname1, 'tst1:foo')
+
         with self.assertRaises(TypeError) as ctx:
-            _ = qname1 == 'tst1:foo'
+            _ = qname1 == 1
         self.assertIn('cannot compare', str(ctx.exception))
 
     def test_notation(self):
@@ -1485,6 +1490,60 @@ class TypeProxiesTest(unittest.TestCase):
         self.assertIsNone(StringProxy.validate('alpha'))
         with self.assertRaises(TypeError):
             StringProxy.validate(b'alpha')
+
+
+@unittest.skipIf(xmlschema is None, "xmlschema library required.")
+class AtomicValuesTest(unittest.TestCase):
+
+    def test_get_atomic_value(self):
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="a" type="aType"/>
+              <xs:complexType name="aType">
+                <xs:sequence>
+                  <xs:element name="b1" type="xs:int"/>
+                  <xs:element name="b2" type="xs:boolean"/>
+                </xs:sequence>
+              </xs:complexType>
+
+              <xs:element name="b" type="xs:int"/>
+              <xs:element name="c"/>
+
+              <xs:element name="d" type="dType"/>
+              <xs:simpleType name="dType">
+                <xs:restriction base="xs:float"/>
+              </xs:simpleType>
+
+              <xs:element name="e" type="eType"/>
+              <xs:simpleType name="eType">
+                <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
+              </xs:simpleType>
+            </xs:schema>"""))
+
+        self.assertEqual(get_atomic_value(schema.elements['d'].type), UntypedAtomic('1'))
+
+        with self.assertRaises(AttributeError):
+            value = get_atomic_value(schema)
+
+        value = get_atomic_value(schema.elements['a'].type)
+        self.assertIsInstance(value, UntypedAtomic)
+        self.assertEqual(value, UntypedAtomic(value='1'))
+
+        value = get_atomic_value(schema.elements['b'].type)
+        self.assertIsInstance(value, int)
+        self.assertEqual(value, 1)
+
+        value = get_atomic_value(schema.elements['c'].type)
+        self.assertIsInstance(value, UntypedAtomic)
+        self.assertEqual(value, UntypedAtomic(value='1'))
+
+        value = get_atomic_value(schema.elements['d'].type)
+        self.assertIsInstance(value, float)
+        self.assertEqual(value, 1.0)
+
+        value = get_atomic_value(schema.elements['e'].type)
+        self.assertIsInstance(value, UntypedAtomic)
+        self.assertEqual(value, UntypedAtomic(value='1'))
 
 
 if __name__ == '__main__':

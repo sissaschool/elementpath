@@ -40,21 +40,19 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import *
+from elementpath import XPathContext, MissingContextError, datatypes, XPathFunction
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
-from elementpath.xpath_nodes import is_document_node, is_lxml_document_node, \
-    is_etree_element, is_lxml_etree_element
+from elementpath.etree import is_etree_element, is_lxml_etree_document
+from elementpath.xpath_nodes import ElementNode, DocumentNode
 from elementpath.xpath3 import XPath30Parser, XPath31Parser
 from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
     int_to_roman, int_to_alphabetic, int_to_words
 
 try:
-    from tests import xpath_test_class
     from tests import test_xpath2_parser
     from tests import test_xpath2_functions
     from tests import test_xpath2_constructors
 except ImportError:
-    import xpath_test_class
     import test_xpath2_parser
     import test_xpath2_functions
     import test_xpath2_constructors
@@ -122,6 +120,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse("10 || '/' || 6")
         self.assertEqual(token.evaluate(), "10/6")
 
+        self.check_tree('"true" || "false"', "(|| ('true') ('false'))")
+        self.check_tree('"true"||"false"', "(|| ('true') ('false'))")
+
     def test_pi_math_function(self):
         token = self.parser.parse('math:pi()')
         self.assertEqual(token.evaluate(), math.pi)
@@ -130,10 +131,14 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         token = self.parser.parse('math:exp(())')
         self.assertIsNone(token.evaluate())
         self.assertAlmostEqual(self.parser.parse('math:exp(0)').evaluate(), 1.0)
-        self.assertAlmostEqual(self.parser.parse('math:exp(1)').evaluate(), 2.718281828459045)
-        self.assertAlmostEqual(self.parser.parse('math:exp(2)').evaluate(), 7.38905609893065)
-        self.assertAlmostEqual(self.parser.parse('math:exp(-1)').evaluate(), 0.36787944117144233)
-        self.assertAlmostEqual(self.parser.parse('math:exp(math:pi())').evaluate(), 23.140692632779267)
+        self.assertAlmostEqual(self.parser.parse('math:exp(1)').evaluate(),
+                               2.718281828459045)
+        self.assertAlmostEqual(self.parser.parse('math:exp(2)').evaluate(),
+                               7.38905609893065)
+        self.assertAlmostEqual(self.parser.parse('math:exp(-1)').evaluate(),
+                               0.36787944117144233)
+        self.assertAlmostEqual(self.parser.parse('math:exp(math:pi())').evaluate(),
+                               23.140692632779267)
         self.assertTrue(math.isnan(self.parser.parse('math:exp(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:exp(xs:double('INF'))").evaluate(), float('inf'))
         self.assertAlmostEqual(self.parser.parse("math:exp(xs:double('-INF'))").evaluate(), 0.0)
@@ -143,7 +148,8 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(token.evaluate())
         self.assertAlmostEqual(self.parser.parse('math:exp10(0)').evaluate(), 1.0)
         self.assertAlmostEqual(self.parser.parse('math:exp10(1)').evaluate(), 10)
-        self.assertAlmostEqual(self.parser.parse('math:exp10(0.5)').evaluate(), 3.1622776601683795)
+        self.assertAlmostEqual(self.parser.parse('math:exp10(0.5)').evaluate(),
+                               3.1622776601683795)
         self.assertAlmostEqual(self.parser.parse('math:exp10(-1)').evaluate(), 0.1)
         self.assertTrue(math.isnan(self.parser.parse('math:exp10(xs:double("NaN"))').evaluate()))
         self.assertEqual(self.parser.parse("math:exp10(xs:double('INF'))").evaluate(), float('inf'))
@@ -238,8 +244,10 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(self.parser.parse('math:cos(())').evaluate())
         self.assertAlmostEqual(self.parser.parse('math:cos(0)').evaluate(), 1.0)
         self.assertAlmostEqual(self.parser.parse('math:cos(-0.0e0)').evaluate(), 1.0)
-        self.assertAlmostEqual(self.parser.parse('math:cos(math:pi() div 2)').evaluate(), 0.0, places=13)
-        self.assertAlmostEqual(self.parser.parse('math:cos(-math:pi() div 2)').evaluate(), 0.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:cos(math:pi() div 2)').evaluate(),
+                               0.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:cos(-math:pi() div 2)').evaluate(),
+                               0.0, places=13)
         self.assertAlmostEqual(self.parser.parse('math:cos(math:pi())').evaluate(), -1.0)
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:cos(xs:double('INF'))").evaluate()))
@@ -249,18 +257,16 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIsNone(self.parser.parse('math:tan(())').evaluate())
         self.assertAlmostEqual(self.parser.parse('math:tan(0)').evaluate(), 0.0)
         self.assertAlmostEqual(self.parser.parse('math:tan(-0.0e0)').evaluate(), -0.0)
-        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 4)').evaluate(), 1.0, places=13)
-        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 4)').evaluate(), -1.0, places=13)
-        self.assertAlmostEqual(
-            self.parser.parse('math:tan(math:pi() div 2)').evaluate(), 1.633123935319537E16, places=13
-        )
-        self.assertAlmostEqual(
-            self.parser.parse('math:tan(-math:pi() div 2)').evaluate(),
-            -1.633123935319537E16, places=13
-        )
-        self.assertAlmostEqual(
-            self.parser.parse('math:tan(math:pi())').evaluate(), 0.0, places=13
-        )
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 4)').evaluate(),
+                               1.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 4)').evaluate(),
+                               -1.0, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi() div 2)').evaluate(),
+                               1.633123935319537E16, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(-math:pi() div 2)').evaluate(),
+                               -1.633123935319537E16, places=13)
+        self.assertAlmostEqual(self.parser.parse('math:tan(math:pi())').evaluate(),
+                               0.0, places=13)
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('NaN'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('INF'))").evaluate()))
         self.assertTrue(math.isnan(self.parser.parse("math:tan(xs:double('-INF'))").evaluate()))
@@ -334,13 +340,19 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertAlmostEqual(self.parser.parse('math:atan2(+0.0e0, +1)').evaluate(), 0.0e0)
 
     def test_analyze_string_function(self):
+        context = XPathContext(root=self.etree.XML('<root/>'))
+
         token = self.parser.parse('fn:analyze-string("The cat sat on the mat.", "unmatchable")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 1)
         self.assertEqual(root[0].text, "The cat sat on the mat.")
 
         token = self.parser.parse(r'fn:analyze-string("The cat sat on the mat.", "\w+")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 12)
         chunks = ['The', ' ', 'cat', ' ', 'sat', ' ', 'on', ' ', 'the', ' ', 'mat', '.']
         for k in range(len(chunks)):
@@ -351,7 +363,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
             self.assertEqual(root[k].text, chunks[k])
 
         token = self.parser.parse(r'fn:analyze-string("2008-12-03", "^(\d+)\-(\d+)\-(\d+)$")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 1)
 
         ElementTree.register_namespace('', XPATH_FUNCTIONS_NAMESPACE)
@@ -361,7 +375,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         )
 
         token = self.parser.parse('fn:analyze-string("A1,C15,,D24, X50,", "([A-Z])([0-9]+)")')
-        root = token.evaluate()
+        result = token.evaluate(context)
+        self.assertIsInstance(result, ElementNode)
+        root = result.elem
         self.assertEqual(len(root), 8)
         self.assertEqual(
             ElementTree.tostring(root, encoding='utf-8').decode('utf-8'),
@@ -385,7 +401,7 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertFalse(self.parser.parse('has-children()').evaluate(context))
         self.assertFalse(self.parser.parse('has-children(.)').evaluate(context))
 
-        context.variables['elem'] = self.etree.XML('<a><b1/><b2/></a>')
+        context.variables['elem'] = ElementNode(self.etree.XML('<a><b1/><b2/></a>'))
         self.assertTrue(self.parser.parse('has-children($elem)').evaluate(context))
         self.assertFalse(self.parser.parse('has-children($elem/b1)').evaluate(context))
 
@@ -399,37 +415,40 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=root)
         nodes = self.parser.parse('fn:innermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root)
+        self.assertIs(nodes[0], context.root)
 
-        context = XPathContext(root=document)
-        context.variables['nodes'] = [root, document]
+        context = XPathContext(root=document, variables={'nodes': [root, document]})
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root)
+        self.assertIsInstance(nodes[0], ElementNode)
+        self.assertIs(nodes[0].value, root)
 
         root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document)
-
-        context.variables['nodes'] = [root, document, root[0], root[0]]
+        context = XPathContext(
+            root=document, variables={'nodes': [root, document, root[0], root[0]]}
+        )
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root[0])
+        self.assertIs(nodes[0].value, root[0])
 
-        context.variables['nodes'] = [document, root[0][0], root, document, root[0], root[1]]
+        context = XPathContext(
+            root=document,
+            variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
+        )
         nodes = self.parser.parse('fn:innermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 2)
-        self.assertIs(nodes[0], root[0][0])
-        self.assertIs(nodes[1], root[1])
+        self.assertIs(nodes[0].value, root[0][0])
+        self.assertIs(nodes[1].value, root[1])
 
     def test_outermost_function(self):
         with self.assertRaises(MissingContextError):
@@ -441,67 +460,74 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIs(nodes[0], context.root)
 
         context = XPathContext(root=root)
         nodes = self.parser.parse('fn:outermost(.)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], root)
+        self.assertIs(nodes[0], context.root)
 
-        context = XPathContext(root=document)
-        context.variables['nodes'] = [root, document]
+        context = XPathContext(root=document, variables={'nodes': [root, document]})
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
 
         root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document)
+        context = XPathContext(
+            root=document,
+            variables={'nodes': [root, document, root[0], document]}
+        )
 
-        context.variables['nodes'] = [root, document, root[0], document]
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
 
-        context.variables['nodes'] = [document, root[0][0], root, document, root[0], root[1]]
+        context = XPathContext(
+            root=document,
+            variables={'nodes': [document, root[0][0], root, document, root[0], root[1]]}
+        )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 1)
-        self.assertIs(nodes[0], document)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
 
-        context.variables['nodes'] = [root[0][0], root[1], root[0]]
+        context = XPathContext(
+            root=document, variables={'nodes': [root[0][0], root[1], root[0]]}
+        )
         nodes = self.parser.parse('fn:outermost($nodes)').evaluate(context)
         self.assertIsInstance(nodes, list)
         self.assertEqual(len(nodes), 2)
-        self.assertIs(nodes[0], root[0])
-        self.assertIs(nodes[1], root[1])
+        self.assertIs(nodes[0].value, root[0])
+        self.assertIs(nodes[1].value, root[1])
 
     def test_parse_xml_function(self):
-        document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
-        self.assertTrue(is_document_node(document))
-        self.assertTrue(is_etree_element(document.getroot()))
-        self.assertEqual(document.getroot().tag, 'alpha')
-        self.assertEqual(document.getroot().text, 'abcd')
+        with self.assertRaises(MissingContextError):
+            self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=self.etree.ElementTree(root))
+
         document = self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate(context)
 
-        self.assertTrue(is_document_node(document))
-        self.assertTrue(is_etree_element(document.getroot()))
+        self.assertIsInstance(document, DocumentNode)
+        self.assertTrue(is_etree_element(document.document.getroot()))
+        self.assertEqual(document.document.getroot().tag, 'alpha')
+        self.assertEqual(document.document.getroot().text, 'abcd')
 
         if self.etree is lxml_etree:
-            self.assertTrue(is_lxml_document_node(document))
-            self.assertTrue(is_lxml_etree_element(document.getroot()))
+            self.assertTrue(is_lxml_etree_document(document.document))
         else:
-            self.assertFalse(is_lxml_document_node(document))
-            self.assertFalse(is_lxml_etree_element(document.getroot()))
+            self.assertFalse(is_lxml_etree_document(document.document))
 
-        self.assertEqual(document.getroot().tag, 'alpha')
-        self.assertEqual(document.getroot().text, 'abcd')
+        self.assertEqual(document.document.getroot().tag, 'alpha')
+        self.assertEqual(document.document.getroot().text, 'abcd')
 
         self.assertEqual(self.parser.parse('fn:parse-xml(())').evaluate(), [])
 
@@ -512,10 +538,15 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertIn('not a well-formed XML document', str(ctx.exception))
 
     def test_parse_xml_fragment_function(self):
-        document = self.parser.parse(
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=self.etree.ElementTree(root))
+
+        result = self.parser.parse(
             'fn:parse-xml-fragment("<root><alpha>abcd</alpha><beta>abcd</beta></root>")'
-        ).evaluate()
-        self.assertTrue(is_document_node(document))
+        ).evaluate(context)
+        self.assertIsInstance(result, DocumentNode)
+
+        document = result.document
         self.assertTrue(is_etree_element(document.getroot()))
         self.assertEqual(document.getroot().tag, 'root')
         self.assertEqual(document.getroot()[0].tag, 'alpha')
@@ -524,38 +555,43 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertEqual(document.getroot()[1].text, 'abcd')
 
         # Fragments that are not valid formal documents
-        document_root = self.parser.parse(
+        result = self.parser.parse(
             'fn:parse-xml-fragment("<alpha>abcd</alpha><beta>abcd</beta>")'
-        ).evaluate()
-        self.assertFalse(is_document_node(document_root))
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.tag, 'document')
-        self.assertEqual(document_root[0].tag, 'alpha')
-        self.assertEqual(document_root[0].text, 'abcd')
-        self.assertEqual(document_root[1].tag, 'beta')
-        self.assertEqual(document_root[1].text, 'abcd')
+        ).evaluate(context)
+        self.assertIsInstance(result, ElementNode)
 
-        document_root = self.parser.parse(
+        root = result.elem
+        self.assertTrue(is_etree_element(root))
+        self.assertEqual(root.tag, 'document')
+        self.assertEqual(root[0].tag, 'alpha')
+        self.assertEqual(root[0].text, 'abcd')
+        self.assertEqual(root[1].tag, 'beta')
+        self.assertEqual(root[1].text, 'abcd')
+
+        result = self.parser.parse(
             'fn:parse-xml-fragment("He was <i>so</i> kind")'
-        ).evaluate()
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.text, 'He was ')
-        self.assertEqual(document_root.tag, 'document')
-        self.assertEqual(document_root[0].tag, 'i')
-        self.assertEqual(document_root[0].text, 'so')
-        self.assertEqual(document_root[0].tail, ' kind')
+        ).evaluate(context)
+        self.assertIsInstance(result, ElementNode)
 
-        document_root = self.parser.parse('fn:parse-xml-fragment("")').evaluate()
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.tag, 'document')
-        self.assertIsNone(document_root.text)
+        root = result.elem
+        self.assertTrue(is_etree_element(root))
+        self.assertEqual(root.text, 'He was ')
+        self.assertEqual(root.tag, 'document')
+        self.assertEqual(root[0].tag, 'i')
+        self.assertEqual(root[0].text, 'so')
+        self.assertEqual(root[0].tail, ' kind')
 
-        document_root = self.parser.parse('fn:parse-xml-fragment(" ")').evaluate()
-        self.assertTrue(is_etree_element(document_root))
-        self.assertEqual(document_root.tag, 'document')
-        self.assertEqual(document_root.text, ' ')
+        element_node = self.parser.parse('fn:parse-xml-fragment("")').evaluate(context)
+        self.assertTrue(is_etree_element(element_node.elem))
+        self.assertEqual(element_node.elem.tag, 'document')
+        self.assertIsNone(element_node.elem.text)
 
-        with self.assertRaises(MissingContextError) as ctx:
+        element_node = self.parser.parse('fn:parse-xml-fragment(" ")').evaluate(context)
+        self.assertTrue(is_etree_element(element_node.elem))
+        self.assertEqual(element_node.elem.tag, 'document')
+        self.assertEqual(element_node.elem.text, ' ')
+
+        with self.assertRaises(MissingContextError):
             self.parser.parse(
                 'fn:parse-xml(\'<xml version="1.0" encoding="utf8" standalone="yes"?></a>\')'
             ).evaluate()
@@ -574,14 +610,18 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
     def test_serialize_function(self):
         root = self.etree.XML('<root/>')
         document = self.etree.ElementTree(root)
-        context = XPathContext(root=document)
-        context.variables['params'] = ElementTree.XML(
-            '<output:serialization-parameters '
-            '    xmlns:output="http://www.w3.org/2010/xslt-xquery-serialization">'
-            '  <output:omit-xml-declaration value="yes"/>'
-            '</output:serialization-parameters>'
+        context = XPathContext(
+            root=document,
+            variables={
+                'params': ElementTree.XML(
+                    '<output:serialization-parameters '
+                    '    xmlns:output="http://www.w3.org/2010/xslt-xquery-serialization">'
+                    '  <output:omit-xml-declaration value="yes"/>'
+                    '</output:serialization-parameters>'
+                 ),
+                'data': self.etree.XML("<a b='3'/>")
+            }
         )
-        context.variables['data'] = self.etree.XML("<a b='3'/>")
         result = self.parser.parse('fn:serialize($data, $params)').evaluate(context)
         self.assertEqual(result.replace(' />', '/>'), '<a b="3"/>')
 
@@ -971,7 +1011,6 @@ class LxmlXPath30FunctionsTest(XPath30FunctionsTest):
 class XPath30ConstructorsTest(test_xpath2_constructors.XPath2ConstructorsTest):
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
-        self.dummy_type = xpath_test_class.DummyXsdType()
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

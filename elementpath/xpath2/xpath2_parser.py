@@ -212,12 +212,14 @@ class XPath2Parser(XPath1Parser):
                  default_collection_type: str = 'node()*') -> None:
 
         super(XPath2Parser, self).__init__(namespaces, strict)
-        self._compatibility_mode = compatibility_mode
+        self.compatibility_mode = compatibility_mode
         self._default_collation = default_collation
         self._xsd_version = xsd_version if xsd_version is not None else '1.0'
 
         if default_namespace is not None:
-            self.namespaces[''] = default_namespace
+            self.default_namespace = self.namespaces[''] = default_namespace
+        else:
+            self.default_namespace = self.namespaces.get('', '')
 
         if function_namespace is not None:
             self.function_namespace = function_namespace
@@ -263,20 +265,11 @@ class XPath2Parser(XPath1Parser):
         return state
 
     @property
-    def compatibility_mode(self) -> bool:
-        return self._compatibility_mode
-
-    @compatibility_mode.setter
-    def compatibility_mode(self, value: bool) -> None:
-        self._compatibility_mode = value
-
-    @property
     def default_collation(self) -> str:
         if self._default_collation is not None:
             return self._default_collation
 
         language_code, encoding = locale.getdefaultlocale()
-
         if language_code is None:
             return UNICODE_CODEPOINT_COLLATION
         elif encoding is None or not encoding:
@@ -287,10 +280,6 @@ class XPath2Parser(XPath1Parser):
                 return collation
             else:
                 return UNICODE_CODEPOINT_COLLATION
-
-    @property
-    def default_namespace(self) -> Optional[str]:
-        return self.namespaces.get('')
 
     @property
     def xsd_version(self) -> str:

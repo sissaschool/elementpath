@@ -17,8 +17,8 @@ import decimal
 from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
-from ..xpath_nodes import TextNode, is_xpath_node, is_document_node, \
-    is_element_node, is_comment_node, is_processing_instruction_node, node_name
+from ..xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
+    ProcessingInstructionNode, DocumentNode
 from ..xpath_token import XPathFunction
 
 from ._xpath1_operators import XPath1Parser
@@ -37,7 +37,7 @@ def select_node_kind_test(self, context=None):
     for item in context.iter_children_or_self():
         if item is None:
             yield context.root
-        elif is_xpath_node(item):
+        elif isinstance(item, XPathNode):
             yield item
 
 
@@ -56,17 +56,12 @@ def select_pi_kind_test(self, context=None):
         raise self.missing_context()
 
     for item in context.iter_children_or_self():
-        if is_processing_instruction_node(item):
+        if isinstance(item, ProcessingInstructionNode):
             if not self:
                 yield item
             else:
                 name = self[0].value
-                if hasattr(item, 'target'):
-                    target = item.target
-                else:
-                    target = item.text.split()[0] if item.text else ''
-
-                if target == ' '.join(name.strip().split()):
+                if item.name == ' '.join(name.strip().split()):
                     yield item
 
 
@@ -87,7 +82,7 @@ def select_comment_kind_test(self, context=None):
         raise self.missing_context()
 
     for item in context.iter_children_or_self():
-        if is_comment_node(item):
+        if isinstance(item, CommentNode):
             yield item
 
 
@@ -133,8 +128,10 @@ def select_id_function(self, context=None):
         if item is None:
             item = context.root
 
-        if is_element_node(item) or is_document_node(item):
-            yield from filter(lambda e: e.get(XML_ID) == value, item.iter())
+        if isinstance(item, (ElementNode, DocumentNode)):
+            for element in item.iter_descendants():
+                if isinstance(element, ElementNode) and element.elem.get(XML_ID) == value:
+                    yield element
 
 
 @method(function('name', nargs=(0, 1), sequence_types=('node()?', 'xs:string')))
@@ -147,10 +144,10 @@ def evaluate_name_related_functions(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
         return ''
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004')
 
-    name = node_name(arg)
+    name = arg.name
     if name is None:
         return ''
 
@@ -321,19 +318,16 @@ def evaluate_false_function(self, context=None):
 def evaluate_lang_function(self, context=None):
     if context is None:
         raise self.missing_context()
-    elif not is_element_node(context.item):
+    elif not isinstance(context.item, ElementNode):
         return False
     else:
         try:
-            lang = context.item.attrib[XML_LANG].strip()
+            lang = context.item.elem.attrib[XML_LANG].strip()
         except KeyError:
-            for elem in context.iter_ancestors():
-                try:
-                    if XML_LANG in elem.attrib:
-                        lang = elem.attrib[XML_LANG]
-                        break
-                except AttributeError:
-                    pass  # is a document node
+            for e in context.iter_ancestors():
+                if isinstance(e, ElementNode) and XML_LANG in e.elem.attrib:
+                    lang = e.elem.attrib[XML_LANG]
+                    break
             else:
                 return False
 
@@ -348,7 +342,7 @@ def evaluate_lang_function(self, context=None):
 def evaluate_number_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     try:
-        return float(self.string_value(arg) if is_xpath_node(arg) else arg)
+        return float(self.string_value(arg) if isinstance(arg, XPathNode) else arg)
     except (TypeError, ValueError):
         return float('nan')
 
@@ -357,7 +351,7 @@ def evaluate_number_function(self, context=None):
                  sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyAtomicType?')))
 def evaluate_sum_function(self, context=None):
     try:
-        values = [float(self.string_value(x)) if is_xpath_node(x) else x
+        values = [float(self.string_value(x)) if isinstance(x, XPathNode) else x
                   for x in self[0].select(context)]
     except (TypeError, ValueError):
         if self.parser.version == '1.0':
@@ -401,7 +395,7 @@ def evaluate_ceiling_and_floor_functions(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return float('nan') if self.parser.version == '1.0' else []
-    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+    elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
     try:
@@ -423,7 +417,7 @@ def evaluate_round_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return float('nan') if self.parser.version == '1.0' else []
-    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+    elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
     if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):

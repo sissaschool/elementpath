@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-from unittest.mock import patch
 import datetime
 import platform
 from decimal import Decimal
@@ -19,7 +18,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import XPathContext, AttributeNode, TypedAttribute
+from elementpath import XPathContext, AttributeNode
 from elementpath.datatypes import Timezone, DateTime10, DateTime, DateTimeStamp, \
     GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYearMonth10, \
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic
@@ -270,7 +269,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:double(-5)', float)
 
         root = self.etree.XML('<root a="10.3"/>')
-        context = XPathContext(root, item=AttributeNode('a', 10.3))
+        context = XPathContext(root)
+        context.item = context.root.attributes[0]
         self.check_value('xs:double(.)', float, context=context)
         self.check_value('xs:double(.)', 10.3, context=context)
 
@@ -287,7 +287,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:float("-INF")', float('-inf'))
 
         root = self.etree.XML('<root a="10.3"/>')
-        context = XPathContext(root, item=AttributeNode('a', 10.3))
+        context = XPathContext(root)
+        context.item = context.root.attributes[0]
         self.check_value('xs:float(.)', float, context=context)
         self.check_value('xs:float(.)', 10.3, context=context)
 
@@ -412,18 +413,25 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('xs:date(@a)', Date10(2017, 1, 19), context=context)
 
+        class DummyXsdDateType(xpath_test_class.DummyXsdType):
+            def is_simple(self):
+                return True
+
+            def decode(self, obj, *args, **kwargs):
+                return Date10.fromstring(obj)
+
+            def validate(self, obj, *args, **kwargs):
+                if not isinstance(obj, Date10):
+                    raise TypeError()
+
+        context.item = AttributeNode('a', 'true', xsd_type=DummyXsdDateType())
+        self.check_value('xs:date(.)', TypeError, context=context)
+
         context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)
 
         context.item = AttributeNode('a', 'true')
         self.check_value('xs:date(.)', ValueError, context=context)
-
-        context.item = AttributeNode('a', True)
-        self.check_value('xs:date(.)', TypeError, context=context)
-
-        with patch.multiple(self.dummy_type, is_simple=lambda x: True):
-            context.item = TypedAttribute(AttributeNode('a', 'true'), self.dummy_type, True)
-            self.check_value('xs:date(.)', TypeError, context=context)
 
         root = self.etree.XML("<root>2017-10-02</root>")
         context = XPathContext(root)

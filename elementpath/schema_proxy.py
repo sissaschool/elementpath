@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Iterator, Uni
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XMLSchemaProtocol
+    XsdElementProtocol, XsdSchemaProtocol
 from .datatypes import AtomicValueType
-from .xpath_nodes import is_etree_element
+from .etree import is_etree_element
 from .xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
     :param base_element: the schema element used as base item for static analysis.
     """
-    def __init__(self, schema: XMLSchemaProtocol,
+    def __init__(self, schema: XsdSchemaProtocol,
                  base_element: Optional[ElementProtocol] = None) -> None:
         if not is_etree_element(schema):
             raise ElementPathTypeError(
@@ -147,7 +147,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         implementation must raises a `ValueError` or `TypeError` in case of a decoding
         error or a `KeyError` if the type is not bound to the schema's scope.
 
-        :param obj: the instance to be casted.
+        :param obj: the instance to be cast.
         :param type_qname: the fully qualified name of the type used to convert the instance.
         """
 
@@ -155,18 +155,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
         """
         Returns an iterator for not builtin atomic types defined in the schema's scope. A concrete
-        implementation must yields objects that implement the protocol `XsdTypeProtocol`.
-        """
-
-    @abstractmethod
-    def get_primitive_type(self, xsd_type: XsdTypeProtocol) -> XsdTypeProtocol:
-        """
-        Returns the type at base of the definition of an XSD type. For an atomic type
-        is effectively the primitive type. For a list is the primitive type of the item.
-        For a union is the base union type. For a complex type is xs:anyType.
-
-        :param xsd_type: an XSD type instance.
-        :return: an XSD type instance.
+        implementation must yield objects that implement the protocol `XsdTypeProtocol`.
         """
 
 

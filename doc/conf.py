@@ -29,10 +29,9 @@ copyright = '2018-2022, SISSA (International School for Advanced Studies)'
 author = 'Davide Brunato'
 
 # The short X.Y version
-version = '2.5'
+version = '3.0'
 # The full version, including alpha/beta/rc tags
-release = '2.5.3'
-
+release = '3.0.0'
 
 # -- General configuration ---------------------------------------------------
 

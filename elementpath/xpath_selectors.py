@@ -10,7 +10,8 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Union, Type
 
 from .namespaces import NamespacesType
-from .xpath_context import ContextRootType, XPathContext
+from .xpath_nodes import RootArgType
+from .xpath_context import XPathContext
 from .xpath2 import XPath2Parser
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ else:
     ParserType = XPath2Parser
 
 
-def select(root: ContextRootType,
+def select(root: RootArgType,
            path: str,
            namespaces: Optional[NamespacesType] = None,
            parser: Optional[ParserType] = None,
@@ -49,11 +50,11 @@ def select(root: ContextRootType,
     }
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
-    context = XPathContext(root, **context_kwargs)
+    context = XPathContext(root, namespaces, **context_kwargs)
     return root_token.get_results(context)
 
 
-def iter_select(root: ContextRootType,
+def iter_select(root: RootArgType,
                 path: str,
                 namespaces: Optional[NamespacesType] = None,
                 parser: Optional[ParserType] = None,
@@ -80,7 +81,7 @@ def iter_select(root: ContextRootType,
     }
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
-    context = XPathContext(root, **context_kwargs)
+    context = XPathContext(root, namespaces, **context_kwargs)
     return root_token.select_results(context)
 
 
@@ -121,7 +122,7 @@ class Selector(object):
         """A dictionary with mapping from namespace prefixes into URIs."""
         return self.parser.namespaces
 
-    def select(self, root: ContextRootType, **kwargs: Any) -> Any:
+    def select(self, root: RootArgType, **kwargs: Any) -> Any:
         """
         Applies the instance's XPath expression on *root* Element.
 
@@ -136,7 +137,7 @@ class Selector(object):
         context = XPathContext(root, **kwargs)
         return self.root_token.get_results(context)
 
-    def iter_select(self, root: ContextRootType, **kwargs: Any) -> Iterator[Any]:
+    def iter_select(self, root: RootArgType, **kwargs: Any) -> Iterator[Any]:
         """
         Creates an XPath selector generator for apply the instance's XPath expression
         on *root* Element.

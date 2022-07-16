@@ -32,6 +32,7 @@ class XPath30Parser(XPath2Parser):
 
     :param args: the same positional arguments of class :class:`elementpath.XPath2Parser`.
     :param decimal_formats: a mapping with statically known decimal formats.
+    :param defuse_xml: if `True` defuse XML data before parsing, that is the default.
     :param kwargs: the same keyword arguments of class :class:`elementpath.XPath2Parser`.
     """
     version = '3.0'
@@ -108,10 +109,10 @@ class XPath30Parser(XPath2Parser):
     function_signatures = XPath2Parser.function_signatures.copy()
 
     def __init__(self, *args: Any, decimal_formats: Optional[DecimalFormatsType] = None,
-                 **kwargs: Any) -> None:
+                 defuse_xml: bool = True, **kwargs: Any) -> None:
         kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
-
+        self.defuse_xml = defuse_xml
         if decimal_formats is not None:
             self.decimal_formats = deepcopy(self.decimal_formats)
 

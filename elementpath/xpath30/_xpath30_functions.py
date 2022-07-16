@@ -27,14 +27,14 @@ except ImportError:
 
 from ..exceptions import ElementPathError
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
-    XML_NEWLINES_PATTERN, is_xml_codepoint
+    XML_NEWLINES_PATTERN, is_xml_codepoint, node_position
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
-    XSD_NAMESPACE, XML_NAMESPACE
-from ..xpath_nodes import etree_iter_paths, is_xpath_node, is_element_node, \
-    is_document_node, is_etree_element, is_schema_node, node_document_uri, \
-    node_nilled, node_name, TypedElement, TextNode, AttributeNode, \
-    TypedAttribute, NamespaceNode, is_processing_instruction_node, is_comment_node
+    XSD_NAMESPACE
+from ..etree import defuse_xml, etree_iter_paths
+from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
+    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
+from ..tree_builders import get_node_tree
 from ..xpath_token import XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -742,6 +742,9 @@ def evaluate_analyze_string_function(self, context=None):
     if compiled_pattern.match('') is not None:
         raise self.error('FORX0003', "pattern matches a zero-length string")
 
+    if context is None:
+        raise self.missing_context()
+
     level = 0
     escaped = False
     char_class = False
@@ -762,7 +765,6 @@ def evaluate_analyze_string_function(self, context=None):
         elif s == ')':
             level -= 1
 
-    etree = ElementTree if context is None else context.etree
     lines = ['<analyze-string-result xmlns="{}">'.format(XPATH_FUNCTIONS_NAMESPACE)]
     k = 0
 
@@ -831,7 +833,12 @@ def evaluate_analyze_string_function(self, context=None):
             lines.append('<match>{}</match>'.format(''.join(match_items)))
 
     lines.append('</analyze-string-result>')
-    return etree.XML(''.join(lines))
+    if self.parser.defuse_xml:
+        root = context.etree.XML(defuse_xml(''.join(lines)))
+    else:
+        root = context.etree.XML(''.join(lines))
+
+    return get_node_tree(root=root, namespaces=self.parser.namespaces)
 
 
 ###
@@ -852,23 +859,21 @@ def evaluate_path_function(self, context=None):
             return None
 
     suffix = ''
-    if is_document_node(item):
+    if isinstance(item, DocumentNode):
         return '/'
-    elif isinstance(item, TypedElement):
+    elif isinstance(item, (ElementNode, CommentNode, ProcessingInstructionNode)):
         elem = item.elem
-    elif is_etree_element(item):
-        elem = item
     elif isinstance(item, TextNode):
-        elem = item.parent
+        elem = item.parent.elem
         suffix = '/text()[1]'
     elif isinstance(item, AttributeNode):
-        elem = item.parent
+        elem = item.parent.elem
         if item.name.startswith('{'):
             suffix = f'/@Q{item.name}'
         else:
             suffix = f'/@{item.name}'
     elif isinstance(item, NamespaceNode):
-        elem = item.parent
+        elem = item.parent.elem
         if item.prefix:
             suffix = f'/namespace::{item.prefix}'
         else:
@@ -876,19 +881,19 @@ def evaluate_path_function(self, context=None):
     else:
         return None
 
-    try:
-        root = context.root.getroot()
-    except AttributeError:
-        root = context.root
-        path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
-    else:
+    if isinstance(context.root, DocumentNode):
+        root = context.root.getroot().elem
         path = f'/Q{root.tag}[1]'
+    else:
+        root = context.root.elem
+        path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
 
-    if is_processing_instruction_node(elem) and context.parent_map.get(elem) is None:
-        name = node_name(item)
-        return f'/processing-instruction({name})[{context.position}]'
-    elif is_comment_node(elem) and context.parent_map.get(elem) is None:
-        return f'/comment()[{context.position}]'
+    if isinstance(item, ProcessingInstructionNode):
+        if item.parent is None or isinstance(item.parent, DocumentNode):
+            return f'/processing-instruction({item.name})[{context.position}]'
+    elif isinstance(item, CommentNode):
+        if item.parent is None or isinstance(item.parent, DocumentNode):
+            return f'/comment()[{context.position}]'
 
     for e, path in etree_iter_paths(root, path):
         if e is elem:
@@ -903,22 +908,20 @@ def evaluate_has_children_function(self, context=None):
         raise self.missing_context()
     elif not self:
         if context.item is None:
-            return is_document_node(context.root)
+            return isinstance(context.root, DocumentNode)
 
         item = context.item
-        if not is_xpath_node(item):
+        if not isinstance(item, XPathNode):
             raise self.error('XPTY0004', 'context item must be a node')
     else:
         item = self.get_argument(context)
         if item is None:
             return False
-        elif not is_xpath_node(item):
+        elif not isinstance(item, XPathNode):
             raise self.error('XPTY0004', 'argument must be a node')
 
-    return is_document_node(item) or \
-        is_element_node(item) and not callable(item.tag) and \
-        (len(item) > 0 or item.text is not None) or \
-        isinstance(item, TypedElement) and (len(item.elem) > 0 or item.elem.text is not None)
+    return isinstance(item, DocumentNode) or \
+        isinstance(item, ElementNode) and (len(item.elem) > 0 or item.elem.text is not None)
 
 
 @method(function('innermost', nargs=1, sequence_types=('node()*', 'node()*')))
@@ -928,12 +931,12 @@ def select_innermost_function(self, context=None):
 
     context = copy(context)
     nodes = [e for e in self[0].select(context)]
-    if any(not is_xpath_node(x) for x in nodes):
+    if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
     results = {x for x in nodes if x not in ancestors}
-    yield from context.iter_results(results, namespaces=self.parser.other_namespaces)
+    yield from sorted(results, key=node_position)
 
 
 @method(function('outermost', nargs=1, sequence_types=('node()*', 'node()*')))
@@ -943,7 +946,7 @@ def select_outermost_function(self, context=None):
 
     context = copy(context)
     nodes = {e for e in self[0].select(context)}
-    if any(not is_xpath_node(x) for x in nodes):
+    if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
     results = set()
@@ -953,7 +956,8 @@ def select_outermost_function(self, context=None):
         if any(x in nodes for x in ancestors):
             continue
         results.add(item)
-    yield from context.iter_results(results, namespaces=self.parser.other_namespaces)
+
+    yield from sorted(results, key=node_position)
 
 
 ##
@@ -976,7 +980,7 @@ def evaluate_generate_id_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
         return ''
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         if self:
             raise self.error('XPTY0004', "argument is not a node")
         raise self.error('XPTY0004', "context item is not a node")
@@ -1059,7 +1063,7 @@ def evaluate_unparsed_text_functions(self, context=None):
                     'unknown url type' in message or \
                     'HTTP Error 404' in message or \
                     'failure in name resolution' in message:
-                raise self.error('FOUT1170') from None
+                raise self.error('FOUT1170', message) from None
             raise self.error('FOUT1190') from None
         else:
             if context is not None:
@@ -1157,16 +1161,19 @@ def evaluate_parse_xml_function(self, context=None):
     arg = self.get_argument(context, cls=str)
     if arg is None:
         return []
+    elif context is None:
+        raise self.missing_context()
 
-    etree = ElementTree if context is None else context.etree
+    etree = context.etree
     try:
-        root = etree.XML(arg.encode('utf-8'))
+        if self.parser.defuse_xml:
+            root = etree.XML(defuse_xml(arg.encode('utf-8')))
+        else:
+            root = etree.XML(arg.encode('utf-8'))
     except etree.ParseError:
-        if context is None:
-            raise self.missing_context()
         raise self.error('FODC0006')
     else:
-        return etree.ElementTree(root)
+        return get_node_tree(etree.ElementTree(root), self.parser.namespaces)
 
 
 @method(function('parse-xml-fragment', nargs=1,
@@ -1175,8 +1182,8 @@ def evaluate_parse_xml_fragment_function(self, context=None):
     arg = self.get_argument(context, cls=str)
     if arg is None:
         return []
-
-    etree = ElementTree if context is None else context.etree
+    elif context is None:
+        raise self.missing_context()
 
     # Wrap argument in a fake document because an
     # XML document can have only one root element
@@ -1194,15 +1201,25 @@ def evaluate_parse_xml_fragment_function(self, context=None):
     if arg.lstrip().startswith('<!DOCTYPE'):
         raise self.error('FODC0006', "<!DOCTYPE is not allowed")
 
+    etree = context.etree
     try:
-        root = etree.XML(arg)
-    except etree.ParseError:
+        if self.parser.defuse_xml:
+            root = etree.XML(defuse_xml(arg))
+        else:
+            root = etree.XML(arg)
+    except etree.ParseError as err:
         try:
-            return etree.XML(f'<document>{arg}</document>')
+            return get_node_tree(
+                root=etree.XML(f'<document>{arg}</document>'),
+                namespaces=self.parser.namespaces
+            )
         except etree.ParseError:
-            raise self.error('FODC0006') from None
+            raise self.error('FODC0006', str(err)) from None
     else:
-        return etree.ElementTree(root)
+        return get_node_tree(
+            root=etree.ElementTree(root),
+            namespaces=self.parser.namespaces
+        )
 
 
 @method(function('serialize', nargs=(1, 2), sequence_types=(
@@ -1210,17 +1227,16 @@ def evaluate_parse_xml_fragment_function(self, context=None):
 def evaluate_serialize_function(self, context=None):
     # TODO full implementation of serialization with
     #  https://www.w3.org/TR/xpath-functions-30/#xslt-xquery-serialization-30
-
     params = self.get_argument(context, index=1) if len(self) == 2 else None
     if params is None:
         tmpl = '<output:serialization-parameters xmlns:output="{}"/>'
         params = ElementTree.XML(tmpl.format(XSLT_XQUERY_SERIALIZATION_NAMESPACE))
-    elif not is_etree_element(params):
-        pass
-    elif params.tag != SERIALIZATION_PARAMS:
-        raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
+    elif isinstance(params, ElementNode):
+        params = params.value
+        if params.tag != SERIALIZATION_PARAMS:
+            raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
 
-    if context is None:
+    if context is None or isinstance(context, XPathSchemaContext):
         etree = ElementTree
     else:
         etree = context.etree
@@ -1307,11 +1323,11 @@ def evaluate_serialize_function(self, context=None):
 
     chunks = []
     for item in self[0].select(context):
-        if is_document_node(item):
-            item = item.getroot()
-        elif isinstance(item, TypedElement):
+        if isinstance(item, DocumentNode):
+            item = item.document.getroot()
+        elif isinstance(item, ElementNode):
             item = item.elem
-        elif isinstance(item, (AttributeNode, TypedAttribute, NamespaceNode)):
+        elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise self.error('SENR0001')
         elif isinstance(item, TextNode):
             chunks.append(item.value)
@@ -1319,11 +1335,12 @@ def evaluate_serialize_function(self, context=None):
         elif isinstance(item, bool):
             chunks.append('true' if item else 'false')
             continue
-        elif not is_etree_element(item):
+        else:
             chunks.append(str(item))
             continue
-        elif hasattr(item, 'xsd_version') or is_schema_node(item):
-            continue  # XSD schema or schema node
+
+        if isinstance(context, XPathSchemaContext):
+            continue
 
         try:
             ck = etree.tostringlist(item, encoding='utf-8', **kwargs)
@@ -1492,20 +1509,11 @@ def select_namespace_node_kind_test(self, context=None):
         raise self.missing_context()
     elif isinstance(context.item, NamespaceNode):
         yield context.item
-    elif is_etree_element(context.item):
+    elif isinstance(context, XPathSchemaContext):
+        return  # deprecated for XP20+ and not needed for schema analysis
+    elif isinstance(context.item, ElementNode):
         elem = context.item
-
-        nsmap = getattr(elem, 'nsmap', None)
-        if nsmap is None:
-            # missing in-scope namespaces, use static provided namespaces.
-            nsmap = self.parser.other_namespaces
-
-        for pfx, uri in nsmap.items():
-            context.item = NamespaceNode(pfx, uri, elem)
-            yield context.item
-
-        if 'xml' not in nsmap:
-            context.item = NamespaceNode('xml', XML_NAMESPACE, elem)
+        for context.item in elem.namespace_nodes:
             yield context.item
 
 
@@ -1522,16 +1530,16 @@ XPath30Parser.unregister('round')
 @method(function('data', nargs=(0, 1), sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self, context=None):
     if not self:
-        items = [self.get_argument(context, default_to_context=True)]
-    else:
-        items = self[0].select(context)
-
-    for item in items:
+        item = self.get_argument(context, default_to_context=True)
         value = self.data_value(item)
         if value is None:
             raise self.error('FOTY0012', "argument node does not have a typed value")
+        elif isinstance(value, list):
+            yield from value
         else:
             yield value
+    else:
+        yield from self[0].atomization(context)
 
 
 @method(function('document-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI?')))
@@ -1540,42 +1548,39 @@ def evaluate_document_uri_function(self, context=None):
         raise self.missing_context()
 
     arg = self.get_argument(context, default_to_context=True)
-    if arg is None or not is_document_node(arg):
-        return
-
-    uri = node_document_uri(arg)
-    if uri is not None:
-        return AnyURI(uri)
-    elif is_document_node(context.root):
-        try:
-            for uri, doc in context.documents.items():
-                if doc is context.root:
-                    return AnyURI(uri)
-        except AttributeError:
-            pass
+    if isinstance(arg, DocumentNode):
+        uri = arg.document_uri
+        if uri is not None:
+            return AnyURI(uri)
+        elif isinstance(context.root, DocumentNode):
+            if context.documents:
+                for uri, doc in context.documents.items():
+                    if doc and doc.document is context.root.document:
+                        return AnyURI(uri)
+    return None
 
 
 @method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))
 def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
-        return
-    elif not is_xpath_node(arg):
+        return None
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
-    return node_nilled(arg)
+    return arg.nilled
 
 
 @method(function('node-name', nargs=(0, 1), sequence_types=('node()?', 'xs:QName?')))
 def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
-        return
-    elif not is_xpath_node(arg):
+        return None
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
-    name = node_name(arg)
+    name = arg.name
     if name is None:
-        return
+        return None
     elif name.startswith('{'):
         # name is a QName in extended format
         namespace, local_name = split_expanded_name(name)
@@ -1593,7 +1598,7 @@ def evaluate_node_name_function(self, context=None):
 def evaluate_string_join_function(self, context=None):
     items = [
         self.validated_value(s, cls=str, promote=AnyURI)
-        for s in self[0].select(context)
+        for s in self[0].atomization(context)
     ]
 
     if len(self) == 1:
@@ -1607,7 +1612,7 @@ def evaluate_round_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return []
-    elif is_xpath_node(arg) or self.parser.compatibility_mode:
+    elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
     if isinstance(arg, float) and (math.isnan(arg) or math.isinf(arg)):

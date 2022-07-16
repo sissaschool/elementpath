@@ -65,6 +65,5 @@ class NamespacesTest(unittest.TestCase):
             split_expanded_name('{{ns}}foo')
 
 
-
 if __name__ == '__main__':
     unittest.main()

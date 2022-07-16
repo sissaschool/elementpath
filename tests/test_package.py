@@ -13,6 +13,7 @@ import glob
 import fileinput
 import os
 import re
+import platform
 
 
 class PackageTest(unittest.TestCase):
@@ -22,19 +23,31 @@ class PackageTest(unittest.TestCase):
         cls.test_dir = os.path.dirname(os.path.abspath(__file__))
         cls.package_dir = os.path.dirname(cls.test_dir)
         cls.source_dir = os.path.join(cls.package_dir, 'elementpath/')
-        cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
-        cls.get_version = re.compile(r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
+        cls.missing_debug = re.compile(
+            r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\(|\bbreakpoint\s*\()")
+        cls.get_version = re.compile(
+            r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 
+    @unittest.skipIf(platform.system() == 'Windows', 'Skip on Windows platform')
     def test_missing_debug_statements(self):
         message = "\nFound a debug missing statement at line %d of file %r: %r"
         filename = None
-        for line in fileinput.input(glob.glob(os.path.join(self.source_dir, '*.py'))):
+        source_files = glob.glob(os.path.join(self.source_dir, '*.py')) + \
+            glob.glob(os.path.join(self.source_dir, '*/*.py'))
+
+        for line in fileinput.input(source_files):
             if fileinput.isfirstline():
                 filename = os.path.basename(fileinput.filename())
+                if filename == 'generate_categories.py':
+                    fileinput.nextfile()
+                    continue
+
             lineno = fileinput.filelineno()
 
             match = self.missing_debug.search(line)
-            self.assertIsNone(match, message % (lineno, filename, match.group(0) if match else None))
+            self.assertIsNone(
+                match, message % (lineno, filename, match.group(0) if match else None)
+            )
 
     def test_version_matching(self):
         message = "\nFound a different version at line %d of file %r: %r (maybe %r)."

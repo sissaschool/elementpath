@@ -11,24 +11,22 @@
 XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
+from abc import ABCMeta
 from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
-    Optional, Tuple, Type, Union, Set
+    Optional, Tuple, Type, Set, Sequence
 
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, normalize_sequence_type
 from ..exceptions import MissingContextError, ElementPathKeyError, \
     ElementPathValueError, xpath_error
-from ..protocols import XsdTypeProtocol
 from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
-    xsd10_atomic_types, xsd11_atomic_types, ATOMIC_VALUES, AtomicValueType
+    xsd10_atomic_types, xsd11_atomic_types
 from ..tdop import Token, Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
-    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name, \
-    split_expanded_name
+    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
-from ..xpath_nodes import is_xpath_node, node_nilled, node_kind, node_name, \
-    TypedAttribute, TypedElement
+from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 COMMON_SEQUENCE_TYPES = {
     'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
@@ -87,11 +85,12 @@ class XPath1Parser(Parser[XPathToken]):
         '{', '}'
     }
 
+    RESERVED_FUNCTION_NAMES = {
+        'comment', 'element', 'node', 'processing-instruction', 'text'
+    }
+
     DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {'xml': XML_NAMESPACE}
-    """
-    The default prefix-to-namespace associations of the XPath class. These namespaces
-    are updated in the instance with the ones passed with the *namespaces* argument.
-    """
+    """Namespaces known statically by default."""
 
     # Labels and symbols admitted after a path step
     PATH_STEP_LABELS: ClassVar[Tuple[str, ...]] = ('axis', 'kind test')
@@ -106,9 +105,14 @@ class XPath1Parser(Parser[XPathToken]):
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
 
-    RESERVED_FUNCTION_NAMES = {
-        'comment', 'element', 'node', 'processing-instruction', 'text'
-    }
+    compatibility_mode: bool = True
+    """XPath 1.0 compatibility mode."""
+
+    default_namespace: Optional[str] = None
+    """
+    The default namespace. For XPath 1.0 this value is always `None` because the default
+    namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
+    """
 
     def __init__(self, namespaces: Optional[NamespacesType] = None, strict: bool = True,
                  *args: Any, **kwargs: Any) -> None:
@@ -119,21 +123,8 @@ class XPath1Parser(Parser[XPathToken]):
         self.strict: bool = strict
 
     @property
-    def compatibility_mode(self) -> bool:
-        """XPath 1.0 compatibility mode."""
-        return True
-
-    @property
-    def default_namespace(self) -> Optional[str]:
-        """
-        The default namespace. For XPath 1.0 this value is always `None` because the default
-        namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
-        """
-        return None
-
-    @property
     def other_namespaces(self) -> Dict[str, str]:
-        """The subset of namespaces not provided by default."""
+        """The subset of namespaces not known by default."""
         return {k: v for k, v in self.namespaces.items() if k not in self.DEFAULT_NAMESPACES}
 
     @property
@@ -150,6 +141,19 @@ class XPath1Parser(Parser[XPathToken]):
                 return '%s:%s' % (pfx, local_name) if pfx else local_name
 
         raise xpath_error('XPST0081', 'Missing XSD namespace registration')
+
+    @classmethod
+    def create_restricted_parser(cls, name: str, symbols: Sequence[str]) \
+            -> Type['XPath1Parser']:
+        """Get a parser subclass with a restricted set of symbols.s"""
+        _symbols = frozenset(symbols)
+        symbol_table = {
+            k: v for k, v in cls.symbol_table.items()
+            if k in _symbols
+        }
+        return cast(Type['XPath1Parser'], ABCMeta(
+            f"{name}{cls.__name__}", (cls,), {'symbol_table': symbol_table, 'SYMBOLS': _symbols}
+        ))
 
     @staticmethod
     def unescape(string_literal: str) -> str:
@@ -344,43 +348,6 @@ class XPath1Parser(Parser[XPathToken]):
         else:
             return True
 
-    def get_atomic_value(self, type_or_name: Union[str, XsdTypeProtocol]) -> AtomicValueType:
-        """Gets an atomic value for an XSD type instance or name. Used for schema contexts."""
-        expanded_name: Optional[str]
-
-        if isinstance(type_or_name, str):
-            expanded_name = get_expanded_name(type_or_name, self.namespaces)
-            xsd_type = None
-        else:
-            xsd_type = type_or_name
-            expanded_name = xsd_type.name
-
-        if expanded_name:
-            uri, local_name = split_expanded_name(expanded_name)
-            if uri == XSD_NAMESPACE:
-                try:
-                    return ATOMIC_VALUES[local_name]
-                except KeyError:
-                    pass
-
-        if xsd_type is None and self.schema is not None:
-            xsd_type = self.schema.get_type(expanded_name or '')
-
-        if xsd_type is None:
-            return UntypedAtomic('1')
-        elif xsd_type.is_simple() or xsd_type.has_simple_content():
-            if self.schema is None:
-                return UntypedAtomic('1')
-            try:
-                primitive_type = self.schema.get_primitive_type(xsd_type)
-                return ATOMIC_VALUES[cast(str, primitive_type.local_name)]
-            except (KeyError, AttributeError):
-                return UntypedAtomic('1')
-        else:
-            # returns an xs:untypedAtomic value also for element-only types
-            # (that should be None) because it is for static evaluation.
-            return UntypedAtomic('1')
-
     def match_sequence_type(self, value: Any,
                             sequence_type: str,
                             occurrence: Optional[str] = None) -> bool:
@@ -405,7 +372,8 @@ class XPath1Parser(Parser[XPathToken]):
             else:
                 return all(self.match_sequence_type(x, sequence_type) for x in value)
         elif sequence_type == 'item()':
-            return is_xpath_node(value) or isinstance(value, (AnyAtomicType, list, XPathFunction))
+            return isinstance(value, XPathNode) \
+                   or isinstance(value, (AnyAtomicType, list, XPathFunction))
         elif sequence_type == 'numeric':
             return isinstance(value, NumericProxy)
         elif sequence_type.startswith('function('):
@@ -413,21 +381,27 @@ class XPath1Parser(Parser[XPathToken]):
                 return False
             return value.match_function_test(sequence_type)
 
-        value_kind = node_kind(value)
-        if value_kind is None:
+        if isinstance(value, XPathNode):
+            value_kind = value.kind
+        else:
             try:
                 type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
                 return self.is_instance(value, type_expanded_name)
             except (KeyError, ValueError):
                 return False
-        elif sequence_type == 'node()':
+
+        if sequence_type == 'node()':
             return True
         elif not sequence_type.startswith(value_kind) or not sequence_type.endswith(')'):
             return False
         elif sequence_type == f'{value_kind}()':
             return True
-        elif value_kind == 'document-node':
-            return self.match_sequence_type(value.getroot(), sequence_type[14:-1])
+        elif value_kind == 'document':
+            element_test = sequence_type[14:-1]
+            if not element_test:
+                return True
+            element_node = cast(DocumentNode, value).getroot()
+            return self.match_sequence_type(element_node, element_test)
         elif value_kind not in ('element', 'attribute'):
             return False
 
@@ -438,11 +412,12 @@ class XPath1Parser(Parser[XPathToken]):
             name, type_name = params.split(',')
             if type_name.endswith('?'):
                 type_name = type_name[:-1]
-            elif node_nilled(value):
+            elif isinstance(value, ElementNode) and value.nilled:
                 return False
 
             if type_name == 'xs:untyped':
-                if isinstance(value, (TypedAttribute, TypedElement)):
+                if isinstance(value, (ElementNode, AttributeNode)) \
+                        and value.xsd_type is not None:
                     return False
             else:
                 try:
@@ -456,8 +431,8 @@ class XPath1Parser(Parser[XPathToken]):
             return True
 
         try:
-            return node_name(value) == get_expanded_name(name, self.namespaces)
-        except (KeyError, ValueError):
+            return bool(value.name == get_expanded_name(name, self.namespaces))
+        except (KeyError, ValueError, AttributeError):
             return False
 
     def check_variables(self, values: MutableMapping[str, Any]) -> None:

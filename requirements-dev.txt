@@ -6,6 +6,8 @@ lxml
 xmlschema>=1.9.0
 Sphinx
 memory-profiler
+memray
 flake8
-mypy==0.950
+mypy==0.961
+lxml-stubs
 -e .

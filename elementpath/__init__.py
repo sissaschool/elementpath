@@ -7,23 +7,30 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '2.5.3'
+__version__ = '3.0.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2022, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
+# Imports here are considered as stable API, other internal calls may change.
 
-from .exceptions import ElementPathError, MissingContextError, \
-    ElementPathSyntaxError, ElementPathNameError, ElementPathKeyError, \
-    ElementPathTypeError, ElementPathLocaleError, ElementPathValueError, \
-    ElementPathOverflowError, ElementPathZeroDivisionError
+from . import datatypes  # XSD datatypes
+from . import etree      # Safe parser and helper functions for ElementTree
+from . import protocols  # Protocols for type annotations
 
-from . import datatypes
+from .exceptions import ElementPathError, MissingContextError, ElementPathKeyError, \
+    ElementPathZeroDivisionError, ElementPathNameError, ElementPathOverflowError, \
+    ElementPathRuntimeError, ElementPathSyntaxError, ElementPathTypeError, \
+    ElementPathValueError, ElementPathLocaleError
+
 from .xpath_context import XPathContext, XPathSchemaContext
-from .xpath_nodes import XPathNode, AttributeNode, TextNode, \
-    NamespaceNode, TypedElement, TypedAttribute
+from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
+    NamespaceNode,  CommentNode, ProcessingInstructionNode, TextNode, \
+    LazyElementNode, SchemaElementNode
+from .tree_builders import get_node_tree, build_node_tree, build_lxml_node_tree, \
+    build_schema_node_tree
 from .xpath_token import XPathToken, XPathFunction
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
@@ -31,12 +38,16 @@ from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
 from .regex import RegexError, translate_pattern
 
+TypedElement = ElementNode  # for backward compatibility with xmlschema<=1.10.0
 
-__all__ = ['ElementPathError', 'MissingContextError', 'ElementPathSyntaxError',
-           'ElementPathKeyError', 'ElementPathLocaleError', 'ElementPathNameError',
-           'ElementPathOverflowError', 'ElementPathValueError', 'ElementPathTypeError',
-           'ElementPathZeroDivisionError', 'datatypes', 'XPathContext', 'XPathSchemaContext',
-           'XPathNode', 'AttributeNode', 'TextNode', 'NamespaceNode', 'TypedAttribute',
-           'TypedElement', 'XPathToken', 'XPathFunction', 'XPath1Parser', 'XPath2Parser',
-           'select', 'iter_select', 'Selector', 'AbstractSchemaProxy',
-           'RegexError', 'translate_pattern']
+__all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContextError',
+           'ElementPathKeyError', 'ElementPathZeroDivisionError', 'ElementPathNameError',
+           'ElementPathOverflowError', 'ElementPathRuntimeError', 'ElementPathSyntaxError',
+           'ElementPathTypeError', 'ElementPathValueError', 'ElementPathLocaleError',
+           'XPathContext', 'XPathSchemaContext', 'XPathNode', 'DocumentNode',
+           'ElementNode', 'AttributeNode', 'NamespaceNode', 'CommentNode',
+           'ProcessingInstructionNode', 'TextNode', 'LazyElementNode',
+           'SchemaElementNode', 'TypedElement', 'get_node_tree', 'build_node_tree',
+           'build_lxml_node_tree', 'build_schema_node_tree', 'XPathToken',
+           'XPathFunction', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select',
+           'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern']

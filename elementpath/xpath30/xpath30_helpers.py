@@ -412,6 +412,9 @@ def parse_datetime_picture(picture: str) -> Tuple[List[str], List[str]]:
 
 
 def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str] = None) -> str:
+    min_width: int
+    max_width: Optional[int]
+
     component = marker[1]
     fmt_token = marker[2:-1]
 
@@ -452,9 +455,6 @@ def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str
             break
     else:
         zero_cp, zero_ch = ord('0'), '0'
-
-    min_width: int
-    max_width: Optional[int]
 
     digits = sum(c.isdigit() for c in presentation)
     opt_digits = presentation.count('#')

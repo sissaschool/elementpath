@@ -10,7 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Tests script for running W3C XPath tests on elementpath. This is a
+Test script for running W3C XPath tests on elementpath. This is a
 reworking of https://github.com/tjeb/elementpath_w3c_tests project
 that uses ElementTree for default and collapses the essential parts
 into only one module.
@@ -34,7 +34,8 @@ import lxml.etree
 import elementpath
 import xmlschema
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode, \
+    CommentNode, ProcessingInstructionNode, get_node_tree
 from elementpath.namespaces import get_expanded_name
 from elementpath.xpath_token import XPathFunction
 from elementpath.datatypes import AnyAtomicType
@@ -162,7 +163,9 @@ LXML_ONLY = {
     'fn-outermost__fn-outermost-017',
     'fn-outermost__fn-outermost-018',
     'fn-outermost__fn-outermost-019',
+    'fn-outermost__fn-outermost-020',
     'fn-outermost__fn-outermost-021',
+    'fn-outermost__fn-outermost-046',
     'fn-local-name__fn-local-name-77',
     'fn-local-name__fn-local-name-79',
     'fn-name__fn-name-27',
@@ -210,6 +213,23 @@ def working_directory(dirpath):
         yield
     finally:
         os.chdir(orig_wd)
+
+
+def get_context_result(item):
+    if isinstance(item, XPathNode):
+        raise TypeError("Unexpected XPath node in external results")
+    elif isinstance(item, (list, tuple)):
+        return [get_context_result(x) for x in item]
+    elif hasattr(item, 'tag'):
+        if callable(item.tag):
+            if item.tag.__name__ == 'Comment':
+                return CommentNode(item)
+            else:
+                return ProcessingInstructionNode(item)
+    elif not hasattr(item, 'getroot'):
+        return item
+
+    return get_node_tree(root=item)
 
 
 def etree_is_equal(root1, root2, strict=True):
@@ -635,6 +655,7 @@ class TestCase(object):
         )
         if environment is not None and xpath_parser.version >= '3.0':
             kwargs['decimal_formats'] = environment.decimal_formats
+            kwargs['defuse_xml'] = False
 
         parser = xpath_parser(**kwargs)
 
@@ -654,8 +675,12 @@ class TestCase(object):
         if not with_context:
             context = None
         elif environment is None:
-            context = XPathContext(root=self.etree.XML("<empty/>"), timezone='Z',
-                                   default_calendar=self.calendar)
+            context = XPathContext(
+                root=self.etree.XML("<empty/>"),
+                namespaces=test_namespaces,
+                timezone='Z',
+                default_calendar=self.calendar
+            )
         else:
             kwargs = {'timezone': 'Z'}
             variables = {}
@@ -691,6 +716,8 @@ class TestCase(object):
                 if 'non_empty_sequence_collection' in self.features:
                     kwargs['default_resource_collection'] = uri
 
+            if test_namespaces:
+                kwargs['namespaces'] = test_namespaces
             if variables:
                 kwargs['variables'] = variables
             if documents:
@@ -884,7 +911,8 @@ class Result(object):
             print(msg.format(self.test_case.name, self.value))
             type_check = False
         else:
-            type_check = self.parser.match_sequence_type(result, self.value)
+            context_result = get_context_result(result)
+            type_check = self.parser.match_sequence_type(context_result, self.value)
 
         if not type_check:
             self.report_failure(
@@ -951,6 +979,8 @@ class Result(object):
             reason = "Unexpected error {!r}: {}".format(type(err), str(err))
 
         except (ParseError, EvaluateError) as err:
+            if verbose > 3:
+                err_traceback = ''.join(traceback.format_exception(None, err, err.__traceback__))
             reason = "Not an elementpath error {!r}: {}".format(type(err), str(err))
         else:
             reason = "Error not raised"
@@ -1171,7 +1201,7 @@ class Result(object):
         if type(result) == list:
             parts = []
             for item in result:
-                if isinstance(item, elementpath.TypedElement):
+                if isinstance(item, elementpath.ElementNode):
                     tail, item.elem.tail = item.elem.tail, None
                     parts.append(tostring(item.elem).decode('utf-8').strip())
                     item.elem.tail = tail
@@ -1239,6 +1269,8 @@ class Result(object):
 
 
 def main():
+    global xpath_parser
+
     parser = argparse.ArgumentParser()
     parser.add_argument('catalog', metavar='CATALOG_FILE',
                         help='the path to the main index file of test suite (catalog.xml)')
@@ -1249,6 +1281,8 @@ def main():
     parser.add_argument('-i', dest='ignore_case', action='store_true', default=False,
                         help="ignore character case for regex pattern matching")
     parser.add_argument('--xp30', action='store_true', default=False,
+                        help="test XPath 3.0 parser")
+    parser.add_argument('--xp31', action='store_true', default=False,
                         help="test XPath 3.0 parser")
     parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
                         help="use lxml.etree for environment sources (default is ElementTree)")
@@ -1274,10 +1308,18 @@ def main():
         print("Error: catalog file %s does not exist" % args.catalog)
         sys.exit(1)
 
-    if args.xp30:
+    if args.xp31:
+        from elementpath.xpath31 import XPath31Parser
+
+        xpath_parser = XPath31Parser
+        ignore_specs.remove('XP30+')
+        ignore_specs.remove('XP31')
+        ignore_specs.remove('XP31+')
+        ignore_specs.add('XP20')
+
+    elif args.xp30:
         from elementpath.xpath30 import XPath30Parser
 
-        global xpath_parser
         xpath_parser = XPath30Parser
         ignore_specs.remove('XP30')
         ignore_specs.remove('XP30+')
@@ -1371,7 +1413,7 @@ def main():
                     count_skip += 1
                     continue
 
-                if args.xp30 and test_case.test:
+                if args.xp30 and not args.xp31 and test_case.test:
                     if 'parse-json' in test_case.test:
                         count_skip += 1
                         continue

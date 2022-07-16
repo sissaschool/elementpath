@@ -30,10 +30,10 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
+from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
-from ..xpath_nodes import AttributeNode, NamespaceNode, TypedElement, \
-    is_element_node, is_document_node, is_xpath_node, node_name, \
-    node_nilled, node_document_uri, node_kind, etree_deep_equal
+from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
+    NamespaceNode, CommentNode, ProcessingInstructionNode
 from ..xpath_token import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
@@ -130,9 +130,10 @@ def evaluate_namespace_uri_for_prefix_function(self, context=None):
         raise self.error('FORG0006', '1st argument has an invalid type %r' % type(prefix))
 
     elem = self.get_argument(context, index=1)
-    if not is_element_node(elem):
+    if not isinstance(elem, ElementNode):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
-    ns_uris = {get_namespace(e.tag) for e in elem.iter()}
+
+    ns_uris = {get_namespace(e.tag) for e in elem.elem.iter() if not callable(e.tag)}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
             if p == prefix:
@@ -148,12 +149,11 @@ def select_in_scope_prefixes_function(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    elem = self.get_argument(context)
-    if isinstance(elem, TypedElement):
-        elem = elem.elem
-    elif not is_element_node(elem):
-        raise self.error('XPTY0004', 'argument %r is not an element node' % elem)
+    arg = self.get_argument(context, required=True)
+    if not isinstance(arg, ElementNode):
+        raise self.error('XPTY0004', 'argument %r is not an element node' % arg)
 
+    elem = arg.elem
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
         for pfx, uri in self.parser.namespaces.items():
@@ -189,7 +189,7 @@ def evaluate_resolve_qname_function(self, context=None):
         raise self.missing_context()
 
     elem = self.get_argument(context, index=1)
-    if not is_element_node(elem):
+    if not isinstance(elem, ElementNode):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
 
     qname = qname.strip()
@@ -227,10 +227,10 @@ def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
-    name = node_name(arg)
+    name = arg.name
     if name is None:
         return
     elif name.startswith('{'):
@@ -250,19 +250,14 @@ def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
         return
-    elif not is_xpath_node(arg):
+    elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
-    return node_nilled(arg)
+    return arg.nilled
 
 
 @method(function('data', nargs=1, sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self, context=None):
-    for item in self[0].select(context):
-        value = self.data_value(item)
-        if value is None:
-            raise self.error('FOTY0012', "argument node does not have a typed value")
-        else:
-            yield value
+    yield from self[0].atomization(context)
 
 
 @method(function('base-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI?')))
@@ -272,17 +267,17 @@ def evaluate_base_uri_function(self, context=None):
         raise self.missing_context("context item is undefined")
     elif item is None:
         return None
-    elif not is_xpath_node(item):
+    elif not isinstance(item, XPathNode):
         raise self.wrong_context_type("context item is not a node")
-    elif is_document_node(item):
-        base_uri = item.getroot().get(XML_BASE)
+    elif isinstance(item, DocumentNode):
+        base_uri = item.document.getroot().get(XML_BASE)
         return AnyURI(base_uri if base_uri is not None else '')
     else:
         context.item = item
         base_uri = []
         for item in context.iter_ancestors(axis='ancestor-or-self'):
-            if is_element_node(item):
-                uri = item.get(XML_BASE)
+            if isinstance(item, ElementNode):
+                uri = item.elem.get(XML_BASE)
                 if uri is not None:
                     if base_uri and urlsplit(uri).scheme:
                         break
@@ -300,19 +295,17 @@ def evaluate_document_uri_function(self, context=None):
         raise self.missing_context()
 
     arg = self.get_argument(context)
-    if arg is None or not is_document_node(arg):
-        return
+    if isinstance(arg, DocumentNode):
+        uri = arg.document_uri
+        if uri is not None:
+            return AnyURI(uri)
+        elif isinstance(context.root, DocumentNode):
+            if context.documents:
+                for uri, doc in context.documents.items():
+                    if doc and doc.document is context.root.document:
+                        return AnyURI(uri)
 
-    uri = node_document_uri(arg)
-    if uri is not None:
-        return AnyURI(uri)
-    elif is_document_node(context.root):
-        try:
-            for uri, doc in context.documents.items():
-                if doc is context.root:
-                    return AnyURI(uri)
-        except AttributeError:
-            pass
+    return None
 
 
 ###
@@ -353,7 +346,7 @@ def evaluate_abs_function(self, context=None):
         return
     elif isinstance(item, float) and math.isnan(item):
         return item
-    elif is_xpath_node(item):
+    elif isinstance(item, XPathNode):
         value = self.string_value(item)
         try:
             return abs(Decimal(value))
@@ -370,7 +363,7 @@ def evaluate_abs_function(self, context=None):
 @method(function('avg', nargs=1, sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType')))
 def evaluate_avg_function(self, context=None):
     values = []
-    for item in self[0].select_data_values(context):
+    for item in self[0].atomization(context):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item.value))
         elif isinstance(item, (AnyURI, bool)):
@@ -433,7 +426,7 @@ def evaluate_max_min_functions(self, context=None):
     to_any_uri = None
     aggregate_func = max if self.symbol == 'max' else min
 
-    for item in self[0].select_data_values(context):
+    for item in self[0].atomization(context):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item))
             float_class = float
@@ -499,10 +492,7 @@ def select_distinct_values_function(self, context=None):
     def distinct_values():
         nan = False
         results = []
-        for item in self[0].select(context):
-            value = self.data_value(item)
-            if context is not None:
-                context.item = value
+        for value in self[0].atomization(context):
             if isinstance(value, (float, Decimal)):
                 if math.isnan(value):
                     if not nan:
@@ -549,13 +539,13 @@ def select_index_of_function(self, context=None):
         raise self.error('XPTY0004', "2nd argument cannot be an empty sequence")
 
     if len(self) < 3:
-        for pos, result in enumerate(self[0].select(context), start=1):
-            if self.data_value(result) == value:
+        for pos, result in enumerate(self[0].atomization(context), start=1):
+            if result == value:
                 yield pos
     else:
         with self.use_locale(collation=self.get_argument(context, 2)):
-            for pos, result in enumerate(self[0].select(context), start=1):
-                if self.data_value(result) == value:
+            for pos, result in enumerate(self[0].atomization(context), start=1):
+                if result == value:
                     yield pos
 
 
@@ -668,9 +658,9 @@ def evaluate_deep_equal_function(self, context=None):
                 return False
             elif value1 is None:
                 return True
-            elif (is_xpath_node(value1)) ^ (is_xpath_node(value2)):
+            elif isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
                 return False
-            elif not is_xpath_node(value1):
+            elif not isinstance(value1, XPathNode):
                 try:
                     if isinstance(value1, bool):
                         if not isinstance(value2, bool) or value1 is not value2:
@@ -719,18 +709,13 @@ def evaluate_deep_equal_function(self, context=None):
                         return False
                 except TypeError:
                     return False
-            elif node_kind(value1) != node_kind(value2):
+            elif value1.kind != value2.kind:
                 return False
-            elif hasattr(value1, 'tag') and hasattr(value1, 'text'):
-                if not callable(value1.tag):
-                    if not etree_deep_equal(value1, value2):
-                        return False
-                elif hasattr(value1, 'target'):
-                    return value1.target == value2.target
-                else:
-                    return value1.text == value2.text
-            elif is_document_node(value1):
-                if not etree_deep_equal(value1.getroot(), value2.getroot()):
+            elif isinstance(value1, (ElementNode, CommentNode, ProcessingInstructionNode)):
+                if not etree_deep_equal(value1.elem, value2.elem):
+                    return False
+            elif isinstance(value1, DocumentNode):
+                if not etree_deep_equal(value1.document.getroot(), value2.document.getroot()):
                     return False
             elif value1.value != value2.value:
                 return False
@@ -962,7 +947,7 @@ def evaluate_codepoint_equal_function(self, context=None):
 def evaluate_string_join_function(self, context=None):
     items = [
         self.validated_value(s, cls=str, promote=AnyURI)
-        for s in self[0].select(context)
+        for s in self[0].atomization(context)
     ]
     return self.get_argument(context, 1, required=True, cls=str).join(items)
 
@@ -1313,14 +1298,14 @@ def evaluate_root_function(self, context=None):
     elif not self:
         if context.item is None:
             return context.root
-        elif not is_xpath_node(context.item):
+        elif not isinstance(context.item, XPathNode):
             raise self.error('XPTY0004')
         return context.get_root(context.item)
     else:
         item = self.get_argument(context)
         if item is None:
             return None
-        elif not is_xpath_node(item):
+        elif not isinstance(item, XPathNode):
             raise self.error('XPTY0004')
         return context.get_root(item)
 
@@ -1335,19 +1320,19 @@ def evaluate_lang_function(self, context=None):
     else:
         item = context.item
 
-    if not is_element_node(item):
+    if not isinstance(item, ElementNode):
         raise self.error('XPTY0004')
 
     try:
-        lang = item.attrib[XML_LANG].strip()
+        lang = item.elem.attrib[XML_LANG].strip()
     except KeyError:
         if len(self) > 1:
             return False
 
         for elem in context.iter_ancestors():
             try:
-                if XML_LANG in elem.attrib:
-                    lang = elem.attrib[XML_LANG]
+                if XML_LANG in elem.elem.attrib:
+                    lang = elem.elem.attrib[XML_LANG]
                     break
             except AttributeError:
                 pass  # is a document node
@@ -1383,7 +1368,7 @@ def select_id_function(self, context=None):
     else:
         node = self.get_argument(context, index=1)
 
-    if not is_xpath_node(node):
+    if not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
 
     if isinstance(context, XPathSchemaContext):
@@ -1394,35 +1379,33 @@ def select_id_function(self, context=None):
         return None
 
     # TODO: PSVI bindings with also xsi:type evaluation
-    for elem in root.iter():
-        if elem.text in idrefs:
+    for element in filter(lambda x: isinstance(x, ElementNode), root.iter_descendants()):
+        if element.elem.text in idrefs:
             if self.parser.schema is not None:
-                path = context.get_path(elem)
-                xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
                 if xsd_element is None or not xsd_element.type.is_key():
                     continue
 
-            idrefs.remove(elem.text)
+            idrefs.remove(element.elem.text)
             if self.symbol == 'id':
-                yield elem
+                yield element
             else:
-                parent = context.get_parent(elem)
+                parent = element.parent
                 if parent is not None:
                     yield parent
             continue  # pragma: no cover
 
-        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):
+        for attr in element.attributes:
             if attr.value in idrefs:
                 if attr.name == XML_ID:
                     idrefs.remove(attr.value)
-                    yield elem
+                    yield element
                     break
 
                 if self.parser.schema is None:
                     continue
 
-                path = context.get_path(elem)
-                xsd_element = self.parser.schema.find(path, self.parser.namespaces)
+                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
                 if xsd_element is None:
                     continue
 
@@ -1431,7 +1414,7 @@ def select_id_function(self, context=None):
                     continue  # pragma: no cover
 
                 idrefs.remove(attr.value)
-                yield elem
+                yield element
                 break
 
 
@@ -1448,18 +1431,21 @@ def select_idref_function(self, context=None):
     elif context.item is None:
         node = context.root
 
-    if not is_xpath_node(node):
+    if not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
-    elif not is_element_node(node) and not is_document_node(node):
+    elif not isinstance(node, (ElementNode, DocumentNode)):
         return
 
-    for elem in node.iter():
-        if is_idrefs(elem.text) and any(v in elem.text.split() for x in ids for v in x.split()):
-            yield elem
+    for element in filter(lambda x: isinstance(x, ElementNode), node.iter_descendants()):
+        text = element.elem.text
+        if text and is_idrefs(text) and any(v in text.split() for x in ids for v in x.split()):
+            yield element
             continue
-        for attr in map(lambda x: AttributeNode(*x), elem.attrib.items()):  # pragma: no cover
-            if attr.name != XML_ID and any(v in attr.value.split() for x in ids for v in x.split()):
-                yield elem
+
+        for attr in element.attributes:  # pragma: no cover
+            if attr.name != XML_ID and \
+                    any(v in attr.value.split() for x in ids for v in x.split()):
+                yield element
                 break
 
 

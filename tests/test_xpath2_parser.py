@@ -38,10 +38,10 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import *
+from elementpath import XPath2Parser, XPathContext, MissingContextError, \
+    ElementNode, select, iter_select
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
-from elementpath.xpath_nodes import node_kind
 
 try:
     from tests import test_xpath1_parser
@@ -63,7 +63,7 @@ def get_sequence_type(value, xsd_version='1.0'):
             else:
                 return 'node()+'
     else:
-        value_kind = node_kind(value)
+        value_kind = getattr(value, 'kind', None)
         if value_kind is not None:
             return '{}()'.format(value_kind)
         elif isinstance(value, UntypedAtomic):
@@ -141,7 +141,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.assertFalse(self.parser.match_sequence_type('', 'empty-sequence()'))
 
-        root = self.etree.XML('<root><e1/><e2/><e3/></root>')
+        context = XPathContext(self.etree.XML('<root><e1/><e2/><e3/></root>'))
+        root = context.root
         self.assertTrue(self.parser.match_sequence_type(root, 'element()'))
         self.assertTrue(self.parser.match_sequence_type([root], 'element()'))
         self.assertTrue(self.parser.match_sequence_type(root, 'element()', '?'))
@@ -164,7 +165,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root = self.etree.XML('<a><b1/><b2/></a>')
 
         context = XPathContext(root=root, variables={'var1': root[0]})
-        self.check_value('$var1', root[0], context=context)
+        self.check_value('$var1', context.root[0], context=context)
 
         context = XPathContext(root=root, variables={'tns:var1': root[0]})
         self.check_raise('$tns:var1', NameError, 'XPST0081', context=context)
@@ -533,9 +534,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_type("(1, 2) le (2, 3)", 'XPTY0004', 'sequence of length greater than one')
 
         root = self.etree.XML('<root min="10" max="7"/>')
-        attributes = [AttributeNode(*x, root) for x in root.attrib.items()]
-        self.check_value('@min', [attributes[0]], context=XPathContext(root=root))
-        self.check_value('@min le @max', True, context=XPathContext(root=root))
+        context = XPathContext(root=root)
+        self.check_value('@min', [context.root.attributes[0]], context=context)
+        self.check_value('@min le @max', True, context=context)
+
         root = self.etree.XML('<root min="80" max="7"/>')
         self.check_value('@min le @max', False, context=XPathContext(root=root))
         self.check_value('@min le @maximum', None, context=XPathContext(root=root))
@@ -556,8 +558,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 self.check_value('. le 20', True, context=XPathContext(root))
 
                 root = self.etree.XML('<root>eleven</root>')
-                self.wrong_type('. le 10', 'XPDY0050', 'does not match sequence type',
-                                context=XPathContext(root))
+                self.wrong_type('. le 10', 'XPDY0050', context=XPathContext(root))
 
                 root = self.etree.XML('<value>12</value>')
                 with self.assertRaises(TypeError) as err:
@@ -745,7 +746,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_syntax("document-node(node())")
         self.wrong_type("document-node(element(A), 1)")
         self.check_select("document-node()", [], context)
-        self.check_select("self::document-node()", [document], context)
+        self.check_select("self::document-node()", [context.root], context)
         self.check_selector("self::document-node(element(A))", document, [document])
         self.check_selector("self::document-node(element(B))", document, [])
 
@@ -760,14 +761,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.wrong_syntax("element('name')")
         self.wrong_syntax("element(A, 'name')")
         self.check_select("element()", [], context)
-        self.check_select("self::element()", [element], context)
-        self.check_select("self::element(schema)", [element], context)
+        self.check_select("self::element()", [context.root], context)
+        self.check_select("self::element(schema)", [context.root], context)
         self.check_select("self::element(schema, xs:string)", [], context)
 
         root = self.etree.XML('<A a="10">text<B/>tail<B/></A>')
         context = XPathContext(root)
-        self.check_select("element(*)", root[:], context)
-        self.check_select("element(B)", root[:], context)
+        expected = [e for e in context.root if isinstance(e, ElementNode)]
+
+        self.check_select("element(*)", expected, context)
+        self.check_select("element(B)", expected, context)
         self.check_select("element(A)", [], context)
 
         if xmlschema is not None:
@@ -779,8 +782,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root = self.etree.XML('<root>hello</root>')
             context = XPathContext(root)
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
-                typed_element = TypedElement(root, schema.elements['root'], 'hello')
-                self.check_select("self::element(*, xs:string)", [typed_element], context)
+                context.root.xsd_type = schema.elements['root'].type
+                self.check_select("self::element(*, xs:string)", [context.root], context)
                 self.check_select("self::element(*, xs:int)", [], context)
 
     def test_attribute_accessor(self):
@@ -812,7 +815,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         element.attrib.update([('id', '0212349350')])
 
         context = XPathContext(root=element)
-        self.check_select("self::node()", [element], context)
+        self.check_select("self::node()", [context.root], context)
         self.check_select("self::attribute()", ['0212349350'], context)
 
         context.item = 7
@@ -844,12 +847,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             'seq2': root[:2],  # (A, B)
             'seq3': root[1:],  # (B, C)
         })
-        self.check_select('$seq1 union $seq2', root[:2], context=context)
-        self.check_select('$seq2 union $seq3', root[:], context=context)
-        self.check_select('$seq1 intersect $seq2', root[:2], context=context)
-        self.check_select('$seq2 intersect $seq3', root[1:2], context=context)
+        self.check_select('$seq1 union $seq2', context.root[:2], context=context)
+        self.check_select('$seq2 union $seq3', context.root[:], context=context)
+        self.check_select('$seq1 intersect $seq2', context.root[:2], context=context)
+        self.check_select('$seq2 intersect $seq3', context.root[1:2], context=context)
         self.check_select('$seq1 except $seq2', [], context=context)
-        self.check_select('$seq2 except $seq3', root[:1], context=context)
+        self.check_select('$seq2 except $seq3', context.root[:1], context=context)
 
         self.wrong_type('1 intersect 1', 'XPTY0004',
                         'only XPath nodes are allowed', context=context)
@@ -992,16 +995,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         context = XPathContext(element)
 
         self.check_value("5 treat as xs:integer", [5])
-        self.check_value("5 treat as xs:string", ElementPathTypeError)
+        self.check_value("5 treat as xs:string", TypeError)
         self.check_value("5 treat as xs:decimal", [5])
         self.check_value("(5, 6) treat as xs:integer+", [5, 6])
-        self.check_value(". treat as element()", [element], context)
+        self.check_value(". treat as element()", [context.root], context)
 
-        self.check_value("(5, 6) treat as xs:integer", ElementPathTypeError)
+        self.check_value("(5, 6) treat as xs:integer", TypeError)
         self.check_value("(5, 6) treat as xs:integer*", [5, 6])
-        self.check_value("(5, 6) treat as xs:integer?", ElementPathTypeError)
+        self.check_value("(5, 6) treat as xs:integer?", TypeError)
 
-        self.check_value("5 treat as empty-sequence()", ElementPathTypeError)
+        self.check_value("5 treat as empty-sequence()", TypeError)
         self.check_value("() treat as empty-sequence()", [])
         self.check_value("() treat as xs:integer?", [])
         self.wrong_type("() treat as xs:integer", 'XPDY0050')
@@ -1092,7 +1095,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                   <xs:element name="root">
                     <xs:complexType>
                       <xs:sequence/>
-                      <xs:attribute name="a" type="xs:integer"/>      
+                      <xs:attribute name="a" type="xs:integer"/>
                       <xs:attribute name="b" type="xs:integer"/>
                     </xs:complexType>
                   </xs:element>
@@ -1147,90 +1150,21 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('/and', [context.root], context)
 
         root = self.etree.XML('<and/>')
-        self.check_value('and', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('and', [context.root.getroot()], context)
+
         root = self.etree.XML('<eq/>')
-        self.check_value('eq', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('eq', [context.root.getroot()], context)
+
         root = self.etree.XML('<union/>')
-        self.check_value('union', [root], XPathContext(self.etree.ElementTree(root)))
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('union', [context.root.getroot()], context)
 
     def test_statements_ambiguity(self):
         root = self.etree.XML('<for/>')
-        self.check_value('for', [root], XPathContext(self.etree.ElementTree(root)))
-
-    @unittest.skipIf(xmlschema is None, "xmlschema library required.")
-    def test_get_atomic_value(self):
-        schema = xmlschema.XMLSchema(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-              <xs:element name="a" type="aType"/>
-              <xs:complexType name="aType">
-                <xs:sequence>
-                  <xs:element name="b1" type="xs:int"/>
-                  <xs:element name="b2" type="xs:boolean"/>
-                </xs:sequence>
-              </xs:complexType>
-
-              <xs:element name="b" type="xs:int"/>
-              <xs:element name="c"/>
-
-              <xs:element name="d" type="dType"/>
-              <xs:simpleType name="dType">
-                <xs:restriction base="xs:float"/>
-              </xs:simpleType>
-
-              <xs:element name="e" type="eType"/>
-              <xs:simpleType name="eType">
-                <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
-              </xs:simpleType>
-            </xs:schema>"""))
-
-        token = self.parser.parse('true()')
-
-        self.assertEqual(self.parser.get_atomic_value('xs:int'), 1)
-        self.assertEqual(self.parser.get_atomic_value('xs:unknown'), UntypedAtomic('1'))
-        self.assertEqual(self.parser.get_atomic_value(schema.elements['d'].type),
-                         UntypedAtomic('1'))
-
-        self.parser.schema = xmlschema.xpath.XMLSchemaProxy()
-        try:
-            token.string_value(schema.elements['a'].type)
-        finally:
-            self.parser.schema = None
-
-        self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
-        try:
-            with self.assertRaises(AttributeError):
-                self.parser.get_atomic_value(schema)
-
-            value = self.parser.get_atomic_value('unknown')
-            self.assertIsInstance(value, UntypedAtomic)
-            self.assertEqual(value, UntypedAtomic(value='1'))
-
-            value = self.parser.get_atomic_value(schema.elements['a'].type)
-            self.assertIsInstance(value, UntypedAtomic)
-            self.assertEqual(value, UntypedAtomic(value='1'))
-
-            value = self.parser.get_atomic_value(schema.elements['b'].type)
-            if not isinstance(value, int):
-                import pdb
-                pdb.set_trace()
-                self.parser.get_atomic_value(schema.elements['b'].type)
-
-            self.assertIsInstance(value, int)
-            self.assertEqual(value, 1)
-
-            value = self.parser.get_atomic_value(schema.elements['c'].type)
-            self.assertIsInstance(value, UntypedAtomic)
-            self.assertEqual(value, UntypedAtomic(value='1'))
-
-            value = self.parser.get_atomic_value(schema.elements['d'].type)
-            self.assertIsInstance(value, float)
-            self.assertEqual(value, 1.0)
-
-            value = self.parser.get_atomic_value(schema.elements['e'].type)
-            self.assertIsInstance(value, UntypedAtomic)
-            self.assertEqual(value, UntypedAtomic(value='1'))
-        finally:
-            self.parser.schema = None
+        context = XPathContext(self.etree.ElementTree(root))
+        self.check_value('for', [context.root.getroot()], context)
 
     def test_auxiliary_tokens(self):
         self.check_raise('as', MissingContextError)
@@ -1255,13 +1189,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
               <xs:element name="root" />
             </xs:schema>""")
 
-        with self.assertRaises(ElementPathTypeError) as ctx:
+        with self.assertRaises(TypeError) as ctx:
             self.parser.__class__(schema=schema)
         self.assertEqual(str(ctx.exception),
                          "argument 'schema' must be an instance of AbstractSchemaProxy")
 
         if xmlschema is not None:
-            with self.assertRaises(ElementPathTypeError):
+            with self.assertRaises(TypeError):
                 self.parser.__class__(schema=xmlschema.XMLSchema(schema))
 
     def test_variable_types_argument(self):
@@ -1270,7 +1204,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(variable_types, parser.variable_types)
         self.assertIsNot(variable_types, parser.variable_types)
 
-        with self.assertRaises(ElementPathValueError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             self.parser.__class__(variable_types={'a': 'item()', 'b': 'xs:complex'})
         self.assertEqual(str(ctx.exception),
                          "invalid sequence type for in-scope variable types")
@@ -1281,7 +1215,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(document_types, parser.document_types)
         self.assertIs(document_types, parser.document_types)
 
-        with self.assertRaises(ElementPathValueError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             self.parser.__class__(document_types={'doc1': 'node()*', 'doc2': 'etree()'})
         self.assertEqual(str(ctx.exception),
                          "invalid sequence type in document_types argument")
@@ -1292,7 +1226,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(collection_types, parser.collection_types)
         self.assertIs(collection_types, parser.collection_types)
 
-        with self.assertRaises(ElementPathValueError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             self.parser.__class__(collection_types={'doc1': 'node()*', 'doc2': 'etree()*'})
         self.assertEqual(str(ctx.exception),
                          "invalid sequence type in collection_types argument")
@@ -1301,7 +1235,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         parser = self.parser.__class__(default_collection_type='element()*')
         self.assertEqual(parser.default_collection_type, 'element()*')
 
-        with self.assertRaises(ElementPathValueError) as ctx:
+        with self.assertRaises(ValueError) as ctx:
             self.parser.__class__(default_collection_type='elem()*')
         self.assertEqual(str(ctx.exception),
                          "invalid sequence type for default_collection_type argument")
@@ -1319,14 +1253,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_issue_35_getting_attribute_names(self):
         root = self.etree.XML(dedent("""\
-            <!-- <?xml version="1.0" encoding="utf-8"?> --> 
-            <library attrib1="att11" attrib2="att22"> some text 
-              <book isbn="1111111111"> 
-                <title lang="en">T1 T1 T1 T1 T1</title> 
-              </book> 
-              <book isbn="2222222222"> 
-                <title lang="en">T2 T2 T2 T2 T2</title> 
-              </book> 
+            <!-- <?xml version="1.0" encoding="utf-8"?> -->
+            <library attrib1="att11" attrib2="att22"> some text
+              <book isbn="1111111111">
+                <title lang="en">T1 T1 T1 T1 T1</title>
+              </book>
+              <book isbn="2222222222">
+                <title lang="en">T2 T2 T2 T2 T2</title>
+              </book>
             </library>"""))
 
         result = ['attrib1', 'attrib2', 'isbn', 'lang', 'isbn', 'lang']

@@ -11,6 +11,7 @@ import re
 import math
 from calendar import isleap, leapdays
 from decimal import Decimal
+from operator import attrgetter
 from typing import Optional, Union, SupportsFloat
 
 ###
@@ -175,3 +176,20 @@ def numeric_not_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
     if op1 == op2:
         return False
     return not math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)
+
+
+def match_wildcard(name: str, wildcard: str) -> bool:
+    if wildcard == '*' or wildcard == '*:*':
+        return True
+    elif wildcard.startswith('*:'):
+        if name.startswith('{'):
+            return name.endswith(f'}}{wildcard[2:]}')
+        else:
+            return name == wildcard[2:]
+    elif wildcard.startswith('{') and wildcard.endswith('}*') or wildcard.endswith(':*'):
+        return name.startswith(wildcard[:-1])
+    else:
+        return False
+
+
+node_position = attrgetter('position')

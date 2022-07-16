@@ -17,12 +17,13 @@ from copy import copy
 from decimal import Decimal, DivisionByZero
 
 from ..exceptions import ElementPathError, ElementPathTypeError
-from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal
+from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
+    node_position
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
-    XSI_NIL, get_namespace, get_expanded_name
-from ..datatypes import UntypedAtomic, QName, AnyURI, Duration, Integer, DoubleProxy10
-from ..xpath_nodes import TypedElement, is_xpath_node, \
-    match_attribute_node, is_element_node, is_document_node
+    get_namespace, get_expanded_name
+from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
+    Duration, Integer, DoubleProxy10
+from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from ..xpath_context import XPathSchemaContext
 from ..xpath_token import XPathFunction
 
@@ -75,8 +76,16 @@ def evaluate_variable_reference(self, context=None):
                     sequence_type = sequence_type[:-1]
 
                 if QName.pattern.match(sequence_type) is not None:
-                    return self.parser.get_atomic_value(sequence_type)
-                return UntypedAtomic('')
+                    try:
+                        type_name = get_expanded_name(sequence_type, self.parser.namespaces)
+                    except KeyError:
+                        pass
+                    else:
+                        xsd_type = context.root.elem.xpath_proxy.get_type(type_name)
+                        if xsd_type is not None:
+                            return get_atomic_value(xsd_type)
+
+                return UntypedAtomic('1')
 
     raise self.missing_name('unknown variable %r' % str(varname))
 
@@ -93,13 +102,14 @@ def select_intersect_and_except_operators(self, context=None):
         raise self.missing_context()
 
     s1, s2 = set(self[0].select(copy(context))), set(self[1].select(copy(context)))
-    if any(not is_xpath_node(x) for x in s1) or any(not is_xpath_node(x) for x in s2):
+    if any(not isinstance(x, XPathNode) for x in s1) \
+            or any(not isinstance(x, XPathNode) for x in s2):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
-        yield from context.iter_results(s1 - s2)
+        yield from sorted(s1 - s2, key=node_position)
     else:
-        yield from context.iter_results(s1 & s2)
+        yield from sorted(s1 & s2, key=node_position)
 
 
 ###
@@ -541,6 +551,8 @@ def evaluate_value_comparison_operators(self, context=None):
         pass
     elif all(isinstance(x, (str, UntypedAtomic, AnyURI)) for x in operands):
         pass
+    elif all(isinstance(x, (str, UntypedAtomic, QName)) for x in operands):
+        pass
     elif all(isinstance(x, (float, Decimal, int)) for x in operands):
         if isinstance(operands[0], float):
             operands[1] = float(operands[1])
@@ -578,35 +590,30 @@ def evaluate_node_comparison(self, context=None):
 
     left = [x for x in self[0].select(context)]
     if not left:
-        return
-    elif len(left) > 1 or not is_xpath_node(left[0]):
+        return None
+    elif len(left) > 1 or not isinstance(left[0], XPathNode):
         raise self[0].error('XPTY0004', "left operand of %r must be a single node" % symbol)
 
     right = [x for x in self[1].select(context)]
     if not right:
-        return
-    elif len(right) > 1 or not is_xpath_node(right[0]):
+        return None
+    elif len(right) > 1 or not isinstance(right[0], XPathNode):
         raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 
-    # For identity comparison use '==' operator instead of 'is'
-    # because elem1 == elem2 if and only if elem1 is elem2.
-    # For example two AttributeNode objects (a1, a2) represent
-    # the same node if they have the same name, the same value
-    # and the same parent.
     if symbol == 'is':
-        return left[0] == right[0]
+        return left[0] is right[0]
     else:
-        if left[0] == right[0]:
+        if left[0] is right[0]:
             return False
 
         documents = [context.root]
-        documents.extend(v for v in context.variables.values() if is_document_node(v))
+        documents.extend(v for v in context.variables.values() if isinstance(v, DocumentNode))
 
         for root in documents:
-            for item in root.iter():  # pragma: no cover
-                if left[0] == item:
+            for item in root.iter_document():  # pragma: no cover
+                if left[0] is item:
                     return True if symbol == '<<' else False
-                elif right[0] == item:
+                elif right[0] is item:
                     return False if symbol == '<<' else True
         else:
             raise self.error('FOCA0002', "operands are not nodes of the XML tree!")
@@ -693,15 +700,15 @@ def select_document_node_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not self:
-        if is_document_node(context.item):
+        if isinstance(context.item, DocumentNode):
             yield context.item
-        elif is_document_node(context.root) and context.item is None:
+        elif isinstance(context.root, DocumentNode) and context.item is None:
             for item in context.iter_children_or_self():
                 if item is None:
                     yield context.root
     else:
-        elements = [e for e in self[0].select(copy(context)) if is_element_node(e)]
-        if is_document_node(context.root) and context.item is None:
+        elements = [e for e in self[0].select(copy(context)) if isinstance(e, ElementNode)]
+        if isinstance(context.root, DocumentNode) and context.item is None:
             if len(elements) == 1:
                 yield context.root
 
@@ -726,21 +733,22 @@ def select_element_kind_test(self, context=None):
         raise self.missing_context()
     elif not self:
         for item in context.iter_children_or_self():
-            if is_element_node(item):
+            if isinstance(item, ElementNode):
                 yield item
     else:
         for item in self[0].select(context):
             if len(self) == 1:
                 yield item
-            elif isinstance(item, TypedElement):
+            elif isinstance(item, ElementNode):
                 try:
                     type_annotation = get_expanded_name(self[1].source, self.parser.namespaces)
                 except KeyError:
                     type_annotation = self[1].source
 
-                if type_annotation == item.xsd_type.name:
-                    yield item
-                elif item.elem.get(XSI_NIL) and type_annotation[-1] in ('*', '?'):
+                if item.nilled:
+                    if type_annotation[-1] in '*?':
+                        yield item
+                elif item.xsd_type is not None and type_annotation == item.xsd_type.name:
                     yield item
 
 
@@ -774,7 +782,7 @@ def select_schema_attribute_kind_test(self, context=None):
         if self.parser.schema.get_attribute(qname) is None:
             raise self.missing_name("attribute %r not found in schema" % attribute_name)
 
-        if match_attribute_node(context.item, qname):
+        if isinstance(context.item, AttributeNode) and context.item.match_name(qname):
             yield context.item
             return
 
@@ -794,7 +802,7 @@ def select_schema_element_kind_test(self, context=None):
                 and self.parser.schema.get_substitution_group(qname) is None:
             raise self.missing_name("element %r not found in schema" % element_name)
 
-        if is_element_node(context.item) and context.item.tag == qname:
+        if isinstance(context.item, ElementNode) and context.item.elem.tag == qname:
             yield context.item
             return
 
@@ -877,7 +885,7 @@ def select_attribute_kind_test_or_axis(self, context=None):
             type_name = None
 
         for attribute in context.iter_attributes():
-            if match_attribute_node(attribute, name):
+            if attribute.match_name(name):
                 if isinstance(context, XPathSchemaContext):
                     self.add_xsd_type(attribute)
                 elif not type_name:
