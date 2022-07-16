@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Dict, Iterator, List, Optional, Union
+from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Union
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
@@ -58,7 +58,7 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
 
 
 def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
-                    namespaces: Optional[Dict[str, str]] = None) \
+                    namespaces: Optional[MutableMapping[str, str]] = None) \
         -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.

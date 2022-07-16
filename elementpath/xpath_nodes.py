@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from urllib.parse import urlparse
-from typing import cast, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
@@ -433,7 +433,7 @@ class ElementNode(XPathNode):
 
     kind = 'element'
     elem: Union[ElementProtocol, SchemaElemType]
-    nsmap: Dict[Optional[str], str]
+    nsmap: MutableMapping[Optional[str], str]
     elements: Optional[ElementMapType]
     _namespace_nodes: Optional[List['NamespaceNode']]
     _attributes: Optional[List['AttributeNode']]
@@ -445,7 +445,7 @@ class ElementNode(XPathNode):
                  elem: Union[ElementProtocol, SchemaElemType],
                  parent: Optional[Union['ElementNode', 'DocumentNode']] = None,
                  position: int = 1,
-                 nsmap: Optional[Dict[Any, str]] = None,
+                 nsmap: Optional[MutableMapping[Any, str]] = None,
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
 
         self.elem = elem
@@ -520,9 +520,7 @@ class ElementNode(XPathNode):
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
             return UntypedAtomic(''.join(etree_iter_strings(self.elem)))
-        elif self.xsd_type.is_element_only():
-            return None
-        elif self.xsd_type.is_empty():
+        elif self.xsd_type.is_element_only() or self.xsd_type.is_empty():
             return None
         elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
             return None
