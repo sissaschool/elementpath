@@ -25,6 +25,7 @@ import io
 import math
 import pickle
 from decimal import Decimal
+from textwrap import dedent
 from typing import Optional, List, Tuple
 from xml.etree import ElementTree
 
@@ -1365,7 +1366,8 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('//*', expected=expected, context=context)
 
         context = XPathContext(root, item=root[0][0])
-        self.check_value('//*', expected=[], context=context)
+        expected = list(e for e in context.root.iter() if isinstance(e, ElementNode))
+        self.check_value('//*', expected=expected, context=context)
 
         root = self.etree.XML("<A><A><A><A><A/></A></A></A></A>")
         context = XPathContext(root)
@@ -1638,10 +1640,32 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
             self.assertIsInstance(value, str)
             self.assertTrue(value.startswith('function('))
-            if not self.parser.is_sequence_type(value):
-                print(repr(value))
-            else:
-                self.assertTrue(self.parser.is_sequence_type(value))
+            self.assertTrue(self.parser.is_sequence_type(value))
+
+    def test_descendant_predicate__issue_51(self):
+        root = self.etree.XML(dedent("""<doc>
+          <target>
+            <name>V1</name>
+            <value>3</value>
+            <more>foo</more>
+          </target>
+          <target>
+            <name>V3</name>
+            <value>5</value>
+            <more>bar</more>
+          </target>
+          <var>
+            <name>V1</name>
+            <value>3</value>
+          </var>
+          <var>
+            <name>V2</name>
+            <value>3</value>
+          </var>
+          </doc>
+        """))
+
+        self.check_selector("//target[name=//var/name]", root, expected=[root[0]])
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

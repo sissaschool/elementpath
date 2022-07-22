@@ -724,8 +724,11 @@ def select_descendant_path(self, context=None):
                         if isinstance(context, XPathSchemaContext):
                             self[1].add_xsd_type(result)
 
-    elif isinstance(context.root, DocumentNode) or context.item is context.root:
-        context.item = None
+    else:
+        if not isinstance(context, XPathSchemaContext):
+            context.item = None
+        else:
+            context.item = context.root
 
         items = set()
         for _ in context.iter_descendants():
