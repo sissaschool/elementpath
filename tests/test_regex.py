@@ -993,6 +993,17 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNotNone(pattern.match("38:36:000031"))
         self.assertIsNone(pattern.match("38:36:000031\n"))
 
+    def test_possessive_quantifiers(self):
+        # Note: possessive quantifiers (*+, ++, ?+, {m,n}+) are supported in Python 3.11+
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('^[abcd]*+$')
+        self.assertIn("unexpected meta character '+' at position 8", str(ctx.exception))
+
+        with self.assertRaises(RegexError) as ctx:
+            translate_pattern('^[abcd]{1,5}+$')
+        self.assertIn("unexpected meta character '+' at position 12", str(ctx.exception))
+
 
 if __name__ == '__main__':
     unittest.main()

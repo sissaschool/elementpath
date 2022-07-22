@@ -3,7 +3,7 @@ setuptools
 tox
 coverage
 lxml
-xmlschema>=1.9.0
+xmlschema>=2.0.0
 Sphinx
 memory-profiler
 memray
