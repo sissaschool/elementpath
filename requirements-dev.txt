@@ -8,6 +8,6 @@ Sphinx
 memory-profiler
 memray
 flake8
-mypy==0.961
+mypy
 lxml-stubs
 -e .

@@ -9,6 +9,7 @@
 #
 import re
 import math
+import locale as _locale
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
@@ -50,6 +51,8 @@ def is_idrefs(value: Optional[str]) -> bool:
     return isinstance(value, str) and \
         all(NCNAME_PATTERN.match(x) is not None for x in value.split())
 
+
+node_position = attrgetter('position')
 
 ###
 # Sequence type checking
@@ -192,4 +195,16 @@ def match_wildcard(name: str, wildcard: str) -> bool:
         return False
 
 
-node_position = attrgetter('position')
+def get_locale_category(category: int) -> str:
+    """
+    Gets the current value of a locale category. A replacement
+    of locale.getdefaultlocale(), deprecated since Python 3.11.
+    """
+    locale = _locale.setlocale(category, None)
+    if locale == 'C':
+        # locale category does not seem to be configured, so get the user
+        # preferred locale and then restore the  previous state
+        locale = _locale.setlocale(category, '')
+        _locale.setlocale(category, 'C')
+
+    return locale

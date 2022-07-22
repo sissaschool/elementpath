@@ -42,6 +42,7 @@ from elementpath import XPath2Parser, XPathContext, MissingContextError, \
     ElementNode, select, iter_select
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
+from elementpath.helpers import get_locale_category
 
 try:
     from tests import test_xpath1_parser
@@ -1241,12 +1242,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                          "invalid sequence type for default_collection_type argument")
 
     def test_default_collation_argument(self):
-        default_locale = locale.getdefaultlocale()
-        collation = '.'.join(default_locale) if default_locale[1] else default_locale[0]
-
-        if collation == 'en_US.UTF-8':
-            collation = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-        self.assertEqual(self.parser.__class__().default_collation, collation)
+        locale_collation = get_locale_category(locale.LC_COLLATE)
+        if locale_collation == 'en_US.UTF-8':
+            locale_collation = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+        self.assertEqual(self.parser.__class__().default_collation, locale_collation)
 
         parser = self.parser.__class__(default_collation='it_IT.UTF-8')
         self.assertEqual(parser.default_collation, 'it_IT.UTF-8')

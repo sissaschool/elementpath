@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 from typing import cast, Any, Callable, ClassVar, Dict, FrozenSet, List, \
     MutableMapping, Optional, Tuple, Type, Union
 
-from ..helpers import normalize_sequence_type
+from ..helpers import normalize_sequence_type, get_locale_category
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
@@ -269,7 +269,7 @@ class XPath2Parser(XPath1Parser):
         if self._default_collation is not None:
             return self._default_collation
 
-        language_code, encoding = locale.getdefaultlocale()
+        language_code, encoding = get_locale_category(locale.LC_COLLATE).split('.')
         if language_code is None:
             return UNICODE_CODEPOINT_COLLATION
         elif encoding is None or not encoding:
