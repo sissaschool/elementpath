@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.0.1`_ (2022-07-23)
+======================
+* Fix of descendant path operator (issue #51)
+* Add support for Python 3.11
+
 `v3.0.0`_ (2022-07-16)
 ======================
 * Transition to full XPath node implementation (more memory usage but
@@ -374,3 +379,4 @@ CHANGELOG
 .. _v2.5.2: https://github.com/sissaschool/elementpath/compare/v2.5.1...v2.5.2
 .. _v2.5.3: https://github.com/sissaschool/elementpath/compare/v2.5.2...v2.5.3
 .. _v3.0.0: https://github.com/sissaschool/elementpath/compare/v2.5.3...v3.0.0
+.. _v3.0.1: https://github.com/sissaschool/elementpath/compare/v3.0.0...v3.0.1

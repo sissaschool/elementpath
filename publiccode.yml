@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: elementpath
 url: 'https://github.com/sissaschool/elementpath'
 landingURL: 'https://github.com/sissaschool/elementpath'
-releaseDate: '2022-07-16'
-softwareVersion: v3.0.0
+releaseDate: '2022-07-23'
+softwareVersion: v3.0.1
 developmentStatus: stable
 platforms:
   - linux
