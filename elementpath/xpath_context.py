@@ -356,15 +356,16 @@ class XPathContext:
         if not isinstance(self.item, XPathNode):
             return  # not applicable
 
-        parent = self.item.parent
-        if parent is not None:
-            status = self.item, self.axis
-            self.axis = 'parent'
+        if self.item is not self.root:
+            parent = self.item.parent
+            if parent is not None:
+                status = self.item, self.axis
+                self.axis = 'parent'
 
-            self.item = parent
-            yield self.item
+                self.item = parent
+                yield self.item
 
-            self.item, self.axis = status
+                self.item, self.axis = status
 
     def iter_siblings(self, axis: Optional[str] = None) -> Iterator[ChildNodeType]:
         """
@@ -372,7 +373,7 @@ class XPathContext:
 
         :param axis: the context axis, default is 'following-sibling'.
         """
-        if not isinstance(self.item, XPathNode):
+        if not isinstance(self.item, XPathNode) or self.item is self.root:
             return
 
         parent = self.item.parent
@@ -448,10 +449,13 @@ class XPathContext:
         if axis == 'ancestor-or-self':
             ancestors.append(self.item)
 
-        parent = self.item.parent
-        while parent is not None:
-            ancestors.append(parent)
-            parent = parent.parent
+        if self.item is not self.root:
+            parent = self.item.parent
+            while parent is not None:
+                ancestors.append(parent)
+                if parent is self.root:
+                    break
+                parent = parent.parent
 
         for self.item in reversed(ancestors):
             yield self.item
@@ -464,7 +468,7 @@ class XPathContext:
         item: XPathNode
         parent: Union[None, ElementNode, DocumentNode]
 
-        if not isinstance(self.item, XPathNode):
+        if not isinstance(self.item, XPathNode) or self.item is self.root:
             return
 
         parent = self.item.parent
@@ -477,6 +481,8 @@ class XPathContext:
         ancestors = set()
         while parent is not None:
             ancestors.add(parent)
+            if parent is self.root:
+                break
             parent = parent.parent
 
         item = self.item
