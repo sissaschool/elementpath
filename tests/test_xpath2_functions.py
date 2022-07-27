@@ -456,7 +456,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         self.check_value("string-join(('a', 'b', 'c'), ', ')", 'a, b, c')
         self.wrong_type("string-join(('a', 'b', 'c'), 8)", 'XPTY0004')
-        self.wrong_type("string-join(('a', 4, 'c'), ', ')", 'XPTY0004')
+
+        if self.parser.version < '3.1':
+            self.wrong_type("string-join(('a', 4, 'c'), ', ')", 'XPTY0004')
+        else:
+            self.check_value("string-join(('a', 4, 'c'), ', ')", 'a, 4, c')
 
         root = self.etree.XML(XML_GENERIC_TEST)
         self.check_selector("a[string-join((@id, 'foo', 'bar'), ' ') = 'a_id foo bar']",
@@ -893,8 +897,11 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             with self.schema_bound_parser(schema.xpath_proxy):
                 context = self.parser.schema.get_context()
                 prefixes = {'xml', 'xs', 'fn', 'err', 'xsi', 'eg', 'tst'}
-                if self.parser.version == '3.0':
+                if self.parser.version >= '3.0':
                     prefixes.add('math')
+                if self.parser.version >= '3.1':
+                    prefixes.add('map')
+                    prefixes.add('array')
 
                 self.check_value("fn:in-scope-prefixes(.)", prefixes, context)
 

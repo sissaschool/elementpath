@@ -1519,3 +1519,28 @@ class XPathConstructor(XPathFunction):
     @staticmethod
     def cast(value: Any) -> AtomicValueType:
         raise NotImplementedError()
+
+
+class XPathMap(XPathFunction):
+    """
+    A token for processing XPath 3.1+ maps.
+    """
+    pattern = r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
+
+    def nud(self) -> 'XPathMap':
+        code = 'XPST0003'
+        self.value = None
+        self.parser.advance('{')
+        del self._items[:]
+        if self.parser.next_token.symbol not in ('}', '(end)'):
+            while True:
+                key = self.parser.expression(5)
+                self.append(key)
+                self.parser.advance('}')
+
+                if self.parser.next_token.symbol != ',':
+                    break
+                self.parser.advance()
+
+        self.parser.advance('}')
+        return self

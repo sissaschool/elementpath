@@ -44,7 +44,7 @@ from elementpath import XPathContext, MissingContextError, datatypes, XPathFunct
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.etree import is_etree_element, is_lxml_etree_document
 from elementpath.xpath_nodes import ElementNode, DocumentNode
-from elementpath.xpath3 import XPath30Parser, XPath31Parser
+from elementpath.xpath3 import XPath30Parser
 from elementpath.xpath30.xpath30_helpers import PICTURE_PATTERN, \
     int_to_roman, int_to_alphabetic, int_to_words
 
@@ -76,22 +76,8 @@ ANALYZE_STRING_2 = """<analyze-string-result xmlns="http://www.w3.org/2005/xpath
 
 class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
-    maxDiff = 1024
-
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
-
-        # Make sure the tests are repeatable.
-        env_vars_to_tweak = 'LC_ALL', 'LANG'
-        self.current_env_vars = {v: os.environ.get(v) for v in env_vars_to_tweak}
-        for v in self.current_env_vars:
-            os.environ[v] = 'en_US.UTF-8'
-
-    def tearDown(self):
-        if hasattr(self, 'current_env_vars'):
-            for v in self.current_env_vars:
-                if self.current_env_vars[v] is not None:
-                    os.environ[v] = self.current_env_vars[v]
 
     def test_braced_uri_literal(self):
         expected_lexemes = ['Q{', 'http', ':', '//', 'xpath.test', '/', 'ns', '}', 'ABC']
@@ -122,6 +108,138 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
         self.check_tree('"true" || "false"', "(|| ('true') ('false'))")
         self.check_tree('"true"||"false"', "(|| ('true') ('false'))")
+
+    def test_function_test(self):
+        func: XPathFunction
+        func = cast(XPathFunction, self.parser.parse("function($x as item()) as item() { $x }"))
+        self.assertTrue(func.match_function_test('function(*)'))
+
+        func = cast(XPathFunction, self.parser.parse("function($x as item()) as xs:integer { $x }"))
+        self.assertTrue(func.match_function_test('function(item()) as item()'))
+
+        func = cast(XPathFunction, self.parser.parse("function($x as item()) as item() { $x }"))
+        self.assertTrue(func.match_function_test('function(xs:string) as item()'))
+
+    def test_dynamic_function_call(self):
+        token = self.parser.parse("$f(2, 3)")
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root, variables={'f': 10})
+
+        with self.assertRaises(TypeError):
+            token.evaluate(context)
+
+        context.variables['f'] = self.parser.symbol_table['concat'](self.parser, nargs=2)
+        self.assertEqual(token.evaluate(context), '23')
+
+        with self.assertRaises(TypeError):
+            self.parser.parse("f(2, 3)")
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        token = self.parser.parse('$f[2]("Hi there")')
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        context.variables['f'] = self.parser.symbol_table['concat'](self.parser, nargs=2)
+        with self.assertRaises(TypeError):
+            token.evaluate(context)
+
+        context.variables['f'] = [1, context.variables['f']]
+        with self.assertRaises(TypeError):
+            token.evaluate(context)
+
+        context.variables['f'] = self.parser.symbol_table['true'](self.parser, nargs=0)
+        token = self.parser.parse('$f()[2]')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        self.assertEqual(token.evaluate(context), [])
+        token = self.parser.parse('$f()[1]')
+        self.assertTrue(token.evaluate(context))
+
+    def test_let_expression(self):
+        token = self.parser.parse('let $x := 4, $y := 3 return $x + $y')
+
+        with self.assertRaises(MissingContextError):
+            token.evaluate()
+
+        root = self.etree.XML('<root/>')
+        context = XPathContext(root=root)
+        self.assertEqual(token.evaluate(context), [7])
+
+    def test_picture_pattern(self):
+        self.assertListEqual(PICTURE_PATTERN.findall(''), [])
+        self.assertListEqual(PICTURE_PATTERN.findall('a'), [])
+        self.assertListEqual(PICTURE_PATTERN.findall('[y]'), ['[y]'])
+        self.assertListEqual(PICTURE_PATTERN.findall('[h01][m01][z,2-6]'),
+                             ['[h01]', '[m01]', '[z,2-6]'])
+        self.assertListEqual(PICTURE_PATTERN.findall('[H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
+                             ['[H٠]', '[m٠]', '[s٠٠]', '[f٠٠٠]'])
+        self.assertListEqual(PICTURE_PATTERN.split(' [H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
+                             [' ', ':', ':', ':', ''])
+        self.assertListEqual(PICTURE_PATTERN.findall('[y'), [])
+        self.assertListEqual(PICTURE_PATTERN.findall('[[y]'), ['[y]'])
+
+    def test_int_to_roman(self):
+        self.assertRaises(TypeError, int_to_roman, 3.0)
+        self.assertEqual(int_to_roman(0), '0')
+        self.assertEqual(int_to_roman(3), 'III')
+        self.assertEqual(int_to_roman(4), 'IV')
+        self.assertEqual(int_to_roman(5), 'V')
+        self.assertEqual(int_to_roman(7), 'VII')
+        self.assertEqual(int_to_roman(9), 'IX')
+        self.assertEqual(int_to_roman(10), 'X')
+        self.assertEqual(int_to_roman(11), 'XI')
+        self.assertEqual(int_to_roman(19), 'XIX')
+        self.assertEqual(int_to_roman(20), 'XX')
+        self.assertEqual(int_to_roman(49), 'XLIX')
+        self.assertEqual(int_to_roman(100), 'C')
+        self.assertEqual(int_to_roman(489), 'CDLXXXIX')
+        self.assertEqual(int_to_roman(2999), 'MMCMXCIX')
+
+    def test_int_to_alphabetic(self):
+        self.assertEqual(int_to_alphabetic(4), 'd')
+        self.assertEqual(int_to_alphabetic(7), 'g')
+        self.assertEqual(int_to_alphabetic(25), 'y')
+        self.assertEqual(int_to_alphabetic(26), 'z')
+        self.assertEqual(int_to_alphabetic(27), 'aa')
+        self.assertEqual(int_to_alphabetic(-29), '-ac')
+        self.assertEqual(int_to_alphabetic(890), 'ahf')
+
+    def test_int_to_words(self):
+        self.assertEqual(int_to_words(1), 'one')
+        self.assertEqual(int_to_words(4), 'four')
+
+
+@unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
+class LxmlXPath30ParserTest(XPath30ParserTest):
+    etree = lxml_etree
+
+
+class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
+
+    maxDiff = 1024
+
+    def setUp(self):
+        self.parser = XPath30Parser(namespaces=self.namespaces)
+
+        # Make sure the tests are repeatable.
+        env_vars_to_tweak = 'LC_ALL', 'LANG'
+        self.current_env_vars = {v: os.environ.get(v) for v in env_vars_to_tweak}
+        for v in self.current_env_vars:
+            os.environ[v] = 'en_US.UTF-8'
+
+    def tearDown(self):
+        if hasattr(self, 'current_env_vars'):
+            for v in self.current_env_vars:
+                if self.current_env_vars[v] is not None:
+                    os.environ[v] = self.current_env_vars[v]
 
     def test_pi_math_function(self):
         token = self.parser.parse('math:pi()')
@@ -739,49 +857,6 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
             token.evaluate()
         self.assertEqual(token(context), 10)
 
-    def test_dynamic_function_call(self):
-        token = self.parser.parse("$f(2, 3)")
-
-        with self.assertRaises(MissingContextError):
-            token.evaluate()
-
-        root = self.etree.XML('<root/>')
-        context = XPathContext(root=root, variables={'f': 10})
-
-        with self.assertRaises(TypeError):
-            token.evaluate(context)
-
-        context.variables['f'] = self.parser.symbol_table['concat'](self.parser, nargs=2)
-        self.assertEqual(token.evaluate(context), '23')
-
-        with self.assertRaises(TypeError):
-            self.parser.parse("f(2, 3)")
-
-        with self.assertRaises(MissingContextError):
-            token.evaluate()
-
-        token = self.parser.parse('$f[2]("Hi there")')
-        with self.assertRaises(MissingContextError):
-            token.evaluate()
-
-        context.variables['f'] = self.parser.symbol_table['concat'](self.parser, nargs=2)
-        with self.assertRaises(TypeError):
-            token.evaluate(context)
-
-        context.variables['f'] = [1, context.variables['f']]
-        with self.assertRaises(TypeError):
-            token.evaluate(context)
-
-        context.variables['f'] = self.parser.symbol_table['true'](self.parser, nargs=0)
-        token = self.parser.parse('$f()[2]')
-
-        with self.assertRaises(MissingContextError):
-            token.evaluate()
-
-        self.assertEqual(token.evaluate(context), [])
-        token = self.parser.parse('$f()[1]')
-        self.assertTrue(token.evaluate(context))
-
     def test_function_lookup(self):
         token = self.parser.parse("fn:function-lookup(xs:QName('fn:substring'), 2)('abcd', 2)")
         self.assertEqual(token.evaluate(), "bcd")
@@ -822,27 +897,6 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'node': root})
         self.assertEqual(token.evaluate(context), 1)
-
-    def test_function_test(self):
-        func: XPathFunction
-        func = cast(XPathFunction, self.parser.parse("function($x as item()) as item() { $x }"))
-        self.assertTrue(func.match_function_test('function(*)'))
-
-        func = cast(XPathFunction, self.parser.parse("function($x as item()) as xs:integer { $x }"))
-        self.assertTrue(func.match_function_test('function(item()) as item()'))
-
-        func = cast(XPathFunction, self.parser.parse("function($x as item()) as item() { $x }"))
-        self.assertTrue(func.match_function_test('function(xs:string) as item()'))
-
-    def test_let_expression(self):
-        token = self.parser.parse('let $x := 4, $y := 3 return $x + $y')
-
-        with self.assertRaises(MissingContextError):
-            token.evaluate()
-
-        root = self.etree.XML('<root/>')
-        context = XPathContext(root=root)
-        self.assertEqual(token.evaluate(context), [7])
 
     def test_for_each(self):
         token = self.parser.parse('fn:for-each(1 to 5, function($a) { $a * $a })')
@@ -933,49 +987,6 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         context = XPathContext(root=root)
         self.assertListEqual(token.evaluate(context), [11, 22, 33, 44, 55])
 
-    def test_picture_pattern(self):
-        self.assertListEqual(PICTURE_PATTERN.findall(''), [])
-        self.assertListEqual(PICTURE_PATTERN.findall('a'), [])
-        self.assertListEqual(PICTURE_PATTERN.findall('[y]'), ['[y]'])
-        self.assertListEqual(PICTURE_PATTERN.findall('[h01][m01][z,2-6]'),
-                             ['[h01]', '[m01]', '[z,2-6]'])
-        self.assertListEqual(PICTURE_PATTERN.findall('[H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
-                             ['[H٠]', '[m٠]', '[s٠٠]', '[f٠٠٠]'])
-        self.assertListEqual(PICTURE_PATTERN.split(' [H٠]:[m٠]:[s٠٠]:[f٠٠٠]'),
-                             [' ', ':', ':', ':', ''])
-        self.assertListEqual(PICTURE_PATTERN.findall('[y'), [])
-        self.assertListEqual(PICTURE_PATTERN.findall('[[y]'), ['[y]'])
-
-    def test_int_to_roman(self):
-        self.assertRaises(TypeError, int_to_roman, 3.0)
-        self.assertEqual(int_to_roman(0), '0')
-        self.assertEqual(int_to_roman(3), 'III')
-        self.assertEqual(int_to_roman(4), 'IV')
-        self.assertEqual(int_to_roman(5), 'V')
-        self.assertEqual(int_to_roman(7), 'VII')
-        self.assertEqual(int_to_roman(9), 'IX')
-        self.assertEqual(int_to_roman(10), 'X')
-        self.assertEqual(int_to_roman(11), 'XI')
-        self.assertEqual(int_to_roman(19), 'XIX')
-        self.assertEqual(int_to_roman(20), 'XX')
-        self.assertEqual(int_to_roman(49), 'XLIX')
-        self.assertEqual(int_to_roman(100), 'C')
-        self.assertEqual(int_to_roman(489), 'CDLXXXIX')
-        self.assertEqual(int_to_roman(2999), 'MMCMXCIX')
-
-    def test_int_to_alphabetic(self):
-        self.assertEqual(int_to_alphabetic(4), 'd')
-        self.assertEqual(int_to_alphabetic(7), 'g')
-        self.assertEqual(int_to_alphabetic(25), 'y')
-        self.assertEqual(int_to_alphabetic(26), 'z')
-        self.assertEqual(int_to_alphabetic(27), 'aa')
-        self.assertEqual(int_to_alphabetic(-29), '-ac')
-        self.assertEqual(int_to_alphabetic(890), 'ahf')
-
-    def test_int_to_words(self):
-        self.assertEqual(int_to_words(1), 'one')
-        self.assertEqual(int_to_words(4), 'four')
-
     def test_format_integer(self):
         self.check_value("format-integer(57, 'I')", 'LVII')
         self.check_value("format-integer(594, 'i')", 'dxciv')
@@ -994,16 +1005,6 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
-class LxmlXPath3ParserTest(XPath30ParserTest):
-    etree = lxml_etree
-
-
-class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
-    def setUp(self):
-        self.parser = XPath30Parser(namespaces=self.namespaces)
-
-
-@unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath30FunctionsTest(XPath30FunctionsTest):
     etree = lxml_etree
 
@@ -1015,29 +1016,6 @@ class XPath30ConstructorsTest(test_xpath2_constructors.XPath2ConstructorsTest):
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath30ConstructorsTest(XPath30ConstructorsTest):
-    etree = lxml_etree
-
-
-class XPath31ParserTest(XPath30ParserTest):
-
-    def setUp(self):
-        self.parser = XPath31Parser(namespaces=self.namespaces)
-
-        # Make sure the tests are repeatable.
-        env_vars_to_tweak = 'LC_ALL', 'LANG'
-        self.current_env_vars = {v: os.environ.get(v) for v in env_vars_to_tweak}
-        for v in self.current_env_vars:
-            os.environ[v] = 'en_US.UTF-8'
-
-    def tearDown(self):
-        if hasattr(self, 'current_env_vars'):
-            for v in self.current_env_vars:
-                if self.current_env_vars[v] is not None:
-                    os.environ[v] = self.current_env_vars[v]
-
-
-@unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
-class LxmlXPath31ParserTest(XPath31ParserTest):
     etree = lxml_etree
 
 

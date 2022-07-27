@@ -12,7 +12,8 @@ XPath 3.1 implementation
 """
 from ..namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
     XPATH_ARRAY_FUNCTIONS_NAMESPACE  # , XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..xpath30 import XPath30Parser
+from ..xpath_token import XPathMap
+from ..xpath3 import XPath30Parser
 
 
 class XPath31Parser(XPath30Parser):
@@ -21,9 +22,11 @@ class XPath31Parser(XPath30Parser):
     """
     version = '3.1'
 
-    SYMBOLS = XPath30Parser.SYMBOLS | set()
+    SYMBOLS = XPath30Parser.SYMBOLS | {'map'}
     """
     {
+        'map', 'array',
+        
         'random-number-generator', 'collation-key',
         'contains-token', 'parse-ietf-date',
 
@@ -57,7 +60,7 @@ class XPath31Parser(XPath30Parser):
 
 
 ##
-# XPath 3.0 definitions
+# XPath 3.1 definitions
 register = XPath31Parser.register
 unregister = XPath31Parser.unregister
 literal = XPath31Parser.literal
@@ -66,5 +69,7 @@ infix = XPath31Parser.infix
 infixr = XPath31Parser.infixr
 method = XPath31Parser.method
 function = XPath31Parser.function
+
+register('map', bp=90, label='map', bases=(XPathMap,))
 
 XPath31Parser.build()
