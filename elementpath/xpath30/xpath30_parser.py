@@ -123,5 +123,3 @@ class XPath30Parser(XPath2Parser):
 
             if None in decimal_formats:
                 self.decimal_formats[None].update(decimal_formats[None])
-
-# XPath 3.0 definitions continue into module xpath3_operators

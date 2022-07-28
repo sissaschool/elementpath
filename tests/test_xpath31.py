@@ -59,6 +59,20 @@ map {
     "book": map {
         "title": "Data on the Web",
         "year": 2000,
+        "author": [
+            map {
+                "last": "Abiteboul",
+                "first": "Serge"
+            },
+            map {
+                "last": "Buneman",
+                "first": "Peter"
+            },
+            map {
+                "last": "Suciu",
+                "first": "Dan"
+            }
+        ],
         "publisher": "Morgan Kaufmann Publishers",
         "price": 39.95
     }
@@ -100,6 +114,12 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         token = self.parser.parse(f'{NESTED_MAP}("book")("title")')
         self.assertEqual(token.evaluate(), 'Data on the Web')
+
+        token = self.parser.parse(f'{NESTED_MAP}("book")("author")')
+        self.assertIsInstance(token.evaluate(), XPathArray)
+
+        token = self.parser.parse(f'{NESTED_MAP}("book")("author")(1)("last")')
+        self.assertEqual(token.evaluate(), 'Abiteboul')
 
     def test_curly_array_constructor(self):
         token = self.parser.parse('array { 1, 2, 5, 7 }')

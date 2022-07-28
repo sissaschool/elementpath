@@ -11,7 +11,7 @@
 """
 XPath 3.1 implementation - part 3 (functions)
 """
-from .xpath31_parser import XPath31Parser
+from ._xpath31_operators import XPath31Parser
 
 method = XPath31Parser.method
 function = XPath31Parser.function

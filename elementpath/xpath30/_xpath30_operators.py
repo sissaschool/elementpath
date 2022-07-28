@@ -231,5 +231,3 @@ def evaluate_function_reference(self, context=None):
         elif func.namespace != namespace:
             raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
         return func
-
-# XPath 3.0 definitions continue into module xpath3_functions

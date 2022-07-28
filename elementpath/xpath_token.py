@@ -1579,7 +1579,7 @@ class XPathArray(XPathFunction):
     """
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
 
-    def nud(self) -> 'XPathMap':
+    def nud(self) -> 'XPathArray':
         self.value = None
         self.parser.advance('{')
         del self._items[:]

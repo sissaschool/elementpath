@@ -12,8 +12,7 @@ XPath 3.1 implementation
 """
 from ..namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
     XPATH_ARRAY_FUNCTIONS_NAMESPACE  # , XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..xpath_token import XPathMap, XPathArray
-from ..xpath3 import XPath30Parser
+from ..xpath30 import XPath30Parser
 
 
 class XPath31Parser(XPath30Parser):
@@ -22,28 +21,24 @@ class XPath31Parser(XPath30Parser):
     """
     version = '3.1'
 
-    SYMBOLS = XPath30Parser.SYMBOLS | {'map', 'array'}
-    """
-    {
+    SYMBOLS = XPath30Parser.SYMBOLS | {
+        # Map and array functions
         'map', 'array',
-        
-        'random-number-generator', 'collation-key',
-        'contains-token', 'parse-ietf-date',
+        # 'merge', 'size', 'keys', 'contains', 'get', 'find', 'put', 'entry',
+        # 'remove', 'append', 'subarray', 'remove', 'join', 'flatten',
+
+        # 'random-number-generator', 'collation-key',
+        # 'contains-token', 'parse-ietf-date',
 
         # Higher-order functions
-        'sort', 'apply', 'load-xquery-module', 'transform',
-
-        # Maps and Arrays
-        'merge', 'size', 'keys', 'contains', 'get', 'find', 'put', 'entry',
-        'remove', 'append', 'subarray', 'remove', 'join', 'flatten',
+        # 'sort', 'apply', 'load-xquery-module', 'transform',
 
         # Functions on JSON Data
-        'parse-json', 'json-doc', 'json-to-xml', 'xml-to-json',
+        # 'parse-json', 'json-doc', 'json-to-xml', 'xml-to-json',
 
         # Arrow operator
-        '=>',
+        # '=>',
     }
-    """
 
     DEFAULT_NAMESPACES = {
         'map': XPATH_MAP_FUNCTIONS_NAMESPACE,
@@ -57,20 +52,3 @@ class XPath31Parser(XPath30Parser):
         'function', 'if', 'item', 'map', 'namespace-node', 'node', 'processing-instruction',
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
-
-
-##
-# XPath 3.1 definitions
-register = XPath31Parser.register
-unregister = XPath31Parser.unregister
-literal = XPath31Parser.literal
-prefix = XPath31Parser.prefix
-infix = XPath31Parser.infix
-infixr = XPath31Parser.infixr
-method = XPath31Parser.method
-function = XPath31Parser.function
-
-register('map', bp=90, label='map', bases=(XPathMap,))
-register('array', bp=90, label='array', bases=(XPathArray,))
-
-XPath31Parser.build()
