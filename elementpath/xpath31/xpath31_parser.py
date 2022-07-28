@@ -12,7 +12,7 @@ XPath 3.1 implementation
 """
 from ..namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
     XPATH_ARRAY_FUNCTIONS_NAMESPACE  # , XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..xpath_token import XPathMap
+from ..xpath_token import XPathMap, XPathArray
 from ..xpath3 import XPath30Parser
 
 
@@ -22,7 +22,7 @@ class XPath31Parser(XPath30Parser):
     """
     version = '3.1'
 
-    SYMBOLS = XPath30Parser.SYMBOLS | {'map'}
+    SYMBOLS = XPath30Parser.SYMBOLS | {'map', 'array'}
     """
     {
         'map', 'array',
@@ -71,5 +71,6 @@ method = XPath31Parser.method
 function = XPath31Parser.function
 
 register('map', bp=90, label='map', bases=(XPathMap,))
+register('array', bp=90, label='array', bases=(XPathArray,))
 
 XPath31Parser.build()

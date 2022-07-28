@@ -1527,16 +1527,20 @@ class XPathMap(XPathFunction):
     """
     pattern = r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
 
+    def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
+        self._values = []
+        super().__init__(parser, nargs)
+
     def nud(self) -> 'XPathMap':
-        code = 'XPST0003'
         self.value = None
         self.parser.advance('{')
         del self._items[:]
         if self.parser.next_token.symbol not in ('}', '(end)'):
             while True:
-                key = self.parser.expression(5)
-                self.append(key)
-                self.parser.advance('}')
+                key = self.parser.expression(95)  # ':'
+                self._items.append(key)
+                self.parser.advance(':')
+                self._values.append(self.parser.expression(5))
 
                 if self.parser.next_token.symbol != ',':
                     break
@@ -1544,3 +1548,73 @@ class XPathMap(XPathFunction):
 
         self.parser.advance('}')
         return self
+
+    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
+        map_value = {}
+        for key, value in zip(self._items, self._values):
+            k = next(key.atomization(context), None)
+            map_value[k] = value.evaluate(context)
+
+        self.value = map_value
+        return self
+
+    def __call__(self, context: Optional[XPathContext] = None,
+                 argument_list: Optional[Union[
+                     XPathToken,
+                     List[Union[XPathToken, AtomicValueType]],
+                     Tuple[Union[XPathToken, AtomicValueType], ...]
+                 ]] = None) -> Any:
+
+        if isinstance(argument_list, XPathToken):
+            key = next(argument_list.atomization(context))
+        else:
+            key = argument_list[0]
+
+        return self.evaluate(context).value.get(key)
+
+
+class XPathArray(XPathFunction):
+    """
+    A token for processing XPath 3.1+ arrays.
+    """
+    pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
+
+    def nud(self) -> 'XPathMap':
+        self.value = None
+        self.parser.advance('{')
+        del self._items[:]
+        if self.parser.next_token.symbol not in ('}', '(end)'):
+            while True:
+                self._items.append(self.parser.expression(5))
+                if self.parser.next_token.symbol != ',':
+                    break
+                self.parser.advance()
+
+        self.parser.advance('}')
+        return self
+
+    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
+        array_value = []
+        for tk in self._items:
+            array_value.extend(tk.select(context))
+        self.value = array_value
+        return self
+
+    def __call__(self, context: Optional[XPathContext] = None,
+                 argument_list: Optional[Union[
+                     XPathToken,
+                     List[Union[XPathToken, AtomicValueType]],
+                     Tuple[Union[XPathToken, AtomicValueType], ...]
+                 ]] = None) -> Any:
+
+        if isinstance(argument_list, XPathToken):
+            index = next(argument_list.atomization(context))
+        else:
+            index = argument_list[0]
+
+        try:
+            if index <= 0:
+                return None
+            return self.evaluate(context).value[index - 1]
+        except IndexError:
+            return None
