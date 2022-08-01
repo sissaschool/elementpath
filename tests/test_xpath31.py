@@ -96,7 +96,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
                      'Fr': 'Friday',
                      'Sa': 'Saturday'}
 
-        self.assertDictEqual(token.evaluate().value, map_value)
+        self.assertDictEqual(token.evaluate()._map, map_value)
 
         token = self.parser.parse(f"{MAP_WEEKDAYS}('Mo')")
         self.assertEqual(token.evaluate(), 'Monday')

@@ -1168,25 +1168,7 @@ class XPathFunction(XPathToken):
                 self.nargs = nargs
 
     def __call__(self, context: Optional[XPathContext] = None,
-                 argument_list: Optional[Union[
-                     XPathToken,
-                     List[Union[XPathToken, AtomicValueType]],
-                     Tuple[Union[XPathToken, AtomicValueType], ...]
-                 ]] = None) -> Any:
-
-        args: List[Any] = []
-        if isinstance(argument_list, (list, tuple)):
-            args.extend(argument_list)
-        elif isinstance(argument_list, XPathToken):
-            tk = argument_list
-            while True:
-                if tk.symbol == ',':
-                    args.append(tk[1].evaluate(context))
-                    tk = tk[0]
-                else:
-                    args.append(tk.evaluate(context))
-                    break
-            args.reverse()
+                 *args: Union[XPathToken, XPathNode, AtomicValueType]) -> Any:
 
         # Check provided argument with arity
         if self.nargs is None or self.nargs == len(args):
@@ -1215,7 +1197,7 @@ class XPathFunction(XPathToken):
                     else:
                         context.item = context.root
 
-                args.append(context.item)
+                args = cast(Tuple[Union[XPathNode, XPathToken, AtomicValueType]], (context.item,))
 
             partial_function = False
             if self.variables is None:
@@ -1248,7 +1230,8 @@ class XPathFunction(XPathToken):
                 if isinstance(value, XPathToken):
                     tk.value = value.evaluate(context)
                 else:
-                    assert not isinstance(value, Token), "An atomic value or None expected"
+                    assert not isinstance(value, (Token, XPathNode)), \
+                        "An atomic value or None expected"
                     tk.value = value
         else:
             self.clear()
@@ -1256,7 +1239,8 @@ class XPathFunction(XPathToken):
                 if isinstance(value, XPathToken):
                     self.append(value)
                 else:
-                    assert not isinstance(value, Token), "An atomic value or None expected"
+                    assert not isinstance(value, (Token, XPathNode)), \
+                        "An atomic value or None expected"
                     self.append(ValueToken(self.parser, value=value))
 
             if any(tk.symbol == '?' for tk in self._items):
@@ -1526,13 +1510,14 @@ class XPathMap(XPathFunction):
     A token for processing XPath 3.1+ maps.
     """
     pattern = r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
+    _map: Optional[Dict[AnyAtomicType, Any]] = None
+    _values: List[XPathToken]
 
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
         self._values = []
         super().__init__(parser, nargs)
 
     def nud(self) -> 'XPathMap':
-        self.value = None
         self.parser.advance('{')
         del self._items[:]
         if self.parser.next_token.symbol not in ('}', '(end)'):
@@ -1550,27 +1535,27 @@ class XPathMap(XPathFunction):
         return self
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
-        map_value = {}
+        _map = {}
         for key, value in zip(self._items, self._values):
             k = next(key.atomization(context), None)
-            map_value[k] = value.evaluate(context)
+            if k is None:
+                self.error('XPST0003', 'missing key value')
+            assert k is not None
+            _map[k] = value.evaluate(context)
 
-        self.value = map_value
+        self._map = cast(Dict[AnyAtomicType, Any], _map)
         return self
 
     def __call__(self, context: Optional[XPathContext] = None,
-                 argument_list: Optional[Union[
-                     XPathToken,
-                     List[Union[XPathToken, AtomicValueType]],
-                     Tuple[Union[XPathToken, AtomicValueType], ...]
-                 ]] = None) -> Any:
+                 *args: Union[XPathToken, XPathNode, AtomicValueType]) -> Any:
+        if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
+            self.error('XPST0003', 'exactly one atomic argument is expected')
 
-        if isinstance(argument_list, XPathToken):
-            key = next(argument_list.atomization(context))
-        else:
-            key = argument_list[0]
-
-        return self.evaluate(context).value.get(key)
+        key = cast(AnyAtomicType, args[0])
+        if self._map is None:
+            self.evaluate(context)
+            assert self._map is not None
+        return self._map.get(key)
 
 
 class XPathArray(XPathFunction):
@@ -1578,6 +1563,7 @@ class XPathArray(XPathFunction):
     A token for processing XPath 3.1+ arrays.
     """
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
+    _array: Optional[List[Any]] = None
 
     def nud(self) -> 'XPathArray':
         self.value = None
@@ -1594,27 +1580,25 @@ class XPathArray(XPathFunction):
         return self
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
-        array_value = []
+        _array: List[Any] = []
         for tk in self._items:
-            array_value.extend(tk.select(context))
-        self.value = array_value
+            _array.extend(tk.select(context))
+        self._array = _array
         return self
 
     def __call__(self, context: Optional[XPathContext] = None,
-                 argument_list: Optional[Union[
-                     XPathToken,
-                     List[Union[XPathToken, AtomicValueType]],
-                     Tuple[Union[XPathToken, AtomicValueType], ...]
-                 ]] = None) -> Any:
+                 *args: Union[XPathToken, XPathNode, AtomicValueType]) -> Any:
+        if len(args) != 1 or not isinstance(args[0], int):
+            self.error('XPST0003', 'exactly one xs:integer argument is expected')
 
-        if isinstance(argument_list, XPathToken):
-            index = next(argument_list.atomization(context))
-        else:
-            index = argument_list[0]
+        index = cast(int, args[0])
+        if self._array is None:
+            self.evaluate(context)
+            assert self._array is not None
 
         try:
             if index <= 0:
                 return None
-            return self.evaluate(context).value[index - 1]
+            return self._array[index - 1]
         except IndexError:
             return None

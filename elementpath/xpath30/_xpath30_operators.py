@@ -101,7 +101,18 @@ def evaluate_parenthesized_expression(self, context=None):
 
     if len(self) > 1:
         if isinstance(value, XPathFunction):
-            return value(context, self[1])
+            # Build argument list considering commas as separators of different arguments
+            arguments = []
+            tk = self[1]
+            while True:
+                if tk.symbol == ',':
+                    arguments.append(tk[1].evaluate(context))
+                    tk = tk[0]
+                else:
+                    arguments.append(tk.evaluate(context))
+                    break
+            arguments.reverse()
+            return value(context, *arguments)
         elif self[0].symbol == '(':
             if not isinstance(value, list):
                 return value
