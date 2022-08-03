@@ -184,6 +184,10 @@ XPATH_ERROR_CODES = {
     'SEPM0018': (ElementPathValueError, 'use-character-maps serialization parameter in '
                                         'a sequence of length greater than one'),
     'SEPM0019': (ElementPathValueError, 'same serialization parameter appears more than once'),
+
+    # XPath 3.1+ errors
+    'FOAY0001': (ElementPathValueError, 'Array index out of bounds'),
+    'FOAY0002': (ElementPathValueError, 'Negative array length'),
 }
 
 
