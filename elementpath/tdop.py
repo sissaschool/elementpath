@@ -19,8 +19,6 @@ from typing import Any, cast, overload, no_type_check_decorator, Callable, \
     ClassVar, FrozenSet, Dict, Generic, List, Optional, Union, Tuple, Type, \
     Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
 
-from .datatypes import AtomicValueType
-
 #
 # Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
@@ -164,12 +162,12 @@ class Token(MutableSequence[TK]):
 
     _items: List[TK]
     parser: 'Parser[Token[TK]]'
-    value: Optional[AtomicValueType]
+    value: Optional[Any]
     _source: str
     span: Tuple[int, int]
 
     def __init__(self, parser: 'Parser[Token[TK]]',
-                 value: Optional[AtomicValueType] = None) -> None:
+                 value: Optional[Any] = None) -> None:
         self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol

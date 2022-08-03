@@ -81,6 +81,8 @@ XPathResultType = Union[
 ]
 
 XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
+XPathFunctionArgType = Union[None, 'XPathToken', XPathNode, AtomicValueType,
+                             List[Union['XPathToken', XPathNode, AtomicValueType]]]
 
 
 class XPathToken(Token[XPathTokenType]):
@@ -1168,7 +1170,7 @@ class XPathFunction(XPathToken):
                 self.nargs = nargs
 
     def __call__(self, context: Optional[XPathContext] = None,
-                 *args: Union[XPathToken, XPathNode, AtomicValueType]) -> Any:
+                 *args: XPathFunctionArgType) -> Any:
 
         # Check provided argument with arity
         if self.nargs is None or self.nargs == len(args):
@@ -1230,18 +1232,14 @@ class XPathFunction(XPathToken):
                 if isinstance(value, XPathToken):
                     tk.value = value.evaluate(context)
                 else:
-                    assert not isinstance(value, (Token, XPathNode)), \
-                        "An atomic value or None expected"
                     tk.value = value
         else:
             self.clear()
             for value in args:
                 if isinstance(value, XPathToken):
-                    self.append(value)
+                    self._items.append(value)
                 else:
-                    assert not isinstance(value, (Token, XPathNode)), \
-                        "An atomic value or None expected"
-                    self.append(ValueToken(self.parser, value=value))
+                    self._items.append(ValueToken(self.parser, value=value))
 
             if any(tk.symbol == '?' for tk in self._items):
                 self._partial_function()
@@ -1547,7 +1545,7 @@ class XPathMap(XPathFunction):
         return self
 
     def __call__(self, context: Optional[XPathContext] = None,
-                 *args: Union[XPathToken, XPathNode, AtomicValueType]) -> Any:
+                 *args: XPathFunctionArgType) -> Any:
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             self.error('XPST0003', 'exactly one atomic argument is expected')
 
@@ -1587,7 +1585,7 @@ class XPathArray(XPathFunction):
         return self
 
     def __call__(self, context: Optional[XPathContext] = None,
-                 *args: Union[XPathToken, XPathNode, AtomicValueType]) -> Any:
+                 *args: XPathFunctionArgType) -> Any:
         if len(args) != 1 or not isinstance(args[0], int):
             self.error('XPST0003', 'exactly one xs:integer argument is expected')
 

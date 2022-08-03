@@ -37,7 +37,6 @@ register('?', bases=(ValueToken,))
 
 @method('?')
 def nud_placeholder_symbol(self):
-    # self.value = self
     return self
 
 
