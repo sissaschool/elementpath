@@ -22,8 +22,8 @@ from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
     xsd10_atomic_types, xsd11_atomic_types
 from ..tdop import Token, Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
-    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, \
-    XSD_ANY_ATOMIC_TYPE, XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
+    XPATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
+    XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
@@ -171,21 +171,33 @@ class XPath1Parser(Parser[XPathToken]):
 
     @classmethod
     def function(cls, symbol: str,
+                 prefix: Optional[str] = None,
+                 label: str = 'function',
                  nargs: NargsType = None,
                  sequence_types: Tuple[str, ...] = (),
-                 label: str = 'function',
                  bp: int = 90) -> Type[XPathFunction]:
         """
         Registers a token class for a symbol that represents an XPath function.
         """
+        kwargs = {
+            'bases': (XPathFunction,),
+            'label': label,
+            'nargs': nargs,
+            'lbp': bp,
+            'rbp': bp,
+        }
         if 'function' not in label:
             pass  # kind test or sequence type
         elif symbol in cls.RESERVED_FUNCTION_NAMES:
             raise ElementPathValueError(f'{symbol!r} is a reserved function name')
         elif sequence_types:
+            kwargs['sequence_types'] = sequence_types
+
             # Register function signature(s)
-            if label == 'math function':
-                qname = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % symbol)
+            if prefix:
+                namespace = cls.DEFAULT_NAMESPACES[prefix]
+                qname = QName(namespace, '%s:%s' % (prefix, symbol))
+                kwargs['lookup_name'] = qname.expanded_name
             else:
                 qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
 
@@ -208,9 +220,7 @@ class XPath1Parser(Parser[XPathToken]):
                         ', '.join(sequence_types[:arity]), sequence_types[-1]
                     )
 
-        token_class = cls.register(symbol, nargs=nargs, sequence_types=sequence_types,
-                                   label=label, bases=(XPathFunction,), lbp=bp, rbp=bp)
-        return cast(Type[XPathFunction], token_class)
+        return cast(Type[XPathFunction], cls.register(symbol, **kwargs))
 
     def parse(self, source: str) -> XPathToken:
         root_token = super(XPath1Parser, self).parse(source)

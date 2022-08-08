@@ -224,12 +224,12 @@ def evaluate_anonymous_function(self, context=None):
 
 ###
 # Mathematical functions
-@method(function('pi', label='math function', nargs=0, sequence_types=('xs:double',)))
+@method(function('pi', prefix='math', label='math function', nargs=0, sequence_types=('xs:double',)))
 def evaluate_pi_function(self, context=None):
     return math.pi
 
 
-@method(function('exp', label='math function', nargs=1,
+@method(function('exp', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_exp_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -237,7 +237,7 @@ def evaluate_exp_function(self, context=None):
         return math.exp(arg)
 
 
-@method(function('exp10', label='math function', nargs=1,
+@method(function('exp10', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_exp10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -245,7 +245,7 @@ def evaluate_exp10_function(self, context=None):
         return float(10 ** arg)
 
 
-@method(function('log', label='math function', nargs=1,
+@method(function('log', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_log_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -253,7 +253,7 @@ def evaluate_log_function(self, context=None):
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log(arg)
 
 
-@method(function('log10', label='math function', nargs=1,
+@method(function('log10', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_log10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -261,7 +261,7 @@ def evaluate_log10_function(self, context=None):
         return float('-inf') if not arg else float('nan') if arg <= -1 else math.log10(arg)
 
 
-@method(function('pow', label='math function', nargs=2,
+@method(function('pow', prefix='math', label='math function', nargs=2,
                  sequence_types=('xs:double?', 'numeric', 'xs:double?')))
 def evaluate_pow_function(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
@@ -276,7 +276,7 @@ def evaluate_pow_function(self, context=None):
             return float('nan')
 
 
-@method(function('sqrt', label='math function', nargs=1,
+@method(function('sqrt', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_sqrt_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -286,7 +286,7 @@ def evaluate_sqrt_function(self, context=None):
         return math.sqrt(arg)
 
 
-@method(function('sin', label='math function', nargs=1,
+@method(function('sin', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_sin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -296,7 +296,7 @@ def evaluate_sin_function(self, context=None):
         return math.sin(arg)
 
 
-@method(function('cos', label='math function', nargs=1,
+@method(function('cos', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_cos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -306,7 +306,7 @@ def evaluate_cos_function(self, context=None):
         return math.cos(arg)
 
 
-@method(function('tan', label='math function', nargs=1,
+@method(function('tan', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_tan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -316,7 +316,7 @@ def evaluate_tan_function(self, context=None):
         return math.tan(arg)
 
 
-@method(function('asin', label='math function', nargs=1,
+@method(function('asin', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_asin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -326,7 +326,7 @@ def evaluate_asin_function(self, context=None):
         return math.asin(arg)
 
 
-@method(function('acos', label='math function', nargs=1,
+@method(function('acos', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_acos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -336,7 +336,7 @@ def evaluate_acos_function(self, context=None):
         return math.acos(arg)
 
 
-@method(function('atan', label='math function', nargs=1,
+@method(function('atan', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_atan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
@@ -344,7 +344,7 @@ def evaluate_atan_function(self, context=None):
         return math.atan(arg)
 
 
-@method(function('atan2', label='math function', nargs=2,
+@method(function('atan2', prefix='math', label='math function', nargs=2,
                  sequence_types=('xs:double', 'xs:double', 'xs:double')))
 def evaluate_atan2_function(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)

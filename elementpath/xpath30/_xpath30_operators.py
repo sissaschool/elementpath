@@ -222,7 +222,10 @@ def evaluate_function_reference(self, context=None):
         raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
     try:
-        token_class = self.parser.symbol_table[local_name]
+        if namespace in (XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE):
+            token_class = self.parser.symbol_table[local_name]
+        else:
+            token_class = self.parser.symbol_table[qname.expanded_name]
     except KeyError:
         msg = f"unknown function {qname.qname}#{arity}"
         raise self.error('XPST0017', msg) from None

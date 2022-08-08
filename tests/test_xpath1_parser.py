@@ -1630,7 +1630,11 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.assertEqual(len(key), 2)
             self.assertIsInstance(key[0], datatypes.QName)
             self.assertIsInstance(key[1], int)
-            self.assertIn(key[0].local_name, function_names)
+
+            try:
+                self.assertIn(key[0].local_name, function_names)
+            except AssertionError:
+                self.assertIn(key[0].expanded_name, function_names)
 
             if self.parser.version <= '2.0':
                 self.assertIn(key[0].namespace, XPATH_FUNCTIONS_NAMESPACE)

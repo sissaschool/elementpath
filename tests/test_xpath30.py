@@ -79,6 +79,9 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
 
+    def test_function_match(self):
+        self.parser.parse('math:pi()')
+
     def test_braced_uri_literal(self):
         expected_lexemes = ['Q{', 'http', ':', '//', 'xpath.test', '/', 'ns', '}', 'ABC']
         self.check_tokenizer("Q{http://xpath.test/ns}ABC", expected_lexemes)
