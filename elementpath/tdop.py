@@ -140,7 +140,7 @@ class Token(MutableSequence[TK]):
     :cvar lbp: Pratt's left binding power, defaults to 0.
     :cvar rbp: Pratt's right binding power, defaults to 0.
     :cvar pattern: the regex pattern used for the token class. Defaults to the \
-    escaped symbol. Can be customized to match more detailed conditions (eg. a \
+    escaped symbol. Can be customized to match more detailed conditions (e.g. a \
     function with its left round bracket), in order to simplify the related code.
     :cvar label: defines the typology of the token class. Its value is used in \
     representations of the token instance and can be used to restrict code choices \
@@ -149,12 +149,13 @@ class Token(MutableSequence[TK]):
     the XPath parsers). In the base parser class defaults to 'symbol' with 'literal' \
     and 'operator' as possible alternatives. If set by a tuple of values the token \
     class label is transformed to a multi-value label, that means the token class can \
-    covers multiple roles (eg. as XPath function or axis). In those cases the definitive \
+    covers multiple roles (e.g. as XPath function or axis). In those cases the definitive \
     role is defined at parse time (nud and/or led methods) after the token instance creation.
     """
     lbp: int = 0           # left binding power
     rbp: int = 0           # right binding power
     symbol: str = ''       # the token identifier
+    lookup_name: str = ''  # the key in symbol table, usually matches the symbol.
     label: str = 'symbol'  # optional label
     pattern: Optional[str] = None  # a custom regex pattern for building the tokenizer
 
@@ -402,7 +403,7 @@ TK_co = TypeVar('TK_co', bound=Token[Any], covariant=True)
 
 class Parser(Generic[TK_co], metaclass=ParserMeta):
     """
-    Parser class for implementing a Top Down Operator Precedence parser.
+    Parser class for implementing a Top-Down Operator Precedence parser.
 
     :cvar SYMBOLS: the symbols of the definable tokens for the parser. In the base class it's an \
     immutable set that contains the symbols for special tokens (literals, names and end-token).\
@@ -654,8 +655,9 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             if ' ' in symbol:
                 raise ValueError("%r: a symbol can't contain whitespaces" % symbol)
 
+            lookup_name = kwargs.get('lookup_name', symbol)
             try:
-                token_class = cls.symbol_table[symbol]
+                token_class = cls.symbol_table[lookup_name]
             except KeyError:
                 # Register a new symbol and create a new custom class. The new class
                 # name is registered at parser class's module level.
@@ -664,6 +666,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                         raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
 
                 kwargs['symbol'] = symbol
+                kwargs['lookup_name'] = lookup_name
                 label = kwargs.get('label', 'symbol')
                 if isinstance(label, tuple):
                     label = kwargs['label'] = MultiLabel(*label)
@@ -680,7 +683,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                 token_class = cast(
                     Type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs)
                 )
-                cls.symbol_table[symbol] = token_class
+                cls.symbol_table[lookup_name] = token_class
                 MutableSequence.register(token_class)
                 setattr(sys.modules[cls.__module__], token_class_name, token_class)
 
@@ -688,7 +691,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             raise TypeError("A string or a %r subclass requested, not %r." % (Token, symbol))
         else:
             token_class = symbol
-            if cls.symbol_table.get(symbol.symbol) is not token_class:
+            if cls.symbol_table.get(symbol.lookup_name) is not token_class:
                 raise ValueError("Token class %r is not registered." % token_class)
 
         for key, value in kwargs.items():
@@ -789,14 +792,15 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     def build(cls) -> None:
         """
         Builds the parser class. Checks if all declared symbols are defined
-        and builds a the regex tokenizer using the symbol related patterns.
+        and builds the regex tokenizer using the symbol related patterns.
         """
         # For backward compatibility with external defined parsers
         if '(start)' not in cls.symbol_table:
             cls.register('(start)')
 
-        if not cls.SYMBOLS.issubset(cls.symbol_table.keys()):
-            unregistered = [s for s in cls.SYMBOLS if s not in cls.symbol_table]
+        symbols = {tk.symbol for tk in cls.symbol_table.values()}
+        if not cls.SYMBOLS.issubset(symbols):
+            unregistered = list(s for s in cls.SYMBOLS if s not in symbols)
             raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))
         cls.tokenizer = cls.create_tokenizer(cls.symbol_table)
 
