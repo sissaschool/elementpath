@@ -1372,12 +1372,20 @@ def evaluate_function_lookup_function(self, context=None):
         return []
 
     try:
-        func = self.parser.symbol_table[qname.local_name](self.parser, nargs=arity)
-    except (KeyError, TypeError):
+        cls = self.parser.symbol_table[qname.local_name]
+    except KeyError:
+        try:
+            cls = self.parser.symbol_table[qname.expanded_name]
+        except KeyError:
+            return []
+
+    try:
+        func = cls(self.parser, nargs=arity)
+    except TypeError:
         return []
-    else:
-        func.namespace = qname.namespace
-        return func
+
+    func.namespace = qname.namespace
+    return func
 
 
 @method(function('function-name', nargs=1, sequence_types=('function(*)', 'xs:QName?')))

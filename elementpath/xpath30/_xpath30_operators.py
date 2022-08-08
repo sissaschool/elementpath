@@ -68,7 +68,7 @@ def nud_parenthesized_expression(self):
 
 @method('(')
 def led_parenthesized_expression(self, left):
-    if left.symbol == '(name)':
+    if left.symbol in ('(name)', 'Q{'):
         if left.value in self.parser.RESERVED_FUNCTION_NAMES:
             msg = f"{left.value!r} is not allowed as function name"
             raise left.error('XPST0003', msg)
