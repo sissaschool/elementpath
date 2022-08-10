@@ -486,55 +486,52 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
-        while True:
-            try:
-                self.next_match = cast(Match[str], next(self.tokens))
-            except StopIteration:
-                self.next_token = self.symbol_table['(end)'](self)
+        for self.next_match in self.tokens:
+            if not self.next_match.group().isspace():
                 break
+        else:
+            self.next_token = self.symbol_table['(end)'](self)
+            return self.next_token
+
+        literal, symbol, name, unknown = self.next_match.groups()
+        if symbol is not None:
+            try:
+                self.next_token = self.symbol_table[symbol](self)
+            except KeyError:
+                if self.name_pattern.match(symbol) is None:
+                    self.next_token = self.symbol_table['(unknown)'](self, symbol)
+                    raise self.next_token.wrong_syntax()
+                self.next_token = self.symbol_table['(name)'](self, symbol)
+        elif literal is not None:
+            if literal[0] in '\'"':
+                value = self.unescape(literal)
+                self.next_token = self.symbol_table['(string)'](self, value)
+            elif 'e' in literal or 'E' in literal:
+                try:
+                    value = float(literal)
+                except ValueError as err:
+                    self.next_token = self.symbol_table['(invalid)'](self, literal)
+                    raise self.next_token.wrong_syntax(message=str(err))
+                else:
+                    self.next_token = self.symbol_table['(float)'](self, value)
+            elif '.' in literal:
+                try:
+                    value = Decimal(literal)
+                except DecimalException as err:
+                    self.next_token = self.symbol_table['(invalid)'](self, literal)
+                    raise self.next_token.wrong_syntax(message=str(err))
+                else:
+                    self.next_token = self.symbol_table['(decimal)'](self, value)
             else:
-                literal, symbol, name, unknown = self.next_match.groups()
-                if symbol is not None:
-                    try:
-                        self.next_token = self.symbol_table[symbol](self)
-                    except KeyError:
-                        if self.name_pattern.match(symbol) is None:
-                            self.next_token = self.symbol_table['(unknown)'](self, symbol)
-                            raise self.next_token.wrong_syntax()
-                        self.next_token = self.symbol_table['(name)'](self, symbol)
-                    break
-                elif literal is not None:
-                    if literal[0] in '\'"':
-                        value = self.unescape(literal)
-                        self.next_token = self.symbol_table['(string)'](self, value)
-                    elif 'e' in literal or 'E' in literal:
-                        try:
-                            value = float(literal)
-                        except ValueError as err:
-                            self.next_token = self.symbol_table['(invalid)'](self, literal)
-                            raise self.next_token.wrong_syntax(message=str(err))
-                        else:
-                            self.next_token = self.symbol_table['(float)'](self, value)
-                    elif '.' in literal:
-                        try:
-                            value = Decimal(literal)
-                        except DecimalException as err:
-                            self.next_token = self.symbol_table['(invalid)'](self, literal)
-                            raise self.next_token.wrong_syntax(message=str(err))
-                        else:
-                            self.next_token = self.symbol_table['(decimal)'](self, value)
-                    else:
-                        self.next_token = self.symbol_table['(integer)'](self, int(literal))
-                    break
-                elif name is not None:
-                    self.next_token = self.symbol_table['(name)'](self, name)
-                    break
-                elif unknown is not None:
-                    self.next_token = self.symbol_table['(unknown)'](self, unknown)
-                    break
-                elif str(self.next_match.group()).strip():
-                    msg = "unexpected matching %r: incompatible tokenizer"
-                    raise RuntimeError(msg % self.next_match.group())
+                self.next_token = self.symbol_table['(integer)'](self, int(literal))
+        elif name is not None:
+            self.next_token = self.symbol_table['(name)'](self, name)
+        elif unknown is not None:
+            self.next_token = self.symbol_table['(unknown)'](self, unknown)
+        else:
+            msg = "unexpected matching %r: incompatible tokenizer"
+            raise RuntimeError(msg % self.next_match.group())
+
         return self.next_token
 
     def advance_until(self, *stop_symbols: str) -> str:
