@@ -290,6 +290,8 @@ class XPath1Parser(Parser[XPathToken]):
             return False
         elif value == 'empty-sequence()' or value == 'none':
             return True
+        elif value in ('map(*)', 'array(*)') and self.version >= '3.1':
+            return True
         elif value[-1] in OCCURRENCE_INDICATORS:
             value = value[:-1]
 

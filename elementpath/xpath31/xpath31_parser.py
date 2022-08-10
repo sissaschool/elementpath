@@ -23,8 +23,8 @@ class XPath31Parser(XPath30Parser):
 
     SYMBOLS = XPath30Parser.SYMBOLS | {
         # Map and array functions
-        'map', 'array',
-        # 'merge', 'size', 'keys', 'contains', 'get', 'find', 'put', 'entry',
+        'map', 'array',  # 'merge',
+        'size', 'keys', 'contains', 'get',  # 'find', 'put', 'entry',
         # 'remove', 'append', 'subarray', 'remove', 'join', 'flatten',
 
         # 'random-number-generator', 'collation-key',
@@ -52,3 +52,5 @@ class XPath31Parser(XPath30Parser):
         'function', 'if', 'item', 'map', 'namespace-node', 'node', 'processing-instruction',
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
+
+    function_signatures = XPath30Parser.function_signatures.copy()

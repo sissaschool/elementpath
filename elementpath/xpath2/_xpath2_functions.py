@@ -226,7 +226,7 @@ def evaluate_resolve_qname_function(self, context=None):
 def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
-        return
+        return None
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
@@ -249,7 +249,7 @@ def evaluate_node_name_function(self, context=None):
 def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
-        return
+        return None
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
     return arg.nilled

@@ -1555,6 +1555,12 @@ class XPathMap(XPathFunction):
             assert self._map is not None
         return self._map.get(key)
 
+    def keys(self, context: Optional[XPathContext] = None) -> List[AnyAtomicType]:
+        if self._map is None:
+            self.evaluate(context)
+            assert self._map is not None
+        return list(self._map.keys())
+
 
 class XPathArray(XPathFunction):
     """

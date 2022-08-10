@@ -54,6 +54,11 @@ map {
   "Sa" : "Saturday"
 }"""
 
+MAP_WEEKDAYS_DE = """\
+map{0:"Sonntag", 1:"Montag", 2:"Dienstag",
+     3:"Mittwoch", 4:"Donnerstag", 5:"Freitag", 6:"Samstag"}"""
+
+
 NESTED_MAP = """\
 map {
     "book": map {
@@ -135,6 +140,32 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         token = self.parser.parse('[ 1, 2, 5, 7 ](4)')
         self.assertEqual(token.evaluate(), 7)
+
+    def test_map_size_function(self):
+        self.check_value('map:size(map{})', 0)
+        self.check_value('map:size(map{"true":1, "false":0})', 2)
+
+    def test_map_keys_function(self):
+        self.check_value('map:keys(map{})', [])
+        self.check_value('map:keys(map{1:"yes", 2:"no"})', [1, 2])
+
+    def _test_map_contains_function(self):
+        self.check_value('map:contains(map{}, 1)', False)
+        self.check_value('map:contains(map{1:"yes", 2:"no"}, 1)', True)
+
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = f"let $x := {MAP_WEEKDAYS_DE} return map:contains($x, 2)"
+        self.check_value(expression, True, context=context)
+
+    def test_map_get_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = f"let $x := {MAP_WEEKDAYS} return map:get($x, 'Mo')"
+        self.check_value(expression, ['Monday'], context=context)
+
+        expression = f"let $x := {MAP_WEEKDAYS} return map:get($x, 'Mon')"
+        self.check_value(expression, [], context=context)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
