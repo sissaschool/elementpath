@@ -583,13 +583,11 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         :param rbp: right binding power for the expression.
         :return: left token.
         """
-        token = self.next_token
         self.advance()
-        left = token.nud()
+        left = self.token.nud()
         while rbp < self.next_token.lbp:
-            token = self.next_token
             self.advance()
-            left = token.led(left)
+            left = self.token.led(left)
         return cast(TK_co, left)
 
     @property

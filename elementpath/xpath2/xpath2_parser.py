@@ -295,13 +295,13 @@ class XPath2Parser(XPath1Parser):
         super(XPath2Parser, self).advance(*symbols)
 
         if self.next_token.symbol == '(:':
-            try:
-                self.token.unexpected(':')
-            except AttributeError:
-                pass
+            # Parses and consumes an XPath 2.0 comment. A comment is delimited
+            # by symbols '(:' and ':)' and can be nested. The current token is
+            # saved and restored after parsing the entire comment. Comments
+            # cannot be inside a prefixed name ':' specification.
+            self.token.unexpected(':')
+            token = self.token
 
-            # Parses and consumes an XPath 2.0 comment. A comment is
-            # delimited by symbols '(:' and ':)' and can be nested.
             comment_level = 1
             while comment_level:
                 self.advance_until('(:', ':)')
@@ -310,7 +310,9 @@ class XPath2Parser(XPath1Parser):
                 else:
                     comment_level += 1
             self.advance(':)')
+
             self.next_token.unexpected(':')
+            self.token = token
 
         return self.next_token
 
