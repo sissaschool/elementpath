@@ -25,7 +25,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     XPATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction
+from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, ProxyToken
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 COMMON_SEQUENCE_TYPES = {
@@ -187,19 +187,32 @@ class XPath1Parser(Parser[XPathToken]):
             'rbp': bp,
         }
         if 'function' not in label:
-            pass  # kind test or sequence type
+            # kind test or sequence type
+            return cast(Type[XPathFunction], cls.register(symbol, **kwargs))
         elif symbol in cls.RESERVED_FUNCTION_NAMES:
             raise ElementPathValueError(f'{symbol!r} is a reserved function name')
-        elif sequence_types:
-            kwargs['sequence_types'] = sequence_types
 
+        if prefix:
+            namespace = cls.DEFAULT_NAMESPACES[prefix]
+            qname = QName(namespace, '%s:%s' % (prefix, symbol))
+            kwargs['lookup_name'] = qname.expanded_name
+            kwargs['namespace'] = namespace
+
+            if symbol not in cls.symbol_table:
+                # Register a function proxy
+                cls.register(symbol, bases=(ProxyToken,), lbp=bp, rbp=bp)
+            elif cls.symbol_table[symbol]:
+                # Move the token class and register a proxy token
+                token_cls = cls.symbol_table.pop(symbol)
+                cls.symbol_table[f'{{{token_cls.namespace}}}{symbol}'] = token_cls
+                cls.register(symbol, bases=(ProxyToken,), lbp=bp, rbp=bp)
+        else:
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
+            kwargs['namespace'] = XPATH_FUNCTIONS_NAMESPACE
+
+        if sequence_types:
             # Register function signature(s)
-            if prefix:
-                namespace = cls.DEFAULT_NAMESPACES[prefix]
-                qname = QName(namespace, '%s:%s' % (prefix, symbol))
-                kwargs['lookup_name'] = qname.expanded_name
-            else:
-                qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
+            kwargs['sequence_types'] = sequence_types
 
             if nargs is None:
                 pass  # pragma: no cover

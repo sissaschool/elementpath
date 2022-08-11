@@ -583,7 +583,7 @@ class XPathToken(Token[XPathTokenType]):
         a function or a constructor, otherwise a syntax error is raised. Functions
         and constructors must be limited to its namespaces.
         """
-        if self.symbol in ('(name)', '*'):
+        if self.symbol in ('(name)', '*') or isinstance(self, ProxyToken):
             pass
         elif namespace == self.parser.function_namespace:
             if self.label != 'function':
@@ -603,8 +603,11 @@ class XPathToken(Token[XPathTokenType]):
                 raise self.wrong_syntax(msg, code='XPST0017')
             elif isinstance(self.label, MultiLabel):
                 self.label = 'math function'
-        else:
+        elif not self.label.endswith('function'):
             msg = "a name, a wildcard or a function expected"
+            raise self.wrong_syntax(msg, code='XPST0017')
+        elif self.namespace and namespace != self.namespace:
+            msg = "unmatched namespace"
             raise self.wrong_syntax(msg, code='XPST0017')
 
         self.namespace = namespace
@@ -1135,6 +1138,32 @@ class ValueToken(XPathToken):
             yield self.value
 
 
+class ProxyToken(XPathToken):
+    """
+    A proxy token for resolving or calling namespace related functions.
+    TODO: adding dynamic function definitions and resolving possible conflicts
+      for axes (e.g.: defining tns:child() function)
+    """
+    label = 'function'
+
+    def nud(self):
+        namespace = self.namespace or XPATH_FUNCTIONS_NAMESPACE
+        expanded_name = '{%s}%s' % (namespace, self.value)
+        try:
+            token = self.parser.symbol_table[expanded_name](self.parser)
+        except KeyError:
+            if self.namespace == XSD_NAMESPACE:
+                raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.symbol))
+            else:
+                raise self.error('XPST0017', 'unknown function {!r}'.format(self.symbol))
+        else:
+            if self.parser.next_token.symbol == '#':
+                if self.parser.version >= '2.0':
+                    return token
+
+            return token.nud()
+
+
 class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
@@ -1560,6 +1589,13 @@ class XPathMap(XPathFunction):
             self.evaluate(context)
             assert self._map is not None
         return list(self._map.keys())
+
+    def contains(self, context: Optional[XPathContext] = None,
+                 key: Optional[AnyAtomicType] = None) -> bool:
+        if self._map is None:
+            self.evaluate(context)
+            assert self._map is not None
+        return key in self._map.keys()
 
 
 class XPathArray(XPathFunction):

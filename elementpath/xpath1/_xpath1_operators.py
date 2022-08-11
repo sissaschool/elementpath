@@ -52,15 +52,6 @@ def nud_name_literal(self):
     if self.parser.next_token.symbol == '::':
         raise self.missing_axis("axis '%s::' not found" % self.value)
     elif self.parser.next_token.symbol == '(':
-        if self.namespace:
-            expanded_name = '{%s}%s' % (self.namespace, self.value)
-            try:
-                token = self.parser.symbol_table[expanded_name](self.parser)
-            except KeyError:
-                pass
-            else:
-                return token.nud()
-
         if self.parser.version >= '2.0':
             pass  # XP30+ has led() for '(' operator that can check this
         elif self.namespace == XSD_NAMESPACE:

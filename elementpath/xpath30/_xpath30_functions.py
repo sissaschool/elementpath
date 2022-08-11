@@ -1372,10 +1372,10 @@ def evaluate_function_lookup_function(self, context=None):
         return []
 
     try:
-        cls = self.parser.symbol_table[qname.local_name]
+        cls = self.parser.symbol_table[qname.expanded_name]
     except KeyError:
         try:
-            cls = self.parser.symbol_table[qname.expanded_name]
+            cls = self.parser.symbol_table[qname.local_name]
         except KeyError:
             return []
 

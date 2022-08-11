@@ -149,14 +149,20 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('map:keys(map{})', [])
         self.check_value('map:keys(map{1:"yes", 2:"no"})', [1, 2])
 
-    def _test_map_contains_function(self):
+    def test_map_contains_function(self):
         self.check_value('map:contains(map{}, 1)', False)
+        self.check_value('map:contains(map{}, "xyz")', False)
         self.check_value('map:contains(map{1:"yes", 2:"no"}, 1)', True)
+        self.check_value('map:contains(map{"xyz":23}, "xyz")', True)
+        self.check_value('map:contains(map{"abc":23, "xyz":()}, "xyz")', True)
 
         context = XPathContext(self.etree.XML('<empty/>'))
 
         expression = f"let $x := {MAP_WEEKDAYS_DE} return map:contains($x, 2)"
-        self.check_value(expression, True, context=context)
+        self.check_value(expression, [True], context=context)
+
+        expression = f"let $x := {MAP_WEEKDAYS_DE} return map:contains($x, 9)"
+        self.check_value(expression, [False], context=context)
 
     def test_map_get_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
