@@ -255,8 +255,8 @@ class XPath1Parser(Parser[XPathToken]):
         """
         if self.next_token.symbol in symbols:
             return
-        elif self.next_token.label in ('operator', 'symbol', 'let expression') and \
-                self.name_pattern.match(self.next_token.symbol) is not None:
+        elif self.next_token.label in ('operator', 'symbol', 'let expression', 'proxy function') \
+                and self.name_pattern.match(self.next_token.symbol) is not None:
             token_class = self.symbol_table['(name)']
             self.next_token = token_class(self, self.next_token.symbol)
         else:

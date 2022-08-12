@@ -104,6 +104,20 @@ SKIP_TESTS = {
     'fn-for-each-pair__fn-for-each-pair-017',  # Requires PI and comments parsing
     'fn-function-lookup__fn-function-lookup-522',  # xs:dateTimeStamp for XSD 1.1 only
 
+    # Unsupported language (German)
+    'fn-format-date__format-date-de101',
+    'fn-format-date__format-date-de102',
+    'fn-format-date__format-date-de103',
+    'fn-format-date__format-date-de104',
+    'fn-format-date__format-date-de105',
+    'fn-format-date__format-date-de106',
+    'fn-format-date__format-date-de111',
+    'fn-format-date__format-date-de112',
+    'fn-format-date__format-date-de113',
+    'fn-format-date__format-date-de114',
+    'fn-format-date__format-date-de115',
+    'fn-format-date__format-date-de116',
+
     # Unicode FULLY-NORMALIZATION not supported in Python's unicodedata
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-001',
     'fn-normalize-unicode__cbcl-fn-normalize-unicode-006',

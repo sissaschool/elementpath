@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.0.2`_ (2022-08-12)
+======================
+* Extend root concept to subtrees used as root (e.g. XSD 1.1 assertions)
+* Begin XPath 3.1 implementation adding XPathMap and XPathArray
+
 `v3.0.1`_ (2022-07-23)
 ======================
 * Fix of descendant path operator (issue #51)
@@ -380,3 +385,4 @@ CHANGELOG
 .. _v2.5.3: https://github.com/sissaschool/elementpath/compare/v2.5.2...v2.5.3
 .. _v3.0.0: https://github.com/sissaschool/elementpath/compare/v2.5.3...v3.0.0
 .. _v3.0.1: https://github.com/sissaschool/elementpath/compare/v3.0.0...v3.0.1
+.. _v3.0.2: https://github.com/sissaschool/elementpath/compare/v3.0.1...v3.0.2

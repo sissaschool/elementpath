@@ -24,7 +24,8 @@ class XPath31Parser(XPath30Parser):
     SYMBOLS = XPath30Parser.SYMBOLS | {
         # Map and array functions
         'map', 'array',  # 'merge',
-        'size', 'keys', 'contains', 'get',  # 'find', 'put', 'entry',
+        'size', 'keys', 'contains', 'get',  # 'find',
+        'put',  # 'entry',
         # 'remove', 'append', 'subarray', 'remove', 'join', 'flatten',
 
         # 'random-number-generator', 'collation-key',

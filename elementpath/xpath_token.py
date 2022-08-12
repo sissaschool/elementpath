@@ -1153,7 +1153,8 @@ class ProxyToken(XPathToken):
             token = self.parser.symbol_table[expanded_name](self.parser)
         except KeyError:
             if self.namespace == XSD_NAMESPACE:
-                raise self.error('XPST0017', 'unknown constructor function {!r}'.format(self.symbol))
+                raise self.error('XPST0017',
+                                 'unknown constructor function {!r}'.format(self.symbol))
             else:
                 raise self.error('XPST0017', 'unknown function {!r}'.format(self.symbol))
         else:
@@ -1631,14 +1632,30 @@ class XPathArray(XPathFunction):
         if len(args) != 1 or not isinstance(args[0], int):
             self.error('XPST0003', 'exactly one xs:integer argument is expected')
 
-        index = cast(int, args[0])
+        position = cast(int, args[0])
+        if position <= 0:
+            self.error('FOAY0002' if position else 'FOAY0001')
+
         if self._array is None:
             self.evaluate(context)
             assert self._array is not None
 
         try:
-            if index <= 0:
-                return None
-            return self._array[index - 1]
+            return self._array[position - 1]
         except IndexError:
-            return None
+            self.error('FOAY0001')
+
+    def put(self, position: int, member: Any,
+            context: Optional[XPathContext] = None) -> 'XPathArray':
+        if position <= 0:
+            self.error('FOAY0002' if position else 'FOAY0001')
+
+        other = XPathArray(self.parser)
+        other.extend(self._items)
+        other.evaluate(context)
+        try:
+            other._array[position - 1] = member
+        except IndexError:
+            self.error('FOAY0001')
+        else:
+            return other

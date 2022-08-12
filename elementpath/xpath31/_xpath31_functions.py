@@ -64,3 +64,23 @@ def evaluate_map_get_function(self, context=None):
                  sequence_types=('array(*)', 'xs:integer')))
 def evaluate_array_size_function(self, context=None):
     return len(self.get_argument(context, required=True, cls=XPathArray))
+
+
+@method(function('get', prefix='array', label='array function', nargs=2,
+                 sequence_types=('array(*)', 'xs:integer', 'item()*')))
+def evaluate_array_get_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    position = self.get_argument(context, index=1, required=True, cls=int)
+    return array_(context, position)
+
+
+@method(function('put', prefix='array', label='array function', nargs=3,
+                 sequence_types=('array(*)', 'xs:integer', 'item()*', 'array(*)')))
+def evaluate_array_put_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    position = self.get_argument(context, index=1, required=True, cls=int)
+
+    member = self[2].evaluate(context)
+    if member is None:
+        member = []
+    return array_.put(position, member, context)
