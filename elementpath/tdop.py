@@ -421,7 +421,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
 
     _start_token: TK_co
     source: str
-    tokens: Iterator[str]
+    tokens: Iterator[Match[str]]
     token: TK_co
     next_token: TK_co
     next_match: Optional[Match[str]]
@@ -456,7 +456,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         assert self.tokenizer, "Parser tokenizer is not built!"
         try:
             try:
-                self.tokens = iter(cast(Iterator[str], self.tokenizer.finditer(source)))
+                self.tokens = iter(self.tokenizer.finditer(source))
             except TypeError as err:
                 token = self.symbol_table['(invalid)'](self, source)
                 raise token.wrong_syntax('invalid source type, {}'.format(err))
@@ -486,7 +486,9 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
+
         for self.next_match in self.tokens:
+            assert self.next_match is not None
             if not self.next_match.group().isspace():
                 break
         else:
@@ -553,7 +555,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         source_chunk: List[str] = []
         while True:
             try:
-                self.next_match = cast(Match[str], next(self.tokens))
+                self.next_match = next(self.tokens)
             except StopIteration:
                 self.next_token = self.symbol_table['(end)'](self)
                 break

@@ -1146,7 +1146,7 @@ class ProxyToken(XPathToken):
     """
     label = 'proxy function'
 
-    def nud(self):
+    def nud(self) -> XPathToken:
         namespace = self.namespace or XPATH_FUNCTIONS_NAMESPACE
         expanded_name = '{%s}%s' % (namespace, self.value)
         try:
@@ -1645,17 +1645,19 @@ class XPathArray(XPathFunction):
         except IndexError:
             self.error('FOAY0001')
 
-    def put(self, position: int, member: Any,
-            context: Optional[XPathContext] = None) -> 'XPathArray':
+    def put(self, position: int, member: Any, context: Optional[XPathContext] = None) \
+            -> 'XPathArray':
         if position <= 0:
             self.error('FOAY0002' if position else 'FOAY0001')
 
         other = XPathArray(self.parser)
         other.extend(self._items)
         other.evaluate(context)
+        assert other._array is not None
+
         try:
             other._array[position - 1] = member
         except IndexError:
             self.error('FOAY0001')
-        else:
-            return other
+
+        return other

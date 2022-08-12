@@ -169,7 +169,9 @@ class XPath1Parser(Parser[XPathToken]):
             # Move the token class before register the proxy token
             token_cls = cls.symbol_table.pop(symbol)
             cls.symbol_table[f'{{{token_cls.namespace}}}{symbol}'] = token_cls
-        return cls.register(symbol, bases=(ProxyToken,), label=label, lbp=bp, rbp=bp)
+
+        proxy_class = cls.register(symbol, bases=(ProxyToken,), label=label, lbp=bp, rbp=bp)
+        return cast(Type[ProxyToken], proxy_class)
 
     @classmethod
     def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> Type[XPathAxis]:
