@@ -224,7 +224,8 @@ def evaluate_anonymous_function(self, context=None):
 
 ###
 # Mathematical functions
-@method(function('pi', prefix='math', label='math function', nargs=0, sequence_types=('xs:double',)))
+@method(function('pi', prefix='math', label='math function', nargs=0,
+                 sequence_types=('xs:double',)))
 def evaluate_pi_function(self, context=None):
     return math.pi
 

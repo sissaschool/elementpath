@@ -173,6 +173,12 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = f"let $x := {MAP_WEEKDAYS} return map:get($x, 'Mon')"
         self.check_value(expression, [], context=context)
 
+    def test_array_size_function(self):
+        self.check_value('array:size(["a", "b", "c"])', 3)
+        self.check_value('array:size(["a", ["b", "c"]])', 2)
+        self.check_value('array:size([ ])', 0)
+        self.check_value('array:size([[ ]])', 1)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

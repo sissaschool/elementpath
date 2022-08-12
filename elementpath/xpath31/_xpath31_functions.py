@@ -31,21 +31,20 @@ def evaluate_string_join_function(self, context=None):
     return self.get_argument(context, 1, required=True, cls=str).join(items)
 
 
-@method(function('size', prefix='map', label='map:size function', nargs=1,
+@method(function('size', prefix='map', label='map function', nargs=1,
                  sequence_types=('map(*)', 'xs:integer')))
 def evaluate_map_size_function(self, context=None):
-    map_ = self.get_argument(context, required=True, cls=XPathMap)
-    return len(map_)
+    return len(self.get_argument(context, required=True, cls=XPathMap))
 
 
-@method(function('keys', prefix='map', label='map:keys function', nargs=1,
+@method(function('keys', prefix='map', label='map function', nargs=1,
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
 def evaluate_map_keys_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     return map_.keys(context)
 
 
-@method(function('contains', prefix='map', label='map:contains function', nargs=2,
+@method(function('contains', prefix='map', label='map function', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'xs:boolean')))
 def evaluate_map_contains_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
@@ -53,9 +52,15 @@ def evaluate_map_contains_function(self, context=None):
     return map_.contains(context, key)
 
 
-@method(function('get', prefix='map', label='map:get function', nargs=2,
+@method(function('get', prefix='map', label='map function', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*')))
 def evaluate_map_get_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
     return map_(context, key)
+
+
+@method(function('size', prefix='array', label='array function', nargs=1,
+                 sequence_types=('array(*)', 'xs:integer')))
+def evaluate_array_size_function(self, context=None):
+    return len(self.get_argument(context, required=True, cls=XPathArray))

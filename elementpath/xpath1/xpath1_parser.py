@@ -163,6 +163,15 @@ class XPath1Parser(Parser[XPathToken]):
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
+    def proxy(cls, symbol: str, label: str = 'proxy', bp: int = 90) -> Type[ProxyToken]:
+        """Register a proxy token for a symbol."""
+        if symbol in cls.symbol_table and not issubclass(cls.symbol_table[symbol], ProxyToken):
+            # Move the token class before register the proxy token
+            token_cls = cls.symbol_table.pop(symbol)
+            cls.symbol_table[f'{{{token_cls.namespace}}}{symbol}'] = token_cls
+        return cls.register(symbol, bases=(ProxyToken,), label=label, lbp=bp, rbp=bp)
+
+    @classmethod
     def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> Type[XPathAxis]:
         """Register a token for a symbol that represents an XPath *axis*."""
         token_class = cls.register(symbol, label='axis', bases=(XPathAxis,),
@@ -197,15 +206,7 @@ class XPath1Parser(Parser[XPathToken]):
             qname = QName(namespace, '%s:%s' % (prefix, symbol))
             kwargs['lookup_name'] = qname.expanded_name
             kwargs['namespace'] = namespace
-
-            if symbol not in cls.symbol_table:
-                # Register a function proxy
-                cls.register(symbol, bases=(ProxyToken,), lbp=bp, rbp=bp)
-            elif cls.symbol_table[symbol]:
-                # Move the token class and register a proxy token
-                token_cls = cls.symbol_table.pop(symbol)
-                cls.symbol_table[f'{{{token_cls.namespace}}}{symbol}'] = token_cls
-                cls.register(symbol, bases=(ProxyToken,), lbp=bp, rbp=bp)
+            cls.proxy(symbol, label='proxy function', bp=bp)
         else:
             qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
             kwargs['namespace'] = XPATH_FUNCTIONS_NAMESPACE

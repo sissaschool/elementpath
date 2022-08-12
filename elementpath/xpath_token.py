@@ -1144,7 +1144,7 @@ class ProxyToken(XPathToken):
     TODO: adding dynamic function definitions and resolving possible conflicts
       for axes (e.g.: defining tns:child() function)
     """
-    label = 'function'
+    label = 'proxy function'
 
     def nud(self):
         namespace = self.namespace or XPATH_FUNCTIONS_NAMESPACE
