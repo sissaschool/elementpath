@@ -26,7 +26,7 @@ class XPath31Parser(XPath30Parser):
         'map', 'array',  # 'merge',
         'size', 'keys', 'contains', 'get',  # 'find',
         'put', 'entry', 'remove',
-        # 'append', 'subarray', 'remove', 'join', 'flatten',
+        'append',  # 'subarray', 'remove', 'join', 'flatten',
 
         # 'random-number-generator', 'collation-key',
         # 'contains-token', 'parse-ietf-date',

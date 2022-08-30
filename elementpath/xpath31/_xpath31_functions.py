@@ -90,7 +90,7 @@ def evaluate_map_remove_function(self, context=None):
     return XPathMap(self.parser, items=items)
 
 
-@method(function('entry', prefix='map', label='entry function', nargs=2,
+@method(function('entry', prefix='map', label='map:entry function', nargs=2,
                  sequence_types=('xs:anyAtomicType', 'item()*', 'map(*)')))
 def evaluate_map_entry_function(self, context=None):
     key = self.get_argument(context, required=True, cls=AnyAtomicType)
@@ -115,13 +115,35 @@ def evaluate_array_get_function(self, context=None):
     return array_(context, position)
 
 
-@method(function('put', prefix='array', label='array function', nargs=3,
+@method(function('put', prefix='array', label='array:put function', nargs=3,
                  sequence_types=('array(*)', 'xs:integer', 'item()*', 'array(*)')))
 def evaluate_array_put_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     position = self.get_argument(context, index=1, required=True, cls=int)
-
     member = self[2].evaluate(context)
     if member is None:
         member = []
-    return array_.put(position, member, context)
+
+    if position <= 0:
+        self.error('FOAY0002' if position else 'FOAY0001')
+
+    items = array_.items(context)
+    try:
+        items[position - 1] = member
+    except IndexError:
+        self.error('FOAY0001')
+
+    return XPathArray(self.parser, items=items)
+
+
+@method(function('append', prefix='array', label='array:append function', nargs=2,
+                 sequence_types=('array(*)', 'item()*', 'array(*)')))
+def evaluate_array_append_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    appendage = self[1].evaluate(context)
+    if appendage is None:
+        appendage = []
+
+    items = array_.items(context)
+    items.append(appendage)
+    return XPathArray(self.parser, items=items)

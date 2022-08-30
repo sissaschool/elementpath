@@ -1633,8 +1633,32 @@ class XPathArray(XPathFunction):
     """
     A token for processing XPath 3.1+ arrays.
     """
+    label = 'array'
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
     _array: Optional[List[Any]] = None
+
+    def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
+        if items is not None:
+            self._array = list(items)
+        super().__init__(parser)
+
+    def __repr__(self) -> str:
+        return '%s(%r)' % (self.__class__.__name__, self._array)
+
+    def __str__(self) -> str:
+        return self.label
+
+    def __len__(self) -> int:
+        if self._array is None:
+            return len(self._items)
+        return len(self._array)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, XPathArray):
+            if self._array is None or other._array is None:
+                raise ElementPathValueError("cannot compare not evaluated arrays")
+            return self._array == other._array
+        return NotImplemented
 
     def nud(self) -> 'XPathArray':
         self.value = None
@@ -1651,10 +1675,11 @@ class XPathArray(XPathFunction):
         return self
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
-        _array: List[Any] = []
-        for tk in self._items:
-            _array.extend(tk.select(context))
-        self._array = _array
+        if self._array is None:
+            _array: List[Any] = []
+            for tk in self._items:
+                _array.extend(tk.select(context))
+            self._array = _array
         return self
 
     def __call__(self, context: Optional[XPathContext] = None,
@@ -1675,19 +1700,8 @@ class XPathArray(XPathFunction):
         except IndexError:
             self.error('FOAY0001')
 
-    def put(self, position: int, member: Any, context: Optional[XPathContext] = None) \
-            -> 'XPathArray':
-        if position <= 0:
-            self.error('FOAY0002' if position else 'FOAY0001')
-
-        other = XPathArray(self.parser)
-        other.extend(self._items)
-        other.evaluate(context)
-        assert other._array is not None
-
-        try:
-            other._array[position - 1] = member
-        except IndexError:
-            self.error('FOAY0001')
-
-        return other
+    def items(self, context: Optional[XPathContext] = None) -> List[Any]:
+        if self._array is None:
+            self.evaluate(context)
+            assert self._array is not None
+        return self._array.copy()
