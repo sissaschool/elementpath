@@ -11,6 +11,8 @@
 """
 XPath 3.1 implementation - part 3 (functions)
 """
+from itertools import chain
+
 from ..datatypes import AnyAtomicType
 from ..xpath_token import XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
@@ -49,7 +51,7 @@ def evaluate_map_keys_function(self, context=None):
 def evaluate_map_contains_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
-    return map_.contains(context, key)
+    return key in map_.keys(context)
 
 
 @method(function('get', prefix='map', label='map function', nargs=2,
@@ -58,6 +60,30 @@ def evaluate_map_get_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
     return map_(context, key)
+
+
+@method(function('put', prefix='map', label='put function', nargs=3,
+                 sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*', 'array(*)')))
+def evaluate_map_put_function(self, context=None):
+    map_ = self.get_argument(context, required=True, cls=XPathMap)
+    key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
+    value = self[2].evaluate(context)
+    if value is None:
+        value = []
+
+    items = chain(map_.items(context), [(key, value)])
+    return XPathMap(self.parser, items=items)
+
+
+@method(function('entry', prefix='map', label='entry function', nargs=2,
+                 sequence_types=('xs:anyAtomicType', 'item()*', 'map(*)')))
+def evaluate_map_entry_function(self, context=None):
+    key = self.get_argument(context, required=True, cls=AnyAtomicType)
+    value = self[1].evaluate(context)
+    if value is None:
+        value = []
+
+    return XPathMap(self.parser, items=[(key, value)])
 
 
 @method(function('size', prefix='array', label='array function', nargs=1,

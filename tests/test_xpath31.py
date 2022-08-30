@@ -146,8 +146,8 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('map:size(map{"true":1, "false":0})', 2)
 
     def test_map_keys_function(self):
-        self.check_value('map:keys(map{})', [])
-        self.check_value('map:keys(map{1:"yes", 2:"no"})', [1, 2])
+        self.check_value('map:keys(map{})', {}.keys())
+        self.check_value('map:keys(map{1:"yes", 2:"no"})', {1, 2})
 
     def test_map_contains_function(self):
         self.check_value('map:contains(map{}, 1)', False)
@@ -172,6 +172,24 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = f"let $x := {MAP_WEEKDAYS} return map:get($x, 'Mon')"
         self.check_value(expression, [], context=context)
+
+    def test_map_put_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+        expression = f'let $week := {MAP_WEEKDAYS_DE} return map:put($week, 6, "Sonnabend")'
+        result = XPathMap(self.parser, items={
+            0: "Sonntag", 1: "Montag", 2: "Dienstag",
+            3: "Mittwoch", 4: "Donnerstag", 5: "Freitag", 6: "Sonnabend"
+        })
+        self.check_value(expression, [result], context=context)
+
+    def test_map_entry_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        token = self.parser.parse('map:entry("M", "Monday")')
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathMap)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result(context, 'M'), 'Monday')
 
     def test_array_size_function(self):
         self.check_value('array:size(["a", "b", "c"])', 3)

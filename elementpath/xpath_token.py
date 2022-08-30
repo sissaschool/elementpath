@@ -23,11 +23,12 @@ import decimal
 import locale
 import contextlib
 import math
+from collections.abc import MutableMapping
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, Union, \
-    Any, Iterator, SupportsFloat, Type
+from typing import TYPE_CHECKING, cast, Dict, KeysView, ItemsView, ValuesView, \
+    Optional, List, Tuple, Union, Any, Iterable, Iterator, SupportsFloat, Type
 import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
@@ -138,7 +139,7 @@ class XPathToken(Token[XPathTokenType]):
     def source(self) -> str:
         symbol = self.symbol
         if self.label == 'axis':
-            # For XPath 2.0 'attribute' multi-role token ('kind test', 'axis')
+            # For XPath 2.0 'attribute' multirole token ('kind test', 'axis')
             return '%s::%s' % (symbol, self[0].source)
         elif symbol == ':':
             if self.occurrence:
@@ -1535,15 +1536,39 @@ class XPathConstructor(XPathFunction):
 
 class XPathMap(XPathFunction):
     """
-    A token for processing XPath 3.1+ maps.
+    A token for processing XPath 3.1+ maps. Map instances have the double role of
+    tokens and of dictionaries, depending on the way that are created (using a map
+    constructor or a function). The map is fully set after the protected attribute
+    _map is evaluated from tokens or initialized from arguments.
     """
+    label = 'map'
     pattern = r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
     _map: Optional[Dict[AnyAtomicType, Any]] = None
     _values: List[XPathToken]
 
-    def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
+    def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
         self._values = []
-        super().__init__(parser, nargs)
+        if items is not None:
+            self._map = dict(items)
+        super().__init__(parser)
+
+    def __repr__(self) -> str:
+        return '%s(%r)' % (self.__class__.__name__, self._map)
+
+    def __str__(self) -> str:
+        return self.label
+
+    def __len__(self) -> int:
+        if self._map is None:
+            return len(self._items)
+        return len(self._map)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, XPathMap):
+            if self._map is None or other._map is None:
+                raise ElementPathValueError("cannot compare not evaluated maps")
+            return self._map == other._map
+        return NotImplemented
 
     def nud(self) -> 'XPathMap':
         self.parser.advance('{')
@@ -1585,11 +1610,24 @@ class XPathMap(XPathFunction):
             assert self._map is not None
         return self._map.get(key)
 
-    def keys(self, context: Optional[XPathContext] = None) -> List[AnyAtomicType]:
+    def keys(self, context: Optional[XPathContext] = None) -> KeysView[AnyAtomicType]:
         if self._map is None:
             self.evaluate(context)
             assert self._map is not None
-        return list(self._map.keys())
+        return self._map.keys()
+
+    def values(self, context: Optional[XPathContext] = None) -> ValuesView[Any]:
+        if self._map is None:
+            self.evaluate(context)
+            assert self._map is not None
+        return self._map.values()
+
+    def items(self, context: Optional[XPathContext] = None) \
+            -> ItemsView[AnyAtomicType, Any]:
+        if self._map is None:
+            self.evaluate(context)
+            assert self._map is not None
+        return self._map.items()
 
     def contains(self, context: Optional[XPathContext] = None,
                  key: Optional[AnyAtomicType] = None) -> bool:
