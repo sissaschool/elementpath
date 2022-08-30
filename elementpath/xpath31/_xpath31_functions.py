@@ -147,3 +147,24 @@ def evaluate_array_append_function(self, context=None):
     items = array_.items(context)
     items.append(appendage)
     return XPathArray(self.parser, items=items)
+
+
+@method(function('subarray', prefix='array', label='array:subarray function', nargs=(2, 3),
+                 sequence_types=('array(*)', 'xs:integer', 'xs:integer', 'array(*)')))
+def evaluate_array_subarray_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    start = self.get_argument(context, index=1, required=True, cls=int)
+    if start < 1 or start > len(array_):
+        self.error('FOAY0001')
+
+    if len(self) > 2:
+        length = self.get_argument(context, index=2, required=True, cls=int)
+        if length <= 0:
+            self.error('FOAY0002')
+        if start + length > len(array_):
+            self.error('FOAY0001')
+        items = array_.items(context)[start - 1:start + length - 1]
+    else:
+        items = array_.items(context)[start - 1:]
+
+    return XPathArray(self.parser, items=items)

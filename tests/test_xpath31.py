@@ -276,6 +276,42 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             result.items(), ['a', 'b', 'c', XPathArray(self.parser, ['d', 'e'])]
         )
 
+    def test_array_subarray_function(self):
+        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 2)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['b', 'c', 'd'])
+
+        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 5)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
+        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 2, 0)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
+        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 2, 1)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['b'])
+
+        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 2, 2)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['b', 'c'])
+
+        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 5, 0)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
+        token = self.parser.parse('array:subarray([ ], 1, 0)')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):
