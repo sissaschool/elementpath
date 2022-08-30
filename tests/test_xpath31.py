@@ -177,14 +177,50 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         context = XPathContext(self.etree.XML('<empty/>'))
         expression = f'let $week := {MAP_WEEKDAYS_DE} return map:put($week, 6, "Sonnabend")'
         result = XPathMap(self.parser, items={
+            0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+            4: "Donnerstag", 5: "Freitag", 6: "Sonnabend"
+        })
+        self.check_value(expression, [result], context=context)
+
+    def test_map_remove_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = f'let $week := {MAP_WEEKDAYS_DE} return map:remove($week, 4)'
+        result = XPathMap(self.parser, items={
             0: "Sonntag", 1: "Montag", 2: "Dienstag",
-            3: "Mittwoch", 4: "Donnerstag", 5: "Freitag", 6: "Sonnabend"
+            3: "Mittwoch", 5: "Freitag", 6: "Samstag"
+        })
+        self.check_value(expression, [result], context=context)
+
+        expression = f'let $week := {MAP_WEEKDAYS_DE} return map:remove($week, (0, 6 to 7))'
+        result = XPathMap(self.parser, items={
+            1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag"
+        })
+        self.check_value(expression, [result], context=context)
+
+        expression = f'let $week := {MAP_WEEKDAYS_DE} return map:remove($week, ())'
+        result = XPathMap(self.parser, items={
+            0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+            4: "Donnerstag", 5: "Freitag", 6: "Samstag"
+        })
+        self.check_value(expression, [result], context=context)
+
+        expression = f'let $week := {MAP_WEEKDAYS_DE} return map:remove($week, 4)'
+        result = XPathMap(self.parser, items={
+            0: "Sonntag", 1: "Montag", 2: "Dienstag",
+            3: "Mittwoch",  # 4: "Donnerstag",
+            5: "Freitag", 6: "Samstag"
         })
         self.check_value(expression, [result], context=context)
 
     def test_map_entry_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
 
+        expression = 'map:entry("M", "Monday")'
+        result = XPathMap(self.parser, items={'M': 'Monday'})
+        self.check_value(expression, result, context=context)
+
+        # e.g.: Alternative low level token-based check
         token = self.parser.parse('map:entry("M", "Monday")')
         result = token.evaluate(context)
         self.assertIsInstance(result, XPathMap)

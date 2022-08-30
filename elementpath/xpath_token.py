@@ -23,12 +23,11 @@ import decimal
 import locale
 import contextlib
 import math
-from collections.abc import MutableMapping
 from copy import copy
 from decimal import Decimal
 from itertools import product
 from typing import TYPE_CHECKING, cast, Dict, KeysView, ItemsView, ValuesView, \
-    Optional, List, Tuple, Union, Any, Iterable, Iterator, SupportsFloat, Type
+    Optional, List, Tuple, Union, Any, Iterator, SupportsFloat, Type
 import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
@@ -1628,13 +1627,6 @@ class XPathMap(XPathFunction):
             self.evaluate(context)
             assert self._map is not None
         return self._map.items()
-
-    def contains(self, context: Optional[XPathContext] = None,
-                 key: Optional[AnyAtomicType] = None) -> bool:
-        if self._map is None:
-            self.evaluate(context)
-            assert self._map is not None
-        return key in self._map.keys()
 
 
 class XPathArray(XPathFunction):

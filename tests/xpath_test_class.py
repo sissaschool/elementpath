@@ -25,7 +25,8 @@ from copy import copy
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext, select
+from elementpath import ElementPathError, XPath2Parser, XPathContext, \
+    XPathFunction, select
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, \
     XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 
@@ -152,7 +153,7 @@ class XPathTestCase(unittest.TestCase):
             self.assertListEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.evaluate(context)), expected)
-        elif not callable(expected):
+        elif isinstance(expected, XPathFunction) or not callable(expected):
             self.assertEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, type):
             value = root_token.evaluate(context)
@@ -184,7 +185,7 @@ class XPathTestCase(unittest.TestCase):
             self.assertListEqual(list(root_token.select(context)), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.select(context)), expected)
-        elif not callable(expected):
+        elif isinstance(expected, XPathFunction) or not callable(expected):
             self.assertEqual(list(root_token.select(context)), expected)
         else:
             self.assertTrue(expected(list(root_token.parser.parse(path).select(context))))

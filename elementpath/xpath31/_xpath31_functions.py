@@ -63,7 +63,7 @@ def evaluate_map_get_function(self, context=None):
 
 
 @method(function('put', prefix='map', label='put function', nargs=3,
-                 sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*', 'array(*)')))
+                 sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*', 'map(*)')))
 def evaluate_map_put_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
@@ -72,6 +72,21 @@ def evaluate_map_put_function(self, context=None):
         value = []
 
     items = chain(map_.items(context), [(key, value)])
+    return XPathMap(self.parser, items=items)
+
+
+@method(function('remove', prefix='map', label='remove function', nargs=2,
+                 sequence_types=('map(*)', 'xs:anyAtomicType*', 'map(*)')))
+def evaluate_map_remove_function(self, context=None):
+    map_ = self.get_argument(context, required=True, cls=XPathMap)
+    keys = self[1].evaluate(context)
+    if keys is None:
+        return map_
+    elif isinstance(keys, list):
+        items = ((k, v) for k, v in map_.items(context) if k not in keys)
+    else:
+        items = ((k, v) for k, v in map_.items(context) if k != keys)
+
     return XPathMap(self.parser, items=items)
 
 
