@@ -26,12 +26,12 @@ class XPath31Parser(XPath30Parser):
         'map', 'array',  # 'merge',
         'size', 'keys', 'contains', 'get',  # 'find',
         'put', 'entry', 'remove',
-        'append', 'subarray',  # 'remove', 'join', 'flatten',
+        'append', 'subarray', 'join', 'flatten',
 
         # 'random-number-generator', 'collation-key',
         # 'contains-token', 'parse-ietf-date',
 
-        # Higher-order functions
+        # High-order functions
         # 'sort', 'apply', 'load-xquery-module', 'transform',
 
         # Functions on JSON Data

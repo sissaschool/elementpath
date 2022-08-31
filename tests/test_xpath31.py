@@ -353,6 +353,50 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [])
 
+    def test_array_join_function(self):
+        token = self.parser.parse('array:join(())')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
+        token = self.parser.parse('array:join([1, 2, 3])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [1, 2, 3])
+
+        token = self.parser.parse(' array:join((["a", "b"], ["c", "d"]))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ["a", "b", "c", "d"])
+
+        token = self.parser.parse('array:join((["a", "b"], ["c", "d"], [ ]))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ["a", "b", "c", "d"])
+
+        token = self.parser.parse('array:join((["a", "b"], ["c", "d"], [["e", "f"]]))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(
+            result.items(), ["a", "b", "c", "d", XPathArray(self.parser, ['e', 'f'])]
+        )
+
+    def test_array_flatten_function(self):
+        token = self.parser.parse('array:flatten([1, 4, 6, 5, 3])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [1, 4, 6, 5, 3])
+
+        token = self.parser.parse('array:flatten(([1, 2, 5], [[10, 11], 12], [], 13))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [1, 2, 5, 10, 11, 12, 13])
+
+        token = self.parser.parse('array:flatten([(1,0), (1,1), (0,1), (0,0)])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [1, 0, 1, 1, 0, 1, 0, 0])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

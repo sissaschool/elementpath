@@ -1702,3 +1702,16 @@ class XPathArray(XPathFunction):
             self.evaluate(context)
             assert self._array is not None
         return self._array.copy()
+
+    def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+        if self._array is None:
+            self.evaluate(context)
+            assert self._array is not None
+
+        for item in self._array:
+            if isinstance(item, XPathArray):
+                yield from item.iter_flatten(context)
+            elif isinstance(item, list):
+                yield from item
+            else:
+                yield item

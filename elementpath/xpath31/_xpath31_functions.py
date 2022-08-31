@@ -199,3 +199,28 @@ def evaluate_array_head_function(self, context=None):
 
     items = array_.items(context)
     return XPathArray(self.parser, items=reversed(items))
+
+
+@method(function('join', prefix='array', label='array:join function', nargs=1,
+                 sequence_types=('array(*)', 'array(*)')))
+def evaluate_array_join_function(self, context=None):
+    items = []
+    for array_ in self[0].select(context):
+        if not isinstance(array_, XPathArray):
+            self.error('XPTY0004')
+        items.extend(array_.items(context))
+
+    return XPathArray(self.parser, items=items)
+
+
+@method(function('flatten', prefix='array', label='array:flatten function', nargs=1,
+                 sequence_types=('item()*', 'array(*)')))
+def evaluate_array_flatten_function(self, context=None):
+    items = []
+    for obj in self[0].select(context):
+        if isinstance(obj, XPathArray):
+            items.extend(obj.iter_flatten(context))
+        else:
+            items.append(obj)
+
+    return XPathArray(self.parser, items=items)
