@@ -168,3 +168,34 @@ def evaluate_array_subarray_function(self, context=None):
         items = array_.items(context)[start - 1:]
 
     return XPathArray(self.parser, items=items)
+
+
+@method(function('head', prefix='array', label='array:head function', nargs=1,
+                 sequence_types=('array(*)', 'item()*')))
+def evaluate_array_head_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+
+    items = array_.items(context)
+    if not items:
+        self.error('FOAY0001')
+    return items[0]
+
+
+@method(function('tail', prefix='array', label='array:tail function', nargs=1,
+                 sequence_types=('array(*)', 'array(*)')))
+def evaluate_array_head_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+
+    items = array_.items(context)
+    if not items:
+        self.error('FOAY0001')
+    return XPathArray(self.parser, items=items[1:])
+
+
+@method(function('reverse', prefix='array', label='array:reverse function', nargs=1,
+                 sequence_types=('array(*)', 'array(*)')))
+def evaluate_array_head_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+
+    items = array_.items(context)
+    return XPathArray(self.parser, items=reversed(items))

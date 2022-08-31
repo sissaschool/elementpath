@@ -1676,10 +1676,7 @@ class XPathArray(XPathFunction):
 
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         if self._array is None:
-            _array: List[Any] = []
-            for tk in self._items:
-                _array.extend(tk.select(context))
-            self._array = _array
+            self._array = [tk.evaluate(context) for tk in self._items]
         return self
 
     def __call__(self, context: Optional[XPathContext] = None,

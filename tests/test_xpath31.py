@@ -312,6 +312,47 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [])
 
+    def test_array_head_function(self):
+        self.check_value('array:head([5, 6, 7, 8])', 5)
+        self.check_value('array:head([("a", "b"), ("c", "d")])', ['a', 'b'])
+
+        token = self.parser.parse('array:head([["a", "b"], ["c", "d"]])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['a', 'b'])
+
+    def test_array_tail_function(self):
+        token = self.parser.parse('array:tail([5, 6, 7, 8])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [6, 7, 8])
+
+        token = self.parser.parse('array:tail([5])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
+    def test_array_reverse_function(self):
+        token = self.parser.parse('array:reverse(["a", "b", "c", "d"])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ["d", "c", "b", "a"])
+
+        token = self.parser.parse('array:reverse([("a", "b"), ("c", "d")])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [["c", "d"], ["a", "b"]])
+
+        token = self.parser.parse('array:reverse([(1 to 5)])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [[1, 2, 3, 4, 5]])
+
+        token = self.parser.parse('array:reverse([])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):
