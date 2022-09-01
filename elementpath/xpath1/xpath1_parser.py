@@ -12,7 +12,7 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
 from abc import ABCMeta
-from typing import cast, Any, ClassVar, Dict, FrozenSet, MutableMapping, \
+from typing import cast, Any, ClassVar, Dict, MutableMapping, \
     Optional, Tuple, Type, Set, Sequence
 
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, normalize_sequence_type
@@ -53,37 +53,6 @@ class XPath1Parser(Parser[XPathToken]):
         r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
     )
     name_pattern = re.compile(r'[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*')
-
-    SYMBOLS: ClassVar[FrozenSet[str]] = Parser.SYMBOLS | {
-        # Axes
-        'descendant-or-self', 'following-sibling', 'preceding-sibling',
-        'ancestor-or-self', 'descendant', 'attribute', 'following',
-        'namespace', 'preceding', 'ancestor', 'parent', 'child', 'self',
-
-        # Operators
-        'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[', ']',
-        ':', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', '$', '::',
-
-        # Node test functions
-        'node', 'text', 'comment', 'processing-instruction',
-
-        # Node set functions
-        'last', 'position', 'count', 'id', 'name', 'local-name', 'namespace-uri',
-
-        # String functions
-        'string', 'concat', 'starts-with', 'contains',
-        'substring-before', 'substring-after', 'substring',
-        'string-length', 'normalize-space', 'translate',
-
-        # Boolean functions
-        'boolean', 'not', 'true', 'false', 'lang',
-
-        # Number functions
-        'number', 'sum', 'floor', 'ceiling', 'round',
-
-        # Symbols for ElementPath extensions
-        '{', '}'
-    }
 
     RESERVED_FUNCTION_NAMES = {
         'comment', 'element', 'node', 'processing-instruction', 'text'
@@ -146,13 +115,11 @@ class XPath1Parser(Parser[XPathToken]):
     def create_restricted_parser(cls, name: str, symbols: Sequence[str]) \
             -> Type['XPath1Parser']:
         """Get a parser subclass with a restricted set of symbols.s"""
-        _symbols = frozenset(symbols)
         symbol_table = {
-            k: v for k, v in cls.symbol_table.items()
-            if k in _symbols
+            k: v for k, v in cls.symbol_table.items() if k in symbols
         }
         return cast(Type['XPath1Parser'], ABCMeta(
-            f"{name}{cls.__name__}", (cls,), {'symbol_table': symbol_table, 'SYMBOLS': _symbols}
+            f"{name}{cls.__name__}", (cls,), {'symbol_table': symbol_table}
         ))
 
     @staticmethod

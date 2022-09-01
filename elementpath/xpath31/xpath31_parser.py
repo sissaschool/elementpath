@@ -21,25 +21,20 @@ class XPath31Parser(XPath30Parser):
     """
     version = '3.1'
 
-    SYMBOLS = XPath30Parser.SYMBOLS | {
-        # Map and array functions
-        'map', 'array',  # 'merge',
-        'size', 'keys', 'contains', 'get',  # 'find',
-        'put', 'entry', 'remove',
-        'append', 'subarray', 'join', 'flatten',
-
-        # 'random-number-generator', 'collation-key',
-        # 'contains-token', 'parse-ietf-date',
-
-        # High-order functions
-        # 'sort', 'apply', 'load-xquery-module', 'transform',
-
-        # Functions on JSON Data
-        # 'parse-json', 'json-doc', 'json-to-xml', 'xml-to-json',
-
-        # Arrow operator
-        # '=>',
-    }
+    # TODO list
+    #
+    #  map:merge, map:find, array:sort, array:for-each-pair
+    # 'random-number-generator', 'collation-key',
+    # 'contains-token', 'parse-ietf-date',
+    #
+    # High-order functions
+    # 'sort', 'apply', 'load-xquery-module', 'transform',
+    #
+    # Functions on JSON Data
+    # 'parse-json', 'json-doc', 'json-to-xml', 'xml-to-json',
+    #
+    # Arrow operator
+    # '=>',
 
     DEFAULT_NAMESPACES = {
         'map': XPATH_MAP_FUNCTIONS_NAMESPACE,

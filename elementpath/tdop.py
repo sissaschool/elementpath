@@ -16,8 +16,8 @@ from abc import ABCMeta
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
 from typing import Any, cast, overload, no_type_check_decorator, Callable, \
-    ClassVar, FrozenSet, Dict, Generic, List, Optional, Union, Tuple, Type, \
-    Pattern, Match, MutableMapping, MutableSequence, Iterator, Set, TypeVar
+    Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, Match, \
+    MutableMapping, MutableSequence, Iterator, TypeVar
 
 #
 # Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
@@ -360,7 +360,6 @@ class ParserMeta(ABCMeta):
     literals_pattern: Pattern[str]
     name_pattern: Pattern[str]
     tokenizer: Optional[Pattern[str]]
-    SYMBOLS: Set[str]
     symbol_table: Dict[str, Token[Any]]
 
     def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], namespace: Dict[str, Any]) \
@@ -383,12 +382,6 @@ class ParserMeta(ABCMeta):
             cls.name_pattern = re.compile(r'[A-Za-z0-9_]+')
         if 'tokenizer' not in namespace:
             cls.tokenizer = None
-        if 'SYMBOLS' not in namespace:
-            cls.SYMBOLS = set()
-            for base_class in bases:
-                if hasattr(base_class, 'SYMBOLS'):
-                    cls.SYMBOLS.update(base_class.SYMBOLS)
-                    break
         if 'symbol_table' not in namespace:
             cls.symbol_table = {}
             for base_class in bases:
@@ -405,16 +398,12 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     """
     Parser class for implementing a Top-Down Operator Precedence parser.
 
-    :cvar SYMBOLS: the symbols of the definable tokens for the parser. In the base class it's an \
-    immutable set that contains the symbols for special tokens (literals, names and end-token).\
-    Has to be extended in a concrete parser adding all the symbols of the language.
     :cvar symbol_table: a dictionary that stores the token classes defined for the language.
     :type symbol_table: dict
     :cvar token_base_class: the base class for creating language's token classes.
     :type token_base_class: Token
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
-    SYMBOLS: ClassVar[FrozenSet[str]] = SPECIAL_SYMBOLS
     token_base_class = Token
     tokenizer: Optional[Pattern[str]] = None
     symbol_table: MutableMapping[str, Type[TK_co]] = {}
@@ -442,7 +431,6 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Parser) and \
             self.token_base_class is other.token_base_class and \
-            self.SYMBOLS == other.SYMBOLS and \
             self.symbol_table == other.symbol_table
 
     def parse(self, source: str) -> TK_co:
@@ -656,11 +644,8 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             try:
                 token_class = cls.symbol_table[lookup_name]
             except KeyError:
-                # Register a new symbol and create a new custom class. The new class
-                # name is registered at parser class's module level.
-                if symbol not in cls.SYMBOLS:
-                    if symbol != '(start)':  # for backward compatibility
-                        raise NameError('%r is not a symbol of the parser %r.' % (symbol, cls))
+                # Register a new symbol and create a new custom class. The new token
+                # class is registered globally in the module of the parser class.
 
                 kwargs['symbol'] = symbol
                 kwargs['lookup_name'] = lookup_name
@@ -792,14 +777,16 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         Builds the parser class. Checks if all declared symbols are defined
         and builds the regex tokenizer using the symbol related patterns.
         """
-        # For backward compatibility with external defined parsers
+        # Register a minimal set of special tokens
         if '(start)' not in cls.symbol_table:
             cls.register('(start)')
+        if '(end)' not in cls.symbol_table:
+            cls.register('(end)')
+        if '(invalid)' not in cls.symbol_table:
+            cls.register('(invalid)')
+        if '(unknown)' not in cls.symbol_table:
+            cls.register('(unknown)')
 
-        symbols = {tk.symbol for tk in cls.symbol_table.values()}
-        if not cls.SYMBOLS.issubset(symbols):
-            unregistered = list(s for s in cls.SYMBOLS if s not in symbols)
-            raise ValueError("The parser %r has unregistered symbols: %r" % (cls, unregistered))
         cls.tokenizer = cls.create_tokenizer(cls.symbol_table)
 
     build_tokenizer = build  # For backward compatibility

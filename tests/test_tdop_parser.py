@@ -301,20 +301,6 @@ class TdopParserTest(unittest.TestCase):
         self.assertEqual(AnotherParser.literals_pattern.pattern,
                          r"""'[^']*'|"[^"]*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?""")
 
-    def test_incomplete_parser_build(self):
-
-        class UnfinishedParser(Parser):
-            SYMBOLS = {'(integer)', r'function\(', r'axis\:\:', '(name)', '(end)'}
-
-        UnfinishedParser.literal('(integer)')
-        UnfinishedParser.register(r'function\(')
-        UnfinishedParser.register(r'axis\:\:')
-        UnfinishedParser.register('(end)')
-
-        with self.assertRaises(ValueError) as ec:
-            UnfinishedParser.build()
-        self.assertIn("unregistered symbols: ['(name)']", str(ec.exception))
-
     def test_invalid_registrations(self):
 
         class AnotherParser(Parser):
@@ -323,10 +309,6 @@ class TdopParserTest(unittest.TestCase):
         with self.assertRaises(ValueError) as ec:
             AnotherParser.register(r'function \(')
         self.assertIn("a symbol can't contain whitespaces", str(ec.exception))
-
-        with self.assertRaises(NameError) as ec:
-            AnotherParser.register('undefined')
-        self.assertIn("'undefined' is not a symbol of the parser", str(ec.exception))
 
     def test_other_operators(self):
 

@@ -14,7 +14,7 @@ from abc import ABCMeta
 import locale
 from collections.abc import MutableSequence
 from urllib.parse import urlparse
-from typing import cast, Any, Callable, ClassVar, Dict, FrozenSet, List, \
+from typing import cast, Any, Callable, ClassVar, Dict, List, \
     MutableMapping, Optional, Tuple, Type, Union
 
 from ..helpers import normalize_sequence_type, get_locale_category
@@ -71,106 +71,6 @@ class XPath2Parser(XPath1Parser):
     Default is 'node()*'.
     """
     version = '2.0'
-
-    SYMBOLS: ClassVar[FrozenSet[str]] = XPath1Parser.SYMBOLS | {
-        'union', 'intersect', 'instance', 'castable', 'if', 'then', 'else', 'for', 'to',
-        'some', 'every', 'in', 'satisfies', 'item', 'satisfies', 'cast', 'treat',
-        'return', 'except', '?', 'as', 'of',
-
-        # Comments
-        '(:', ':)',
-
-        # Value comparison operators
-        'eq', 'ne', 'lt', 'le', 'gt', 'ge',
-
-        # Node comparison operators
-        'is', '<<', '>>',
-
-        # Mathematical operators
-        'idiv',
-
-        # Node type functions
-        'document-node', 'schema-attribute', 'element', 'schema-element',
-        'attribute', 'empty-sequence',
-
-        # Accessor functions
-        'node-name', 'nilled', 'data', 'base-uri', 'document-uri',
-
-        # Number functions
-        'abs', 'round-half-to-even',
-
-        # Aggregate functions
-        'avg', 'min', 'max',
-
-        # String functions
-        'codepoints-to-string', 'string-to-codepoints', 'compare', 'codepoint-equal',
-        'string-join', 'normalize-unicode', 'upper-case', 'lower-case', 'encode-for-uri',
-        'iri-to-uri', 'escape-html-uri', 'ends-with',
-
-        # General functions for sequences
-        'distinct-values', 'empty', 'exists', 'index-of', 'insert-before', 'remove',
-        'reverse', 'subsequence', 'unordered',
-
-        # Cardinality functions for sequences
-        'zero-or-one', 'one-or-more', 'exactly-one',
-
-        # Comparing function for sequences
-        'deep-equal',
-
-        # Pattern matching functions
-        'matches', 'replace', 'tokenize',
-
-        # Functions on anyURI
-        'resolve-uri',
-
-        # Functions for extracting fragments from xs:duration
-        'years-from-duration', 'months-from-duration', 'days-from-duration',
-        'hours-from-duration', 'minutes-from-duration', 'seconds-from-duration',
-
-        # Functions for extracting fragments from xs:dateTime
-        'year-from-dateTime', 'month-from-dateTime', 'day-from-dateTime', 'hours-from-dateTime',
-        'minutes-from-dateTime', 'seconds-from-dateTime', 'timezone-from-dateTime',
-
-        # Functions for extracting fragments from xs:date
-        'year-from-date', 'month-from-date', 'day-from-date', 'timezone-from-date',
-
-        # Functions for extracting fragments from xs:time
-        'hours-from-time', 'minutes-from-time', 'seconds-from-time', 'timezone-from-time',
-
-        # Timezone adjustment functions
-        'adjust-dateTime-to-timezone', 'adjust-date-to-timezone', 'adjust-time-to-timezone',
-
-        # Functions Related to QNames (QName function is also a constructor)
-        'QName', 'local-name-from-QName', 'prefix-from-QName', 'local-name-from-QName',
-        'namespace-uri-from-QName', 'namespace-uri-for-prefix', 'in-scope-prefixes',
-        'resolve-QName',
-
-        # Static context functions
-        'default-collation', 'static-base-uri',
-
-        # Dynamic context functions
-        'current-dateTime', 'current-date', 'current-time', 'implicit-timezone',
-
-        # Node set functions
-        'root',
-
-        # Error function and trace function
-        'error', 'trace',
-
-        # XSD builtins constructors ('string', 'boolean' and 'QName' are
-        # already registered as functions)
-        'normalizedString', 'token', 'language', 'Name', 'NCName', 'ENTITY', 'ID',
-        'IDREF', 'NMTOKEN', 'anyURI', 'NOTATION', 'decimal', 'int', 'integer', 'long',
-        'short', 'byte', 'double', 'float', 'nonNegativeInteger', 'positiveInteger',
-        'nonPositiveInteger', 'negativeInteger', 'unsignedLong', 'unsignedInt',
-        'unsignedShort', 'unsignedByte', 'dateTime', 'date', 'time', 'gDay', 'gMonth',
-        'gYear', 'gMonthDay', 'gYearMonth', 'duration', 'dayTimeDuration',
-        'yearMonthDuration', 'dateTimeStamp', 'base64Binary', 'hexBinary', 'untypedAtomic',
-
-        # Functions and Operators that Generate Sequences ('id' changes but
-        # is already registered)
-        'element-with-id', 'idref', 'doc', 'doc-available', 'collection',
-    }
 
     DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
         'xml': XML_NAMESPACE,
