@@ -11,7 +11,6 @@
 """
 XPath 3.1 implementation - part 3 (functions)
 """
-from copy import copy
 from itertools import chain
 
 from ..datatypes import AnyAtomicType
@@ -205,7 +204,7 @@ def evaluate_array_head_function(self, context=None):
 
 @method(function('tail', prefix='array', label='array:tail function', nargs=1,
                  sequence_types=('array(*)', 'array(*)')))
-def evaluate_array_head_function(self, context=None):
+def evaluate_array_tail_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
 
     items = array_.items(context)
@@ -216,7 +215,7 @@ def evaluate_array_head_function(self, context=None):
 
 @method(function('reverse', prefix='array', label='array:reverse function', nargs=1,
                  sequence_types=('array(*)', 'array(*)')))
-def evaluate_array_head_function(self, context=None):
+def evaluate_array_reverse_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
 
     items = array_.items(context)
@@ -250,7 +249,7 @@ def evaluate_array_flatten_function(self, context=None):
 
 @method(function('for-each', prefix='array', label='array:for-each function', nargs=2,
                  sequence_types=('array(*)', 'function(item()*) as item()*', 'array(*)')))
-def evaluate_array_filter_function(self, context=None):
+def evaluate_array_for_each_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
 

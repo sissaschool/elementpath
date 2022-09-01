@@ -1587,7 +1587,12 @@ class XPathMap(XPathFunction):
         self.parser.advance('}')
         return self
 
-    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
+    def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathMap':
+        if self._map is not None:
+            return self
+        return XPathMap(self.parser, items=self._evaluate(context))
+
+    def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
         _map = {}
         for key, value in zip(self._items, self._values):
             k = next(key.atomization(context), None)
@@ -1596,8 +1601,7 @@ class XPathMap(XPathFunction):
             assert k is not None
             _map[k] = value.evaluate(context)
 
-        self._map = cast(Dict[AnyAtomicType, Any], _map)
-        return self
+        return cast(Dict[AnyAtomicType, Any], _map)
 
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
@@ -1605,29 +1609,25 @@ class XPathMap(XPathFunction):
             self.error('XPST0003', 'exactly one atomic argument is expected')
 
         key = cast(AnyAtomicType, args[0])
-        if self._map is None:
-            self.evaluate(context)
-            assert self._map is not None
-        return self._map.get(key)
+        if self._map is not None:
+            return self._map.get(key)
+        return self._evaluate(context).get(key)
 
     def keys(self, context: Optional[XPathContext] = None) -> KeysView[AnyAtomicType]:
-        if self._map is None:
-            self.evaluate(context)
-            assert self._map is not None
-        return self._map.keys()
+        if self._map is not None:
+            return self._map.keys()
+        return self._evaluate(context).keys()
 
     def values(self, context: Optional[XPathContext] = None) -> ValuesView[Any]:
-        if self._map is None:
-            self.evaluate(context)
-            assert self._map is not None
-        return self._map.values()
+        if self._map is not None:
+            return self._map.values()
+        return self._evaluate(context).values()
 
     def items(self, context: Optional[XPathContext] = None) \
             -> ItemsView[AnyAtomicType, Any]:
-        if self._map is None:
-            self.evaluate(context)
-            assert self._map is not None
-        return self._map.items()
+        if self._map is not None:
+            return self._map.items()
+        return self._evaluate(context).items()
 
 
 class XPathArray(XPathFunction):
@@ -1706,6 +1706,7 @@ class XPathArray(XPathFunction):
         return [tk.evaluate(context) for tk in self._items]
 
     def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+        items: Union[List[Any], Iterator[Any]]
         if self._array is not None:
             items = self._array
         else:
