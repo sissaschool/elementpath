@@ -1386,7 +1386,8 @@ class XPathFunction(XPathToken):
                 k += 1
                 if k < min_args:
                     if self.parser.next_token.symbol == ')':
-                        msg = 'Too few arguments: expected at least %s arguments' % min_args
+                        msg = f'{str(self)}: Too few arguments, expected ' \
+                              f'at least {min_args} arguments'
                         raise self.error(code, msg if min_args > 1 else msg[:-1])
                     self.parser.advance(',')
 

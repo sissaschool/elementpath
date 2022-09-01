@@ -809,11 +809,16 @@ def evaluate_replace_function(self, context=None):
             return pattern.sub(replacement, input_string).replace('\\$', '$')
 
 
-@method(function('tokenize', nargs=(2, 3),
+@method(function('tokenize', nargs=(1, 3),
                  sequence_types=('xs:string?', 'xs:string', 'xs:string', 'xs:string*')))
 def select_tokenize_function(self, context=None):
     input_string = self.get_argument(context, cls=str)
-    pattern = self.get_argument(context, 1, required=True, cls=str)
+    if self.parser.version >= '3.1' and len(self) == 1:
+        pattern = ' '
+        input_string = ' '.join(input_string.strip().split())
+    else:
+        pattern = self.get_argument(context, 1, required=True, cls=str)
+
     flags = 0
     if len(self) > 2:
         for c in self.get_argument(context, 2, required=True, cls=str):

@@ -397,6 +397,28 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [1, 0, 1, 1, 0, 1, 0, 0])
 
+    def test_array_filter_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = 'array:filter(["A", "B", 1, 2], function($x) {$x instance of xs:integer})'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [1, 2])
+
+        expression = 'array:filter(["the cat", "sat", "on the mat"], ' \
+                     'function($s){fn:count(fn:tokenize($s)) gt 1})'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ["the cat", "on the mat"])
+
+        expression = 'array:filter(["A", "B", "", 0, 1], boolean#1)'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ["A", "B", 1])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

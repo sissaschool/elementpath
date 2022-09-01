@@ -14,7 +14,7 @@ XPath 3.1 implementation - part 3 (functions)
 from itertools import chain
 
 from ..datatypes import AnyAtomicType
-from ..xpath_token import XPathMap, XPathArray
+from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
 
 method = XPath31Parser.method
@@ -224,3 +224,13 @@ def evaluate_array_flatten_function(self, context=None):
             items.append(obj)
 
     return XPathArray(self.parser, items=items)
+
+
+@method(function('filter', prefix='array', label='array:filter function', nargs=2,
+                 sequence_types=('array(*)', 'function(item()*) as xs:boolean', 'array(*)')))
+def evaluate_array_filter_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
+
+    items = array_.items(context)
+    return XPathArray(self.parser, items=filter(lambda x: func(context, x), items))
