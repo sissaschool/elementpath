@@ -258,6 +258,24 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result.items()[0], XPathArray)
         self.assertListEqual(result.items()[0].items(), ['d', 'e'])
 
+    def test_array_insert_before_function(self):
+        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ("x", "y"))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['a', 'b', ['x', 'y'], 'c', 'd'])
+
+        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 5, ("x", "y"))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['a', 'b', 'c', 'd', ['x', 'y']])
+
+        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ["x", "y"])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(
+            result.items(), ['a', 'b', XPathArray(self.parser, ['x', 'y']), 'c', 'd']
+        )
+
     def test_array_append_function(self):
         token = self.parser.parse('array:append(["a", "b", "c"], "d")')
         result = token.evaluate()
@@ -434,23 +452,41 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["A", "B", 1])
 
-    def test_array_insert_before_function(self):
-        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ("x", "y"))')
-        result = token.evaluate()
-        self.assertIsInstance(result, XPathArray)
-        self.assertListEqual(result.items(), ['a', 'b', ['x', 'y'], 'c', 'd'])
+    def test_array_fold_left_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
 
-        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 5, ("x", "y"))')
-        result = token.evaluate()
-        self.assertIsInstance(result, XPathArray)
-        self.assertListEqual(result.items(), ['a', 'b', 'c', 'd', ['x', 'y']])
+        expression = 'array:fold-left([true(), true(), false()], true(), ' \
+                     'function($x, $y){$x and $y})'
+        self.check_value(expression, [False], context=context)
 
-        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ["x", "y"])')
-        result = token.evaluate()
-        self.assertIsInstance(result, XPathArray)
-        self.assertListEqual(
-            result.items(), ['a', 'b', XPathArray(self.parser, ['x', 'y']), 'c', 'd']
-        )
+        expression = 'array:fold-left([true(), true(), false()], false(), ' \
+                     'function($x, $y){$x or $y})'
+        self.check_value(expression, [True], context=context)
+
+        expression = 'array:fold-left([1,2,3], [], function($x, $y){[$x, $y]})'
+        ar1 = XPathArray(self.parser, [])
+        ar2 = XPathArray(self.parser, items=[ar1, 1])
+        ar3 = XPathArray(self.parser, items=[ar2, 2])
+        ar4 = XPathArray(self.parser, items=[ar3, 3])
+        self.check_value(expression, [ar4], context=context)
+
+    def test_array_fold_right_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = 'array:fold-right([true(), true(), false()], true(), ' \
+                     'function($x, $y){$x and $y})'
+        self.check_value(expression, [False], context=context)
+
+        expression = 'array:fold-right([true(), true(), false()], false(), ' \
+                     'function($x, $y){$x or $y})'
+        self.check_value(expression, [True], context=context)
+
+        expression = 'array:fold-right([1,2,3], [], function($x, $y){[$x, $y]})'
+        ar1 = XPathArray(self.parser, [])
+        ar2 = XPathArray(self.parser, items=[3, ar1])
+        ar3 = XPathArray(self.parser, items=[2, ar2])
+        ar4 = XPathArray(self.parser, items=[1, ar3])
+        self.check_value(expression, [ar4], context=context)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

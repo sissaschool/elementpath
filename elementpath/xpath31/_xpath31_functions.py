@@ -11,6 +11,7 @@
 """
 XPath 3.1 implementation - part 3 (functions)
 """
+from copy import copy
 from itertools import chain
 
 from ..datatypes import AnyAtomicType
@@ -265,3 +266,34 @@ def evaluate_array_filter_function(self, context=None):
 
     items = array_.items(context)
     return XPathArray(self.parser, items=filter(lambda x: func(context, x), items))
+
+
+@method(function('fold-left', prefix='array', label='array:fold-left function', nargs=3,
+                 sequence_types=('array(*)', 'item()*',
+                                 'function(item()*, item()) as item()*', 'item()*')))
+@method(function('fold-right', prefix='array', label='array:fold-right function', nargs=3,
+                 sequence_types=('array(*)', 'item()*',
+                                 'function(item()*, item()) as item()*', 'item()*')))
+def select_array_fold_left_right_functions(self, context=None):
+    func = self[2][1] if self[2].symbol == ':' else self[2]
+    if not isinstance(func, XPathFunction):
+        func = self.get_argument(context, index=2, cls=XPathFunction, required=True)
+    if func.arity != 2:
+        raise self.error('XPTY0004', "function arity must be 2")
+
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    zero = self.get_argument(context, index=1)
+
+    result = zero
+
+    if self.symbol == 'fold-left':
+        for item in array_.items(context):
+            result = func(context, result, item)
+    else:
+        for item in reversed(array_.items(context)):
+            result = func(context, item, result)
+
+    if isinstance(result, list):
+        yield from result
+    else:
+        yield result
