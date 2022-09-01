@@ -811,7 +811,7 @@ def evaluate_replace_function(self, context=None):
 
 @method(function('tokenize', nargs=(1, 3),
                  sequence_types=('xs:string?', 'xs:string', 'xs:string', 'xs:string*')))
-def select_tokenize_function(self, context=None):
+def evaluate_tokenize_function(self, context=None):
     input_string = self.get_argument(context, cls=str)
     if self.parser.version >= '3.1' and len(self) == 1:
         pattern = ' '
@@ -839,10 +839,16 @@ def select_tokenize_function(self, context=None):
             msg = "Regular expression %r matches zero-length string"
             raise self.error('FORX0003', msg % pattern.pattern)
 
+    result = []
     if input_string:
         for value in pattern.split(input_string):
             if value is not None and pattern.search(value) is None:
-                yield value
+                result.append(value)
+
+        if len(result) == 1:
+            return result[0]
+
+    return result
 
 
 ###

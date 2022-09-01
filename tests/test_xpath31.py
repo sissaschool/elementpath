@@ -397,6 +397,21 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [1, 0, 1, 1, 0, 1, 0, 0])
 
+    def test_array_for_each_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = 'array:for-each(["A", "B", 1, 2], function($z) {$z instance of xs:integer})'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [False, False, True, True])
+
+        expression = 'array:for-each(["the cat", "sat", "on the mat"], fn:tokenize#1)'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [["the", "cat"], "sat", ["on", "the", "mat"]])
+
     def test_array_filter_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
 
@@ -418,6 +433,24 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         result = token.evaluate(context)
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["A", "B", 1])
+
+    def test_array_insert_before_function(self):
+        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ("x", "y"))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['a', 'b', ['x', 'y'], 'c', 'd'])
+
+        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 5, ("x", "y"))')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), ['a', 'b', 'c', 'd', ['x', 'y']])
+
+        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ["x", "y"])')
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(
+            result.items(), ['a', 'b', XPathArray(self.parser, ['x', 'y']), 'c', 'd']
+        )
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

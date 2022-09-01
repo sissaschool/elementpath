@@ -136,6 +136,27 @@ def evaluate_array_put_function(self, context=None):
     return XPathArray(self.parser, items=items)
 
 
+@method(function('insert-before', prefix='array', label='array:insert-before function', nargs=3,
+                 sequence_types=('array(*)', 'xs:integer', 'item()*', 'array(*)')))
+def evaluate_array_insert_before_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    position = self.get_argument(context, index=1, required=True, cls=int)
+    member = self[2].evaluate(context)
+    if member is None:
+        member = []
+
+    if position <= 0:
+        self.error('FOAY0002' if position else 'FOAY0001')
+
+    items = array_.items(context)
+    try:
+        items.insert(position - 1, member)
+    except IndexError:
+        self.error('FOAY0001')
+
+    return XPathArray(self.parser, items=items)
+
+
 @method(function('append', prefix='array', label='array:append function', nargs=2,
                  sequence_types=('array(*)', 'item()*', 'array(*)')))
 def evaluate_array_append_function(self, context=None):
@@ -224,6 +245,16 @@ def evaluate_array_flatten_function(self, context=None):
             items.append(obj)
 
     return XPathArray(self.parser, items=items)
+
+
+@method(function('for-each', prefix='array', label='array:for-each function', nargs=2,
+                 sequence_types=('array(*)', 'function(item()*) as item()*', 'array(*)')))
+def evaluate_array_filter_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
+
+    items = array_.items(context)
+    return XPathArray(self.parser, items=map(lambda x: func(context, x), items))
 
 
 @method(function('filter', prefix='array', label='array:filter function', nargs=2,
