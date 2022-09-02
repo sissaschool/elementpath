@@ -101,6 +101,37 @@ def evaluate_map_entry_function(self, context=None):
     return XPathMap(self.parser, items=[(key, value)])
 
 
+@method(function('merge', prefix='map', label='map:merge function', nargs=(1, 2),
+                 sequence_types=('map(*)', 'map(*)', 'map(*)')))
+def evaluate_map_merge_function(self, context=None):
+    duplicates = 'use-first'
+    if len(self) > 1:
+        options = self.get_argument(context, index=1, required=True, cls=XPathMap)
+        for opt, value in options.items(context):
+            if opt == 'duplicates':
+                if value in ('reject', 'use-first', 'use-last', 'use-any', 'combine'):
+                    duplicates = value
+                else:
+                    self.error('FOJS0005')
+
+    items = {}
+    for map_ in self[0].select(context):
+        for k, v in map_.items(context):
+            if k not in items:
+                items[k] = v
+            elif duplicates == 'reject':
+                self.error('FOJS0005')
+            elif duplicates == 'use-last':
+                items[k] = v
+            elif duplicates == 'combine':
+                try:
+                    items[k].append(v)
+                except AttributeError:
+                    items[k] = [items[k], v]
+
+    return XPathMap(self.parser, items)
+
+
 @method(function('size', prefix='array', label='array function', nargs=1,
                  sequence_types=('array(*)', 'xs:integer')))
 def evaluate_array_size_function(self, context=None):

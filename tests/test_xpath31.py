@@ -227,6 +227,50 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(len(result), 1)
         self.assertEqual(result(context, 'M'), 'Monday')
 
+    def test_map_merge_function(self):
+        week = {0:"Sonntag", 1:"Montag", 2:"Dienstag", 3:"Mittwoch",
+                4:"Donnerstag", 5:"Freitag", 6:"Samstag"}
+        context = XPathContext(
+            root=self.etree.XML('<empty/>'),
+            variables={'week': XPathMap(self.parser, week)}
+        )
+
+        expression = 'map:merge(())'
+        result = XPathMap(self.parser, items={})
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:merge((map:entry(0, "no"), map:entry(1, "yes")))'
+        result = XPathMap(self.parser, items={0: 'no', 1: 'yes'})
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:merge(($week, map{7:"Unbekannt"}))'
+        result = XPathMap(self.parser, items={
+            0:"Sonntag", 1:"Montag", 2:"Dienstag", 3:"Mittwoch",
+            4:"Donnerstag", 5:"Freitag", 6:"Samstag", 7:"Unbekannt"
+        })
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"use-last"})'
+        result = XPathMap(self.parser, items={
+            0:"Sonntag", 1:"Montag", 2:"Dienstag", 3:"Mittwoch",
+            4:"Donnerstag", 5:"Freitag", 6:"Sonnabend"
+        })
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"use-first"}) '
+        result = XPathMap(self.parser, items={
+            0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+            4: "Donnerstag", 5: "Freitag", 6: "Samstag"
+        })
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"combine"})'
+        result = XPathMap(self.parser, items={
+            0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+            4: "Donnerstag", 5: "Freitag", 6: ["Samstag", "Sonnabend"]
+        })
+        self.check_value(expression, result, context=context)
+
     def test_array_size_function(self):
         self.check_value('array:size(["a", "b", "c"])', 3)
         self.check_value('array:size(["a", ["b", "c"]])', 2)

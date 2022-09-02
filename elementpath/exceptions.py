@@ -186,6 +186,12 @@ XPATH_ERROR_CODES = {
     'SEPM0019': (ElementPathValueError, 'same serialization parameter appears more than once'),
 
     # XPath 3.1+ errors
+    'FOJS0001': (ElementPathSyntaxError, 'JSON syntax error'),
+    'FOJS0003': (ElementPathValueError, 'JSON duplicate keys'),
+    'FOJS0004': (ElementPathValueError, 'JSON: not schema-aware'),
+    'FOJS0005': (ElementPathValueError, 'Invalid options'),
+    'FOJS0006': (ElementPathValueError, 'Invalid XML representation of JSON'),
+    'FOJS0007': (ElementPathValueError, 'Bad JSON escape sequence'),
     'FOAY0001': (ElementPathValueError, 'Array index out of bounds'),
     'FOAY0002': (ElementPathValueError, 'Negative array length'),
 }
