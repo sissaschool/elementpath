@@ -23,12 +23,11 @@ class XPath31Parser(XPath30Parser):
 
     # TODO list
     #
-    #  array:sort,
     # 'random-number-generator', 'collation-key',
     # 'contains-token', 'parse-ietf-date',
     #
     # High-order functions
-    # 'sort', 'apply', 'load-xquery-module', 'transform',
+    # 'apply', 'load-xquery-module', 'transform',
     #
     # Functions on JSON Data
     # 'parse-json', 'json-doc', 'json-to-xml', 'xml-to-json',

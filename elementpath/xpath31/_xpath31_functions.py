@@ -374,3 +374,45 @@ def select_array_fold_left_right_functions(self, context=None):
         yield from result
     else:
         yield result
+
+
+@method(function('sort', label='sort function', nargs=(1, 3),
+                 sequence_types=('item()*', 'xs:string?',
+                                 'function(item()) as xs:anyAtomicType*', 'item()*')))
+def evaluate_sort_function(self, context=None):
+    if len(self) > 1:
+        collation = self.get_argument(context, 1)
+        if collation is None:
+            collation = self.parser.default_collation
+
+        with self.use_locale(collation):
+            if len(self) == 3:
+                func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+                return sorted(self[0].select(context), key=lambda x: func(context, x))
+            else:
+                return sorted(self[0].select(context))
+    else:
+        return sorted(self[0].select(context))
+
+
+@method(function('sort', prefix='array', label='array:sort function', nargs=(1, 3),
+                 sequence_types=('array(*)', 'xs:string?',
+                                 'function(item()*) as xs:anyAtomicType*', 'array(*)')))
+def evaluate_array_sort_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+
+    if len(self) > 1:
+        collation = self.get_argument(context, 1)
+        if collation is None:
+            collation = self.parser.default_collation
+
+        with self.use_locale(collation):
+            if len(self) == 3:
+                func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+                items = sorted(array_.items(context), key=lambda x: func(context, x))
+            else:
+                items = sorted(array_.items(context))
+    else:
+        items = sorted(array_.items(context))
+
+    return XPathArray(self.parser, items)

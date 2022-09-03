@@ -609,6 +609,23 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         ar4 = XPathArray(self.parser, items=[1, ar3])
         self.check_value(expression, [ar4], context=context)
 
+    def test_array_sort_function(self):
+        expression = 'array:sort([1, 4, 6, 5, 3])'
+        self.check_value(expression, XPathArray(self.parser, [1, 3, 4, 5, 6]))
+
+        expression = 'array:sort([1, -2, 5, 10, -10, 10, 8], (), fn:abs#1)'
+        self.check_value(expression, XPathArray(self.parser, [1, -2, 5, 8, 10, -10, 10]))
+
+        expression = 'array:sort([(1,0), (1,1), (0,1), (0,0)])'
+        self.check_value(expression, XPathArray(self.parser, [[0, 0], [0, 1], [1, 0], [1, 1]]))
+
+    def test_sort_function(self):
+        expression = 'fn:sort((1, 4, 6, 5, 3))'
+        self.check_value(expression, [1, 3, 4, 5, 6])
+
+        expression = 'fn:sort((1, -2, 5, 10, -10, 10, 8), (), fn:abs#1)'
+        self.check_value(expression, [1, -2, 5, 8, 10, -10, 10])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):
