@@ -313,6 +313,21 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         token = self.parser.parse(expression)
         self.assertEqual(token.evaluate(context), [result])
 
+    def test_map_for_each_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = 'map:for-each(map{1:"yes", 2:"no"}, function($k, $v){$k})'
+        self.check_value(expression, [1, 2], context=context)
+
+        expression = 'distinct-values(map:for-each(map{1:"yes", 2:"no"}, ' \
+                     'function($k, $v){$v}))'
+        self.check_value(expression, ['yes', 'no'], context=context)
+
+        expression = 'map:merge(map:for-each(map{"a":1, "b":2}, ' \
+                     'function($k, $v){map:entry($k, $v+1)}))'
+        result = XPathMap(self.parser, {'a': 2, 'b': 3})
+        self.check_value(expression, result, context=context)
+
     def test_array_size_function(self):
         self.check_value('array:size(["a", "b", "c"])', 3)
         self.check_value('array:size(["a", ["b", "c"]])', 2)

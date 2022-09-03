@@ -157,6 +157,16 @@ def evaluate_map_find_function(self, context=None):
     return XPathArray(self.parser, items)
 
 
+@method(function('for-each', prefix='map', label='map:for-each function', nargs=2,
+                 sequence_types=('map(*)', 'function(xs:anyAtomicType, item()*) as item()*', 'item()*')))
+def select_map_for_each_function(self, context=None):
+    map_ = self.get_argument(context, required=True, cls=XPathMap)
+    func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
+
+    for k, v in map_.items(context):
+        yield func(context, k, v)
+
+
 @method(function('size', prefix='array', label='array function', nargs=1,
                  sequence_types=('array(*)', 'xs:integer')))
 def evaluate_array_size_function(self, context=None):
