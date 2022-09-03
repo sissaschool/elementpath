@@ -271,6 +271,48 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         })
         self.check_value(expression, result, context=context)
 
+    def test_map_find_function(self):
+        map1 = XPathMap(self.parser, {0: 'no', 1: 'yes'})
+        map2 = XPathMap(self.parser, {0:'non', 1:'oui'})
+        map3 = XPathMap(self.parser, {0:'nein', 1:['ja', 'doch']})
+
+        context = XPathContext(
+            root=self.etree.XML('<empty/>'),
+            variables={'responses': XPathArray(self.parser, [map1, map2, map3])}
+        )
+
+        expression = 'map:find($responses, 0)'
+        result = XPathArray(self.parser, items=['no', 'non', 'nein'])
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:find($responses, 1)'
+        result = XPathArray(self.parser, items=['yes', 'oui', ['ja', 'doch']])
+        self.check_value(expression, result, context=context)
+
+        expression = 'map:find($responses, 2)'
+        result = XPathArray(self.parser, items=[])
+        self.check_value(expression, result, context=context)
+
+        array1 = XPathArray(self.parser, items=[])
+        map1 = XPathMap(self.parser, {"name": "engine", "id": "YW678", "parts": array1})
+        array2 = XPathArray(self.parser, items=[map1])
+        map2 = XPathMap(self.parser, {"name": "car", "id": "QZ123", "parts": array2})
+
+        context = XPathContext(
+            root=self.etree.XML('<empty/>'),
+            variables={'inventory': map2}
+        )
+
+        expression = 'map:find($inventory, "parts")'
+        result = XPathArray(self.parser, items=[array2, array1])
+        self.check_value(expression, result, context=context)
+
+        expression = 'let $inventory := map{"name":"car", "id":"QZ123", ' \
+                     '"parts": [map{"name":"engine", "id":"YW678", "parts":[]}]} ' \
+                     'return map:find($inventory, "parts")'
+        token = self.parser.parse(expression)
+        self.assertEqual(token.evaluate(context), [result])
+
     def test_array_size_function(self):
         self.check_value('array:size(["a", "b", "c"])', 3)
         self.check_value('array:size(["a", ["b", "c"]])', 2)

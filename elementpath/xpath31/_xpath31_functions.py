@@ -132,6 +132,31 @@ def evaluate_map_merge_function(self, context=None):
     return XPathMap(self.parser, items)
 
 
+@method(function('find', prefix='map', label='map:find function', nargs=2,
+                 sequence_types=('map(*)', 'xs:anyAtomicType', 'array(*)')))
+def evaluate_map_find_function(self, context=None):
+    key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
+    items = []
+
+    def iter_matching_items(obj):
+        if isinstance(obj, list):
+            for x in obj:
+                iter_matching_items(x)
+        elif isinstance(obj, XPathArray):
+            for x in obj.items(context):
+                iter_matching_items(x)
+        elif isinstance(obj, XPathMap):
+            for k, v in obj.items(context):
+                if k == key:
+                    items.append(v)
+                    iter_matching_items(v)
+
+    for item in self[0].select(context):
+        iter_matching_items(item)
+
+    return XPathArray(self.parser, items)
+
+
 @method(function('size', prefix='array', label='array function', nargs=1,
                  sequence_types=('array(*)', 'xs:integer')))
 def evaluate_array_size_function(self, context=None):
