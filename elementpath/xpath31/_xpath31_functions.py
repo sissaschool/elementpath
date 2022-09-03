@@ -323,6 +323,18 @@ def evaluate_array_for_each_function(self, context=None):
     return XPathArray(self.parser, items=map(lambda x: func(context, x), items))
 
 
+@method(function('for-each-pair', prefix='array', label='array:for-each-pair function', nargs=3,
+                 sequence_types=('array(*)', 'array(*)', 'function(item()*, item()*) as item()*',
+                                 'array(*)')))
+def evaluate_array_for_each_function(self, context=None):
+    array1 = self.get_argument(context, required=True, cls=XPathArray)
+    array2 = self.get_argument(context, index=1, required=True, cls=XPathArray)
+    func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+
+    items = zip(array1.items(context), array2.items(context))
+    return XPathArray(self.parser, items=map(lambda x: func(context, *x), items))
+
+
 @method(function('filter', prefix='array', label='array:filter function', nargs=2,
                  sequence_types=('array(*)', 'function(item()*) as xs:boolean', 'array(*)')))
 def evaluate_array_filter_function(self, context=None):

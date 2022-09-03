@@ -23,7 +23,7 @@ class XPath31Parser(XPath30Parser):
 
     # TODO list
     #
-    #  map:merge, map:find, array:sort, array:for-each-pair
+    #  array:sort,
     # 'random-number-generator', 'collation-key',
     # 'contains-token', 'parse-ietf-date',
     #

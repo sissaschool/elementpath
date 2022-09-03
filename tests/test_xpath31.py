@@ -531,6 +531,26 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [["the", "cat"], "sat", ["on", "the", "mat"]])
 
+    def test_array_for_each_pair_function(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = 'array:for-each-pair(["A", "B", "C"], [1, 2, 3], ' \
+                     'function($x, $y) { array {$x, $y}})'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertIsInstance(result, XPathArray)
+        self.assertListEqual(result.items(), [
+            XPathArray(self.parser, ['A', 1]),
+            XPathArray(self.parser, ['B', 2]),
+            XPathArray(self.parser, ['C', 3])
+        ])
+
+        expression = 'let $A := ["A", "B", "C", "D"] ' \
+                     'return array:for-each-pair($A, array:tail($A), concat#2)'
+        token = self.parser.parse(expression)
+        result = token.evaluate(context)
+        self.assertListEqual(result, [XPathArray(self.parser, ['AB', 'BC', 'CD'])])
+
     def test_array_filter_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
 
