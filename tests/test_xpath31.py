@@ -626,6 +626,26 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'fn:sort((1, -2, 5, 10, -10, 10, 8), (), fn:abs#1)'
         self.check_value(expression, [1, -2, 5, 8, 10, -10, 10])
 
+    def test_parse_json_function(self):
+        expression = 'parse-json(\'{"x":1, "y":[3,4,5]}\')'
+        result = XPathMap(self.parser, {'x': 1, 'y': XPathArray(self.parser, [3, 4, 5])})
+        self.check_value(expression, result)
+
+        expression = 'parse-json(\'"abcd"\')'
+        self.check_value(expression, 'abcd')
+
+        expression = 'parse-json(\'{"x":"\\\\", "y":"\u0025"}\')'
+        result = XPathMap(self.parser, {"x": "\\", "y": "%"})
+        self.check_value(expression, result)
+
+        expression = 'parse-json(\'{"x":"\\\\", "y":"\u0025"}\', map{\'escape\':true()})'
+        result = XPathMap(self.parser, {"x": "\\", "y": "%"})
+        self.check_value(expression, result)
+
+        expression = 'parse-json(\'{"x":"\\\\", "y":"\u0000"}\')'
+        result = XPathMap(self.parser, {"x": "\\", "y": "\x00"})
+        self.check_value(expression, result)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

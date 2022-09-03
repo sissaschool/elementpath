@@ -11,7 +11,9 @@
 """
 XPath 3.1 implementation - part 3 (functions)
 """
+import json
 from itertools import chain
+from urllib.request import urlopen
 
 from ..datatypes import AnyAtomicType
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
@@ -416,3 +418,74 @@ def evaluate_array_sort_function(self, context=None):
         items = sorted(array_.items(context))
 
     return XPathArray(self.parser, items)
+
+
+@method(function('json-doc', label='parse-json function', nargs=(1, 2),
+                 sequence_types=('xs:string?', 'map(*)', 'item()?')))
+@method(function('parse-json', label='parse-json function', nargs=(1, 2),
+                 sequence_types=('xs:string?', 'map(*)', 'item()?')))
+def evaluate_parse_json_functions(self, context=None):
+    if self.symbol == 'json-doc':
+        href = self.get_argument(context, cls=str)
+        if href is None:
+            return None
+
+        with urlopen(href) as fp:
+            json_text = fp.read()
+    else:
+        json_text = self.get_argument(context, cls=str)
+        if json_text is None:
+            return None
+
+    liberal = False
+    duplicates = 'use-first'
+    escape = True
+
+    def fallback(*args):
+        return '&#xFFFD;'
+
+    if len(self) > 1:
+        map_ = self.get_argument(context, index=1, required=True, cls=XPathMap)
+        for k, v in map_.items(context):
+            if k == 'liberal':
+                if not isinstance(v, bool):
+                    self.error('FOJS0005')
+                liberal = v
+            elif k == 'duplicates':
+                if v not in ('use-first', 'use-last', 'reject'):
+                    self.error('FOJS0005')
+                duplicates = v
+            elif k == 'escape':
+                if not isinstance(v, bool):
+                    self.error('FOJS0005')
+                escape = v
+            elif k == 'fallback':
+                if not isinstance(v, XPathFunction):
+                    self.error('FOJS0005')
+                # fallback = v  TODO
+            else:
+                self.error('FOJS0005')
+
+    def json_object_to_xpath(obj):
+        items = {}
+        for k_, v_ in obj.items():
+            if k_ in items:
+                if duplicates == 'use-first':
+                    continue
+                elif duplicates == 'reject':
+                    self.error('FOJS0003')
+
+            if isinstance(v_, list):
+                items[k_] = XPathArray(self.parser, v_)
+            else:
+                items[k_] = v_
+
+        return XPathMap(self.parser, items)
+
+    kwargs = {'object_hook': json_object_to_xpath}
+    if liberal or escape:
+        kwargs['strict'] = False
+    if liberal:
+        kwargs['parse_constant'] = lambda x: self.error('FOJS0001')
+
+    return json.JSONDecoder(**kwargs).decode(json_text)
