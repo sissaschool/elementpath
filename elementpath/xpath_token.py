@@ -114,13 +114,10 @@ class XPathToken(Token[XPathTokenType]):
         :param context: The XPath dynamic context.
         """
         item = self.evaluate(context)
-        if item is not None:
-            if isinstance(item, list):
-                yield from item
-            else:
-                if context is not None:
-                    context.item = item
-                yield item
+        if isinstance(item, list):
+            yield from item
+        elif item is not None:
+            yield item
 
     def __str__(self) -> str:
         symbol, label = self.symbol, self.label
