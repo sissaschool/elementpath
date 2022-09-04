@@ -201,6 +201,12 @@ XPATH_ERROR_CODES = {
     'FOQM0005': (ElementPathValueError, 'Parameter for dynamically-loaded '
                                         'XQuery module has incorrect type'),
     'FOQM0006': (ElementPathRuntimeError, 'No suitable XQuery processor available'),
+
+    'FOXT0001': (ElementPathRuntimeError, 'No suitable XSLT processor available'),
+    'FOXT0002': (ElementPathValueError, 'Invalid parameters to XSLT transformation'),
+    'FOXT0003': (ElementPathRuntimeError, 'XSLT transformation failed'),
+    'FOXT0004': (ElementPathValueError, 'XSLT transformation has been disabled'),
+    'FOXT0006': (ElementPathValueError, 'XSLT output contains non-accepted characters'),
 }
 
 

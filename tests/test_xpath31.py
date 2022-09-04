@@ -646,6 +646,20 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         result = XPathMap(self.parser, {"x": "\\", "y": "\x00"})
         self.check_value(expression, result)
 
+    def test_load_xquery_module_function(self):
+        self.wrong_value('load-xquery-module("")', 'FOQM0001')
+
+        with self.assertRaises(RuntimeError) as ctx:
+            self.check_value('load-xquery-module("./xquery-module")')
+
+        self.assertIn('FOQM0006', str(ctx.exception))
+
+    def test_transform_function(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            self.check_value('transform(map{})')
+
+        self.assertIn('FOXT0001', str(ctx.exception))
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

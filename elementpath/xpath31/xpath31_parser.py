@@ -27,7 +27,7 @@ class XPath31Parser(XPath30Parser):
     # 'contains-token', 'parse-ietf-date',
     #
     # High-order functions
-    # 'apply', 'transform',
+    # 'apply'
     #
     # Functions on JSON Data
     # 'json-to-xml', 'xml-to-json',

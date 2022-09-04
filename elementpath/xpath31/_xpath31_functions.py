@@ -115,7 +115,7 @@ def evaluate_map_merge_function(self, context=None):
                 if value in ('reject', 'use-first', 'use-last', 'use-any', 'combine'):
                     duplicates = value
                 else:
-                    self.error('FOJS0005')
+                    raise self.error('FOJS0005')
 
     items = {}
     for map_ in self[0].select(context):
@@ -123,7 +123,7 @@ def evaluate_map_merge_function(self, context=None):
             if k not in items:
                 items[k] = v
             elif duplicates == 'reject':
-                self.error('FOJS0005')
+                raise self.error('FOJS0005')
             elif duplicates == 'use-last':
                 items[k] = v
             elif duplicates == 'combine':
@@ -195,13 +195,13 @@ def evaluate_array_put_function(self, context=None):
         member = []
 
     if position <= 0:
-        self.error('FOAY0002' if position else 'FOAY0001')
+        raise self.error('FOAY0002' if position else 'FOAY0001')
 
     items = array_.items(context)
     try:
         items[position - 1] = member
     except IndexError:
-        self.error('FOAY0001')
+        raise self.error('FOAY0001')
 
     return XPathArray(self.parser, items=items)
 
@@ -216,13 +216,13 @@ def evaluate_array_insert_before_function(self, context=None):
         member = []
 
     if position <= 0:
-        self.error('FOAY0002' if position else 'FOAY0001')
+        raise self.error('FOAY0002' if position else 'FOAY0001')
 
     items = array_.items(context)
     try:
         items.insert(position - 1, member)
     except IndexError:
-        self.error('FOAY0001')
+        raise self.error('FOAY0001')
 
     return XPathArray(self.parser, items=items)
 
@@ -245,15 +245,15 @@ def evaluate_array_append_function(self, context=None):
 def evaluate_array_subarray_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     start = self.get_argument(context, index=1, required=True, cls=int)
-    if start < 1 or start > len(array_):
-        self.error('FOAY0001')
+    if start < 1 or start > len(array_) + 1:
+        raise self.error('FOAY0001')
 
     if len(self) > 2:
         length = self.get_argument(context, index=2, required=True, cls=int)
-        if length <= 0:
-            self.error('FOAY0002')
-        if start + length > len(array_):
-            self.error('FOAY0001')
+        if length < 0:
+            raise self.error('FOAY0002')
+        if start + length > len(array_) + 1:
+            raise self.error('FOAY0001')
         items = array_.items(context)[start - 1:start + length - 1]
     else:
         items = array_.items(context)[start - 1:]
@@ -268,7 +268,7 @@ def evaluate_array_head_function(self, context=None):
 
     items = array_.items(context)
     if not items:
-        self.error('FOAY0001')
+        raise self.error('FOAY0001')
     return items[0]
 
 
@@ -279,7 +279,7 @@ def evaluate_array_tail_function(self, context=None):
 
     items = array_.items(context)
     if not items:
-        self.error('FOAY0001')
+        raise self.error('FOAY0001')
     return XPathArray(self.parser, items=items[1:])
 
 
@@ -298,7 +298,7 @@ def evaluate_array_join_function(self, context=None):
     items = []
     for array_ in self[0].select(context):
         if not isinstance(array_, XPathArray):
-            self.error('XPTY0004')
+            raise self.error('XPTY0004')
         items.extend(array_.items(context))
 
     return XPathArray(self.parser, items=items)
@@ -451,22 +451,22 @@ def evaluate_parse_json_functions(self, context=None):
         for k, v in map_.items(context):
             if k == 'liberal':
                 if not isinstance(v, bool):
-                    self.error('FOJS0005')
+                    raise self.error('FOJS0005')
                 liberal = v
             elif k == 'duplicates':
                 if v not in ('use-first', 'use-last', 'reject'):
-                    self.error('FOJS0005')
+                    raise self.error('FOJS0005')
                 duplicates = v
             elif k == 'escape':
                 if not isinstance(v, bool):
-                    self.error('FOJS0005')
+                    raise self.error('FOJS0005')
                 escape = v
             elif k == 'fallback':
                 if not isinstance(v, XPathFunction):
-                    self.error('FOJS0005')
+                    raise self.error('FOJS0005')
                 # fallback = v  TODO
             else:
-                self.error('FOJS0005')
+                raise self.error('FOJS0005')
 
     def json_object_to_xpath(obj):
         items = {}
@@ -475,7 +475,7 @@ def evaluate_parse_json_functions(self, context=None):
                 if duplicates == 'use-first':
                     continue
                 elif duplicates == 'reject':
-                    self.error('FOJS0003')
+                    raise self.error('FOJS0003')
 
             if isinstance(v_, list):
                 items[k_] = XPathArray(self.parser, v_)
@@ -488,7 +488,10 @@ def evaluate_parse_json_functions(self, context=None):
     if liberal or escape:
         kwargs['strict'] = False
     if liberal:
-        kwargs['parse_constant'] = lambda x: self.error('FOJS0001')
+        def parse_constant(s):
+            raise self.error('FOJS0001')
+
+        kwargs['parse_constant'] = parse_constant
 
     return json.JSONDecoder(**kwargs).decode(json_text)
 
@@ -498,26 +501,40 @@ def evaluate_parse_json_functions(self, context=None):
 def evaluate_load_xquery_module_function(self, context=None):
     module_uri = self.get_argument(context, required=True, cls=str)
     if not module_uri:
-        self.error('FOQM0001')
+        raise self.error('FOQM0001')
 
     if len(self) > 1:
         options = self.get_argument(context, index=1, required=True, cls=XPathMap)
         for k, v in options.items(context):
             if k == 'xquery-version':
                 if not isinstance(v, (int, float, Decimal)):
-                    self.error('FOQM0005')
+                    raise self.error('FOQM0005')
             elif k == 'location-hints':
                 if not isinstance(v, str) or \
                         not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
-                    self.error('FOQM0005')
+                    raise self.error('FOQM0005')
             elif k == 'context-item':
                 if isinstance(v, list) and len(v) > 1:
-                    self.error('FOQM0005')
+                    raise self.error('FOQM0005')
             elif k == 'variables' or k == 'vendor-options':
                 if not isinstance(v, XPathMap) or \
                         any(not isinstance(x, str) for x in v.keys(context)):
-                    self.error('FOQM0005')
+                    raise self.error('FOQM0005')
             else:
-                self.error('FOQM0005')
+                raise self.error('FOQM0005')
 
-    self.error('FOQM0006')  # XQuery not available
+    raise self.error('FOQM0006')  # XQuery not available
+
+
+@method(function('transform', label='function', nargs=1,
+                 sequence_types=('map(*)', 'map(*)')))
+def evaluate_transform_function(self, context=None):
+    options = self.get_argument(context, required=True, cls=XPathMap)
+    for k, v in options.items(context):
+        # Check only 'xslt-version' parameter until an effective
+        # XSLT implementation will be loadable.
+        if k == 'xslt-version':
+            if not isinstance(v, (int, float, Decimal)):
+                raise self.error('FOXT0002')
+
+    raise self.error('FOXT0001')  # XSLT not available
