@@ -342,6 +342,8 @@ class XPath1Parser(Parser[XPathToken]):
 
                 if 'function(' not in value:
                     return all(self.is_sequence_type(x) for x in value.split(', '))
+                elif value.startswith('function(*)') and 'function(' not in value[11:]:
+                    return all(self.is_sequence_type(x) for x in value.split(', '))
 
                 # Cover only if function() spec is the last argument
                 k = value.index('function(')

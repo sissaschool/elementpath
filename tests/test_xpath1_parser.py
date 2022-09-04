@@ -1644,7 +1644,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
             self.assertIsInstance(value, str)
             self.assertTrue(value.startswith('function('))
-            self.assertTrue(self.parser.is_sequence_type(value))
+            self.assertTrue(self.parser.is_sequence_type(value), msg=value)
 
     def test_descendant_predicate__issue_51(self):
         root = self.etree.XML(dedent("""<doc>

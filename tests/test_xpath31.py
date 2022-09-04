@@ -683,6 +683,17 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         result = token.evaluate()
         self.assertNotEqual(seq, result(context, 'permute')(seq))
 
+    def test_apply_function(self):
+        expression = 'fn:apply(fn:concat#3, ["a", "b", "c"])'
+        self.check_value(expression, 'abc')
+
+        expression = 'fn:apply(fn:concat#3, ["a", "b", "c", "d"])'
+        self.wrong_type(expression, 'FOAP0001')
+
+        expression = 'fn:apply(fn:concat#4, array:subarray(["a", "b", "c", "d", "e", "f"], ' \
+                     '1, fn:function-arity(fn:concat#4)))'
+        self.check_value(expression, 'abcd')
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

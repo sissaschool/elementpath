@@ -18,6 +18,7 @@ from itertools import chain
 from urllib.request import urlopen
 
 from ..datatypes import AnyAtomicType
+from ..exceptions import ElementPathTypeError
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
 
@@ -563,3 +564,17 @@ def evaluate_random_number_generator_function(self, context=None):
         return XPathMap(self.parser, items)
 
     return next_random()
+
+
+@method(function('apply', label='function', nargs=2,
+                 sequence_types=('function(*)', 'array(*)', 'item()*')))
+def evaluate_apply_function(self, context=None):
+    func = self.get_argument(context, required=True, cls=XPathFunction)
+    array_ = self.get_argument(context, index=1, required=True, cls=XPathArray)
+
+    try:
+        return func(context, *array_.items(context))
+    except ElementPathTypeError as err:
+        if not err.code.endswith(('XPST0017', 'XPTY0004')):
+            raise
+        raise self.error('FOAP0001') from None

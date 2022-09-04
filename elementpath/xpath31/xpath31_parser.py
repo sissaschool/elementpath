@@ -23,7 +23,7 @@ class XPath31Parser(XPath30Parser):
 
     # TODO list
     #
-    # 'collation-key', 'contains-token', 'parse-ietf-date', 'apply'
+    # 'collation-key', 'contains-token', 'parse-ietf-date'
     #
     # Functions on JSON Data
     # 'json-to-xml', 'xml-to-json',

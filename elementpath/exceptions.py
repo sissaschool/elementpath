@@ -207,6 +207,8 @@ XPATH_ERROR_CODES = {
     'FOXT0003': (ElementPathRuntimeError, 'XSLT transformation failed'),
     'FOXT0004': (ElementPathValueError, 'XSLT transformation has been disabled'),
     'FOXT0006': (ElementPathValueError, 'XSLT output contains non-accepted characters'),
+
+    'FOAP0001': (ElementPathTypeError, 'Wrong number of arguments'),
 }
 
 
