@@ -12,6 +12,7 @@
 XPath 3.1 implementation - part 3 (functions)
 """
 import json
+import random
 from decimal import Decimal
 from itertools import chain
 from urllib.request import urlopen
@@ -105,7 +106,7 @@ def evaluate_map_entry_function(self, context=None):
 
 
 @method(function('merge', prefix='map', label='map:merge function', nargs=(1, 2),
-                 sequence_types=('map(*)', 'map(*)', 'map(*)')))
+                 sequence_types=('map(*)*', 'map(*)', 'map(*)')))
 def evaluate_map_merge_function(self, context=None):
     duplicates = 'use-first'
     if len(self) > 1:
@@ -538,3 +539,27 @@ def evaluate_transform_function(self, context=None):
                 raise self.error('FOXT0002')
 
     raise self.error('FOXT0001')  # XSLT not available
+
+
+@method(function('random-number-generator', label='function', nargs=(0, 1),
+                 sequence_types=('xs:anyAtomicType?', 'map(xs:string, item())')))
+def evaluate_random_number_generator_function(self, context=None):
+    seed = self.get_argument(context, cls=AnyAtomicType)
+    if not isinstance(seed, (int, str)):
+        seed = str(seed)
+    random.seed(seed)
+
+    def permute(seq):
+        seq = [x for x in seq]
+        random.shuffle(seq)
+        return seq
+
+    def next_random():
+        items = {
+            'number': random.random(),
+            'next': next_random,
+            'permute': permute,
+        }
+        return XPathMap(self.parser, items)
+
+    return next_random()

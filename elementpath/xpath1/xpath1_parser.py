@@ -273,13 +273,30 @@ class XPath1Parser(Parser[XPathToken]):
             return False
         elif value == 'empty-sequence()' or value == 'none':
             return True
-        elif value in ('map(*)', 'array(*)') and self.version >= '3.1':
-            return True
         elif value[-1] in OCCURRENCE_INDICATORS:
             value = value[:-1]
 
         if value in COMMON_SEQUENCE_TYPES:
             return True
+
+        elif value.startswith(('map(', 'array(')):
+            if self.version < '3.1' or not value.endswith(')'):
+                return False
+
+            if value in ('map(*)', 'array(*)'):
+                return True
+
+            if value.startswith('map('):
+                try:
+                    s1, s2 = value[4:-1].split(',')
+                except ValueError:
+                    return False
+                else:
+                    return s1.startswith('xs:') \
+                        and self.is_sequence_type(s1) \
+                        and self.is_sequence_type(s2)
+            else:
+                return self.is_sequence_type(value[6:-1])
 
         elif value.startswith('element(') and value.endswith(')'):
             if ',' not in value:

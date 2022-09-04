@@ -660,6 +660,29 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         self.assertIn('FOXT0001', str(ctx.exception))
 
+    def test_random_number_generator_function(self):
+        context = None
+
+        expression = 'random-number-generator()'
+        token = self.parser.parse(expression)
+        result = token.evaluate()
+        self.assertIsInstance(result, XPathMap)
+
+        self.assertListEqual(list(result.keys()), ['number', 'next', 'permute'])
+        self.assertTrue(0 <= result(context, 'number') <= 1)
+
+        seq = result(context, 'permute')(range(10))
+        _seq = tuple(seq)
+        self.assertNotEqual(seq, list(range(10)))
+        self.assertNotEqual(seq, result(context, 'permute')(seq))
+        self.assertNotEqual(seq, result(context, 'permute')(range(10)))
+        self.assertListEqual(seq, list(_seq))
+
+        expression = 'random-number-generator(1000)'
+        token = self.parser.parse(expression)
+        result = token.evaluate()
+        self.assertNotEqual(seq, result(context, 'permute')(seq))
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):
