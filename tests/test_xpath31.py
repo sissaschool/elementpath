@@ -228,8 +228,8 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(result(context, 'M'), 'Monday')
 
     def test_map_merge_function(self):
-        week = {0:"Sonntag", 1:"Montag", 2:"Dienstag", 3:"Mittwoch",
-                4:"Donnerstag", 5:"Freitag", 6:"Samstag"}
+        week = {0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+                4: "Donnerstag", 5: "Freitag", 6: "Samstag"}
         context = XPathContext(
             root=self.etree.XML('<empty/>'),
             variables={'week': XPathMap(self.parser, week)}
@@ -245,15 +245,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = 'map:merge(($week, map{7:"Unbekannt"}))'
         result = XPathMap(self.parser, items={
-            0:"Sonntag", 1:"Montag", 2:"Dienstag", 3:"Mittwoch",
-            4:"Donnerstag", 5:"Freitag", 6:"Samstag", 7:"Unbekannt"
+            0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+            4: "Donnerstag", 5: "Freitag", 6: "Samstag", 7: "Unbekannt"
         })
         self.check_value(expression, result, context=context)
 
         expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"use-last"})'
         result = XPathMap(self.parser, items={
-            0:"Sonntag", 1:"Montag", 2:"Dienstag", 3:"Mittwoch",
-            4:"Donnerstag", 5:"Freitag", 6:"Sonnabend"
+            0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
+            4: "Donnerstag", 5: "Freitag", 6: "Sonnabend"
         })
         self.check_value(expression, result, context=context)
 
@@ -273,8 +273,8 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
     def test_map_find_function(self):
         map1 = XPathMap(self.parser, {0: 'no', 1: 'yes'})
-        map2 = XPathMap(self.parser, {0:'non', 1:'oui'})
-        map3 = XPathMap(self.parser, {0:'nein', 1:['ja', 'doch']})
+        map2 = XPathMap(self.parser, {0: 'non', 1: 'oui'})
+        map3 = XPathMap(self.parser, {0: 'nein', 1: ['ja', 'doch']})
 
         context = XPathContext(
             root=self.etree.XML('<empty/>'),

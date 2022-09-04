@@ -12,6 +12,7 @@
 XPath 3.1 implementation - part 3 (functions)
 """
 import json
+from decimal import Decimal
 from itertools import chain
 from urllib.request import urlopen
 
@@ -160,7 +161,8 @@ def evaluate_map_find_function(self, context=None):
 
 
 @method(function('for-each', prefix='map', label='map:for-each function', nargs=2,
-                 sequence_types=('map(*)', 'function(xs:anyAtomicType, item()*) as item()*', 'item()*')))
+                 sequence_types=('map(*)', 'function(xs:anyAtomicType, item()*) as item()*',
+                                 'item()*')))
 def select_map_for_each_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
@@ -328,7 +330,7 @@ def evaluate_array_for_each_function(self, context=None):
 @method(function('for-each-pair', prefix='array', label='array:for-each-pair function', nargs=3,
                  sequence_types=('array(*)', 'array(*)', 'function(item()*, item()*) as item()*',
                                  'array(*)')))
-def evaluate_array_for_each_function(self, context=None):
+def evaluate_array_for_each_pair_function(self, context=None):
     array1 = self.get_argument(context, required=True, cls=XPathArray)
     array2 = self.get_argument(context, index=1, required=True, cls=XPathArray)
     func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
@@ -489,3 +491,33 @@ def evaluate_parse_json_functions(self, context=None):
         kwargs['parse_constant'] = lambda x: self.error('FOJS0001')
 
     return json.JSONDecoder(**kwargs).decode(json_text)
+
+
+@method(function('load-xquery-module', label='function', nargs=(1, 2),
+                 sequence_types=('xs:string', 'map(*)', 'map(*)')))
+def evaluate_load_xquery_module_function(self, context=None):
+    module_uri = self.get_argument(context, required=True, cls=str)
+    if not module_uri:
+        self.error('FOQM0001')
+
+    if len(self) > 1:
+        options = self.get_argument(context, index=1, required=True, cls=XPathMap)
+        for k, v in options.items(context):
+            if k == 'xquery-version':
+                if not isinstance(v, (int, float, Decimal)):
+                    self.error('FOQM0005')
+            elif k == 'location-hints':
+                if not isinstance(v, str) or \
+                        not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
+                    self.error('FOQM0005')
+            elif k == 'context-item':
+                if isinstance(v, list) and len(v) > 1:
+                    self.error('FOQM0005')
+            elif k == 'variables' or k == 'vendor-options':
+                if not isinstance(v, XPathMap) or \
+                        any(not isinstance(x, str) for x in v.keys(context)):
+                    self.error('FOQM0005')
+            else:
+                self.error('FOQM0005')
+
+    self.error('FOQM0006')  # XQuery not available

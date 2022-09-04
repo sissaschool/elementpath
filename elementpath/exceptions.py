@@ -194,6 +194,13 @@ XPATH_ERROR_CODES = {
     'FOJS0007': (ElementPathValueError, 'Bad JSON escape sequence'),
     'FOAY0001': (ElementPathValueError, 'Array index out of bounds'),
     'FOAY0002': (ElementPathValueError, 'Negative array length'),
+
+    'FOQM0001': (ElementPathValueError, 'Module URI is a zero-length string'),
+    'FOQM0002': (ElementPathRuntimeError, 'Module URI not found'),
+    'FOQM0003': (ElementPathRuntimeError, 'Static error in dynamically-loaded XQuery module'),
+    'FOQM0005': (ElementPathValueError, 'Parameter for dynamically-loaded '
+                                        'XQuery module has incorrect type'),
+    'FOQM0006': (ElementPathRuntimeError, 'No suitable XQuery processor available'),
 }
 
 
