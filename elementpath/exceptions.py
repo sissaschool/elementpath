@@ -209,6 +209,7 @@ XPATH_ERROR_CODES = {
     'FOXT0006': (ElementPathValueError, 'XSLT output contains non-accepted characters'),
 
     'FOAP0001': (ElementPathTypeError, 'Wrong number of arguments'),
+    'FORG0010': (ElementPathValueError, 'Invalid date/time'),
 }
 
 

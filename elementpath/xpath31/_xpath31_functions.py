@@ -13,12 +13,15 @@ XPath 3.1 implementation - part 3 (functions)
 """
 import json
 import random
+import re
+from datetime import datetime
 from decimal import Decimal
-from itertools import chain
+from itertools import chain, product
 from urllib.request import urlopen
 
-from ..datatypes import AnyAtomicType
+from ..datatypes import AnyAtomicType, DateTime, Timezone
 from ..exceptions import ElementPathTypeError
+from ..helpers import WHITESPACES_PATTERN
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
 
@@ -26,6 +29,20 @@ method = XPath31Parser.method
 function = XPath31Parser.function
 
 XPath31Parser.unregister('string-join')
+
+TIMEZONE_MAP = {
+    'UT': '00:00',
+    'UTC': '00:00',
+    'GMT': '00:00',
+    'EST': '-05:00',
+    'EDT': '-04:00',
+    'CST': '-06:00',
+    'CDT': '-05:00',
+    'MST': '-07:00',
+    'MDT': '-06:00',
+    'PST': '-08:00',
+    'PDT': '-07:00',
+}
 
 
 @method(function('string-join', nargs=(1, 2),
@@ -578,3 +595,72 @@ def evaluate_apply_function(self, context=None):
         if not err.code.endswith(('XPST0017', 'XPTY0004')):
             raise
         raise self.error('FOAP0001') from None
+
+
+@method(function('parse-ietf-date', label='function', nargs=1,
+                 sequence_types=('xs:string?', 'xs:dateTime?')))
+def evaluate_parse_ietf_date_function(self, context=None):
+    value = self.get_argument(context, cls=str)
+    if value is None:
+        return None
+
+    value = WHITESPACES_PATTERN.sub(' ', value).strip()
+    value = value.replace(' -', '-').replace('- ', '-')
+
+    tzname_regex = r'\b(UT|UTC|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)\b'
+    tzname_match = re.search(tzname_regex, value, re.IGNORECASE)
+    if tzname_match is not None:
+        # only to let be parsed by strptime()
+        value = re.sub(tzname_regex, 'UTC', value, re.IGNORECASE)
+
+    if value and value[0].isalpha():
+        # Parse dayname part (that is then ignored)
+        try:
+            dayname, value = value.split(' ', maxsplit=1)
+        except ValueError:
+            raise self.error('FORG0010') from None
+        else:
+            if dayname.endswith(','):
+                dayname = dayname[:-1]
+
+            for fmt in ['%A', '%a']:
+                try:
+                    datetime.strptime(dayname, fmt)
+                except ValueError:
+                    continue
+                else:
+                    break
+            else:
+                raise self.error('FORG0010')
+
+    # Parsing generating every combination
+    if value and value[0].isalpha():
+        # Parse asctime rule
+        fmt_alternatives = (
+            ['%b %d %H:%M', '%b-%d %H:%M'],
+            ['', ':%S', ':%S.%f'],
+            ['', ' %Z', ' %z', ' %z(%Z)'],
+            [' %Y', ' %y'],
+        )
+    else:
+        # Parse datespec rule
+        fmt_alternatives = (
+            ['%d %b ', '%d-%b-', '%d %b-', '%d-%b '],
+            ['%Y %H:%M', '%y %H:%M'],
+            ['', ':%S', ':%S.%f'],
+            ['', ' %Z', ' %z', ' %z(%Z)'],
+        )
+
+    for fmt in product(*fmt_alternatives):
+        try:
+            dt = datetime.strptime(value, ''.join(fmt))
+        except ValueError:
+            continue
+        else:
+            if tzname_match is not None and dt.tzinfo is None:
+                tzname = tzname_match.group(0).upper()
+                dt = dt.replace(tzinfo=Timezone.fromstring(TIMEZONE_MAP[tzname]))
+
+            return DateTime.fromdatetime(dt)
+    else:
+        raise self.error('FORG0010')

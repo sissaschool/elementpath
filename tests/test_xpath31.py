@@ -35,6 +35,7 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import XPathContext
+from elementpath.datatypes import DateTime
 from elementpath.xpath3 import XPath31Parser
 from elementpath.xpath_token import XPathMap, XPathArray
 
@@ -693,6 +694,27 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'fn:apply(fn:concat#4, array:subarray(["a", "b", "c", "d", "e", "f"], ' \
                      '1, fn:function-arity(fn:concat#4)))'
         self.check_value(expression, 'abcd')
+
+    def test_parse_ietf_date_function(self):
+        expression = 'fn:parse-ietf-date("Wed, 06 Jun 1994 07:29:35 GMT")'
+        result = DateTime.fromstring('1994-06-06T07:29:35Z')
+        self.check_value(expression, result)
+
+        expression = 'fn:parse-ietf-date("Wed, 6 Jun 94 07:29:35 GMT")'
+        result = DateTime.fromstring('1994-06-06T07:29:35Z')
+        self.check_value(expression, result)
+
+        expression = 'fn:parse-ietf-date("Wed Jun 06 11:54:45 EST 2013")'
+        result = DateTime.fromstring('2013-06-06T11:54:45-05:00')
+        self.check_value(expression, result)
+
+        expression = 'fn:parse-ietf-date("Sunday, 06-Nov-94 08:49:37 GMT")'
+        result = DateTime.fromstring('1994-11-06T08:49:37Z')
+        self.check_value(expression, result)
+
+        expression = 'fn:parse-ietf-date("Wed, 6 Jun 94 07:29:35 +0500")'
+        result = DateTime.fromstring('1994-06-06T07:29:35+05:00')
+        self.check_value(expression, result)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
