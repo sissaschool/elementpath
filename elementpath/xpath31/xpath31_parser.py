@@ -23,9 +23,6 @@ class XPath31Parser(XPath30Parser):
 
     # TODO list
     #
-    # 'collation-key', 'contains-token'
-    #
-    # Functions on JSON Data
     # 'json-to-xml', 'xml-to-json',
     #
     # Arrow operator

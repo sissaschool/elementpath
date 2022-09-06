@@ -36,6 +36,7 @@ else:
 
 from elementpath import XPathContext
 from elementpath.datatypes import DateTime
+from elementpath.exceptions import ElementPathLocaleError
 from elementpath.xpath3 import XPath31Parser
 from elementpath.xpath_token import XPathMap, XPathArray
 
@@ -715,6 +716,31 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'fn:parse-ietf-date("Wed, 6 Jun 94 07:29:35 +0500")'
         result = DateTime.fromstring('1994-06-06T07:29:35+05:00')
         self.check_value(expression, result)
+
+    def test_contains_token_function(self):
+        expression = 'fn:contains-token("red green blue ", "red")'
+        self.check_value(expression, True)
+
+        expression = 'fn:contains-token(("red", "green", "blue"), " red ")'
+        self.check_value(expression, True)
+
+        expression = 'fn:contains-token("red, green, blue", "red")'
+        self.check_value(expression, False)
+
+        expression = \
+            'fn:contains-token("red green blue", "RED", ' \
+            '"http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive")'
+
+        with self.assertRaises(ElementPathLocaleError) as ctx:
+            self.check_value(expression)
+
+        self.assertIn('FOCH0002', str(ctx.exception))
+
+    def test_collation_key_function(self):
+        with self.assertRaises(ElementPathLocaleError) as ctx:
+            self.check_value('fn:collation-key("foo")')
+
+        self.assertIn('FOCH0004', str(ctx.exception))
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

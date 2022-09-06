@@ -116,7 +116,7 @@ XPATH_ERROR_CODES = {
     'FOCH0001': (ElementPathValueError, 'Code point not valid'),
     'FOCH0002': (ElementPathLocaleError, 'Unsupported collation'),
     'FOCH0003': (ElementPathValueError, 'Unsupported normalization form'),
-    'FOCH0004': (ElementPathValueError, 'Collation does not support collation units'),
+    'FOCH0004': (ElementPathLocaleError, 'Collation does not support collation units'),
     'FODC0001': (ElementPathValueError, 'No context document'),
     'FODC0002': (ElementPathValueError, 'Error retrieving resource'),
     'FODC0003': (ElementPathValueError, 'Function stability not defined'),

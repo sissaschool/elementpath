@@ -664,3 +664,39 @@ def evaluate_parse_ietf_date_function(self, context=None):
             return DateTime.fromdatetime(dt)
     else:
         raise self.error('FORG0010')
+
+
+@method(function('contains-token', label='function', nargs=(2, 3),
+                 sequence_types=('xs:string*', 'xs:string', 'xs:string', 'xs:boolean')))
+def evaluate_contains_token_function(self, context=None):
+    token_string = self.get_argument(context, index=1, required=True, cls=str)
+    token_string = token_string.strip()
+
+    if len(self) > 2:
+        collation = self.get_argument(context, 2, required=True)
+        with self.use_locale(collation):
+            for input_string in self[0].select(context):
+                if not isinstance(input_string, str):
+                    raise self.error('XPTY0004')
+                if any(token_string == x for x in input_string.split()):
+                    return True
+            else:
+                return False
+    else:
+        for input_string in self[0].select(context):
+            if not isinstance(input_string, str):
+                raise self.error('XPTY0004')
+            if any(token_string == x for x in input_string.split()):
+                return True
+        else:
+            return False
+
+
+@method(function('collation-key', label='function', nargs=(1, 2),
+                 sequence_types=('xs:string', 'xs:string', 'xs:base64Binary')))
+def evaluate_collation_key_function(self, context=None):
+    self.get_argument(context, required=True, cls=str)
+    if len(self) > 1:
+        self.get_argument(context, index=1, required=True, cls=str)
+
+    raise self.error('FOCH0004')
