@@ -37,7 +37,7 @@ import xmlschema
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode, \
     CommentNode, ProcessingInstructionNode, get_node_tree
 from elementpath.namespaces import get_expanded_name
-from elementpath.xpath_token import XPathFunction
+from elementpath.xpath_token import XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AnyAtomicType
 from elementpath.xpath31 import XPath31Parser
 
@@ -920,8 +920,13 @@ class Result(object):
 
         if self.value == 'function(*)':
             type_check = isinstance(result, XPathFunction)
+        elif self.value == 'array(*)':
+            type_check = isinstance(result, XPathArray)
+        elif self.value == 'map(*)':
+            type_check = isinstance(result, XPathMap)
         elif not self.parser.is_sequence_type(self.value):
             msg = " test-case {}: {!r} is not a valid sequence type"
+            self.parser.is_sequence_type(self.value)
             print(msg.format(self.test_case.name, self.value))
             type_check = False
         else:
@@ -1326,6 +1331,7 @@ def main():
         from elementpath.xpath31 import XPath31Parser
 
         xpath_parser = XPath31Parser
+        Result.parser = xpath_parser()
         ignore_specs.remove('XP30+')
         ignore_specs.remove('XP31')
         ignore_specs.remove('XP31+')
@@ -1335,6 +1341,7 @@ def main():
         from elementpath.xpath30 import XPath30Parser
 
         xpath_parser = XPath30Parser
+        Result.parser = xpath_parser()
         ignore_specs.remove('XP30')
         ignore_specs.remove('XP30+')
         ignore_specs.add('XP20')

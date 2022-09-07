@@ -742,6 +742,38 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         self.assertIn('FOCH0004', str(ctx.exception))
 
+    def test_lookup_unary_operator(self):
+        context = XPathContext(self.etree.XML('<empty/>'))
+
+        expression = '([1,2,3], [1,2,5], [1,2,6])[?3 = 5]'
+        result = [XPathArray(self.parser, [1, 2, 5])]
+        self.check_value(expression, result, context=context)
+
+    def test_lookup_postfix_operator(self):
+        expression = '[1, 2, 5, 7]?*'
+        self.check_value(expression, [1, 2, 5, 7])
+
+        expression = '[[1, 2, 3], [4, 5, 6]]?*'
+        result = [
+            XPathArray(self.parser, [1, 2, 3]),
+            XPathArray(self.parser, [4, 5, 6])
+        ]
+        self.check_value(expression, result)
+
+        expression = 'map { "first" : "Jenna", "last" : "Scott" }?first'
+        self.check_value(expression, ['Jenna'])
+
+        self.check_value('[4, 5, 6]?2', [5])
+
+        expression = '(map {"first": "Tom"}, map {"first": "Dick"}, ' \
+                     'map {"first": "Harry"})?first'
+        self.check_value(expression, ['Tom', 'Dick', 'Harry'])
+
+        expression = '([1,2,3], [4,5,6])?2'
+        self.check_value(expression, [2, 5])
+
+        self.wrong_value('["a","b"]?3', 'FOAY0001')
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

@@ -512,7 +512,10 @@ def evaluate_parse_json_functions(self, context=None):
 
         kwargs['parse_constant'] = parse_constant
 
-    return json.JSONDecoder(**kwargs).decode(json_text)
+    result = json.JSONDecoder(**kwargs).decode(json_text)
+    if isinstance(result, list):
+        return XPathArray(self.parser, result)
+    return result
 
 
 @method(function('load-xquery-module', label='function', nargs=(1, 2),

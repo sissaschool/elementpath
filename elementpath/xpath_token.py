@@ -1594,7 +1594,7 @@ class XPathMap(XPathFunction):
         for key, value in zip(self._items, self._values):
             k = next(key.atomization(context), None)
             if k is None:
-                self.error('XPST0003', 'missing key value')
+                raise self.error('XPST0003', 'missing key value')
             assert k is not None
             _map[k] = value.evaluate(context)
 
@@ -1603,7 +1603,7 @@ class XPathMap(XPathFunction):
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
-            self.error('XPST0003', 'exactly one atomic argument is expected')
+            raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         key = cast(AnyAtomicType, args[0])
         if self._map is not None:
@@ -1681,11 +1681,11 @@ class XPathArray(XPathFunction):
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
         if len(args) != 1 or not isinstance(args[0], int):
-            self.error('XPST0003', 'exactly one xs:integer argument is expected')
+            raise self.error('XPST0003', 'exactly one xs:integer argument is expected')
 
         position = cast(int, args[0])
         if position <= 0:
-            self.error('FOAY0002' if position else 'FOAY0001')
+            raise self.error('FOAY0002' if position else 'FOAY0001')
 
         if self._array is not None:
             items = self._array
@@ -1695,7 +1695,7 @@ class XPathArray(XPathFunction):
         try:
             return items[position - 1]
         except IndexError:
-            self.error('FOAY0001')
+            raise self.error('FOAY0001')
 
     def items(self, context: Optional[XPathContext] = None) -> List[Any]:
         if self._array is not None:

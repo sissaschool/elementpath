@@ -34,7 +34,7 @@ from ..etree import etree_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode
-from ..xpath_token import XPathFunction
+from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
 
@@ -651,7 +651,12 @@ def evaluate_deep_equal_function(self, context=None):
         while True:
             value1 = next(seq1, None)
             value2 = next(seq2, None)
-            if isinstance(value1, XPathFunction) or isinstance(value2, XPathFunction):
+
+            if isinstance(value1, XPathFunction) and \
+                    not isinstance(value1, (XPathMap, XPathArray)):
+                raise self.error('FOTY0015')
+            if isinstance(value2, XPathFunction) and \
+                    not isinstance(value2, (XPathMap, XPathArray)):
                 raise self.error('FOTY0015')
 
             if (value1 is None) ^ (value2 is None):
