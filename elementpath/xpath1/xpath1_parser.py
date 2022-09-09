@@ -216,8 +216,8 @@ class XPath1Parser(Parser[XPathToken]):
     def expected_name(self, *symbols: str, message: Optional[str] = None) -> None:
         """
         Checks the next symbol with a list of symbols. Replaces the next token
-        with a '(name)' token if check fails and the symbol can be also a name.
-        Otherwise raises a syntax error.
+        with a '(name)' token if check fails and the symbol can be also a name,
+        otherwise raises a syntax error.
 
         :param symbols: a sequence of symbols.
         :param message: optional error message.

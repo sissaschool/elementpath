@@ -11,7 +11,7 @@
 """
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
-from ..xpath_token import ValueToken, XPathMap, XPathArray
+from ..xpath_token import ValueToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
@@ -113,3 +113,43 @@ def select_lookup_operator(self, context=None):
 
         else:
             raise self.error('XPTY0004')
+
+
+@method('=>', bp=67)
+def led_arrow_operator(self, left):
+    next_token = self.parser.next_token
+    if next_token.symbol == '$':
+        self[:] = left, self.parser.expression(80)
+    elif isinstance(next_token, XPathFunction):
+        self[:] = left, next_token
+        self.parser.advance()  # Skip static evaluation of function arguments
+
+    else:
+        raise self.wrong_syntax()
+
+    right = self.parser.expression(67)
+    self.append(right)
+    return self
+
+
+@method('=>')
+def evaluate_arrow_operator(self, context=None):
+    if isinstance(self[1], XPathFunction):
+        func = self[1]
+    else:
+        func = self[1].evaluate(context)
+
+    arguments = []
+    if self[2]:
+        tk = self[2][1]
+        while True:
+            if tk.symbol == ',':
+                arguments.append(tk[1].evaluate(context))
+                tk = tk[0]
+            else:
+                arguments.append(tk.evaluate(context))
+                break
+
+    arguments.append(self[0].evaluate(context))
+    arguments.reverse()
+    return func(context, *arguments)

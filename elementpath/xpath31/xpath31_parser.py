@@ -22,11 +22,7 @@ class XPath31Parser(XPath30Parser):
     version = '3.1'
 
     # TODO list
-    #
     # 'json-to-xml', 'xml-to-json',
-    #
-    # Arrow operator
-    # '=>',
 
     DEFAULT_NAMESPACES = {
         'map': XPATH_MAP_FUNCTIONS_NAMESPACE,

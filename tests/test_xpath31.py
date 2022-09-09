@@ -774,6 +774,17 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         self.wrong_value('["a","b"]?3', 'FOAY0001')
 
+    def test_arrow_operator(self):
+        expression = '"foo" => $f("bar")'
+        self.check_tree(expression, "(=> ('foo') ($ (f)) ('bar'))")
+
+        expression = '"foo" => $f()'
+        self.check_tree(expression, "(=> ('foo') ($ (f)) ())")
+
+        expression = '"foo" => upper-case()'
+        # self.check_tree(expression, "(=> ('foo') (upper-case) ())")
+        self.check_value(expression, 'FOO')
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):
