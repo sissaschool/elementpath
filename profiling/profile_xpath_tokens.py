@@ -12,6 +12,7 @@ from timeit import timeit
 from memory_profiler import profile
 
 from elementpath import XPath1Parser
+from elementpath.xpath_token import ValueToken
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -42,6 +43,37 @@ if __name__ == '__main__':
 
     NUMBER = 30000
 
+    print("*** Profile evaluation ***\n")
+
     run_timeit('t1.evaluate()  # 19 ', 'from __main__ import t1', NUMBER)
     run_timeit('t2.evaluate()  # True ', 'from __main__ import t2', NUMBER)
     run_timeit('t3.evaluate()  # True ', 'from __main__ import t3', NUMBER)
+
+    print()
+    print("*** Profile MutableSequence operations ***\n")
+
+    tk = ValueToken(parser, 1)
+    SETUP = 'from __main__ import tk'
+
+    run_timeit('tk.extend((1, 2, 3))', SETUP, NUMBER)
+    run_timeit('tk._items.extend((1, 2, 3))', SETUP, NUMBER)
+
+    print()
+
+    run_timeit('tk[:] = (1, 2, 3)', SETUP, NUMBER)
+    run_timeit('tk._items[:] = (1, 2, 3)', SETUP, NUMBER)
+
+    print()
+
+    run_timeit('tk.append(1); tk.append(2); tk.append(3)', SETUP, NUMBER)
+    run_timeit('tk._items.append(1); tk._items.append(2); tk._items.append(3)', SETUP, NUMBER)
+
+    print()
+
+    run_timeit('tk.append(1)', SETUP, NUMBER)
+    run_timeit('tk._items.append(1)', SETUP, NUMBER)
+
+    print()
+
+    run_timeit('tk.append(1); tk[0]', SETUP, NUMBER)
+    run_timeit('tk._items.append(1); tk._items[0]', SETUP, NUMBER)
