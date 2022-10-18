@@ -785,6 +785,23 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         # self.check_tree(expression, "(=> ('foo') (upper-case) ())")
         self.check_value(expression, 'FOO')
 
+    def test_xml_to_json_function(self):
+        root = self.etree.XML('<array xmlns="http://www.w3.org/2005/xpath-functions">'
+                              '<number>1</number><string>is</string><boolean>1</boolean>'
+                              '</array>')
+
+        context = XPathContext(root)
+        result = '[1,"is",true]'
+        self.check_value('fn:xml-to-json(.)', result, context=context)
+
+        root = self.etree.XML('<map xmlns="http://www.w3.org/2005/xpath-functions">'
+                              '<number key="Sunday">1</number><number key="Monday">2</number>'
+                              '</map>')
+
+        context = XPathContext(root)
+        result = '{"Sunday":1,"Monday":2}'
+        self.check_value('fn:xml-to-json(.)', result, context=context)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):

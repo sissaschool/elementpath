@@ -19,9 +19,13 @@ from decimal import Decimal
 from itertools import chain, product
 from urllib.request import urlopen
 
-from ..datatypes import AnyAtomicType, DateTime, Timezone
+from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
+    DoubleProxy, DoubleProxy10
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
+from ..etree import etree_iter_strings
+from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
 
@@ -703,3 +707,79 @@ def evaluate_collation_key_function(self, context=None):
         self.get_argument(context, index=1, required=True, cls=str)
 
     raise self.error('FOCH0004')
+
+
+NULL_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}null'
+BOOLEAN_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}boolean'
+NUMBER_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}number'
+STRING_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}string'
+ARRAY_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}array'
+MAP_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}map'
+
+
+@method(function('xml-to-json', label='function', nargs=(1, 2),
+                 sequence_types=('node()?', 'map(*)', 'xs:string?')))
+def evaluate_xml_to_json_function(self, context=None):
+    input_node = self.get_argument(context, cls=XPathNode)
+    if input_node is None:
+        return None
+
+    indent = False
+    if len(self) > 1:
+        options = self.get_argument(context, index=1, required=True, cls=XPathMap)
+        indent = options(context, 'indent')
+        if indent is not None and isinstance(indent, bool):
+            raise self.error('FOJS0005')
+
+    if isinstance(input_node, DocumentNode):
+        root = input_node.value.getroot()
+    elif isinstance(input_node, ElementNode):
+        root = input_node.value
+    else:
+        raise self.error('FOJS0006')
+
+    def elem_to_json(elements):
+        chunks = []
+
+        for child in elements:
+            if callable(child.tag):
+                continue
+
+            if child.tag == NULL_TAG:
+                chunks.append('null')
+
+            elif child.tag == BOOLEAN_TAG:
+                if BooleanProxy(''.join(etree_iter_strings(child))):
+                    chunks.append('true')
+                else:
+                    chunks.append('false')
+
+            elif child.tag == NUMBER_TAG:
+                value = ''.join(etree_iter_strings(child))
+                try:
+                    if self.parser.xsd_version == '1.0':
+                        number = DoubleProxy10(value)
+                    else:
+                        number = DoubleProxy(value)
+                except ValueError:
+                    chunks.append('nan')
+                else:
+                    chunks.append(str(number).rstrip('0').rstrip('.'))
+
+            elif child.tag == STRING_TAG:
+                value = ''.join(etree_iter_strings(child))
+                chunks.append(f'"{value}"')
+
+            elif child.tag == ARRAY_TAG:
+                chunks.append(f'[{elem_to_json(child)}]')
+
+            elif child.tag == MAP_TAG:
+                map_chunks = []
+                for e in child:
+                    key = e.get('key')
+                    map_chunks.append(f'"{key}":{elem_to_json((e,))}')
+                chunks.append('{%s}' % ','.join(map_chunks))
+
+        return ','.join(chunks)
+
+    return elem_to_json((root,))
