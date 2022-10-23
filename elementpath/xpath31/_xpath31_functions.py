@@ -14,6 +14,7 @@ XPath 3.1 implementation - part 3 (functions)
 import json
 import random
 import re
+import xml.etree.ElementTree as ElementTree
 from datetime import datetime
 from decimal import Decimal
 from itertools import chain, product
@@ -24,7 +25,7 @@ from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
-from ..etree import etree_iter_strings
+from ..etree import etree_iter_strings, is_etree_element
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
@@ -768,6 +769,9 @@ def evaluate_xml_to_json_function(self, context=None):
 
             elif child.tag == STRING_TAG:
                 value = ''.join(etree_iter_strings(child))
+                if child.get('escaped') == 'true':
+                    value = json.dumps(value)
+
                 chunks.append(f'"{value}"')
 
             elif child.tag == ARRAY_TAG:
@@ -777,9 +781,120 @@ def evaluate_xml_to_json_function(self, context=None):
                 map_chunks = []
                 for e in child:
                     key = e.get('key')
+                    if child.get('escaped-key') == 'true':
+                        key = json.dumps(key, ensure_ascii=True)
+
                     map_chunks.append(f'"{key}":{elem_to_json((e,))}')
                 chunks.append('{%s}' % ','.join(map_chunks))
 
         return ','.join(chunks)
 
     return elem_to_json((root,))
+
+
+@method(function('json-to-xml', label='function', nargs=(1, 2),
+                 sequence_types=('xs:string?', 'map(*)', 'document-node()?')))
+def evaluate_json_to_xml_function(self, context=None):
+    json_text = self.get_argument(context, cls=str)
+    if json_text is None:
+        return None
+
+    liberal = False
+    validate = False
+    duplicates = None
+    escape = False
+
+    def fallback(*args):
+        return '&#xFFFD;'
+
+    if len(self) > 1:
+        options = self.get_argument(context, index=1, required=True, cls=XPathMap)
+
+        for key, value in options.items(context):
+            if key == 'liberal':
+                if not isinstance(value, bool):
+                    raise self.error('FOJS0005')
+                liberal = value
+
+            elif key == 'duplicates':
+                if not isinstance(value, str) or \
+                        value not in ('reject', 'retain', 'use-first'):
+                    raise self.error('FOJS0005')
+                duplicates = value
+
+            elif key == 'validate':
+                if not isinstance(value, bool):
+                    raise self.error('FOJS0005')
+                validate = value
+
+            elif key == 'escape':
+                if not isinstance(value, bool):
+                    raise self.error('FOJS0005')
+                escape = value
+
+            elif key == 'fallback':
+                if not isinstance(value, XPathFunction):
+                    raise self.error('FOJS0005')
+                # fallback = v  TODO
+
+            else:
+                raise self.error('FOJS0005')
+
+        if duplicates is None:
+            duplicates = 'reject' if validate else 'retain'
+
+    def value_to_etree(v, **attrib):
+        if v is None:
+            elem = ElementTree.Element(NULL_TAG, **attrib)
+        elif isinstance(v, list):
+            elem = ElementTree.Element(ARRAY_TAG, **attrib)
+            for item in v:
+                elem.append(value_to_etree(item))
+        elif isinstance(v, bool):
+            elem = ElementTree.Element(BOOLEAN_TAG, **attrib)
+            elem.text = 'true' if v else 'false'
+        elif isinstance(v, (int, float)):
+            elem = ElementTree.Element(NUMBER_TAG, **attrib)
+            elem.text = str(v)
+        elif isinstance(v, str):
+            if escape and '\\' in v:
+                elem = ElementTree.Element(STRING_TAG, escaped='true', **attrib)
+            else:
+                elem = ElementTree.Element(STRING_TAG, **attrib)
+            elem.text = v
+
+        return elem
+
+    def json_object_to_etree(obj):
+        items = {}
+        for k, v in obj:
+            if k in items:
+                if duplicates == 'use-first':
+                    continue
+                elif duplicates == 'reject':
+                    raise self.error('FOJS0003')
+
+            if escape and '\\' in k:
+                attrib = {'escaped-key': 'true', 'key': k}
+            else:
+                attrib = {'key': k}
+
+            items[k] = value_to_etree(v, **attrib)
+
+        elem = ElementTree.Element(MAP_TAG)
+        elem[:] = list(items.values())
+        return elem
+
+    kwargs = {'object_pairs_hook': json_object_to_etree}
+    if liberal or escape:
+        kwargs['strict'] = False
+    if liberal:
+        def parse_constant(s):
+            raise self.error('FOJS0001')
+
+        kwargs['parse_constant'] = parse_constant
+
+    result = json.JSONDecoder(**kwargs).decode(json_text)
+    if is_etree_element(result):
+        return result
+    return value_to_etree(result)
