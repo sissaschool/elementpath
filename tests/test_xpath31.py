@@ -36,9 +36,10 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import XPathContext
-from elementpath.etree import etree_deep_equal, is_etree_element
+from elementpath.etree import etree_deep_equal, is_etree_element, is_etree_document
 from elementpath.datatypes import DateTime
 from elementpath.exceptions import ElementPathLocaleError
+from elementpath.xpath_nodes import DocumentNode
 from elementpath.xpath3 import XPath31Parser
 from elementpath.xpath_token import XPathMap, XPathArray
 
@@ -805,6 +806,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('fn:xml-to-json(.)', result, context=context)
 
     def test_json_to_xml_function(self):
+        context = XPathContext(root=self.etree.XML('<empty/>'))
         root = self.etree.XML(dedent("""\
             <map xmlns="http://www.w3.org/2005/xpath-functions">
               <number key="x">1</number>
@@ -816,17 +818,17 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             </map>"""))
 
         token = self.parser.parse('json-to-xml(\'{"x": 1, "y": [3,4,5]}\')')
-        result = token.evaluate()
-        self.assertTrue(is_etree_element(result))
-        self.assertTrue(etree_deep_equal(result, root))
+        result = token.evaluate(context)
+        self.assertIsInstance(result, DocumentNode)
+        self.assertTrue(etree_deep_equal(result.value.getroot(), root))
 
         root = self.etree.XML(dedent("""\
              <string xmlns="http://www.w3.org/2005/xpath-functions">abcd</string>"""))
 
         token = self.parser.parse('json-to-xml(\'"abcd"\', map{\'liberal\': false()})')
-        result = token.evaluate()
-        self.assertTrue(is_etree_element(result))
-        self.assertTrue(etree_deep_equal(result, root))
+        result = token.evaluate(context)
+        self.assertIsInstance(result, DocumentNode)
+        self.assertTrue(etree_deep_equal(result.value.getroot(), root))
 
         root = self.etree.XML(dedent("""\
             <map xmlns="http://www.w3.org/2005/xpath-functions">
@@ -835,9 +837,9 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             </map>"""))
 
         token = self.parser.parse('json-to-xml(\'{"x": "\\\\", "y": "\\u0025"}\')')
-        result = token.evaluate()
-        self.assertTrue(is_etree_element(result))
-        self.assertTrue(etree_deep_equal(result, root))
+        result = token.evaluate(context)
+        self.assertIsInstance(result, DocumentNode)
+        self.assertTrue(etree_deep_equal(result.value.getroot(), root))
 
         root = self.etree.XML(dedent("""\
             <map xmlns="http://www.w3.org/2005/xpath-functions">
@@ -847,9 +849,9 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         token = self.parser.parse('json-to-xml(\'{"x": "\\\\", "y": "\\u0025"}\', '
                                   'map{\'escape\': true()})')
-        result = token.evaluate()
-        self.assertTrue(is_etree_element(result))
-        self.assertTrue(etree_deep_equal(result, root))
+        result = token.evaluate(context)
+        self.assertIsInstance(result, DocumentNode)
+        self.assertTrue(etree_deep_equal(result.value.getroot(), root))
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

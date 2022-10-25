@@ -796,6 +796,10 @@ def select_schema_element_kind_test(self, context=None):
         raise self.missing_context()
 
     element_name = self[0].source
+
+    if self.parser.schema is None:
+        raise self.error('XPST0001')
+
     for _ in context.iter_children_or_self():
         qname = get_expanded_name(element_name, self.parser.namespaces)
         if self.parser.schema.get_element(qname) is None \
@@ -814,7 +818,7 @@ def select_schema_element_kind_test(self, context=None):
 @method('schema-element')
 def nud_schema_node_kind_test(self):
     self.parser.advance('(')
-    self.parser.expected_name('(name)', ':', message='a QName expected')
+    self.parser.expected_name('(name)', ':', 'Q{', message='a QName expected')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
     self.value = None
