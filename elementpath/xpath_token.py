@@ -157,7 +157,7 @@ class XPathToken(Token[XPathTokenType]):
             return '%s, %s' % (self[0].source, self[1].source)
         elif symbol == '$' or symbol == '@':
             return f'{symbol}{self[0].source}'
-        elif symbol == '{':
+        elif symbol == '{' or symbol == 'Q{':
             return '{%s}%s' % (self[0].value, self[1].value)
         elif symbol == 'if':
             return 'if (%s) then %s else %s' % (self[0].source, self[1].source, self[2].source)
