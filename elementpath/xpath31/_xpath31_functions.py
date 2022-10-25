@@ -14,7 +14,6 @@ XPath 3.1 implementation - part 3 (functions)
 import json
 import random
 import re
-import xml.etree.ElementTree as ElementTree
 from datetime import datetime
 from decimal import Decimal
 from itertools import chain, product
@@ -26,6 +25,7 @@ from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
 from ..etree import etree_iter_strings, is_etree_element
+from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
 from ._xpath31_operators import XPath31Parser
@@ -798,6 +798,10 @@ def evaluate_json_to_xml_function(self, context=None):
     json_text = self.get_argument(context, cls=str)
     if json_text is None:
         return None
+    elif context is None:
+        raise self.missing_context()
+
+    etree = context.etree
 
     liberal = False
     validate = False
@@ -813,28 +817,29 @@ def evaluate_json_to_xml_function(self, context=None):
         for key, value in options.items(context):
             if key == 'liberal':
                 if not isinstance(value, bool):
-                    raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
                 liberal = value
 
             elif key == 'duplicates':
-                if not isinstance(value, str) or \
-                        value not in ('reject', 'retain', 'use-first'):
+                if not isinstance(value, str):
+                    raise self.error('XPTY0004')
+                elif value not in ('reject', 'retain', 'use-first'):
                     raise self.error('FOJS0005')
                 duplicates = value
 
             elif key == 'validate':
                 if not isinstance(value, bool):
-                    raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
                 validate = value
 
             elif key == 'escape':
                 if not isinstance(value, bool):
-                    raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
                 escape = value
 
             elif key == 'fallback':
                 if not isinstance(value, XPathFunction):
-                    raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
                 # fallback = v  TODO
 
             else:
@@ -842,26 +847,30 @@ def evaluate_json_to_xml_function(self, context=None):
 
         if duplicates is None:
             duplicates = 'reject' if validate else 'retain'
+        elif validate and duplicates == 'retain':
+            raise self.error('FOJS0005')
 
     def value_to_etree(v, **attrib):
         if v is None:
-            elem = ElementTree.Element(NULL_TAG, **attrib)
+            elem = etree.Element(NULL_TAG, **attrib)
         elif isinstance(v, list):
-            elem = ElementTree.Element(ARRAY_TAG, **attrib)
+            elem = etree.Element(ARRAY_TAG, **attrib)
             for item in v:
                 elem.append(value_to_etree(item))
         elif isinstance(v, bool):
-            elem = ElementTree.Element(BOOLEAN_TAG, **attrib)
+            elem = etree.Element(BOOLEAN_TAG, **attrib)
             elem.text = 'true' if v else 'false'
         elif isinstance(v, (int, float)):
-            elem = ElementTree.Element(NUMBER_TAG, **attrib)
+            elem = etree.Element(NUMBER_TAG, **attrib)
             elem.text = str(v)
         elif isinstance(v, str):
             if escape and '\\' in v:
-                elem = ElementTree.Element(STRING_TAG, escaped='true', **attrib)
+                elem = etree.Element(STRING_TAG, escaped='true', **attrib)
             else:
-                elem = ElementTree.Element(STRING_TAG, **attrib)
+                elem = etree.Element(STRING_TAG, **attrib)
             elem.text = v
+        elif is_etree_element(v):
+            return v
 
         return elem
 
@@ -881,8 +890,9 @@ def evaluate_json_to_xml_function(self, context=None):
 
             items[k] = value_to_etree(v, **attrib)
 
-        elem = ElementTree.Element(MAP_TAG)
-        elem[:] = list(items.values())
+        elem = etree.Element(MAP_TAG)
+        for item in items.values():
+            elem.append(item)
         return elem
 
     kwargs = {'object_pairs_hook': json_object_to_etree}
@@ -894,7 +904,14 @@ def evaluate_json_to_xml_function(self, context=None):
 
         kwargs['parse_constant'] = parse_constant
 
-    result = json.JSONDecoder(**kwargs).decode(json_text)
+    try:
+        result = json.JSONDecoder(**kwargs).decode(json_text)
+    except json.JSONDecodeError as err:
+        raise self.error('FOJS0001', str(err)) from None
+
     if is_etree_element(result):
-        return result
-    return value_to_etree(result)
+        document = etree.ElementTree(result)
+    else:
+        document = etree.ElementTree(value_to_etree(result))
+
+    return get_node_tree(document, namespaces={'': XPATH_FUNCTIONS_NAMESPACE})

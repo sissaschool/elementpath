@@ -215,9 +215,6 @@ QT3_NAMESPACE = "http://www.w3.org/2010/09/qt-fots-catalog"
 
 namespaces = {'': QT3_NAMESPACE}
 
-INVALID_BASE_URL = 'http://www.w3.org/fots/unparsed-text/'
-effective_base_url = None
-
 
 @contextlib.contextmanager
 def working_directory(dirpath):
@@ -309,7 +306,7 @@ class Schema(object):
 
 
 class Source(object):
-    """Represents a source file as used in XML environment settings."""
+    """Represents an XML source file as used in environment settings."""
 
     namespaces = None
 
@@ -366,6 +363,18 @@ class Source(object):
 
     def __repr__(self):
         return '%s(file=%r)' % (self.__class__.__name__, self.file)
+
+
+class Resource(object):
+    """Represents a remote resource used in environment settings."""
+
+    def __init__(self, elem, use_lxml=False):
+        assert elem.tag == '{%s}resource' % QT3_NAMESPACE
+        self.uri = elem.attrib['uri']
+        self.file = elem.attrib['file']
+        self.file_uri = f'file://{os.getcwd()}/{self.file}'
+        self.media_type = elem.get('media-type')
+        self.encoding = elem.get('encoding')
 
 
 class Collection(object):
@@ -434,6 +443,11 @@ class Environment(object):
             source = Source(child, use_lxml)
             self.sources[source.key] = source
 
+        self.resources = {}
+        for child in elem.iterfind('resource', namespaces):
+            resource = Resource(child, use_lxml)
+            self.resources[resource.uri] = resource
+
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.name)
 
@@ -452,6 +466,16 @@ class Environment(object):
         return '<environment name="{}">\n   {}\n</environment>'.format(
             self.name, '\n   '.join(children)
         )
+
+    def get_namespaces(self):
+        namespaces_ = self.namespaces.copy()
+        for source in self.sources.values():
+            if source.namespaces:
+                for pfx, uri in source.namespaces.items():
+                    if pfx not in namespaces_:
+                        namespaces_[pfx] = uri
+
+        return namespaces_
 
 
 class TestSet(object):
@@ -537,6 +561,7 @@ class TestCase(object):
 
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
+        breakpoint()
         self.test = elem.find('test', namespaces).text
 
         result_child = elem.find('result', namespaces).find("*")
@@ -630,13 +655,7 @@ class TestCase(object):
         if environment is None:
             test_namespaces = static_base_uri = schema_proxy = None
         else:
-            test_namespaces = environment.namespaces.copy()
-            for source in environment.sources.values():
-                if source.namespaces:
-                    for pfx, uri in source.namespaces.items():
-                        if pfx not in test_namespaces:
-                            test_namespaces[pfx] = uri
-
+            test_namespaces = environment.get_namespaces()
             static_base_uri = environment.static_base_uri
 
             if environment.schema is None or not environment.schema.filepath:
@@ -657,8 +676,10 @@ class TestCase(object):
                 if os.path.isdir(base_uri):
                     static_base_uri = f'{pathlib.Path(base_uri).as_uri()}/'
 
-        elif static_base_uri.startswith(INVALID_BASE_URL):
-            static_base_uri = static_base_uri.replace(INVALID_BASE_URL, effective_base_url)
+        elif environment and static_base_uri in environment.resources:
+            static_base_uri = environment.resources[static_base_uri].file_uri
+        elif static_base_uri == 'http://www.w3.org/fots/unparsed-text/':
+            static_base_uri = f'file://{os.getcwd()}/fn/unparsed-text/'
 
         kwargs = dict(
             namespaces=test_namespaces,
@@ -673,10 +694,14 @@ class TestCase(object):
 
         parser = xpath_parser(**kwargs)
 
-        if self.test is not None:
-            xpath_expression = self.test.replace(INVALID_BASE_URL, effective_base_url)
-        else:
+        if self.test is None:
             xpath_expression = None
+        else:
+            xpath_expression = self.test
+            if environment:
+                for uri, resource in environment.resources.items():
+                    if uri in xpath_expression:
+                        xpath_expression = xpath_expression.replace(uri, resource.file_uri)
 
         try:
             root_node = parser.parse(xpath_expression)  # static evaluation
@@ -1075,7 +1100,16 @@ class Result(object):
             return False
 
         variables = {'result': result}
-        parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
+
+        environment = self.test_case.get_environment()
+        if environment is None:
+            parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
+        else:
+            parser = XPath31Parser(
+                namespaces=environment.get_namespaces(),
+                xsd_version=self.test_case.xsd_version
+            )
+
         root_node = parser.parse(self.value)
         context = XPathContext(root=self.etree.XML("<empty/>"), variables=variables)
         if root_node.boolean_value(root_node.evaluate(context)) is True:
@@ -1348,9 +1382,6 @@ def main():
 
     with working_directory(dirpath=os.path.dirname(catalog_file)):
         catalog_xml = etree.parse(catalog_file)
-
-        global effective_base_url
-        effective_base_url = 'file://{}/fn/unparsed-text/'.format(os.getcwd())
 
         environments = {}
         for child in catalog_xml.getroot().iterfind("environment", namespaces):
