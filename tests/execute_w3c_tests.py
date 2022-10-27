@@ -22,11 +22,11 @@ import re
 import json
 import math
 import os
-import pathlib
 import sys
 import traceback
 
 from collections import OrderedDict
+from pathlib import Path
 from urllib.parse import urlsplit
 from xml.etree import ElementTree
 import lxml.etree
@@ -36,7 +36,7 @@ import xmlschema
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode, \
     CommentNode, ProcessingInstructionNode, get_node_tree
-from elementpath.namespaces import get_expanded_name
+from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, get_expanded_name
 from elementpath.xpath_token import XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AnyAtomicType
 from elementpath.xpath31 import XPath31Parser
@@ -206,6 +206,12 @@ LXML_ONLY = {
     'fn-parse-xml__parse-xml-010',
 }
 
+USE_SCHEMA_FOR_JSON = {
+    'fn-json-to-xml__json-to-xml-017',
+    'fn-json-to-xml__json-to-xml-037',
+    'fn-json-to-xml__json-to-xml-038',
+}
+
 xpath_parser = XPath2Parser
 
 ignore_specs = {'XQ10', 'XQ10+', 'XP30', 'XP30+', 'XQ30', 'XQ30+',
@@ -316,7 +322,7 @@ class Source(object):
         self.role = elem.attrib.get('role', '')
         self.uri = elem.attrib.get('uri', self.file)
         if not urlsplit(self.uri).scheme:
-            self.uri = pathlib.Path(self.uri).absolute().as_uri()
+            self.uri = Path(self.uri).absolute().as_uri()
 
         self.key = self.role or self.file
 
@@ -561,7 +567,6 @@ class TestCase(object):
 
         self.name = test_set.name + "__" + elem.attrib['name']
         self.description = elem.find('description', namespaces).text
-        breakpoint()
         self.test = elem.find('test', namespaces).text
 
         result_child = elem.find('result', namespaces).find("*")
@@ -659,7 +664,12 @@ class TestCase(object):
             static_base_uri = environment.static_base_uri
 
             if environment.schema is None or not environment.schema.filepath:
-                schema_proxy = None
+                if self.name in USE_SCHEMA_FOR_JSON:
+                    xsd_path = Path(__file__).parent.joinpath('resources/schema-for-json.xsd')
+                    schema = xmlschema.XMLSchema(xsd_path)
+                    schema_proxy = schema.xpath_proxy
+                else:
+                    schema_proxy = None
             else:
                 if verbose > 2:
                     print("Schema %r required for test %r" % (environment.schema.file, self.name))
@@ -674,7 +684,7 @@ class TestCase(object):
             else:
                 base_uri = os.path.dirname(os.path.abspath(self.test_set_file))
                 if os.path.isdir(base_uri):
-                    static_base_uri = f'{pathlib.Path(base_uri).as_uri()}/'
+                    static_base_uri = f'{Path(base_uri).as_uri()}/'
 
         elif environment and static_base_uri in environment.resources:
             static_base_uri = environment.resources[static_base_uri].file_uri
@@ -809,7 +819,6 @@ class Result(object):
     :param test_case: the test-case that the result validator belongs to.
     """
     # Validation helper tokens
-    parser = xpath_parser()
     string_token = XPath31Parser().parse('fn:string($result)')
     string_join_token = XPath31Parser().parse('fn:string-join($result, " ")')
 
@@ -943,20 +952,20 @@ class Result(object):
         if isinstance(result, list) and len(result) == 1:
             result = result[0]
 
+        parser = xpath_parser(namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})
         if self.value == 'function(*)':
             type_check = isinstance(result, XPathFunction)
         elif self.value == 'array(*)':
             type_check = isinstance(result, XPathArray)
         elif self.value == 'map(*)':
             type_check = isinstance(result, XPathMap)
-        elif not self.parser.is_sequence_type(self.value):
+        elif not parser.is_sequence_type(self.value):
             msg = " test-case {}: {!r} is not a valid sequence type"
-            self.parser.is_sequence_type(self.value)
             print(msg.format(self.test_case.name, self.value))
             type_check = False
         else:
             context_result = get_context_result(result)
-            type_check = self.parser.match_sequence_type(context_result, self.value)
+            type_check = parser.match_sequence_type(context_result, self.value)
 
         if not type_check:
             self.report_failure(
@@ -1164,7 +1173,7 @@ class Result(object):
         if not isinstance(result, list):
             result = [result]
 
-        expected = self.parser.parse(self.value).evaluate()
+        expected = xpath_parser().parse(self.value).evaluate()
         if not isinstance(expected, list):
             expected = [expected]
 
@@ -1242,7 +1251,7 @@ class Result(object):
                 for prefix, uri in environment.namespaces.items():
                     ElementTree.register_namespace(prefix, uri)
             else:
-                for prefix, uri in self.parser.namespaces.items():
+                for prefix, uri in xpath_parser.DEFAULT_NAMESPACES.items():
                     ElementTree.register_namespace(prefix, uri)
 
         if self.value is not None:

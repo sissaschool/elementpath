@@ -28,6 +28,7 @@ from ..etree import etree_iter_strings, is_etree_element
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
+from ..xpath_context import XPathSchemaContext
 from ._xpath31_operators import XPath31Parser
 
 method = XPath31Parser.method
@@ -796,7 +797,7 @@ def evaluate_xml_to_json_function(self, context=None):
                  sequence_types=('xs:string?', 'map(*)', 'document-node()?')))
 def evaluate_json_to_xml_function(self, context=None):
     json_text = self.get_argument(context, cls=str)
-    if json_text is None:
+    if json_text is None or isinstance(context, XPathSchemaContext):
         return None
     elif context is None:
         raise self.missing_context()
@@ -914,4 +915,4 @@ def evaluate_json_to_xml_function(self, context=None):
     else:
         document = etree.ElementTree(value_to_etree(result))
 
-    return get_node_tree(document, namespaces={'': XPATH_FUNCTIONS_NAMESPACE})
+    return get_node_tree(document, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})

@@ -20,7 +20,7 @@ from ..exceptions import ElementPathError, ElementPathTypeError
 from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
     node_position
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
-    get_namespace, get_expanded_name
+    XSD_UNTYPED, get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
@@ -278,6 +278,10 @@ def evaluate_instance_expression(self, context=None):
     elif self[1].label in ('kind test', 'sequence type', 'function test'):
         if context is None:
             raise self.missing_context()
+
+        context = copy(context)
+        if context.axis is None:
+            context.axis = 'self'
 
         for position, context.item in enumerate(self[0].select(context)):
             result = self[1].evaluate(context)
@@ -708,7 +712,8 @@ def select_document_node_kind_test(self, context=None):
                     yield context.root
     else:
         elements = [e for e in self[0].select(copy(context)) if isinstance(e, ElementNode)]
-        if isinstance(context.root, DocumentNode) and context.item is None:
+        if isinstance(context.root, DocumentNode) and context.item is None \
+                or isinstance(context.item, DocumentNode):
             if len(elements) == 1:
                 yield context.root
 
@@ -748,7 +753,10 @@ def select_element_kind_test(self, context=None):
                 if item.nilled:
                     if type_annotation[-1] in '*?':
                         yield item
-                elif item.xsd_type is not None and type_annotation == item.xsd_type.name:
+                elif item.xsd_type is None:
+                    if type_annotation == XSD_UNTYPED:
+                        yield item
+                elif type_annotation == item.xsd_type.name:
                     yield item
 
 
@@ -797,18 +805,16 @@ def select_schema_element_kind_test(self, context=None):
 
     element_name = self[0].source
 
-    if self.parser.schema is None:
-        raise self.error('XPST0001')
+    if self.parser.schema is not None:
+        for _ in context.iter_children_or_self():
+            qname = get_expanded_name(element_name, self.parser.namespaces)
+            if self.parser.schema.get_element(qname) is None \
+                    and self.parser.schema.get_substitution_group(qname) is None:
+                raise self.missing_name("element %r not found in schema" % element_name)
 
-    for _ in context.iter_children_or_self():
-        qname = get_expanded_name(element_name, self.parser.namespaces)
-        if self.parser.schema.get_element(qname) is None \
-                and self.parser.schema.get_substitution_group(qname) is None:
-            raise self.missing_name("element %r not found in schema" % element_name)
-
-        if isinstance(context.item, ElementNode) and context.item.elem.tag == qname:
-            yield context.item
-            return
+            if isinstance(context.item, ElementNode) and context.item.elem.tag == qname:
+                yield context.item
+                return
 
     if not isinstance(context, XPathSchemaContext):
         raise self.error('XPST0008', 'schema element %r not found' % element_name)
@@ -896,7 +902,10 @@ def select_attribute_kind_test_or_axis(self, context=None):
                     yield attribute.value
                 else:
                     xsd_type = self.get_xsd_type(attribute)
-                    if xsd_type is not None and xsd_type.name == type_name:
+                    if xsd_type is None:
+                        if type_name == XSD_UNTYPED:
+                            yield attribute.value
+                    elif xsd_type.name == type_name:
                         yield attribute.value
 
 

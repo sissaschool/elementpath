@@ -17,7 +17,9 @@ setup(
     name='elementpath',
     version='3.1.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
-    include_package_data=True,
+    package_data={
+        'elementpath.validators': ['analyze-string.xsd', 'schema-for-json.xsd'],
+    },
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/sissaschool/elementpath',
