@@ -220,8 +220,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(result, '  alpha\t')
 
         token = parser.parse('$z')
-        with self.assertRaises(NameError):
-            token.evaluate(context)
+        self.assertIsNone(token.evaluate(context))
 
     def test_not_applicable_functions(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")

@@ -23,7 +23,7 @@ from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
-from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
@@ -799,10 +799,10 @@ def evaluate_json_to_xml_function(self, context=None):
     json_text = self.get_argument(context, cls=str)
     if json_text is None or isinstance(context, XPathSchemaContext):
         return None
-    elif context is None:
+    elif context is not None:
+        etree = context.etree
+    else:
         raise self.missing_context()
-
-    etree = context.etree
 
     liberal = False
     validate = False
@@ -810,13 +810,13 @@ def evaluate_json_to_xml_function(self, context=None):
     escape = False
 
     def escape_json_string(s):
-        return s.replace('\b', r'\b').\
+        s = s.replace('\b', r'\b').\
             replace('\r', r'\r').\
             replace('\n', r'\n').\
             replace('\t', r'\t').\
             replace('\f', r'\f').\
-            replace('/', r'\/').\
-            encode('ascii', 'backslashreplace').decode('utf-8')
+            replace('/', r'\/')
+        return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
 
     def fallback(*args):
         return '&#xFFFD;'
@@ -850,7 +850,7 @@ def evaluate_json_to_xml_function(self, context=None):
             elif key == 'fallback':
                 if not isinstance(value, XPathFunction):
                     raise self.error('XPTY0004')
-                # fallback = v  TODO
+                fallback = value
 
             else:
                 raise self.error('FOJS0005')
@@ -874,18 +874,23 @@ def evaluate_json_to_xml_function(self, context=None):
             elem = etree.Element(NUMBER_TAG, **attrib)
             elem.text = str(v)
         elif isinstance(v, str):
-            v = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in v)
-            elem = etree.Element(STRING_TAG, **attrib)
-            if escape:
+            if not escape:
+                v = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in v)
+                elem = etree.Element(STRING_TAG, **attrib)
+            else:
                 v = escape_json_string(v)
                 if '\\' in v:
                     elem = etree.Element(STRING_TAG, escaped='true', **attrib)
+                else:
+                    elem = etree.Element(STRING_TAG, **attrib)
 
             elem.text = v
 
         elif is_etree_element(v):
             v.attrib.update(attrib)
             return v
+        else:
+            raise ElementPathTypeError(f'unexpected type {type(v)}')
 
         return elem
 
@@ -900,12 +905,16 @@ def evaluate_json_to_xml_function(self, context=None):
             elif duplicates == 'reject':
                 raise self.error('FOJS0003')
 
-            k = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in k)
-            attrib = {'key': k}
-            if escape:
+            if not escape:
+                k = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in k)
+                k = k.replace('"', '&#34;')
+                attrib = {'key': k}
+            else:
                 k = escape_json_string(k)
                 if '\\' in k:
                     attrib = {'escaped-key': 'true', 'key': k}
+                else:
+                    attrib = {'key': k}
 
             items.append(value_to_etree(v, **attrib))
 
@@ -936,6 +945,10 @@ def evaluate_json_to_xml_function(self, context=None):
         document = etree.ElementTree(result)
     else:
         document = etree.ElementTree(value_to_etree(result))
+
+    root = document.getroot()
+    if XML_BASE not in root.attrib and self.parser.base_uri:
+        root.set(XML_BASE, self.parser.base_uri)
 
     if validate:
         try:

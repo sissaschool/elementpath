@@ -70,7 +70,7 @@ def evaluate_variable_reference(self, context=None):
             try:
                 sequence_type = self.parser.variable_types[varname].strip()
             except KeyError:
-                pass
+                return None
             else:
                 if sequence_type[-1] in OCCURRENCE_INDICATORS:
                     sequence_type = sequence_type[:-1]

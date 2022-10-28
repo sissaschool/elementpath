@@ -208,6 +208,7 @@ LXML_ONLY = {
 }
 
 USE_SCHEMA_FOR_JSON = {
+    'fn-json-to-xml__json-to-xml-016',
     'fn-json-to-xml__json-to-xml-017',
     'fn-json-to-xml__json-to-xml-037',
     'fn-json-to-xml__json-to-xml-038',
@@ -568,6 +569,7 @@ class TestCase(object):
     :param use_lxml: use lxml.etree for loading environment XML sources.
     """
     # Single value dependencies
+    parser = None
     calendar = None
     default_language = None
     format_integer_sequence = None
@@ -721,7 +723,7 @@ class TestCase(object):
             kwargs['decimal_formats'] = environment.decimal_formats
             kwargs['defuse_xml'] = False
 
-        parser = xpath_parser(**kwargs)
+        self.parser = xpath_parser(**kwargs)
 
         if self.test is None:
             xpath_expression = None
@@ -733,7 +735,7 @@ class TestCase(object):
                         xpath_expression = xpath_expression.replace(uri, resource.file_uri)
 
         try:
-            root_node = parser.parse(xpath_expression)  # static evaluation
+            root_node = self.parser.parse(xpath_expression)  # static evaluation
         except Exception as err:
             if isinstance(err, ElementPathError):
                 raise
@@ -1141,7 +1143,7 @@ class Result(object):
                 xsd_version=self.test_case.xsd_version
             )
 
-        root_node = parser.parse(self.value)
+        root_node = self.test_case.parser.parse(self.value)
         context = XPathContext(root=self.etree.XML("<empty/>"), variables=variables)
         if root_node.boolean_value(root_node.evaluate(context)) is True:
             return True
@@ -1307,9 +1309,6 @@ class Result(object):
                 root = result
 
             xml_str = tostring(root).decode('utf-8').strip()
-
-        xml_str = html.unescape(xml_str)
-        expected = html.unescape(expected)
 
         # Remove character data from result if expected result is serialized
         if '\n' not in expected:
