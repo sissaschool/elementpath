@@ -22,7 +22,7 @@ from urllib.request import urlopen
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10
 from ..exceptions import ElementPathTypeError
-from ..helpers import WHITESPACES_PATTERN
+from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
 from ..etree import etree_iter_strings, is_etree_element
 from ..tree_builders import get_node_tree
@@ -809,6 +809,15 @@ def evaluate_json_to_xml_function(self, context=None):
     duplicates = None
     escape = False
 
+    def escape_json_string(s):
+        return s.replace('\b', r'\b').\
+            replace('\r', r'\r').\
+            replace('\n', r'\n').\
+            replace('\t', r'\t').\
+            replace('\f', r'\f').\
+            replace('/', r'\/').\
+            encode('ascii', 'backslashreplace').decode('utf-8')
+
     def fallback(*args):
         return '&#xFFFD;'
 
@@ -865,34 +874,43 @@ def evaluate_json_to_xml_function(self, context=None):
             elem = etree.Element(NUMBER_TAG, **attrib)
             elem.text = str(v)
         elif isinstance(v, str):
-            if escape and '\\' in v:
-                elem = etree.Element(STRING_TAG, escaped='true', **attrib)
-            else:
-                elem = etree.Element(STRING_TAG, **attrib)
+            v = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in v)
+            elem = etree.Element(STRING_TAG, **attrib)
+            if escape:
+                v = escape_json_string(v)
+                if '\\' in v:
+                    elem = etree.Element(STRING_TAG, escaped='true', **attrib)
+
             elem.text = v
+
         elif is_etree_element(v):
+            v.attrib.update(attrib)
             return v
 
         return elem
 
     def json_object_to_etree(obj):
-        items = {}
+        keys = set()
+        items = []
         for k, v in obj:
-            if k in items:
-                if duplicates == 'use-first':
-                    continue
-                elif duplicates == 'reject':
-                    raise self.error('FOJS0003')
+            if k not in keys:
+                keys.add(k)
+            elif duplicates == 'use-first':
+                continue
+            elif duplicates == 'reject':
+                raise self.error('FOJS0003')
 
-            if escape and '\\' in k:
-                attrib = {'escaped-key': 'true', 'key': k}
-            else:
-                attrib = {'key': k}
+            k = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in k)
+            attrib = {'key': k}
+            if escape:
+                k = escape_json_string(k)
+                if '\\' in k:
+                    attrib = {'escaped-key': 'true', 'key': k}
 
-            items[k] = value_to_etree(v, **attrib)
+            items.append(value_to_etree(v, **attrib))
 
         elem = etree.Element(MAP_TAG)
-        for item in items.values():
+        for item in items:
             elem.append(item)
         return elem
 
@@ -906,7 +924,11 @@ def evaluate_json_to_xml_function(self, context=None):
         kwargs['parse_constant'] = parse_constant
 
     try:
-        result = json.JSONDecoder(**kwargs).decode(json_text)
+        if json_text.startswith('\uFEFF'):
+            # Exclude BOM character
+            result = json.JSONDecoder(**kwargs).decode(json_text[1:])
+        else:
+            result = json.JSONDecoder(**kwargs).decode(json_text)
     except json.JSONDecodeError as err:
         raise self.error('FOJS0001', str(err)) from None
 
@@ -914,5 +936,13 @@ def evaluate_json_to_xml_function(self, context=None):
         document = etree.ElementTree(result)
     else:
         document = etree.ElementTree(value_to_etree(result))
+
+    if validate:
+        try:
+            from ..validators import validate_json_to_xml
+        except ImportError:
+            raise self.error('FOJS0004')
+        else:
+            validate_json_to_xml(document.getroot())
 
     return get_node_tree(document, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})

@@ -14,6 +14,7 @@ import pathlib
 from typing import Optional
 
 import xmlschema
+from ..namespaces import XPATH_FUNCTIONS_NAMESPACE
 
 analyzed_string_schema: Optional[xmlschema.XMLSchemaBase] = None
 json_to_xml_schema: Optional[xmlschema.XMLSchemaBase] = None
@@ -38,4 +39,4 @@ def validate_json_to_xml(xml_data):
         xsd_file = pathlib.Path(__file__).parent.joinpath('schema-for-json.xsd')
         json_to_xml_schema = xmlschema.XMLSchema(xsd_file)
 
-    json_to_xml_schema.validate(xml_data)
+    json_to_xml_schema.validate(xml_data, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})

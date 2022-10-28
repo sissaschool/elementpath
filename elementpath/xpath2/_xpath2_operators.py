@@ -280,10 +280,11 @@ def evaluate_instance_expression(self, context=None):
             raise self.missing_context()
 
         context = copy(context)
-        if context.axis is None:
-            context.axis = 'self'
 
         for position, context.item in enumerate(self[0].select(context)):
+            if context.axis is None:
+                context.axis = 'self'
+
             result = self[1].evaluate(context)
             if result is None or isinstance(result, list) and not result:
                 return occurs in ('*', '?')

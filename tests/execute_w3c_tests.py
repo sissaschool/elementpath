@@ -20,6 +20,7 @@ import contextlib
 import decimal
 import re
 import json
+import html
 import math
 import os
 import sys
@@ -249,6 +250,19 @@ def get_context_result(item):
     return get_node_tree(root=item)
 
 
+def is_equivalent(t1, t2):
+    if t1 == t2 or html.unescape(t1) == html.unescape(t2):
+        return True
+
+    try:
+        if decimal.Decimal(t1) != decimal.Decimal(t2):
+            return False
+    except (ValueError, decimal.DecimalException):
+        return False
+    else:
+        return True
+
+
 def etree_is_equal(root1, root2, strict=True):
     nodes1 = root1.iter()
     nodes2 = root2.iter()
@@ -270,13 +284,18 @@ def etree_is_equal(root1, root2, strict=True):
             if e1.tag != e1.tag:
                 return False
             if e1.attrib != e1.attrib:
-                return False
+                if strict or len(e1.attrib) != len(e2.attrib):
+                    return False
+                for (k1, v1), (k2, v2) in zip(e1.attrib.items(), e2.attrib.items()):
+                    if not is_equivalent(k1, k2) or not is_equivalent(v1, v2):
+                        return False
 
         if e1.text != e2.text:
             if strict or e1.text is None or e2.text is None:
                 return False
             if e1.text.strip() != e2.text.strip():
-                return False
+                if not is_equivalent(e1.text, e2.text):
+                    return False
 
     return next(nodes2, None) is None
 
@@ -857,11 +876,14 @@ class Result(object):
         if verbose <= 1:
             return
 
+        print(f'Result <{self.type}> failed for test case {self.test_case.name!r}')
+        if self.value is not None:
+            print(f'Result value: {self.value!r}')
+
         if verbose < 4:
-            print('Result <{}> failed for test case {!r}'.format(self.type, self.test_case.name))
-            print('XPath expression: {}'.format(self.test_case.test))
+            print(f'XPath expression: {self.test_case.test.strip()}')
         else:
-            print('Result <{}> failed\n'.format(self.type))
+            print()
             print(self.test_case)
 
         if results:
@@ -1286,6 +1308,9 @@ class Result(object):
 
             xml_str = tostring(root).decode('utf-8').strip()
 
+        xml_str = html.unescape(xml_str)
+        expected = html.unescape(expected)
+
         # Remove character data from result if expected result is serialized
         if '\n' not in expected:
             xml_str = '>'.join(s.lstrip() for s in xml_str.split('>\n'))
@@ -1303,7 +1328,7 @@ class Result(object):
         try:
             if xml_str == tostring(fromstring(expected)).decode('utf-8').strip():
                 return True
-            if etree_is_equal(fromstring(xml_str), fromstring(expected)):
+            if etree_is_equal(fromstring(xml_str), fromstring(expected), strict=False):
                 return True
         except (ElementTree.ParseError, lxml.etree.ParseError):
             # invalid XML data (maybe empty or concatenation of XML elements)
