@@ -328,7 +328,7 @@ def nud_datetime_stamp_type(self):
 @constructor('base64Binary')
 def cast_base64_binary_type(self, value):
     try:
-        return Base64Binary(value)
+        return Base64Binary(value, ordered=self.parser.version >= '3.1')
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
@@ -338,7 +338,7 @@ def cast_base64_binary_type(self, value):
 @constructor('hexBinary')
 def cast_hex_binary_type(self, value):
     try:
-        return HexBinary(value)
+        return HexBinary(value, ordered=self.parser.version >= '3.1')
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:

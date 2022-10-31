@@ -8,13 +8,21 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
-from typing import Any, Callable, Union
+from typing import Any, Callable, Iterator, Union
 import re
 import codecs
+import sys
 
 from ..helpers import collapse_white_spaces
 from .atomic_types import AtomicTypeMeta
 from .untyped import UntypedAtomic
+
+if sys.version_info >= (3, 10):
+    from itertools import pairwise
+else:
+    def pairwise(s: bytes) -> bytes:
+        for k in range(0, len(s), 2):
+            yield s[k:k+2]
 
 
 class AbstractBinary(metaclass=AtomicTypeMeta):
@@ -22,11 +30,15 @@ class AbstractBinary(metaclass=AtomicTypeMeta):
     Abstract class for xs:base64Binary data.
 
     :param value: a string or a binary data or an untyped atomic instance.
+    :param ordered: a boolean that enable total ordering for the instance, `False` for default.
     """
     value: bytes
     invalid_type: Callable[[Any], TypeError]
 
-    def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary']) -> None:
+    def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary'],
+                 ordered: bool = False) -> None:
+        self.ordered = ordered
+
         if isinstance(value, self.__class__):
             self.value = value.value
         elif isinstance(value, AbstractBinary):
@@ -158,3 +170,67 @@ class HexBinary(AbstractBinary):
         elif isinstance(other, str):
             return self.value.upper() == other.encode().upper()
         return isinstance(other, bytes) and self.value.upper() == other.upper()
+
+    def __lt__(self, other: object) -> bool:
+        if not self.ordered:
+            return NotImplemented
+        elif isinstance(other, self.__class__):
+            value = other.value.upper()
+        elif isinstance(other, (UntypedAtomic, str, bytes)):
+            value = self.__class__(other, ordered=True).value.upper()
+        else:
+            return NotImplemented
+
+        for oct1, oct2 in zip(pairwise(self.value.upper()), pairwise(value)):
+            if oct1 != oct2:
+                return oct1 < oct2
+
+        return len(self.value) < len(value)
+
+    def __le__(self, other: object) -> bool:
+        if not self.ordered:
+            return NotImplemented
+        elif isinstance(other, self.__class__):
+            value = other.value.upper()
+        elif isinstance(other, (UntypedAtomic, str, bytes)):
+            value = self.__class__(other, ordered=True).value.upper()
+        else:
+            return NotImplemented
+
+        for oct1, oct2 in zip(pairwise(self.value.upper()), pairwise(value)):
+            if oct1 != oct2:
+                return oct1 < oct2
+
+        return len(self.value) <= len(value)
+
+    def __gt__(self, other: object) -> bool:
+        if not self.ordered:
+            return NotImplemented
+        elif isinstance(other, self.__class__):
+            value = other.value.upper()
+        elif isinstance(other, (UntypedAtomic, str, bytes)):
+            value = self.__class__(other, ordered=True).value.upper()
+        else:
+            return NotImplemented
+
+        for oct1, oct2 in zip(pairwise(self.value.upper()), pairwise(value)):
+            if oct1 != oct2:
+                return oct1 > oct2
+
+        return len(self.value) > len(value)
+
+    def __ge__(self, other: object) -> bool:
+        if not self.ordered:
+            return NotImplemented
+        elif isinstance(other, self.__class__):
+            value = other.value.upper()
+        elif isinstance(other, (UntypedAtomic, str, bytes)):
+            value = self.__class__(other, ordered=True).value.upper()
+        else:
+            return NotImplemented
+
+        for oct1, oct2 in zip(pairwise(self.value.upper()), pairwise(value)):
+            if oct1 != oct2:
+                return oct1 > oct2
+
+        return len(self.value) >= len(value)

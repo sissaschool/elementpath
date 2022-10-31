@@ -76,9 +76,11 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
         elif other is None or isinstance(other, (str, list)):
             return self.value, other
 
-        try:
+        if hasattr(other, 'fromstring'):
             return type(other).fromstring(self.value), other
-        except AttributeError:
+        elif hasattr(other, 'ordered'):
+            return type(other)(self.value, other.ordered), other
+        else:
             return type(other)(self.value), other
 
     def __hash__(self) -> int:
