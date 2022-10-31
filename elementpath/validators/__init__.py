@@ -22,7 +22,7 @@ json_to_xml_schema: Optional[xmlschema.XMLSchemaBase] = None
 __all__ = ['validate_analyzed_string', 'validate_json_to_xml']
 
 
-def validate_analyzed_string(xml_data):
+def validate_analyzed_string(xml_data: str) -> None:
     global analyzed_string_schema
 
     if analyzed_string_schema is None:
@@ -32,7 +32,7 @@ def validate_analyzed_string(xml_data):
     analyzed_string_schema.validate(xml_data)
 
 
-def validate_json_to_xml(xml_data):
+def validate_json_to_xml(xml_data: str) -> None:
     global json_to_xml_schema
 
     if json_to_xml_schema is None:

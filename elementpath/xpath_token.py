@@ -1683,7 +1683,7 @@ class XPathArray(XPathFunction):
         if len(args) != 1 or not isinstance(args[0], int):
             raise self.error('XPST0003', 'exactly one xs:integer argument is expected')
 
-        position = cast(int, args[0])
+        position = args[0]
         if position <= 0:
             raise self.error('FOAY0002' if position else 'FOAY0001')
 
