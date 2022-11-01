@@ -150,6 +150,23 @@ def etree_deep_equal(e1: ElementProtocol, e2: ElementProtocol) -> bool:
     return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
 
+def etree_case_insensitive_deep_equal(e1: ElementProtocol, e2: ElementProtocol) -> bool:
+    if e1.tag.casefold() != e2.tag.casefold():
+        return False
+    elif (e1.text or '').strip().casefold() != (e2.text or '').strip().casefold():
+        return False
+    elif (e1.tail or '').strip().casefold() != (e2.tail or '').strip().casefold():
+        return False
+    elif len(e1) != len(e2) or len(e1.attrib) != len(e2.attrib):
+        return False
+
+    items1 = {(k.casefold(), v.casefold()) for k, v in e1.attrib.items()}
+    items2 = {(k.casefold(), v.casefold()) for k, v in e2.attrib.items()}
+    if items1 != items2:
+        return False
+    return all(etree_case_insensitive_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
+
+
 def etree_iter_paths(elem: ElementProtocol, path: str = '.') \
         -> Iterator[Tuple[ElementProtocol, str]]:
 
@@ -298,4 +315,4 @@ def etree_tostring(elem: ElementProtocol,
 __all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'defuse_xml',
            'is_etree_element', 'is_lxml_etree_element', 'is_etree_document',
            'is_lxml_etree_document', 'etree_iter_strings', 'etree_deep_equal',
-           'etree_iter_paths', 'etree_tostring']
+           'etree_case_insensitive_deep_equal', 'etree_iter_paths', 'etree_tostring']

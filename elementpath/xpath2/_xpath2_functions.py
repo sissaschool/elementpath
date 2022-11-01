@@ -30,11 +30,12 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
-from ..etree import etree_deep_equal
+from ..etree import etree_deep_equal, etree_case_insensitive_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode
-from ..xpath_token import XPathFunction, XPathMap, XPathArray
+from ..xpath_token import HTML_ASCII_CASE_INSENSITIVE_COLLATION, XPathFunction, \
+    XPathMap, XPathArray
 from ..regex import RegexError, translate_pattern
 from ._xpath2_operators import XPath2Parser
 
@@ -647,7 +648,7 @@ def select_exactly_one_function(self, context=None):
                  sequence_types=('item()*', 'item()*', 'xs:string', 'xs:boolean')))
 def evaluate_deep_equal_function(self, context=None):
 
-    def deep_equal():
+    def deep_equal(case_insensitive=False):
         while True:
             value1 = next(seq1, None)
             value2 = next(seq2, None)
@@ -716,27 +717,48 @@ def evaluate_deep_equal_function(self, context=None):
                     return False
             elif value1.kind != value2.kind:
                 return False
+            elif not case_insensitive:
+                if isinstance(value1, (ElementNode, CommentNode, ProcessingInstructionNode)):
+                    if not etree_deep_equal(value1.elem, value2.elem):
+                        return False
+                elif isinstance(value1, DocumentNode):
+                    if not etree_deep_equal(value1.document.getroot(), value2.document.getroot()):
+                        return False
+                elif value1.value != value2.value:
+                    return False
+                elif isinstance(value1, AttributeNode):
+                    if value1.name != value2.name:
+                        return False
+                elif isinstance(value1, NamespaceNode):
+                    if value1.prefix != value2.prefix:
+                        return False
             elif isinstance(value1, (ElementNode, CommentNode, ProcessingInstructionNode)):
-                if not etree_deep_equal(value1.elem, value2.elem):
+                if not etree_case_insensitive_deep_equal(value1.elem, value2.elem):
                     return False
             elif isinstance(value1, DocumentNode):
-                if not etree_deep_equal(value1.document.getroot(), value2.document.getroot()):
+                if not etree_case_insensitive_deep_equal(
+                        value1.document.getroot(), value2.document.getroot()
+                ):
                     return False
-            elif value1.value != value2.value:
+            elif value1.value.casefold() != value2.value.casefold():
                 return False
             elif isinstance(value1, AttributeNode):
-                if value1.name != value2.name:
+                if value1.name.casefold() != value2.name.casefold():
                     return False
             elif isinstance(value1, NamespaceNode):
-                if value1.prefix != value2.prefix:
+                if value1.prefix.casefold() != value2.prefix.casefold():
                     return False
 
     seq1 = iter(self[0].select(copy(context)))
     seq2 = iter(self[1].select(copy(context)))
 
     if len(self) > 2:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            return deep_equal()
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            return deep_equal(case_insensitive=True)
+        else:
+            with self.use_locale(collation):
+                return deep_equal()
     else:
         return deep_equal()
 
@@ -926,8 +948,12 @@ def evaluate_compare_function(self, context=None):
     if len(self) < 3:
         value = locale.strcoll(comp1, comp2)
     else:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            value = locale.strcoll(comp1, comp2)
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            value = locale.strcoll(comp1.casefold(), comp1.casefold())
+        else:
+            with self.use_locale(collation):
+                value = locale.strcoll(comp1, comp2)
 
     return 0 if not value else 1 if value > 0 else -1
 
@@ -941,8 +967,12 @@ def evaluate_contains_function(self, context=None):
     if len(self) < 3:
         return arg2 in arg1
     else:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            return arg2 in arg1
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            return arg2.casefold() in arg1.casefold()
+        else:
+            with self.use_locale(collation):
+                return arg2 in arg1
 
 
 @method(function('codepoint-equal', nargs=2,
@@ -1035,8 +1065,12 @@ def evaluate_starts_with_function(self, context=None):
     if len(self) < 3:
         return arg1.startswith(arg2)
     else:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            return arg1.startswith(arg2)
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            return arg1.casefold().startswith(arg2.casefold())
+        else:
+            with self.use_locale(collation=self.get_argument(context, 2)):
+                return arg1.startswith(arg2)
 
 
 @method(function('ends-with', nargs=(2, 3),
@@ -1048,8 +1082,12 @@ def evaluate_ends_with_function(self, context=None):
     if len(self) < 3:
         return arg1.endswith(arg2)
     else:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            return arg1.endswith(arg2)
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            return arg1.casefold().endswith(arg2.casefold())
+        else:
+            with self.use_locale(collation):
+                return arg1.endswith(arg2)
 
 
 @method(function('substring-before', nargs=(2, 3),
@@ -1063,8 +1101,12 @@ def evaluate_substring_functions(self, context=None):
     if len(self) < 3:
         index = arg1.find(arg2)
     else:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            index = arg1.find(arg2)
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            index = arg1.casefold().find(arg2.casefold())
+        else:
+            with self.use_locale(collation=self.get_argument(context, 2)):
+                index = arg1.find(arg2)
 
     if index < 0:
         return ''

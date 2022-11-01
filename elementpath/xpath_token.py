@@ -57,7 +57,11 @@ if TYPE_CHECKING:
 else:
     XPathParserType = Any
 
-UNICODE_CODEPOINT_COLLATION = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+UNICODE_CODEPOINT_COLLATION = \
+    "http://www.w3.org/2005/xpath-functions/collation/codepoint"
+
+HTML_ASCII_CASE_INSENSITIVE_COLLATION = \
+    "http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive"
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
