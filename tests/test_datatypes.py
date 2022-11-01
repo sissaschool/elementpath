@@ -1146,11 +1146,11 @@ class TimezoneTypeTest(unittest.TestCase):
 class BinaryTypesTest(unittest.TestCase):
 
     def test_initialization(self):
-        self.assertEqual(Base64Binary(b'YWxwaGE='), b'YWxwaGE=')
-        self.assertEqual(HexBinary(b'F859'), b'F859')
+        self.assertEqual(Base64Binary(b'YWxwaGE=').value, b'YWxwaGE=')
+        self.assertEqual(HexBinary(b'F859').value, b'F859')
 
-        self.assertEqual(Base64Binary(Base64Binary(b'YWxwaGE=')), b'YWxwaGE=')
-        self.assertEqual(HexBinary(HexBinary(b'F859')), b'F859')
+        self.assertEqual(Base64Binary(Base64Binary(b'YWxwaGE=')).value, b'YWxwaGE=')
+        self.assertEqual(HexBinary(HexBinary(b'F859')).value, b'F859')
 
         try:
             self.assertEqual(Base64Binary(HexBinary(b'F859')).decode(),
@@ -1189,16 +1189,11 @@ class BinaryTypesTest(unittest.TestCase):
         self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8A7F'))
         self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8a7f'))
 
-        self.assertEqual(b'8a7f', HexBinary(b'8A7F'))
-        self.assertEqual(HexBinary(b'8A7F'), b'8a7f')
-        self.assertEqual('8a7f', HexBinary(b'8A7F'))
-        self.assertEqual(HexBinary(b'8A7F'), '8a7f')
+        self.assertEqual(HexBinary(b'8a7f'), HexBinary(b'8A7F'))
+        self.assertEqual(HexBinary(b'8A7F'), HexBinary(b'8a7f'))
 
         self.assertEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'YWxwaGE='))
         self.assertNotEqual(Base64Binary(b'YWxwaGE='), Base64Binary(b'ywxwaGE='))
-        self.assertEqual(Base64Binary(b'YWxwaGE='), UntypedAtomic('YWxwaGE='))
-        self.assertEqual(Base64Binary(b'YWxwaGE='), 'YWxwaGE=')
-        self.assertEqual(Base64Binary('YWxwaGE='), b'YWxwaGE=')
 
         self.assertNotEqual(HexBinary(b'F859'), Base64Binary(b'YWxwaGE='))
         self.assertEqual(HexBinary(b'F859'), UntypedAtomic(HexBinary(b'F859')))
