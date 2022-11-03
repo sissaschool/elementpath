@@ -9,7 +9,6 @@
 #
 import re
 import math
-import locale as _locale
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
@@ -193,18 +192,3 @@ def match_wildcard(name: str, wildcard: str) -> bool:
         return name.startswith(wildcard[:-1])
     else:
         return False
-
-
-def get_locale_category(category: int) -> str:
-    """
-    Gets the current value of a locale category. A replacement
-    of locale.getdefaultlocale(), deprecated since Python 3.11.
-    """
-    locale = _locale.setlocale(category, None)
-    if locale == 'C':
-        # locale category does not seem to be configured, so get the user
-        # preferred locale and then restore the  previous state
-        locale = _locale.setlocale(category, '')
-        _locale.setlocale(category, 'C')
-
-    return locale

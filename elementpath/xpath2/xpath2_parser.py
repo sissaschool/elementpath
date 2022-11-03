@@ -17,15 +17,16 @@ from urllib.parse import urlparse
 from typing import cast, Any, Callable, ClassVar, Dict, List, \
     MutableMapping, Optional, Tuple, Type, Union
 
-from ..helpers import normalize_sequence_type, get_locale_category
+from ..helpers import normalize_sequence_type
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
+from ..collations import get_locale_category, UNICODE_COLLATION_BASE_URI, \
+    UNICODE_CODEPOINT_COLLATION
 from ..datatypes import UntypedAtomic, AtomicValueType, QName
-from ..xpath_token import UNICODE_CODEPOINT_COLLATION, NargsType, \
-    XPathToken, XPathFunction, XPathConstructor
+from ..xpath_token import NargsType, XPathToken, XPathFunction, XPathConstructor
 from ..xpath_context import XPathContext
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath1 import XPath1Parser
@@ -166,20 +167,19 @@ class XPath2Parser(XPath1Parser):
 
     @property
     def default_collation(self) -> str:
-        if self._default_collation is not None:
-            return self._default_collation
+        if self._default_collation is None:
+            self._default_collation = UNICODE_CODEPOINT_COLLATION
 
-        language_code, encoding = get_locale_category(locale.LC_COLLATE).split('.')
-        if language_code is None:
-            return UNICODE_CODEPOINT_COLLATION
-        elif encoding is None or not encoding:
-            return language_code
-        else:
-            collation = f'{language_code}.{encoding}'
-            if collation != 'en_US.UTF-8':
-                return collation
-            else:
-                return UNICODE_CODEPOINT_COLLATION
+            # Try to get the collation locale setting or alternatively
+            # the user preferred collation locale. Consider only UTF-8
+            # encodings, otherwise keep Unicode Codepoint Collation.
+            _locale = get_locale_category(locale.LC_COLLATE)
+            if '.' in _locale:
+                language_code, encoding = _locale.split('.')
+                if encoding.lower() == 'utf-8':
+                    self._default_collation = f'{UNICODE_COLLATION_BASE_URI}?lang={language_code}'
+
+        return self._default_collation
 
     @property
     def xsd_version(self) -> str:

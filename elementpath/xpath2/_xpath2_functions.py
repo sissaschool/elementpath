@@ -15,7 +15,6 @@ import math
 import datetime
 import time
 import re
-import locale
 import os.path
 import unicodedata
 from copy import copy
@@ -37,6 +36,7 @@ from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
 from ..xpath_token import HTML_ASCII_CASE_INSENSITIVE_COLLATION, XPathFunction, \
     XPathMap, XPathArray
 from ..regex import RegexError, translate_pattern
+from ..collations import CollationManager
 from ._xpath2_operators import XPath2Parser
 
 method = XPath2Parser.method
@@ -490,10 +490,13 @@ def select_exists_function(self, context=None):
                  sequence_types=('xs:anyAtomicType*', 'xs:string', 'xs:anyAtomicType*')))
 def select_distinct_values_function(self, context=None):
 
-    def distinct_values():
+    def distinct_values(case_insensitive=False):
         nan = False
         results = []
         for value in self[0].atomization(context):
+            if case_insensitive and isinstance(value, (str, bytes)):
+                value = value.casefold()
+
             if isinstance(value, (float, Decimal)):
                 if math.isnan(value):
                     if not nan:
@@ -509,8 +512,12 @@ def select_distinct_values_function(self, context=None):
                 results.append(value)
 
     if len(self) > 1:
-        with self.use_locale(collation=self.get_argument(context, 1)):
-            yield from distinct_values()
+        collation = self.get_argument(context, 1)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
+            yield from distinct_values(case_insensitive=True)
+        else:
+            with self.use_locale(collation):
+                yield from distinct_values()
     else:
         yield from distinct_values()
 
@@ -544,10 +551,20 @@ def select_index_of_function(self, context=None):
             if result == value:
                 yield pos
     else:
-        with self.use_locale(collation=self.get_argument(context, 2)):
-            for pos, result in enumerate(self[0].atomization(context), start=1):
-                if result == value:
-                    yield pos
+        collation = self.get_argument(context, 2)
+        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION \
+                and isinstance(value, (str, bytes)):
+            value = value.casefold()
+            with self.use_locale(collation):
+                for pos, result in enumerate(self[0].atomization(context), start=1):
+                    if result == value or isinstance(result, (str, bytes)) \
+                            and result.casefold() == value:
+                        yield pos
+        else:
+            with self.use_locale(collation):
+                for pos, result in enumerate(self[0].atomization(context), start=1):
+                    if result == value:
+                        yield pos
 
 
 @method(function('remove', nargs=2, sequence_types=('item()*', 'xs:integer', 'item()*')))
@@ -946,14 +963,12 @@ def evaluate_compare_function(self, context=None):
         return None
 
     if len(self) < 3:
-        value = locale.strcoll(comp1, comp2)
+        collation = self.parser.default_collation
     else:
-        collation = self.get_argument(context, 2)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            value = locale.strcoll(comp1.casefold(), comp1.casefold())
-        else:
-            with self.use_locale(collation):
-                value = locale.strcoll(comp1, comp2)
+        collation = self.get_argument(context, 2, required=True)
+
+    with CollationManager(collation, self) as manager:
+        value = manager.strcoll(comp1, comp2)
 
     return 0 if not value else 1 if value > 0 else -1
 
@@ -1069,7 +1084,7 @@ def evaluate_starts_with_function(self, context=None):
         if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
             return arg1.casefold().startswith(arg2.casefold())
         else:
-            with self.use_locale(collation=self.get_argument(context, 2)):
+            with self.use_locale(collation):
                 return arg1.startswith(arg2)
 
 
@@ -1105,7 +1120,7 @@ def evaluate_substring_functions(self, context=None):
         if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
             index = arg1.casefold().find(arg2.casefold())
         else:
-            with self.use_locale(collation=self.get_argument(context, 2)):
+            with self.use_locale(collation):
                 index = arg1.find(arg2)
 
     if index < 0:

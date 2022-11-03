@@ -42,7 +42,7 @@ from elementpath import XPath2Parser, XPathContext, MissingContextError, \
     ElementNode, select, iter_select
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
-from elementpath.helpers import get_locale_category
+from elementpath.collations import get_locale_category
 
 try:
     from tests import test_xpath1_parser
