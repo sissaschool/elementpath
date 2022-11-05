@@ -423,6 +423,8 @@ class Environment(object):
     :param elem: the XML Element that contains the environment definition.
     :param use_lxml: use lxml.etree for loading XML sources.
     """
+    collation = None
+    default_collation = False
     collection = None
     schema = None
     static_base_uri = None
@@ -449,6 +451,11 @@ class Environment(object):
                         pass
 
             self.decimal_formats = {name: child.attrib}
+
+        child = elem.find('collation', namespaces)
+        if child is not None:
+            self.collation = child.get('uri')
+            self.default_collation = child.get('default') == 'true'
 
         child = elem.find('collection', namespaces)
         if child is not None:
@@ -679,10 +686,15 @@ class TestCase(object):
 
         # Create the parser instance (static context)
         if environment is None:
-            test_namespaces = static_base_uri = schema_proxy = None
+            test_namespaces = static_base_uri = schema_proxy = default_collation = None
         else:
             test_namespaces = environment.get_namespaces()
             static_base_uri = environment.static_base_uri
+
+            default_collation = None
+            if environment.collation is not None:
+                if environment.default_collation:
+                    default_collation = environment.collation
 
             if environment.schema is None or not environment.schema.filepath:
                 if self.name in USE_SCHEMA_FOR_JSON:
@@ -718,6 +730,7 @@ class TestCase(object):
             schema=schema_proxy,
             base_uri=static_base_uri,
             compatibility_mode='xpath-1.0-compatibility' in self.features,
+            default_collation=default_collation,
         )
         if environment is not None and xpath_parser.version >= '3.0':
             kwargs['decimal_formats'] = environment.decimal_formats

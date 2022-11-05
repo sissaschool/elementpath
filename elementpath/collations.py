@@ -12,7 +12,7 @@ import threading
 from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Type
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from .exceptions import xpath_error
 
@@ -27,6 +27,8 @@ UNICODE_CODEPOINT_COLLATION = \
 HTML_ASCII_CASE_INSENSITIVE_COLLATION = \
     "http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive"
 
+XQUERY_TEST_SUITE_CASEBLIND_COLLATION = \
+    "http://www.w3.org/2010/09/qt-fots-catalog/collation/caseblind"
 
 _locale_collate_lock = threading.Lock()
 
@@ -46,21 +48,15 @@ def get_locale_category(category: int) -> str:
     return _locale
 
 
-def unicode_codepoint_compare(s1: str, s2: str) -> int:
-    for cp1, cp2 in zip(map(ord, s1), map(ord, s2)):
-        if cp1 < cp2:
-            return -1
-        elif cp1 > cp2:
-            return 1
-
-    return 0 if len(s1) == len(s2) else -1 if len(s1) < len(s2) else 1
+def unicode_codepoint_strcoll(s1: str, s2: str) -> int:
+    return 0 if s1 == s2 else -1 if s1 < s2 else 1
 
 
-def same_string(s: str) -> str:
+def unicode_codepoint_strxfrm(s: str) -> str:
     return s
 
 
-def case_insensitive_compare(s1: str, s2: str) -> int:
+def case_insensitive_strcoll(s1: str, s2: str) -> int:
     if s1.casefold() == s2.casefold():
         return 0
     elif s1.casefold() < s2.casefold():
@@ -69,7 +65,7 @@ def case_insensitive_compare(s1: str, s2: str) -> int:
         return 1
 
 
-def casefold(s: str) -> str:
+def case_insensitive_strxfrm(s: str) -> str:
     return s.casefold()
 
 
@@ -91,28 +87,41 @@ class CollationManager(AbstractContextManager):
         if collation is None:
             msg = 'collation cannot be an empty sequence'
             raise xpath_error('XPTY0004', msg, self.token)
-        elif collation == UNICODE_CODEPOINT_COLLATION \
-                or collation == 'collation/codepoint':
+        elif not urlsplit(collation).scheme and token is not None:
+            # Collation is a relative URI: try to complete with the static base URI
+            collation = urljoin(token.parser.base_uri, collation)
+
+        if collation == UNICODE_CODEPOINT_COLLATION:
             self.lc_collate = None
-            self.strcoll = unicode_codepoint_compare
-            self.strxfrm = same_string
+            self.strcoll = unicode_codepoint_strcoll
+            self.strxfrm = unicode_codepoint_strxfrm
         elif collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
             self.lc_collate = None
-            self.strcoll = case_insensitive_compare
-            self.strxfrm = casefold
+            self.strcoll = case_insensitive_strcoll
+            self.strxfrm = case_insensitive_strxfrm
+        elif collation == XQUERY_TEST_SUITE_CASEBLIND_COLLATION:
+            self.lc_collate = None
+            self.strcoll = case_insensitive_strcoll
+            self.strxfrm = case_insensitive_strxfrm
         elif collation.startswith(UNICODE_COLLATION_BASE_URI):
             self.lc_collate = 'en_US.UTF-8'
             self.fallback = True
 
             for param in urlsplit(collation).query.split(';'):
+                assert isinstance(param, str)
                 if param.startswith('lang='):
-                    self.lc_collate = f'{param[5:]}.UTF-8'
+                    # Language code: should be a string in lexical space of xs:language,
+                    # but in implementations '_' can be used instead of hyphens and '.'
+                    # is used to provide the encoding. Use UTF-8 as default encoding.
+                    lang = param[5:]
+                    self.lc_collate = lang if '.' in lang else (lang, 'UTF-8')
                 elif param.startswith('fallback='):
                     if param.endswith('yes'):
                         self.fallback = True
                     elif param.endswith('no'):
                         self.fallback = False
         else:
+            # Other compatible collations locale lib specs (e.g.: it_IT.UTF-8)
             self.lc_collate = collation
 
     def __enter__(self) -> 'CollationManager':

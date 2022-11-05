@@ -287,11 +287,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
             locale.setlocale(locale.LC_COLLATE, 'en_US.UTF-8')
             self.check_value("fn:compare('Strasse', 'Straße')", -1)
-            self.check_value("fn:compare('Strassen', 'Straße')", 1)
+            self.check_value("fn:compare('Strassen', 'Straße')", -1)
 
             try:
+                self.check_value("fn:compare('Strasse', 'Straße', "
+                                 "'http://www.w3.org/2013/collation/UCA?lang=it_IT.UTF-8')", -1)
                 self.check_value("fn:compare('Strasse', 'Straße', 'it_IT.UTF-8')", -1)
-                self.check_value("fn:compare('Strassen', 'Straße')", 1)
             except locale.Error:
                 pass  # Skip test if 'it_IT.UTF-8' is an unknown locale setting
 

@@ -11,40 +11,40 @@
 import unittest
 
 from elementpath import ElementPathError
-from elementpath.xpath_collations import UNICODE_CODEPOINT_COLLATION, \
-    HTML_ASCII_CASE_INSENSITIVE_COLLATION, XPathCollationManager
+from elementpath.collations import UNICODE_CODEPOINT_COLLATION, \
+    HTML_ASCII_CASE_INSENSITIVE_COLLATION, CollationManager
 
 
-class XPathCollationsTest(unittest.TestCase):
+class CollationsTest(unittest.TestCase):
 
     def test_context_manager_init(self):
-        manager = XPathCollationManager(collation=UNICODE_CODEPOINT_COLLATION)
-        self.assertIsInstance(manager, XPathCollationManager)
+        manager = CollationManager(collation=UNICODE_CODEPOINT_COLLATION)
+        self.assertIsInstance(manager, CollationManager)
 
         with self.assertRaises(ElementPathError) as ctx:
-            XPathCollationManager(collation=None)
+            CollationManager(collation=None)
 
         self.assertIn('XPTY0004', str(ctx.exception))
         self.assertIn('collation cannot be an empty sequence', str(ctx.exception))
 
         # Not raised in __init__()
-        manager = XPathCollationManager(collation='unknown')
-        self.assertIsInstance(manager, XPathCollationManager)
+        manager = CollationManager(collation='unknown')
+        self.assertIsInstance(manager, CollationManager)
 
     def test_context_activation(self):
-        with XPathCollationManager(UNICODE_CODEPOINT_COLLATION) as manager:
+        with CollationManager(UNICODE_CODEPOINT_COLLATION) as manager:
             self.assertFalse(manager.eq('a', 'A'))
-        self.assertIsInstance(manager, XPathCollationManager)
+        self.assertIsInstance(manager, CollationManager)
 
         with self.assertRaises(ElementPathError) as ctx:
-            with XPathCollationManager(collation='unknown'):
+            with CollationManager(collation='unknown'):
                 pass
 
         self.assertIn('FOCH0002', str(ctx.exception))
         self.assertIn("Unsupported collation 'unknown'", str(ctx.exception))
 
     def test_html_ascii_case_insensitive_collation(self):
-        with XPathCollationManager(HTML_ASCII_CASE_INSENSITIVE_COLLATION) as manager:
+        with CollationManager(HTML_ASCII_CASE_INSENSITIVE_COLLATION) as manager:
             self.assertTrue(manager.eq('a', 'A'))
 
 
