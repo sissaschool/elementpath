@@ -449,13 +449,16 @@ def evaluate_max_min_functions(self, context=None):
             to_any_uri = False
             values.append(item)
 
-    try:
-        if len(self) > 1:
-            with self.use_locale(collation=self.get_argument(context, 1)):
-                return max_or_min()
-        return max_or_min()
-    except TypeError as err:
-        raise self.error('FORG0006', err)
+    if len(self) < 2:
+        collation = self.parser.default_collation
+    else:
+        collation = self.get_argument(context, 1, required=True, cls=str)
+
+    with CollationManager(collation, self):
+        try:
+            return max_or_min()
+        except TypeError as err:
+            raise self.error('FORG0006', err)
 
 
 ###
@@ -511,14 +514,12 @@ def select_distinct_values_function(self, context=None):
                 yield value
                 results.append(value)
 
-    if len(self) > 1:
-        collation = self.get_argument(context, 1)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            yield from distinct_values(case_insensitive=True)
-        else:
-            with self.use_locale(collation):
-                yield from distinct_values()
+    if len(self) < 2:
+        collation = self.parser.default_collation
     else:
+        collation = self.get_argument(context, 1, required=True, cls=str)
+
+    with CollationManager(collation, self):
         yield from distinct_values()
 
 
@@ -547,24 +548,14 @@ def select_index_of_function(self, context=None):
         raise self.error('XPTY0004', "2nd argument cannot be an empty sequence")
 
     if len(self) < 3:
-        for pos, result in enumerate(self[0].atomization(context), start=1):
-            if result == value:
-                yield pos
+        collation = self.parser.default_collation
     else:
-        collation = self.get_argument(context, 2)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION \
-                and isinstance(value, (str, bytes)):
-            value = value.casefold()
-            with self.use_locale(collation):
-                for pos, result in enumerate(self[0].atomization(context), start=1):
-                    if result == value or isinstance(result, (str, bytes)) \
-                            and result.casefold() == value:
-                        yield pos
-        else:
-            with self.use_locale(collation):
-                for pos, result in enumerate(self[0].atomization(context), start=1):
-                    if result == value:
-                        yield pos
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self) as manager:
+        for pos, result in enumerate(self[0].atomization(context), start=1):
+            if manager.eq(result, value):
+                yield pos
 
 
 @method(function('remove', nargs=2, sequence_types=('item()*', 'xs:integer', 'item()*')))
@@ -769,15 +760,16 @@ def evaluate_deep_equal_function(self, context=None):
     seq1 = iter(self[0].select(copy(context)))
     seq2 = iter(self[1].select(copy(context)))
 
-    if len(self) > 2:
-        collation = self.get_argument(context, 2)
+    if len(self) < 3:
+        collation = self.parser.default_collation
+    else:
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self):
         if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
             return deep_equal(case_insensitive=True)
         else:
-            with self.use_locale(collation):
-                return deep_equal()
-    else:
-        return deep_equal()
+            return deep_equal()
 
 
 ###
@@ -980,14 +972,12 @@ def evaluate_contains_function(self, context=None):
     arg2 = self.get_argument(context, index=1, default='', cls=str)
 
     if len(self) < 3:
-        return arg2 in arg1
+        collation = self.parser.default_collation
     else:
-        collation = self.get_argument(context, 2)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            return arg2.casefold() in arg1.casefold()
-        else:
-            with self.use_locale(collation):
-                return arg2 in arg1
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self) as manager:
+        return manager.contains(arg1, arg2)
 
 
 @method(function('codepoint-equal', nargs=2,
@@ -1078,14 +1068,12 @@ def evaluate_starts_with_function(self, context=None):
     arg2 = self.get_argument(context, index=1, default='', cls=str)
 
     if len(self) < 3:
-        return arg1.startswith(arg2)
+        collation = self.parser.default_collation
     else:
-        collation = self.get_argument(context, 2)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            return arg1.casefold().startswith(arg2.casefold())
-        else:
-            with self.use_locale(collation):
-                return arg1.startswith(arg2)
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self) as manager:
+        return manager.startswith(arg1, arg2)
 
 
 @method(function('ends-with', nargs=(2, 3),
@@ -1095,14 +1083,12 @@ def evaluate_ends_with_function(self, context=None):
     arg2 = self.get_argument(context, index=1, default='', cls=str)
 
     if len(self) < 3:
-        return arg1.endswith(arg2)
+        collation = self.parser.default_collation
     else:
-        collation = self.get_argument(context, 2)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            return arg1.casefold().endswith(arg2.casefold())
-        else:
-            with self.use_locale(collation):
-                return arg1.endswith(arg2)
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self) as manager:
+        return manager.endswith(arg1, arg2)
 
 
 @method(function('substring-before', nargs=(2, 3),
@@ -1114,14 +1100,12 @@ def evaluate_substring_functions(self, context=None):
     arg2 = self.get_argument(context, index=1, default='', cls=str)
 
     if len(self) < 3:
-        index = arg1.find(arg2)
+        collation = self.parser.default_collation
     else:
-        collation = self.get_argument(context, 2)
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            index = arg1.casefold().find(arg2.casefold())
-        else:
-            with self.use_locale(collation):
-                index = arg1.find(arg2)
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self) as manager:
+        index = manager.find(arg1, arg2)
 
     if index < 0:
         return ''

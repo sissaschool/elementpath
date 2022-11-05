@@ -11,7 +11,6 @@
 import unittest
 from unittest.mock import patch
 import io
-import locale
 import math
 import xml.etree.ElementTree as ElementTree
 from collections import namedtuple
@@ -29,7 +28,6 @@ from elementpath.datatypes import UntypedAtomic
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import ElementNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, TextNode, DocumentNode
-from elementpath.xpath_token import UNICODE_CODEPOINT_COLLATION
 from elementpath.helpers import ordinal
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.xpath1 import XPath1Parser
@@ -199,23 +197,6 @@ class XPath1TokenTest(unittest.TestCase):
         if self.parser.version > '1.0':
             token = self.parser.parse('((), 1, 3, "a")')
             self.assertListEqual(list(token.atomization()), [1, 3, 'a'])
-
-    def test_use_locale_context_manager(self):
-        token = self.parser.parse('true()')
-        with token.use_locale(UNICODE_CODEPOINT_COLLATION):
-            self.assertEqual(locale.getlocale(locale.LC_COLLATE), ('en_US', 'UTF-8'))
-
-        try:
-            with token.use_locale('de_DE.UTF-8'):
-                self.assertEqual(locale.getlocale(locale.LC_COLLATE), ('de_DE', 'UTF-8'))
-        except locale.Error:
-            pass  # Skip test if 'de_DE.UTF-8' is an unknown locale setting
-
-        with self.assertRaises(TypeError) as cm:
-            with token.use_locale(None):
-                pass
-        self.assertIn('XPTY0004', str(cm.exception))
-        self.assertIn('collation cannot be an empty sequence', str(cm.exception))
 
     def test_boolean_value_function(self):
         token = self.parser.parse('true()')

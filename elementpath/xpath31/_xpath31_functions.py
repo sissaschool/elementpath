@@ -25,6 +25,7 @@ from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
+from ..collations import CollationManager
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
@@ -409,19 +410,19 @@ def select_array_fold_left_right_functions(self, context=None):
                  sequence_types=('item()*', 'xs:string?',
                                  'function(item()) as xs:anyAtomicType*', 'item()*')))
 def evaluate_sort_function(self, context=None):
-    if len(self) > 1:
-        collation = self.get_argument(context, 1)
+    if len(self) < 2:
+        collation = self.parser.default_collation
+    else:
+        collation = self.get_argument(context, 1, cls=str)
         if collation is None:
             collation = self.parser.default_collation
 
-        with self.use_locale(collation):
-            if len(self) == 3:
-                func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
-                return sorted(self[0].select(context), key=lambda x: func(context, x))
-            else:
-                return sorted(self[0].select(context))
-    else:
-        return sorted(self[0].select(context))
+    with CollationManager(collation, self):
+        if len(self) == 3:
+            func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+            return sorted(self[0].select(context), key=lambda x: func(context, x))
+        else:
+            return sorted(self[0].select(context))
 
 
 @method(function('sort', prefix='array', label='array:sort function', nargs=(1, 3),
@@ -430,19 +431,19 @@ def evaluate_sort_function(self, context=None):
 def evaluate_array_sort_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
 
-    if len(self) > 1:
-        collation = self.get_argument(context, 1)
+    if len(self) < 2:
+        collation = self.parser.default_collation
+    else:
+        collation = self.get_argument(context, 1, cls=str)
         if collation is None:
             collation = self.parser.default_collation
 
-        with self.use_locale(collation):
-            if len(self) == 3:
-                func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
-                items = sorted(array_.items(context), key=lambda x: func(context, x))
-            else:
-                items = sorted(array_.items(context))
-    else:
-        items = sorted(array_.items(context))
+    with CollationManager(collation, self):
+        if len(self) == 3:
+            func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+            items = sorted(array_.items(context), key=lambda x: func(context, x))
+        else:
+            items = sorted(array_.items(context))
 
     return XPathArray(self.parser, items)
 
@@ -681,21 +682,16 @@ def evaluate_contains_token_function(self, context=None):
     token_string = self.get_argument(context, index=1, required=True, cls=str)
     token_string = token_string.strip()
 
-    if len(self) > 2:
-        collation = self.get_argument(context, 2, required=True)
-        with self.use_locale(collation):
-            for input_string in self[0].select(context):
-                if not isinstance(input_string, str):
-                    raise self.error('XPTY0004')
-                if any(token_string == x for x in input_string.split()):
-                    return True
-            else:
-                return False
+    if len(self) < 3:
+        collation = self.parser.default_collation
     else:
+        collation = self.get_argument(context, 2, required=True, cls=str)
+
+    with CollationManager(collation, self) as manager:
         for input_string in self[0].select(context):
             if not isinstance(input_string, str):
                 raise self.error('XPTY0004')
-            if any(token_string == x for x in input_string.split()):
+            if any(manager.eq(token_string, x) for x in input_string.split()):
                 return True
         else:
             return False
@@ -804,11 +800,6 @@ def evaluate_json_to_xml_function(self, context=None):
     else:
         raise self.missing_context()
 
-    liberal = False
-    validate = False
-    duplicates = None
-    escape = False
-
     def escape_json_string(s):
         s = s.replace('\b', r'\b').\
             replace('\r', r'\r').\
@@ -818,8 +809,14 @@ def evaluate_json_to_xml_function(self, context=None):
             replace('/', r'\/')
         return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
 
-    def fallback(*args):
+    def _fallback(*args):
         return '&#xFFFD;'
+
+    liberal = False
+    validate = False
+    duplicates = None
+    escape = False
+    fallback = _fallback
 
     if len(self) > 1:
         options = self.get_argument(context, index=1, required=True, cls=XPathMap)

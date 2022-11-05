@@ -733,11 +733,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = \
             'fn:contains-token("red green blue", "RED", ' \
             '"http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive")'
-
-        with self.assertRaises(ElementPathLocaleError) as ctx:
-            self.check_value(expression)
-
-        self.assertIn('FOCH0002', str(ctx.exception))
+        self.check_value(expression, True)
 
     def test_collation_key_function(self):
         with self.assertRaises(ElementPathLocaleError) as ctx:

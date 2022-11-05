@@ -20,8 +20,6 @@ for documents.
 XPathNode subclasses are used for representing other node types and typed elements/attributes.
 """
 import decimal
-import locale
-import contextlib
 import math
 from copy import copy
 from decimal import Decimal
@@ -661,24 +659,6 @@ class XPathToken(Token[XPathTokenType]):
         if not isinstance(_item, DayTimeDuration):
             _item.tzinfo = timezone
         return _item
-
-    @contextlib.contextmanager
-    def use_locale(self, collation: str) -> Iterator[None]:
-        """A context manager for use a locale setting for string comparison in a code block."""
-        loc = locale.getlocale(locale.LC_COLLATE)
-        if collation == UNICODE_CODEPOINT_COLLATION or collation == 'collation/codepoint':
-            collation = 'en_US.UTF-8'
-        elif collation is None:
-            raise self.error('XPTY0004', 'collation cannot be an empty sequence')
-
-        try:
-            locale.setlocale(locale.LC_COLLATE, collation)
-        except locale.Error:
-            raise self.error('FOCH0002', 'Unsupported collation %r' % collation) from None
-        else:
-            yield
-        finally:
-            locale.setlocale(locale.LC_COLLATE, loc)
 
     ###
     # XSD types related methods

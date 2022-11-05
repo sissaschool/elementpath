@@ -163,7 +163,13 @@ class CollationManager(AbstractContextManager):
         return self.strcoll(a, b) != 0
 
     def contains(self, a: str, b: str) -> bool:
-        return self.strxfrm(a) in self.strxfrm(b)
+        return self.strxfrm(b) in self.strxfrm(a)
 
     def find(self, a: str, b: str) -> int:
         return self.strxfrm(a).find(self.strxfrm(b))
+
+    def startswith(self, a: str, b: str) -> int:
+        return self.strxfrm(a).startswith(self.strxfrm(b))
+
+    def endswith(self, a: str, b: str) -> int:
+        return self.strxfrm(a).endswith(self.strxfrm(b))
