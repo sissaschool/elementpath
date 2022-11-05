@@ -266,6 +266,22 @@ def evaluate_array_append_function(self, context=None):
     return XPathArray(self.parser, items=items)
 
 
+@method(function('remove', prefix='array', nargs=2,
+                 sequence_types=('array(*)', 'xs:integer*', 'array(*)')))
+def evaluate_array_remove_function(self, context=None):
+    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    positions_ = self[1].evaluate(context)
+    if positions_ is None:
+        return array_
+
+    positions = positions_ if isinstance(positions_, list) else [positions_]
+    if any(p <= 0 or p > len(array_) for p in positions):
+        raise self.error('FOAY0001')
+
+    items = (v for k, v in enumerate(array_.items(context), 1) if k not in positions)
+    return XPathArray(self.parser, items=items)
+
+
 @method(function('subarray', prefix='array', label='array:subarray function', nargs=(2, 3),
                  sequence_types=('array(*)', 'xs:integer', 'xs:integer', 'array(*)')))
 def evaluate_array_subarray_function(self, context=None):
@@ -331,7 +347,7 @@ def evaluate_array_join_function(self, context=None):
 
 
 @method(function('flatten', prefix='array', label='array:flatten function', nargs=1,
-                 sequence_types=('item()*', 'array(*)')))
+                 sequence_types=('item()*', 'item()*')))
 def evaluate_array_flatten_function(self, context=None):
     items = []
     for obj in self[0].select(context):
@@ -340,7 +356,7 @@ def evaluate_array_flatten_function(self, context=None):
         else:
             items.append(obj)
 
-    return XPathArray(self.parser, items=items)
+    return items
 
 
 @method(function('for-each', prefix='array', label='array:for-each function', nargs=2,
