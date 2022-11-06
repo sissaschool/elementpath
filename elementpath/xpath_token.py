@@ -317,14 +317,23 @@ class XPathToken(Token[XPathTokenType]):
         :param context: the XPath dynamic context.
         """
         for item in self.select(context):
-            value = self.data_value(item)
-            if value is None:
-                msg = "argument node {!r} does not have a typed value"
-                raise self.error('FOTY0012', msg.format(item))
-            elif isinstance(value, list):
-                yield from value
+            if isinstance(item, list):
+                yield from item
+            elif isinstance(item, XPathArray):
+                for value in item.items(context):
+                    if isinstance(value, XPathToken):
+                        yield from value.atomization(context)
+                    elif isinstance(value, list):
+                        yield from value
+                    else:
+                        yield value
             else:
-                yield value
+                value = self.data_value(item)
+                if value is None:
+                    msg = "argument node {!r} does not have a typed value"
+                    raise self.error('FOTY0012', msg.format(item))
+                else:
+                    yield value
 
     def get_atomized_operand(self, context: Optional[XPathContext] = None) \
             -> Optional[AtomicValueType]:
