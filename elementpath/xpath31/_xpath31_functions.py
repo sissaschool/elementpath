@@ -20,7 +20,7 @@ from itertools import chain, product
 from urllib.request import urlopen
 
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
-    DoubleProxy, DoubleProxy10
+    DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
@@ -50,6 +50,19 @@ TIMEZONE_MAP = {
     'PST': '-08:00',
     'PDT': '-07:00',
 }
+
+
+@XPath31Parser.constructor('numeric')
+def cast_numeric_type(self, value):
+    if isinstance(value, NumericProxy):
+        return value
+
+    try:
+        return NumericProxy(value)  # returns a float (xs:double)
+    except ValueError as err:
+        if isinstance(value, (str, UntypedAtomic)):
+            raise self.error('FORG0001', err)
+        raise self.error('FOCA0002', err)
 
 
 @method(function('string-join', nargs=(1, 2),

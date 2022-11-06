@@ -65,6 +65,7 @@ XSD_DECIMAL = '{%s}decimal' % XSD_NAMESPACE
 XSD_UNTYPED = '{%s}untyped' % XSD_NAMESPACE
 XSD_UNTYPED_ATOMIC = '{%s}untypedAtomic' % XSD_NAMESPACE
 XSD_ERROR = '{%s}error' % XSD_NAMESPACE
+XSD_NUMERIC = '{%s}numeric' % XSD_NAMESPACE
 
 
 def get_namespace(name: str) -> str:

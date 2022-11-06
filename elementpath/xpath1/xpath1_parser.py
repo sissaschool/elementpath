@@ -23,7 +23,7 @@ from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
 from ..tdop import Token, Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
-    XSD_UNTYPED_ATOMIC, get_namespace, get_expanded_name
+    XSD_UNTYPED_ATOMIC, XSD_NUMERIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, ProxyToken
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
@@ -73,6 +73,7 @@ class XPath1Parser(Parser[XPathToken]):
     base_uri: Optional[str] = None
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
+    parse_arguments: bool = True
 
     compatibility_mode: bool = True
     """XPath 1.0 compatibility mode."""
@@ -232,7 +233,7 @@ class XPath1Parser(Parser[XPathToken]):
             raise self.next_token.wrong_syntax(message)
 
     ###
-    # Type checking (used in XPath 2.0)
+    # Type checking (used in XPath 2.0+)
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         """Checks an instance against an XSD type."""
         if get_namespace(type_qname) == XSD_NAMESPACE:
@@ -246,6 +247,8 @@ class XPath1Parser(Parser[XPathToken]):
                 return isinstance(obj, AnyAtomicType) or \
                     isinstance(obj, list) and \
                     all(isinstance(x, AnyAtomicType) for x in obj)
+            elif type_qname == XSD_NUMERIC and self.version >= '3.1':
+                return isinstance(obj, NumericProxy)
 
             try:
                 if self.xsd_version == '1.1':

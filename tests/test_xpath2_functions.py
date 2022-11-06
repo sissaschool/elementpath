@@ -1375,6 +1375,14 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal($a, $a)', True, context=context)
         self.check_value('deep-equal($a, $b)', False, context=context)
 
+    def test_deep_equal_function_on_nested_sequences(self):
+        self.check_value('fn:deep-equal(1, 1)', True)
+        self.check_value('fn:deep-equal(1, (1))', True)
+        self.check_value('fn:deep-equal(1, (1, ()))', True)
+        self.check_value('fn:deep-equal(1, (1, (1)))', False)
+        self.check_value('fn:deep-equal((1, ()), (1, (1)))', False)
+        self.check_value('fn:deep-equal(((1), 1), (1, (1)))', True)
+
     def test_adjust_datetime_to_timezone_function(self):
         context = XPathContext(root=self.etree.XML('<A/>'), timezone=Timezone.fromstring('-05:00'),
                                variables={'tz': DayTimeDuration.fromstring("-PT10H")})

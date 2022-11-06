@@ -123,7 +123,10 @@ def led_arrow_operator(self, left):
     elif isinstance(next_token, XPathFunction):
         self[:] = left, next_token
         self.parser.advance()  # Skip static evaluation of function arguments
-
+    elif next_token.symbol == '(name)':
+        self.parser.parse_arguments = False
+        self[:] = left, self.parser.expression(80)
+        self.parser.parse_arguments = True
     else:
         raise self.wrong_syntax()
 
@@ -136,19 +139,24 @@ def led_arrow_operator(self, left):
 def evaluate_arrow_operator(self, context=None):
     if isinstance(self[1], XPathFunction):
         func = self[1]
+    elif self[1].symbol == ':' and isinstance(self[1][1], XPathFunction):
+        func = self[1][1]
     else:
         func = self[1].evaluate(context)
 
     arguments = []
     if self[2]:
-        tk = self[2][1]
-        while True:
-            if tk.symbol == ',':
-                arguments.append(tk[1].evaluate(context))
-                tk = tk[0]
-            else:
-                arguments.append(tk.evaluate(context))
-                break
+        if len(self[2]) == 1:
+            arguments.append(self[2][0])
+        else:
+            tk = self[2][1]
+            while True:
+                if tk.symbol == ',':
+                    arguments.append(tk[1].evaluate(context))
+                    tk = tk[0]
+                else:
+                    arguments.append(tk.evaluate(context))
+                    break
 
     arguments.append(self[0].evaluate(context))
     arguments.reverse()

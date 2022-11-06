@@ -1332,8 +1332,11 @@ class XPathFunction(XPathToken):
         return len(self._items)
 
     def nud(self) -> 'XPathFunction':
-        code = 'XPST0017' if self.label == 'function' else 'XPST0003'
         self.value = None
+        if not self.parser.parse_arguments:
+            return self
+
+        code = 'XPST0017' if self.label == 'function' else 'XPST0003'
         self.parser.advance('(')
         if self.nargs is None:
             del self._items[:]
@@ -1530,7 +1533,10 @@ class XPathMap(XPathFunction):
     def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
         self._values = []
         if items is not None:
-            self._map = dict(items)
+            _items = items.items() if isinstance(items, dict) else items
+            self._map = {
+                k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in _items
+            }
         super().__init__(parser)
 
     def __repr__(self) -> str:
@@ -1575,12 +1581,17 @@ class XPathMap(XPathFunction):
 
     def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
         _map = {}
-        for key, value in zip(self._items, self._values):
+        for key, v in zip(self._items, self._values):
             k = next(key.atomization(context), None)
             if k is None:
                 raise self.error('XPST0003', 'missing key value')
             assert k is not None
-            _map[k] = value.evaluate(context)
+
+            value = v.evaluate(context)
+            if isinstance(value, list) and len(value) == 1:
+                _map[k] = value[0]
+            else:
+                _map[k] = value
 
         return cast(Dict[AnyAtomicType, Any], _map)
 
