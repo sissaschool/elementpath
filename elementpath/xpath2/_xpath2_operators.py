@@ -759,6 +759,8 @@ def select_element_kind_test(self, context=None):
                         yield item
                 elif type_annotation == item.xsd_type.name:
                     yield item
+                elif self.parser.is_instance(item.typed_value, type_annotation):
+                    yield item
 
 
 @method('element')
@@ -899,15 +901,21 @@ def select_attribute_kind_test_or_axis(self, context=None):
             if attribute.match_name(name):
                 if isinstance(context, XPathSchemaContext):
                     self.add_xsd_type(attribute)
-                elif not type_name:
-                    yield attribute.value
+                    continue
+
+                if attribute.xsd_type is None:
+                    attribute.xsd_type = self.get_xsd_type(attribute)
+
+                if not type_name:
+                    yield attribute.typed_value
                 else:
-                    xsd_type = self.get_xsd_type(attribute)
-                    if xsd_type is None:
+                    if attribute.xsd_type is None:
                         if type_name == XSD_UNTYPED:
                             yield attribute.value
-                    elif xsd_type.name == type_name:
-                        yield attribute.value
+                    elif attribute.xsd_type.name == type_name:
+                        yield attribute.typed_value
+                    elif self.parser.is_instance(attribute.typed_value, type_name):
+                        yield attribute.typed_value
 
 
 # XPath 2.0 definitions continue into module xpath2_functions

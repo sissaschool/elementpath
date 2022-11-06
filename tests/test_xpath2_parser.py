@@ -806,8 +806,8 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 </xs:schema>""")
 
             with self.schema_bound_parser(schema.elements['A'].xpath_proxy):
-                self.check_select("attribute(a, xs:int)", ['10'], context)
-                self.check_select("attribute(*, xs:int)", {'10', '20'}, context)
+                self.check_select("attribute(a, xs:int)", [10], context)
+                self.check_select("attribute(*, xs:int)", {10, 20}, context)
                 self.check_select("attribute(a, xs:string)", [], context)
                 self.check_select("attribute(*, xs:string)", [], context)
 
