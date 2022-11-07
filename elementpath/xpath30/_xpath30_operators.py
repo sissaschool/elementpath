@@ -179,7 +179,6 @@ def select_let_expression(self, context=None):
     if context is None:
         raise self.missing_context()
 
-    context = copy(context)
     for k in range(0, len(self) - 1, 2):
         varname = self[k][0].value
         value = self[k+1].evaluate(context)
