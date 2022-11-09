@@ -45,7 +45,7 @@ XPath31Parser.unregister('?')
 
 # The ambivalence of ? symbol, used for a literal, a unary and
 # a postfix operator, force to use unbalanced binding powers.
-register('?', bases=(ValueToken,), lbp=5, rbp=80)
+register('?', bases=(ValueToken,), lbp=6, rbp=80)
 
 
 @method('?', )
@@ -98,7 +98,7 @@ def select_lookup_operator(self, context=None):
                 yield item(context, self[-1].value)
             elif symbol == '(':
                 for value in self[-1].select(context):
-                    yield context.item(context, self.data_value(value))
+                    yield item(context, self.data_value(value))
 
         elif isinstance(item, XPathArray):
             if symbol == '*':
@@ -109,7 +109,7 @@ def select_lookup_operator(self, context=None):
                 yield item(context, self[-1].value)
             elif symbol == '(':
                 for value in self[-1].select(context):
-                    yield context.item(context, self.data_value(value))
+                    yield item(context, self.data_value(value))
 
         else:
             raise self.error('XPTY0004')

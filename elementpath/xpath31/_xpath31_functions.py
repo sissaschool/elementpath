@@ -12,6 +12,7 @@
 XPath 3.1 implementation - part 3 (functions)
 """
 import json
+import locale
 import random
 import re
 from datetime import datetime
@@ -20,7 +21,7 @@ from itertools import chain, product
 from urllib.request import urlopen
 
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
-    DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic
+    DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
@@ -729,11 +730,18 @@ def evaluate_contains_token_function(self, context=None):
 @method(function('collation-key', label='function', nargs=(1, 2),
                  sequence_types=('xs:string', 'xs:string', 'xs:base64Binary')))
 def evaluate_collation_key_function(self, context=None):
-    self.get_argument(context, required=True, cls=str)
+    key = self.get_argument(context, required=True, cls=str)
     if len(self) > 1:
-        self.get_argument(context, index=1, required=True, cls=str)
+        collation = self.get_argument(context, index=1, required=True, cls=str)
+    else:
+        collation = self.parser.default_collation
 
-    raise self.error('FOCH0004')
+    try:
+        with CollationManager(collation, self) as manager:
+            base64_key = Base64Binary.encoder(manager.strxfrm(key).encode())
+            return Base64Binary(base64_key, ordered=True)
+    except locale.Error:
+        raise self.error('FOCH0004')
 
 
 NULL_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}null'

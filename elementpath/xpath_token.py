@@ -1399,7 +1399,7 @@ class XPathFunction(XPathToken):
                 raise self.error(code, msg if max_args != 1 else msg[:-1])
 
         self.parser.advance(')')
-        if any(tk.symbol == '?' for tk in self._items):
+        if any(tk.symbol == '?' and not tk for tk in self._items):
             self._partial_function()
 
         return self

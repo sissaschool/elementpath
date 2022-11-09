@@ -131,6 +131,8 @@ def led_namespace_prefix(self, left):
     else:
         left.expected('(name)', '*')
 
+    if left.symbol not in ('(name)', '*'):
+        return left
     if not self.parser.next_token.label.endswith('function'):
         self.parser.expected_name('(name)', '*')
     if self.parser.is_spaced():
