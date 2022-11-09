@@ -213,7 +213,7 @@ class XPath2Parser(XPath1Parser):
         return self.next_token
 
     @classmethod
-    def constructor(cls, symbol: str, bp: int = 0, nargs: NargsType = 1,
+    def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,
                     sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
                     label: Union[str, Tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:

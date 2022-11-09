@@ -24,6 +24,7 @@ from elementpath.datatypes import Timezone, DateTime10, DateTime, DateTimeStamp,
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic, \
     Base64Binary, HexBinary
 from elementpath.namespaces import XSD_NAMESPACE
+from elementpath.xpath_token import XPathConstructor
 
 try:
     from tests import xpath_test_class
@@ -32,6 +33,18 @@ except ImportError:
 
 
 class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
+
+    def test_constructor_class(self):
+        ntk = 0
+        for token_class in self.parser.symbol_table.values():
+            if issubclass(token_class, XPathConstructor):
+                self.assertEqual(token_class.label, 'constructor function')
+                self.assertEqual(token_class.lbp, 90)
+                self.assertEqual(token_class.rbp, 90)
+                ntk += 1
+
+        self.assertGreaterEqual(ntk, 45)
+        self.assertLessEqual(ntk, 50)
 
     def test_unknown_constructor(self):
         self.wrong_type("xs:unknown('5')", 'XPST0017', 'unknown constructor function')
