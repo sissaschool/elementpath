@@ -1571,9 +1571,10 @@ class XPathMap(XPathFunction):
         del self._items[:]
         if self.parser.next_token.symbol not in ('}', '(end)'):
             while True:
-                key = self.parser.expression(95)  # ':'
+                key = self.parser.expression(94)  # ':'
                 self._items.append(key)
-                self.parser.advance(':')
+                if self.parser.token.symbol != ':':
+                    self.parser.advance(':')
                 self._values.append(self.parser.expression(5))
 
                 if self.parser.next_token.symbol != ',':

@@ -264,10 +264,46 @@ class Token(MutableSequence[TK]):
     def position(self) -> Tuple[int, int]:
         """A tuple with the position of the token in terms of line and column."""
         token_index = self.span[0]
-        line = self._source[:token_index].count('\n') + 1
+        line = self.parser.source[:token_index].count('\n') + 1
         if line == 1:
             return 1, token_index + 1
-        return line, token_index - self._source[:token_index].rindex('\n')
+        return line, token_index - self.parser.source[:token_index].rindex('\n')
+
+    def is_source_start(self) -> bool:
+        """
+        Returns `True` if the token is positioned at the start
+        of the source, ignoring the spaces.
+        """
+        return not bool(self.parser.source[0:self.span[0]].strip())
+
+    def is_line_start(self) -> bool:
+        """
+        Returns `True` if the token is positioned at the start
+        of a source line, ignoring the spaces.
+        """
+        token_index = self.span[0]
+        try:
+            line_start = self.parser.source[:token_index].rindex('\n') + 1
+        except ValueError:
+            return not bool(self.parser.source[:token_index].strip())
+        else:
+            return not bool(self.parser.source[line_start:token_index].strip())
+
+    def is_spaced(self, before: bool = True, after: bool = True) -> bool:
+        """
+        Returns `True` if the token has extra spaces (whitespace, tab or newline)
+        immediately before or after it.
+
+        :param before: if `True` considers also the extra spaces before the token.
+        :param after: if `True` considers also the extra spaces after the token.
+        """
+        start, end = self.span
+        try:
+            if before and start > 0 and self.parser.source[start - 1] in ' \t\n':
+                return True
+            return after and self.parser.source[end] in ' \t\n'
+        except IndexError:
+            return False
 
     def nud(self) -> TK:
         """Pratt's null denotation method"""
@@ -590,20 +626,14 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         Returns `True` if the parser is positioned at the start
         of the source, ignoring the spaces.
         """
-        return not bool(self.source[0:self.token.span[0]].strip())
+        return self.token.is_source_start()
 
     def is_line_start(self) -> bool:
         """
         Returns `True` if the parser is positioned at the start
         of a source line, ignoring the spaces.
         """
-        token_index = self.token.span[0]
-        try:
-            line_start = self.source[:token_index].rindex('\n') + 1
-        except ValueError:
-            return not bool(self.source[:token_index].strip())
-        else:
-            return not bool(self.source[line_start:token_index].strip())
+        return self.token.is_line_start()
 
     def is_spaced(self, before: bool = True, after: bool = True) -> bool:
         """
@@ -615,13 +645,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         :param after: if `True` considers also the extra spaces after \
         the current token symbol.
         """
-        start, end = self.token.span
-        try:
-            if before and start > 0 and self.source[start - 1] in ' \t\n':
-                return True
-            return after and self.source[end] in ' \t\n'
-        except IndexError:
-            return False
+        return self.token.is_spaced(before, after)
 
     @staticmethod
     def unescape(string_literal: str) -> str:

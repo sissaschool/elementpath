@@ -359,7 +359,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value("tst:B1", [context.root[1]], context=context)
         self.check_value("tst:B2", [context.root[3], context.root[7]], context=context)
-        self.check_value("tst:B1:B2", NameError)
+        self.check_value("tst:B1:B2", SyntaxError)
 
         self.check_selector("./tst:B1", root, [root[0]], namespaces=namespaces)
         self.check_selector("./tst:*", root, root[:], namespaces=namespaces)

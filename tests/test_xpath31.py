@@ -22,6 +22,7 @@
 import unittest
 import os
 from textwrap import dedent
+from typing import cast
 
 try:
     import lxml.etree as lxml_etree
@@ -36,9 +37,8 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import XPathContext
-from elementpath.etree import etree_deep_equal, is_etree_element, is_etree_document
-from elementpath.datatypes import DateTime
-from elementpath.exceptions import ElementPathLocaleError
+from elementpath.etree import etree_deep_equal
+from elementpath.datatypes import DateTime, Base64Binary
 from elementpath.xpath_nodes import DocumentNode
 from elementpath.xpath3 import XPath31Parser
 from elementpath.xpath_token import XPathMap, XPathArray
@@ -130,6 +130,44 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         token = self.parser.parse(f'{NESTED_MAP}("book")("author")(1)("last")')
         self.assertEqual(token.evaluate(), 'Abiteboul')
+
+    def test_map_ambiguity(self):
+        self.parser.namespaces['a'] = 'http://xpath.test/ns'
+        try:
+            with self.assertRaises(SyntaxError):
+                self.parser.parse('map{a:b}')
+
+            token = cast(XPathMap, self.parser.parse('map{a :b}'))
+            self.assertEqual(token[0].symbol, '(name)')
+            self.assertEqual(token[0].value, 'a')
+            self.assertEqual(token._values[0].symbol, '(name)')
+            self.assertEqual(token._values[0].value, 'b')
+
+            token = cast(XPathMap, self.parser.parse('map{a: b}'))
+            self.assertEqual(token[0].symbol, '(name)')
+            self.assertEqual(token[0].value, 'a')
+            self.assertEqual(token._values[0].symbol, '(name)')
+            self.assertEqual(token._values[0].value, 'b')
+
+            token = self.parser.parse('map{a:b:c}')
+            self.assertEqual(token[0].symbol, ':')
+            self.assertEqual(token[0].value, 'a:b')
+            self.assertEqual(token._values[0].symbol, '(name)')
+            self.assertEqual(token._values[0].value, 'c')
+
+            token = self.parser.parse('map{a:*:c}')
+            self.assertEqual(token[0].symbol, ':')
+            self.assertEqual(token[0].value, 'a:*')
+            self.assertEqual(token._values[0].symbol, '(name)')
+            self.assertEqual(token._values[0].value, 'c')
+
+            token = self.parser.parse('map{*:b:c}')
+            self.assertEqual(token[0].symbol, ':')
+            self.assertEqual(token[0].value, '*:b')
+            self.assertEqual(token._values[0].symbol, '(name)')
+            self.assertEqual(token._values[0].value, 'c')
+        finally:
+            self.parser.namespaces.pop('a')
 
     def test_curly_array_constructor(self):
         token = self.parser.parse('array { 1, 2, 5, 7 }')
@@ -761,10 +799,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value(expression, True)
 
     def test_collation_key_function(self):
-        with self.assertRaises(ElementPathLocaleError) as ctx:
-            self.check_value('fn:collation-key("foo")')
-
-        self.assertIn('FOCH0004', str(ctx.exception))
+        self.check_value('fn:collation-key("foo")', Base64Binary(b'Zm9v'))
 
     def test_lookup_unary_operator(self):
         context = XPathContext(self.etree.XML('<empty/>'))

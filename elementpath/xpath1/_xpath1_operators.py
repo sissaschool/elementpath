@@ -25,6 +25,7 @@ from ..xpath_context import XPathSchemaContext
 from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
+from ..xpath_token import XPathToken
 
 from .xpath1_parser import XPath1Parser
 
@@ -126,17 +127,21 @@ def select_name_literal(self, context=None):
 # Namespace prefix reference
 @method(':', bp=95)
 def led_namespace_prefix(self, left):
-    if self.parser.version == '1.0':
-        left.expected('(name)')
-    else:
-        left.expected('(name)', '*')
-
-    if left.symbol not in ('(name)', '*'):
+    version = self.parser.version
+    if self.is_spaced():
+        if version <= '3.0':
+            raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
         return left
+
+    if version == '1.0':
+        left.expected('(name)')
+    elif version <= '3.0':
+        left.expected('(name)', '*')
+    elif left.symbol not in ('(name)', '*'):
+        return left
+
     if not self.parser.next_token.label.endswith('function'):
         self.parser.expected_name('(name)', '*')
-    if self.parser.is_spaced():
-        raise self.wrong_syntax("a QName cannot contains spaces before or after ':'")
 
     if left.symbol == '(name)':
         try:
@@ -151,12 +156,8 @@ def led_namespace_prefix(self, left):
     elif self.parser.next_token.symbol != '(name)':
         raise self.wrong_syntax()
 
-    self[:] = left, self.parser.expression(90)
+    self[:] = left, self.parser.expression(95)
     self.value = '{}:{}'.format(self[0].value, self[1].value)
-
-    if self.parser.next_token.symbol == ':':
-        raise self.wrong_syntax()
-
     return self
 
 
