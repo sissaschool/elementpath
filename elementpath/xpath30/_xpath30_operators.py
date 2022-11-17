@@ -15,7 +15,7 @@ from copy import copy
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..xpath_nodes import AttributeNode, ElementNode
-from ..xpath_token import XPathToken, ValueToken, XPathFunction
+from ..xpath_token import XPathToken, ValueToken, XPathFunction, XPathMap, XPathArray
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import QName
 
@@ -123,7 +123,8 @@ def evaluate_parenthesized_expression(self, context=None):
 
         raise self.error('XPTY0004', f'an XPath function expected, not {type(value)!r}')
 
-    if not isinstance(value, XPathFunction) or self[0].span[0] > self.span[0]:
+    if isinstance(value, (XPathMap, XPathArray)) or \
+            not isinstance(value, XPathFunction) or self[0].span[0] > self.span[0]:
         return value
     else:
         return value(context)

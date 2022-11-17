@@ -607,20 +607,24 @@ def evaluate_random_number_generator_function(self, context=None):
         seed = str(seed)
     random.seed(seed)
 
-    def permute(seq):
-        seq = [x for x in seq]
-        random.shuffle(seq)
-        return seq
+    class Permute(XPathFunction):
 
-    def next_random():
-        items = {
-            'number': random.random(),
-            'next': next_random,
-            'permute': permute,
-        }
-        return XPathMap(self.parser, items)
+        def __call__(self, seq):
+            seq = [x for x in seq]
+            random.shuffle(seq)
+            return seq
 
-    return next_random()
+    class NextRandom(XPathFunction):
+
+        def __call__(self, *args, **kwargs):
+            items = {
+                'number': random.random(),
+                'next': NextRandom(self.parser),
+                'permute': Permute(self.parser),
+            }
+            return XPathMap(self.parser, items)
+
+    return NextRandom(self.parser)()
 
 
 @method(function('apply', label='function', nargs=2,

@@ -772,7 +772,7 @@ def nud_element_kind_test(self):
         if self.parser.next_token.symbol == ',':
             self.parser.advance(',')
             self.parser.expected_name('(name)', ':', message='a QName expected')
-            self[1:] = self.parser.expression(5),
+            self[1:] = self.parser.expression(80),
             if self.parser.next_token.symbol in ('*', '+', '?'):
                 self[1].occurrence = self.parser.next_token.symbol
                 self.parser.advance()

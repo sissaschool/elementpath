@@ -11,7 +11,7 @@
 """
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
-from ..xpath_token import ValueToken, XPathFunction, XPathMap, XPathArray
+from ..xpath_token import ValueToken, ProxyToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
@@ -120,6 +120,11 @@ def led_arrow_operator(self, left):
     next_token = self.parser.next_token
     if next_token.symbol == '$':
         self[:] = left, self.parser.expression(80)
+    elif isinstance(next_token, ProxyToken):
+        self.parser.parse_arguments = False
+        self[:] = left, next_token.nud()
+        self.parser.parse_arguments = True
+        self.parser.advance()
     elif isinstance(next_token, XPathFunction):
         self[:] = left, next_token
         self.parser.advance()  # Skip static evaluation of function arguments
@@ -128,7 +133,7 @@ def led_arrow_operator(self, left):
         self[:] = left, self.parser.expression(80)
         self.parser.parse_arguments = True
     else:
-        raise self.wrong_syntax()
+        raise next_token.wrong_syntax()
 
     right = self.parser.expression(67)
     self.append(right)

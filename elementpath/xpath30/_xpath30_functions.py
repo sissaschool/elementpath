@@ -969,7 +969,7 @@ def evaluate_head_function(self, context=None):
         return item
 
 
-@method(function('tail', nargs=1, sequence_types=('item()*', 'item()?')))
+@method(function('tail', nargs=1, sequence_types=('item()*', 'item()*')))
 def select_tail_function(self, context=None):
     for k, item in enumerate(self[0].select(context)):
         if k:
