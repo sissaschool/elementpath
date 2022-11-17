@@ -189,7 +189,9 @@ def select_let_expression(self, context=None):
 
 @method('#', bp=90)
 def led_function_reference(self, left):
-    left.expected(':', '(name)', 'Q{')
+    if not left.label.endswith('function'):
+        left.expected(':', '(name)', 'Q{')
+
     self[:] = left, self.parser.expression(rbp=90)
     self[1].expected('(integer)')
     return self
@@ -197,40 +199,44 @@ def led_function_reference(self, left):
 
 @method('#')
 def evaluate_function_reference(self, context=None):
-    if self[0].symbol == ':':
-        qname = QName(self[0][1].namespace, self[0].value)
-    elif self[0].symbol == 'Q{':
-        qname = QName(self[0][0].value, self[0][1].value)
-    elif self[0].value in self.parser.RESERVED_FUNCTION_NAMES:
-        msg = f"{self[0].value!r} is not allowed as function name"
-        raise self.error('XPST0003', msg)
-    else:
-        qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
-
     arity = self[1].value
-    namespace = qname.namespace
-    local_name = qname.local_name
-
-    # Generic rule for XSD constructor functions
-    if namespace == XSD_NAMESPACE and arity != 1:
-        raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
-
-    # Special checks for multirole tokens
-    if namespace == XPATH_FUNCTIONS_NAMESPACE and \
-            local_name in ('QName', 'dateTime') and arity == 1:
-        raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
-
-    try:
-        if namespace in (XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE):
-            token_class = self.parser.symbol_table[local_name]
-        else:
-            token_class = self.parser.symbol_table[qname.expanded_name]
-    except KeyError:
-        msg = f"unknown function {qname.qname}#{arity}"
-        raise self.error('XPST0017', msg) from None
+    if isinstance(self[0], XPathFunction):
+        token_class = self[0].__class__
+        namespace = self[0].namespace
     else:
-        if token_class.symbol == 'function' or not token_class.label.endswith('function'):
-            raise self.error('XPST0003')
+        if self[0].symbol == ':':
+            qname = QName(self[0][1].namespace, self[0].value)
+        elif self[0].symbol == 'Q{':
+            qname = QName(self[0][0].value, self[0][1].value)
+        elif self[0].value in self.parser.RESERVED_FUNCTION_NAMES:
+            msg = f"{self[0].value!r} is not allowed as function name"
+            raise self.error('XPST0003', msg)
+        else:
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, self[0].value)
+
+        namespace = qname.namespace
+        local_name = qname.local_name
+
+        # Generic rule for XSD constructor functions
+        if namespace == XSD_NAMESPACE and arity != 1:
+            raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
+
+        # Special checks for multirole tokens
+        if namespace == XPATH_FUNCTIONS_NAMESPACE and \
+                local_name in ('QName', 'dateTime') and arity == 1:
+            raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
+
+        try:
+            if namespace in (XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE):
+                token_class = self.parser.symbol_table[local_name]
+            else:
+                token_class = self.parser.symbol_table[qname.expanded_name]
+        except KeyError:
+            msg = f"unknown function {qname.qname}#{arity}"
+            raise self.error('XPST0017', msg) from None
+        else:
+            if token_class.symbol == 'function' or not token_class.label.endswith('function'):
+                raise self.error('XPST0003')
 
     try:
         func = token_class(self.parser, nargs=arity)
