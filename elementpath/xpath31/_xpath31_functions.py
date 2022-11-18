@@ -630,7 +630,11 @@ def evaluate_random_number_generator_function(self, context=None):
 @method(function('apply', label='function', nargs=2,
                  sequence_types=('function(*)', 'array(*)', 'item()*')))
 def evaluate_apply_function(self, context=None):
-    func = self.get_argument(context, required=True, cls=XPathFunction)
+    if isinstance(self[0], XPathFunction):
+        func = self[0]
+    else:
+        func = self.get_argument(context, required=True, cls=XPathFunction)
+
     array_ = self.get_argument(context, index=1, required=True, cls=XPathArray)
 
     try:

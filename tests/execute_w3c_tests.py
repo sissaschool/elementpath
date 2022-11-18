@@ -131,6 +131,7 @@ SKIP_TESTS = {
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
     'fn-format-number__numberformat82',  # result may be '12.340,00' instead of '0.012,34'
     'fn-format-number__numberformat83',  # (idem)
+    'fn-apply__fn-apply-13',  # Error code should be err:FOAP0001
 }
 
 # Tests that can be run only with lxml.etree

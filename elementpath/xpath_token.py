@@ -1679,7 +1679,15 @@ class XPathArray(XPathFunction):
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         if self._array is not None:
             return self
-        items = [tk.evaluate(context) for tk in self._items]
+
+        if self.symbol == 'array':
+            # A comma in a curly array constructor is the comma operator, not a delimiter.
+            items = []
+            for tk in self._items:
+                items.extend(tk.select(context))
+        else:
+            items = [tk.evaluate(context) for tk in self._items]
+
         return XPathArray(self.parser, items)
 
     def __call__(self, context: Optional[XPathContext] = None,
