@@ -763,6 +763,7 @@ class TestCase(object):
                 root=self.etree.XML("<empty/>"),
                 namespaces=test_namespaces,
                 timezone='Z',
+                default_language=self.default_language,
                 default_calendar=self.calendar
             )
         else:
@@ -806,6 +807,8 @@ class TestCase(object):
                 kwargs['variables'] = variables
             if documents:
                 kwargs['documents'] = documents
+            if self.default_language:
+                kwargs['default_language'] = self.default_language
             if self.calendar:
                 kwargs['default_calendar'] = self.calendar
 

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, cast, overload, Dict, Any, List, Iterator, \
 
 from .exceptions import ElementPathTypeError
 from .namespaces import NamespacesType
-from .datatypes import AnyAtomicType, Timezone
+from .datatypes import AnyAtomicType, Timezone, Language
 from .protocols import ElementProtocol, DocumentProtocol
 from .etree import is_etree_element, is_etree_document
 from .xpath_nodes import RootArgType, ChildNodeType, XPathNode, \
@@ -149,7 +149,7 @@ class XPathContext:
         self.resource_collections = resource_collections
         self.default_resource_collection = default_resource_collection
         self.allow_environment = allow_environment
-        self.default_language = default_language
+        self.default_language = None if default_language is None else Language(default_language)
         self.default_calendar = default_calendar
         self.default_place = default_place
 

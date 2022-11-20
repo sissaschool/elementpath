@@ -21,12 +21,12 @@ from itertools import chain, product
 from urllib.request import urlopen
 
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
-    DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary
+    DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
-from ..collations import CollationManager
+from ..collations import get_locale_category, CollationManager
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
@@ -750,6 +750,16 @@ def evaluate_collation_key_function(self, context=None):
             return Base64Binary(base64_key, ordered=True)
     except locale.Error:
         raise self.error('FOCH0004')
+
+
+@method(function('default-language', label='function', nargs=0,
+                 sequence_types=('xs:language',)))
+def evaluate_default_language_function(self, context=None):
+    if context is None:
+        raise self.missing_context()
+    elif context.default_language is not None:
+        return context.default_language
+    return Language(locale.getlocale()[0].replace('_', '-'))
 
 
 NULL_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}null'
