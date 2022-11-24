@@ -159,12 +159,11 @@ class Token(MutableSequence[TK]):
     label: str = 'symbol'  # optional label
     pattern: Optional[str] = None  # a custom regex pattern for building the tokenizer
 
-    __slots__ = '_items', 'parser', 'value', '_source', 'span'
+    __slots__ = '_items', 'parser', 'value', 'span'
 
     _items: List[TK]
     parser: 'Parser[Token[TK]]'
     value: Optional[Any]
-    _source: str
     span: Tuple[int, int]
 
     def __init__(self, parser: 'Parser[Token[TK]]',
@@ -172,7 +171,6 @@ class Token(MutableSequence[TK]):
         self._items = []
         self.parser = parser
         self.value = value if value is not None else self.symbol
-        self._source = parser.source
         self.span = (0, 0) if parser.next_match is None else parser.next_match.span()
 
     @overload
@@ -268,6 +266,15 @@ class Token(MutableSequence[TK]):
         if line == 1:
             return 1, token_index + 1
         return line, token_index - self.parser.source[:token_index].rindex('\n')
+
+    def as_name(self):
+        """Returns a new '(name)' token for resolving ambiguous states."""
+        assert self.parser.name_pattern.match(self.symbol) is not None, \
+            "Token symbol is not compatible with the name pattern!"
+
+        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
+        token.span = self.span
+        return token
 
     def is_source_start(self) -> bool:
         """

@@ -47,7 +47,7 @@ def nud_as_and_of_symbols(self):
 # Variables
 @method('$', bp=90)
 def nud_variable_reference(self):
-    self.parser.expected_name('(name)', 'Q{')
+    self.parser.expected_next('(name)', 'Q{')
     self[:] = self.parser.expression(rbp=90),
     return self
 
@@ -117,8 +117,7 @@ def select_intersect_and_except_operators(self, context=None):
 @method('if', bp=20)
 def nud_if_expression(self):
     if self.parser.next_token.symbol != '(':
-        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-        return token.nud()
+        return self.as_name()
 
     self.parser.advance('(')
     self[:] = self.parser.expression(5),
@@ -153,8 +152,7 @@ def select_if_expression(self, context=None):
 def nud_quantified_expressions(self):
     del self[:]
     if self.parser.next_token.symbol != '$':
-        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-        return token.nud()
+        return self.as_name()
 
     while True:
         self.parser.next_token.expected('$')
@@ -204,8 +202,7 @@ def evaluate_quantified_expressions(self, context=None):
 def nud_for_expression(self):
     del self[:]
     if self.parser.next_token.symbol != '$':
-        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-        return token.nud()
+        return self.as_name()
 
     while True:
         self.parser.next_token.expected('$')
@@ -248,7 +245,7 @@ def select_for_expression(self, context=None):
 def led_sequence_type_based_expressions(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
     if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
-        self.parser.expected_name('(name)', ':')
+        self.parser.expected_next('(name)', ':')
 
     try:
         self[:] = left, self.parser.expression(rbp=self.rbp)
@@ -369,7 +366,7 @@ def evaluate_treat_expression(self, context=None):
 @method('cast', bp=63)
 def led_cast_expressions(self, left):
     self.parser.advance('as')
-    self.parser.expected_name('(name)', ':')
+    self.parser.expected_next('(name)', ':')
     self[:] = left, self.parser.expression(rbp=self.rbp)
     if self.parser.next_token.symbol == '?':
         self[2:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
@@ -694,8 +691,7 @@ def evaluate_idiv_operator(self, context=None):
 @method('castable')
 @method('cast')
 def nud_disambiguation_of_infix_operators(self):
-    token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-    return token.nud()
+    return self.as_name()
 
 
 ###
@@ -767,11 +763,11 @@ def select_element_kind_test(self, context=None):
 def nud_element_kind_test(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol != ')':
-        self.parser.expected_name('(name)', ':', '*', message='a QName or a wildcard expected')
+        self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
         self[0:] = self.parser.expression(5),
         if self.parser.next_token.symbol == ',':
             self.parser.advance(',')
-            self.parser.expected_name('(name)', ':', message='a QName expected')
+            self.parser.expected_next('(name)', ':', message='a QName expected')
             self[1:] = self.parser.expression(80),
             if self.parser.next_token.symbol in ('*', '+', '?'):
                 self[1].occurrence = self.parser.next_token.symbol
@@ -827,7 +823,7 @@ def select_schema_element_kind_test(self, context=None):
 @method('schema-element')
 def nud_schema_node_kind_test(self):
     self.parser.advance('(')
-    self.parser.expected_name('(name)', ':', 'Q{', message='a QName expected')
+    self.parser.expected_next('(name)', ':', 'Q{', message='a QName expected')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
     self.value = None
@@ -854,7 +850,7 @@ def nud_attribute_kind_test_or_axis(self):
     if self.parser.next_token.symbol == '::':
         self.label = 'axis'
         self.parser.advance('::')
-        self.parser.expected_name(
+        self.parser.expected_next(
             '(name)', '*', 'text', 'node', 'document-node', 'comment', 'processing-instruction',
             'attribute', 'schema-attribute', 'element', 'schema-element', 'namespace-node'
         )

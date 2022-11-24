@@ -76,9 +76,7 @@ function = XPath30Parser.function
                  bases=(XPathFunction,)))
 def nud_inline_function(self):
     if self.parser.next_token.symbol != '(':
-        self.label = 'inline function'
-        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-        return token.nud()
+        return self.as_name()
 
     def append_sequence_type(tk):
         if tk.symbol == '(' and len(tk) == 1:
@@ -152,7 +150,7 @@ def nud_inline_function(self):
     else:
         self.parser.advance('as')
         if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
-            self.parser.expected_name('(name)', ':')
+            self.parser.expected_next('(name)', ':')
 
         token = self.parser.expression(rbp=90)
         append_sequence_type(token)

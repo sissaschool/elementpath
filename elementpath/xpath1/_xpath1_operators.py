@@ -137,7 +137,7 @@ class NamespacePrefixToken(XPathToken):
         # Change bind powers if it cannot be a namespace related token
         if self.is_spaced():
             self.lbp = self.rbp = 0
-        elif self.parser.token.symbol not in ('*', '(name)'):
+        elif self.parser.token.symbol not in ('*', '(name)', 'array'):
             self.lbp = self.rbp = 0
 
     def led(self, left):
@@ -155,7 +155,7 @@ class NamespacePrefixToken(XPathToken):
             return left
 
         if not self.parser.next_token.label.endswith('function'):
-            self.parser.expected_name('(name)', '*')
+            self.parser.expected_next('(name)', '*')
 
         if left.symbol == '(name)':
             try:
@@ -260,7 +260,7 @@ def nud_namespace_uri(self):
 
     self.parser.advance()
     if not self.parser.next_token.label.endswith('function'):
-        self.parser.expected_name('(name)', '*')
+        self.parser.expected_next('(name)', '*')
     self.parser.next_token.bind_namespace(namespace)
 
     self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), \
@@ -311,7 +311,7 @@ def select_namespace_uri(self, context=None):
 # Variables
 @method('$', bp=90)
 def nud_variable_reference(self):
-    self.parser.expected_name('(name)')
+    self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
     if ':' in self[0].value:
         raise self[0].wrong_syntax("variable reference requires a simple reference name")
@@ -611,9 +611,8 @@ def evaluate_mod_operator(self, context=None):
 @method('and')
 @method('div')
 @method('mod')
-def nud_logical_div_mod_operators(self):
-    token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-    return token.nud()
+def nud_disambiguation_of_infix_operators(self):
+    return self.as_name()
 
 
 ###
@@ -646,7 +645,7 @@ def select_union_operator(self, context=None):
 @method('//', bp=75)
 def nud_descendant_path(self):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
-        self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
+        self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
 
     self[:] = self.parser.expression(75),
     return self
@@ -656,7 +655,7 @@ def nud_descendant_path(self):
 def nud_child_path(self):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         try:
-            self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
+            self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
         except SyntaxError:
             return self
 
@@ -668,7 +667,7 @@ def nud_child_path(self):
 @method('/')
 def led_child_or_descendant_path(self, left):
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
-        self.parser.expected_name(*self.parser.PATH_STEP_SYMBOLS)
+        self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
 
     self[:] = left, self.parser.expression(75)
     return self

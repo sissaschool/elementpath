@@ -156,8 +156,7 @@ def select_simple_map_operator(self, context=None):
 def nud_let_expression(self):
     del self[:]
     if self.parser.next_token.symbol != '$':
-        token = self.parser.symbol_table['(name)'](self.parser, self.symbol)
-        return token.nud()
+        return self.as_name()
 
     while True:
         self.parser.next_token.expected('$')

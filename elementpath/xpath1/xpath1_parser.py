@@ -214,10 +214,10 @@ class XPath1Parser(Parser[XPathToken]):
             pass
         return root_token
 
-    def expected_name(self, *symbols: str, message: Optional[str] = None) -> None:
+    def expected_next(self, *symbols: str, message: Optional[str] = None) -> None:
         """
-        Checks the next symbol with a list of symbols. Replaces the next token
-        with a '(name)' token if check fails and the symbol can be also a name,
+        Checks the next token with a list of symbols. Replaces the next token with
+        a '(name)' token if the check fails and the next token can be a name,
         otherwise raises a syntax error.
 
         :param symbols: a sequence of symbols.
@@ -225,10 +225,11 @@ class XPath1Parser(Parser[XPathToken]):
         """
         if self.next_token.symbol in symbols:
             return
-        elif self.next_token.label in ('operator', 'symbol', 'let expression', 'proxy function') \
-                and self.name_pattern.match(self.next_token.symbol) is not None:
-            token_class = self.symbol_table['(name)']
-            self.next_token = token_class(self, self.next_token.symbol)
+        elif '(name)' in symbols and \
+                not isinstance(self.next_token, (XPathFunction, XPathAxis)) and \
+                self.name_pattern.match(self.next_token.symbol) is not None:
+            # Disambiguation replacing the next token with a '(name)' token
+            self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
         else:
             raise self.next_token.wrong_syntax(message)
 

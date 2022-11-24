@@ -16,15 +16,43 @@ from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
 method = XPath31Parser.method
+function = XPath31Parser.function
 
 register('map', bp=90, label='map', bases=(XPathMap,))
-register('array', bp=90, label='array', bases=(XPathArray,))
+# register('array', bp=90, label='array', bases=(XPathArray,))
+
+
+@method(register('array', label='kind test'))
+def nud_sequence_type_or_curly_array_constructor(self):
+    if self.parser.next_token.symbol == '{':
+        self.parser.token = XPathArray(self.parser).nud()
+        return self.parser.token
+    elif self.parser.next_token.symbol != '(':
+        return self.as_name()
+
+    self.parser.advance('(')
+    if self.parser.next_token.label != 'kind test':
+        self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
+    self[:] = self.parser.expression(45),
+    if self.parser.next_token.symbol in ('*', '+', '?'):
+        self[0].occurrence = self.parser.next_token.symbol
+        self.parser.advance()
+    self.parser.advance(')')
+    self.value = None
+    return self
+
+
+@method('array')
+def select_array_kind_test(self, context=None):
+    for item in context.iter_children_or_self():
+        if self.parser.match_sequence_type(item, self.source, self.occurrence):
+            yield item
 
 
 ###
 # Square array constructor (pushed lazy)
 @method('[')
-def nud_array_constructor(self):
+def nud_square_array_constructor(self):
     if self.parser.version < '3.1':
         raise self.wrong_syntax()
 

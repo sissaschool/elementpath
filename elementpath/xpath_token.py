@@ -1099,7 +1099,7 @@ class XPathAxis(XPathToken):
 
     def nud(self) -> 'XPathAxis':
         self.parser.advance('::')
-        self.parser.expected_name(
+        self.parser.expected_next(
             '(name)', '*', '{', 'Q{', 'text', 'node', 'document-node',
             'comment', 'processing-instruction', 'element', 'attribute',
             'schema-attribute', 'schema-element', 'namespace-node',
