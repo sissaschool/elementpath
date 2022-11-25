@@ -18,11 +18,50 @@ register = XPath31Parser.register
 method = XPath31Parser.method
 function = XPath31Parser.function
 
-register('map', bp=90, label='map', bases=(XPathMap,))
+# register('map', bp=90, label='map', bases=(XPathMap,))
 # register('array', bp=90, label='array', bases=(XPathArray,))
 
+register('map', bp=90, label=('kind test', 'map'), bases=(XPathFunction,),
+         pattern=r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*(?=\(|\{)(?!\:))')
 
-@method(register('array', label='kind test'))
+
+@method('map')
+def nud_map_sequence_type_or_constructor(self):
+    if self.parser.next_token.symbol == '{':
+        self.parser.token = XPathMap(self.parser).nud()
+        return self.parser.token
+    elif self.parser.next_token.symbol != '(':
+        return self.as_name()
+
+    self.label = 'kind test'
+
+    self.parser.advance('(')
+    if self.parser.next_token.label != 'kind test':
+        self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
+    self[:] = self.parser.expression(45),
+    if self.parser.next_token.symbol in ('*', '+', '?'):
+        self[0].occurrence = self.parser.next_token.symbol
+        self.parser.advance()
+
+    if self[0].symbol != '*':
+        self.parser.advance(',')
+        if self.parser.next_token.label != 'kind test':
+            self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
+        self.append(self.parser.expression(45))
+        if self.parser.next_token.symbol in ('*', '+', '?'):
+            self[-1].occurrence = self.parser.next_token.symbol
+            self.parser.advance()
+
+    self.parser.advance(')')
+    self.value = None
+    return self
+
+
+register('array', bp=90, label=('kind test', 'array'), bases=(XPathFunction,),
+         pattern=r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*(?=\(|\{)(?!\:))')
+
+
+@method('array')
 def nud_sequence_type_or_curly_array_constructor(self):
     if self.parser.next_token.symbol == '{':
         self.parser.token = XPathArray(self.parser).nud()
@@ -30,6 +69,7 @@ def nud_sequence_type_or_curly_array_constructor(self):
     elif self.parser.next_token.symbol != '(':
         return self.as_name()
 
+    self.label = 'kind test'
     self.parser.advance('(')
     if self.parser.next_token.label != 'kind test':
         self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
@@ -42,6 +82,7 @@ def nud_sequence_type_or_curly_array_constructor(self):
     return self
 
 
+@method('map')
 @method('array')
 def select_array_kind_test(self, context=None):
     for item in context.iter_children_or_self():
@@ -156,27 +197,20 @@ def led_arrow_operator(self, left):
     elif isinstance(next_token, XPathFunction):
         self[:] = left, next_token
         self.parser.advance()  # Skip static evaluation of function arguments
-    elif next_token.symbol == '(name)':
+    else:
+        next_token.expected('(name)', ':', 'Q{', '(')
         self.parser.parse_arguments = False
         self[:] = left, self.parser.expression(80)
         self.parser.parse_arguments = True
-    else:
-        raise next_token.wrong_syntax()
 
     right = self.parser.expression(67)
+    right.expected('(')
     self.append(right)
     return self
 
 
 @method('=>')
 def evaluate_arrow_operator(self, context=None):
-    if isinstance(self[1], XPathFunction):
-        func = self[1]
-    elif self[1].symbol == ':' and isinstance(self[1][1], XPathFunction):
-        func = self[1][1]
-    else:
-        func = self[1].evaluate(context)
-
     arguments = []
     if self[2]:
         if len(self[2]) == 1:
@@ -193,4 +227,6 @@ def evaluate_arrow_operator(self, context=None):
 
     arguments.append(self[0].evaluate(context))
     arguments.reverse()
+
+    func = self[1].get_function(context, arity=len(arguments))
     return func(context, *arguments)

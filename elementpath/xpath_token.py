@@ -272,6 +272,27 @@ class XPathToken(Token[XPathTokenType]):
             return self.validated_value(item, cls, promote)
         return item
 
+    def get_function(self, context: Optional[XPathContext], arity: int = 0) -> 'XPathFunction':
+        if isinstance(self, XPathFunction):
+            func = self
+        elif self.symbol in (':', 'Q{') and isinstance(self[1], XPathFunction):
+            func = self[1]
+        elif self.symbol == '(name)':
+            msg = f'unknown function: {self.value}#{arity}'
+            raise self.error('XPST0017', msg)
+        else:
+            func = self.evaluate(context)
+            if not isinstance(func, XPathFunction):
+                msg = f'unknown function: {func}#{arity}'
+                raise self.error('XPST0017', msg)
+
+        max_args = func.max_args
+        if func.min_args > arity or max_args is not None and max_args < arity:
+            msg = f'unknown function: {func.symbol}#{arity}'
+            raise self.error('XPST0017', msg)
+
+        return func
+
     def validated_value(self, item: Any, cls: Type[Any],
                         promote: Optional[ClassCheckType] = None) -> Any:
         """
@@ -1338,6 +1359,24 @@ class XPathFunction(XPathToken):
         if isinstance(self.nargs, int):
             return self.nargs
         return len(self._items)
+
+    @property
+    def min_args(self) -> int:
+        if isinstance(self.nargs, int):
+            return self.nargs
+        elif isinstance(self.nargs, (tuple, list)):
+            return self.nargs[0]
+        else:
+            return 0
+
+    @property
+    def max_args(self) -> Optional[int]:
+        if isinstance(self.nargs, int):
+            return self.nargs
+        elif isinstance(self.nargs, (tuple, list)):
+            return self.nargs[1]
+        else:
+            return None
 
     def nud(self) -> 'XPathFunction':
         self.value = None

@@ -25,7 +25,8 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     XPATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, XSD_NUMERIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, ProxyToken
+from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, \
+    ProxyToken, XPathArray
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 COMMON_SEQUENCE_TYPES = {
@@ -397,6 +398,11 @@ class XPath1Parser(Parser[XPathToken]):
             if not isinstance(value, XPathFunction):
                 return False
             return value.match_function_test(sequence_type)
+        elif sequence_type.startswith('array('):
+            if not isinstance(value, XPathArray):
+                return False
+            item_sequence_type = sequence_type[6:-1]
+            return all(self.match_sequence_type(x, item_sequence_type) for x in value.items())
 
         if isinstance(value, XPathNode):
             value_kind = value.kind
