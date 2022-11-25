@@ -119,17 +119,20 @@ register('?', bases=(ValueToken,), lbp=6, rbp=80)
 
 @method('?', )
 def nud_unary_lookup_operator(self):
-    if self.parser.next_token.symbol in ('(name)', '(integer)', '(', '*'):
+    try:
+        self.parser.expected_next('(name)', '(integer)', '(', '*')
+    except SyntaxError:
+        return self  # a placeholder token
+    else:
         self[:] = self.parser.expression(85),
-    return self  # a placeholder token
+        return self
 
 
 @method('?')
 def led_lookup_operator(self, left):
-    if self.parser.next_token.symbol in ('(name)', '(integer)', '(', '*'):
-        self[:] = left, self.parser.expression(80)
-        return self
-    raise self.wrong_syntax()
+    self.parser.expected_next('(name)', '(integer)', '(', '*')
+    self[:] = left, self.parser.expression(80)
+    return self
 
 
 @method('?')

@@ -235,7 +235,7 @@ def evaluate_array_put_function(self, context=None):
         member = []
 
     if position <= 0:
-        raise self.error('FOAY0002' if position else 'FOAY0001')
+        raise self.error('FOAY0001')
 
     items = array_.items(context)
     try:
@@ -256,7 +256,7 @@ def evaluate_array_insert_before_function(self, context=None):
         member = []
 
     if position <= 0:
-        raise self.error('FOAY0002' if position else 'FOAY0001')
+        raise self.error('FOAY0001')
 
     items = array_.items(context)
     try:

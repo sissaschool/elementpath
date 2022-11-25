@@ -1732,11 +1732,11 @@ class XPathArray(XPathFunction):
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
         if len(args) != 1 or not isinstance(args[0], int):
-            raise self.error('XPST0003', 'exactly one xs:integer argument is expected')
+            raise self.error('XPTY0004', 'exactly one xs:integer argument is expected')
 
         position = args[0]
         if position <= 0:
-            raise self.error('FOAY0002' if position else 'FOAY0001')
+            raise self.error('FOAY0001')
 
         if self._array is not None:
             items = self._array
