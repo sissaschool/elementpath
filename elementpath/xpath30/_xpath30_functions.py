@@ -35,7 +35,7 @@ from ..etree import defuse_xml, etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from ..tree_builders import get_node_tree
-from ..xpath_token import XPathFunction
+from ..xpath_token import ValueToken, XPathFunction
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
     DateTime10, Time, AnyURI, UntypedAtomic
@@ -160,7 +160,10 @@ def nud_inline_function(self):
             self.label = 'function test'
         else:
             self.parser.advance('{')
-            self.body = self.parser.expression()
+            if self.parser.next_token.symbol != '}':
+                self.body = self.parser.expression()
+            else:
+                self.body = ValueToken(self.parser, value=[])
             self.parser.advance('}')
 
     return self

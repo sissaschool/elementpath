@@ -1528,7 +1528,9 @@ def evaluate_doc_functions(self, context=None):
 
     uri = uri.strip()
     if uri.startswith(':'):
-        raise self.error('FODC0005')
+        if self.symbol == 'doc' or self.parser.version <= '3.0':
+            raise self.error('FODC0005')
+        return False
 
     try:
         uri = self.get_absolute_uri(uri)

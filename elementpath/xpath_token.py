@@ -206,6 +206,12 @@ class XPathToken(Token[XPathTokenType]):
             for tk in self._items:
                 yield from tk.iter_leaf_elements()
 
+    def parse_occurrence(self):
+        if self.parser.next_token.symbol in ('*', '+', '?'):
+            self.occurrence = self.parser.next_token.symbol
+            self.parser.advance()
+            self.parser.next_token.unexpected('*', '+', '?')
+
     ###
     # Dynamic context methods
     def get_argument(self, context: Optional[XPathContext],

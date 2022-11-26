@@ -15,7 +15,8 @@ from copy import copy
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..xpath_nodes import AttributeNode, ElementNode
-from ..xpath_token import XPathToken, ValueToken, XPathFunction, XPathMap, XPathArray
+from ..xpath_token import XPathToken, ValueToken, ProxyToken, XPathFunction, \
+    XPathMap, XPathArray
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import QName
 
@@ -227,16 +228,16 @@ def evaluate_function_reference(self, context=None):
             raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
 
         try:
-            if namespace in (XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE):
-                token_class = self.parser.symbol_table[local_name]
-            else:
-                token_class = self.parser.symbol_table[qname.expanded_name]
+            token_class = self.parser.symbol_table[qname.expanded_name]
         except KeyError:
-            msg = f"unknown function {qname.qname}#{arity}"
-            raise self.error('XPST0017', msg) from None
-        else:
-            if token_class.symbol == 'function' or not token_class.label.endswith('function'):
-                raise self.error('XPST0003')
+            try:
+                token_class = self.parser.symbol_table[local_name]
+            except KeyError:
+                msg = f"unknown function {qname.qname}#{arity}"
+                raise self.error('XPST0017', msg) from None
+
+        if token_class.symbol == 'function' or not token_class.label.endswith('function'):
+            raise self.error('XPST0003')
 
     try:
         func = token_class(self.parser, nargs=arity)

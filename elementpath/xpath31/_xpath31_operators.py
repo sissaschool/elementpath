@@ -39,18 +39,14 @@ def nud_map_sequence_type_or_constructor(self):
     if self.parser.next_token.label != 'kind test':
         self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
     self[:] = self.parser.expression(45),
-    if self.parser.next_token.symbol in ('*', '+', '?'):
-        self[0].occurrence = self.parser.next_token.symbol
-        self.parser.advance()
+    self[0].parse_occurrence()
 
     if self[0].symbol != '*':
         self.parser.advance(',')
         if self.parser.next_token.label != 'kind test':
             self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
         self.append(self.parser.expression(45))
-        if self.parser.next_token.symbol in ('*', '+', '?'):
-            self[-1].occurrence = self.parser.next_token.symbol
-            self.parser.advance()
+        self[-1].parse_occurrence()
 
     self.parser.advance(')')
     self.value = None
@@ -74,10 +70,10 @@ def nud_sequence_type_or_curly_array_constructor(self):
     if self.parser.next_token.label != 'kind test':
         self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
     self[:] = self.parser.expression(45),
-    if self.parser.next_token.symbol in ('*', '+', '?'):
-        self[0].occurrence = self.parser.next_token.symbol
-        self.parser.advance()
+    if self[0].symbol != '*':
+        self[0].parse_occurrence()
     self.parser.advance(')')
+    self.parse_occurrence()
     self.value = None
     return self
 
@@ -85,6 +81,9 @@ def nud_sequence_type_or_curly_array_constructor(self):
 @method('map')
 @method('array')
 def select_array_kind_test(self, context=None):
+    if context is None:
+        raise self.missing_context()
+
     for item in context.iter_children_or_self():
         if self.parser.match_sequence_type(item, self.source, self.occurrence):
             yield item
@@ -117,7 +116,7 @@ XPath31Parser.unregister('?')
 register('?', bases=(ValueToken,), lbp=6, rbp=80)
 
 
-@method('?', )
+@method('?')
 def nud_unary_lookup_operator(self):
     try:
         self.parser.expected_next('(name)', '(integer)', '(', '*')
@@ -164,13 +163,15 @@ def select_lookup_operator(self, context=None):
         if isinstance(item, XPathMap):
             if symbol == '*':
                 yield from item.values(context)
-            elif symbol == '(name)':
-                yield item(context, self[-1].value)
-            elif symbol == '(integer)':
-                yield item(context, self[-1].value)
+            elif symbol in ('(name)', '(integer)'):
+                value = item(context, self[-1].value)
+                if value is not None:
+                    yield value
             elif symbol == '(':
                 for value in self[-1].select(context):
-                    yield item(context, self.data_value(value))
+                    value = item(context, self.data_value(value))
+                    if value is not None:
+                        yield value
 
         elif isinstance(item, XPathArray):
             if symbol == '*':
@@ -214,22 +215,13 @@ def led_arrow_operator(self, left):
 
 @method('=>')
 def evaluate_arrow_operator(self, context=None):
-    arguments = []
+    arguments = [self[0].evaluate(context)]
     if self[2]:
-        if len(self[2]) == 1:
-            arguments.append(self[2][0])
+        other_args = self[2].evaluate(context)
+        if isinstance(other_args, list):
+            arguments.extend(other_args)
         else:
-            tk = self[2][1]
-            while True:
-                if tk.symbol == ',':
-                    arguments.append(tk[1].evaluate(context))
-                    tk = tk[0]
-                else:
-                    arguments.append(tk.evaluate(context))
-                    break
-
-    arguments.append(self[0].evaluate(context))
-    arguments.reverse()
+            arguments.append(other_args)
 
     func = self[1].get_function(context, arity=len(arguments))
     return func(context, *arguments)
