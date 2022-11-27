@@ -26,7 +26,7 @@ from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
-from ..collations import get_locale_category, CollationManager
+from ..collations import CollationManager
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_token import XPathFunction, XPathMap, XPathArray
@@ -608,13 +608,20 @@ def evaluate_random_number_generator_function(self, context=None):
     random.seed(seed)
 
     class Permute(XPathFunction):
+        nargs = 1
+        sequence_types = ('item()*', 'item()*')
 
-        def __call__(self, seq):
-            seq = [x for x in seq]
+        def __call__(self, context_=None, *args):
+            if not args:
+                return []
+
+            seq = [x for x in args[0]]
             random.shuffle(seq)
             return seq
 
     class NextRandom(XPathFunction):
+        nargs = 0
+        sequence_types = ('map(xs:string, item())',)
 
         def __call__(self, *args, **kwargs):
             items = {

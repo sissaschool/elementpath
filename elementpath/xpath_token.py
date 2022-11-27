@@ -1472,8 +1472,11 @@ class XPathFunction(XPathToken):
         if not parts[1] or not parts[2]:
             return False
 
-        sequence_types = parts[0].split(', ')
-        sequence_types.append(parts[2])
+        if parts[0]:
+            sequence_types = parts[0].split(', ')
+            sequence_types.append(parts[2])
+        else:
+            sequence_types = [parts[2]]
 
         signature = [x for x in self.sequence_types[:self.arity]]
         signature.append(self.sequence_types[-1])
