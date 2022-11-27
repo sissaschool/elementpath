@@ -25,7 +25,7 @@ from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from ..xpath_context import XPathSchemaContext
-from ..xpath_token import XPathFunction
+from ..xpath_token import XPathFunction, XPathArray
 
 from .xpath2_parser import XPath2Parser
 

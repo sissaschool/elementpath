@@ -946,7 +946,11 @@ class XPathToken(Token[XPathTokenType]):
             except (TypeError, ValueError) as err:
                 raise self.error('XPDY0050', str(err))
         elif isinstance(obj, XPathFunction):
-            raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
+            if not isinstance(obj, XPathArray):
+                raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
+
+            values = [self.data_value(x) for x in obj.iter_flatten()]
+            return values[0] if len(values) == 1 else None
         else:
             return cast(AtomicValueType, obj)
 
