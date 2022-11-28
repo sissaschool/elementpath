@@ -16,7 +16,6 @@ import os
 import re
 import codecs
 import math
-import xml.etree.ElementTree as ElementTree
 from copy import copy
 from urllib.parse import urlsplit
 
@@ -29,13 +28,13 @@ from ..exceptions import ElementPathError
 from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
     XML_NEWLINES_PATTERN, is_xml_codepoint, node_position
 from ..namespaces import get_expanded_name, split_expanded_name, \
-    XPATH_FUNCTIONS_NAMESPACE, XSLT_XQUERY_SERIALIZATION_NAMESPACE, \
-    XSD_NAMESPACE
+    XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..etree import defuse_xml, etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from ..tree_builders import get_node_tree
 from ..xpath_token import ValueToken, XPathFunction
+from ..serialization import get_serialization_params, serialize_to_xml, serialize_to_json
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
     DateTime10, Time, AnyURI, UntypedAtomic
@@ -46,19 +45,6 @@ from .xpath30_helpers import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     MODIFIER_PATTERN, decimal_to_string, int_to_roman, int_to_alphabetic, \
     format_digits, int_to_words, parse_datetime_picture, parse_datetime_marker, \
     ordinal_suffix
-
-# XSLT and XQuery Serialization parameters
-SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_OMIT_XML_DECLARATION = '{%s}omit-xml-declaration' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_USE_CHARACTER_MAPS = '{%s}use-character-maps' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_CHARACTER_MAP = '{%s}character-map' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_METHOD = '{%s}method' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_INDENT = '{%s}indent' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_VERSION = '{%s}version' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_CDATA = '{%s}cdata-section-elements' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_NO_INDENT = '{%s}suppress-indentation' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_STANDALONE = '{%s}standalone' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
-SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
 
 FORMAT_INTEGER_TOKENS = {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}
 
@@ -1230,136 +1216,27 @@ def evaluate_serialize_function(self, context=None):
     # TODO full implementation of serialization with
     #  https://www.w3.org/TR/xpath-functions-30/#xslt-xquery-serialization-30
     params = self.get_argument(context, index=1) if len(self) == 2 else None
-    if params is None:
-        tmpl = '<output:serialization-parameters xmlns:output="{}"/>'
-        params = ElementTree.XML(tmpl.format(XSLT_XQUERY_SERIALIZATION_NAMESPACE))
-    elif isinstance(params, ElementNode):
-        params = params.value
-        if params.tag != SERIALIZATION_PARAMS:
-            raise self.error('XPTY0004', 'output:serialization-parameters tag expected')
+    kwargs = get_serialization_params(params, token=self)
 
-    if context is None or isinstance(context, XPathSchemaContext):
-        etree = ElementTree
-    else:
-        etree = context.etree
+    if context is None:
+        raise self.missing_context()
+    elif isinstance(context, XPathSchemaContext):
+        return None  # not applicable to schemas
+
+    method_ = kwargs.get('method', 'xml')
+    if method_ in ('xml', 'html', 'text'):
+        etree_module = context.etree
         if context.namespaces:
             for pfx, uri in context.namespaces.items():
-                etree.register_namespace(pfx, uri)
+                etree_module.register_namespace(pfx, uri)
         else:
             for pfx, uri in self.parser.namespaces.items():
-                etree.register_namespace(pfx, uri)
+                etree_module.register_namespace(pfx, uri)
 
-    item_separator = ' '
-    kwargs = {}
-    character_map = {}
-    if len(params):
-        if len(params) > len({e.tag for e in params}):
-            raise self.error('SEPM0019')
+        return serialize_to_xml(self[0].select(context), etree_module, **kwargs)
 
-        for child in params:
-            if child.tag == SER_PARAM_OMIT_XML_DECLARATION:
-                value = child.get('value')
-                if value not in ('yes', 'no') or len(child.attrib) > 1:
-                    raise self.error('SEPM0017')
-                elif value == 'no':
-                    kwargs['xml_declaration'] = True
-
-            elif child.tag == SER_PARAM_USE_CHARACTER_MAPS:
-                if len(child.attrib):
-                    raise self.error('SEPM0017')
-
-                for e in child:
-                    if e.tag != SER_PARAM_CHARACTER_MAP:
-                        raise self.error('SEPM0017')
-
-                    try:
-                        character = e.attrib['character']
-                        if character in character_map:
-                            msg = 'duplicate character {!r} in character map'
-                            raise self.error('SEPM0018', msg.format(character))
-                        elif len(character) != 1:
-                            msg = 'invalid character {!r} in character map'
-                            raise self.error('SEPM0017', msg.format(character))
-
-                        character_map[character] = e.attrib['map-string']
-                    except KeyError as key:
-                        msg = "missing {} in character map"
-                        raise self.error('SEPM0017', msg.format(key)) from None
-                    else:
-                        if len(e.attrib) > 2:
-                            msg = "invalid attribute in character map"
-                            raise self.error('SEPM0017', msg)
-
-            elif child.tag == SER_PARAM_METHOD:
-                value = child.get('value')
-                if value not in ('html', 'xml', 'xhtml', 'text') or len(child.attrib) > 1:
-                    raise self.error('SEPM0017')
-                kwargs['method'] = value if value != 'xhtml' else 'html'
-
-            elif child.tag == SER_PARAM_INDENT:
-                value = child.attrib.get('value', '').strip()
-                if value not in ('yes', 'no') or len(child.attrib) > 1:
-                    raise self.error('SEPM0017')
-
-            elif child.tag == SER_PARAM_ITEM_SEPARATOR:
-                try:
-                    item_separator = child.attrib['value']
-                except KeyError:
-                    raise self.error('SEPM0017') from None
-
-            elif child.tag == SER_PARAM_CDATA:
-                pass  # TODO param
-            elif child.tag == SER_PARAM_NO_INDENT:
-                pass  # TODO param
-            elif child.tag == SER_PARAM_STANDALONE:
-                value = child.attrib.get('value', '').strip()
-                if value not in ('yes', 'no', 'omit') or len(child.attrib) > 1:
-                    raise self.error('SEPM0017')
-                if value != 'omit':
-                    kwargs['standalone'] = value == 'yes'
-
-            elif child.tag.startswith(f'{{{XSLT_XQUERY_SERIALIZATION_NAMESPACE}'):
-                raise self.error('SEPM0017')
-            elif not child.tag.startswith('{'):  # no-namespace not allowed
-                raise self.error('SEPM0017')
-
-    chunks = []
-    for item in self[0].select(context):
-        if isinstance(item, DocumentNode):
-            item = item.document.getroot()
-        elif isinstance(item, ElementNode):
-            item = item.elem
-        elif isinstance(item, (AttributeNode, NamespaceNode)):
-            raise self.error('SENR0001')
-        elif isinstance(item, TextNode):
-            chunks.append(item.value)
-            continue
-        elif isinstance(item, bool):
-            chunks.append('true' if item else 'false')
-            continue
-        else:
-            chunks.append(str(item))
-            continue
-
-        if isinstance(context, XPathSchemaContext):
-            continue
-
-        try:
-            ck = etree.tostringlist(item, encoding='utf-8', **kwargs)
-        except TypeError:
-            chunks.append(etree.tostring(item, encoding='utf-8').decode('utf-8'))
-        else:
-            if ck and ck[0].startswith(b'<?'):
-                ck[0] = ck[0].replace(b'\'', b'"')
-            chunks.append(b'\n'.join(ck).decode('utf-8'))
-
-    if not character_map:
-        return item_separator.join(chunks)
-
-    result = item_separator.join(chunks)
-    for character, map_string in character_map.items():
-        result = result.replace(character, map_string)
-    return result
+    elif method_ == 'json':
+        return serialize_to_json(self[0].select(context), token=self, **kwargs)
 
 
 ###

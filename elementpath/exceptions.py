@@ -181,9 +181,18 @@ XPATH_ERROR_CODES = {
     'SENR0001': (ElementPathTypeError, 'item is an attribute node or a namespace node'),
     'SEPM0016': (ElementPathValueError, 'parameter value is invalid for the defined domain'),
     'SEPM0017': (ElementPathValueError, 'error during extraction of serialization parameters'),
-    'SEPM0018': (ElementPathValueError, 'use-character-maps serialization parameter in '
-                                        'a sequence of length greater than one'),
+    'SEPM0018': (ElementPathTypeError, 'use-character-maps serialization parameter in '
+                                       'a sequence of length greater than one'),
     'SEPM0019': (ElementPathValueError, 'same serialization parameter appears more than once'),
+    'SERE0020': (ElementPathTypeError, 'a numeric value being serialized using the JSON output '
+                                       'method cannot be represented in the JSON grammar'),
+    'SERE0021': (ElementPathTypeError, 'a sequence being serialized using the JSON output '
+                                       'method includes items for which no rules are provided '
+                                       'in the appropriate section of the serialization rules'),
+    'SERE0022': (ElementPathValueError, 'a map being serialized using the JSON output method '
+                                        'has two keys with the same string value'),
+    'SERE0023': (ElementPathTypeError, 'a sequence being serialized using the JSON output '
+                                       'method is of length greater than one'),
 
     # XPath 3.1+ errors
     'FOJS0001': (ElementPathSyntaxError, 'JSON syntax error'),
