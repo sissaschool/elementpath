@@ -26,7 +26,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     XSD_UNTYPED_ATOMIC, XSD_NUMERIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, \
-    ProxyToken, XPathArray
+    ProxyToken, XPathArray, XPathMap
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 COMMON_SEQUENCE_TYPES = {
@@ -398,11 +398,26 @@ class XPath1Parser(Parser[XPathToken]):
             if not isinstance(value, XPathFunction):
                 return False
             return value.match_function_test(sequence_type)
+
         elif sequence_type.startswith('array('):
             if not isinstance(value, XPathArray):
                 return False
+            if sequence_type == 'array(*)':
+                return True
+
             item_sequence_type = sequence_type[6:-1]
-            return all(self.match_sequence_type(x, item_sequence_type) for x in value.items())
+            f = self.match_sequence_type
+            return all(f(x, item_sequence_type) for x in value.items())
+
+        elif sequence_type.startswith('map('):
+            if not isinstance(value, XPathMap):
+                return False
+            if sequence_type == 'map(*)':
+                return True
+
+            key_type, _, value_type = sequence_type[4:-1].partition(', ')
+            f = self.match_sequence_type
+            return all(f(k, key_type) and f(v, value_type) for k, v in value.items())
 
         if isinstance(value, XPathNode):
             value_kind = value.kind
