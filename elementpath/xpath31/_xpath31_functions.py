@@ -13,12 +13,14 @@ XPath 3.1 implementation - part 3 (functions)
 """
 import json
 import locale
+import pathlib
 import random
 import re
 from datetime import datetime
 from decimal import Decimal
 from itertools import chain, product
 from urllib.request import urlopen
+from urllib.parse import urlsplit
 
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
@@ -51,6 +53,16 @@ TIMEZONE_MAP = {
     'PST': '-08:00',
     'PDT': '-07:00',
 }
+
+
+def escape_json_string(s):
+    s = s.replace('\b', r'\b').\
+        replace('\r', r'\r').\
+        replace('\n', r'\n').\
+        replace('\t', r'\t').\
+        replace('\f', r'\f').\
+        replace('/', r'\/')
+    return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
 
 
 @XPath31Parser.constructor('numeric')
@@ -478,9 +490,9 @@ def evaluate_array_sort_function(self, context=None):
     return XPathArray(self.parser, items)
 
 
-@method(function('json-doc', label='parse-json function', nargs=(1, 2),
+@method(function('json-doc', label='function', nargs=(1, 2),
                  sequence_types=('xs:string?', 'map(*)', 'item()?')))
-@method(function('parse-json', label='parse-json function', nargs=(1, 2),
+@method(function('parse-json', label='function', nargs=(1, 2),
                  sequence_types=('xs:string?', 'map(*)', 'item()?')))
 def evaluate_parse_json_functions(self, context=None):
     if self.symbol == 'json-doc':
@@ -488,45 +500,60 @@ def evaluate_parse_json_functions(self, context=None):
         if href is None:
             return None
 
-        with urlopen(href) as fp:
-            json_text = fp.read()
+        try:
+            if urlsplit(href).scheme:
+                with urlopen(href) as fp:
+                    json_text = fp.read().decode('utf-8')
+            else:
+                with pathlib.Path(href).open() as fp:
+                    json_text = fp.read()
+        except IOError:
+            raise self.error('FOUT1170') from None
+
     else:
+        href = None
         json_text = self.get_argument(context, cls=str)
         if json_text is None:
             return None
 
+    def _fallback(*args):
+        return '&#xFFFD;'
+
     liberal = False
     duplicates = 'use-first'
     escape = True
-
-    def fallback(*args):
-        return '&#xFFFD;'
+    fallback = _fallback
 
     if len(self) > 1:
         map_ = self.get_argument(context, index=1, required=True, cls=XPathMap)
         for k, v in map_.items(context):
             if k == 'liberal':
                 if not isinstance(v, bool):
-                    raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
                 liberal = v
             elif k == 'duplicates':
-                if v not in ('use-first', 'use-last', 'reject'):
+                if not isinstance(v, str):
+                    raise self.error('XPTY0004')
+                elif v not in ('use-first', 'use-last', 'reject'):
                     raise self.error('FOJS0005')
                 duplicates = v
             elif k == 'escape':
                 if not isinstance(v, bool):
-                    raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
                 escape = v
             elif k == 'fallback':
                 if not isinstance(v, XPathFunction):
-                    raise self.error('FOJS0005')
-                # fallback = v  TODO
-            else:
-                raise self.error('FOJS0005')
+                    raise self.error('XPTY0004')
+                fallback = v
 
-    def json_object_to_xpath(obj):
+    def json_object_pairs_to_map(obj):
         items = {}
-        for k_, v_ in obj.items():
+        for k_, v_ in obj:
+            if escape:
+                k_ = escape_json_string(k_)
+                if isinstance(v_, str):
+                    v_ = escape_json_string(v_)
+
             if k_ in items:
                 if duplicates == 'use-first':
                     continue
@@ -540,7 +567,7 @@ def evaluate_parse_json_functions(self, context=None):
 
         return XPathMap(self.parser, items)
 
-    kwargs = {'object_hook': json_object_to_xpath}
+    kwargs = {'object_pairs_hook': json_object_pairs_to_map}
     if liberal or escape:
         kwargs['strict'] = False
     if liberal:
@@ -549,7 +576,13 @@ def evaluate_parse_json_functions(self, context=None):
 
         kwargs['parse_constant'] = parse_constant
 
-    result = json.JSONDecoder(**kwargs).decode(json_text)
+    try:
+        result = json.JSONDecoder(**kwargs).decode(json_text)
+    except json.JSONDecodeError:
+        if href and urlsplit(href).fragment:
+            raise self.error('FOUT1170') from None
+        raise self.error('FOJS0001') from None
+
     if isinstance(result, list):
         return XPathArray(self.parser, result)
     return result
@@ -861,15 +894,6 @@ def evaluate_json_to_xml_function(self, context=None):
         etree = context.etree
     else:
         raise self.missing_context()
-
-    def escape_json_string(s):
-        s = s.replace('\b', r'\b').\
-            replace('\r', r'\r').\
-            replace('\n', r'\n').\
-            replace('\t', r'\t').\
-            replace('\f', r'\f').\
-            replace('/', r'\/')
-        return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
 
     def _fallback(*args):
         return '&#xFFFD;'

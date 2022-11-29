@@ -132,6 +132,8 @@ SKIP_TESTS = {
     'fn-format-number__numberformat82',  # result may be '12.340,00' instead of '0.012,34'
     'fn-format-number__numberformat83',  # (idem)
     'fn-apply__fn-apply-13',  # Error code should be err:FOAP0001
+    'fn-json-doc__json-doc-032',  # 0 is not an instance of xs:double
+    'fn-json-doc__json-doc-033',  # 0 (should be -0) is not an instance of xs:double
 }
 
 # Tests that can be run only with lxml.etree
@@ -1150,18 +1152,11 @@ class Result(object):
             return False
 
         variables = {'result': result}
-
-        environment = self.test_case.get_environment()
-        if environment is None:
-            parser = XPath31Parser(xsd_version=self.test_case.xsd_version)
-        else:
-            parser = XPath31Parser(
-                namespaces=environment.get_namespaces(),
-                xsd_version=self.test_case.xsd_version
-            )
-
         root_node = self.test_case.parser.parse(self.value)
-        context = XPathContext(root=self.etree.XML("<empty/>"), variables=variables)
+        context = XPathContext(
+            root=self.etree.XML("<empty/>"),
+            variables=variables
+        )
         if root_node.boolean_value(root_node.evaluate(context)) is True:
             return True
 

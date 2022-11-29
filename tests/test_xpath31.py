@@ -739,17 +739,17 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(list(result.keys()), ['number', 'next', 'permute'])
         self.assertTrue(0 <= result(context, 'number') <= 1)
 
-        seq = result(context, 'permute')(range(10))
+        seq = result(context, 'permute')(context, range(10))
         _seq = tuple(seq)
         self.assertNotEqual(seq, list(range(10)))
-        self.assertNotEqual(seq, result(context, 'permute')(seq))
-        self.assertNotEqual(seq, result(context, 'permute')(range(10)))
+        self.assertNotEqual(seq, result(context, 'permute')(context, seq))
+        self.assertNotEqual(seq, result(context, 'permute')(context, range(10)))
         self.assertListEqual(seq, list(_seq))
 
         expression = 'random-number-generator(1000)'
         token = self.parser.parse(expression)
         result = token.evaluate()
-        self.assertNotEqual(seq, result(context, 'permute')(seq))
+        self.assertNotEqual(seq, result(context, 'permute')(None, seq))
 
     def test_apply_function(self):
         expression = 'fn:apply(fn:concat#3, ["a", "b", "c"])'

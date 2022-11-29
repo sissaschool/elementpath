@@ -25,7 +25,7 @@ from copy import copy
 from decimal import Decimal
 from itertools import product
 from typing import TYPE_CHECKING, cast, Dict, KeysView, ItemsView, ValuesView, \
-    Optional, List, Tuple, Union, Any, Iterator, SupportsFloat, Type
+    Optional, List, Tuple, Union, Any, Iterable, Iterator, SupportsFloat, Type
 import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
@@ -1691,9 +1691,10 @@ class XPathArray(XPathFunction):
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
     _array: Optional[List[Any]] = None
 
-    def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
+    def __init__(self, parser: 'XPath1Parser',
+                 items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
-            self._array = list(items)
+            self._array = [[] if x is None else x for x in items]
         super().__init__(parser)
 
     def __repr__(self) -> str:
@@ -1778,5 +1779,5 @@ class XPathArray(XPathFunction):
                 yield from item.iter_flatten(context)
             elif isinstance(item, list):
                 yield from item
-            else:
+            elif item is not None:
                 yield item
