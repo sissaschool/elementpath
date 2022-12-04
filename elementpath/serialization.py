@@ -7,10 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import json
+from decimal import Decimal, ROUND_UP
 from typing import Any, Dict, Optional, Union
 
 from .exceptions import xpath_error
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
+from .helpers import escape_json_string
+from .datatypes import AnyURI, AbstractDateTime, AbstractBinary, UntypedAtomic
 from .xpath_nodes import ElementNode, AttributeNode, DocumentNode, NamespaceNode, TextNode
 from .xpath_token import XPathToken, XPathMap, XPathArray
 
@@ -64,7 +68,14 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 kwargs['item_separator'] = value
             
             elif key == 'use-character-maps':
-                pass  # TODO param
+                if not isinstance(value, XPathMap):
+                    raise xpath_error('XPTY0004', token=token)
+
+                for k, v in value.items():
+                    if not isinstance(k, str) or not isinstance(v, str):
+                        raise xpath_error('XPTY0004', token=token)
+
+                # TODO param
             elif key == 'suppress-indentation':
                 pass  # TODO param
             elif key == 'standalone':
@@ -220,53 +231,43 @@ def serialize_to_json(elements, etree_module=None, token=None, **kwargs):
         from xml.etree import ElementTree
         etree_module = ElementTree
 
-    try:
-        iterator = iter(elements)
-    except TypeError:
-        iterator = iter((elements,))
+    class XPathEncoder(json.JSONEncoder):
 
-    chunks = []
-    for item in iterator:
-        if isinstance(item, DocumentNode):
-            item = item.document.getroot()
-        elif isinstance(item, ElementNode):
-            item = item.elem
-        elif isinstance(item, (AttributeNode, NamespaceNode)):
-            # if self.parser.version < '3.1':
-            #    raise self.error('SENR0001')
-            chunks.append(f'{item.name}="{item.string_value}"')
-            continue
-        elif isinstance(item, TextNode):
-            chunks.append(item.value)
-            continue
-        elif isinstance(item, XPathMap):
-            ck = []
-            for k, v in item.items():
-                sk = serialize_to_json(k, token=token, **kwargs)
-                sv = serialize_to_json(v, token=token, **kwargs)
-                ck.append(f'"{sk}": "{sv}"')
-            chunks.append(f'{{{", ".join(ck)}}}')
-            continue
-        elif isinstance(item, XPathArray):
-            continue
-        elif isinstance(item, bool):
-            chunks.append('true' if item else 'false')
-            continue
-        else:
-            chunks.append(str(item))
-            continue
+        def default(self, obj):
+            if isinstance(obj, DocumentNode):
+                root = obj.document.getroot()
+            elif isinstance(obj, ElementNode):
+                root = obj.elem
+            elif isinstance(obj, (AttributeNode, NamespaceNode)):
+                return f'{obj.name}="{obj.string_value}"'
+            elif isinstance(obj, XPathMap):
+                if any(isinstance(v, list) and len(v) > 1 for v in obj.values()):
+                    raise xpath_error('SERE0023', token=token)
+                return {k: v for k, v in obj.items()}
+            elif isinstance(obj, XPathArray):
+                return [v for v in obj.items()]
+            elif isinstance(obj, (AbstractBinary, AbstractDateTime, AnyURI, UntypedAtomic)):
+                return str(obj)
+            elif isinstance(obj, Decimal):
+                return float(Decimal(obj).quantize(Decimal("0.01"), ROUND_UP))
+            else:
+                return super().default(obj)
 
-        try:
-            ck = etree_module.tostringlist(item, encoding='utf-8')
-        except TypeError:
-            chunks.append(etree_module.tostring(item, encoding='utf-8').decode('utf-8'))
-        else:
-            if ck and ck[0].startswith(b'<?'):
-                ck[0] = ck[0].replace(b'\'', b'"')
-            chunks.append(b'\n'.join(ck).decode('utf-8').replace('/', '\\/'))
+            try:
+                chunks = etree_module.tostringlist(root, encoding='utf-8')
+            except TypeError:
+                return etree_module.tostring(root, encoding='utf-8').decode('utf-8')
+            else:
+                if chunks and chunks[0].startswith(b'<?'):
+                    chunks[0] = chunks[0].replace(b'\'', b'"')
+                return b'\n'.join(chunks).decode('utf-8')
 
-    if len(chunks) > 1:
+    kwargs = {
+        'cls': XPathEncoder,
+        'ensure_ascii': False,
+        'separators': (',', ':'),
+    }
+    parts = [json.dumps(x, **kwargs) for x in elements]
+    if len(parts) > 1:
         raise xpath_error('SERE0023', token=token)
-
-    return chunks[0]
-
+    return escape_json_string(parts[0])

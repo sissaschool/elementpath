@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
-from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint
+from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
@@ -53,16 +53,6 @@ TIMEZONE_MAP = {
     'PST': '-08:00',
     'PDT': '-07:00',
 }
-
-
-def escape_json_string(s):
-    s = s.replace('\b', r'\b').\
-        replace('\r', r'\r').\
-        replace('\n', r'\n').\
-        replace('\t', r'\t').\
-        replace('\f', r'\f').\
-        replace('/', r'\/')
-    return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
 
 
 @XPath31Parser.constructor('numeric')

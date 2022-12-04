@@ -192,3 +192,13 @@ def match_wildcard(name: str, wildcard: str) -> bool:
         return name.startswith(wildcard[:-1])
     else:
         return False
+
+
+def escape_json_string(s):
+    s = s.replace('\b', r'\b').\
+        replace('\r', r'\r').\
+        replace('\n', r'\n').\
+        replace('\t', r'\t').\
+        replace('\f', r'\f').\
+        replace('/', r'\/')
+    return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
