@@ -11,11 +11,12 @@ import json
 from decimal import Decimal, ROUND_UP
 from typing import Any, Dict, Optional, Union
 
-from .exceptions import xpath_error
+from .exceptions import ElementPathError, xpath_error
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from .helpers import escape_json_string
-from .datatypes import AnyURI, AbstractDateTime, AbstractBinary, UntypedAtomic
-from .xpath_nodes import ElementNode, AttributeNode, DocumentNode, NamespaceNode, TextNode
+from .datatypes import AnyURI, AbstractDateTime, AbstractBinary, UntypedAtomic, QName
+from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
+    NamespaceNode, TextNode, CommentNode
 from .xpath_token import XPathToken, XPathMap, XPathArray
 
 # XSLT and XQuery Serialization parameters
@@ -83,6 +84,26 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                     raise xpath_error('SEPM0017', token=token)
                 if value != 'omit':
                     kwargs['standalone'] = value == 'yes'
+
+            elif key == 'json-node-output-method':
+                if not isinstance(value, (str, QName)):
+                    raise xpath_error('XPTY0004', token=token)
+                kwargs[key] = value
+
+            elif key == 'allow-duplicate-names':
+                if value is not None and not isinstance(value, bool):
+                    raise xpath_error('XPTY0004', token=token)
+                kwargs[key] = value
+
+            elif key == 'encoding':
+                if not isinstance(value, str):
+                    raise xpath_error('XPTY0004', token=token)
+                kwargs[key] = value
+
+            elif key == 'html-version':
+                if not isinstance(value, (int, Decimal)):
+                    raise xpath_error('XPTY0004', token=token)
+                kwargs[key] = value
 
             elif key.startswith(f'{{{XSLT_XQUERY_SERIALIZATION_NAMESPACE}'):
                 raise xpath_error('SEPM0017')
@@ -226,24 +247,52 @@ def serialize_to_xml(elements, etree_module=None, token=None, **params):
     return result
 
 
-def serialize_to_json(elements, etree_module=None, token=None, **kwargs):
+def serialize_to_json(elements, etree_module=None, token=None, **params):
     if etree_module is None:
         from xml.etree import ElementTree
         etree_module = ElementTree
 
+    class MapEncodingDict(dict):
+        def __init__(self, items):
+            self[None] = None
+            self._items = items
+
+        def items(self):
+            return self._items
+
     class XPathEncoder(json.JSONEncoder):
 
         def default(self, obj):
-            if isinstance(obj, DocumentNode):
-                root = obj.document.getroot()
-            elif isinstance(obj, ElementNode):
-                root = obj.elem
-            elif isinstance(obj, (AttributeNode, NamespaceNode)):
-                return f'{obj.name}="{obj.string_value}"'
+            if isinstance(obj, XPathNode):
+                if isinstance(obj, DocumentNode):
+                    root = obj.document.getroot()
+                elif isinstance(obj, ElementNode):
+                    root = obj.elem
+                elif isinstance(obj, (AttributeNode, NamespaceNode)):
+                    return f'{obj.name}="{obj.string_value}"'
+                elif isinstance(obj, TextNode):
+                    return obj.value
+                elif isinstance(obj, CommentNode):
+                    return f'<!--{obj.string_value}-->'
+                else:
+                    return f'<?{obj.string_value}?>'
             elif isinstance(obj, XPathMap):
                 if any(isinstance(v, list) and len(v) > 1 for v in obj.values()):
                     raise xpath_error('SERE0023', token=token)
-                return {k: v for k, v in obj.items()}
+
+                map_keys = set()
+                map_items = []
+                for k, v in obj.items():
+                    if isinstance(k, QName):
+                        k = str(k)
+                    map_items.append((k, v))
+
+                    if k not in map_keys:
+                        map_keys.add(k)
+                    elif not params.get('allow-duplicate-names'):
+                        raise xpath_error('SERE0022', token=token)
+                return MapEncodingDict(map_items)
+
             elif isinstance(obj, XPathArray):
                 return [v for v in obj.items()]
             elif isinstance(obj, (AbstractBinary, AbstractDateTime, AnyURI, UntypedAtomic)):
@@ -266,8 +315,21 @@ def serialize_to_json(elements, etree_module=None, token=None, **kwargs):
         'cls': XPathEncoder,
         'ensure_ascii': False,
         'separators': (',', ':'),
+        'allow_nan': False,
     }
-    parts = [json.dumps(x, **kwargs) for x in elements]
-    if len(parts) > 1:
+    try:
+        parts = [json.dumps(x, **kwargs) for x in elements]
+    except ElementPathError:
+        raise
+    except ValueError:
+        raise xpath_error('SERE0020', token=token)
+
+    if not parts:
+        return 'null'
+    elif len(parts) > 1:
         raise xpath_error('SERE0023', token=token)
-    return escape_json_string(parts[0])
+
+    result = escape_json_string(parts[0])
+    if 'encoding' in params:
+        return result.encode('utf-8').decode(params['encoding'])
+    return result

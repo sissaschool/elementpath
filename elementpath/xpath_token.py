@@ -1585,6 +1585,7 @@ class XPathMap(XPathFunction):
     constructor or a function). The map is fully set after the protected attribute
     _map is evaluated from tokens or initialized from arguments.
     """
+    symbol = 'map'
     label = 'map'
     pattern = r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
     _map: Optional[Dict[AnyAtomicType, Any]] = None
@@ -1687,6 +1688,7 @@ class XPathArray(XPathFunction):
     """
     A token for processing XPath 3.1+ arrays.
     """
+    symbol = 'array'
     label = 'array'
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
     _array: Optional[List[Any]] = None
@@ -1694,7 +1696,7 @@ class XPathArray(XPathFunction):
     def __init__(self, parser: 'XPath1Parser',
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
-            self._array = [[] if x is None else x for x in items]
+            self._array = [x for x in items]
         super().__init__(parser)
 
     def __repr__(self) -> str:
@@ -1729,7 +1731,7 @@ class XPathArray(XPathFunction):
         self.parser.advance('}')
         return self
 
-    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
+    def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathArray':
         if self._array is not None:
             return self
 

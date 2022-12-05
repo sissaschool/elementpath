@@ -410,11 +410,14 @@ class ProcessingInstructionNode(XPathNode):
 
     @property
     def string_value(self) -> str:
-        return self.elem.text or ''
+        target = getattr(self.elem, 'target', None)
+        if not target:
+            return self.elem.text or ''
+        return f'{target} {self.elem.text}' if self.elem.text else target
 
     @property
     def typed_value(self) -> str:
-        return self.elem.text or ''
+        return self.string_value
 
 
 class ElementNode(XPathNode):

@@ -98,6 +98,7 @@ def nud_square_array_constructor(self):
 
     # Constructs an XPathArray token and returns it instead of the predicate
     token = XPathArray(self.parser)
+    token.symbol = '['
     if token.parser.next_token.symbol not in (']', '(end)'):
         while True:
             token.append(self.parser.expression(5))
