@@ -30,7 +30,18 @@ from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, \
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 
 COMMON_SEQUENCE_TYPES = {
-    'xs:untyped', 'untypedAtomic', 'attribute()', 'attribute(*)',
+    'xs:anyType', 'xs:anySimpleType', 'xs:anyAtomicType',
+    'xs:boolean', 'xs:decimal', 'xs:double', 'xs:float', 'xs:string',
+    'xs:date', 'xs:dateTime', 'xs:gDay', 'xs:gMonth', 'xs:gMonthDay',
+    'xs:gYear', 'xs:gYearMonth', 'xs:time', 'xs:duration', 'xs:dayTimeDuration',
+    'xs:yearMonthDuration', 'xs:QName', 'xs:anyURI', 'xs:normalizedString',
+    'xs:token', 'xs:language', 'xs:Name', 'xs:NCName', 'xs:ID', 'xs:IDREF',
+    'xs:ENTITY', 'xs:NMTOKEN', 'xs:base64Binary', 'xs:hexBinary',
+    'xs:dateTimeStamp', 'xs:integer', 'xs:long', 'xs:int', 'xs:short',
+    'xs:byte', 'xs:positiveInteger', 'xs:negativeInteger',
+    'xs:nonPositiveInteger', 'xs:nonNegativeInteger', 'xs:unsignedLong',
+    'xs:unsignedInt', 'xs:unsignedShort', 'xs:unsignedByte',
+    'xs:untyped', 'xs:untypedAtomic', 'attribute()', 'attribute(*)',
     'element()', 'element(*)', 'text()', 'document-node()', 'comment()',
     'processing-instruction()', 'item()', 'node()', 'numeric'
 }
@@ -416,17 +427,24 @@ class XPath1Parser(Parser[XPathToken]):
                 return True
 
             key_type, _, value_type = sequence_type[4:-1].partition(', ')
+            if key_type.endswith(('+', '*')):
+                raise xpath_error('XPST0003', 'no multiples occurs for a map key')
+
             f = self.match_sequence_type
             return all(f(k, key_type) and f(v, value_type) for k, v in value.items())
 
         if isinstance(value, XPathNode):
             value_kind = value.kind
+        elif '(' in sequence_type:
+            return False
         else:
             try:
                 type_expanded_name = get_expanded_name(sequence_type, self.namespaces)
                 return self.is_instance(value, type_expanded_name)
-            except (KeyError, ValueError):
+            except ValueError:
                 return False
+            except KeyError:
+                raise xpath_error('XPST0051')
 
         if sequence_type == 'node()':
             return True
@@ -462,8 +480,10 @@ class XPath1Parser(Parser[XPathToken]):
                     type_expanded_name = get_expanded_name(type_name, self.namespaces)
                     if not self.is_instance(value, type_expanded_name):
                         return False
-                except (KeyError, ValueError):
+                except ValueError:
                     return False
+                except KeyError:
+                    raise xpath_error('XPST0051')
 
         if name == '*':
             return True

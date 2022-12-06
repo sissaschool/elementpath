@@ -36,14 +36,14 @@ def nud_map_sequence_type_or_constructor(self):
     self.label = 'kind test'
 
     self.parser.advance('(')
-    if self.parser.next_token.label != 'kind test':
+    if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
         self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
     self[:] = self.parser.expression(45),
     self[0].parse_occurrence()
 
     if self[0].symbol != '*':
         self.parser.advance(',')
-        if self.parser.next_token.label != 'kind test':
+        if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
             self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
         self.append(self.parser.expression(45))
         self[-1].parse_occurrence()
@@ -80,7 +80,7 @@ def nud_sequence_type_or_curly_array_constructor(self):
 
 @method('map')
 @method('array')
-def select_array_kind_test(self, context=None):
+def select_map_or_array_kind_test(self, context=None):
     if context is None:
         raise self.missing_context()
 
