@@ -263,9 +263,8 @@ class XPathToken(Token[XPathTokenType]):
                     # node coherency is already checked at schema level.
                     break
                 else:
-                    raise self.wrong_context_type(
-                        "a sequence of more than one item is not allowed as argument"
-                    )
+                    msg = "a sequence of more than one item is not allowed as argument"
+                    raise self.error('XPTY0004', msg)
             else:
                 if item is None:
                     if not required:
@@ -397,12 +396,12 @@ class XPathToken(Token[XPathTokenType]):
                             value = xsd_type.decode(value)
                         except (TypeError, ValueError):
                             msg = "Type {!r} is not appropriate for the context"
-                            raise self.wrong_context_type(msg.format(type(value)))
+                            raise self.error('XPTY0004', msg.format(type(value)))
 
                 return value
             else:
                 msg = "atomized operand is a sequence of length greater than one"
-                raise self.wrong_context_type(msg)
+                raise self.error('XPTY0004', msg)
 
     def iter_comparison_data(self, context: XPathContext) -> Iterator[OperandsType]:
         """
@@ -1101,9 +1100,6 @@ class XPathToken(Token[XPathTokenType]):
     def missing_context(self, message: Optional[str] = None) -> MissingContextError:
         return cast(MissingContextError, self.error('XPDY0002', message))
 
-    def wrong_context_type(self, message: Optional[str] = None) -> ElementPathTypeError:
-        return cast(ElementPathTypeError, self.error('XPTY0004', message))
-
     def missing_name(self, message: Optional[str] = None) -> ElementPathNameError:
         return cast(ElementPathNameError, self.error('XPST0008', message))
 
@@ -1592,13 +1588,22 @@ class XPathMap(XPathFunction):
     _values: List[XPathToken]
 
     def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
+        super().__init__(parser)
         self._values = []
         if items is not None:
             _items = items.items() if isinstance(items, dict) else items
-            self._map = {
-                k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in _items
-            }
-        super().__init__(parser)
+            _map = {}
+            nan_key = False
+            for k, v in _items:
+                if isinstance(k, float) and math.isnan(k):
+                    if nan_key:
+                        raise self.error('XQDY0137')
+                    nan_key = True
+                elif k in _map:
+                    raise self.error('XQDY0137')
+                _map[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
+
+            self._map = _map
 
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self._map)
@@ -1644,16 +1649,18 @@ class XPathMap(XPathFunction):
     def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
         _map = {}
         for key, v in zip(self._items, self._values):
-            k = next(key.atomization(context), None)
-            if k is None:
-                raise self.error('XPST0003', 'missing key value')
-            assert k is not None
+            k = key.get_atomized_operand(context)
+            if k is not None:
+                if k in _map:
+                    raise self.error('XQDY0137')
 
-            value = v.evaluate(context)
-            if isinstance(value, list) and len(value) == 1:
-                _map[k] = value[0]
+                value = v.evaluate(context)
+                if isinstance(value, list) and len(value) == 1:
+                    _map[k] = value[0]
+                else:
+                    _map[k] = value
             else:
-                _map[k] = value
+                raise self.error('XPTY0004', 'missing key value')
 
         return cast(Dict[AnyAtomicType, Any], _map)
 
@@ -1664,8 +1671,16 @@ class XPathMap(XPathFunction):
 
         key = cast(AnyAtomicType, args[0])
         if self._map is not None:
-            return self._map.get(key)
-        return self._evaluate(context).get(key)
+            map_dict = self._map
+        else:
+            map_dict = self._evaluate(context)
+
+        if isinstance(key, float) and math.isnan(key):
+            for k, v in map_dict.items():
+                if isinstance(k, float) and math.isnan(k):
+                    return v
+        else:
+            return map_dict.get(key)
 
     def keys(self, context: Optional[XPathContext] = None) -> KeysView[AnyAtomicType]:
         if self._map is not None:

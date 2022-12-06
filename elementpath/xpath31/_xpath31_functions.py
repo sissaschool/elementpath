@@ -88,7 +88,7 @@ def evaluate_map_size_function(self, context=None):
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
 def evaluate_map_keys_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
-    return map_.keys(context)
+    return [x for x in map_.keys(context)]
 
 
 @method(function('contains', prefix='map', label='map function', nargs=2,
@@ -194,7 +194,7 @@ def evaluate_map_find_function(self, context=None):
             for k, v in obj.items(context):
                 if k == key:
                     items.append(v)
-                    iter_matching_items(v)
+                iter_matching_items(v)
 
     for item in self[0].select(context):
         iter_matching_items(item)

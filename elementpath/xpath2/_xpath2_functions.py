@@ -269,7 +269,7 @@ def evaluate_base_uri_function(self, context=None):
     elif item is None:
         return None
     elif not isinstance(item, XPathNode):
-        raise self.wrong_context_type("context item is not a node")
+        raise self.error('XPTY0004', "context item is not a node")
     elif isinstance(item, DocumentNode):
         base_uri = item.document.getroot().get(XML_BASE)
         return AnyURI(base_uri if base_uri is not None else '')

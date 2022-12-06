@@ -219,6 +219,7 @@ XPATH_ERROR_CODES = {
 
     'FOAP0001': (ElementPathTypeError, 'Wrong number of arguments'),
     'FORG0010': (ElementPathValueError, 'Invalid date/time'),
+    'XQDY0137': (ElementPathValueError, 'No two keys in a map may have the same key value'),
 }
 
 

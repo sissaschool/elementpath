@@ -398,10 +398,6 @@ class XPath1TokenTest(unittest.TestCase):
             raise token.missing_context()
         self.assertIn('XPDY0002', str(ctx.exception))
 
-        with self.assertRaises(TypeError) as ctx:
-            raise token.wrong_context_type()
-        self.assertIn('XPTY0004', str(ctx.exception))
-
         with self.assertRaises(NameError) as ctx:
             raise token.missing_name()
         self.assertIn('XPST0008', str(ctx.exception))

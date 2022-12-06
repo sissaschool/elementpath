@@ -395,14 +395,14 @@ def evaluate_cast_expressions(self, context=None):
     if len(result) > 1:
         if self.symbol != 'cast':
             return False
-        raise self.wrong_context_type("more than one value in expression")
+        raise self.error('XPTY0004', "more than one value in expression")
     elif not result:
         if len(self) == 3:
             return [] if self.symbol == 'cast' else True
         elif self.symbol != 'cast':
             return False
         else:
-            raise self.wrong_context_type("an atomic value is required")
+            raise self.error('XPTY0004', "an atomic value is required")
 
     arg = self.data_value(result[0])
     try:
