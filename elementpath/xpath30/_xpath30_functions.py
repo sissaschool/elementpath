@@ -452,7 +452,7 @@ def evaluate_format_number_function(self, context=None):
     try:
         decimal_format = self.parser.decimal_formats[decimal_format_name]
     except KeyError:
-        decimal_format = self.parser.decimal_formats[None]
+        raise self.error('FODF1280') from None
 
     pattern_separator = decimal_format['pattern-separator']
     sub_pictures = picture.split(pattern_separator)
@@ -484,8 +484,38 @@ def evaluate_format_number_function(self, context=None):
            for s in sub_pictures for x in s.split(decimal_separator)):
         raise self.error('FODF1310')
 
-    if self.parser.version == '3.0' and any(EXPONENT_PIC.search(s) for s in sub_pictures):
-        raise self.error('FODF1310')
+    active_characters = digits_family + ''.join([
+        decimal_separator, grouping_separator, pattern_separator, optional_digit
+    ])
+
+    exponent_pattern = None
+    if self.parser.version > '3.0':
+        # Check optional exponent spec correctness in each sub-picture
+        exponent_separator = decimal_format['exponent-separator']
+        _pattern = re.compile(r'(?<=[{0}]){1}[{0}]'.format(
+            re.escape(active_characters), exponent_separator
+        ))
+        for p in sub_pictures:
+            for match in _pattern.finditer(p):
+                if percent_sign in p or per_mille_sign in p:
+                    raise self.error('FODF1310')
+                elif any(c not in digits_family for c in p[match.span()[1]-1:]):
+                    # detailed check to consider suffix
+                    has_suffix = False
+                    for ch in p[match.span()[1]-1:]:
+                        if ch in digits_family:
+                            if has_suffix:
+                                raise self.error('FODF1310')
+                        elif ch in active_characters:
+                            raise self.error('FODF1310')
+                        else:
+                            has_suffix = True
+
+                exponent_pattern = _pattern
+
+    if exponent_pattern is None:
+        if any(EXPONENT_PIC.search(s) for s in sub_pictures):
+            raise self.error('FODF1310')
 
     if value is None or math.isnan(value):
         return decimal_format['NaN']
@@ -498,35 +528,35 @@ def evaluate_format_number_function(self, context=None):
 
     prefix = ''
     if value >= 0:
-        fmt_tokens = sub_pictures[0].split(decimal_separator)
+        subpic = sub_pictures[0]
     else:
-        fmt_tokens = sub_pictures[-1].split(decimal_separator)
+        subpic = sub_pictures[-1]
         if len(sub_pictures) == 1:
             prefix = minus_sign
 
-    for k, ch in enumerate(fmt_tokens[0]):
-        if ch.isdigit() or ch == optional_digit or ch == grouping_separator:
-            prefix += fmt_tokens[0][:k]
-            fmt_tokens[0] = fmt_tokens[0][k:]
+    for k, ch in enumerate(subpic):
+        if ch in active_characters:
+            prefix += subpic[:k]
+            subpic = subpic[k:]
             break
     else:
-        prefix += fmt_tokens[0]
-        fmt_tokens[0] = ''
+        prefix += subpic
+        subpic = ''
 
-    if not fmt_tokens[-1]:
+    if not subpic:
         suffix = ''
-    elif fmt_tokens[-1][-1] == percent_sign:
-        suffix = fmt_tokens[-1][-1]
-        fmt_tokens[-1] = fmt_tokens[-1][:-1]
+    elif subpic[-1] == percent_sign:
+        suffix = percent_sign
+        subpic = subpic[:-1]
 
         if value.as_tuple().exponent < 0:
             value *= 100
         else:
             value = decimal.Decimal(int(value) * 100)
 
-    elif fmt_tokens[-1][-1] == per_mille_sign:
-        suffix = fmt_tokens[-1][-1]
-        fmt_tokens[-1] = fmt_tokens[-1][:-1]
+    elif subpic[-1] == per_mille_sign:
+        suffix = per_mille_sign
+        subpic = subpic[:-1]
 
         if value.as_tuple().exponent < 0:
             value *= 1000
@@ -534,18 +564,64 @@ def evaluate_format_number_function(self, context=None):
             value = decimal.Decimal(int(value) * 1000)
 
     else:
-        for k, ch in enumerate(reversed(fmt_tokens[-1])):
-            if ch in digits_family or ch == optional_digit:
-                idx = len(fmt_tokens[-1]) - k
-                suffix = fmt_tokens[-1][idx:]
-                fmt_tokens[-1] = fmt_tokens[-1][:idx]
+        for k, ch in enumerate(reversed(subpic)):
+            if ch in active_characters:
+                idx = len(subpic) - k
+                suffix = subpic[idx:]
+                subpic = subpic[:idx]
                 break
         else:
-            suffix = fmt_tokens[-1]
-            fmt_tokens[-1] = ''
+            suffix = subpic
+            subpic = ''
+
+    exp_fmt = None
+    if exponent_pattern is not None:
+        exp_match = exponent_pattern.search(subpic)
+        if exp_match is not None:
+            exp_fmt = subpic[exp_match.span()[0]+1:]
+            subpic = subpic[:exp_match.span()[0]]
+
+    fmt_tokens = subpic.split(decimal_separator)
+    if all(not fmt for fmt in fmt_tokens):
+        raise self.error('FODF1310')
 
     if math.isinf(value):
         return prefix + decimal_format['infinity'] + suffix
+
+    # Calculate the exponent value if it's in the sub-picture
+    exp_value = 0
+    if exp_fmt and value:
+        num_digits = 0
+        for ch in fmt_tokens[0]:
+            if ch in digits_family:
+                num_digits += 1
+
+        if abs(value) > 1:
+            v = abs(value)
+            while v > 10 ** num_digits:
+                exp_value += 1
+                v /= 10
+
+            # modify empty fractional part to store a digit
+            if not num_digits:
+                if len(fmt_tokens) == 1:
+                    fmt_tokens.append(zero_digit)
+                elif not fmt_tokens[-1]:
+                    fmt_tokens[-1] = zero_digit
+
+        elif len(fmt_tokens) > 1 and fmt_tokens[-1] and value >= 0:
+            v = abs(value) * 10
+            while v < 10 ** num_digits:
+                exp_value -= 1
+                v *= 10
+        else:
+            v = abs(value) * 10
+            while v < 10:
+                exp_value -= 1
+                v *= 10
+
+        if exp_value:
+            value = value * decimal.Decimal(10) ** -exp_value
 
     # round the value by fractional part
     if len(fmt_tokens) == 1 or not fmt_tokens[-1]:
@@ -566,9 +642,12 @@ def evaluate_format_number_function(self, context=None):
         pass  # number too large, don't round ...
 
     chunks = decimal_to_string(value).lstrip('-').split('.')
-
-    result = format_digits(chunks[0], fmt_tokens[0], digits_family,
-                           optional_digit, grouping_separator)
+    kwargs = {
+        'digits_family': digits_family,
+        'optional_digit': optional_digit,
+        'grouping_separator': grouping_separator,
+    }
+    result = format_digits(chunks[0], fmt_tokens[0], **kwargs)
 
     if len(fmt_tokens) > 1 and fmt_tokens[-1]:
         has_optional_digit = False
@@ -581,8 +660,7 @@ def evaluate_format_number_function(self, context=None):
         if len(chunks) == 1:
             chunks.append(zero_digit)
 
-        decimal_part = format_digits(chunks[1], fmt_tokens[-1], digits_family,
-                                     optional_digit, grouping_separator)
+        decimal_part = format_digits(chunks[1], fmt_tokens[-1], **kwargs)
 
         for ch in reversed(fmt_tokens[-1]):
             if ch == optional_digit:
@@ -598,6 +676,13 @@ def evaluate_format_number_function(self, context=None):
 
             if not fmt_tokens[0] and result.startswith(zero_digit):
                 result = result.lstrip(zero_digit)
+
+    if exp_fmt:
+        exp_digits = format_digits(str(abs(exp_value)), exp_fmt, **kwargs)
+        if exp_value >= 0:
+            result += f'{exponent_separator}{exp_digits}'
+        else:
+            result += f'{exponent_separator}-{exp_digits}'
 
     return prefix + result + suffix
 
