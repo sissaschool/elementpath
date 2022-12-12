@@ -18,14 +18,15 @@ import random
 import re
 from datetime import datetime
 from decimal import Decimal
-from itertools import chain, product
+from itertools import product
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
-from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string
+from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string, \
+    not_equal, iter_sequence
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
@@ -88,7 +89,7 @@ def evaluate_map_size_function(self, context=None):
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
 def evaluate_map_keys_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
-    return [x for x in map_.keys(context)]
+    return [x for x in map_.keys(context)] or None
 
 
 @method(function('contains', prefix='map', label='map function', nargs=2,
@@ -116,7 +117,8 @@ def evaluate_map_put_function(self, context=None):
     if value is None:
         value = []
 
-    items = chain(map_.items(context), [(key, value)])
+    items = {k: v for k, v in map_.items(context) if not_equal(k, key)}
+    items[key] = value
     return XPathMap(self.parser, items=items)
 
 
@@ -128,9 +130,10 @@ def evaluate_map_remove_function(self, context=None):
     if keys is None:
         return map_
     elif isinstance(keys, list):
-        items = ((k, v) for k, v in map_.items(context) if k not in keys)
+        items = ((k, v) for k, v in map_.items(context)
+                 if all(not_equal(k, x) for x in keys))
     else:
-        items = ((k, v) for k, v in map_.items(context) if k != keys)
+        items = ((k, v) for k, v in map_.items(context) if not_equal(k, keys))
 
     return XPathMap(self.parser, items=items)
 

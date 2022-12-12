@@ -189,7 +189,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('map:size(map{"true":1, "false":0})', 2)
 
     def test_map_keys_function(self):
-        self.check_value('map:keys(map{})', {}.keys())
+        self.check_value('map:keys(map{})')
         self.check_value('map:keys(map{1:"yes", 2:"no"})', {1, 2})
 
     def test_map_contains_function(self):

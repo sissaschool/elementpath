@@ -580,7 +580,7 @@ def evaluate_div_operator(self, context=None):
             isinstance(divisor, (int, decimal.Decimal)):
         raise self.error('FOAR0001')
     elif dividend == 0:
-        return float('nan')
+        return math.nan
     elif dividend > 0:
         return float('-inf') if str(divisor).startswith('-') else float('inf')
     else:
@@ -592,9 +592,9 @@ def evaluate_mod_operator(self, context=None):
     op1, op2 = self.get_operands(context, cls=NumericProxy)
     if op1 is not None:
         if op2 == 0 and isinstance(op2, float):
-            return float('nan')
+            return math.nan
         elif math.isinf(op2) and not math.isinf(op1) and op1 != 0:
-            return op1 if self.parser.version != '1.0' else float('nan')
+            return op1 if self.parser.version != '1.0' else math.nan
 
         try:
             if isinstance(op1, int) and isinstance(op2, int):

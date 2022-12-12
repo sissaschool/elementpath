@@ -238,7 +238,7 @@ def evaluate_exp10_function(self, context=None):
 def evaluate_log_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
-        return float('-inf') if not arg else float('nan') if arg <= -1 else math.log(arg)
+        return float('-inf') if not arg else math.nan if arg <= -1 else math.log(arg)
 
 
 @method(function('log10', prefix='math', label='math function', nargs=1,
@@ -246,7 +246,7 @@ def evaluate_log_function(self, context=None):
 def evaluate_log10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
-        return float('-inf') if not arg else float('nan') if arg <= -1 else math.log10(arg)
+        return float('-inf') if not arg else math.nan if arg <= -1 else math.log10(arg)
 
 
 @method(function('pow', prefix='math', label='math function', nargs=2,
@@ -261,7 +261,7 @@ def evaluate_pow_function(self, context=None):
         try:
             return float(x ** y)
         except TypeError:
-            return float('nan')
+            return math.nan
 
 
 @method(function('sqrt', prefix='math', label='math function', nargs=1,
@@ -270,7 +270,7 @@ def evaluate_sqrt_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < 0:
-            return float('nan')
+            return math.nan
         return math.sqrt(arg)
 
 
@@ -280,7 +280,7 @@ def evaluate_sin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
-            return float('nan')
+            return math.nan
         return math.sin(arg)
 
 
@@ -290,7 +290,7 @@ def evaluate_cos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
-            return float('nan')
+            return math.nan
         return math.cos(arg)
 
 
@@ -300,7 +300,7 @@ def evaluate_tan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if math.isinf(arg):
-            return float('nan')
+            return math.nan
         return math.tan(arg)
 
 
@@ -310,7 +310,7 @@ def evaluate_asin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < -1 or arg > 1:
-            return float('nan')
+            return math.nan
         return math.asin(arg)
 
 
@@ -320,7 +320,7 @@ def evaluate_acos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
     if arg is not None:
         if arg < -1 or arg > 1:
-            return float('nan')
+            return math.nan
         return math.acos(arg)
 
 

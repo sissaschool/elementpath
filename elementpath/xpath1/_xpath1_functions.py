@@ -14,6 +14,8 @@ XPath 1.0 implementation - part 3 (functions)
 import sys
 import math
 import decimal
+
+from ..helpers import get_double
 from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
@@ -341,21 +343,20 @@ def evaluate_lang_function(self, context=None):
 @method(function('number', nargs=(0, 1), sequence_types=('xs:anyAtomicType?', 'xs:double')))
 def evaluate_number_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
-    try:
-        return float(self.string_value(arg) if isinstance(arg, XPathNode) else arg)
-    except (TypeError, ValueError):
-        return float('nan')
+    return self.number_value(arg)
 
 
 @method(function('sum', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyAtomicType?')))
 def evaluate_sum_function(self, context=None):
+    xsd_version = self.parser.xsd_version
     try:
-        values = [float(self.string_value(x)) if isinstance(x, XPathNode) else x
+        values = [get_double(self.string_value(x), xsd_version)
+                  if isinstance(x, XPathNode) else x
                   for x in self[0].select(context)]
     except (TypeError, ValueError):
         if self.parser.version == '1.0':
-            return float('nan')
+            return math.nan
         raise self.error('FORG0006') from None
 
     if not values:
@@ -377,7 +378,7 @@ def evaluate_sum_function(self, context=None):
     elif any(isinstance(x, (StringProxy, AnyURI)) for x in values):
         raise self.error('FORG0006', 'cannot apply fn:sum() to string-based types')
     elif any(isinstance(x, float) and math.isnan(x) for x in values):
-        return float('nan')
+        return math.nan
     elif all(isinstance(x, Float10) for x in values):
         return sum(values)
 
@@ -385,7 +386,7 @@ def evaluate_sum_function(self, context=None):
         return sum(self.number_value(x) for x in values)
     except TypeError:
         if self.parser.version == '1.0':
-            return float('nan')
+            return math.nan
         raise self.error('FORG0006') from None
 
 
@@ -394,7 +395,7 @@ def evaluate_sum_function(self, context=None):
 def evaluate_ceiling_and_floor_functions(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
-        return float('nan') if self.parser.version == '1.0' else []
+        return math.nan if self.parser.version == '1.0' else []
     elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 
@@ -416,7 +417,7 @@ def evaluate_ceiling_and_floor_functions(self, context=None):
 def evaluate_round_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
-        return float('nan') if self.parser.version == '1.0' else []
+        return math.nan if self.parser.version == '1.0' else []
     elif isinstance(arg, XPathNode) or self.parser.compatibility_mode:
         arg = self.number_value(arg)
 

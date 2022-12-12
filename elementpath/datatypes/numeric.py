@@ -26,7 +26,8 @@ class Float10(float, AnyAtomicType):
         if isinstance(value, str):
             value = collapse_white_spaces(value)
             if value in NUMERIC_INF_OR_NAN or cls.xsd_version != '1.0' and value == '+INF':
-                pass
+                if value == 'NaN':
+                    value = math.nan
             elif value.lower() in INVALID_NUMERIC:
                 raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
 

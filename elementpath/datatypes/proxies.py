@@ -12,8 +12,7 @@ import math
 from decimal import Decimal
 from typing import Any, Union, SupportsFloat
 
-from ..helpers import BOOLEAN_VALUES, NUMERIC_INF_OR_NAN, INVALID_NUMERIC, \
-    collapse_white_spaces
+from ..helpers import BOOLEAN_VALUES, collapse_white_spaces, get_double
 from .atomic_types import AtomicTypeMeta
 from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
@@ -105,13 +104,7 @@ class DoubleProxy10(metaclass=AtomicTypeMeta):
     )
 
     def __new__(cls, value: Union[SupportsFloat, str]) -> float:  # type: ignore[misc]
-        if isinstance(value, str):
-            value = collapse_white_spaces(value)
-            if value in NUMERIC_INF_OR_NAN or cls.xsd_version != '1.0' and value == '+INF':
-                pass
-            elif value.lower() in INVALID_NUMERIC:
-                raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
-        return float(value)
+        return get_double(value, cls.xsd_version)
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:

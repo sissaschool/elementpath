@@ -18,7 +18,7 @@ from decimal import Decimal, DivisionByZero
 
 from ..exceptions import ElementPathError, ElementPathTypeError
 from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
-    node_position
+    node_position, get_double
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
@@ -557,9 +557,9 @@ def evaluate_value_comparison_operators(self, context=None):
         pass
     elif all(isinstance(x, (float, Decimal, int)) for x in operands):
         if isinstance(operands[0], float):
-            operands[1] = float(operands[1])
+            operands[1] = get_double(operands[1], self.parser.xsd_version)
         else:
-            operands[0] = float(operands[0])
+            operands[0] = get_double(operands[0], self.parser.xsd_version)
     elif all(isinstance(x, Duration) for x in operands) and self.symbol in ('eq', 'ne'):
         pass
     elif (issubclass(cls0, cls1) or issubclass(cls1, cls0)) and not issubclass(cls0, Duration):

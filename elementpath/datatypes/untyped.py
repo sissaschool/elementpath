@@ -11,7 +11,7 @@ import operator
 from decimal import Decimal
 from typing import Any, Tuple, Union
 
-from ..helpers import BOOLEAN_VALUES
+from ..helpers import BOOLEAN_VALUES, get_double
 from .atomic_types import AtomicTypeMeta, AnyAtomicType
 
 
@@ -63,7 +63,7 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
         """
         if isinstance(other, UntypedAtomic):
             if force_float:
-                return float(self.value), float(other.value)
+                return get_double(self.value), get_double(other.value)
             return self.value, other.value
         elif isinstance(other, bool):
             # Cast to xs:boolean
@@ -72,7 +72,7 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
                 raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
             return value in ('1', 'true'), other
         elif isinstance(other, int):
-            return float(self.value), other
+            return get_double(self.value), other
         elif other is None or isinstance(other, (str, list)):
             return self.value, other
 
@@ -128,7 +128,7 @@ class UntypedAtomic(metaclass=AtomicTypeMeta):
         return int(self.value)
 
     def __float__(self) -> float:
-        return float(self.value)
+        return get_double(self.value, xsd_version='1.1')
 
     def __bool__(self) -> bool:
         return bool(self.value)  # For effective boolean value, not for cast to xs:boolean.

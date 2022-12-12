@@ -11,6 +11,7 @@
 """
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
+from ..helpers import iter_sequence
 from ..xpath_token import ValueToken, ProxyToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
@@ -145,10 +146,7 @@ def evaluate_lookup_operator(self, context=None):
 @method('?')
 def select_lookup_operator(self, context=None):
     if not self:
-        if isinstance(self.value, list):
-            yield from self.value
-        elif self.value is not None:
-            yield self.value
+        yield from iter_sequence(self.value)
         return
 
     if len(self) == 1:
@@ -163,16 +161,13 @@ def select_lookup_operator(self, context=None):
         symbol = self[-1].symbol
         if isinstance(item, XPathMap):
             if symbol == '*':
-                yield from item.values(context)
+                for value in item.values(context):
+                    yield from iter_sequence(value)
             elif symbol in ('(name)', '(integer)'):
-                value = item(context, self[-1].value)
-                if value is not None:
-                    yield value
+                yield from iter_sequence(item(context, self[-1].value))
             elif symbol == '(':
                 for value in self[-1].select(context):
-                    value = item(context, self.data_value(value))
-                    if value is not None:
-                        yield value
+                    yield from iter_sequence(item(context, self.data_value(value)))
 
         elif isinstance(item, XPathArray):
             if symbol == '*':

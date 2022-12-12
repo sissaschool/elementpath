@@ -30,7 +30,7 @@ import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
     ElementPathTypeError, ElementPathSyntaxError, MissingContextError, XPATH_ERROR_CODES
-from .helpers import ordinal
+from .helpers import ordinal, get_double
 from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
     XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
@@ -994,9 +994,12 @@ class XPathToken(Token[XPathTokenType]):
         The numeric value, as computed by fn:number() on each item. Returns a float value.
         """
         try:
-            return float(self.string_value(obj) if isinstance(obj, XPathNode) else obj)
+            if isinstance(obj, XPathNode):
+                return get_double(self.string_value(obj), self.parser.xsd_version)
+            else:
+                return get_double(obj, self.parser.xsd_version)
         except (TypeError, ValueError):
-            return float('nan')
+            return math.nan
 
     ###
     # Error handling helpers
@@ -1601,7 +1604,13 @@ class XPathMap(XPathFunction):
                     nan_key = True
                 elif k in _map:
                     raise self.error('XQDY0137')
-                _map[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
+
+                if not isinstance(v, list):
+                    _map[k] = v
+                elif not v:
+                    _map[k] = None
+                else:
+                    _map[k] = v[0] if len(v) == 1 else v
 
             self._map = _map
 
@@ -1642,25 +1651,32 @@ class XPathMap(XPathFunction):
         return self
 
     def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathMap':
-        if self._map is not None:
-            return self
-        return XPathMap(self.parser, items=self._evaluate(context))
+        if self._map is None:
+            self._map = self._evaluate(context)
+        return self
 
     def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
         _map = {}
-        for key, v in zip(self._items, self._values):
-            k = key.get_atomized_operand(context)
-            if k is not None:
-                if k in _map:
-                    raise self.error('XQDY0137')
+        nan_key = False
 
-                value = v.evaluate(context)
-                if isinstance(value, list) and len(value) == 1:
-                    _map[k] = value[0]
-                else:
-                    _map[k] = value
-            else:
+        for key, value in zip(self._items, self._values):
+            k = key.get_atomized_operand(context)
+            if k is None:
                 raise self.error('XPTY0004', 'missing key value')
+            elif isinstance(k, float) and math.isnan(k):
+                if nan_key:
+                    raise self.error('XQDY0137')
+                nan_key = True
+            elif k in _map:
+                raise self.error('XQDY0137')
+
+            v = value.evaluate(context)
+            if not isinstance(v, list):
+                _map[k] = v
+            elif not v:
+                _map[k] = None
+            else:
+                _map[k] = v[0] if len(v) == 1 else v
 
         return cast(Dict[AnyAtomicType, Any], _map)
 

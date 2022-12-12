@@ -159,8 +159,14 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         self.assertTrue(self.parser.match_sequence_type('1', 'xs:string'))
         self.assertFalse(self.parser.match_sequence_type(1, 'xs:string'))
-        self.assertFalse(self.parser.match_sequence_type('1', 'xs:unknown'))
-        self.assertFalse(self.parser.match_sequence_type('1', 'tns0:string'))
+
+        with self.assertRaises(NameError) as ctx:
+            self.parser.match_sequence_type('1', 'xs:unknown')
+        self.assertIn('XPST0051', str(ctx.exception))
+
+        with self.assertRaises(NameError) as ctx:
+            self.parser.match_sequence_type('1', 'tns0:string')
+        self.assertIn('XPST0051', str(ctx.exception))
 
     def test_variable_reference(self):
         root = self.etree.XML('<a><b1/><b2/></a>')

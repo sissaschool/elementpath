@@ -12,7 +12,7 @@ import math
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
-from typing import Optional, Union, SupportsFloat
+from typing import Any, Iterator, Optional, Union, SupportsFloat
 
 ###
 # Common sets constants
@@ -168,6 +168,17 @@ def ordinal(n: int) -> str:
         return '%dth' % n
 
 
+def get_double(value: Union[SupportsFloat, str], xsd_version: str = '1.0') -> float:
+    if isinstance(value, str):
+        value = collapse_white_spaces(value)
+        if value in NUMERIC_INF_OR_NAN or xsd_version != '1.0' and value == '+INF':
+            if value == 'NaN':
+                return math.nan  # for NaN use the predefined instance to keep identity
+        elif value.lower() in INVALID_NUMERIC:
+            raise ValueError(f'invalid value {value!r} for xs:double/xs:float')
+    return float(value)
+
+
 def numeric_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
     if op1 == op2:
         return True
@@ -178,6 +189,22 @@ def numeric_not_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
     if op1 == op2:
         return False
     return not math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)
+
+
+def is_nan(x) -> bool:
+    return isinstance(x, float) and math.isnan(x)
+
+
+def equal(op1: Any, op2: Any) -> bool:
+    if isinstance(op1, float) and math.isnan(op1):
+        return isinstance(op2, float) and math.isnan(op2)
+    return op1 == op2
+
+
+def not_equal(op1: Any, op2: Any) -> bool:
+    if isinstance(op1, float) and math.isnan(op1):
+        return not isinstance(op2, float) or not math.isnan(op2)
+    return op1 != op2
 
 
 def match_wildcard(name: str, wildcard: str) -> bool:
@@ -202,3 +229,13 @@ def escape_json_string(s):
         replace('\f', r'\f').\
         replace('/', r'\/')
     return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
+
+
+def iter_sequence(obj: Any) -> Iterator[Any]:
+    if obj is None:
+        return
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from iter_sequence(item)
+    else:
+        yield obj
