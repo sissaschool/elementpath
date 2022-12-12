@@ -129,8 +129,6 @@ SKIP_TESTS = {
 
     # IMHO incorrect tests
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
-    'fn-format-number__numberformat82',  # result may be '12.340,00' instead of '0.012,34'
-    'fn-format-number__numberformat83',  # (idem)
     'fn-apply__fn-apply-13',  # Error code should be err:FOAP0001
     'fn-json-doc__json-doc-032',  # 0 is not an instance of xs:double
     'fn-json-doc__json-doc-033',  # 0 (should be -0) is not an instance of xs:double
@@ -441,8 +439,8 @@ class Environment(object):
             for namespace in elem.iterfind('namespace', namespaces)
         }
 
-        child = elem.find('decimal-format', namespaces)
-        if child is not None:
+        self.decimal_formats = {}
+        for child in elem.iterfind('decimal-format', namespaces):
             name = child.get('name')
             if name is not None and ':' in name:
                 if use_lxml:
@@ -453,7 +451,7 @@ class Environment(object):
                     except KeyError:
                         pass
 
-            self.decimal_formats = {name: child.attrib}
+            self.decimal_formats[name] = child.attrib
 
         child = elem.find('collation', namespaces)
         if child is not None:
@@ -736,7 +734,8 @@ class TestCase(object):
             default_collation=default_collation,
         )
         if environment is not None and xpath_parser.version >= '3.0':
-            kwargs['decimal_formats'] = environment.decimal_formats
+            if environment.decimal_formats:
+                kwargs['decimal_formats'] = environment.decimal_formats
             kwargs['defuse_xml'] = False
 
         self.parser = xpath_parser(**kwargs)
