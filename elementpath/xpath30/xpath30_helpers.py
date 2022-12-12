@@ -189,9 +189,11 @@ def format_digits(digits: str,
         else:
             separator = _separator.pop()
             chunks = fmt.split(separator)
-            repeat = len(chunks[-1])
-            if all(len(item) == repeat for item in chunks[1:-1]):
-                repeat += 1
+
+            if len(chunks[0]) > len(chunks[-1]):
+                repeat = None
+            elif all(len(item) == len(chunks[-1]) for item in chunks[1:-1]):
+                repeat = len(chunks[-1]) + 1
             else:
                 repeat = None
 
