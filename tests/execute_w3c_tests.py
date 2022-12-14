@@ -549,7 +549,8 @@ class TestSet(object):
                 if dep_type == 'spec':
                     self.specs.extend(value.split(' '))
                 elif dep_type == 'feature':
-                    self.features.append(value)
+                    if child.get('satisfied', 'true') in ('true', '1'):
+                        self.features.append(value)
                 elif dep_type == 'xsd-version':
                     self.xsd_version = value
                 else:
@@ -591,6 +592,8 @@ class TestCase(object):
         assert elem.tag == '{%s}test-case' % QT3_NAMESPACE
         self.test_set = test_set
         self.xsd_version = test_set.xsd_version
+        self.features = [feature for feature in test_set.features]
+
         self.use_lxml = use_lxml
         self.etree = lxml.etree if use_lxml else ElementTree
 
@@ -604,7 +607,6 @@ class TestCase(object):
         self.environment_ref = None
         self.environment = None
         self.specs = []
-        self.features = []
 
         for child in elem.findall('dependency', namespaces):
             dep_type = child.attrib['type']
@@ -612,7 +614,14 @@ class TestCase(object):
             if dep_type == 'spec':
                 self.specs.extend(value.split(' '))
             elif dep_type == 'feature':
-                self.features.append(value)
+                if child.get('satisfied') == 'false':
+                    try:
+                        self.features.remove(value)
+                    except ValueError:
+                        pass
+                else:
+                    self.features.append(value)
+
             elif dep_type in DEPENDENCY_TYPES:
                 setattr(self, dep_type.replace('-', '_'), value)
             else:
@@ -1471,8 +1480,23 @@ def main():
                     count_skip += 1
                     continue
 
-                # ignore tests that rely on higher-order function such as array:sort()
-                if 'higherOrderFunctions' in test_case.features:
+                # ignore tests that rely on high level of support for uca collation semantics
+                if 'advanced-uca-fallback' in test_case.features:
+                    count_skip += 1
+                    continue
+
+                # ignore tests that require an XQuery processor available
+                if 'fn-load-xquery-module' in test_case.features:
+                    count_skip += 1
+                    continue
+
+                # ignore tests that require an XSLT processor available
+                if 'fn-transform-XSLT' in test_case.features:
+                    count_skip += 1
+                    continue
+
+                # ignore tests that require an XSLT 3.0 processor available
+                if 'fn-transform-XSLT30' in test_case.features:
                     count_skip += 1
                     continue
 

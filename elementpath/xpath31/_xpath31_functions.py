@@ -25,8 +25,7 @@ from urllib.parse import urlsplit
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
-from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string, \
-    not_equal, iter_sequence
+from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string, not_equal
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
@@ -584,7 +583,11 @@ def evaluate_parse_json_functions(self, context=None):
 @method(function('load-xquery-module', label='function', nargs=(1, 2),
                  sequence_types=('xs:string', 'map(*)', 'map(*)')))
 def evaluate_load_xquery_module_function(self, context=None):
-    module_uri = self.get_argument(context, required=True, cls=str)
+    try:
+        module_uri = self.get_argument(context, required=True, cls=str)
+    except TypeError:
+        raise self.error('FOQM0006')
+
     if not module_uri:
         raise self.error('FOQM0001')
 
@@ -604,7 +607,7 @@ def evaluate_load_xquery_module_function(self, context=None):
             elif k == 'variables' or k == 'vendor-options':
                 if not isinstance(v, XPathMap) or \
                         any(not isinstance(x, str) for x in v.keys(context)):
-                    raise self.error('FOQM0005')
+                    raise self.error('FOQM0006')
             else:
                 raise self.error('FOQM0005')
 
