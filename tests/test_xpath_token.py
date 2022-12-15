@@ -354,29 +354,20 @@ class XPath1TokenTest(unittest.TestCase):
             raise token.unexpected('.', code='XPST0017')
         self.assertIn('XPST0017', str(ctx.exception))
 
-    def test_xpath_error_code(self):
-        parser = XPath2Parser()
-        token = parser.parse('.')
-
-        self.assertEqual(token.error_code('XPST0003'), 'err:XPST0003')
-        parser.namespaces['error'] = parser.namespaces.pop('err')
-        self.assertEqual(token.error_code('XPST0003'), 'error:XPST0003')
-        parser.namespaces.pop('error')
-        self.assertEqual(token.error_code('XPST0003'), 'XPST0003')
-
     def test_xpath_error(self):
         token = self.parser.parse('.')
 
         with self.assertRaises(ValueError) as ctx:
             raise token.error('xml:XPST0003')
         self.assertIn('XPTY0004', str(ctx.exception))
-        self.assertIn("'http://www.w3.org/2005/xqt-errors' namespace is required",
+        self.assertIn("'xml:XPST0003' is not an XPath error code",
                       str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             raise token.error('err:err:XPST0003')
         self.assertIn('XPTY0004', str(ctx.exception))
-        self.assertIn("is not a prefixed name", str(ctx.exception))
+        self.assertIn("'err:err:XPST0003' is not an XPath error code",
+                      str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             raise token.error('XPST9999')
@@ -397,31 +388,6 @@ class XPath1TokenTest(unittest.TestCase):
         with self.assertRaises(MissingContextError) as ctx:
             raise token.missing_context()
         self.assertIn('XPDY0002', str(ctx.exception))
-
-        with self.assertRaises(NameError) as ctx:
-            raise token.missing_name()
-        self.assertIn('XPST0008', str(ctx.exception))
-
-        if self.parser.compatibility_mode:
-            with self.assertRaises(NameError) as ctx:
-                raise token.missing_axis()
-            self.assertIn('XPST0010', str(ctx.exception))
-        else:
-            with self.assertRaises(SyntaxError) as ctx:
-                raise token.missing_axis()
-            self.assertIn('XPST0003', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
-            raise token.wrong_nargs()
-        self.assertIn('XPST0017', str(ctx.exception))
-
-        with self.assertRaises(TypeError) as ctx:
-            raise token.wrong_sequence_type()
-        self.assertIn('XPDY0050', str(ctx.exception))
-
-        with self.assertRaises(NameError) as ctx:
-            raise token.unknown_atomic_type()
-        self.assertIn('XPST0051', str(ctx.exception))
 
 
 class XPath2TokenTest(XPath1TokenTest):

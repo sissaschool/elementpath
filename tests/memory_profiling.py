@@ -34,7 +34,7 @@ def elementpath_memory_usage():
     import elementpath.datatypes
     import elementpath.xpath_nodes
     import elementpath.xpath_context
-    import elementpath.xpath_token
+    import elementpath.xpath_tokens
     import elementpath.xpath1
     import elementpath.xpath2
 

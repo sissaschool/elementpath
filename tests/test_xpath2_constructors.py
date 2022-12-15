@@ -24,7 +24,7 @@ from elementpath.datatypes import Timezone, DateTime10, DateTime, DateTimeStamp,
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic, \
     Base64Binary, HexBinary
 from elementpath.namespaces import XSD_NAMESPACE
-from elementpath.xpath_token import XPathConstructor
+from elementpath.xpath_tokens import XPathConstructor
 
 try:
     from tests import xpath_test_class
@@ -60,7 +60,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:string(" hello  ")', ' hello  ')
         self.check_value('xs:string("\thello \n")', '\thello \n')
         self.check_value('xs:string(())', [])
-        self.wrong_syntax('xs:string(()', 'XPST0017')
+        self.wrong_type('xs:string(()', 'XPST0017')
 
         # canonical string representation of xs:hexBinary
         self.check_value('xs:string(xs:hexBinary("ef"))', 'EF')

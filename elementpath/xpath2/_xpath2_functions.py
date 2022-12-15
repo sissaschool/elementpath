@@ -33,10 +33,9 @@ from ..etree import etree_deep_equal, etree_case_insensitive_deep_equal
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode
-from ..xpath_token import HTML_ASCII_CASE_INSENSITIVE_COLLATION, XPathFunction, \
-    XPathMap, XPathArray
+from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
 from ..regex import RegexError, translate_pattern
-from ..collations import CollationManager
+from ..collations import HTML_ASCII_CASE_INSENSITIVE_COLLATION, CollationManager
 from ._xpath2_operators import XPath2Parser
 
 method = XPath2Parser.method
@@ -1557,8 +1556,8 @@ def evaluate_doc_functions(self, context=None):
         sequence_type = 'document-node()'
 
     if not self.parser.match_sequence_type(doc, sequence_type):
-        msg = "Type does not match sequence type {!r}"
-        raise self.wrong_sequence_type(msg.format(sequence_type))
+        msg = f"Type does not match sequence type {sequence_type!r}"
+        raise self.error('XPDY0050', msg)
 
     return doc if self.symbol == 'doc' else True
 
@@ -1591,8 +1590,8 @@ def evaluate_collection_function(self, context=None):
             return collection
 
     if not self.parser.match_sequence_type(collection, sequence_type):
-        msg = "Type does not match sequence type {!r}"
-        raise self.wrong_sequence_type(msg.format(sequence_type))
+        msg = f"Type does not match sequence type {sequence_type!r}"
+        raise self.error('XPDY0050', msg)
 
     return collection
 

@@ -25,7 +25,7 @@ from ..xpath_context import XPathSchemaContext
 from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
-from ..xpath_token import XPathToken
+from ..xpath_tokens import XPathToken
 
 from .xpath1_parser import XPath1Parser
 
@@ -51,7 +51,10 @@ axis = XPath1Parser.axis
 @method(register('(name)', bp=10, label='literal'))
 def nud_name_literal(self):
     if self.parser.next_token.symbol == '::':
-        raise self.missing_axis("axis '%s::' not found" % self.value)
+        msg = "axis '%s::' not found" % self.value
+        if self.parser.compatibility_mode:
+            raise self.error('XPST0010', msg)
+        raise self.error('XPST0003', msg)
     elif self.parser.next_token.symbol == '(':
         if self.parser.version >= '2.0':
             pass  # XP30+ has led() for '(' operator that can check this
@@ -326,7 +329,7 @@ def evaluate_variable_reference(self, context=None):
     try:
         return context.variables[self[0].value]
     except KeyError as err:
-        raise self.missing_name('unknown variable %r' % str(err)) from None
+        raise self.error('XPST0008', 'unknown variable %r' % str(err)) from None
 
 
 ###

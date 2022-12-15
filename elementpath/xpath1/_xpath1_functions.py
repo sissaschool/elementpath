@@ -21,7 +21,7 @@ from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
     ProcessingInstructionNode, DocumentNode
-from ..xpath_token import XPathFunction
+from ..xpath_tokens import XPathFunction
 
 from ._xpath1_operators import XPath1Parser
 

@@ -17,7 +17,7 @@ from urllib.parse import urljoin, urlsplit
 from .exceptions import xpath_error
 
 if TYPE_CHECKING:
-    from .xpath_token import XPathToken
+    from .xpath_tokens import XPathToken
 
 UNICODE_COLLATION_BASE_URI = "http://www.w3.org/2013/collation/UCA"
 

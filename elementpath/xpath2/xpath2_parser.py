@@ -25,7 +25,7 @@ from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from ..collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
 from ..datatypes import UntypedAtomic, AtomicValueType, QName
-from ..xpath_token import NargsType, XPathToken, XPathFunction, XPathConstructor
+from ..xpath_tokens import NargsType, XPathToken, XPathFunction, XPathConstructor
 from ..xpath_context import XPathContext
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath1 import XPath1Parser
@@ -223,7 +223,8 @@ class XPath2Parser(XPath1Parser):
                 self.parser.advance('(')
                 self[0:] = self.parser.expression(5),
                 if self.parser.next_token.symbol == ',':
-                    raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
+                    msg = 'Too many arguments: expected at most 1 argument'
+                    raise self.error('XPST0017', msg)
                 self.parser.advance(')')
                 self.value = None
             except SyntaxError:

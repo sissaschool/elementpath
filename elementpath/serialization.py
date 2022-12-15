@@ -17,7 +17,7 @@ from .helpers import escape_json_string
 from .datatypes import AnyURI, AbstractDateTime, AbstractBinary, UntypedAtomic, QName
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
-from .xpath_token import XPathToken, XPathMap, XPathArray
+from .xpath_tokens import XPathToken, XPathMap, XPathArray
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE

@@ -41,7 +41,7 @@ from elementpath.etree import etree_deep_equal
 from elementpath.datatypes import DateTime, Base64Binary
 from elementpath.xpath_nodes import DocumentNode
 from elementpath.xpath3 import XPath31Parser
-from elementpath.xpath_token import XPathMap, XPathArray
+from elementpath.xpath_tokens import XPathMap, XPathArray
 
 try:
     from tests import test_xpath30

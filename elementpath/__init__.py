@@ -31,7 +31,7 @@ from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
     LazyElementNode, SchemaElementNode
 from .tree_builders import get_node_tree, build_node_tree, build_lxml_node_tree, \
     build_schema_node_tree
-from .xpath_token import XPathToken, XPathFunction
+from .xpath_tokens import XPathToken, XPathFunction
 from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector

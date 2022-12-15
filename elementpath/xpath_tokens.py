@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2018-2021, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2022, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,16 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-XPathToken and helper functions for XPath nodes. XPath error messages and node helper functions
-are embedded in XPathToken class, in order to raise errors related to token instances.
-
-In XPath there are 7 kinds of nodes:
-
-    element, attribute, text, namespace, processing-instruction, comment, document
-
-Element-like objects are used for representing elements and comments, ElementTree-like objects
-for documents.
-XPathNode subclasses are used for representing other node types and typed elements/attributes.
+XPathToken class and derived classes for other XPath objects (functions, constructors,
+axes, maps, arrays). XPath's error creation and node helper functions are embedded in
+XPathToken class, in order to raise errors related to token instances.
 """
 import decimal
 import math
@@ -28,11 +21,11 @@ from typing import TYPE_CHECKING, cast, Dict, KeysView, ItemsView, ValuesView, \
     Optional, List, Tuple, Union, Any, Iterable, Iterator, SupportsFloat, Type
 import urllib.parse
 
-from .exceptions import ElementPathError, ElementPathValueError, ElementPathNameError, \
-    ElementPathTypeError, ElementPathSyntaxError, MissingContextError, XPATH_ERROR_CODES
+from .exceptions import ElementPathError, ElementPathValueError, \
+    ElementPathTypeError, MissingContextError, xpath_error
 from .helpers import ordinal, get_double
-from .namespaces import XQT_ERRORS_NAMESPACE, XSD_NAMESPACE, XSD_SCHEMA, \
-    XPATH_FUNCTIONS_NAMESPACE, XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, \
+from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_SCHEMA, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
@@ -54,12 +47,6 @@ if TYPE_CHECKING:
     XPathParserType = Union[XPath1Parser, XPath2Parser, XPath30Parser]
 else:
     XPathParserType = Any
-
-UNICODE_CODEPOINT_COLLATION = \
-    "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-
-HTML_ASCII_CASE_INSENSITIVE_COLLATION = \
-    "http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive"
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -1002,75 +989,11 @@ class XPathToken(Token[XPathTokenType]):
             return math.nan
 
     ###
-    # Error handling helpers
-    def error_code(self, code: str) -> str:
-        """Returns a prefixed error code."""
-        if self.parser.namespaces.get('err') == XQT_ERRORS_NAMESPACE:
-            return 'err:%s' % code
-
-        for pfx, uri in self.parser.namespaces.items():
-            if uri == XQT_ERRORS_NAMESPACE:
-                return '%s:%s' % (pfx, code) if pfx else code
-
-        return code  # returns an unprefixed code (without prefix the namespace is not checked)
-
+    # Error handling helpers and shortcuts
     def error(self, code: Union[str, QName],
               message_or_error: Union[None, str, Exception] = None) -> ElementPathError:
-        """
-        Returns an XPath error instance related with a code. An XPath/XQuery/XSLT
-        error code is an alphanumeric token starting with four uppercase letters
-        and ending with four digits.
+        return xpath_error(code, message_or_error, self, self.parser.namespaces)
 
-        :param code: the error code as QName or string.
-        :param message_or_error: an optional custom message or an exception.
-        """
-        namespace: Optional[str]
-
-        if isinstance(code, QName):
-            namespace = code.uri
-            code = code.local_name
-        elif ':' not in code:
-            namespace = None
-        else:
-            try:
-                prefix, code = code.split(':')
-            except ValueError:
-                raise ElementPathValueError(
-                    message='%r is not a prefixed name' % code,
-                    code=self.error_code('XPTY0004'),
-                    token=self,
-                )
-            else:
-                namespace = self.parser.namespaces.get(prefix)
-
-        if namespace and namespace != XQT_ERRORS_NAMESPACE:
-            raise ElementPathValueError(
-                message='%r namespace is required' % XQT_ERRORS_NAMESPACE,
-                code=self.error_code('XPTY0004'),
-                token=self,
-            )
-
-        try:
-            error_class, default_message = XPATH_ERROR_CODES[code]
-        except KeyError:
-            raise ElementPathValueError(
-                message='unknown XPath error code %r' % code,
-                code=self.error_code('XPTY0004'),
-                token=self,
-            )
-
-        if message_or_error is None:
-            message = default_message
-        elif isinstance(message_or_error, str):
-            message = message_or_error
-        elif isinstance(message_or_error, ElementPathError):
-            message = message_or_error.message
-        else:
-            message = str(message_or_error)
-
-        return error_class(message, code=self.error_code(code), token=self)
-
-    # Shortcuts for XPath errors, only the wrong_syntax
     def expected(self, *symbols: str,
                  message: Optional[str] = None,
                  code: str = 'XPST0003') -> None:
@@ -1102,24 +1025,6 @@ class XPathToken(Token[XPathTokenType]):
 
     def missing_context(self, message: Optional[str] = None) -> MissingContextError:
         return cast(MissingContextError, self.error('XPDY0002', message))
-
-    def missing_name(self, message: Optional[str] = None) -> ElementPathNameError:
-        return cast(ElementPathNameError, self.error('XPST0008', message))
-
-    def missing_axis(self, message: Optional[str] = None) \
-            -> Union[ElementPathNameError, ElementPathSyntaxError]:
-        if self.parser.compatibility_mode:
-            return cast(ElementPathNameError, self.error('XPST0010', message))
-        return cast(ElementPathSyntaxError, self.error('XPST0003', message))
-
-    def wrong_nargs(self, message: Optional[str] = None) -> ElementPathTypeError:
-        return cast(ElementPathTypeError, self.error('XPST0017', message))
-
-    def wrong_sequence_type(self, message: Optional[str] = None) -> ElementPathTypeError:
-        return cast(ElementPathTypeError, self.error('XPDY0050', message))
-
-    def unknown_atomic_type(self, message: Optional[str] = None) -> ElementPathNameError:
-        return cast(ElementPathNameError, self.error('XPST0051', message))
 
 
 class XPathAxis(XPathToken):
@@ -1420,7 +1325,7 @@ class XPathFunction(XPathToken):
             while k < min_args:
                 if self.parser.next_token.symbol in (')', '(end)'):
                     msg = 'Too few arguments: expected at least %s arguments' % min_args
-                    raise self.wrong_nargs(msg if min_args > 1 else msg[:-1])
+                    raise self.error('XPST0017', msg if min_args > 1 else msg[:-1])
 
                 self._items[k:] = self.parser.expression(5),
                 k += 1

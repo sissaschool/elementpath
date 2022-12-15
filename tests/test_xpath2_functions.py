@@ -48,7 +48,7 @@ from elementpath import XPath2Parser, XPathContext, ElementPathError, \
 from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE, XML_ID
 from elementpath.datatypes import DateTime10, DateTime, Date10, Date, Time, \
     Timezone, DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
-from elementpath.xpath_token import UNICODE_CODEPOINT_COLLATION
+from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 
 try:
     from tests import test_xpath1_parser

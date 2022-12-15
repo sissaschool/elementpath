@@ -15,7 +15,7 @@ from copy import copy
 
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..xpath_nodes import AttributeNode, ElementNode
-from ..xpath_token import XPathToken, ValueToken, ProxyToken, XPathFunction, \
+from ..xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import QName

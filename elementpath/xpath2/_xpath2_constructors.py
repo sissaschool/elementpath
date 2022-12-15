@@ -315,11 +315,12 @@ def nud_datetime_stamp_type(self):
         self.parser.advance('(')
         self[0:] = self.parser.expression(5),
         if self.parser.next_token.symbol == ',':
-            raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
+            msg = 'Too many arguments: expected at most 1 argument'
+            raise self.error('XPST0017', msg)
         self.parser.advance(')')
         self.value = None
-    except SyntaxError:
-        raise self.error('XPST0017') from None
+    except SyntaxError as err:
+        raise self.error('XPST0017', str(err)) from None
     return self
 
 
@@ -401,10 +402,12 @@ def cast_boolean_type(self, value):
 def nud_boolean_type_and_function(self):
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
-        raise self.wrong_nargs('Too few arguments: expected at least 1 argument')
+        msg = 'Too few arguments: expected at least 1 argument'
+        raise self.error('XPST0017', msg)
     self[0:] = self.parser.expression(5),
     if self.parser.next_token.symbol == ',':
-        raise self.wrong_nargs('Too many arguments: expected at most 1 argument')
+        msg = 'Too many arguments: expected at most 1 argument'
+        raise self.error('XPST0017', msg)
     self.parser.advance(')')
     self.value = None
     return self
@@ -446,8 +449,7 @@ def nud_string_type_and_function(self):
             self[0:] = self.parser.expression(5),
         self.parser.advance(')')
     except ElementPathSyntaxError as err:
-        err.code = self.error_code('XPST0017')
-        raise
+        raise self.error('XPST0017', err)
 
     self.value = None
     return self

@@ -38,7 +38,7 @@ import xmlschema
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode, \
     CommentNode, ProcessingInstructionNode, get_node_tree
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, get_expanded_name
-from elementpath.xpath_token import XPathFunction, XPathMap, XPathArray
+from elementpath.xpath_tokens import XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AnyAtomicType
 from elementpath.xpath31 import XPath31Parser
 

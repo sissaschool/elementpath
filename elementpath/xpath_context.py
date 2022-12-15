@@ -26,7 +26,7 @@ from .xpath_nodes import RootArgType, ChildNodeType, XPathNode, \
 from .tree_builders import get_node_tree
 
 if TYPE_CHECKING:
-    from .xpath_token import XPathToken, XPathAxis
+    from .xpath_tokens import XPathToken, XPathAxis
 
 __all__ = ['XPathContext', 'XPathSchemaContext']
 

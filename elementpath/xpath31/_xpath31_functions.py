@@ -31,7 +31,7 @@ from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
-from ..xpath_token import XPathFunction, XPathMap, XPathArray
+from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
 from ..xpath_context import XPathSchemaContext
 from ._xpath31_operators import XPath31Parser
 
@@ -451,12 +451,20 @@ def evaluate_sort_function(self, context=None):
         if collation is None:
             collation = self.parser.default_collation
 
-    with CollationManager(collation, self):
-        if len(self) == 3:
-            func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
-            return sorted(self[0].select(context), key=lambda x: func(context, x))
-        else:
-            return sorted(self[0].select(context))
+    values = list(self[0].select(context))
+    if len(self) == 3:
+        func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+        items = [func(context, x) for x in self[0].select(context)]
+    else:
+        items = list(self[0].atomization(context))
+
+    with CollationManager(collation, self) as cm:
+        try:
+            return sorted(items, key=cm.strxfrm)
+        except ElementPathTypeError:
+            raise
+        except TypeError:
+            raise self.error('XPTY0004')
 
 
 @method(function('sort', prefix='array', label='array:sort function', nargs=(1, 3),

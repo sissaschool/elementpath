@@ -25,7 +25,7 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR
     XPATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED_ATOMIC, XSD_NUMERIC, get_namespace, get_expanded_name
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_token import NargsType, XPathToken, XPathAxis, XPathFunction, \
+from ..xpath_tokens import NargsType, XPathToken, XPathAxis, XPathFunction, \
     ProxyToken, XPathArray, XPathMap
 from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
 

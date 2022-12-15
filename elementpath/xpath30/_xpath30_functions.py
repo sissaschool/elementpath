@@ -33,7 +33,7 @@ from ..etree import defuse_xml, etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from ..tree_builders import get_node_tree
-from ..xpath_token import ValueToken, XPathFunction
+from ..xpath_tokens import ValueToken, XPathFunction
 from ..serialization import get_serialization_params, serialize_to_xml, serialize_to_json
 from ..xpath_context import XPathSchemaContext
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -1090,7 +1090,7 @@ def evaluate_uri_collection_function(self, context=None):
             raise self.error('FODC0002', '{!r} collection not found'.format(uri)) from None
 
     if not self.parser.match_sequence_type(resource_collection, 'xs:anyURI*'):
-        raise self.wrong_sequence_type("Type does not match sequence type xs:anyURI*")
+        raise self.error('XPDY0050', "Type does not match sequence type xs:anyURI*")
 
     return resource_collection
 

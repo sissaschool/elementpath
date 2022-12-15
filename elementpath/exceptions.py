@@ -8,9 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import locale
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+
 if TYPE_CHECKING:
     from .tdop import Token
+
+from .namespaces import XQT_ERRORS_NAMESPACE
+from .datatypes import QName
 
 
 class ElementPathError(Exception):
@@ -223,43 +227,70 @@ XPATH_ERROR_CODES = {
 }
 
 
-def xpath_error(code: str, message: Optional[str] = None,
-                token: Optional['Token[Any]'] = None, prefix: str = 'err') -> ElementPathError:
+def xpath_error(code: Union[str, QName],
+                message_or_error:  Union[None, str, Exception] = None,
+                token: Optional['Token[Any]'] = None,
+                namespaces: Optional[Dict[str, str]] = None) -> ElementPathError:
     """
     Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code
     (ref: http://www.w3.org/2005/xqt-errors) is an alphanumeric token starting with four
     uppercase letters and ending with four digits.
 
     :param code: the error code.
-    :param message: an optional custom additional message.
+    :param message_or_error: an optional custom message or related exception.
     :param token: an optional token instance.
-    :param prefix: the namespace prefix to apply to the error code, defaults to 'err'.
+    :param namespaces: an optional namespace mapping for finding the prefix \
+    related with the namespace 'http://www.w3.org/2005/xqt-errors'.
+    For default the prefix 'err' is used.
     """
-    if code.startswith('{'):
-        try:
-            namespace, code = code[1:].split('}')
-        except ValueError:
-            message = '{!r} is not an xs:QName'.format(code)
-            raise ElementPathValueError(message, 'err:XPTY0004', token)
-        else:
-            if namespace != 'http://www.w3.org/2005/xqt-errors':
-                message = 'invalid namespace {!r}'.format(namespace)
-                raise ElementPathValueError(message, 'err:XPTY0004', token)
-            pcode = '%s:%s' % (prefix, code) if prefix else code
-    elif ':' not in code:
-        pcode = '%s:%s' % (prefix, code) if prefix else code
-    elif not prefix or not code.startswith(prefix + ':'):
-        message = '%r is not an XPath error code' % code
-        raise ElementPathValueError(message, 'err:XPTY0004', token)
+    if isinstance(code, QName):
+        namespace = code.uri
+        pcode, code = code.qname, code.local_name
     else:
-        pcode = code
-        code = code[len(prefix) + 1:]
+        namespace = XQT_ERRORS_NAMESPACE
+        if not namespaces or namespaces.get('err') == XQT_ERRORS_NAMESPACE:
+            prefix = 'err'
+        else:
+            for prefix, uri in namespaces.items():
+                if uri == XQT_ERRORS_NAMESPACE:
+                    break
+            else:
+                prefix = 'err'
+
+        if code.startswith('{'):
+            try:
+                namespace, code = code[1:].split('}')
+            except ValueError:
+                message = '{!r} is not an xs:QName'.format(code)
+                raise ElementPathValueError(message, 'err:XPTY0004', token)
+            else:
+                pcode = f'{prefix}:{code}'
+
+        elif ':' not in code:
+            pcode = f'{prefix}:{code}'
+        elif code.startswith(f'{prefix}:') and code.count(':') == 1:
+            pcode, code = code, code.split(':')[1]
+        else:
+            message = '%r is not an XPath error code' % code
+            raise ElementPathValueError(message, 'err:XPTY0004', token)
+
+    if namespace != XQT_ERRORS_NAMESPACE:
+        message = 'invalid namespace {!r}'.format(namespace)
+        raise ElementPathValueError(message, 'err:XPTY0004', token)
 
     try:
         error_class, default_message = XPATH_ERROR_CODES[code]
     except KeyError:
-        raise ElementPathValueError(
-            message or 'unknown XPath error code %r' % code, 'err:XPTY0004', token
-        )
+        message = f'unknown XPath error code {code}'
+        raise ElementPathValueError(message, 'err:XPTY0004', token) from None
     else:
-        return error_class(message or default_message, pcode, token)
+        if message_or_error is None:
+            message = default_message
+        elif isinstance(message_or_error, str):
+            message = message_or_error
+        elif isinstance(message_or_error, ElementPathError):
+            message = message_or_error.message
+        else:
+            message = str(message_or_error)
+
+        return error_class(message, pcode, token)

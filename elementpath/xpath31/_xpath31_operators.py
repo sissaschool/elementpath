@@ -12,7 +12,7 @@
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
 from ..helpers import iter_sequence
-from ..xpath_token import ValueToken, ProxyToken, XPathFunction, XPathMap, XPathArray
+from ..xpath_tokens import ValueToken, ProxyToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
