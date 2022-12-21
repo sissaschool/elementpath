@@ -29,13 +29,12 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
-from ..etree import etree_deep_equal, etree_case_insensitive_deep_equal
+from ..compare import deep_equal
 from ..xpath_context import XPathSchemaContext
-from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
-    NamespaceNode, CommentNode, ProcessingInstructionNode
-from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
+from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
+from ..xpath_tokens import XPathFunction
 from ..regex import RegexError, translate_pattern
-from ..collations import HTML_ASCII_CASE_INSENSITIVE_COLLATION, CollationManager
+from ..collations import CollationManager
 from ._xpath2_operators import XPath2Parser
 
 method = XPath2Parser.method
@@ -654,121 +653,16 @@ def select_exactly_one_function(self, context=None):
 @method(function('deep-equal', nargs=(2, 3),
                  sequence_types=('item()*', 'item()*', 'xs:string', 'xs:boolean')))
 def evaluate_deep_equal_function(self, context=None):
-
-    def deep_equal(case_insensitive=False):
-        while True:
-            value1 = next(seq1, None)
-            value2 = next(seq2, None)
-
-            if isinstance(value1, XPathFunction) and \
-                    not isinstance(value1, (XPathMap, XPathArray)):
-                raise self.error('FOTY0015')
-            if isinstance(value2, XPathFunction) and \
-                    not isinstance(value2, (XPathMap, XPathArray)):
-                raise self.error('FOTY0015')
-
-            if (value1 is None) ^ (value2 is None):
-                return False
-            elif value1 is None:
-                return True
-            elif isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
-                return False
-            elif not isinstance(value1, XPathNode):
-                try:
-                    if isinstance(value1, bool):
-                        if not isinstance(value2, bool) or value1 is not value2:
-                            return False
-
-                    elif isinstance(value2, bool):
-                        return False
-
-                    elif isinstance(value1, UntypedAtomic):
-                        if not isinstance(value2, UntypedAtomic) or value1 != value2:
-                            return False
-
-                    elif isinstance(value2, UntypedAtomic):
-                        return False
-
-                    elif isinstance(value1, float):
-                        if math.isnan(value1):
-                            if not math.isnan(value2):
-                                return False
-                        elif math.isinf(value1):
-                            if value1 != value2:
-                                return False
-                        elif isinstance(value2, Decimal):
-                            if value1 != float(value2):
-                                return False
-                        elif not isinstance(value2, (value1.__class__, int)):
-                            return False
-                        elif value1 != value2:
-                            return False
-
-                    elif isinstance(value2, float):
-                        if math.isnan(value2):
-                            return False
-                        elif math.isinf(value2):
-                            if value1 != value2:
-                                return False
-                        elif isinstance(value1, Decimal):
-                            if value2 != float(value1):
-                                return False
-                        elif not isinstance(value1, (value2.__class__, int)):
-                            return False
-                        elif value1 != value2:
-                            return False
-
-                    elif value1 != value2:
-                        return False
-                except TypeError:
-                    return False
-            elif value1.kind != value2.kind:
-                return False
-            elif not case_insensitive:
-                if isinstance(value1, (ElementNode, CommentNode, ProcessingInstructionNode)):
-                    if not etree_deep_equal(value1.elem, value2.elem):
-                        return False
-                elif isinstance(value1, DocumentNode):
-                    if not etree_deep_equal(value1.document.getroot(), value2.document.getroot()):
-                        return False
-                elif value1.value != value2.value:
-                    return False
-                elif isinstance(value1, AttributeNode):
-                    if value1.name != value2.name:
-                        return False
-                elif isinstance(value1, NamespaceNode):
-                    if value1.prefix != value2.prefix:
-                        return False
-            elif isinstance(value1, (ElementNode, CommentNode, ProcessingInstructionNode)):
-                if not etree_case_insensitive_deep_equal(value1.elem, value2.elem):
-                    return False
-            elif isinstance(value1, DocumentNode):
-                if not etree_case_insensitive_deep_equal(
-                        value1.document.getroot(), value2.document.getroot()
-                ):
-                    return False
-            elif value1.value.casefold() != value2.value.casefold():
-                return False
-            elif isinstance(value1, AttributeNode):
-                if value1.name.casefold() != value2.name.casefold():
-                    return False
-            elif isinstance(value1, NamespaceNode):
-                if value1.prefix.casefold() != value2.prefix.casefold():
-                    return False
-
-    seq1 = iter(self[0].select(copy(context)))
-    seq2 = iter(self[1].select(copy(context)))
-
     if len(self) < 3:
         collation = self.parser.default_collation
     else:
         collation = self.get_argument(context, 2, required=True, cls=str)
 
-    with CollationManager(collation, self):
-        if collation == HTML_ASCII_CASE_INSENSITIVE_COLLATION:
-            return deep_equal(case_insensitive=True)
-        else:
-            return deep_equal()
+    return deep_equal(
+        seq1=self[0].select(copy(context)),
+        seq2=self[1].select(copy(context)),
+        collation=collation,
+    )
 
 
 ###
@@ -798,7 +692,7 @@ def evaluate_matches_function(self, context=None):
         raise self.error('FORX0002', err) from None
 
 
-REPLACEMENT_PATTERN = re.compile(r'^([^\\$]|[\\]{2}|\\\$|\$\d+)*$')
+REPLACEMENT_PATTERN = re.compile(r'^([^\\$]|\\{2}|\\\$|\$\d+)*$')
 
 
 @method(function('replace', nargs=(3, 4), sequence_types=(
@@ -1430,6 +1324,7 @@ def select_id_function(self, context=None):
     if isinstance(context, XPathSchemaContext):
         return None
 
+    assert context is not None
     root = context.get_root(node)
     if root is None:
         return None
@@ -1489,20 +1384,19 @@ def select_idref_function(self, context=None):
 
     if not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
-    elif not isinstance(node, (ElementNode, DocumentNode)):
-        return
-
-    for element in filter(lambda x: isinstance(x, ElementNode), node.iter_descendants()):
-        text = element.elem.text
-        if text and is_idrefs(text) and any(v in text.split() for x in ids for v in x.split()):
-            yield element
-            continue
-
-        for attr in element.attributes:  # pragma: no cover
-            if attr.name != XML_ID and \
-                    any(v in attr.value.split() for x in ids for v in x.split()):
+    elif isinstance(node, (ElementNode, DocumentNode)):
+        for element in filter(lambda x: isinstance(x, ElementNode), node.iter_descendants()):
+            text = element.elem.text
+            if text and is_idrefs(text) and \
+                    any(v in text.split() for x in ids for v in x.split()):
                 yield element
-                break
+                continue
+
+            for attr in element.attributes:  # pragma: no cover
+                if attr.name != XML_ID and \
+                        any(v in attr.value.split() for x in ids for v in x.split()):
+                    yield element
+                    break
 
 
 @method(function('doc', nargs=1, sequence_types=('xs:string?', 'document-node()?')))
