@@ -746,6 +746,16 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         result = self.parser.parse('fn:serialize($data, $params)').evaluate(context)
         self.assertEqual(result.replace(' />', '/>'), '<a b="3"/>')
 
+    def test_odd_children_serialization__issue_056(self):
+        root = self.etree.XML('<root>This is <b>important</b>.</root>')
+        context = XPathContext(root)
+        expected = '<root>This is <b>important</b>.</root>'
+        self.check_value('fn:serialize(.)', expected, context=context)
+
+        context = XPathContext(root)
+        expected = 'This is <b>important</b>.'
+        self.check_value('fn:serialize(node())', expected, context=context)
+
     def test_head_function(self):
         self.assertEqual(self.parser.parse('fn:head(1 to 5)').evaluate(), 1)
         self.assertEqual(self.parser.parse('fn:head(("a", "b", "c"))').evaluate(), 'a')

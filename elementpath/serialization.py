@@ -14,7 +14,8 @@ from typing import Any, Dict, Optional, Union
 from .exceptions import ElementPathError, xpath_error
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from .helpers import escape_json_string
-from .datatypes import AnyURI, AbstractDateTime, AbstractBinary, UntypedAtomic, QName
+from .datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
+    AbstractBinary, UntypedAtomic, QName
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
 from .xpath_tokens import XPathToken, XPathMap, XPathArray
@@ -189,12 +190,49 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
     return kwargs
 
 
+def iter_normalized(elements, item_separator: Optional[str] = None):
+    chunks = []
+    sep = ' ' if item_separator is None else item_separator
+
+    for item in elements:
+        if isinstance(item, XPathArray):
+            for _item in item.iter_flatten():
+                if isinstance(_item, bool):
+                    chunks.append('true' if _item else 'false')
+                elif isinstance(_item, AnyAtomicType):
+                    chunks.append(str(_item))
+                else:
+                    if chunks:
+                        yield sep.join(chunks)
+                        chunks.clear()
+                    if isinstance(_item, DocumentNode):
+                        yield from _item.children
+                    else:
+                        yield _item
+
+        elif isinstance(item, bool):
+            chunks.append('true' if item else 'false')
+        elif isinstance(item, AnyAtomicType):
+            chunks.append(str(item))
+        else:
+            if chunks:
+                yield sep.join(chunks)
+                chunks.clear()
+            if isinstance(item, DocumentNode):
+                yield from item.children
+            else:
+                yield item
+    else:
+        if chunks:
+            yield sep.join(chunks)
+
+
 def serialize_to_xml(elements, etree_module=None, token=None, **params):
     if etree_module is None:
         from xml.etree import ElementTree
         etree_module = ElementTree
 
-    item_separator = params.get('item_separator', ' ')
+    item_separator = params.get('item_separator')
     character_map = params.get('character_map')
 
     kwargs = {}
@@ -208,40 +246,34 @@ def serialize_to_xml(elements, etree_module=None, token=None, **params):
         method = 'html'
 
     chunks = []
-    for item in elements:
-        if isinstance(item, DocumentNode):
-            item = item.document.getroot()
-        elif isinstance(item, ElementNode):
+    for item in iter_normalized(elements, item_separator):
+        if isinstance(item, ElementNode):
             item = item.elem
         elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise xpath_error('SENR0001', token=token)
         elif isinstance(item, TextNode):
             chunks.append(item.value)
             continue
-        elif isinstance(item, bool):
-            chunks.append('true' if item else 'false')
-            continue
         else:
-            chunks.append(str(item))
+            chunks.append(item)
             continue
 
         try:
-            ck = etree_module.tostringlist(
+            cks = etree_module.tostringlist(
                 item, encoding='utf-8', method=method, **kwargs
             )
         except TypeError:
-            chunks.append(etree_module.tostring(
-                item, encoding='utf-8', method=method,
-            ).decode('utf-8'))
+            ck = etree_module.tostring(item, encoding='utf-8', method=method)
+            chunks.append(ck.decode('utf-8').rstrip(item.tail))
         else:
-            if ck and ck[0].startswith(b'<?'):
-                ck[0] = ck[0].replace(b'\'', b'"')
-            chunks.append(b'\n'.join(ck).decode('utf-8'))
+            if cks and cks[0].startswith(b'<?'):
+                cks[0] = cks[0].replace(b'\'', b'"')
+            chunks.append(b'\n'.join(cks).decode('utf-8').rstrip(item.tail))
 
     if not character_map:
-        return item_separator.join(chunks)
+        return (item_separator or '').join(chunks)
 
-    result = item_separator.join(chunks)
+    result = (item_separator or '').join(chunks)
     for character, map_string in character_map.items():
         result = result.replace(character, map_string)
     return result
