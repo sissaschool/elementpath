@@ -127,6 +127,11 @@ SKIP_TESTS = {
     'prod-CastExpr__K2-SeqExprCast-488',
     'prod-CastExpr__K2-SeqExprCast-504',
 
+    # TODO: unsupported for serialization
+    'fn-serialize__serialize-xml-110',    # TODO: ElementNode serialization with params
+    'fn-serialize__serialize-html-001b',  # HTML 5
+    'fn-serialize__serialize-html-002b',  # HTML 5
+
     # IMHO incorrect tests
     'fn-resolve-uri__fn-resolve-uri-9',  # URI scheme names are lowercase
     'fn-apply__fn-apply-13',  # Error code should be err:FOAP0001

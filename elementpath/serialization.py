@@ -43,8 +43,14 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             raise xpath_error('SEPM0019', token=token)
 
         for key, value in params.items():
-            if not isinstance(key, str):
-                raise xpath_error('XPTY0004', token=token)
+            if not isinstance(key, str) or value is None:
+                continue
+            elif isinstance(value, UntypedAtomic):
+                value = str(value)
+                if value == 'true':
+                    value = True
+                elif value == 'false':
+                    value = False
 
             if key == 'omit-xml-declaration':
                 if not isinstance(value, bool):
@@ -52,7 +58,12 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 kwargs['xml_declaration'] = not value
 
             elif key == 'cdata-section-elements':
-                pass
+                # TODO: doesn't work within element nodes
+                if isinstance(value, XPathArray):
+                    value = value.items()
+                if not isinstance(value, list) or not all(isinstance(x, QName) for x in value):
+                    raise xpath_error('XPTY0004', token=token)
+                kwargs['cdata-section-elements'] = value
 
             elif key == 'method':
                 if value not in ('html', 'xml', 'xhtml', 'text', 'adaptive', 'json'):
@@ -62,7 +73,6 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             elif key == 'indent':
                 if not isinstance(value, bool):
                     raise xpath_error('XPTY0004', token=token)
-                kwargs['indent'] = value
                 
             elif key == 'item-separator':
                 if not isinstance(value, str):
@@ -73,18 +83,29 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 if not isinstance(value, XPathMap):
                     raise xpath_error('XPTY0004', token=token)
 
+                kwargs['character_map'] = character_map = {}
                 for k, v in value.items():
                     if not isinstance(k, str) or not isinstance(v, str):
                         raise xpath_error('XPTY0004', token=token)
+                    elif len(k) != 1:
+                        msg = f'invalid character {k!r} in character map'
+                        raise xpath_error('SEPM0016', msg, token)
+                    elif k in character_map:
+                        msg = f'duplicate character {k!r} in character map'
+                        raise xpath_error('SEPM0018', msg, token)
+                    else:
+                        character_map[k] = v
 
-                # TODO param
             elif key == 'suppress-indentation':
                 pass  # TODO param
             elif key == 'standalone':
-                if value not in ('yes', 'no', 'omit'):
-                    raise xpath_error('SEPM0017', token=token)
-                if value != 'omit':
-                    kwargs['standalone'] = value == 'yes'
+                if isinstance(value, bool):
+                    kwargs['standalone'] = value
+                else:
+                    if value not in ('yes', 'no', 'omit'):
+                        raise xpath_error('XPTY0004', token=token)
+                    if value != 'omit':
+                        kwargs['standalone'] = value == 'yes'
 
             elif key == 'json-node-output-method':
                 if not isinstance(value, (str, QName)):
@@ -105,11 +126,6 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 if not isinstance(value, (int, Decimal)):
                     raise xpath_error('XPTY0004', token=token)
                 kwargs[key] = value
-
-            elif key.startswith(f'{{{XSLT_XQUERY_SERIALIZATION_NAMESPACE}'):
-                raise xpath_error('SEPM0017')
-            elif not key.startswith('{'):  # no-namespace not allowed
-                raise xpath_error('SEPM0017')
 
     elif isinstance(params, ElementNode):
         root = params.value
@@ -240,6 +256,10 @@ def serialize_to_xml(elements, etree_module=None, token=None, **params):
         kwargs['xml_declaration'] = params['xml_declaration']
     if 'standalone' in params:
         kwargs['standalone'] = params['standalone']
+    if 'cdata-section-elements' in params:
+        cdata_sections = {x.expanded_name for x in params['cdata-section-elements']}
+    else:
+        cdata_sections = ()
 
     method = kwargs.get('method', 'xml')
     if method == 'xhtml':
@@ -252,8 +272,13 @@ def serialize_to_xml(elements, etree_module=None, token=None, **params):
         elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise xpath_error('SENR0001', token=token)
         elif isinstance(item, TextNode):
-            chunks.append(item.value)
+            if item.parent is not None and item.parent.name in cdata_sections:
+                chunks.append(f'<![CDATA[{item.value}]]>')
+            else:
+                chunks.append(item.value)
             continue
+        elif not isinstance(item, str):
+            raise xpath_error('SENR0001', token=token)
         else:
             chunks.append(item)
             continue
