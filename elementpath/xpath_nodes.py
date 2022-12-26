@@ -157,7 +157,7 @@ class AttributeNode(XPathNode):
         return root_type.name == XSD_IDREF or root_type.name == XSD_IDREFS
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str:
         return self._name
 
     @property
@@ -410,7 +410,7 @@ class ProcessingInstructionNode(XPathNode):
 
     @property
     def string_value(self) -> str:
-        target = getattr(self.elem, 'target', None)
+        target: Optional[str] = getattr(self.elem, 'target', None)
         if not target:
             return self.elem.text or ''
         return f'{target} {self.elem.text}' if self.elem.text else target

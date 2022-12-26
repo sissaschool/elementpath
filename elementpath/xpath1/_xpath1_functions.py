@@ -353,7 +353,7 @@ def evaluate_sum_function(self, context=None):
     try:
         values = [get_double(self.string_value(x), xsd_version)
                   if isinstance(x, XPathNode) else x
-                  for x in self[0].select(context)]
+                  for x in self[0].iter_flatten(context)]
     except (TypeError, ValueError):
         if self.parser.version == '1.0':
             return math.nan
