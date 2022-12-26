@@ -1684,16 +1684,17 @@ class XPathArray(XPathFunction):
     def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathArray':
         if self._array is not None:
             return self
+        return XPathArray(self.parser, items=self._evaluate(context))
 
+    def _evaluate(self, context: Optional[XPathContext] = None) -> List[Any]:
         if self.symbol == 'array':
             # A comma in a curly array constructor is the comma operator, not a delimiter.
             items = []
             for tk in self._items:
                 items.extend(tk.select(context))
+            return items
         else:
-            items = [tk.evaluate(context) for tk in self._items]
-
-        return XPathArray(self.parser, items)
+            return [tk.evaluate(context) for tk in self._items]
 
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
@@ -1707,7 +1708,7 @@ class XPathArray(XPathFunction):
         if self._array is not None:
             items = self._array
         else:
-            items = [tk.evaluate(context) for tk in self._items]
+            items = self._evaluate(context)
 
         try:
             return items[position - 1]
@@ -1717,14 +1718,13 @@ class XPathArray(XPathFunction):
     def items(self, context: Optional[XPathContext] = None) -> List[Any]:
         if self._array is not None:
             return self._array.copy()
-        return [tk.evaluate(context) for tk in self._items]
+        return self._evaluate(context)
 
     def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
-        items: Union[List[Any], Iterator[Any]]
         if self._array is not None:
             items = self._array
         else:
-            items = (tk.evaluate(context) for tk in self._items)
+            items = self._evaluate(context)
 
         for item in items:
             if isinstance(item, XPathArray):
