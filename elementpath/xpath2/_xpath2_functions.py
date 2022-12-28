@@ -1521,7 +1521,7 @@ def evaluate_error_function(self, context=None):
 def select_trace_function(self, context=None):
     label = self.get_argument(context, index=1, cls=str)
     for value in self[0].select(context):
-        '{} {}'.format(label, str(value).strip())  # TODO: trace dataset
+        self.parser.tracer('{} {}'.format(label, str(value).strip()))
         yield value
 
 

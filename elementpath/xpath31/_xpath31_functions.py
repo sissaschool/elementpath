@@ -29,6 +29,7 @@ from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string,
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
+from ..compare import get_key_function
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
@@ -39,6 +40,7 @@ method = XPath31Parser.method
 function = XPath31Parser.function
 
 XPath31Parser.unregister('string-join')
+XPath31Parser.unregister('trace')
 
 TIMEZONE_MAP = {
     'UT': '00:00',
@@ -451,20 +453,20 @@ def evaluate_sort_function(self, context=None):
         if collation is None:
             collation = self.parser.default_collation
 
-    values = list(self[0].select(context))
     if len(self) == 3:
         func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
-        items = [func(context, x) for x in self[0].select(context)]
+        key_function = get_key_function(
+            collation, key_func=lambda x: func(context, x), token=self
+        )
     else:
-        items = list(self[0].atomization(context))
+        key_function = get_key_function(collation, token=self)
 
-    with CollationManager(collation, self) as cm:
-        try:
-            return sorted(items, key=cm.strxfrm)
-        except ElementPathTypeError:
-            raise
-        except TypeError:
-            raise self.error('XPTY0004')
+    try:
+        return sorted(self[0].select(context), key=key_function)
+    except ElementPathTypeError:
+        raise
+    except TypeError:
+        raise self.error('XPTY0004')
 
 
 @method(function('sort', prefix='array', label='array:sort function', nargs=(1, 3),
@@ -480,14 +482,22 @@ def evaluate_array_sort_function(self, context=None):
         if collation is None:
             collation = self.parser.default_collation
 
-    with CollationManager(collation, self):
-        if len(self) == 3:
-            func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
-            items = sorted(array_.items(context), key=lambda x: func(context, x))
-        else:
-            items = sorted(array_.items(context))
+    if len(self) == 3:
+        func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+        key_function = get_key_function(
+            collation, key_func=lambda x: func(context, x), token=self
+        )
+    else:
+        key_function = get_key_function(collation, token=self)
 
-    return XPathArray(self.parser, items)
+    try:
+        items = sorted(array_.items(context), key=key_function)
+    except ElementPathTypeError:
+        raise
+    except TypeError:
+        raise self.error('XPTY0004')
+    else:
+        return XPathArray(self.parser, items)
 
 
 @method(function('json-doc', label='function', nargs=(1, 2),
@@ -1046,3 +1056,16 @@ def evaluate_json_to_xml_function(self, context=None):
             validate_json_to_xml(document.getroot())
 
     return get_node_tree(document, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})
+
+
+@method(function('trace', nargs=(1, 2), sequence_types=('item()*', 'xs:string', 'item()*')))
+def select_trace_function(self, context=None):
+    if len(self) == 1:
+        for value in self[0].select(context):
+            self.parser.tracer(str(value).strip())
+            yield value
+    else:
+        label = self.get_argument(context, index=1, cls=str)
+        for value in self[0].select(context):
+            self.parser.tracer('{} {}'.format(label, str(value).strip()))
+            yield value

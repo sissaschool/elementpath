@@ -98,6 +98,10 @@ class XPath2Parser(XPath1Parser):
     token: XPathToken
     next_token: XPathToken
 
+    @staticmethod
+    def tracer(trace_data: str) -> None:
+        """Trace data collector"""
+
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  variable_types: Optional[Dict[str, str]] = None,
                  strict: bool = True,

@@ -11,11 +11,11 @@ import math
 from decimal import Decimal
 from functools import cmp_to_key
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Optional, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Optional, Iterable
 
 from .protocols import ElementProtocol
 from .exceptions import xpath_error
-from .datatypes import UntypedAtomic, AnyURI
+from .datatypes import AnyAtomicType, UntypedAtomic, AnyURI
 from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, DocumentNode
@@ -140,13 +140,48 @@ def deep_equal(seq1: Iterable[Any],
     return True
 
 
+def is_empty_sequence(x):
+    return not x and isinstance(x, list)
+
+
 def deep_compare(obj1: Any,
                  obj2: Any,
                  collation: Optional[str] = None,
+                 key_func: Optional[Callable[[Any], Any]] = None,
                  token: Optional[XPathToken] = None) -> int:
 
     etree_node_types = (ElementNode, CommentNode, ProcessingInstructionNode)
     result: int = 0
+
+    def iter_object(obj):
+        if isinstance(obj, XPathArray):
+            if key_func is None:
+                yield from obj.items()
+            else:
+                for item in map(key_func, obj.items()):
+                    if isinstance(item, list):
+                        yield from item
+                    else:
+                        yield item
+
+        elif isinstance(obj, (XPathNode, AnyAtomicType)) or not isinstance(obj1, Iterable):
+            if key_func is None:
+                yield obj
+            else:
+                item = key_func(obj)
+                if isinstance(item, list):
+                    yield from item
+                else:
+                    yield item
+
+        elif key_func is None:
+            yield from obj
+        else:
+            for item in map(key_func, obj):
+                if isinstance(item, list):
+                    yield from item
+                else:
+                    yield item
 
     def etree_deep_compare(e1: ElementProtocol, e2: ElementProtocol) -> int:
         nonlocal result
@@ -187,11 +222,8 @@ def deep_compare(obj1: Any,
     if collation is None:
         collation = UNICODE_CODEPOINT_COLLATION
 
-    seq1 = obj1 if isinstance(obj1, Iterable) else (obj1,)
-    seq2 = obj2 if isinstance(obj2, Iterable) else (obj2,)
-
     with CollationManager(collation, token=token) as cm:
-        for value1, value2 in zip_longest(seq1, seq2):
+        for value1, value2 in zip_longest(iter_object(obj1), iter_object(obj2)):
             if isinstance(value1, XPathFunction) and \
                     not isinstance(value1, (XPathMap, XPathArray)):
                 raise xpath_error('FOTY0015', token=token)
@@ -200,10 +232,12 @@ def deep_compare(obj1: Any,
                 raise xpath_error('FOTY0015', token=token)
 
             if (value1 is None) ^ (value2 is None):
-                return 0
-            elif value1 is None:
-                return -1
-            elif isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
+                return -1 if value1 is None else 1
+
+            if is_empty_sequence(value1) ^ is_empty_sequence(value2):
+                return -1 if is_empty_sequence(value1) else 1
+
+            if isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
                 msg = f"cannot compare {type(value1)} with {type(value2)}"
                 raise xpath_error('XPTY0004', msg, token=token)
             elif isinstance(value1, XPathNode):
@@ -303,4 +337,9 @@ def deep_compare(obj1: Any,
     return 0
 
 
-deep_key_function = cmp_to_key(deep_compare)
+def get_key_function(collation: Optional[str] = None,
+                     key_func: Optional[Callable[[Any], Any]] = None,
+                     token: Optional[XPathToken] = None) -> Any:
+    def compare_func(obj1: Any, obj2: Any) -> int:
+        return deep_compare(obj1, obj2, collation, key_func, token)
+    return cmp_to_key(compare_func)
