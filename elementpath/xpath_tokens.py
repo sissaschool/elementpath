@@ -1569,6 +1569,14 @@ class XPathMap(XPathFunction):
         self.parser.advance('}')
         return self
 
+    @property
+    def source(self) -> str:
+        if self._map is None:
+            items = ', '.join(f'{tk.source}:{tv.source}' for tk, tv in zip(self, self._values))
+        else:
+            items = ', '.join(f'{k!r}:{v!r}' for k, v in self._map.items())
+        return f'map{{{items}}}'
+
     def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathMap':
         if self._map is None:
             self._map = self._evaluate(context)
@@ -1666,6 +1674,14 @@ class XPathArray(XPathFunction):
                 raise ElementPathValueError("cannot compare not evaluated arrays")
             return self._array == other._array
         return NotImplemented
+
+    @property
+    def source(self) -> str:
+        if self._array is None:
+            items = ', '.join(f'{tk.source}' for tk in self)
+        else:
+            items = ', '.join(f'{v!r}' for v in self._array)
+        return f'array{{{items}}}' if self.symbol == 'array' else f'[{items}]'
 
     def nud(self) -> 'XPathArray':
         self.value = None
