@@ -833,6 +833,14 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         self.wrong_value('["a","b"]?3', 'FOAY0001')
 
+        self.check_tree('$a[1] eq 1 and $a[2] eq 2',
+                        '(and (eq ([ ($ (a)) (1)) (1)) (eq ([ ($ (a)) (2)) (2)))')
+
+        self.check_tree(
+            '$a[1]?2 eq 1 and $a[2]?2 eq 2',
+            '(and (eq (? ([ ($ (a)) (1)) (2)) (1)) (eq (? ([ ($ (a)) (2)) (2)) (2)))'
+        )
+
     def test_arrow_operator(self):
         expression = '"foo" => $f("bar")'
         self.check_tree(expression, "(=> ('foo') ($ (f)) ('bar'))")
