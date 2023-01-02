@@ -191,8 +191,8 @@ class XPath2Parser(XPath1Parser):
         except (AttributeError, NotImplementedError):
             return self._xsd_version
 
-    def advance(self, *symbols: str) -> XPathToken:
-        super(XPath2Parser, self).advance(*symbols)
+    def advance(self, *symbols: str,  message: Optional[str] = None) -> XPathToken:
+        super(XPath2Parser, self).advance(*symbols, message=message)
 
         if self.next_token.symbol == '(:':
             # Parses and consumes an XPath 2.0 comment. A comment is delimited
@@ -214,7 +214,7 @@ class XPath2Parser(XPath1Parser):
             self.next_token.unexpected(':')
             self.token = token
 
-        return self.next_token
+        return self.token
 
     @classmethod
     def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,

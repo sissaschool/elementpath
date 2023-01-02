@@ -267,7 +267,7 @@ class Token(MutableSequence[TK]):
             return 1, token_index + 1
         return line, token_index - self.parser.source[:token_index].rindex('\n')
 
-    def as_name(self):
+    def as_name(self) -> 'Token[TK]':
         """Returns a new '(name)' token for resolving ambiguous states."""
         assert self.parser.name_pattern.match(self.symbol) is not None, \
             "Token symbol is not compatible with the name pattern!"
@@ -502,19 +502,21 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             self.next_match = None
             self.token = self.next_token = self._start_token
 
-    def advance(self, *symbols: str) -> TK_co:
+    def advance(self, *symbols: str, message: Optional[str] = None) -> TK_co:
         """
         The Pratt's function for advancing to next token.
 
         :param symbols: Optional arguments tuple. If not empty one of the provided \
         symbols is expected. If the next token's symbol differs the parser raises a \
         parse error.
-        :return: The next token instance.
+        :param message: Optional custom message for unexpected symbols.
+        :return: The current token instance.
         """
         value: Any
-        if self.next_token.symbol == '(end)' or \
-                symbols and self.next_token.symbol not in symbols:
+        if self.next_token.symbol == '(end)':
             raise self.next_token.wrong_syntax()
+        elif symbols and self.next_token.symbol not in symbols:
+            raise self.next_token.wrong_syntax(message)
 
         self.token = self.next_token
 
@@ -524,7 +526,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                 break
         else:
             self.next_token = self.symbol_table['(end)'](self)
-            return self.next_token
+            return self.token
 
         literal, symbol, name, unknown = self.next_match.groups()
         if symbol is not None:
@@ -565,7 +567,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             msg = "unexpected matching %r: incompatible tokenizer"
             raise RuntimeError(msg % self.next_match.group())
 
-        return self.next_token
+        return self.token
 
     def advance_until(self, *stop_symbols: str) -> str:
         """
