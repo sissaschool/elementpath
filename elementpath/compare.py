@@ -11,11 +11,11 @@ import math
 from decimal import Decimal
 from functools import cmp_to_key
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Callable, Optional, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Optional, Iterable, Iterator
 
 from .protocols import ElementProtocol
 from .exceptions import xpath_error
-from .datatypes import AnyAtomicType, UntypedAtomic, AnyURI
+from .datatypes import UntypedAtomic, AnyURI
 from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, DocumentNode
@@ -147,41 +147,19 @@ def is_empty_sequence(x):
 def deep_compare(obj1: Any,
                  obj2: Any,
                  collation: Optional[str] = None,
-                 key_func: Optional[Callable[[Any], Any]] = None,
                  token: Optional[XPathToken] = None) -> int:
 
+    msg_tmpl = "Sorting failed, cannot compare {!r} with {!r}"
     etree_node_types = (ElementNode, CommentNode, ProcessingInstructionNode)
     result: int = 0
 
     def iter_object(obj):
         if isinstance(obj, XPathArray):
-            if key_func is None:
-                yield from obj.items()
-            else:
-                for item in map(key_func, obj.items()):
-                    if isinstance(item, list):
-                        yield from item
-                    else:
-                        yield item
-
-        elif isinstance(obj, (XPathNode, AnyAtomicType)) or not isinstance(obj1, Iterable):
-            if key_func is None:
-                yield obj
-            else:
-                item = key_func(obj)
-                if isinstance(item, list):
-                    yield from item
-                else:
-                    yield item
-
-        elif key_func is None:
+            yield from obj.items()
+        elif isinstance(obj, (list, Iterator)):
             yield from obj
         else:
-            for item in map(key_func, obj):
-                if isinstance(item, list):
-                    yield from item
-                else:
-                    yield item
+            yield obj
 
     def etree_deep_compare(e1: ElementProtocol, e2: ElementProtocol) -> int:
         nonlocal result
@@ -225,11 +203,11 @@ def deep_compare(obj1: Any,
     with CollationManager(collation, token=token) as cm:
         for value1, value2 in zip_longest(iter_object(obj1), iter_object(obj2)):
             if isinstance(value1, XPathFunction) and \
-                    not isinstance(value1, (XPathMap, XPathArray)):
-                raise xpath_error('FOTY0015', token=token)
+                    not isinstance(value1, XPathArray):
+                raise xpath_error('FOTY0013', token=token)
             if isinstance(value2, XPathFunction) and \
-                    not isinstance(value2, (XPathMap, XPathArray)):
-                raise xpath_error('FOTY0015', token=token)
+                    not isinstance(value2, XPathArray):
+                raise xpath_error('FOTY0013', token=token)
 
             if (value1 is None) ^ (value2 is None):
                 return -1 if value1 is None else 1
@@ -284,15 +262,17 @@ def deep_compare(obj1: Any,
                         return -1
 
                     elif isinstance(value1, UntypedAtomic):
-                        if not isinstance(value2, UntypedAtomic):
-                            return -1
-                        else:
+                        if isinstance(value2, UntypedAtomic):
                             result = cm.strcoll(value1, value2)
                             if result:
                                 return result
+                        else:
+                            msg = msg_tmpl.format(value1, value2)
+                            raise xpath_error('XPTY0004', msg, token)
 
                     elif isinstance(value2, UntypedAtomic):
-                        return -1
+                        msg = msg_tmpl.format(value1, value2)
+                        raise xpath_error('XPTY0004', msg, token)
 
                     elif isinstance(value1, float):
                         if math.isnan(value1):
@@ -300,28 +280,28 @@ def deep_compare(obj1: Any,
                                 return -1
                         elif math.isinf(value1):
                             if value1 != value2:
-                                return -1 if value1 < value2 else 1
+                                return -1 if value1 < value2 else 1  # type: ignore[arg-type]
                         elif isinstance(value2, Decimal):
                             if value1 != float(value2):
                                 return -1 if value1 < float(value2) else 1
                         elif not isinstance(value2, (value1.__class__, int)):
                             return -1
                         elif value1 != value2:
-                            return -1 if value1 < value2 else 1
+                            return -1 if value1 < value2 else 1  # type: ignore[arg-type]
 
                     elif isinstance(value2, float):
                         if math.isnan(value2):
                             return -1
                         elif math.isinf(value2):
                             if value1 != value2:
-                                return -1 if value1 < value2 else 1
+                                return -1 if value1 < value2 else 1  # type: ignore[arg-type]
                         elif isinstance(value1, Decimal):
                             if value2 != float(value1):
                                 return -1 if float(value1) < value2 else 1
                         elif not isinstance(value1, (value2.__class__, int)):
                             return -1
                         elif value1 != value2:
-                            return -1 if value1 < value2 else 1
+                            return -1 if value1 < value2 else 1  # type: ignore[arg-type]
 
                     elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
                             and isinstance(value1, (str, AnyURI, UntypedAtomic)):
@@ -340,6 +320,19 @@ def deep_compare(obj1: Any,
 def get_key_function(collation: Optional[str] = None,
                      key_func: Optional[Callable[[Any], Any]] = None,
                      token: Optional[XPathToken] = None) -> Any:
+
     def compare_func(obj1: Any, obj2: Any) -> int:
-        return deep_compare(obj1, obj2, collation, key_func, token)
+        if key_func is not None:
+            if isinstance(obj1, (list, Iterator)):
+                obj1 = map(key_func, obj1)
+            else:
+                obj1 = key_func(obj1)
+
+            if isinstance(obj2, (list, Iterator)):
+                obj2 = map(key_func, obj2)
+            else:
+                obj2 = key_func(obj2)
+
+        return deep_compare(obj1, obj2, collation, token)
+
     return cmp_to_key(compare_func)
