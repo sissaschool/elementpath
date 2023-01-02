@@ -1018,11 +1018,14 @@ def select_outermost_function(self, context=None):
         raise self.missing_context()
 
     context = copy(context)
-    nodes = {e for e in self[0].select(context)}
+    nodes = [e for e in self[0].select(context)]
     if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
 
     results = set()
+    if len(nodes) > 10:
+        nodes = set(nodes)
+        
     for item in nodes:
         context.item = item
         ancestors = {x for x in context.iter_ancestors(axis='ancestor')}
