@@ -133,6 +133,7 @@ def evaluate_parenthesized_expression(self, context=None):
 
 @method(infix('||', bp=32))
 def evaluate_union_operator(self, context=None):
+
     return self.string_value(self.get_argument(context)) + \
         self.string_value(self.get_argument(context, index=1))
 

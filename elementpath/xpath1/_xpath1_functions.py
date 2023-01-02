@@ -187,10 +187,9 @@ def evaluate_contains_function(self, context=None):
 @method(function('concat', nargs=(2, None),
                  sequence_types=('xs:anyAtomicType?', 'xs:anyAtomicType?', 'xs:string')))
 def evaluate_concat_function(self, context=None):
-    args = [self.get_argument(context, index=k) for k in range(len(self))]
-    if any(isinstance(x, XPathFunction) for x in args):
-        raise self.error('FOTY0013', f"an argument of fn:concat is a function")
-    return ''.join(self.string_value(x) for x in args)
+    return ''.join(
+        self.string_value(self.get_argument(context, index=k)) for k in range(len(self))
+    )
 
 
 @method(function('string-length', nargs=(0, 1),

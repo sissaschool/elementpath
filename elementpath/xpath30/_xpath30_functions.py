@@ -122,7 +122,7 @@ def nud_inline_function(self):
     else:
         self.label = 'function test'
         while True:
-            token = self.parser.expression(5)
+            token = self.parse_sequence_type()
             append_sequence_type(token)
             self.append(token)
             if self.parser.next_token.symbol != ',':
@@ -148,8 +148,10 @@ def nud_inline_function(self):
             self.parser.advance('{')
             if self.parser.next_token.symbol != '}':
                 self.body = self.parser.expression()
-            else:
+            elif self.parser.version >= '3.1':
                 self.body = ValueToken(self.parser, value=[])
+            else:
+                raise self.wrong_syntax("inline function has an empty body")
             self.parser.advance('}')
 
     return self
@@ -168,7 +170,7 @@ def evaluate_anonymous_function(self, context=None):
         return None
     elif self.source == 'function(*)':
         return context.item
-    elif len(context.item) != len(self):
+    elif context.item.arity != len(self):
         return None
 
     # compare sequence types
@@ -1025,7 +1027,7 @@ def select_outermost_function(self, context=None):
     results = set()
     if len(nodes) > 10:
         nodes = set(nodes)
-        
+
     for item in nodes:
         context.item = item
         ancestors = {x for x in context.iter_ancestors(axis='ancestor')}

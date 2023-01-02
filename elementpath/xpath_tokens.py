@@ -32,7 +32,7 @@ from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
 from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, \
-    AtomicValueType, AnyAtomicType, Float10, Float
+    AtomicValueType, AnyAtomicType
 from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from .schema_proxy import AbstractSchemaProxy
@@ -901,31 +901,25 @@ class XPathToken(Token[XPathTokenType]):
         if obj is None or not type_name.startswith('xs:') or type_name.count(':') != 1:
             return obj
 
-        values = obj if isinstance(obj, list) else [obj]
-        if not values:
-            return obj
+        type_name = type_name[3:].rstrip('+*?')
+        token = cast(XPathConstructor, self.parser.symbol_table[type_name](self.parser))
 
-        if type_name[-1] in '+*?':
-            type_name = type_name[:-1]
+        def cast_value(v):
+            try:
+                if isinstance(v, (UntypedAtomic, AnyURI)):
+                    return token.cast(v)
+                elif isinstance(v, float) or self.parser.is_instance(v, XSD_DECIMAL):
+                    if type_name in ('double', 'float'):
+                        return token.cast(v)
+            except (ValueError, TypeError):
+                return v
+            else:
+                return v
 
-        result = []
-        for v in values:
-            if self.parser.is_instance(v, XSD_DECIMAL):
-                if type_name == 'xs:double':
-                    result.append(float(v))
-                    continue
-                elif type_name == 'xs:float':
-                    if self.parser.xsd_version == '1.0':
-                        result.append(Float10(v))
-                    else:
-                        result.append(Float(v))
-                    continue
-
-            result.append(v)
-
-        if isinstance(obj, list) or len(result) > 1:
-            return result
-        return result[0]
+        if isinstance(obj, list):
+            return [cast_value(x) for x in obj]
+        else:
+            return cast_value(obj)
 
     ###
     # XPath data accessors base functions
@@ -1012,7 +1006,10 @@ class XPathToken(Token[XPathTokenType]):
             return value
 
         elif isinstance(obj, XPathFunction):
-            raise self.error('FOTY0014', f"{obj.label!r} has no string value")
+            if self.symbol in ('concat', '||'):
+                raise self.error('FOTY0013', f"an argument of {self} is a function")
+            else:
+                raise self.error('FOTY0014', f"{obj.label!r} has no string value")
 
         return str(obj)
 
@@ -1214,7 +1211,7 @@ class XPathFunction(XPathToken):
                 elif not self.parser.match_sequence_type(value, sequence_type):
                     value = self.cast_to_primitive_type(value, sequence_type)
                     if not self.parser.match_sequence_type(value, sequence_type):
-                        msg = "argument {!r}: {} does not match sequence type {}"
+                        msg = "argument '${}': {} does not match sequence type {}"
                         raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
 
                 context.variables[varname] = self.variables[varname] = value
