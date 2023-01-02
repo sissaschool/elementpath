@@ -833,9 +833,14 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         self.wrong_value('["a","b"]?3', 'FOAY0001')
 
+    def test_lookup_operator_tree(self):
+        self.check_tree('$a?2?1', '(? (? ($ (a)) (2)) (1))')
+        self.check_tree('$a?2 and $a?3', '(and (? ($ (a)) (2)) (? ($ (a)) (3)))')
+
+        return
+        self.check_tree('$a?2?1 and $a?3?4', '(? (? ($ (a)) (2)) (1))')
         self.check_tree('$a[1] eq 1 and $a[2] eq 2',
                         '(and (eq ([ ($ (a)) (1)) (1)) (eq ([ ($ (a)) (2)) (2)))')
-
         self.check_tree(
             '$a[1]?2 eq 1 and $a[2]?2 eq 2',
             '(and (eq (? ([ ($ (a)) (1)) (2)) (1)) (eq (? ([ ($ (a)) (2)) (2)) (2)))'

@@ -1033,7 +1033,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         if self.parser.version != '1.0':
             self.check_tree('(5, 6) instance of xs:integer+',
-                            '(instance (, (5) (6)) (: (xs) (integer)) (+))')
+                            '(instance (, (5) (6)) (: (xs) (integer)))')
             self.check_tree('- 1 instance of xs:int', "(instance (- (1)) (: (xs) (int)))")
             self.check_tree('+ 1 instance of xs:int', "(instance (+ (1)) (: (xs) (int)))")
             self.wrong_type('2 - 1 instance of xs:int', 'XPTY0004')

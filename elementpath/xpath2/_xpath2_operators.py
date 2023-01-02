@@ -16,7 +16,7 @@ import operator
 from copy import copy
 from decimal import Decimal, DivisionByZero
 
-from ..exceptions import ElementPathError, ElementPathTypeError
+from ..exceptions import ElementPathError
 from ..helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
     node_position, get_double
 from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
@@ -244,28 +244,13 @@ def select_for_expression(self, context=None):
 @method('treat', bp=61)
 def led_sequence_type_based_expressions(self, left):
     self.parser.advance('of' if self.symbol == 'instance' else 'as')
-    if self.parser.next_token.label not in ('kind test', 'sequence type', 'function test'):
-        self.parser.expected_next('(name)', ':')
-
-    try:
-        self[:] = left, self.parser.expression(rbp=self.rbp)
-    except ElementPathTypeError as err:
-        message = getattr(err, 'message', str(err))
-        raise self.error('XPST0003', message) from None
-
-    next_symbol = self.parser.next_token.symbol
-    if self[1].symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
-        self[2:] = self.parser.symbol_table[next_symbol](self.parser),  # Add nullary token
-        self.parser.advance()
+    self[:] = left, self.parse_sequence_type()
     return self
 
 
 @method('instance')
 def evaluate_instance_expression(self, context=None):
-    if len(self) > 2:
-        occurs = self[2].symbol
-    else:
-        occurs = self[1].occurrence
+    occurs = self[1].occurrence
     position = None
 
     if self[1].symbol == 'empty-sequence':
@@ -290,8 +275,9 @@ def evaluate_instance_expression(self, context=None):
         else:
             return position is not None or occurs in ('*', '?')
     else:
+        type_name = self[1].source.rstrip('*+?')
         try:
-            qname = get_expanded_name(self[1].source, self.parser.namespaces)
+            qname = get_expanded_name(type_name, self.parser.namespaces)
         except KeyError as err:
             raise self.error('XPST0081', "namespace prefix {} not found".format(err))
 
@@ -300,8 +286,8 @@ def evaluate_instance_expression(self, context=None):
                 if not self.parser.is_instance(item, qname):
                     return False
             except KeyError:
-                msg = "atomic type %r not found in in-scope schema types"
-                raise self.error('XPST0051', msg % self[1].source) from None
+                msg = f"atomic type {type_name!r} not found in in-scope schema types"
+                raise self.error('XPST0051', msg) from None
             else:
                 if position and (occurs is None or occurs == '?'):
                     return False
@@ -311,11 +297,7 @@ def evaluate_instance_expression(self, context=None):
 
 @method('treat')
 def evaluate_treat_expression(self, context=None):
-    if len(self) > 2:
-        occurs = self[2].symbol
-    else:
-        occurs = self[1].occurrence
-
+    occurs = self[1].occurrence
     position = None
     castable_expr = []
     if self[1].symbol == 'empty-sequence':
@@ -333,8 +315,9 @@ def evaluate_treat_expression(self, context=None):
             if position is None and occurs not in ('*', '?'):
                 raise self.error('XPDY0050', "the sequence cannot be empty")
     else:
+        type_name = self[1].source.rstrip('*+?')
         try:
-            qname = get_expanded_name(self[1].source, self.parser.namespaces)
+            qname = get_expanded_name(type_name, self.parser.namespaces)
         except KeyError as err:
             raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
@@ -344,11 +327,11 @@ def evaluate_treat_expression(self, context=None):
         for position, item in enumerate(self[0].select(context)):
             try:
                 if not self.parser.is_instance(item, qname):
-                    msg = f"item {item!r} is not of type {self[1].source!r}"
+                    msg = f"item {item!r} is not of type {type_name!r}"
                     raise self.error('XPDY0050', msg)
             except KeyError:
-                msg = "atomic type %r not found in in-scope schema types"
-                raise self.error('XPST0051', msg % self[1].source) from None
+                msg = f"atomic type {type_name!r} not found in in-scope schema types"
+                raise self.error('XPST0051', msg) from None
             else:
                 if position and (occurs is None or occurs == '?'):
                     raise self.error('XPDY0050', "more than one item in sequence")
@@ -366,10 +349,10 @@ def evaluate_treat_expression(self, context=None):
 @method('cast', bp=63)
 def led_cast_expressions(self, left):
     self.parser.advance('as')
-    self.parser.expected_next('(name)', ':')
-    self[:] = left, self.parser.expression(rbp=self.rbp)
+    self.parser.expected_next('(name)', ':', 'Q{', message='an EQName expected')
+    self[:] = left, self.parser.expression(rbp=85)
     if self.parser.next_token.symbol == '?':
-        self[2:] = self.parser.symbol_table['?'](self.parser),  # Add nullary token
+        self[1].occurrence = '?'
         self.parser.advance()
     return self
 
@@ -377,8 +360,9 @@ def led_cast_expressions(self, left):
 @method('castable')
 @method('cast')
 def evaluate_cast_expressions(self, context=None):
+    type_name = self[1].source.rstrip('+*?')
     try:
-        atomic_type = get_expanded_name(self[1].source, namespaces=self.parser.namespaces)
+        atomic_type = get_expanded_name(type_name, namespaces=self.parser.namespaces)
     except KeyError as err:
         raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
@@ -397,7 +381,7 @@ def evaluate_cast_expressions(self, context=None):
             return False
         raise self.error('XPTY0004', "more than one value in expression")
     elif not result:
-        if len(self) == 3:
+        if self[1].occurrence == '?':
             return [] if self.symbol == 'cast' else True
         elif self.symbol != 'cast':
             return False
@@ -412,8 +396,8 @@ def evaluate_cast_expressions(self, context=None):
             local_name = atomic_type.split('}')[1]
             token_class = self.parser.symbol_table.get(local_name)
             if token_class is None or token_class.label != 'constructor function':
-                msg = "atomic type %r not found in the in-scope schema types"
-                raise self.error('XPST0051', msg % self[1].source)
+                msg = f"atomic type {type_name!r} not found in the in-scope schema types"
+                raise self.error('XPST0051', msg)
             elif local_name == 'QName':
                 if isinstance(arg, QName):
                     pass

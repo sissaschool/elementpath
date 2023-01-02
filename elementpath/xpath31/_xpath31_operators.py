@@ -12,7 +12,7 @@
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
 from ..helpers import iter_sequence
-from ..xpath_tokens import XPathToken, ValueToken, ProxyToken, XPathFunction, XPathMap, XPathArray
+from ..xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
@@ -112,7 +112,10 @@ def nud_square_array_constructor(self):
 
 
 class LookupOperatorToken(XPathToken):
-
+    """
+    Question mark symbol is used for XP31+ lookup operator and also for
+    placeholder in XP30+ partial functions and for optional occurrences.
+    """
     symbol = lookup_name = '?'
     lbp = 85
     rbp = 85
@@ -121,7 +124,7 @@ class LookupOperatorToken(XPathToken):
         super().__init__(parser, value)
 
         if self.parser.token.symbol == '(name)':
-            self.lbp = 6
+            pass  # self.lbp = 6
         elif self.parser.token.symbol in ('(', ','):
             self.lbp = self.rbp = 0  # It's a placeholder symbol
 

@@ -669,6 +669,12 @@ def nud_child_path(self):
 @method('//')
 @method('/')
 def led_child_or_descendant_path(self, left):
+    if left.symbol in ('/', '//', ':', '[', '$'):
+        pass
+    elif left.label not in self.parser.PATH_STEP_LABELS and \
+            left.symbol not in self.parser.PATH_STEP_SYMBOLS:
+        raise self.wrong_syntax()
+
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
 

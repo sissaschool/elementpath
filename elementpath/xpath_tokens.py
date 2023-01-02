@@ -193,6 +193,32 @@ class XPathToken(Token[XPathTokenType]):
             for tk in self._items:
                 yield from tk.iter_leaf_elements()
 
+    def parse_sequence_type(self):
+        if self.parser.next_token.label in ('kind test', 'sequence type', 'function test'):
+            token = self.parser.expression(rbp=85)
+        else:
+            if self.parser.next_token.symbol == 'Q{':
+                token = self.parser.advance().nud()
+            elif self.parser.next_token.symbol != '(name)':
+                raise self.wrong_syntax()
+            else:
+                self.parser.advance()
+                if self.parser.next_token.symbol == ':':
+                    left = self.parser.token
+                    self.parser.advance()
+                    token = self.parser.token.led(left)
+                else:
+                    token = self.parser.token
+
+                if self.parser.next_token.symbol in ('::', '('):
+                    raise self.parser.next_token.wrong_syntax()
+
+        next_symbol = self.parser.next_token.symbol
+        if token.symbol != 'empty-sequence' and next_symbol in ('?', '*', '+'):
+            token.occurrence = next_symbol
+            self.parser.advance()
+        return token
+
     def parse_occurrence(self):
         if self.parser.next_token.symbol in ('*', '+', '?'):
             self.occurrence = self.parser.next_token.symbol
