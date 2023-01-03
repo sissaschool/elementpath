@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Iterable, Iterator
 
 from .protocols import ElementProtocol
 from .exceptions import xpath_error
-from .datatypes import UntypedAtomic, AnyURI
+from .datatypes import AnyAtomicType, UntypedAtomic, AnyURI, xsd11_atomic_types
 from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, DocumentNode
@@ -140,7 +140,7 @@ def deep_equal(seq1: Iterable[Any],
     return True
 
 
-def is_empty_sequence(x):
+def is_empty_sequence(x: Any) -> bool:
     return not x and isinstance(x, list)
 
 
@@ -153,7 +153,7 @@ def deep_compare(obj1: Any,
     etree_node_types = (ElementNode, CommentNode, ProcessingInstructionNode)
     result: int = 0
 
-    def iter_object(obj):
+    def iter_object(obj: Any) -> Iterator[Any]:
         if isinstance(obj, XPathArray):
             yield from obj.items()
         elif isinstance(obj, (list, Iterator)):
@@ -263,7 +263,7 @@ def deep_compare(obj1: Any,
 
                     elif isinstance(value1, UntypedAtomic):
                         if isinstance(value2, UntypedAtomic):
-                            result = cm.strcoll(value1, value2)
+                            result = cm.strcoll(str(value1), str(value2))
                             if result:
                                 return result
                         else:
@@ -280,36 +280,36 @@ def deep_compare(obj1: Any,
                                 return -1
                         elif math.isinf(value1):
                             if value1 != value2:
-                                return -1 if value1 < value2 else 1  # type: ignore[arg-type]
+                                return -1 if value1 < value2 else 1  # type: ignore[operator]
                         elif isinstance(value2, Decimal):
                             if value1 != float(value2):
                                 return -1 if value1 < float(value2) else 1
                         elif not isinstance(value2, (value1.__class__, int)):
                             return -1
                         elif value1 != value2:
-                            return -1 if value1 < value2 else 1  # type: ignore[arg-type]
+                            return -1 if value1 < value2 else 1
 
                     elif isinstance(value2, float):
                         if math.isnan(value2):
                             return -1
                         elif math.isinf(value2):
                             if value1 != value2:
-                                return -1 if value1 < value2 else 1  # type: ignore[arg-type]
+                                return -1 if value1 < value2 else 1  # type: ignore[operator]
                         elif isinstance(value1, Decimal):
                             if value2 != float(value1):
                                 return -1 if float(value1) < value2 else 1
                         elif not isinstance(value1, (value2.__class__, int)):
                             return -1
                         elif value1 != value2:
-                            return -1 if value1 < value2 else 1  # type: ignore[arg-type]
+                            return -1 if value1 < value2 else 1
 
                     elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
                             and isinstance(value1, (str, AnyURI, UntypedAtomic)):
-                        result = cm.strcoll(value1, value2)
+                        result = cm.strcoll(str(value1), str(value2))
                         if result:
                             return result
                     elif value1 != value2:
-                        return -1 if value1 < value2 else 1
+                        return -1 if value1 < value2 else 1  # type: ignore[operator]
 
                 except TypeError as err:
                     raise xpath_error('XPTY0004', message_or_error=err, token=token)
@@ -336,3 +336,77 @@ def get_key_function(collation: Optional[str] = None,
         return deep_compare(obj1, obj2, collation, token)
 
     return cmp_to_key(compare_func)
+
+
+def is_sequence_type_restriction(st1: str, st2: str) -> bool:
+    if st2 in ('empty-sequence()', 'none') and \
+            (st1 in ('empty-sequence()', 'none') or st1.endswith(('?', '*'))):
+        return True
+
+    # check occurrences
+    if st1[-1] not in '?+*':
+        if st2[-1] in '?+*':
+            return False
+    elif st1[-1] == '+':
+        st1 = st1[:-1]
+        if st2[-1] in '?*':
+            return False
+        elif st2[-1] == '+':
+            st2 = st2[:-1]
+
+    elif st1[-1] == '*':
+        st1 = st1[:-1]
+        if st2[-1] in '?+':
+            return False
+        elif st2[-1] == '*':
+            st2 = st2[:-1]
+
+    elif st1[-1] == '?':
+        st1 = st1[:-1]
+        if st2[-1] in '+*':
+            return False
+        elif st2[-1] == '?':
+            st2 = st2[:-1]
+
+    if st1 == st2:
+        return True
+    elif st1 == 'item()':
+        return True
+    elif st2 == 'item()':
+        return False
+    elif st1 == 'node()':
+        return st2.startswith(('element(', 'attribute(', 'comment(', 'text(',
+                               'processing-instruction(', 'document(', 'namespace('))
+    elif st2 == 'node()':
+        return False
+    elif st1 == 'xs:anyAtomicType':
+        try:
+            return issubclass(xsd11_atomic_types[st2[3:]], AnyAtomicType)
+        except KeyError:
+            return False
+    elif st1.startswith('xs:'):
+        if st2 == 'xs:anyAtomicType':
+            return True
+
+        try:
+            return issubclass(xsd11_atomic_types[st2[3:]], xsd11_atomic_types[st1[3:]])
+        except KeyError:
+            return False
+    elif not st1.startswith('function('):
+        return False
+
+    if st1 == 'function(*)':
+        return st2.startswith('function(')
+
+    parts1 = st1[9:].partition(') as ')
+    parts2 = st2[9:].partition(') as ')
+
+    for st1, st2 in zip_longest(parts1[0].split(', '), parts2[0].split(', ')):
+        if st1 is None or st2 is None:
+            return False
+        if not is_sequence_type_restriction(st2, st1):
+            return False
+    else:
+        if not is_sequence_type_restriction(parts1[2], parts2[2]):
+            return False
+        return True

@@ -29,6 +29,9 @@ from ..helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
     XML_NEWLINES_PATTERN, is_xml_codepoint, node_position
 from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
+from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
+    DateTime10, Time, AnyURI, UntypedAtomic
+from ..compare import is_sequence_type_restriction
 from ..etree import defuse_xml, etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
@@ -36,8 +39,6 @@ from ..tree_builders import get_node_tree
 from ..xpath_tokens import ValueToken, XPathFunction
 from ..serialization import get_serialization_params, serialize_to_xml, serialize_to_json
 from ..xpath_context import XPathSchemaContext
-from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
-    DateTime10, Time, AnyURI, UntypedAtomic
 from ..regex import translate_pattern, RegexError
 
 from ._xpath30_operators import XPath30Parser
@@ -174,40 +175,13 @@ def evaluate_anonymous_function(self, context=None):
         return None
 
     # compare sequence types
-    for t1, t2 in zip(context.item.sequence_types[:-1], self.sequence_types[:-1]):
-
-        # check occurrences
-        if t1[-1] not in '?+*':
-            if t2[-1] in '?+*':
-                return None
-        elif t1[-1] == '+':
-            t1 = t1[:-1]
-            if t2[-1] in '?*':
-                return None
-            elif t2[-1] == '+':
-                t2 = t2[:-1]
-
-        elif t1[-1] == '*':
-            t1 = t1[:-1]
-            if t2[-1] in '?+':
-                return None
-            elif t2[-1] == '*':
-                t2 = t2[:-1]
-
-        elif t1[-1] == '?':
-            t1 = t1[:-1]
-            if t2[-1] in '+*':
-                return None
-            elif t2[-1] == '?':
-                t2 = t2[:-1]
-
-        if t1 == t2:
-            continue
-        elif t1 == 'item()':
-            continue
-        elif t2 == 'item()':
+    for st1, st2 in zip(context.item.sequence_types[:-1], self.sequence_types[:-1]):
+        if not is_sequence_type_restriction(st1, st2):
             return None
     else:
+        st1, st2 = context.item.sequence_types[-1], self.sequence_types[-1]
+        if not is_sequence_type_restriction(st2, st1):
+            return None
         return context.item
 
 
