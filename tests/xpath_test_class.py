@@ -133,6 +133,9 @@ class XPathTestCase(unittest.TestCase):
         :param context: an optional `XPathContext` instance to be passed to evaluate method.
         """
         context = copy(context)
+        if expected is None:
+            expected = []
+
         try:
             root_token = self.parser.parse(path)
         except ElementPathError as err:
@@ -149,7 +152,7 @@ class XPathTestCase(unittest.TestCase):
             else:
                 self.assertTrue(math.isnan(value))
 
-        elif isinstance(expected, list):
+        elif isinstance(expected, list) and expected:
             self.assertListEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.evaluate(context)), expected)

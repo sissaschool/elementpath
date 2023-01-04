@@ -105,7 +105,7 @@ class XPathToken(Token[XPathTokenType]):
         item = self.evaluate(context)
         if isinstance(item, list):
             yield from item
-        elif item is not None:
+        else:
             yield item
 
     def __str__(self) -> str:
@@ -354,7 +354,7 @@ class XPathToken(Token[XPathTokenType]):
                     yield from _iter_flatten(item)
                 elif isinstance(item, XPathArray):
                     yield from item.iter_flatten(context)
-                elif item is not None:
+                else:
                     yield item
 
         yield from _iter_flatten(self.select(context))
@@ -690,7 +690,7 @@ class XPathToken(Token[XPathTokenType]):
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
             if item is None:
-                return None
+                return []
             timezone = getattr(context, 'timezone', None)
         else:
             item = self.get_argument(context, cls=cls)
@@ -702,7 +702,7 @@ class XPathToken(Token[XPathTokenType]):
                 except ValueError as err:
                     raise self.error('FODT0003', str(err)) from None
             if item is None:
-                return None
+                return []
 
         _item = item
         _tzinfo = _item.tzinfo
@@ -1645,8 +1645,10 @@ class XPathMap(XPathFunction):
             for k, v in map_dict.items():
                 if isinstance(k, float) and math.isnan(k):
                     return v
+            else:
+                return []
         else:
-            return map_dict.get(key)
+            return map_dict.get(key, [])
 
     def keys(self, context: Optional[XPathContext] = None) -> KeysView[AnyAtomicType]:
         if self._map is not None:
@@ -1663,10 +1665,6 @@ class XPathMap(XPathFunction):
         if self._map is not None:
             return self._map.items()
         return self._evaluate(context).items()
-
-
-def is_empty_sequence(x: Any) -> bool:
-    return not x and (isinstance(x, list) or x is None)
 
 
 class XPathArray(XPathFunction):
@@ -1774,5 +1772,5 @@ class XPathArray(XPathFunction):
                 yield from item.iter_flatten(context)
             elif isinstance(item, list):
                 yield from item
-            elif item is not None:
+            else:
                 yield item

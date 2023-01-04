@@ -220,20 +220,20 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertEqual(result, '  alpha\t')
 
         token = parser.parse('$z')
-        self.assertIsNone(token.evaluate(context))
+        self.assertListEqual(token.evaluate(context), [])
 
     def test_not_applicable_functions(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
         context = XPathSchemaContext(self.schema1)
 
         token = parser.parse("fn:collection('filepath')")
-        self.assertIsNone(token.evaluate(context))
+        self.assertListEqual(token.evaluate(context), [])
 
         token = parser.parse("fn:doc-available('tns1')")
-        self.assertIsNone(token.evaluate(context))
+        self.assertFalse(token.evaluate(context))
 
         token = parser.parse("fn:root(.)")
-        self.assertIsNone(token.evaluate(context))
+        self.assertListEqual(token.evaluate(context), [])
 
         token = parser.parse("fn:id('ID21256')")
         self.assertListEqual(token.evaluate(context), [])

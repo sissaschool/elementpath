@@ -90,7 +90,7 @@ def evaluate_map_size_function(self, context=None):
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
 def evaluate_map_keys_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
-    return [x for x in map_.keys(context)] or None
+    return [x for x in map_.keys(context)]
 
 
 @method(function('contains', prefix='map', label='map function', nargs=2,
@@ -508,7 +508,7 @@ def evaluate_parse_json_functions(self, context=None):
     if self.symbol == 'json-doc':
         href = self.get_argument(context, cls=str)
         if href is None:
-            return None
+            return []
 
         try:
             if urlsplit(href).scheme:
@@ -524,7 +524,7 @@ def evaluate_parse_json_functions(self, context=None):
         href = None
         json_text = self.get_argument(context, cls=str)
         if json_text is None:
-            return None
+            return []
 
     def _fallback(*args):
         return '\uFFFD'
@@ -726,7 +726,7 @@ def evaluate_apply_function(self, context=None):
 def evaluate_parse_ietf_date_function(self, context=None):
     value = self.get_argument(context, cls=str)
     if value is None:
-        return None
+        return []
 
     value = WHITESPACES_PATTERN.sub(' ', value).strip()
     value = value.replace(' -', '-').replace('- ', '-')
@@ -851,7 +851,7 @@ MAP_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}map'
 def evaluate_xml_to_json_function(self, context=None):
     input_node = self.get_argument(context, cls=XPathNode)
     if input_node is None:
-        return None
+        return []
 
     indent = False
     if len(self) > 1:
@@ -925,7 +925,7 @@ def evaluate_xml_to_json_function(self, context=None):
 def evaluate_json_to_xml_function(self, context=None):
     json_text = self.get_argument(context, cls=str)
     if json_text is None or isinstance(context, XPathSchemaContext):
-        return None
+        return []
     elif context is not None:
         etree = context.etree
     else:

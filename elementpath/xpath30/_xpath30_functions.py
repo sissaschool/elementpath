@@ -168,20 +168,20 @@ def evaluate_anonymous_function(self, context=None):
 
     # A function test
     if not isinstance(context.item, XPathFunction):
-        return None
+        return []
     elif self.source == 'function(*)':
         return context.item
     elif context.item.arity != len(self):
-        return None
+        return []
 
     # compare sequence types
     for st1, st2 in zip(context.item.sequence_types[:-1], self.sequence_types[:-1]):
         if not is_sequence_type_restriction(st1, st2):
-            return None
+            return []
     else:
         st1, st2 = context.item.sequence_types[-1], self.sequence_types[-1]
         if not is_sequence_type_restriction(st2, st1):
-            return None
+            return []
         return context.item
 
 
@@ -197,32 +197,36 @@ def evaluate_pi_function(self, context=None):
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_exp_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        return math.exp(arg)
+    if arg is None:
+        return []
+    return math.exp(arg)
 
 
 @method(function('exp10', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_exp10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        return float(10 ** arg)
+    if arg is None:
+        return []
+    return float(10 ** arg)
 
 
 @method(function('log', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_log_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        return float('-inf') if not arg else math.nan if arg <= -1 else math.log(arg)
+    if arg is None:
+        return []
+    return float('-inf') if not arg else math.nan if arg <= -1 else math.log(arg)
 
 
 @method(function('log10', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_log10_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        return float('-inf') if not arg else math.nan if arg <= -1 else math.log10(arg)
+    if arg is None:
+        return []
+    return float('-inf') if not arg else math.nan if arg <= -1 else math.log10(arg)
 
 
 @method(function('pow', prefix='math', label='math function', nargs=2,
@@ -230,82 +234,90 @@ def evaluate_log10_function(self, context=None):
 def evaluate_pow_function(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
-    if x is not None:
-        if not x and y < 0:
-            return math.copysign(float('inf'), x) if (y % 2) == 1 else float('inf')
+    if x is None:
+        return []
+    elif not x and y < 0:
+        return math.copysign(float('inf'), x) if (y % 2) == 1 else float('inf')
 
-        try:
-            return float(x ** y)
-        except TypeError:
-            return math.nan
+    try:
+        return float(x ** y)
+    except TypeError:
+        return math.nan
 
 
 @method(function('sqrt', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_sqrt_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        if arg < 0:
-            return math.nan
-        return math.sqrt(arg)
+    if arg is None:
+        return []
+    elif arg < 0:
+        return math.nan
+    return math.sqrt(arg)
 
 
 @method(function('sin', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_sin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        if math.isinf(arg):
-            return math.nan
-        return math.sin(arg)
+    if arg is None:
+        return []
+    elif math.isinf(arg):
+        return math.nan
+    return math.sin(arg)
 
 
 @method(function('cos', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_cos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        if math.isinf(arg):
-            return math.nan
-        return math.cos(arg)
+    if arg is None:
+        return []
+    elif math.isinf(arg):
+        return math.nan
+    return math.cos(arg)
 
 
 @method(function('tan', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_tan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        if math.isinf(arg):
-            return math.nan
-        return math.tan(arg)
+    if arg is None:
+        return []
+    elif math.isinf(arg):
+        return math.nan
+    return math.tan(arg)
 
 
 @method(function('asin', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_asin_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        if arg < -1 or arg > 1:
-            return math.nan
-        return math.asin(arg)
+    if arg is None:
+        return []
+    elif arg < -1 or arg > 1:
+        return math.nan
+    return math.asin(arg)
 
 
 @method(function('acos', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_acos_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        if arg < -1 or arg > 1:
-            return math.nan
-        return math.acos(arg)
+    if arg is None:
+        return []
+    elif arg < -1 or arg > 1:
+        return math.nan
+    return math.acos(arg)
 
 
 @method(function('atan', prefix='math', label='math function', nargs=1,
                  sequence_types=('xs:double?', 'xs:double?')))
 def evaluate_atan_function(self, context=None):
     arg = self.get_argument(context, cls=NumericProxy)
-    if arg is not None:
-        return math.atan(arg)
+    if arg is None:
+        return []
+    return math.atan(arg)
 
 
 @method(function('atan2', prefix='math', label='math function', nargs=2,
@@ -897,7 +909,7 @@ def evaluate_path_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
-        return None
+        return []
     elif not self:
         if context.item is None:
             return '/'
@@ -905,7 +917,7 @@ def evaluate_path_function(self, context=None):
     else:
         item = self.get_argument(context)
         if item is None:
-            return None
+            return []
 
     suffix = ''
     if isinstance(item, DocumentNode):
@@ -928,7 +940,7 @@ def evaluate_path_function(self, context=None):
         else:
             suffix = f'/namespace::*[Q{{{XPATH_FUNCTIONS_NAMESPACE}}}local-name()=""]'
     else:
-        return None
+        return []
 
     if isinstance(context.root, DocumentNode):
         root = context.root.getroot().elem
@@ -948,7 +960,7 @@ def evaluate_path_function(self, context=None):
         if e is elem:
             return path + suffix
     else:
-        return None
+        return []
 
 
 @method(function('has-children', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean')))
@@ -1018,6 +1030,8 @@ def select_outermost_function(self, context=None):
 def evaluate_head_function(self, context=None):
     for item in self[0].select(context):
         return item
+    else:
+        return []
 
 
 @method(function('tail', nargs=1, sequence_types=('item()*', 'item()*')))
@@ -1047,7 +1061,7 @@ def evaluate_uri_collection_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
-        return
+        return []
     elif not self or uri is None:
         if context.default_resource_collection is None:
             raise self.error('FODC0002', 'no default resource collection has been defined')
@@ -1084,7 +1098,7 @@ def evaluate_unparsed_text_functions(self, context=None):
 
     href = self.get_argument(context, cls=str)
     if href is None:
-        return
+        return []
     elif urlsplit(href).fragment:
         raise self.error('FOUT1170')
 
@@ -1188,7 +1202,7 @@ def evaluate_environment_variable_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not context.allow_environment:
-        return
+        return []
     else:
         return os.environ.get(name)
 
@@ -1199,7 +1213,7 @@ def evaluate_available_environment_variables_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif not context.allow_environment:
-        return
+        return []
     else:
         return list(os.environ)
 
@@ -1285,7 +1299,7 @@ def evaluate_serialize_function(self, context=None):
     if context is None:
         raise self.missing_context()
     elif isinstance(context, XPathSchemaContext):
-        return None  # not applicable to schemas
+        return []  # not applicable to schemas
 
     method_ = kwargs.get('method', 'xml')
     if method_ in ('xml', 'html', 'text'):
@@ -1301,6 +1315,8 @@ def evaluate_serialize_function(self, context=None):
 
     elif method_ == 'json':
         return serialize_to_json(self[0].select(context), token=self, **kwargs)
+    else:
+        return []
 
 
 ###
@@ -1508,30 +1524,32 @@ def evaluate_document_uri_function(self, context=None):
                 for uri, doc in context.documents.items():
                     if doc and doc.document is context.root.document:
                         return AnyURI(uri)
-    return None
+    return []
 
 
 @method(function('nilled', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean?')))
 def evaluate_nilled_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
-        return None
+        return []
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
-    return arg.nilled
+
+    result = arg.nilled
+    return result if result is not None else []
 
 
 @method(function('node-name', nargs=(0, 1), sequence_types=('node()?', 'xs:QName?')))
 def evaluate_node_name_function(self, context=None):
     arg = self.get_argument(context, default_to_context=True)
     if arg is None:
-        return None
+        return []
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
 
     name = arg.name
     if name is None:
-        return None
+        return []
     elif name.startswith('{'):
         # name is a QName in extended format
         namespace, local_name = split_expanded_name(name)

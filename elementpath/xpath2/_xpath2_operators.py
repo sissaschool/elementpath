@@ -64,28 +64,32 @@ def evaluate_variable_reference(self, context=None):
 
     varname = self[0].value
     try:
-        return context.variables[varname]
+        value = context.variables[varname]
     except KeyError:
-        if isinstance(context, XPathSchemaContext):
-            try:
-                sequence_type = self.parser.variable_types[varname].strip()
-            except KeyError:
-                return None
-            else:
-                if sequence_type[-1] in OCCURRENCE_INDICATORS:
-                    sequence_type = sequence_type[:-1]
+        pass
+    else:
+        return value if value is not None else []
 
-                if QName.pattern.match(sequence_type) is not None:
-                    try:
-                        type_name = get_expanded_name(sequence_type, self.parser.namespaces)
-                    except KeyError:
-                        pass
-                    else:
-                        xsd_type = context.root.elem.xpath_proxy.get_type(type_name)
-                        if xsd_type is not None:
-                            return get_atomic_value(xsd_type)
+    if isinstance(context, XPathSchemaContext):
+        try:
+            sequence_type = self.parser.variable_types[varname].strip()
+        except KeyError:
+            return []
+        else:
+            if sequence_type[-1] in OCCURRENCE_INDICATORS:
+                sequence_type = sequence_type[:-1]
 
-                return UntypedAtomic('1')
+            if QName.pattern.match(sequence_type) is not None:
+                try:
+                    type_name = get_expanded_name(sequence_type, self.parser.namespaces)
+                except KeyError:
+                    pass
+                else:
+                    xsd_type = context.root.elem.xpath_proxy.get_type(type_name)
+                    if xsd_type is not None:
+                        return get_atomic_value(xsd_type)
+
+            return UntypedAtomic('1')
 
     raise self.error('XPST0008', 'unknown variable %r' % str(varname))
 
@@ -513,7 +517,7 @@ def evaluate_value_comparison_operators(self, context=None):
                 self[1].get_atomized_operand(context=copy(context))]
 
     if any(x is None for x in operands):
-        return None
+        return []
     elif any(isinstance(x, XPathFunction) for x in operands):
         raise self.error('FOTY0013', "cannot compare a function item")
     elif all(isinstance(x, DoubleProxy10) for x in operands):
@@ -576,13 +580,13 @@ def evaluate_node_comparison(self, context=None):
 
     left = [x for x in self[0].select(context)]
     if not left:
-        return None
+        return []
     elif len(left) > 1 or not isinstance(left[0], XPathNode):
         raise self[0].error('XPTY0004', "left operand of %r must be a single node" % symbol)
 
     right = [x for x in self[1].select(context)]
     if not right:
-        return None
+        return []
     elif len(right) > 1 or not isinstance(right[0], XPathNode):
         raise self[0].error('XPTY0004', "right operand of %r must be a single node" % symbol)
 

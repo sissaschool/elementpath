@@ -112,7 +112,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.evaluate(), 'Monday')
 
         token = self.parser.parse(f"{MAP_WEEKDAYS}('Mon')")
-        self.assertIsNone(token.evaluate())
+        self.assertEqual(token.evaluate(), [])
 
         token = self.parser.parse(f"let $x := {MAP_WEEKDAYS} return $x('Mo')")
         context = XPathContext(self.etree.XML('<empty/>'))

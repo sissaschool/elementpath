@@ -327,9 +327,11 @@ def evaluate_variable_reference(self, context=None):
         raise self.missing_context()
 
     try:
-        return context.variables[self[0].value]
+        value = context.variables[self[0].value]
     except KeyError as err:
         raise self.error('XPST0008', 'unknown variable %r' % str(err)) from None
+    else:
+        return value if value is not None else []
 
 
 ###
@@ -339,7 +341,7 @@ def select_wildcard(self, context=None):
     if self:
         # Product operator
         item = self.evaluate(context)
-        if item is not None:
+        if item or not isinstance(item, list):
             if context is not None:
                 context.item = item
             yield item
@@ -471,44 +473,46 @@ def evaluate_comparison_operators(self, context=None):
 def evaluate_plus_operator(self, context=None):
     if len(self) == 1:
         arg = self.get_argument(context, cls=NumericProxy)
-        if arg is not None:
-            return +arg
+        return [] if arg is None else +arg
     else:
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
-        if op1 is not None:
-            try:
-                return op1 + op2
-            except TypeError as err:
-                raise self.error('XPTY0004', err) from None
-            except OverflowError as err:
-                if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', err) from None
-                elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', err) from None
-                else:
-                    raise self.error('FOAR0002', err) from None
+        if op1 is None:
+            return []
+
+        try:
+            return op1 + op2
+        except TypeError as err:
+            raise self.error('XPTY0004', err) from None
+        except OverflowError as err:
+            if isinstance(op1, AbstractDateTime):
+                raise self.error('FODT0001', err) from None
+            elif isinstance(op1, Duration):
+                raise self.error('FODT0002', err) from None
+            else:
+                raise self.error('FOAR0002', err) from None
 
 
 @method(infix('-', bp=40))
 def evaluate_minus_operator(self, context=None):
     if len(self) == 1:
         arg = self.get_argument(context, cls=NumericProxy)
-        if arg is not None:
-            return -arg
+        return [] if arg is None else -arg
     else:
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
-        if op1 is not None:
-            try:
-                return op1 - op2
-            except TypeError as err:
-                raise self.error('XPTY0004', err) from None
-            except OverflowError as err:
-                if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', err) from None
-                elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', err) from None
-                else:
-                    raise self.error('FOAR0002', err) from None
+        if op1 is None:
+            return []
+
+        try:
+            return op1 - op2
+        except TypeError as err:
+            raise self.error('XPTY0004', err) from None
+        except OverflowError as err:
+            if isinstance(op1, AbstractDateTime):
+                raise self.error('FODT0001', err) from None
+            elif isinstance(op1, Duration):
+                raise self.error('FODT0002', err) from None
+            else:
+                raise self.error('FOAR0002', err) from None
 
 
 @method('+')
@@ -522,34 +526,35 @@ def nud_plus_minus_operators(self):
 def evaluate_multiply_operator(self, context=None):
     if self:
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
-        if op1 is not None:
-            try:
-                if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
-                    return op2 * op1
-                return op1 * op2
-            except TypeError as err:
-                if isinstance(op1, (float, decimal.Decimal)):
-                    if math.isnan(op1):
-                        raise self.error('FOCA0005') from None
-                    elif math.isinf(op1):
-                        raise self.error('FODT0002') from None
+        if op1 is None:
+            return []
+        try:
+            if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
+                return op2 * op1
+            return op1 * op2
+        except TypeError as err:
+            if isinstance(op1, (float, decimal.Decimal)):
+                if math.isnan(op1):
+                    raise self.error('FOCA0005') from None
+                elif math.isinf(op1):
+                    raise self.error('FODT0002') from None
 
-                if isinstance(op2, (float, decimal.Decimal)):
-                    if math.isnan(op2):
-                        raise self.error('FOCA0005') from None
-                    elif math.isinf(op2):
-                        raise self.error('FODT0002') from None
+            if isinstance(op2, (float, decimal.Decimal)):
+                if math.isnan(op2):
+                    raise self.error('FOCA0005') from None
+                elif math.isinf(op2):
+                    raise self.error('FODT0002') from None
 
-                raise self.error('XPTY0004', err) from None
-            except ValueError as err:
-                raise self.error('FOCA0005', err) from None
-            except OverflowError as err:
-                if isinstance(op1, AbstractDateTime):
-                    raise self.error('FODT0001', err) from None
-                elif isinstance(op1, Duration):
-                    raise self.error('FODT0002', err) from None
-                else:
-                    raise self.error('FOAR0002', err) from None
+            raise self.error('XPTY0004', err) from None
+        except ValueError as err:
+            raise self.error('FOCA0005', err) from None
+        except OverflowError as err:
+            if isinstance(op1, AbstractDateTime):
+                raise self.error('FODT0001', err) from None
+            elif isinstance(op1, Duration):
+                raise self.error('FODT0002', err) from None
+            else:
+                raise self.error('FOAR0002', err) from None
     else:
         # This is not a multiplication operator but a wildcard select statement
         return [x for x in self.select(context)]
@@ -559,7 +564,7 @@ def evaluate_multiply_operator(self, context=None):
 def evaluate_div_operator(self, context=None):
     dividend, divisor = self.get_operands(context, cls=ArithmeticProxy)
     if dividend is None:
-        return
+        return []
     elif divisor != 0:
         try:
             if isinstance(dividend, int) and isinstance(divisor, int):
@@ -593,20 +598,21 @@ def evaluate_div_operator(self, context=None):
 @method(infix('mod', bp=45))
 def evaluate_mod_operator(self, context=None):
     op1, op2 = self.get_operands(context, cls=NumericProxy)
-    if op1 is not None:
-        if op2 == 0 and isinstance(op2, float):
-            return math.nan
-        elif math.isinf(op2) and not math.isinf(op1) and op1 != 0:
-            return op1 if self.parser.version != '1.0' else math.nan
+    if op1 is None:
+        return []
+    elif op2 == 0 and isinstance(op2, float):
+        return math.nan
+    elif math.isinf(op2) and not math.isinf(op1) and op1 != 0:
+        return op1 if self.parser.version != '1.0' else math.nan
 
-        try:
-            if isinstance(op1, int) and isinstance(op2, int):
-                return op1 % op2 if op1 * op2 >= 0 else -(abs(op1) % op2)
-            return op1 % op2
-        except TypeError as err:
-            raise self.error('FORG0006', err) from None
-        except (ZeroDivisionError, decimal.InvalidOperation):
-            raise self.error('FOAR0001') from None
+    try:
+        if isinstance(op1, int) and isinstance(op2, int):
+            return op1 % op2 if op1 * op2 >= 0 else -(abs(op1) % op2)
+        return op1 % op2
+    except TypeError as err:
+        raise self.error('FORG0006', err) from None
+    except (ZeroDivisionError, decimal.InvalidOperation):
+        raise self.error('FOAR0001') from None
 
 
 # Resolve the intrinsic ambiguity of some infix operators

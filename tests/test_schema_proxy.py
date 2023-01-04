@@ -401,11 +401,11 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19"/></values>')
         context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
-        self.assertIsNone(token.evaluate(context))
+        self.assertEqual(token.evaluate(context), [])
 
         root = self.etree.XML('<values xmlns="http://xpath.test/ns"><b min="19">30</b></values>')
         context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
-        self.assertIsNone(token.evaluate(context))
+        self.assertEqual(token.evaluate(context), [])
 
         root = self.etree.XML(
             '<values xmlns="http://xpath.test/ns"><b min="19" max="40">30</b></values>')
