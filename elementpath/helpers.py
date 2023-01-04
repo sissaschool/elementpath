@@ -222,7 +222,8 @@ def match_wildcard(name: str, wildcard: str) -> bool:
 
 
 def escape_json_string(s):
-    s = s.replace('\b', r'\b').\
+    s = s.replace('\\', r'\\').\
+        replace('\b', r'\b').\
         replace('\r', r'\r').\
         replace('\n', r'\n').\
         replace('\t', r'\t').\

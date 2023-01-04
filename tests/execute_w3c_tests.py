@@ -1135,7 +1135,7 @@ class Result(object):
             self.report_failure(verbose, error=err)
             return False
 
-        if isinstance(result, AnyAtomicType):
+        if isinstance(result, (AnyAtomicType, XPathArray, XPathMap)):
             length = 1
         else:
             try:

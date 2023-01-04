@@ -245,7 +245,10 @@ def xpath_error(code: Union[str, QName],
     """
     if isinstance(code, QName):
         namespace = code.uri
-        pcode, code = code.qname, code.local_name
+        if namespace:
+            pcode, code = code.qname, code.local_name
+        else:
+            pcode, code = code.braced_uri_name, code.local_name
     else:
         namespace = XQT_ERRORS_NAMESPACE
         if not namespaces or namespaces.get('err') == XQT_ERRORS_NAMESPACE:
@@ -274,23 +277,27 @@ def xpath_error(code: Union[str, QName],
             message = '%r is not an XPath error code' % code
             raise ElementPathValueError(message, 'err:XPTY0004', token)
 
-    if namespace != XQT_ERRORS_NAMESPACE:
-        message = 'invalid namespace {!r}'.format(namespace)
-        raise ElementPathValueError(message, 'err:XPTY0004', token)
+        if namespace != XQT_ERRORS_NAMESPACE:
+            message = 'invalid namespace {!r}'.format(namespace)
+            raise ElementPathValueError(message, 'err:XPTY0004', token)
 
     try:
         error_class, default_message = XPATH_ERROR_CODES[code]
     except KeyError:
-        message = f'unknown XPath error code {code}'
-        raise ElementPathValueError(message, 'err:XPTY0004', token) from None
-    else:
-        if message_or_error is None:
-            message = default_message
-        elif isinstance(message_or_error, str):
-            message = message_or_error
-        elif isinstance(message_or_error, ElementPathError):
-            message = message_or_error.message
+        if namespace == XQT_ERRORS_NAMESPACE:
+            message = f'unknown XPath error code {code}'
+            raise ElementPathValueError(message, 'err:XPTY0004', token) from None
         else:
-            message = str(message_or_error)
+            error_class = ElementPathError
+            default_message = 'custom XPath error'
 
-        return error_class(message, pcode, token)
+    if message_or_error is None:
+        message = default_message
+    elif isinstance(message_or_error, str):
+        message = message_or_error
+    elif isinstance(message_or_error, ElementPathError):
+        message = message_or_error.message
+    else:
+        message = str(message_or_error)
+
+    return error_class(message, pcode, token)

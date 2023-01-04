@@ -1665,6 +1665,10 @@ class XPathMap(XPathFunction):
         return self._evaluate(context).items()
 
 
+def is_empty_sequence(x: Any) -> bool:
+    return not x and (isinstance(x, list) or x is None)
+
+
 class XPathArray(XPathFunction):
     """
     A token for processing XPath 3.1+ arrays.

@@ -702,17 +702,21 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'parse-json(\'"abcd"\')'
         self.check_value(expression, 'abcd')
 
-        expression = 'parse-json(\'{"x":"\\\\", "y":"\u0025"}\')'
+        expression = 'parse-json(\'{"x":"\\\\", "y":"\\u0025"}\')'
         result = XPathMap(self.parser, {"x": "\\", "y": "%"})
         self.check_value(expression, result)
 
-        expression = 'parse-json(\'{"x":"\\\\", "y":"\u0025"}\', map{\'escape\':true()})'
-        result = XPathMap(self.parser, {"x": "\\", "y": "%"})
+        expression = 'parse-json(\'{"x":"\\\\", "y":"\\u0025"}\', map{\'escape\':true()})'
+        result = XPathMap(self.parser, {"x": "\\\\", "y": "%"})
         self.check_value(expression, result)
 
-        expression = 'parse-json(\'{"x":"\\\\", "y":"\u0000"}\')'
-        result = XPathMap(self.parser, {"x": "\\", "y": "\x00"})
-        self.check_value(expression, result)
+        expression = 'parse-json(\'{"x":"\\\\", "y":"\\u0000"}\', ' \
+                     'map{\'fallback\':function($s){\'[\'||$s||\']\'}})'
+        result = XPathMap(self.parser, {"x": "\\", "y": "[\\u0000]"})
+
+        # fallback inline function requires a context for evaluation
+        context = XPathContext(root=self.etree.XML('<empty/>'))
+        self.check_value(expression, result, context=context)
 
     def test_load_xquery_module_function(self):
         self.wrong_value('load-xquery-module("")', 'FOQM0001')
@@ -837,8 +841,8 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_tree('$a?2?1', '(? (? ($ (a)) (2)) (1))')
         self.check_tree('$a?2 and $a?3', '(and (? ($ (a)) (2)) (? ($ (a)) (3)))')
 
-        return
-        self.check_tree('$a?2?1 and $a?3?4', '(? (? ($ (a)) (2)) (1))')
+        self.check_tree('$a?2?1 and $a?3?4',
+                        '(and (? (? ($ (a)) (2)) (1)) (? (? ($ (a)) (3)) (4)))')
         self.check_tree('$a[1] eq 1 and $a[2] eq 2',
                         '(and (eq ([ ($ (a)) (1)) (1)) (eq ([ ($ (a)) (2)) (2)))')
         self.check_tree(
@@ -912,7 +916,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         root = self.etree.XML(dedent("""\
             <map xmlns="http://www.w3.org/2005/xpath-functions">
-              <string escaped="true" key="x">\\</string>
+              <string escaped="true" key="x">\\\\</string>
               <string key="y">%</string>
             </map>"""))
 

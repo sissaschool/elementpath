@@ -527,11 +527,11 @@ def evaluate_parse_json_functions(self, context=None):
             return None
 
     def _fallback(*args):
-        return '&#xFFFD;'
+        return '\uFFFD'
 
     liberal = False
     duplicates = 'use-first'
-    escape = True
+    escape = None
     fallback = _fallback
 
     if len(self) > 1:
@@ -554,15 +554,25 @@ def evaluate_parse_json_functions(self, context=None):
             elif k == 'fallback':
                 if not isinstance(v, XPathFunction):
                     raise self.error('XPTY0004')
+                if escape:
+                    raise self.error('FOJS0005')
                 fallback = v
+                escape = False
+
+    def decode_string(s):
+        if escape:
+            return escape_json_string(s)
+        return ''.join(
+            x if is_xml_codepoint(ord(x)) else fallback(context, fr'\u{ord(x):04x}')
+            for x in s
+        )
 
     def json_object_pairs_to_map(obj):
         items = {}
         for k_, v_ in obj:
-            if escape:
-                k_ = escape_json_string(k_)
-                if isinstance(v_, str):
-                    v_ = escape_json_string(v_)
+            k_ = decode_string(k_)
+            if isinstance(v_, str):
+                v_ = decode_string(v_)
 
             if k_ in items:
                 if duplicates == 'use-first':
@@ -593,7 +603,10 @@ def evaluate_parse_json_functions(self, context=None):
             raise self.error('FOUT1170') from None
         raise self.error('FOJS0001') from None
 
+    if isinstance(result, str):
+        return decode_string(result)
     if isinstance(result, list):
+        result = [decode_string(x) if isinstance(x, str) else x for x in result]
         return XPathArray(self.parser, result)
     return result
 
