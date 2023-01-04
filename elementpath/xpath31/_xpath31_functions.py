@@ -567,13 +567,23 @@ def evaluate_parse_json_functions(self, context=None):
             for x in s
         )
 
+    def decode_value(value):
+        if value is None:
+            return []
+        elif not isinstance(value, str):
+            return value
+        elif escape:
+            return escape_json_string(value)
+
+        return ''.join(
+            x if is_xml_codepoint(ord(x)) else fallback(context, fr'\u{ord(x):04x}')
+            for x in value
+        )
+
     def json_object_pairs_to_map(obj):
         items = {}
         for k_, v_ in obj:
-            k_ = decode_string(k_)
-            if isinstance(v_, str):
-                v_ = decode_string(v_)
-
+            k_, v_ = decode_value(k_), decode_value(v_)
             if k_ in items:
                 if duplicates == 'use-first':
                     continue
@@ -581,7 +591,8 @@ def evaluate_parse_json_functions(self, context=None):
                     raise self.error('FOJS0003')
 
             if isinstance(v_, list):
-                items[k_] = XPathArray(self.parser, v_)
+                values = [decode_value(x) for x in v_]
+                items[k_] = XPathArray(self.parser, values) if values else values
             else:
                 items[k_] = v_
 
@@ -603,12 +614,10 @@ def evaluate_parse_json_functions(self, context=None):
             raise self.error('FOUT1170') from None
         raise self.error('FOJS0001') from None
 
-    if isinstance(result, str):
-        return decode_string(result)
     if isinstance(result, list):
-        result = [decode_string(x) if isinstance(x, str) else x for x in result]
-        return XPathArray(self.parser, result)
-    return result
+        return XPathArray(self.parser, [decode_value(x) for x in result])
+    else:
+        return decode_value(result)
 
 
 @method(function('load-xquery-module', label='function', nargs=(1, 2),

@@ -470,21 +470,21 @@ def evaluate_empty_and_exists_functions(self, context=None):
 @method('empty')
 def select_empty_function(self, context=None):
     try:
-        next(iter(self[0].select(context)))
+        value = next(iter(self[0].select(context)))
     except StopIteration:
         yield True
     else:
-        yield False
+        yield not value and isinstance(value, list)
 
 
 @method('exists')
 def select_exists_function(self, context=None):
     try:
-        next(iter(self[0].select(context)))
+        value = next(iter(self[0].select(context)))
     except StopIteration:
         yield False
     else:
-        yield True
+        yield not(not value and isinstance(value, list))
 
 
 @method(function('distinct-values', nargs=(1, 2),
