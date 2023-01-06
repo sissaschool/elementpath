@@ -16,7 +16,7 @@ import locale
 import pathlib
 import random
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import product
 from urllib.request import urlopen
@@ -728,19 +728,39 @@ def evaluate_parse_ietf_date_function(self, context=None):
     if value is None:
         return []
 
+    # Normalize the input
     value = WHITESPACES_PATTERN.sub(' ', value).strip()
-    value = value.replace(' -', '-').replace('- ', '-')
+    value = value.replace(' -', '-').replace('- ', '-').replace(' +', '+')
+    value = value.replace(' (', '(').replace('( ', '(').replace(' )', ')')
 
-    tzname_regex = r'\b(UT|UTC|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)\b'
+    # timezone +/-NN:N is invalid
+    if re.search(r'(?<=[+\-])(\d{2}:\d)(?=\D)', value) is not None:
+        raise self.error('FORG0010')
+
+    # Minutes must be 2 digits
+    if re.search(r' \d{1,2}:\d(?=\D)', value) is not None:
+        raise self.error('FORG0010')
+
+    # Adjust timezone part
+    value = re.sub(r'(?<=\D)(\d)(?=\D)', '0\\g<1>', value)
+    value = re.sub(r'(?<=\d[+\-])(\d{2}:)(?=($|[ (]))', '\\g<1>00', value)
+    value = re.sub(r'(?<=\d[+\-])(\d{2})(?=($|[ (]))', '\\g<1>:00', value)
+    value = re.sub(r'(?<=\d[+\-])(\d{3})(?=[ (])', '0\\g<1>', value)
+
+    tzname_regex = r'(?<=[\d( ])(UT|UTC|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)\b'
     tzname_match = re.search(tzname_regex, value, re.IGNORECASE)
     if tzname_match is not None:
         # only to let be parsed by strptime()
         value = re.sub(tzname_regex, 'UTC', value, re.IGNORECASE)
 
+    illegal_tzname_regex = r'\b(CET)\b'
+    if re.search(illegal_tzname_regex, value, re.IGNORECASE) is not None:
+        raise self.error('FORG0010', 'illegal timezone name')
+
     if value and value[0].isalpha():
         # Parse dayname part (that is then ignored)
         try:
-            dayname, value = value.split(' ', maxsplit=1)
+            dayname, _value = value.split(' ', maxsplit=1)
         except ValueError:
             raise self.error('FORG0010') from None
         else:
@@ -751,11 +771,20 @@ def evaluate_parse_ietf_date_function(self, context=None):
                 try:
                     datetime.strptime(dayname, fmt)
                 except ValueError:
-                    continue
+                    pass
                 else:
+                    value = _value
                     break
-            else:
-                raise self.error('FORG0010')
+
+    # Parse 24:00 cases
+    if ' 24:00 ' in value:
+        value = value.replace(' 24:00 ', ' 00:00 ')
+        day_offset = True
+    elif ' 24:00:00' in value and ' 24:00:00.' not in value:
+        value = value.replace(' 24:00:00', ' 00:00:00')
+        day_offset = True
+    else:
+        day_offset = False
 
     # Parsing generating every combination
     if value and value[0].isalpha():
@@ -763,27 +792,43 @@ def evaluate_parse_ietf_date_function(self, context=None):
         fmt_alternatives = (
             ['%b %d %H:%M', '%b-%d %H:%M'],
             ['', ':%S', ':%S.%f'],
-            ['', ' %Z', ' %z', ' %z(%Z)'],
+            ['', '%Z', ' %Z', '%z', '%z(%Z)'],
             [' %Y', ' %y'],
         )
+        # Adjust 2-digits year
+        value = re.sub(r'(?<= )(\d{2})$', '19\\g<1>', value)
     else:
         # Parse datespec rule
         fmt_alternatives = (
             ['%d %b ', '%d-%b-', '%d %b-', '%d-%b '],
             ['%Y %H:%M', '%y %H:%M'],
             ['', ':%S', ':%S.%f'],
-            ['', ' %Z', ' %z', ' %z(%Z)'],
+            ['', '%Z', ' %Z', '%z', '%z(%Z)'],
         )
+        # Adjust 2-digits year
+        value = re.sub(r'(?<=[ \-])(\d{2})(?= \d{2}:\d{2})', '19\\g<1>', value)
 
-    for fmt in product(*fmt_alternatives):
+    for fmt_chunks in product(*fmt_alternatives):
+        fmt = ''.join(fmt_chunks)
+        if '%f%Z' in fmt:
+            continue
+
         try:
-            dt = datetime.strptime(value, ''.join(fmt))
-        except ValueError:
+            dt = datetime.strptime(value, fmt)
+        except ValueError as err:
             continue
         else:
             if tzname_match is not None and dt.tzinfo is None:
                 tzname = tzname_match.group(0).upper()
                 dt = dt.replace(tzinfo=Timezone.fromstring(TIMEZONE_MAP[tzname]))
+
+            if dt.tzinfo is not None:
+                offset = dt.tzinfo.utcoffset(None)
+                seconds = offset.days * 86400 + offset.seconds
+                if abs(seconds) > 14 * 3600:
+                    raise self.error('FORG0010')
+            if day_offset:
+                dt = dt + timedelta(seconds=86400)
 
             return DateTime.fromdatetime(dt)
     else:
