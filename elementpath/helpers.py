@@ -12,7 +12,7 @@ import math
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
-from typing import Any, Iterator, Optional, Union, SupportsFloat
+from typing import Any, Iterator, List, Optional, Union, SupportsFloat
 
 ###
 # Common sets constants
@@ -240,3 +240,19 @@ def iter_sequence(obj: Any) -> Iterator[Any]:
             yield from iter_sequence(item)
     else:
         yield obj
+
+
+def split_function_test(function_test: str) -> List[str]:
+    if not function_test.startswith('function('):
+        return []
+    elif function_test == 'function(*)':
+        return ['*']
+
+    parts = function_test[9:].partition(') as ')
+    if parts[0]:
+        sequence_types = parts[0].split(', ')
+        sequence_types.append(parts[2])
+    else:
+        sequence_types = [parts[2]]
+
+    return sequence_types

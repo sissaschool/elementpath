@@ -23,7 +23,7 @@ import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError, xpath_error
-from .helpers import ordinal, get_double
+from .helpers import ordinal, get_double, split_function_test
 from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_SCHEMA, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
@@ -1404,20 +1404,11 @@ class XPathFunction(XPathToken):
           https://www.w3.org/TR/xpath-31/#id-function-test
           https://www.w3.org/TR/xpath-31/#id-sequencetype-subtype
         """
-        if not function_test.startswith('function('):
+        sequence_types = split_function_test(function_test)
+        if not sequence_types or not sequence_types[-1]:
             return False
-        elif function_test == 'function(*)':
+        elif sequence_types[0] == '*':
             return True
-
-        parts = function_test[9:].partition(') as ')
-        if not parts[1] or not parts[2]:
-            return False
-
-        if parts[0]:
-            sequence_types = parts[0].split(', ')
-            sequence_types.append(parts[2])
-        else:
-            sequence_types = [parts[2]]
 
         signature = [x for x in self.sequence_types[:self.arity]]
         signature.append(self.sequence_types[-1])
@@ -1666,6 +1657,22 @@ class XPathMap(XPathFunction):
             return self._map.items()
         return self._evaluate(context).items()
 
+    def match_function_test(self, function_test: str, as_argument: bool = False) -> bool:
+        sequence_types = split_function_test(function_test)
+        if not sequence_types or not sequence_types[-1]:
+            return False
+        elif sequence_types[0] == '*':
+            return True
+        elif len(sequence_types) != 2:
+            return False
+
+        key_type, value_type = sequence_types
+        if key_type.endswith(('+', '*')):
+            return False
+
+        f = self.parser.match_sequence_type
+        return all(f(k, key_type) and f(v, value_type) for k, v in self.items())
+
 
 class XPathArray(XPathFunction):
     """
@@ -1774,3 +1781,19 @@ class XPathArray(XPathFunction):
                 yield from item
             else:
                 yield item
+
+    def match_function_test(self, function_test: str, as_argument: bool = False) -> bool:
+        sequence_types = split_function_test(function_test)
+        if not sequence_types or not sequence_types[-1]:
+            return False
+        elif sequence_types[0] == '*':
+            return True
+        elif len(sequence_types) != 2:
+            return False
+
+        index_type, value_type = sequence_types
+        if index_type.endswith(('+', '*')):
+            return False
+
+        f = self.parser.match_sequence_type
+        return f(1, index_type) and all(f(v, value_type) for v in self.items())

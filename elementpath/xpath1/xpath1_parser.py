@@ -303,14 +303,11 @@ class XPath1Parser(Parser[XPathToken]):
                 return True
 
             if value.startswith('map('):
-                try:
-                    s1, s2 = value[4:-1].split(',')
-                except ValueError:
-                    return False
-                else:
-                    return s1.startswith('xs:') \
-                        and self.is_sequence_type(s1) \
-                        and self.is_sequence_type(s2)
+                key_type, _, value_type = value[4:-1].partition(', ')
+                return key_type.startswith('xs:') and \
+                    not key_type.endswith(('+', '*')) and \
+                    self.is_sequence_type(key_type) and \
+                    self.is_sequence_type(key_type)
             else:
                 return self.is_sequence_type(value[6:-1])
 
