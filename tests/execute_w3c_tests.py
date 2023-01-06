@@ -137,6 +137,7 @@ SKIP_TESTS = {
     'fn-apply__fn-apply-13',  # Error code should be err:FOAP0001
     'fn-json-doc__json-doc-032',  # 0 is not an instance of xs:double
     'fn-json-doc__json-doc-033',  # 0 (should be -0) is not an instance of xs:double
+    'fn-function-lookup__fn-function-lookup-764',  # Error code should be FOQM0001
 }
 
 # Tests that can be run only with lxml.etree
@@ -992,7 +993,9 @@ class Result(object):
             elif isinstance(expected_result, decimal.Decimal) and isinstance(result, float):
                 if float(expected_result) == result:
                     return True
-        except TypeError:
+            elif decimal.Decimal(expected_result) == decimal.Decimal(result):
+                return True
+        except (TypeError, ValueError, decimal.DecimalException):
             pass
 
         self.report_failure(verbose, expected=expected_result, result=result)

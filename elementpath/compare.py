@@ -131,7 +131,10 @@ def deep_equal(seq1: Iterable[Any],
                             return False
                         elif value1 != value2:
                             return False
-
+                    elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
+                            and isinstance(value1, (str, AnyURI, UntypedAtomic)):
+                        if cm.strcoll(str(value1), str(value2)):
+                            return False
                     elif value1 != value2:
                         return False
                 except TypeError:
