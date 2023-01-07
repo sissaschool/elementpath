@@ -570,6 +570,8 @@ def evaluate_parse_json_functions(self, context=None):
     def decode_value(value):
         if value is None:
             return []
+        elif isinstance(value, list):
+            return XPathArray(self.parser, [decode_value(x) for x in value])
         elif not isinstance(value, str):
             return value
         elif escape:
@@ -613,9 +615,6 @@ def evaluate_parse_json_functions(self, context=None):
         if href and urlsplit(href).fragment:
             raise self.error('FOUT1170') from None
         raise self.error('FOJS0001') from None
-
-    if isinstance(result, list):
-        return XPathArray(self.parser, [decode_value(x) for x in result])
     else:
         return decode_value(result)
 
