@@ -1189,9 +1189,6 @@ class Result(object):
         if isinstance(result, list) and len(result) == 1:
             result = result[0]
 
-        if isinstance(result, (str, bytes)):
-            result = result.strip()
-
         expression = "fn:deep-equal($result, (%s))" % self.value
         variables = {'result': result}
 

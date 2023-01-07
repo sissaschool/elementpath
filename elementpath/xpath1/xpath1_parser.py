@@ -385,7 +385,7 @@ class XPath1Parser(Parser[XPathToken]):
         :param sequence_type: a string containing the sequence type spec.
         :param occurrence: an optional occurrence spec, can be '?', '+' or '*'.
         """
-        if sequence_type[-1] in OCCURRENCE_INDICATORS:
+        if sequence_type[-1] in OCCURRENCE_INDICATORS and ') as ' not in sequence_type:
             return self.match_sequence_type(value, sequence_type[:-1], sequence_type[-1])
         elif value is None or isinstance(value, list) and value == []:
             return sequence_type in ('empty-sequence()', 'none') or occurrence in ('?', '*')

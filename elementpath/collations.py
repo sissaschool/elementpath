@@ -106,7 +106,6 @@ class CollationManager(AbstractContextManager):
         elif collation.startswith(UNICODE_COLLATION_BASE_URI):
             self.lc_collate = 'en_US.UTF-8'
             self.fallback = True
-
             for param in urlsplit(collation).query.split(';'):
                 assert isinstance(param, str)
                 if param.startswith('lang='):

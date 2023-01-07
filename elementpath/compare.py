@@ -307,7 +307,7 @@ def deep_compare(obj1: Any,
                             return -1 if value1 < value2 else 1
 
                     elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
-                            and isinstance(value1, (str, AnyURI, UntypedAtomic)):
+                            and isinstance(value2, (str, AnyURI, UntypedAtomic)):
                         result = cm.strcoll(str(value1), str(value2))
                         if result:
                             return result
