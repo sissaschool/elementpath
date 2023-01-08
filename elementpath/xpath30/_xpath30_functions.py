@@ -31,7 +31,7 @@ from ..namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from ..datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
     DateTime10, Time, AnyURI, UntypedAtomic
-from ..compare import is_sequence_type_restriction
+from ..sequence_types import is_sequence_type, match_sequence_type
 from ..etree import defuse_xml, etree_iter_paths
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
@@ -76,7 +76,7 @@ def nud_inline_function(self):
             sequence_type += next_symbol
             tk.occurrence = next_symbol
 
-        if not self.parser.is_sequence_type(sequence_type):
+        if not is_sequence_type(sequence_type, self.parser):
             if 'xs:NMTOKENS' in sequence_type \
                     or 'xs:ENTITIES' in sequence_type \
                     or 'xs:IDREFS' in sequence_type:
@@ -171,18 +171,10 @@ def evaluate_anonymous_function(self, context=None):
         return []
     elif self.source == 'function(*)':
         return context.item
-    elif context.item.arity != len(self):
-        return []
-
-    # compare sequence types
-    for st1, st2 in zip(context.item.sequence_types[:-1], self.sequence_types[:-1]):
-        if not is_sequence_type_restriction(st1, st2):
-            return []
-    else:
-        st1, st2 = context.item.sequence_types[-1], self.sequence_types[-1]
-        if not is_sequence_type_restriction(st2, st1):
-            return []
+    elif context.item.match_function_test(self.sequence_types):
         return context.item
+    else:
+        return []
 
 
 ###
@@ -1082,7 +1074,7 @@ def evaluate_uri_collection_function(self, context=None):
                 raise self.error('FODC0003', 'collection URI is a directory')
             raise self.error('FODC0002', '{!r} collection not found'.format(uri)) from None
 
-    if not self.parser.match_sequence_type(resource_collection, 'xs:anyURI*'):
+    if not match_sequence_type(resource_collection, 'xs:anyURI*', self.parser):
         raise self.error('XPDY0050', "Type does not match sequence type xs:anyURI*")
 
     return resource_collection

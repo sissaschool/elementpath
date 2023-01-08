@@ -30,6 +30,7 @@ from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
 from ..compare import deep_equal
+from ..sequence_types import match_sequence_type
 from ..xpath_context import XPathSchemaContext
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_tokens import XPathFunction
@@ -1456,7 +1457,7 @@ def evaluate_doc_functions(self, context=None):
     except (KeyError, TypeError):
         sequence_type = 'document-node()'
 
-    if not self.parser.match_sequence_type(doc, sequence_type):
+    if not match_sequence_type(doc, sequence_type, self.parser):
         msg = f"Type does not match sequence type {sequence_type!r}"
         raise self.error('XPDY0050', msg)
 
@@ -1490,7 +1491,7 @@ def evaluate_collection_function(self, context=None):
         except (KeyError, TypeError):
             return collection
 
-    if not self.parser.match_sequence_type(collection, sequence_type):
+    if not match_sequence_type(collection, sequence_type, self.parser):
         msg = f"Type does not match sequence type {sequence_type!r}"
         raise self.error('XPDY0050', msg)
 

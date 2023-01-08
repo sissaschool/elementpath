@@ -24,6 +24,7 @@ from ..namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
 from ..datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10
 from ..xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
+from ..sequence_types import is_instance
 from ..xpath_context import XPathSchemaContext
 from ..xpath_tokens import XPathFunction
 
@@ -287,7 +288,7 @@ def evaluate_instance_expression(self, context=None):
 
         for position, item in enumerate(self[0].select(context)):
             try:
-                if not self.parser.is_instance(item, qname):
+                if not is_instance(item, qname, self.parser):
                     return False
             except KeyError:
                 msg = f"atomic type {type_name!r} not found in in-scope schema types"
@@ -330,7 +331,7 @@ def evaluate_treat_expression(self, context=None):
 
         for position, item in enumerate(self[0].select(context)):
             try:
-                if not self.parser.is_instance(item, qname):
+                if not is_instance(item, qname, self.parser):
                     msg = f"item {item!r} is not of type {type_name!r}"
                     raise self.error('XPDY0050', msg)
             except KeyError:
@@ -744,7 +745,7 @@ def select_element_kind_test(self, context=None):
                         yield item
                 elif type_annotation == item.xsd_type.name:
                     yield item
-                elif self.parser.is_instance(item.typed_value, type_annotation):
+                elif is_instance(item.typed_value, type_annotation, self.parser):
                     yield item
 
 
@@ -899,7 +900,7 @@ def select_attribute_kind_test_or_axis(self, context=None):
                             yield attribute.value
                     elif attribute.xsd_type.name == type_name:
                         yield attribute.typed_value
-                    elif self.parser.is_instance(attribute.typed_value, type_name):
+                    elif is_instance(attribute.typed_value, type_name, self.parser):
                         yield attribute.typed_value
 
 

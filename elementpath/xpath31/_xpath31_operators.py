@@ -12,6 +12,7 @@
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
 from ..helpers import iter_sequence
+from ..sequence_types import match_sequence_type
 from ..xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
@@ -86,7 +87,7 @@ def select_map_or_array_kind_test(self, context=None):
         raise self.missing_context()
 
     for item in context.iter_children_or_self():
-        if self.parser.match_sequence_type(item, self.source, self.occurrence):
+        if match_sequence_type(item, self.source, self.parser):
             yield item
 
 

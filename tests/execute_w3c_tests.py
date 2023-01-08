@@ -40,6 +40,7 @@ from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode,
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, get_expanded_name
 from elementpath.xpath_tokens import XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AnyAtomicType
+from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.xpath31 import XPath31Parser
 
 
@@ -1018,13 +1019,13 @@ class Result(object):
             type_check = isinstance(result, XPathArray)
         elif self.value == 'map(*)':
             type_check = isinstance(result, XPathMap)
-        elif not parser.is_sequence_type(self.value):
+        elif not is_sequence_type(self.value, parser):
             msg = " test-case {}: {!r} is not a valid sequence type"
             print(msg.format(self.test_case.name, self.value))
             type_check = False
         else:
             context_result = get_context_result(result)
-            type_check = parser.match_sequence_type(context_result, self.value)
+            type_check = match_sequence_type(context_result, self.value, parser)
 
         if not type_check:
             self.report_failure(

@@ -43,6 +43,7 @@ from elementpath import XPath2Parser, XPathContext, MissingContextError, \
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.collations import get_locale_category
+from elementpath.sequence_types import is_instance
 
 try:
     from tests import test_xpath1_parser
@@ -107,66 +108,23 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 if self.current_env_vars[v] is not None:
                     os.environ[v] = self.current_env_vars[v]
 
-    def test_is_sequence_type_method(self):
-        self.assertTrue(self.parser.is_sequence_type('empty-sequence()'))
-        self.assertTrue(self.parser.is_sequence_type('xs:string'))
-        self.assertTrue(self.parser.is_sequence_type('xs:float+'))
-        self.assertTrue(self.parser.is_sequence_type('element()*'))
-        self.assertTrue(self.parser.is_sequence_type('item()?'))
-        self.assertTrue(self.parser.is_sequence_type('xs:untypedAtomic+'))
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
+    def test_is_instance_function_with_schema(self):
+        schema = xmlschema.XMLSchema("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:simpleType name="myInt">
+                <xs:restriction base="xs:int"/>
+              </xs:simpleType>
+            </xs:schema>""")
 
-        self.assertFalse(self.parser.is_sequence_type(10))
-        self.assertFalse(self.parser.is_sequence_type(''))
-        self.assertFalse(self.parser.is_sequence_type('empty-sequence()*'))
-        self.assertFalse(self.parser.is_sequence_type('unknown'))
-        self.assertFalse(self.parser.is_sequence_type('unknown?'))
-        self.assertFalse(self.parser.is_sequence_type('tns0:unknown'))
-
-        self.assertTrue(self.parser.is_sequence_type(' element( ) '))
-        self.assertTrue(self.parser.is_sequence_type(' element( * ) '))
-        self.assertFalse(self.parser.is_sequence_type(' element( *, * ) '))
-        self.assertTrue(self.parser.is_sequence_type('element(A)'))
-        self.assertTrue(self.parser.is_sequence_type('element(A, xs:date)'))
-        self.assertTrue(self.parser.is_sequence_type('element(*, xs:date)'))
-        self.assertFalse(self.parser.is_sequence_type('element(A, B, xs:date)'))
-
-        if self.parser.version >= '3.0':
-            self.assertTrue(self.parser.is_sequence_type('function(*)'))
-        else:
-            self.assertFalse(self.parser.is_sequence_type('function(*)'))
-
-    def test_match_sequence_type_method(self):
-        self.assertTrue(self.parser.match_sequence_type(None, 'empty-sequence()'))
-        self.assertTrue(self.parser.match_sequence_type([], 'empty-sequence()'))
-        self.assertFalse(self.parser.match_sequence_type('', 'empty-sequence()'))
-
-        self.assertFalse(self.parser.match_sequence_type('', 'empty-sequence()'))
-
-        context = XPathContext(self.etree.XML('<root><e1/><e2/><e3/></root>'))
-        root = context.root
-        self.assertTrue(self.parser.match_sequence_type(root, 'element()'))
-        self.assertTrue(self.parser.match_sequence_type([root], 'element()'))
-        self.assertTrue(self.parser.match_sequence_type(root, 'element()', '?'))
-        self.assertTrue(self.parser.match_sequence_type(root, 'element()', '+'))
-        self.assertTrue(self.parser.match_sequence_type(root, 'element()', '*'))
-        self.assertFalse(self.parser.match_sequence_type(root[:], 'element()'))
-        self.assertFalse(self.parser.match_sequence_type(root[:], 'element()', '?'))
-        self.assertTrue(self.parser.match_sequence_type(root[:], 'element()', '+'))
-        self.assertTrue(self.parser.match_sequence_type(root[:], 'element()', '*'))
-
-        self.assertTrue(self.parser.match_sequence_type(UntypedAtomic(1), 'xs:untypedAtomic'))
-        self.assertFalse(self.parser.match_sequence_type(1, 'xs:untypedAtomic'))
-
-        self.assertTrue(self.parser.match_sequence_type('1', 'xs:string'))
-        self.assertFalse(self.parser.match_sequence_type(1, 'xs:string'))
-
-        with self.assertRaises(NameError) as ctx:
-            self.parser.match_sequence_type('1', 'xs:unknown')
-        self.assertIn('XPST0051', str(ctx.exception))
-
-        with self.assertRaises(NameError) as ctx:
-            self.parser.match_sequence_type('1', 'tns0:string')
-        self.assertIn('XPST0051', str(ctx.exception))
+        self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
+        try:
+            self.assertFalse(is_instance(1.0, 'myInt', self.parser))
+            self.assertTrue(is_instance(1, 'myInt', self.parser))
+            with self.assertRaises(KeyError):
+                is_instance(1.0, 'dType', self.parser)
+        finally:
+            self.parser.schema = None
 
     def test_variable_reference(self):
         root = self.etree.XML('<a><b1/><b2/></a>')

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Iterable, Iterator
 
 from .protocols import ElementProtocol
 from .exceptions import xpath_error
-from .datatypes import AnyAtomicType, UntypedAtomic, AnyURI, xsd11_atomic_types
+from .datatypes import UntypedAtomic, AnyURI
 from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, DocumentNode
@@ -339,77 +339,3 @@ def get_key_function(collation: Optional[str] = None,
         return deep_compare(obj1, obj2, collation, token)
 
     return cmp_to_key(compare_func)
-
-
-def is_sequence_type_restriction(st1: str, st2: str) -> bool:
-    if st2 in ('empty-sequence()', 'none') and \
-            (st1 in ('empty-sequence()', 'none') or st1.endswith(('?', '*'))):
-        return True
-
-    # check occurrences
-    if st1[-1] not in '?+*':
-        if st2[-1] in '?+*':
-            return False
-    elif st1[-1] == '+':
-        st1 = st1[:-1]
-        if st2[-1] in '?*':
-            return False
-        elif st2[-1] == '+':
-            st2 = st2[:-1]
-
-    elif st1[-1] == '*':
-        st1 = st1[:-1]
-        if st2[-1] in '?+':
-            return False
-        elif st2[-1] == '*':
-            st2 = st2[:-1]
-
-    elif st1[-1] == '?':
-        st1 = st1[:-1]
-        if st2[-1] in '+*':
-            return False
-        elif st2[-1] == '?':
-            st2 = st2[:-1]
-
-    if st1 == st2:
-        return True
-    elif st1 == 'item()':
-        return True
-    elif st2 == 'item()':
-        return False
-    elif st1 == 'node()':
-        return st2.startswith(('element(', 'attribute(', 'comment(', 'text(',
-                               'processing-instruction(', 'document(', 'namespace('))
-    elif st2 == 'node()':
-        return False
-    elif st1 == 'xs:anyAtomicType':
-        try:
-            return issubclass(xsd11_atomic_types[st2[3:]], AnyAtomicType)
-        except KeyError:
-            return False
-    elif st1.startswith('xs:'):
-        if st2 == 'xs:anyAtomicType':
-            return True
-
-        try:
-            return issubclass(xsd11_atomic_types[st2[3:]], xsd11_atomic_types[st1[3:]])
-        except KeyError:
-            return False
-    elif not st1.startswith('function('):
-        return False
-
-    if st1 == 'function(*)':
-        return st2.startswith('function(')
-
-    parts1 = st1[9:].partition(') as ')
-    parts2 = st2[9:].partition(') as ')
-
-    for st1, st2 in zip_longest(parts1[0].split(', '), parts2[0].split(', ')):
-        if st1 is None or st2 is None:
-            return False
-        if not is_sequence_type_restriction(st2, st1):
-            return False
-    else:
-        if not is_sequence_type_restriction(parts1[2], parts2[2]):
-            return False
-        return True

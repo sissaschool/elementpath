@@ -29,12 +29,13 @@ from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
-from .datatypes import xsd11_atomic_types, AbstractDateTime, AnyURI, \
+from .datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, \
     AtomicValueType, AnyAtomicType
 from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
+from .sequence_types import is_sequence_type_restriction, match_sequence_type
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
 from .xpath_context import XPathContext, XPathSchemaContext
@@ -908,7 +909,8 @@ class XPathToken(Token[XPathTokenType]):
             try:
                 if isinstance(v, (UntypedAtomic, AnyURI)):
                     return token.cast(v)
-                elif isinstance(v, float) or self.parser.is_instance(v, XSD_DECIMAL):
+                elif isinstance(v, float) or \
+                        isinstance(v, xsd10_atomic_types[XSD_DECIMAL]):
                     if type_name in ('double', 'float'):
                         return token.cast(v)
             except (ValueError, TypeError):
@@ -1208,9 +1210,9 @@ class XPathFunction(XPathToken):
                         msg = "argument {!r}: {} does not match sequence type {}"
                         raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
 
-                elif not self.parser.match_sequence_type(value, sequence_type):
+                elif not match_sequence_type(value, sequence_type, self.parser):
                     value = self.cast_to_primitive_type(value, sequence_type)
-                    if not self.parser.match_sequence_type(value, sequence_type):
+                    if not match_sequence_type(value, sequence_type, self.parser):
                         msg = "argument '${}': {} does not match sequence type {}"
                         raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
 
@@ -1258,9 +1260,9 @@ class XPathFunction(XPathToken):
 
         if isinstance(result, XPathToken) and result.symbol == '?':
             pass
-        elif not self.parser.match_sequence_type(result, self.sequence_types[-1]):
+        elif not match_sequence_type(result, self.sequence_types[-1], self.parser):
             result = self.cast_to_primitive_type(result, self.sequence_types[-1])
-            if not self.parser.match_sequence_type(result, self.sequence_types[-1]):
+            if not match_sequence_type(result, self.sequence_types[-1], self.parser):
                 msg = "{!r} does not match sequence type {}"
                 raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
 
@@ -1393,7 +1395,8 @@ class XPathFunction(XPathToken):
 
         return self
 
-    def match_function_test(self, function_test: str, as_argument: bool = False) -> bool:
+    def match_function_test(self, function_test: Union[str, List[str]],
+                            as_argument: bool = False) -> bool:
         """
         Match if function signature is a subtype of provided *function_test*.
         For default return type is covariant and arguments are contravariant.
@@ -1404,7 +1407,10 @@ class XPathFunction(XPathToken):
           https://www.w3.org/TR/xpath-31/#id-function-test
           https://www.w3.org/TR/xpath-31/#id-sequencetype-subtype
         """
-        sequence_types = split_function_test(function_test)
+        if isinstance(function_test, list):
+            sequence_types = function_test
+        else:
+            sequence_types = split_function_test(function_test)
         if not sequence_types or not sequence_types[-1]:
             return False
         elif sequence_types[0] == '*':
@@ -1417,55 +1423,23 @@ class XPathFunction(XPathToken):
             return False
 
         if as_argument:
-            iterator = zip(sequence_types, signature)
+            iterator = zip(sequence_types[:-1], signature[:-1])
         else:
-            iterator = zip(signature, sequence_types)
+            iterator = zip(signature[:-1], sequence_types[:-1])
 
-        k = 0
-        for fst, st in iterator:
-            k += 1
-            if not as_argument and k == len(sequence_types):
-                st, fst = fst, st
-
-            if st[-1] in '*+?':
-                st_occurs = st[-1]
-                st = st[:-1]
+        # compare sequence types
+        for st1, st2 in iterator:
+            if not is_sequence_type_restriction(st1, st2):
+                return False
+        else:
+            if as_argument:
+                st1, st2 = sequence_types[-1], signature[-1]
             else:
-                st_occurs = ''
+                st1, st2 = signature[-1], sequence_types[-1]
 
-            if fst[-1] in '*+?':
-                fst_occurs = fst[-1]
-                fst = fst[:-1]
-            else:
-                fst_occurs = ''
-
-            if st_occurs == fst_occurs or fst_occurs == '*':
-                pass
-            elif not fst_occurs:
-                if st_occurs not in '?*':
-                    return False
-            elif fst_occurs == '+':
-                if st_occurs:
-                    return False
-            elif st_occurs:
+            if not is_sequence_type_restriction(st2, st1):
                 return False
-
-            if st == fst:
-                continue
-            elif fst == 'item()':
-                continue
-            elif st == 'item()':
-                return False
-            elif fst.startswith('xs:') ^ st.startswith('xs:'):
-                return False
-            elif fst.startswith('xs:'):
-                if not issubclass(xsd11_atomic_types[st[3:]],
-                                  xsd11_atomic_types[fst[3:]]):
-                    return False
-            elif fst != 'node()':
-                return False
-
-        return True
+            return True
 
     def _partial_function(self) -> None:
         """Convert a named function to an anonymous partial function."""
@@ -1657,8 +1631,13 @@ class XPathMap(XPathFunction):
             return self._map.items()
         return self._evaluate(context).items()
 
-    def match_function_test(self, function_test: str, as_argument: bool = False) -> bool:
-        sequence_types = split_function_test(function_test)
+    def match_function_test(self, function_test: Union[str, List[str]],
+                            as_argument: bool = False) -> bool:
+        if isinstance(function_test, list):
+            sequence_types = function_test
+        else:
+            sequence_types = split_function_test(function_test)
+
         if not sequence_types or not sequence_types[-1]:
             return False
         elif sequence_types[0] == '*':
@@ -1666,12 +1645,15 @@ class XPathMap(XPathFunction):
         elif len(sequence_types) != 2:
             return False
 
-        key_type, value_type = sequence_types
-        if key_type.endswith(('+', '*')):
+        key_st, value_st = sequence_types
+        if key_st.endswith(('+', '*')):
             return False
-
-        f = self.parser.match_sequence_type
-        return all(f(k, key_type) and f(v, value_type) for k, v in self.items())
+        elif value_st != 'empty-sequence()' and not value_st.endswith(('?', '*')):
+            return False
+        else:
+            return any(match_sequence_type(k, key_st, self.parser) and
+                       match_sequence_type(v, value_st, self.parser)
+                       for k, v in self.items())
 
 
 class XPathArray(XPathFunction):
@@ -1782,8 +1764,13 @@ class XPathArray(XPathFunction):
             else:
                 yield item
 
-    def match_function_test(self, function_test: str, as_argument: bool = False) -> bool:
-        sequence_types = split_function_test(function_test)
+    def match_function_test(self, function_test: Union[str, List[Any]],
+                            as_argument: bool = False) -> bool:
+        if isinstance(function_test, list):
+            sequence_types = function_test
+        else:
+            sequence_types = split_function_test(function_test)
+
         if not sequence_types or not sequence_types[-1]:
             return False
         elif sequence_types[0] == '*':
@@ -1795,5 +1782,5 @@ class XPathArray(XPathFunction):
         if index_type.endswith(('+', '*')):
             return False
 
-        f = self.parser.match_sequence_type
-        return f(1, index_type) and all(f(v, value_type) for v in self.items())
+        return match_sequence_type(1, index_type) and \
+            all(match_sequence_type(v, value_type, self.parser) for v in self.items())

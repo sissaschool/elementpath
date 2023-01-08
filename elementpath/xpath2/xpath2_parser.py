@@ -27,6 +27,7 @@ from ..collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
 from ..datatypes import UntypedAtomic, AtomicValueType, QName
 from ..xpath_tokens import NargsType, XPathToken, XPathFunction, XPathConstructor
 from ..xpath_context import XPathContext
+from ..sequence_types import is_sequence_type, match_sequence_type
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath1 import XPath1Parser
 
@@ -151,7 +152,7 @@ class XPath2Parser(XPath1Parser):
 
         if not variable_types:
             self.variable_types = {}
-        elif all(self.is_sequence_type(v) for v in variable_types.values()):
+        elif all(is_sequence_type(v, self) for v in variable_types.values()):
             self.variable_types = {
                 k: normalize_sequence_type(v) for k, v in variable_types.items()
             }
@@ -161,16 +162,16 @@ class XPath2Parser(XPath1Parser):
         self.base_uri = None if base_uri is None else urlparse(base_uri).geturl()
 
         if document_types:
-            if any(not self.is_sequence_type(v) for v in document_types.values()):
+            if any(not is_sequence_type(v, self) for v in document_types.values()):
                 raise ElementPathValueError('invalid sequence type in document_types argument')
         self.document_types = document_types
 
         if collection_types:
-            if any(not self.is_sequence_type(v) for v in collection_types.values()):
+            if any(not is_sequence_type(v, self) for v in collection_types.values()):
                 raise ElementPathValueError('invalid sequence type in collection_types argument')
         self.collection_types = collection_types
 
-        if not self.is_sequence_type(default_collection_type):
+        if not is_sequence_type(default_collection_type, self):
             raise ElementPathValueError('invalid sequence type for '
                                         'default_collection_type argument')
         self.default_collection_type = default_collection_type
@@ -357,7 +358,7 @@ class XPath2Parser(XPath1Parser):
             except KeyError:
                 sequence_type = 'item()*' if isinstance(value, list) else 'item()'
 
-            if not self.match_sequence_type(value, sequence_type):
+            if not match_sequence_type(value, sequence_type, self):
                 message = "Unmatched sequence type for variable {!r}".format(varname)
                 raise xpath_error('XPDY0050', message)
 
