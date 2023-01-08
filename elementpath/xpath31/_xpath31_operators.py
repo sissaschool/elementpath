@@ -123,17 +123,18 @@ class LookupOperatorToken(XPathToken):
 
     def __init__(self, parser, value=None):
         super().__init__(parser, value)
-
-        if self.parser.token.symbol == '(name)':
-            pass  # self.lbp = 6
-        elif self.parser.token.symbol in ('(', ','):
-            self.lbp = self.rbp = 0  # It's a placeholder symbol
+        if self.parser.token.symbol in ('(', ','):
+            # It's a placeholder symbol or a unary lookup operator
+            # in a list of function arguments.
+            self.lbp = self.rbp = 0
 
     def nud(self):
         try:
             self.parser.expected_next('(name)', '(integer)', '(', '*')
         except SyntaxError:
-            return self  # a placeholder token
+            if self.lbp:
+                raise
+            return self  # a placeholder/unary lookup token
         else:
             self[:] = self.parser.expression(85),
             return self

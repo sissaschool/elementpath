@@ -111,6 +111,12 @@ def evaluate_parenthesized_expression(self, context=None):
                 else:
                     arguments.append(tk.evaluate(context))
                     break
+
+            if value.label == 'partial function' and value[0].symbol == '?' and len(value[0]):
+                if context is None:
+                    raise self.missing_context()
+                arguments.append(context.item)
+
             arguments.reverse()
             return value(context, *arguments)
         elif self[0].symbol == '(':
