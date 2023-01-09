@@ -69,8 +69,8 @@ def nud_sequence_type_or_curly_array_constructor(self):
 
     self.label = 'kind test'
     self.parser.advance('(')
-    if self.parser.next_token.label != 'kind test':
-        self.parser.expected_next('(name)', ':', '*', message='a QName or a wildcard expected')
+    if self.parser.next_token.label not in ('kind test', 'function test'):
+        self.parser.expected_next('(name)', ':', '*', 'item')
     self[:] = self.parser.expression(45),
     if self[0].symbol != '*':
         self[0].parse_occurrence()

@@ -33,7 +33,7 @@ COMMON_SEQUENCE_TYPES = {
     'xs:token', 'xs:language', 'xs:Name', 'xs:NCName', 'xs:ID', 'xs:IDREF',
     'xs:ENTITY', 'xs:NMTOKEN', 'xs:base64Binary', 'xs:hexBinary',
     'xs:integer', 'xs:long', 'xs:int', 'xs:short', 'xs:byte',
-    'xs:positiveInteger', 'xs:negativeInteger',
+    'xs:positiveInteger', 'xs:negativeInteger', 'xs:numeric',
     'xs:nonPositiveInteger', 'xs:nonNegativeInteger', 'xs:unsignedLong',
     'xs:unsignedInt', 'xs:unsignedShort', 'xs:unsignedByte',
     'xs:untyped', 'xs:untypedAtomic', 'attribute()', 'attribute(*)',
@@ -139,7 +139,7 @@ def is_instance(obj: Any, type_qname: str, parser: Optional['XPath1Parser'] = No
             return isinstance(obj, AnyAtomicType) or \
                 isinstance(obj, list) and \
                 all(isinstance(x, AnyAtomicType) for x in obj)
-        elif type_qname == XSD_NUMERIC and parser is not None and parser.version >= '3.1':
+        elif type_qname in ('numeric', XSD_NUMERIC):
             return isinstance(obj, NumericProxy)
 
     if parser is not None and parser.schema is not None:
@@ -280,7 +280,7 @@ def match_sequence_type(value: Any,
                 return all(match_st(x, st) for x in v)
         elif st == 'item()':
             return isinstance(v, (XPathNode, AnyAtomicType, list, xpath_tokens.XPathFunction))
-        elif st == 'numeric':
+        elif st == 'numeric' or st == 'xs:numeric':
             return isinstance(v, NumericProxy)
         elif st.startswith('function('):
             if not isinstance(v, xpath_tokens.XPathFunction):

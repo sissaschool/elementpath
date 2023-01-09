@@ -313,7 +313,7 @@ def evaluate_document_uri_function(self, context=None):
 ###
 # Number functions
 @method(function('round-half-to-even', nargs=(1, 2),
-                 sequence_types=('numeric?', 'xs:integer', 'numeric?')))
+                 sequence_types=('xs:numeric?', 'xs:integer', 'xs:numeric?')))
 def evaluate_round_half_to_even_function(self, context=None):
     item = self.get_argument(context)
     if item is None:
@@ -341,7 +341,7 @@ def evaluate_round_half_to_even_function(self, context=None):
         return round(item, precision)
 
 
-@method(function('abs', nargs=1, sequence_types=('numeric?', 'numeric?')))
+@method(function('abs', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
 def evaluate_abs_function(self, context=None):
     item = self.get_argument(context)
     if item is None:

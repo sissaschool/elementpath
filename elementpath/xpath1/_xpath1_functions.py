@@ -391,8 +391,8 @@ def evaluate_sum_function(self, context=None):
         raise self.error('FORG0006') from None
 
 
-@method(function('ceiling', nargs=1, sequence_types=('numeric?', 'numeric?')))
-@method(function('floor', nargs=1, sequence_types=('numeric?', 'numeric?')))
+@method(function('ceiling', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
+@method(function('floor', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
 def evaluate_ceiling_and_floor_functions(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
@@ -414,7 +414,7 @@ def evaluate_ceiling_and_floor_functions(self, context=None):
         raise self.error('FORG0006', err) from None
 
 
-@method(function('round', nargs=1, sequence_types=('numeric?', 'numeric?')))
+@method(function('round', nargs=1, sequence_types=('xs:numeric?', 'xs:numeric?')))
 def evaluate_round_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:

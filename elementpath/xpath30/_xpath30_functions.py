@@ -222,7 +222,7 @@ def evaluate_log10_function(self, context=None):
 
 
 @method(function('pow', prefix='math', label='math function', nargs=2,
-                 sequence_types=('xs:double?', 'numeric', 'xs:double?')))
+                 sequence_types=('xs:double?', 'xs:numeric', 'xs:double?')))
 def evaluate_pow_function(self, context=None):
     x = self.get_argument(context, cls=NumericProxy)
     y = self.get_argument(context, index=1, required=True, cls=NumericProxy)
@@ -406,7 +406,7 @@ def evaluate_format_integer_function(self, context=None):
 
 
 @method(function('format-number', nargs=(2, 3),
-                 sequence_types=('numeric?', 'xs:string', 'xs:string?', 'xs:string')))
+                 sequence_types=('xs:numeric?', 'xs:string', 'xs:string?', 'xs:string')))
 def evaluate_format_number_function(self, context=None):
     value = self.get_argument(context, cls=NumericProxy)
     picture = self.get_argument(context, index=1, required=True, cls=str)
@@ -1568,7 +1568,7 @@ def evaluate_string_join_function(self, context=None):
 
 
 @method(function('round', nargs=(1, 2),
-                 sequence_types=('numeric?', 'xs:integer', 'numeric?')))
+                 sequence_types=('xs:numeric?', 'xs:integer', 'xs:numeric?')))
 def evaluate_round_function(self, context=None):
     arg = self.get_argument(context)
     if arg is None:
