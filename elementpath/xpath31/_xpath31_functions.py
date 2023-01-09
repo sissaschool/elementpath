@@ -664,7 +664,7 @@ def evaluate_transform_function(self, context=None):
             if not isinstance(v, (int, float, Decimal)):
                 raise self.error('FOXT0002')
 
-    raise self.error('FOXT0001')  # XSLT not available
+    raise self.error('FOXT0004')  # XSLT transformation has been disabled
 
 
 @method(function('random-number-generator', label='function', nargs=(0, 1),

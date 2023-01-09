@@ -253,7 +253,7 @@ class XPathToken(Token[XPathTokenType]):
         item: Union[None, ElementProtocol, DocumentProtocol, XPathNode, AnyAtomicType]
 
         try:
-            selector = self._items[index].select
+            token = self._items[index]
         except IndexError:
             if default_to_context:
                 if context is None:
@@ -265,8 +265,12 @@ class XPathToken(Token[XPathTokenType]):
             else:
                 return default
         else:
+            if isinstance(token, XPathFunction):
+                if token.nargs and not len(token):
+                    return token  # It's a function reference
+
             item = None
-            for k, result in enumerate(selector(copy(context))):
+            for k, result in enumerate(token.select(copy(context))):
                 if k == 0:
                     item = result
                 elif self.parser.compatibility_mode:
@@ -288,7 +292,7 @@ class XPathToken(Token[XPathTokenType]):
                     raise self.error('XPTY0004', msg.format(ord_arg))
 
         if cls is not None:
-            return self.validated_value(item, cls, promote)
+            return self.validated_value(item, cls, promote, index)
         return item
 
     def get_function(self, context: Optional[XPathContext], arity: int = 0) -> 'XPathFunction':
@@ -313,7 +317,8 @@ class XPathToken(Token[XPathTokenType]):
         return func
 
     def validated_value(self, item: Any, cls: Type[Any],
-                        promote: Optional[ClassCheckType] = None) -> Any:
+                        promote: Optional[ClassCheckType] = None,
+                        index: Optional[int] = None) -> Any:
         """
         Type promotion checking (see "function conversion rules" in XPath 2.0 language definition)
         """
@@ -344,8 +349,11 @@ class XPathToken(Token[XPathTokenType]):
 
             code = 'FOTY0012' if value is None else 'XPTY0004'
 
-        message = "item type is {!r} instead of {!r}"
-        raise self.error(code, message.format(type(item), cls))
+        if index is None:
+            msg = f"item type is {type(item)!r} instead of {cls!r}"
+        else:
+            msg = f"{ordinal(index+1)} argument has type {type(item)!r} instead of {cls!r}"
+        raise self.error(code, msg)
 
     def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
 

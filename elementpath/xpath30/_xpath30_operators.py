@@ -102,16 +102,22 @@ def evaluate_parenthesized_expression(self, context=None):
     if len(self) > 1:
         if isinstance(value, XPathFunction):
             # Build argument list considering commas as separators of different arguments
-            arguments = []
+            tokens = []
             tk = self[1]
             while True:
                 if tk.symbol == ',':
-                    arguments.append(tk[1].evaluate(context))
+                    tokens.append(tk[1])
                     tk = tk[0]
                 else:
-                    arguments.append(tk.evaluate(context))
+                    tokens.append(tk)
                     break
 
+            if any(x.symbol == '?' for x in tokens):
+                value[:] = tokens[::-1]
+                value._partial_function()
+                return value
+
+            arguments = [tk.evaluate(context) for tk in tokens]
             if value.label == 'partial function' and value[0].symbol == '?' and len(value[0]):
                 if context is None:
                     raise self.missing_context()

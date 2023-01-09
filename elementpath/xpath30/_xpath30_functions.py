@@ -1558,8 +1558,8 @@ def evaluate_node_name_function(self, context=None):
                  sequence_types=('xs:string*', 'xs:string', 'xs:string')))
 def evaluate_string_join_function(self, context=None):
     items = [
-        self.validated_value(s, cls=str, promote=AnyURI)
-        for s in self[0].atomization(context)
+        self.validated_value(s, cls=str, promote=AnyURI, index=k)
+        for k, s in enumerate(self[0].atomization(context))
     ]
 
     if len(self) == 1:

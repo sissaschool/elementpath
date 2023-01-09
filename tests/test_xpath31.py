@@ -730,7 +730,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         with self.assertRaises(RuntimeError) as ctx:
             self.check_value('transform(map{})')
 
-        self.assertIn('FOXT0001', str(ctx.exception))
+        self.assertIn('FOXT0004', str(ctx.exception))
 
     def test_random_number_generator_function(self):
         context = None
