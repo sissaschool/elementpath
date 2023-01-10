@@ -1659,7 +1659,7 @@ class XPathMap(XPathFunction):
         elif value_st != 'empty-sequence()' and not value_st.endswith(('?', '*')):
             return False
         else:
-            return any(match_sequence_type(k, key_st, self.parser) and
+            return any(match_sequence_type(k, key_st, self.parser, False) and
                        match_sequence_type(v, value_st, self.parser)
                        for k, v in self.items())
 

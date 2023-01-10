@@ -1547,6 +1547,8 @@ def evaluate_node_name_function(self, context=None):
         namespace, local_name = split_expanded_name(name)
         for pfx, uri in self.parser.namespaces.items():
             if uri == namespace:
+                if not pfx:
+                    return QName(uri, local_name)
                 return QName(uri, '{}:{}'.format(pfx, local_name))
         raise self.error('FONS0004', 'no prefix found for namespace {}'.format(namespace))
     else:

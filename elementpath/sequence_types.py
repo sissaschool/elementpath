@@ -256,13 +256,15 @@ def is_sequence_type(value: Any, parser: Optional['XPath1Parser'] = None) -> boo
 
 def match_sequence_type(value: Any,
                         sequence_type: str,
-                        parser: Optional['XPath1Parser'] = None) -> bool:
+                        parser: Optional['XPath1Parser'] = None,
+                        strict: bool = True) -> bool:
     """
     Checks a value instance against a sequence type.
 
     :param value: the instance to check.
     :param sequence_type: a string containing the sequence type spec.
     :param parser: an optional parser instance for type checking.
+    :param strict: if `False` match xs:anyURI with strings.
     """
     def match_st(v: Any, st: str, occurrence: Optional[str] = None) -> bool:
         if st[-1] in OCCURRENCE_INDICATORS and ') as ' not in st:
@@ -312,6 +314,8 @@ def match_sequence_type(value: Any,
             value_kind = v.kind
         elif '(' in st:
             return False
+        elif not strict and st == 'xs:anyURI' and isinstance(v, str):
+            return True
         else:
             try:
                 return is_instance(v, st, parser)

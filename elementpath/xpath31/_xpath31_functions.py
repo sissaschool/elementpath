@@ -169,8 +169,9 @@ def evaluate_map_merge_function(self, context=None):
             if k not in items:
                 items[k] = v
             elif duplicates == 'reject':
-                raise self.error('FOJS0005')
+                raise self.error('FOJS0003')
             elif duplicates == 'use-last':
+                items.pop(k)  # remove before to replace the key
                 items[k] = v
             elif duplicates == 'combine':
                 try:
