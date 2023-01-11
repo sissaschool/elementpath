@@ -176,6 +176,9 @@ def get_double(value: Union[SupportsFloat, str], xsd_version: str = '1.0') -> fl
                 return math.nan  # for NaN use the predefined instance to keep identity
         elif value.lower() in INVALID_NUMERIC:
             raise ValueError(f'invalid value {value!r} for xs:double/xs:float')
+    elif math.isnan(value):
+        return math.nan
+
     return float(value)
 
 

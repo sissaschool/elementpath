@@ -150,6 +150,28 @@ class FloatTypesTest(unittest.TestCase):
     def test_abs(self):
         self.assertEqual(abs(Float10('-20.2')), 20.2)
 
+    def test_nan(self):
+        self.assertNotEqual(math.nan, math.nan)  # NaN is not equal to itself!
+        self.assertIs(math.nan, math.nan)
+        self.assertIsNot(float('nan'), float('nan'))
+
+        self.assertTrue(math.isnan(Float10('NaN')))
+        self.assertTrue(math.isnan(Float10(math.nan)))
+
+        self.assertNotEqual(Float10('NaN'), Float10('NaN'))
+        self.assertIs(Float10('NaN'), Float10('NaN'))
+        self.assertIs(Float10('NaN'), Float('NaN'))
+        self.assertIs(Float10(math.nan), Float10('NaN'))
+        self.assertIsNot(Float10(math.nan), math.nan)
+
+        self.assertIsNot(Float10('NaN'), DoubleProxy10('NaN'))
+
+        # Invalid values for constructor function
+        self.assertRaises(ValueError, Float10, 'NAN')
+        with self.assertRaises(ValueError) as ctx:
+            Float10('nan')
+        self.assertEqual(str(ctx.exception), "invalid value 'nan' for xs:float")
+
 
 class IntegerTypesTest(unittest.TestCase):
 
@@ -1471,6 +1493,9 @@ class TypeProxiesTest(unittest.TestCase):
             DoubleProxy('nan')
         with self.assertRaises(ValueError):
             DoubleProxy('inf')
+
+        self.assertIs(DoubleProxy10('NaN'), DoubleProxy10('NaN'))
+        self.assertIs(DoubleProxy10('NaN'), DoubleProxy('NaN'))
 
         self.assertIsNone(DoubleProxy10.validate(1.9))
         self.assertIsNone(DoubleProxy10.validate('1.9'))
