@@ -13,6 +13,7 @@ XPath 3.1 implementation - part 3 (functions)
 """
 import json
 import locale
+import math
 import pathlib
 import random
 import re
@@ -98,7 +99,22 @@ def evaluate_map_keys_function(self, context=None):
 def evaluate_map_contains_function(self, context=None):
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
-    return key in map_.keys(context)
+    if isinstance(key, float) and math.isnan(key):
+        return any(isinstance(k, float) and math.isnan(k) for k in map_.keys(context))
+
+    for k in map_.keys(context):
+        try:
+            if k == key:
+                if isinstance(key, str) or isinstance(k, str):
+                    return True
+                elif isinstance(key, UntypedAtomic) ^ isinstance(k, UntypedAtomic):
+                    return False
+                else:
+                    return True
+        except TypeError:
+            continue
+    else:
+        return False
 
 
 @method(function('get', prefix='map', label='map function', nargs=2,

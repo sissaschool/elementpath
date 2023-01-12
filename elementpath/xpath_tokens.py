@@ -1502,8 +1502,9 @@ class XPathMap(XPathFunction):
     symbol = 'map'
     label = 'map'
     pattern = r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
-    _map: Optional[Dict[AnyAtomicType, Any]] = None
+    _map: Optional[Dict[Optional[AnyAtomicType], Any]] = None
     _values: List[XPathToken]
+    _nan_key: Optional[float] = None
 
     def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
         super().__init__(parser)
@@ -1511,21 +1512,21 @@ class XPathMap(XPathFunction):
         if items is not None:
             _items = items.items() if isinstance(items, dict) else items
             _map = {}
-            nan_key = False
             for k, v in _items:
-                if isinstance(k, float) and math.isnan(k):
-                    if nan_key:
+                if k is None:
+                    raise self.error('XPTY0004', 'missing key value')
+                elif isinstance(k, float) and math.isnan(k):
+                    if self._nan_key is not None:
                         raise self.error('XQDY0137')
-                    nan_key = True
+                    self._nan_key, _map[None] = k, v
+                    continue
                 elif k in _map:
                     raise self.error('XQDY0137')
 
-                if not isinstance(v, list):
-                    _map[k] = v
-                elif not v:
-                    _map[k] = None
-                else:
+                if isinstance(v, list):
                     _map[k] = v[0] if len(v) == 1 else v
+                else:
+                    _map[k] = v
 
             self._map = _map
 
@@ -1574,33 +1575,39 @@ class XPathMap(XPathFunction):
         return f'map{{{items}}}'
 
     def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathMap':
-        if self._map is None:
-            self._map = self._evaluate(context)
-        return self
+        if self._map is not None:
+            return self
+        return XPathMap(
+            parser=self.parser,
+            items=(
+                (k.get_atomized_operand(context), v.evaluate(context))
+                for k, v in zip(self._items, self._values)
+            )
+        )
 
     def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
         _map = {}
-        nan_key = False
+        nan_key = None
 
         for key, value in zip(self._items, self._values):
             k = key.get_atomized_operand(context)
             if k is None:
                 raise self.error('XPTY0004', 'missing key value')
             elif isinstance(k, float) and math.isnan(k):
-                if nan_key:
+                if nan_key is not None:
                     raise self.error('XQDY0137')
-                nan_key = True
+                nan_key, _map[None] = k, value.evaluate(context)
+                continue
             elif k in _map:
                 raise self.error('XQDY0137')
 
             v = value.evaluate(context)
-            if not isinstance(v, list):
-                _map[k] = v
-            elif not v:
-                _map[k] = None
-            else:
+            if isinstance(v, list):
                 _map[k] = v[0] if len(v) == 1 else v
+            else:
+                _map[k] = v
 
+        self._nan_key = nan_key
         return cast(Dict[AnyAtomicType, Any], _map)
 
     def __call__(self, context: Optional[XPathContext] = None,
@@ -1614,30 +1621,31 @@ class XPathMap(XPathFunction):
         else:
             map_dict = self._evaluate(context)
 
-        if isinstance(key, float) and math.isnan(key):
-            for k, v in map_dict.items():
-                if isinstance(k, float) and math.isnan(k):
-                    return v
+        try:
+            if isinstance(key, float) and math.isnan(key):
+                return map_dict[None]
             else:
-                return []
+                return map_dict[key]
+        except KeyError:
+            return []
+
+    def keys(self, context: Optional[XPathContext] = None) -> List[AnyAtomicType]:
+        if self._map is not None:
+            return [self._nan_key if k is None else k for k in self._map.keys()]
+        return [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
+
+    def values(self, context: Optional[XPathContext] = None) -> List[Any]:
+        if self._map is not None:
+            return [v for v in self._map.values()]
+        return [v for v in self._evaluate(context).values()]
+
+    def items(self, context: Optional[XPathContext] = None) -> List[Tuple[AnyAtomicType, Any]]:
+        if self._map is not None:
+            _map = self._map
         else:
-            return map_dict.get(key, [])
+            _map = self._evaluate(context)
 
-    def keys(self, context: Optional[XPathContext] = None) -> KeysView[AnyAtomicType]:
-        if self._map is not None:
-            return self._map.keys()
-        return self._evaluate(context).keys()
-
-    def values(self, context: Optional[XPathContext] = None) -> ValuesView[Any]:
-        if self._map is not None:
-            return self._map.values()
-        return self._evaluate(context).values()
-
-    def items(self, context: Optional[XPathContext] = None) \
-            -> ItemsView[AnyAtomicType, Any]:
-        if self._map is not None:
-            return self._map.items()
-        return self._evaluate(context).items()
+        return [(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()]
 
     def match_function_test(self, function_test: Union[str, List[str]],
                             as_argument: bool = False) -> bool:
