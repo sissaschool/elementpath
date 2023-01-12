@@ -295,6 +295,20 @@ class XPathToken(Token[XPathTokenType]):
             return self.validated_value(item, cls, promote, index)
         return item
 
+    def get_argument_tokens(self) -> List['XPathToken']:
+        """
+        Builds and returns the argument tokens list, expanding the comma tokens.
+        """
+        tk = self
+        tokens = []
+        while True:
+            if tk.symbol == ',':
+                tokens.append(tk[1])
+                tk = tk[0]
+            else:
+                tokens.append(tk)
+                return tokens[::-1]
+
     def get_function(self, context: Optional[XPathContext], arity: int = 0) -> 'XPathFunction':
         if isinstance(self, XPathFunction):
             func = self

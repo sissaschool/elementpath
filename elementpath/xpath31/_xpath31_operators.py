@@ -219,13 +219,9 @@ def led_arrow_operator(self, left):
 
 @method('=>')
 def evaluate_arrow_operator(self, context=None):
-    arguments = [self[0].evaluate(context)]
+    tokens = [self[0]]
     if self[2]:
-        other_args = self[2].evaluate(context)
-        if isinstance(other_args, list):
-            arguments.extend(other_args)
-        else:
-            arguments.append(other_args)
-
-    func = self[1].get_function(context, arity=len(arguments))
+        tokens.extend(self[2][0].get_argument_tokens())
+    func = self[1].get_function(context, arity=len(tokens))
+    arguments = [tk.evaluate(context) for tk in tokens]
     return func(context, *arguments)
