@@ -26,7 +26,9 @@ from urllib.parse import urlsplit
 from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
-from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, escape_json_string, not_equal
+from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
+    escape_json_string, escape_to_json, unescape_json_string, \
+    not_equal
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
@@ -570,19 +572,17 @@ def evaluate_parse_json_functions(self, context=None):
                 escape = v
             elif k == 'fallback':
                 if not isinstance(v, XPathFunction):
-                    raise self.error('XPTY0004')
-                if escape:
-                    raise self.error('FOJS0005')
+                    msg = 'fallback parameter is not a function'
+                    raise self.error('XPTY0004', msg)
+                elif v.arity != 1:
+                    msg = f'fallback function has arity {v.arity} (must be 1)'
+                    raise self.error('XPTY0004', msg)
+                elif escape:
+                    msg = "cannot provide both 'fallback' and 'escape' parameters"
+                    raise self.error('FOJS0005', msg)
+
                 fallback = v
                 escape = False
-
-    def decode_string(s):
-        if escape:
-            return escape_json_string(s)
-        return ''.join(
-            x if is_xml_codepoint(ord(x)) else fallback(context, fr'\u{ord(x):04x}')
-            for x in s
-        )
 
     def decode_value(value):
         if value is None:
@@ -595,7 +595,7 @@ def evaluate_parse_json_functions(self, context=None):
             return escape_json_string(value)
 
         return ''.join(
-            x if is_xml_codepoint(ord(x)) else fallback(context, fr'\u{ord(x):04x}')
+            x if is_xml_codepoint(ord(x)) else fallback(context, rf'\u{ord(x):04X}')
             for x in value
         )
 
@@ -905,6 +905,7 @@ NUMBER_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}number'
 STRING_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}string'
 ARRAY_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}array'
 MAP_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}map'
+BOOLEAN_VALUES = {'true', 'false', '1', '0'}
 
 
 @method(function('xml-to-json', label='function', nargs=(1, 2),
@@ -914,7 +915,6 @@ def evaluate_xml_to_json_function(self, context=None):
     if input_node is None:
         return []
 
-    indent = False
     if len(self) > 1:
         options = self.get_argument(context, index=1, required=True, cls=XPathMap)
         indent = options(context, 'indent')
@@ -931,20 +931,44 @@ def evaluate_xml_to_json_function(self, context=None):
     def elem_to_json(elements):
         chunks = []
 
+        def check_attributes(*exclude):
+            for name in child.attrib:
+                if name in exclude:
+                    continue
+                elif name.startswith('{') and \
+                        not name.startswith(f'{{{XPATH_FUNCTIONS_NAMESPACE}}}'):
+                    continue
+                raise self.error('FOJS0006', f"{child} has an invalid attribute {name!r}")
+
+        def check_escapes(s):
+            if re.search(r'(?<!\\)\\(?![urtnfb/"\\])', s):
+                raise self.error('FOJS0007', f"invalid escape sequence in {s!r}")
+
+            hex_digits = '0123456789abcdefABCDEF'
+            for chunk in s.split('\\u')[1:]:
+                if len(chunk) < 4 or any(x not in hex_digits for x in chunk[:4]):
+                    raise self.error('FOJS0007', f"invalid unicode escape in {s!r}")
+
         for child in elements:
             if callable(child.tag):
                 continue
 
             if child.tag == NULL_TAG:
+                check_attributes()
+                if child.text is not None:
+                    msg = f'a null element cannot have a text value'
+                    raise self.error('FOJS0006', msg)
                 chunks.append('null')
 
             elif child.tag == BOOLEAN_TAG:
+                check_attributes('key')
                 if BooleanProxy(''.join(etree_iter_strings(child))):
                     chunks.append('true')
                 else:
                     chunks.append('false')
 
             elif child.tag == NUMBER_TAG:
+                check_attributes('key')
                 value = ''.join(etree_iter_strings(child))
                 try:
                     if self.parser.xsd_version == '1.0':
@@ -954,27 +978,67 @@ def evaluate_xml_to_json_function(self, context=None):
                 except ValueError:
                     chunks.append('nan')
                 else:
+                    if math.isnan(number) or math.isinf(number):
+                        msg = f'invalid number value {value!r}'
+                        raise self.error('FOJS0006', msg)
                     chunks.append(str(number).rstrip('0').rstrip('.'))
 
             elif child.tag == STRING_TAG:
-                value = ''.join(etree_iter_strings(child))
-                if child.get('escaped') == 'true':
-                    value = json.dumps(value)
+                check_attributes('key', 'escaped-key', 'escaped')
+                if len(child):
+                    msg = f"{child} cannot have element children"
+                    raise self.error('FOJS0006', msg)
 
+                value = ''.join(etree_iter_strings(child))
+                check_escapes(value)
+
+                escaped = child.get('escaped', '0').strip()
+                if escaped not in BOOLEAN_VALUES:
+                    msg = f"{child} has an invalid value for 'escaped' attribute"
+                    raise self.error('FOJS0006', msg)
+
+                value = escape_to_json(value, escaped in ('true', '1'))
                 chunks.append(f'"{value}"')
 
             elif child.tag == ARRAY_TAG:
+                check_attributes('key')
+                if len(child):
+                    if child.text is not None and child.text.strip() or \
+                            any(e.tail and e.tail.strip() for e in child):
+                        msg = f"{child} has an invalid mixed content"
+                        raise self.error('FOJS0006', msg)
+
                 chunks.append(f'[{elem_to_json(child)}]')
 
             elif child.tag == MAP_TAG:
                 map_chunks = []
+                map_keys = set()
                 for e in child:
                     key = e.get('key')
-                    if child.get('escaped-key') == 'true':
-                        key = json.dumps(key, ensure_ascii=True)
+                    if not isinstance(key, str):
+                        msg = f'object invalid key type {type(key)}'
+                        raise self.error('FOJS0006', msg)
 
+                    check_escapes(key)
+
+                    escaped_key = e.get('escaped-key', '0').strip()
+                    if escaped_key not in BOOLEAN_VALUES:
+                        msg = f"{e} has an invalid value for 'escaped-key' attribute"
+                        raise self.error('FOJS0006', msg)
+
+                    key = escape_to_json(key, escaped=escaped_key in ('true', '1'))
                     map_chunks.append(f'"{key}":{elem_to_json((e,))}')
+
+                    unescaped_key = unescape_json_string(key)
+                    if unescaped_key in map_keys:
+                        msg = f"key {key!r} duplication in map after escaping"
+                        raise self.error('FOJS0006', msg)
+                    map_keys.add(unescaped_key)
+
                 chunks.append('{%s}' % ','.join(map_chunks))
+            else:
+                msg = f'invalid element tag {child.tag!r}'
+                raise self.error('FOJS0006', msg)
 
         return ','.join(chunks)
 

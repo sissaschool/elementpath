@@ -12,7 +12,8 @@ import unittest
 import math
 from xml.etree import ElementTree
 from elementpath.helpers import days_from_common_era, months2days, \
-    round_number, is_idrefs, collapse_white_spaces, normalize_sequence_type
+    round_number, is_idrefs, collapse_white_spaces, normalize_sequence_type, \
+    escape_to_json
 
 
 class HelperFunctionsTest(unittest.TestCase):
@@ -146,6 +147,10 @@ class HelperFunctionsTest(unittest.TestCase):
             normalize_sequence_type(' \nfunction  ( item( ) * ) as  xs:integer\t '),
             'function(item()*) as xs:integer'
         )
+
+    def test_escape_to_json(self):
+        self.assertEqual(escape_to_json("\""), '\\"')
+        self.assertEqual(escape_to_json("\""), '\\"')
 
 
 if __name__ == '__main__':

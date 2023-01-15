@@ -912,9 +912,7 @@ class Result(object):
         if verbose <= 1:
             return
 
-        print(f'Result <{self.type}> failed for test case {self.test_case.name!r}')
-        if self.value is not None:
-            print(f'Result value: {self.value!r}')
+        print(f'Result {self} failed for test case {self.test_case.name!r}')
 
         if verbose < 4:
             print(f'XPath expression: {self.test_case.test.strip()}')

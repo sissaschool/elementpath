@@ -185,6 +185,8 @@ class LookupOperatorToken(XPathToken):
                     for value in self[-1].select(context):
                         yield item(context, self.data_value(value))
 
+            elif not item and isinstance(item, list):
+                continue
             else:
                 raise self.error('XPTY0004')
 

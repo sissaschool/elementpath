@@ -727,7 +727,7 @@ class XPathToken(Token[XPathTokenType]):
             if item is None:
                 return []
 
-        _item = item
+        _item = copy(item)
         _tzinfo = _item.tzinfo
         try:
             if _tzinfo is not None and timezone is not None:

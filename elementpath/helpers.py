@@ -12,7 +12,7 @@ import math
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
-from typing import Any, Iterator, List, Optional, Union, SupportsFloat
+from typing import Any, Iterator, List, Match, Optional, Union, SupportsFloat
 
 ###
 # Common sets constants
@@ -225,14 +225,52 @@ def match_wildcard(name: str, wildcard: str) -> bool:
 
 
 def escape_json_string(s):
-    s = s.replace('\\', r'\\').\
+    s = s.replace('\\', r'\\'). \
         replace('\b', r'\b').\
         replace('\r', r'\r').\
         replace('\n', r'\n').\
         replace('\t', r'\t').\
         replace('\f', r'\f').\
         replace('/', r'\/')
-    return ''.join(x if is_xml_codepoint(ord(x)) else fr'\u{ord(x):04x}' for x in s)
+    return ''.join(
+        x if is_xml_codepoint(ord(x)) else rf'\u{ord(x):04X}' for x in s
+    )
+
+
+def escape_to_json(s: str, escaped: bool = False) -> str:
+    if escaped:
+        s = s.replace('\\"', '"')
+    else:
+        s = s.replace('\\', '\\\\')
+
+    s = s.replace('\"', '\\"').\
+        replace('\b', r'\b').\
+        replace('\r', r'\r').\
+        replace('\n', r'\n').\
+        replace('\t', r'\t').\
+        replace('\f', r'\f').\
+        replace('/', r'\/')
+    return ''.join(
+        rf'\u{ord(x):04X}' if 1 <= ord(x) <= 31 or 127 <= ord(x) <= 159 else x
+        for x in s
+    )
+
+
+def unescape_json_string(s: str) -> str:
+
+    def unicode_escape_callback(match: Match) -> str:
+        return chr(int(match.group(1).upper(), 16))
+
+    s = s.replace('\\"', '\"').\
+        replace(r'\b', '\b').\
+        replace(r'\r', '\r').\
+        replace(r'\n', '\n').\
+        replace(r'\t', '\t').\
+        replace(r'\f', '\f').\
+        replace(r'\/', '/').\
+        replace('\\\\', '\\')
+
+    return re.sub(r'\\u([0-9A-Fa-f]{4})', unicode_escape_callback, s)
 
 
 def iter_sequence(obj: Any) -> Iterator[Any]:
