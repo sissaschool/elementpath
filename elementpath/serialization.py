@@ -13,7 +13,6 @@ from typing import Any, Dict, Optional, Union
 
 from .exceptions import ElementPathError, xpath_error
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from .helpers import escape_json_string
 from .datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
     AbstractBinary, UntypedAtomic, QName
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
@@ -99,7 +98,9 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             elif key == 'suppress-indentation':
                 pass  # TODO param
             elif key == 'standalone':
-                if isinstance(value, bool):
+                if not value and isinstance(value, list):
+                    pass
+                elif isinstance(value, bool):
                     kwargs['standalone'] = value
                 else:
                     if value not in ('yes', 'no', 'omit'):
@@ -351,11 +352,13 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
                 return MapEncodingDict(map_items)
 
             elif isinstance(obj, XPathArray):
-                return [v for v in obj.items()]
+                return [v if v or not isinstance(v, list) else None for v in obj.items()]
             elif isinstance(obj, (AbstractBinary, AbstractDateTime, AnyURI, UntypedAtomic)):
                 return str(obj)
             elif isinstance(obj, Decimal):
                 return float(Decimal(obj).quantize(Decimal("0.01"), ROUND_UP))
+            elif not obj and isinstance(obj, list):
+                return super().default(None)
             else:
                 return super().default(obj)
 
@@ -370,7 +373,7 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
 
     kwargs = {
         'cls': XPathEncoder,
-        'ensure_ascii': False,
+        'ensure_ascii': True,
         'separators': (',', ':'),
         'allow_nan': False,
     }
@@ -386,7 +389,8 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
     elif len(parts) > 1:
         raise xpath_error('SERE0023', token=token)
 
-    result = escape_json_string(parts[0])
+    result = parts[0].replace('/', '\\/')
+
     if 'encoding' in params:
         return result.encode('utf-8').decode(params['encoding'])
     return result
