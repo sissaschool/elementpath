@@ -27,6 +27,7 @@ import sys
 import traceback
 
 from collections import OrderedDict
+from itertools import zip_longest
 from pathlib import Path
 from urllib.parse import urlsplit
 from xml.etree import ElementTree
@@ -37,7 +38,7 @@ import xmlschema
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathNode, \
     CommentNode, ProcessingInstructionNode, get_node_tree
-from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, get_expanded_name
+from elementpath.namespaces import XML_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, get_expanded_name
 from elementpath.xpath_tokens import XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AnyAtomicType
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
@@ -45,6 +46,8 @@ from elementpath.xpath31 import XPath31Parser
 
 
 PY38_PLUS = sys.version_info > (3, 8)
+
+XML_EXPANDED_PREFIX = f'{{{XML_NAMESPACE}}}'
 
 DEPENDENCY_TYPES = {'spec', 'feature', 'calendar', 'default-language',
                     'format-integer-sequence', 'language', 'limits',
@@ -273,12 +276,9 @@ def is_equivalent(t1, t2):
 
 
 def etree_is_equal(root1, root2, strict=True):
-    nodes1 = root1.iter()
-    nodes2 = root2.iter()
 
-    for e1 in nodes1:
-        e2 = next(nodes2, None)
-        if e2 is None:
+    for e1, e2 in zip_longest(root1.iter(), root2.iter()):
+        if e1 is None or e2 is None:
             return False
 
         if e1.tail != e2.tail:
@@ -290,12 +290,23 @@ def etree_is_equal(root1, root2, strict=True):
         if callable(e1.tag) ^ callable(e2.tag):
             return False
         elif not callable(e1.tag):
-            if e1.tag != e1.tag:
+            if e1.tag != e2.tag:
                 return False
-            if e1.attrib != e1.attrib:
-                if strict or len(e1.attrib) != len(e2.attrib):
+            if e1.attrib != e2.attrib:
+                if strict:
                     return False
-                for (k1, v1), (k2, v2) in zip(e1.attrib.items(), e2.attrib.items()):
+
+                attrib1 = e1.attrib
+                attrib2 = e2.attrib
+                if len(attrib1) != len(attrib2):
+                    attrib1 = {k: v for k, v in attrib1.items()
+                               if not k.startswith(XML_EXPANDED_PREFIX)}
+                    attrib2 = {k: v for k, v in attrib2.items()
+                               if not k.startswith(XML_EXPANDED_PREFIX)}
+                    if len(attrib1) != len(attrib2):
+                        return False
+
+                for (k1, v1), (k2, v2) in zip(attrib1.items(), attrib2.items()):
                     if not is_equivalent(k1, k2) or not is_equivalent(v1, v2):
                         return False
 
@@ -305,8 +316,8 @@ def etree_is_equal(root1, root2, strict=True):
             if e1.text.strip() != e2.text.strip():
                 if not is_equivalent(e1.text, e2.text):
                     return False
-
-    return next(nodes2, None) is None
+    else:
+        return True
 
 
 class ExecutionError(Exception):

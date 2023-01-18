@@ -13,7 +13,7 @@ import math
 from xml.etree import ElementTree
 from elementpath.helpers import days_from_common_era, months2days, \
     round_number, is_idrefs, collapse_white_spaces, normalize_sequence_type, \
-    escape_to_json
+    escape_json_string
 
 
 class HelperFunctionsTest(unittest.TestCase):
@@ -149,8 +149,8 @@ class HelperFunctionsTest(unittest.TestCase):
         )
 
     def test_escape_to_json(self):
-        self.assertEqual(escape_to_json("\""), '\\"')
-        self.assertEqual(escape_to_json("\""), '\\"')
+        self.assertEqual(escape_json_string("\""), '\\"')
+        self.assertEqual(escape_json_string("\""), '\\"')
 
 
 if __name__ == '__main__':

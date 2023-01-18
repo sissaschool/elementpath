@@ -224,20 +224,7 @@ def match_wildcard(name: str, wildcard: str) -> bool:
         return False
 
 
-def escape_json_string(s):
-    s = s.replace('\\', r'\\'). \
-        replace('\b', r'\b').\
-        replace('\r', r'\r').\
-        replace('\n', r'\n').\
-        replace('\t', r'\t').\
-        replace('\f', r'\f').\
-        replace('/', r'\/')
-    return ''.join(
-        x if is_xml_codepoint(ord(x)) else rf'\u{ord(x):04X}' for x in s
-    )
-
-
-def escape_to_json(s: str, escaped: bool = False) -> str:
+def escape_json_string(s: str, escaped: bool = False) -> str:
     if escaped:
         s = s.replace('\\"', '"')
     else:

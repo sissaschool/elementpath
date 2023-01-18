@@ -27,8 +27,7 @@ from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
     DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
-    escape_json_string, escape_to_json, unescape_json_string, \
-    not_equal
+    escape_json_string, unescape_json_string, not_equal
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
@@ -592,7 +591,7 @@ def evaluate_parse_json_functions(self, context=None):
         elif not isinstance(value, str):
             return value
         elif escape:
-            return escape_json_string(value)
+            return json.dumps(value, ensure_ascii=True)[1:-1]
 
         return ''.join(
             x if is_xml_codepoint(ord(x)) else fallback(context, rf'\u{ord(x):04X}')
@@ -997,7 +996,7 @@ def evaluate_xml_to_json_function(self, context=None):
                     msg = f"{child} has an invalid value for 'escaped' attribute"
                     raise self.error('FOJS0006', msg)
 
-                value = escape_to_json(value, escaped in ('true', '1'))
+                value = escape_json_string(value, escaped in ('true', '1'))
                 chunks.append(f'"{value}"')
 
             elif child.tag == ARRAY_TAG:
@@ -1026,7 +1025,7 @@ def evaluate_xml_to_json_function(self, context=None):
                         msg = f"{e} has an invalid value for 'escaped-key' attribute"
                         raise self.error('FOJS0006', msg)
 
-                    key = escape_to_json(key, escaped=escaped_key in ('true', '1'))
+                    key = escape_json_string(key, escaped=escaped_key in ('true', '1'))
                     map_chunks.append(f'"{key}":{elem_to_json((e,))}')
 
                     unescaped_key = unescape_json_string(key)
@@ -1092,6 +1091,9 @@ def evaluate_json_to_xml_function(self, context=None):
                 escape = value
 
             elif key == 'fallback':
+                if escape:
+                    msg = "'fallback' function provided with escape=True"
+                    raise self.error('FOJS0005', msg)
                 if not isinstance(value, XPathFunction):
                     raise self.error('XPTY0004')
                 fallback = value
@@ -1103,6 +1105,18 @@ def evaluate_json_to_xml_function(self, context=None):
             duplicates = 'reject' if validate else 'retain'
         elif validate and duplicates == 'retain':
             raise self.error('FOJS0005')
+
+    def escape_string(s):
+        s = re.sub(r'\\(?!/)', r'\\\\', s)
+        s = s.replace('\b', r'\b'). \
+            replace('\r', r'\r'). \
+            replace('\n', r'\n'). \
+            replace('\t', r'\t'). \
+            replace('\f', r'\f'). \
+            replace('/', r'\/')
+        return ''.join(
+            x if is_xml_codepoint(ord(x)) else rf'\u{ord(x):04X}' for x in s
+        )
 
     def value_to_etree(v, **attrib):
         if v is None:
@@ -1119,10 +1133,11 @@ def evaluate_json_to_xml_function(self, context=None):
             elem.text = str(v)
         elif isinstance(v, str):
             if not escape:
-                v = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in v)
+                v = ''.join(x if is_xml_codepoint(ord(x)) else
+                            fallback(context, rf'\u{ord(x):04X}') for x in v)
                 elem = etree.Element(STRING_TAG, **attrib)
             else:
-                v = escape_json_string(v)
+                v = escape_string(v)
                 if '\\' in v:
                     elem = etree.Element(STRING_TAG, escaped='true', **attrib)
                 else:
@@ -1150,11 +1165,12 @@ def evaluate_json_to_xml_function(self, context=None):
                 raise self.error('FOJS0003')
 
             if not escape:
-                k = ''.join(x if is_xml_codepoint(ord(x)) else fallback(x) for x in k)
+                k = ''.join(x if is_xml_codepoint(ord(x))
+                            else fallback(context, rf'\u{ord(x):04X}') for x in k)
                 k = k.replace('"', '&#34;')
                 attrib = {'key': k}
             else:
-                k = escape_json_string(k)
+                k = escape_string(k)
                 if '\\' in k:
                     attrib = {'escaped-key': 'true', 'key': k}
                 else:
@@ -1176,6 +1192,7 @@ def evaluate_json_to_xml_function(self, context=None):
 
         kwargs['parse_constant'] = parse_constant
 
+    etree.register_namespace('fn', XPATH_FUNCTIONS_NAMESPACE)
     try:
         if json_text.startswith('\uFEFF'):
             # Exclude BOM character
