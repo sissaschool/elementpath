@@ -865,7 +865,8 @@ def evaluate_contains_token_function(self, context=None):
         for input_string in self[0].select(context):
             if not isinstance(input_string, str):
                 raise self.error('XPTY0004')
-            if any(manager.eq(token_string, x) for x in input_string.split()):
+            if any(x and manager.eq(token_string, x)
+                   for x in re.split('[ \t\n\r\f\v]+', input_string)):
                 return True
         else:
             return False
