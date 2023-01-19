@@ -265,9 +265,8 @@ class XPathToken(Token[XPathTokenType]):
             else:
                 return default
         else:
-            if isinstance(token, XPathFunction):
-                if token.nargs and not len(token):
-                    return token  # It's a function reference
+            if isinstance(token, XPathFunction) and token.is_reference():
+                return token  # It's a function reference
 
             item = None
             for k, result in enumerate(token.select(copy(context))):
@@ -1352,6 +1351,11 @@ class XPathFunction(XPathToken):
             return self.nargs[1]
         else:
             return None
+
+    def is_reference(self) -> int:
+        if not isinstance(self.nargs, int):
+            return False
+        return self.nargs and not len(self._items)
 
     def nud(self) -> 'XPathFunction':
         self.value = None
