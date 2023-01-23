@@ -77,7 +77,6 @@ class XPath2Parser(XPath1Parser):
     DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
         'xml': XML_NAMESPACE,
         'xs': XSD_NAMESPACE,
-        # 'xlink': XLINK_NAMESPACE,
         'fn': XPATH_FUNCTIONS_NAMESPACE,
         'err': XQT_ERRORS_NAMESPACE
     }

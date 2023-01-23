@@ -591,7 +591,7 @@ def evaluate_parse_json_functions(self, context=None):
         elif not isinstance(value, str):
             return value
         elif escape:
-            return json.dumps(value, ensure_ascii=True)[1:-1]
+            return json.dumps(value, ensure_ascii=True)[1:-1].replace('\\"', '"')
 
         return ''.join(
             x if is_xml_codepoint(ord(x)) else fallback(context, rf'\u{ord(x):04X}')

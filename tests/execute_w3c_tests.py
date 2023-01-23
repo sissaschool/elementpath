@@ -923,7 +923,8 @@ class Result(object):
         if verbose <= 1:
             return
 
-        print(f'Result {self} failed for test case {self.test_case.name!r}')
+        print(f'Fail for test case {self.test_case.name!r}')
+        print(f'Result failed: {self}')
 
         if verbose < 4:
             print(f'XPath expression: {self.test_case.test.strip()}')

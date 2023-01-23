@@ -17,8 +17,8 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import TYPE_CHECKING, cast, Dict, KeysView, ItemsView, ValuesView, \
-    Optional, List, Tuple, Union, Any, Iterable, Iterator, SupportsFloat, Type
+from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, \
+    Union, Any, Iterable, Iterator, SupportsFloat, Type
 import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, \
@@ -1164,12 +1164,6 @@ class XPathFunction(XPathToken):
     nargs: NargsType = None
     "Number of arguments: a single value or a couple with None that means unbounded."
 
-    body: Optional[XPathToken] = None
-    "Body of anonymous inline function."
-
-    variables: Optional[Dict[str, Any]] = None
-    "Optional variables linked by let and for expressions."
-
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:
@@ -1201,50 +1195,9 @@ class XPathFunction(XPathToken):
             raise self.error('XPTY0004', "too many arguments")
 
         context = copy(context)
-        if self.variables is not None and context is not None:
-            context.variables.update(self.variables)
-
-        if self.symbol == 'function':
-            if context is None:
-                raise self.missing_context()
-            elif not args and self:
-                if context.item is None:
-                    if isinstance(context.root, DocumentNode):
-                        context.item = context.root.getroot()
-                    else:
-                        context.item = context.root
-
-                args = cast(Tuple[Union[XPathNode, XPathToken, AtomicValueType]], (context.item,))
-
-            partial_function = False
-            if self.variables is None:
-                self.variables = {}
-
-            for variable, sequence_type, value in zip(self, self.sequence_types, args):
-                varname = cast(str, variable[0].value)
-
-                if isinstance(value, XPathToken) and value.symbol == '?':
-                    partial_function = True
-                    continue
-                elif isinstance(value, XPathFunction) and sequence_type.startswith('function('):
-                    if not value.match_function_test(sequence_type, as_argument=True):
-                        msg = "argument {!r}: {} does not match sequence type {}"
-                        raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
-
-                elif not match_sequence_type(value, sequence_type, self.parser):
-                    value = self.cast_to_primitive_type(value, sequence_type)
-                    if not match_sequence_type(value, sequence_type, self.parser):
-                        msg = "argument '${}': {} does not match sequence type {}"
-                        raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
-
-                context.variables[varname] = self.variables[varname] = value
-
-            if partial_function:
-                return self
-
-        elif self.label == 'partial function':
+        if self.label == 'partial function':
             for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
-                if isinstance(value, XPathToken):
+                if isinstance(value, XPathToken) and not isinstance(value, XPathFunction):
                     tk.value = value.evaluate(context)
                 else:
                     tk.value = value
@@ -1256,7 +1209,7 @@ class XPathFunction(XPathToken):
                 else:
                     self._items.append(ValueToken(self.parser, value=value))
 
-            if any(tk.symbol == '?' for tk in self._items):
+            if any(tk.symbol == '?' and not tk for tk in self._items):
                 self._partial_function()
                 return self
 
@@ -1273,9 +1226,6 @@ class XPathFunction(XPathToken):
 
         if self.label == 'partial function':
             result = self._partial_evaluate(context)
-        elif self.body is not None:
-            assert self.label == 'inline function'
-            result = self.body.evaluate(context)
         else:
             result = self.evaluate(context)
 
@@ -1468,7 +1418,7 @@ class XPathFunction(XPathToken):
             return True
 
     def _partial_function(self) -> None:
-        """Convert a named function to an anonymous partial function."""
+        """Convert a function to a partial function."""
         def evaluate(context: Optional[XPathContext] = None) -> Any:
             return self
 
@@ -1630,6 +1580,8 @@ class XPathMap(XPathFunction):
 
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
+        if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
+            args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
