@@ -18,7 +18,7 @@ from copy import copy
 from decimal import Decimal
 from itertools import product
 from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, \
-    Union, Any, Iterable, Iterator, SupportsFloat, Type
+    Union, Any, Iterable, Iterator, Sequence, SupportsFloat, Type
 import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, \
@@ -1180,6 +1180,7 @@ class XPathFunction(XPathToken):
 
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
+        self.check_arguments_number(len(args))
 
         # Check provided argument with arity
         if self.nargs is None or self.nargs == len(args):
@@ -1210,7 +1211,7 @@ class XPathFunction(XPathToken):
                     self._items.append(ValueToken(self.parser, value=value))
 
             if any(tk.symbol == '?' and not tk for tk in self._items):
-                self._partial_function()
+                self.to_partial_function()
                 return self
 
         if isinstance(self.label, MultiLabel):
@@ -1229,15 +1230,33 @@ class XPathFunction(XPathToken):
         else:
             result = self.evaluate(context)
 
-        if isinstance(result, XPathToken) and result.symbol == '?':
-            pass
-        elif not match_sequence_type(result, self.sequence_types[-1], self.parser):
-            result = self.cast_to_primitive_type(result, self.sequence_types[-1])
-            if not match_sequence_type(result, self.sequence_types[-1], self.parser):
-                msg = "{!r} does not match sequence type {}"
-                raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
+        return self.validated_result(result)
 
-        return result
+    def check_arguments_number(self, nargs: int) -> None:
+        """Check the number of arguments against function arity."""
+        if self.nargs is None or self.nargs == nargs:
+            pass
+        elif isinstance(self.nargs, tuple):
+            if nargs < self.nargs[0]:
+                raise self.error('XPTY0004', "missing required arguments")
+            elif self.nargs[1] is not None and nargs > self.nargs[1]:
+                raise self.error('XPTY0004', "too many arguments")
+        elif self.nargs > nargs:
+            raise self.error('XPTY0004', "missing required arguments")
+        else:
+            raise self.error('XPTY0004', "too many arguments")
+
+    def validated_result(self, result: Any) -> Any:
+        if isinstance(result, XPathToken) and result.symbol == '?':
+            return result
+        elif match_sequence_type(result, self.sequence_types[-1], self.parser):
+            return result
+
+        _result = self.cast_to_primitive_type(result, self.sequence_types[-1])
+        if not match_sequence_type(_result, self.sequence_types[-1], self.parser):
+            msg = "{!r} does not match sequence type {}"
+            raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
+        return _result
 
     @property
     def source(self) -> str:
@@ -1367,17 +1386,16 @@ class XPathFunction(XPathToken):
 
         self.parser.advance(')')
         if any(tk.symbol == '?' and not tk for tk in self._items):
-            self._partial_function()
+            self.to_partial_function()
 
         return self
 
     def match_function_test(self, function_test: Union[str, List[str]],
                             as_argument: bool = False) -> bool:
         """
-        Match if function signature is a subtype of provided *function_test*.
+        Match if function signature satisfies the provided *function_test*.
         For default return type is covariant and arguments are contravariant.
-        If *as_argument* is `True` the match is inverted and also the return
-        type is considered contravariant.
+        If *as_argument* is `True` the match is inverted.
 
         References:
           https://www.w3.org/TR/xpath-31/#id-function-test
@@ -1408,34 +1426,32 @@ class XPathFunction(XPathToken):
             if not is_sequence_type_restriction(st1, st2):
                 return False
         else:
-            if as_argument:
-                st1, st2 = sequence_types[-1], signature[-1]
-            else:
-                st1, st2 = signature[-1], sequence_types[-1]
+            st1, st2 = sequence_types[-1], signature[-1]
+            return is_sequence_type_restriction(st1, st2)
 
-            if not is_sequence_type_restriction(st2, st1):
-                return False
-            return True
-
-    def _partial_function(self) -> None:
+    def to_partial_function(self) -> None:
         """Convert a function to a partial function."""
-        def evaluate(context: Optional[XPathContext] = None) -> Any:
-            return self
+        nargs = len([tk and not tk for tk in self._items if tk.symbol == '?'])
+        assert nargs, "a partial function requires at least a placeholder token"
 
-        def select(context: Optional[XPathContext] = None) -> Any:
-            yield self
+        if self.label != 'partial function':
+            def evaluate(context: Optional[XPathContext] = None) -> Any:
+                return self
 
-        if self.__class__.evaluate is not XPathToken.evaluate:
-            setattr(self, '_partial_evaluate', self.evaluate)
-        if self.__class__.select is not XPathToken.select:
-            setattr(self, '_partial_select', self.select)
+            def select(context: Optional[XPathContext] = None) -> Any:
+                yield self
 
-        setattr(self, 'evaluate', evaluate)
-        setattr(self, 'select', select)
+            if self.__class__.evaluate is not XPathToken.evaluate:
+                setattr(self, '_partial_evaluate', self.evaluate)
+            if self.__class__.select is not XPathToken.select:
+                setattr(self, '_partial_select', self.select)
+
+            setattr(self, 'evaluate', evaluate)
+            setattr(self, 'select', select)
 
         self._name = None
         self.label = 'partial function'
-        self.nargs = len([tk for tk in self._items if tk.symbol == '?'])
+        self.nargs = nargs
 
     def _partial_evaluate(self, context: Optional[XPathContext] = None) -> Any:
         return [x for x in self._partial_select(context)]

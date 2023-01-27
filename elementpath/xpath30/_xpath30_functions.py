@@ -17,7 +17,7 @@ import re
 import codecs
 import math
 from copy import copy
-from typing import cast, Any, Dict, Optional, Tuple
+from typing import cast, Any, Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
 
 try:
@@ -73,36 +73,47 @@ class InlineFunction(XPathFunction):
     "Body of anonymous inline function."
 
     variables: Optional[Dict[str, Any]] = None
-    "Optional variables linked by let and for expressions."
+    "In-scope variables linked by let and for expressions and arguments."
+
+    varnames: Optional[List[str]] = None
+    "Inline function arguments varnames."
 
     def __call__(self, context: Optional[XPathContext] = None,
                  *args: XPathFunctionArgType) -> Any:
 
-        # Check provided argument with arity
-        if self.nargs is None or self.nargs == len(args):
-            pass
-        elif isinstance(self.nargs, tuple):
-            if len(args) < self.nargs[0]:
-                raise self.error('XPTY0004', "missing required arguments")
-            elif self.nargs[1] is not None and len(args) > self.nargs[1]:
-                raise self.error('XPTY0004', "too many arguments")
-        elif self.nargs > len(args):
-            raise self.error('XPTY0004', "missing required arguments")
-        else:
-            raise self.error('XPTY0004', "too many arguments")
+        def get_argument(v: Any) -> Any:
+            if isinstance(v, XPathToken) and not isinstance(v, XPathFunction):
+                v = v.evaluate(context)
+
+            if isinstance(v, XPathFunction) and sequence_type.startswith('function('):
+                if not v.match_function_test(sequence_type, as_argument=True):
+                    msg = "argument {!r}: {} does not match sequence type {}"
+                    raise self.error('XPTY0004', msg.format(varname, v, sequence_type))
+
+            elif not match_sequence_type(v, sequence_type, self.parser):
+                _v = self.cast_to_primitive_type(v, sequence_type)
+                if not match_sequence_type(_v, sequence_type, self.parser):
+                    msg = "argument '${}': {} does not match sequence type {}"
+                    raise self.error('XPTY0004', msg.format(varname, v, sequence_type))
+                return _v
+            return v
+
+        self.check_arguments_number(len(args))
 
         context = copy(context)
-        if self.variables is not None and context is not None:
+        if self.variables and context is not None:
             context.variables.update(self.variables)
 
-        if self.label == 'partial function':
-            for value, tk in zip(args, filter(lambda x: x.symbol == '?', self)):
-                if isinstance(value, XPathToken) and not isinstance(value, XPathFunction):
-                    tk.value = value.evaluate(context)
+        if self.label == 'inline partial function':
+            k = 0
+            for varname, sequence_type, tk in zip(self.varnames, self.sequence_types, self):
+                if tk.symbol != '?' or tk:
+                    context.variables[varname] = tk.evaluate(context)
                 else:
-                    tk.value = value
+                    context.variables[varname] = get_argument(args[k])
+                    k += 1
 
-            result = self._partial_evaluate(context)
+            result = self.body.evaluate(context)
         else:
             if context is None:
                 raise self.missing_context()
@@ -119,50 +130,21 @@ class InlineFunction(XPathFunction):
             if self.variables is None:
                 self.variables = {}
 
-            for variable, sequence_type, value in zip(self, self.sequence_types, args):
-                varname = cast(str, variable[0].value)
-
+            for varname, sequence_type, value in zip(self.varnames, self.sequence_types, args):
                 if isinstance(value, XPathToken) and value.symbol == '?':
                     partial_function = True
-                    continue
-                elif isinstance(value, XPathFunction) and sequence_type.startswith('function('):
-                    if not value.match_function_test(sequence_type, as_argument=True):
-                        msg = "argument {!r}: {} does not match sequence type {}"
-                        raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
-
-                elif not match_sequence_type(value, sequence_type, self.parser):
-                    value = self.cast_to_primitive_type(value, sequence_type)
-                    if not match_sequence_type(value, sequence_type, self.parser):
-                        msg = "argument '${}': {} does not match sequence type {}"
-                        raise self.error('XPTY0004', msg.format(varname, value, sequence_type))
-
-                context.variables[varname] = self.variables[varname] = value
+                else:
+                    context.variables[varname] = get_argument(value)
 
             if partial_function:
+                self.to_partial_function()
                 return self
-
-            if isinstance(self.label, MultiLabel):
-                for label in self.label.values:
-                    if label.endswith('function'):
-                        self.label = label
-                        break
 
             result = self.body.evaluate(context)
 
-        if isinstance(result, XPathToken) and result.symbol == '?':
-            pass
-        elif not match_sequence_type(result, self.sequence_types[-1], self.parser):
-            result = self.cast_to_primitive_type(result, self.sequence_types[-1])
-            if not match_sequence_type(result, self.sequence_types[-1], self.parser):
-                msg = "{!r} does not match sequence type {}"
-                raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
-
-        return result
+        return self.validated_result(result)
 
     def nud(self):
-        if self.parser.next_token.symbol != '(':
-            return self.as_name()
-
         def append_sequence_type(tk):
             if tk.symbol == '(' and len(tk) == 1:
                 tk = tk[0]
@@ -184,19 +166,26 @@ class InlineFunction(XPathFunction):
 
             self.sequence_types.append(sequence_type)
 
+        if self.parser.next_token.symbol != '(':
+            return self.as_name()
+
         self.parser.advance('(')
         self.sequence_types = []
 
         if self.parser.next_token.symbol in ('$', ')'):
             self.label = 'inline function'
+            self.varnames = []
+
             while self.parser.next_token.symbol != ')':
                 self.parser.next_token.expected('$')
-                param = self.parser.expression(5)
-                name = param[0].value
-                if any(name == tk[0].value for tk in self):
+                variable = self.parser.expression(5)
+                varname = variable[0].value
+                if varname in self.varnames:
                     raise self.error('XQST0039')
 
-                self.append(param)
+                self.append(variable)
+                self.varnames.append(varname)
+
                 if self.parser.next_token.symbol == 'as':
                     self.parser.advance('as')
                     token = self.parser.expression(90)
@@ -217,7 +206,6 @@ class InlineFunction(XPathFunction):
             self.sequence_types.append('*')
             self.parser.advance(')')
             return self
-
         else:
             self.label = 'function test'
             while True:
@@ -258,10 +246,7 @@ class InlineFunction(XPathFunction):
     def evaluate(self, context=None):
         if context is None:
             raise self.missing_context()
-        elif self.label == 'inline function':
-            self.variables = context.variables.copy()  # like a closure
-            return self
-        elif self.label == 'partial function':
+        elif self.label.endswith('function'):
             self.variables = context.variables.copy()  # like a closure
             return self
 
@@ -274,6 +259,16 @@ class InlineFunction(XPathFunction):
             return context.item
         else:
             return []
+
+    def to_partial_function(self) -> None:
+        assert self.label != 'function test', "an effective inline function required"
+
+        nargs = len([tk and not tk for tk in self._items if tk.symbol == '?'])
+        assert nargs, "a partial function requires at least a placeholder token"
+
+        self._name = None
+        self.label = 'inline partial function'
+        self.nargs = nargs
 
 
 XPath30Parser.symbol_table['function'] = InlineFunction

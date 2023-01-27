@@ -49,8 +49,11 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
 
     # check occurrences
     if st1[-1] not in '?+*':
-        if st2[-1] in '?+*':
+        if st2[-1] in '+*':
             return False
+        elif st2[-1] == '?':
+            st2 = st2[:-1]
+
     elif st1[-1] == '+':
         st1 = st1[:-1]
         if st2[-1] in '?*':

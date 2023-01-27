@@ -103,10 +103,11 @@ def evaluate_parenthesized_expression(self, context=None):
         if isinstance(value, XPathFunction):
             tokens = self[1].get_argument_tokens()
 
-            if any(x.symbol == '?' for x in tokens):
-                value[:] = tokens
-                value._partial_function()
-                return value
+            if any(x.symbol == '?' and not x for x in tokens):
+                func = copy(value)
+                func[:] = tokens
+                func.to_partial_function()
+                return func
 
             arguments = [tk.evaluate(context) for tk in tokens]
             if value.label == 'partial function' and value[0].symbol == '?' and len(value[0]):

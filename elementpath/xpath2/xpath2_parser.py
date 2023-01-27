@@ -235,7 +235,7 @@ class XPath2Parser(XPath1Parser):
                 raise self.error('XPST0017') from None
 
             if self[0].symbol == '?':
-                self._partial_function()
+                self.to_partial_function()
             return self
 
         def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
