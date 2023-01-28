@@ -699,9 +699,13 @@ def evaluate_random_number_generator_function(self, context=None):
             if not args:
                 return []
 
-            seq = [x for x in args[0]]
-            random.shuffle(seq)
-            return seq
+            try:
+                seq = [x for x in args[0]]
+            except TypeError:
+                return [args[0]]
+            else:
+                random.shuffle(seq)
+                return seq
 
     class NextRandom(XPathFunction):
         nargs = 0
