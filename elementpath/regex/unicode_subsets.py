@@ -496,6 +496,7 @@ UNICODE_BLOCKS = {
     'IsByzantineMusicalSymbols': UnicodeSubset('\U0001D000-\U0001D0FF'),
     'IsMusicalSymbols': UnicodeSubset('\U0001D100-\U0001D1FF'),
     'IsMathematicalAlphanumericSymbols': UnicodeSubset('\U0001D400-\U0001D7FF'),
+    'IsEmoticons': UnicodeSubset('\U0001F600-\U0001F64F'),
     'IsCJKUnifiedIdeographsExtensionB': UnicodeSubset('\U00020000-\U0002A6D6'),
     'IsCJKCompatibilityIdeographsSupplement': UnicodeSubset('\U0002F800-\U0002FA1F'),
     'IsTags': UnicodeSubset('\U000E0000-\U000E007F'),
