@@ -745,9 +745,11 @@ def evaluate_replace_function(self, context=None):
                  sequence_types=('xs:string?', 'xs:string', 'xs:string', 'xs:string*')))
 def evaluate_tokenize_function(self, context=None):
     input_string = self.get_argument(context, cls=str)
-    if self.parser.version >= '3.1' and len(self) == 1:
+    if input_string is None:
+        return []
+    elif self.parser.version >= '3.1' and len(self) == 1:
         pattern = ' '
-        input_string = ' '.join(input_string.strip().split())
+        input_string = ' '.join(re.split('[ \t\n\r\f\v]+', input_string.strip(' \t\n\r\f\v')))
     else:
         pattern = self.get_argument(context, 1, required=True, cls=str)
 
