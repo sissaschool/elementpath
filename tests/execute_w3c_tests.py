@@ -1411,6 +1411,8 @@ def main():
                         help="test XPath 3.0 parser")
     parser.add_argument('-l', '--lxml', dest='use_lxml', action='store_true', default=False,
                         help="use lxml.etree for environment sources (default is ElementTree)")
+    parser.add_argument('-c', dest='show_test_case', action='store_true', default=False,
+                        help="show test case information before execution")
     parser.add_argument('-v', dest='verbose', action='count', default=1,
                         help='increase verbosity: one option to show unexpected errors, '
                              'two for show also unmatched error codes, three for debug')
@@ -1561,6 +1563,9 @@ def main():
                         continue
 
                 count_run += 1
+                if args.show_test_case:
+                    print(f"Run test case {test_case.name!r}")
+
                 try:
                     case_result = test_case.run(verbose=args.verbose)
                     if case_result is True:

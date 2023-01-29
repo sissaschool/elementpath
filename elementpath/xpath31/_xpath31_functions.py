@@ -23,15 +23,16 @@ from itertools import product
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-from ..datatypes import AnyAtomicType, DateTime, Timezone, BooleanProxy, \
-    DoubleProxy, DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
+from ..datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
+    AbstractQName, DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, \
+    DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
 from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from ..etree import etree_iter_strings, is_etree_element
 from ..collations import CollationManager
-from ..compare import get_key_function
+from ..compare import get_key_function, same_key
 from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
@@ -43,6 +44,10 @@ function = XPath31Parser.function
 
 XPath31Parser.unregister('string-join')
 XPath31Parser.unregister('trace')
+
+SAFE_KEY_ATOMIC_TYPES = (
+    int, Decimal, AbstractBinary, AbstractDateTime, AbstractQName, Duration
+)
 
 TIMEZONE_MAP = {
     'UT': '00:00',
@@ -182,19 +187,39 @@ def evaluate_map_merge_function(self, context=None):
 
     items = {}
     for map_ in self[0].select(context):
-        for k, v in map_.items(context):
-            if k not in items:
-                items[k] = v
-            elif duplicates == 'reject':
-                raise self.error('FOJS0003')
-            elif duplicates == 'use-last':
-                items.pop(k)  # remove before to replace the key
-                items[k] = v
-            elif duplicates == 'combine':
-                try:
-                    items[k].append(v)
-                except AttributeError:
-                    items[k] = [items[k], v]
+        for k1, v in map_.items(context):
+            # Speed up for certain key types or float values
+            if isinstance(k1, SAFE_KEY_ATOMIC_TYPES) or \
+                    isinstance(k1, float) and not math.isnan(k1):
+                if k1 not in items:
+                    items[k1] = v
+                elif duplicates == 'reject':
+                    raise self.error('FOJS0003')
+                elif duplicates == 'use-last':
+                    items.pop(k1)  # remove before to replace the key
+                    items[k1] = v
+                elif duplicates == 'combine':
+                    try:
+                        items[k1].append(v)
+                    except AttributeError:
+                        items[k1] = [items[k1], v]
+                continue
+
+            for k2 in items:
+                if same_key(k1, k2):
+                    if duplicates == 'reject':
+                        raise self.error('FOJS0003')
+                    elif duplicates == 'use-last':
+                        items.pop(k2)  # remove before to replace the key
+                        items[k1] = v
+                    elif duplicates == 'combine':
+                        try:
+                            items[k2].append(v)
+                        except AttributeError:
+                            items[k2] = [items[k2], v]
+                    break
+            else:
+                items[k1] = v
 
     return XPathMap(self.parser, items)
 

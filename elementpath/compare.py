@@ -96,11 +96,12 @@ def deep_equal(seq1: Iterable[Any],
                     elif isinstance(value2, bool):
                         return False
 
-                    elif isinstance(value1, UntypedAtomic):
-                        if not isinstance(value2, UntypedAtomic) or value1 != value2:
+                    elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
+                            and isinstance(value1, (str, AnyURI, UntypedAtomic)):
+                        if cm.strcoll(str(value1), str(value2)):
                             return False
 
-                    elif isinstance(value2, UntypedAtomic):
+                    elif isinstance(value1, UntypedAtomic) ^ isinstance(value2, UntypedAtomic):
                         return False
 
                     elif isinstance(value1, float):
@@ -130,10 +131,6 @@ def deep_equal(seq1: Iterable[Any],
                         elif not isinstance(value1, (value2.__class__, int)):
                             return False
                         elif value1 != value2:
-                            return False
-                    elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
-                            and isinstance(value1, (str, AnyURI, UntypedAtomic)):
-                        if cm.strcoll(str(value1), str(value2)):
                             return False
                     elif value1 != value2:
                         return False
@@ -339,3 +336,17 @@ def get_key_function(collation: Optional[str] = None,
         return deep_compare(obj1, obj2, collation, token)
 
     return cmp_to_key(compare_func)
+
+
+def same_key(k1: Any, k2: Any) -> bool:
+    if isinstance(k1, (str, AnyURI, UntypedAtomic)):
+        if not isinstance(k2, (str, AnyURI, UntypedAtomic)):
+            return False
+        return str(k1) == str(k2)
+    elif isinstance(k1, float) and math.isnan(k1):
+        return isinstance(k2, float) and math.isnan(k2)
+
+    try:
+        return k1 == k2
+    except TypeError:
+        return False  # EAFP :)
