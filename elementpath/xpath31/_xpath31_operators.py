@@ -12,16 +12,13 @@
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
 from ..helpers import iter_sequence
-from ..sequence_types import match_sequence_type
+from ..sequence_types import is_sequence_type, match_sequence_type
 from ..xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathMap, XPathArray
 from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
 method = XPath31Parser.method
 function = XPath31Parser.function
-
-# register('map', bp=90, label='map', bases=(XPathMap,))
-# register('array', bp=90, label='array', bases=(XPathArray,))
 
 register('map', bp=90, label=('kind test', 'map'), bases=(XPathFunction,),
          pattern=r'(?<!\$)\bmap(?=\s*(?:\(\:.*\:\))?\s*(?=\(|\{)(?!\:))')
@@ -140,9 +137,17 @@ class LookupOperatorToken(XPathToken):
             return self
 
     def led(self, left):
-        self.parser.expected_next('(name)', '(integer)', '(', '*')
-        self[:] = left, self.parser.expression(85)
-        return self
+        try:
+            self.parser.expected_next('(name)', '(integer)', '(', '*')
+        except SyntaxError:
+            if is_sequence_type(left.value, self.parser):
+                self.lbp = self.rbp = 0
+                left.occurrence = '?'
+                return left
+            raise
+        else:
+            self[:] = left, self.parser.expression(85)
+            return self
 
     def evaluate(self, context=None):
         if not self:
