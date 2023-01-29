@@ -22,7 +22,7 @@ from ..protocols import XsdTypeProtocol
 from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, \
     AtomicTypeMeta, AnyAtomicType
 from .untyped import UntypedAtomic
-from .qname import Notation, QName
+from .qname import AbstractQName, QName, Notation
 from .numeric import Float10, Float, Integer, Int, NegativeInteger, \
     PositiveInteger, NonNegativeInteger, NonPositiveInteger, Long, \
     Short, Byte, UnsignedByte, UnsignedInt, UnsignedLong, UnsignedShort
@@ -150,4 +150,4 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value', 'Atom
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
            'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
-           'AtomicValueType', 'DatetimeValueType', 'OrderedDateTime']
+           'AtomicValueType', 'DatetimeValueType', 'OrderedDateTime', 'AbstractQName']

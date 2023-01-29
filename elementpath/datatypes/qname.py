@@ -75,8 +75,6 @@ class AbstractQName(metaclass=AtomicTypeMeta):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, AbstractQName):
             return self.uri == other.uri and self.local_name == other.local_name
-        elif isinstance(other, (str, UntypedAtomic)):
-            return other == self.qname
         raise TypeError("cannot compare {!r} to {!r}".format(type(self), type(other)))
 
 
