@@ -18,7 +18,7 @@ from copy import copy
 from decimal import Decimal
 from itertools import product
 from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, \
-    Union, Any, Iterable, Iterator, Sequence, SupportsFloat, Type
+    Union, Any, Iterable, Iterator, SupportsFloat, Type
 import urllib.parse
 
 from .exceptions import ElementPathError, ElementPathValueError, \
