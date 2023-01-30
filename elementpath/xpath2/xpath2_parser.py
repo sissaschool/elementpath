@@ -240,6 +240,9 @@ class XPath2Parser(XPath1Parser):
 
         def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
                 -> Union[List[None], AtomicValueType]:
+            if self.context is not None:
+                context = self.context
+
             arg = self.data_value(self.get_argument(context))
             if arg is None:
                 return []

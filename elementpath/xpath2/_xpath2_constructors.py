@@ -213,6 +213,9 @@ def cast_time_type(self, value):
 @method('gYearMonth')
 @method('time')
 def evaluate_other_datetime_types(self, context=None):
+    if self.context is not None:
+        context = self.context
+
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []
@@ -295,6 +298,9 @@ def cast_datetime_stamp_type(self, value):
 
 @method('dateTimeStamp')
 def evaluate_datetime_stamp_type(self, context=None):
+    if self.context is not None:
+        context = self.context
+
     arg = self.data_value(self.get_argument(context))
     if arg is None:
         return []
@@ -349,7 +355,7 @@ def cast_hex_binary_type(self, value):
 @method('base64Binary')
 @method('hexBinary')
 def evaluate_binary_types(self, context=None):
-    arg = self.data_value(self.get_argument(context))
+    arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
         return []
 
@@ -415,6 +421,9 @@ def nud_boolean_type_and_function(self):
 
 @method('boolean')
 def evaluate_boolean_type_and_function(self, context=None):
+    if self.context is not None:
+        context = self.context
+
     if self.label == 'function':
         return self.boolean_value([x for x in self[0].select(context)])
 
@@ -457,6 +466,9 @@ def nud_string_type_and_function(self):
 
 @method('string')
 def evaluate_string_type_and_function(self, context=None):
+    if self.context is not None:
+        context = self.context
+
     if self.label == 'function':
         if not self:
             if context is None:
@@ -533,6 +545,9 @@ def nud_qname_and_datetime(self):
 
 @method('QName')
 def evaluate_qname_type_and_function(self, context=None):
+    if self.context is not None:
+        context = self.context
+
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         return [] if arg is None else self.cast(arg)
@@ -549,6 +564,9 @@ def evaluate_qname_type_and_function(self, context=None):
 
 @method('dateTime')
 def evaluate_datetime_type_and_function(self, context=None):
+    if self.context is not None:
+        context = self.context
+
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
         if arg is None:
@@ -586,7 +604,7 @@ def cast_untyped_atomic(self, value):
 
 @method('untypedAtomic')
 def evaluate_untyped_atomic(self, context=None):
-    arg = self.data_value(self.get_argument(context))
+    arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
         return []
     elif isinstance(arg, UntypedAtomic):

@@ -1164,6 +1164,9 @@ class XPathFunction(XPathToken):
     nargs: NargsType = None
     "Number of arguments: a single value or a couple with None that means unbounded."
 
+    context: Optional[XPathContext] = None
+    "Dynamic context associated by function reference evaluation."
+
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:

@@ -254,4 +254,5 @@ def evaluate_function_reference(self, context=None):
             func.namespace = namespace
         elif func.namespace != namespace:
             raise self.error('XPST0017', f"unknown function {qname.qname}#{arity}")
+        func.context = copy(context)
         return func
