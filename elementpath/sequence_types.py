@@ -337,8 +337,10 @@ def match_sequence_type(value: Any,
             element_test = st[14:-1]
             if not element_test:
                 return True
-            element_node = cast(DocumentNode, v).getroot()
-            return match_st(element_node, element_test)
+            document = cast(DocumentNode, v)
+            return any(
+                match_st(e, element_test) for e in document if isinstance(e, ElementNode)
+            )
         elif value_kind not in ('element', 'attribute'):
             return False
 

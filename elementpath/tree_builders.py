@@ -182,6 +182,9 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
     elem = cast(LxmlElementProtocol, document.getroot())
     elements = root_node.elements
 
+    if elem is None:
+        return root_node
+
     # Add root siblings (comments and processing instructions)
     for e in reversed([x for x in elem.itersiblings(preceding=True)]):
         if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]

@@ -12,6 +12,7 @@ from decimal import Decimal, ROUND_UP
 from typing import Any, Dict, Optional, Union
 
 from .exceptions import ElementPathError, xpath_error
+from .protocols import ElementProtocol
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from .datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
     AbstractBinary, UntypedAtomic, QName
@@ -323,9 +324,18 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
         def default(self, obj):
             if isinstance(obj, XPathNode):
                 if isinstance(obj, DocumentNode):
-                    root = obj.document.getroot()
+                    return ''.join(self.default(child) for child in obj)
                 elif isinstance(obj, ElementNode):
-                    root = obj.elem
+                    elem = obj.elem
+                    try:
+                        chunks = etree_module.tostringlist(elem, encoding='utf-8')
+                    except TypeError:
+                        return etree_module.tostring(elem, encoding='utf-8').decode('utf-8')
+                    else:
+                        if chunks and chunks[0].startswith(b'<?'):
+                            chunks[0] = chunks[0].replace(b'\'', b'"')
+                        return b'\n'.join(chunks).decode('utf-8')
+
                 elif isinstance(obj, (AttributeNode, NamespaceNode)):
                     return f'{obj.name}="{obj.string_value}"'
                 elif isinstance(obj, TextNode):
@@ -361,15 +371,6 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
                 return super().default(None)
             else:
                 return super().default(obj)
-
-            try:
-                chunks = etree_module.tostringlist(root, encoding='utf-8')
-            except TypeError:
-                return etree_module.tostring(root, encoding='utf-8').decode('utf-8')
-            else:
-                if chunks and chunks[0].startswith(b'<?'):
-                    chunks[0] = chunks[0].replace(b'\'', b'"')
-                return b'\n'.join(chunks).decode('utf-8')
 
     kwargs = {
         'cls': XPathEncoder,

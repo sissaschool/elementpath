@@ -1052,13 +1052,6 @@ def evaluate_xml_to_json_function(self, context=None):
         if indent is not None and isinstance(indent, bool):
             raise self.error('FOJS0005')
 
-    if isinstance(input_node, DocumentNode):
-        root = input_node.value.getroot()
-    elif isinstance(input_node, ElementNode):
-        root = input_node.value
-    else:
-        raise self.error('FOJS0006')
-
     def elem_to_json(elements):
         chunks = []
 
@@ -1173,7 +1166,12 @@ def evaluate_xml_to_json_function(self, context=None):
 
         return ','.join(chunks)
 
-    return elem_to_json((root,))
+    if isinstance(input_node, DocumentNode):
+        return elem_to_json(child.value for child in input_node)
+    elif isinstance(input_node, ElementNode):
+        return elem_to_json((input_node.value,))
+    else:
+        raise self.error('FOJS0006')
 
 
 @method(function('json-to-xml', label='function', nargs=(1, 2),

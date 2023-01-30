@@ -741,7 +741,7 @@ def select_element_kind_test(self, context=None):
                     if type_annotation[-1] in '*?':
                         yield item
                 elif item.xsd_type is None:
-                    if type_annotation == XSD_UNTYPED and self.parser.schema is not None:
+                    if type_annotation == XSD_UNTYPED and self[0].symbol != '*':
                         yield item
                 elif type_annotation == item.xsd_type.name:
                     yield item
@@ -896,7 +896,7 @@ def select_attribute_kind_test_or_axis(self, context=None):
                     yield attribute.typed_value
                 else:
                     if attribute.xsd_type is None:
-                        if type_name == XSD_UNTYPED and self.parser.schema is not None:
+                        if type_name == XSD_UNTYPED and name != '*':
                             yield attribute.value
                     elif attribute.xsd_type.name == type_name:
                         yield attribute.typed_value

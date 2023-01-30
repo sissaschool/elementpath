@@ -18,7 +18,7 @@ from .exceptions import xpath_error
 from .datatypes import UntypedAtomic, AnyURI
 from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, DocumentNode
+    TextNode, CommentNode, ProcessingInstructionNode, DocumentNode
 from .xpath_tokens import XPathToken, XPathFunction, XPathMap, XPathArray
 
 if TYPE_CHECKING:
@@ -76,8 +76,20 @@ def deep_equal(seq1: Iterable[Any],
                         return False
                 elif isinstance(value1, DocumentNode):
                     assert isinstance(value2, DocumentNode)
-                    if not etree_deep_equal(value1.document.getroot(), value2.document.getroot()):
-                        return False
+                    for child1, child2 in zip_longest(value1, value2):
+                        if child1 is None or child2 is None:
+                            return False
+                        elif child1.kind != child2.kind:
+                            return False
+                        elif isinstance(child1, etree_node_types):
+                            assert isinstance(child2, etree_node_types)
+                            if not etree_deep_equal(child1.elem, child2.elem):
+                                return False
+                        elif isinstance(child1, TextNode):
+                            assert isinstance(child2, TextNode)
+                            if cm.ne(child1.value, child2.value):
+                                return False
+
                 elif cm.ne(value1.value, value2.value):
                     return False
                 elif isinstance(value1, AttributeNode):
@@ -231,11 +243,26 @@ def deep_compare(obj1: Any,
                         return result
                 elif isinstance(value1, DocumentNode):
                     assert isinstance(value2, DocumentNode)
-                    result = etree_deep_compare(
-                        value1.document.getroot(), value2.document.getroot()
-                    )
-                    if result:
-                        return result
+                    for child1, child2 in zip_longest(value1, value2):
+                        if child1 is None:
+                            return -1
+                        elif child2 is None:
+                            return 1
+                        elif child1.kind != child2.kind:
+                            msg = f"cannot compare {type(child1)} with {type(child2)}"
+                            raise xpath_error('XPTY0004', msg, token=token)
+                        elif isinstance(child1, etree_node_types):
+                            assert isinstance(child2, etree_node_types)
+                            result = etree_deep_compare(child1.elem, child2.elem)
+                            if result:
+                                return result
+                        elif isinstance(child1, TextNode):
+                            assert isinstance(child2, TextNode)
+                            result = cm.strcoll(
+                                child1.value.strip(), child2.value.strip()
+                            )
+                            if result:
+                                return result
                 else:
                     result = cm.strcoll(value1.value, value2.value)
                     if result:

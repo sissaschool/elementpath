@@ -106,7 +106,8 @@ class XPathNodesTest(unittest.TestCase):
 
         self.assertEqual(ElementNode(ElementTree.XML(xml_test)).base_uri, '/')
         document = ElementTree.parse(io.StringIO(xml_test))
-        self.assertIsNone(DocumentNode(document).base_uri)
+
+        self.assertEqual(DocumentNode(document).base_uri, '/')
         self.assertIsNone(ElementNode(self.elem).base_uri)
         self.assertIsNone(TextNode('a text node').base_uri)
 

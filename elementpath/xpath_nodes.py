@@ -410,6 +410,14 @@ class ProcessingInstructionNode(XPathNode):
 
     @property
     def string_value(self) -> str:
+        if hasattr(self.elem, 'target'):
+            return self.elem.text or ''
+
+        try:
+            return cast(str, self.elem.text).split(' ', maxsplit=1)[1]
+        except IndexError:
+            return ''
+
         target: Optional[str] = getattr(self.elem, 'target', None)
         if not target:
             return self.elem.text or ''
@@ -707,8 +715,16 @@ class DocumentNode(XPathNode):
     @property
     def base_uri(self) -> Optional[str]:
         if not self.children:
+            # Fallback for not built documents
+            return self.document.getroot().get(XML_BASE)
+
+        for child in self.children:
+            if isinstance(child, ElementNode):
+                base_uri = child.elem.get(XML_BASE)
+                if base_uri is not None:
+                    return base_uri
+        else:
             return None
-        return self.getroot().base_uri
 
     def getroot(self) -> ElementNode:
         for child in self.children:
@@ -763,23 +779,49 @@ class DocumentNode(XPathNode):
 
     @property
     def string_value(self) -> str:
-        return ''.join(etree_iter_strings(self.document.getroot()))
+        if not self.children:
+            # Fallback for not built documents
+            root = self.document.getroot()
+            if root is None:
+                return ''
+            return ''.join(etree_iter_strings(root))
+        return ''.join(child.string_value for child in self.children)
 
     @property
     def typed_value(self) -> UntypedAtomic:
-        return UntypedAtomic(''.join(etree_iter_strings(self.document.getroot())))
+        return UntypedAtomic(self.string_value)
 
     @property
     def document_uri(self) -> Optional[str]:
+        base_uri = self.base_uri
+        if base_uri is None:
+            return None
+
         try:
-            uri = cast(str, self.document.getroot().attrib[XML_BASE])
-            parts = urlparse(uri)
-        except (KeyError, ValueError):
+            parts = urlparse(base_uri)
+        except ValueError:
             pass
         else:
             if parts.scheme and parts.netloc or parts.path.startswith('/'):
-                return uri
+                return base_uri
         return None
+
+    def is_extended(self):
+        if self.document.getroot() is None:
+            return True
+        elif len(self.children) <= 1:
+            return False
+        elif not hasattr(self.document.getroot(), 'itersiblings'):
+            return True  # an xml.etree.ElementTree structure
+
+        root = None
+        for e in self.children:
+            if isinstance(e, ElementNode):
+                if root is not None:
+                    return True
+                root = e
+        else:
+            return False
 
 
 ###

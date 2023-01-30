@@ -253,7 +253,7 @@ class XPath1TokenTest(unittest.TestCase):
 
         obj = ElementTree.ProcessingInstruction('action', 'nothing to do')
         pi_node = ProcessingInstructionNode(obj)
-        self.assertEqual(token.data_value(pi_node), 'action nothing to do')
+        self.assertEqual(token.data_value(pi_node), 'nothing to do')
 
         self.assertIsNone(token.data_value(None))
         self.assertEqual(token.data_value(19), 19)
@@ -287,7 +287,7 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(token.string_value(attribute_node), '0212349350')
         self.assertEqual(token.string_value(namespace_node), 'http://www.w3.org/2001/XMLSchema')
         self.assertEqual(token.string_value(comment_node), 'nothing important')
-        self.assertEqual(token.string_value(pi_node), 'action nothing to do')
+        self.assertEqual(token.string_value(pi_node), 'nothing to do')
         self.assertEqual(token.string_value(text_node), 'betelgeuse')
         self.assertEqual(token.string_value(None), '')
 

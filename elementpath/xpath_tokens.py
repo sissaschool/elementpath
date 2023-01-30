@@ -528,6 +528,11 @@ class XPathToken(Token[XPathTokenType]):
                     yield result.prefix, result.uri
                 else:
                     yield result.uri
+            elif isinstance(result, DocumentNode):
+                if result.is_extended():
+                    yield result
+                else:
+                    yield result.value
             else:
                 yield result.value
 
@@ -552,6 +557,11 @@ class XPathToken(Token[XPathTokenType]):
                     results.append((item.prefix, item.uri))
                 else:
                     results.append(item.uri)
+            elif isinstance(item, DocumentNode):
+                if item.is_extended():
+                    results.append(item)
+                else:
+                    results.append(item.value)
             else:
                 results.append(item.value)
 
