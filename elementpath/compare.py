@@ -97,11 +97,12 @@ def deep_equal(seq1: Iterable[Any],
                         return False
 
                     elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
-                            and isinstance(value1, (str, AnyURI, UntypedAtomic)):
+                            and isinstance(value2, (str, AnyURI, UntypedAtomic)):
                         if cm.strcoll(str(value1), str(value2)):
                             return False
 
-                    elif isinstance(value1, UntypedAtomic) ^ isinstance(value2, UntypedAtomic):
+                    elif isinstance(value1, UntypedAtomic) \
+                            or isinstance(value2, UntypedAtomic):
                         return False
 
                     elif isinstance(value1, float):

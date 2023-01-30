@@ -1306,7 +1306,9 @@ class QNameTypesTest(unittest.TestCase):
         self.assertNotEqual(qname1, qname3)
         self.assertNotEqual(qname2, qname3)
 
-        self.assertEqual(qname1, 'tst1:foo')
+        with self.assertRaises(TypeError) as ctx:
+            _ = qname1 == 'tst1:foo'
+        self.assertIn('cannot compare', str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             _ = qname1 == 1
