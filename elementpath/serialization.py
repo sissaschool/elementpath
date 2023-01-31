@@ -9,10 +9,10 @@
 #
 import json
 from decimal import Decimal, ROUND_UP
-from typing import Any, Dict, Optional, Union
+from types import ModuleType
+from typing import cast, Any, Dict, Iterator, Iterable, Optional, Set, Union, Tuple
 
 from .exceptions import ElementPathError, xpath_error
-from .protocols import ElementProtocol
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from .datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
     AbstractBinary, UntypedAtomic, QName
@@ -37,7 +37,7 @@ SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAME
 def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                              token: Optional[XPathToken] = None) -> Dict['str', Any]:
 
-    kwargs = {}
+    kwargs: Dict[str, Any] = {}
     if isinstance(params, XPathMap):
         if len(params[:]) > len(params.keys()):
             raise xpath_error('SEPM0019', token=token)
@@ -132,7 +132,8 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
     elif isinstance(params, ElementNode):
         root = params.value
         if root.tag != SERIALIZATION_PARAMS:
-            raise token.error('XPTY0004', 'output:serialization-parameters tag expected')
+            msg = 'output:serialization-parameters tag expected'
+            raise xpath_error('XPTY0004', msg, token)
 
         if len(root) > len({e.tag for e in root}):
             raise xpath_error('SEPM0019', token=token)
@@ -208,7 +209,8 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
     return kwargs
 
 
-def iter_normalized(elements, item_separator: Optional[str] = None):
+def iter_normalized(elements: Iterable[Any],
+                    item_separator: Optional[str] = None) -> Iterator[Any]:
     chunks = []
     sep = ' ' if item_separator is None else item_separator
 
@@ -245,7 +247,10 @@ def iter_normalized(elements, item_separator: Optional[str] = None):
             yield sep.join(chunks)
 
 
-def serialize_to_xml(elements, etree_module=None, token=None, **params):
+def serialize_to_xml(elements: Iterable[Any],
+                     etree_module: Optional[ModuleType] = None,
+                     token: Optional['XPathToken'] = None,
+                     **params: Any) -> str:
     if etree_module is None:
         from xml.etree import ElementTree
         etree_module = ElementTree
@@ -253,6 +258,7 @@ def serialize_to_xml(elements, etree_module=None, token=None, **params):
     item_separator = params.get('item_separator')
     character_map = params.get('character_map')
 
+    cdata_sections: Union[Set[str], Tuple[()]]
     kwargs = {}
     if 'xml_declaration' in params:
         kwargs['xml_declaration'] = params['xml_declaration']
@@ -306,31 +312,37 @@ def serialize_to_xml(elements, etree_module=None, token=None, **params):
     return result
 
 
-def serialize_to_json(elements, etree_module=None, token=None, **params):
+def serialize_to_json(elements: Iterable[Any],
+                      etree_module: Optional[ModuleType] = None,
+                      token: Optional['XPathToken'] = None,
+                      **params: Any) -> str:
     if etree_module is None:
         from xml.etree import ElementTree
         etree_module = ElementTree
 
-    class MapEncodingDict(dict):
-        def __init__(self, items):
+    class MapEncodingDict(dict):  # type: ignore[type-arg]
+        def __init__(self, items: Any) -> None:
             self[None] = None
             self._items = items
 
-        def items(self):
+        def items(self) -> Any:
             return self._items
 
     class XPathEncoder(json.JSONEncoder):
 
-        def default(self, obj):
+        def default(self, obj: Any) -> Any:
             if isinstance(obj, XPathNode):
                 if isinstance(obj, DocumentNode):
                     return ''.join(self.default(child) for child in obj)
                 elif isinstance(obj, ElementNode):
                     elem = obj.elem
+                    assert etree_module is not None
+
                     try:
                         chunks = etree_module.tostringlist(elem, encoding='utf-8')
                     except TypeError:
-                        return etree_module.tostring(elem, encoding='utf-8').decode('utf-8')
+                        chunk = etree_module.tostring(elem, encoding='utf-8')
+                        return cast(str, chunk.decode('utf-8'))
                     else:
                         if chunks and chunks[0].startswith(b'<?'):
                             chunks[0] = chunks[0].replace(b'\'', b'"')
@@ -350,6 +362,7 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
 
                 map_keys = set()
                 map_items = []
+                k: Any
                 for k, v in obj.items():
                     if isinstance(k, QName):
                         k = str(k)
@@ -372,7 +385,7 @@ def serialize_to_json(elements, etree_module=None, token=None, **params):
             else:
                 return super().default(obj)
 
-    kwargs = {
+    kwargs: Dict[str, Any] = {
         'cls': XPathEncoder,
         'ensure_ascii': True,
         'separators': (',', ':'),

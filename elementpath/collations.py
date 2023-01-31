@@ -11,7 +11,7 @@ import locale
 import threading
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Type, Union
 from urllib.parse import urljoin, urlsplit
 
 from .exceptions import xpath_error
@@ -69,12 +69,13 @@ def case_insensitive_strxfrm(s: str) -> str:
     return s.casefold()
 
 
-class CollationManager(AbstractContextManager):
+class CollationManager(AbstractContextManager[Any]):
     """
     Context Manager for collations. Provide helper operators as methods.
     """
+    lc_collate: Union[None, str, Tuple[Optional[str], Optional[str]]]
     fallback: bool = False
-    _current_lc_collate: Optional[Sequence[str]] = None
+    _current_lc_collate: Optional[Tuple[Optional[str], Optional[str]]] = None
 
     def __init__(self,
                  collation: Optional[str],
@@ -89,7 +90,9 @@ class CollationManager(AbstractContextManager):
             raise xpath_error('XPTY0004', msg, self.token)
         elif not urlsplit(collation).scheme and token is not None:
             # Collation is a relative URI: try to complete with the static base URI
-            collation = urljoin(token.parser.base_uri, collation)
+            base_uri = token.parser.base_uri
+            if base_uri:
+                collation = urljoin(base_uri, collation)
 
         if collation == UNICODE_CODEPOINT_COLLATION:
             self.lc_collate = None
@@ -153,12 +156,12 @@ class CollationManager(AbstractContextManager):
 
     def eq(self, a: Any, b: Any) -> bool:
         if not isinstance(a, str) or not isinstance(b, str):
-            return a == b
+            return bool(a == b)
         return self.strcoll(a, b) == 0
 
     def ne(self, a: Any, b: Any) -> bool:
         if not isinstance(a, str) or not isinstance(b, str):
-            return a != b
+            return bool(a != b)
         return self.strcoll(a, b) != 0
 
     def contains(self, a: str, b: str) -> bool:

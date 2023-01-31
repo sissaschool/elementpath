@@ -67,7 +67,12 @@ ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 PrincipalNodeType = Union[ElementProtocol, AttributeNode, ElementNode]
 OperandsType = Tuple[Optional[AtomicValueType], Optional[AtomicValueType]]
 XPathResultType = Union[
-    AtomicValueType, ElementProtocol, XsdAttributeProtocol, Tuple[Optional[str], str]
+    AtomicValueType,
+    ElementProtocol,
+    XsdAttributeProtocol,
+    Tuple[Optional[str], str],
+    DocumentProtocol,
+    DocumentNode
 ]
 
 XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
@@ -194,7 +199,7 @@ class XPathToken(Token[XPathTokenType]):
             for tk in self._items:
                 yield from tk.iter_leaf_elements()
 
-    def parse_sequence_type(self):
+    def parse_sequence_type(self) -> 'XPathToken':
         if self.parser.next_token.label in ('kind test', 'sequence type', 'function test'):
             token = self.parser.expression(rbp=85)
         else:
@@ -220,7 +225,7 @@ class XPathToken(Token[XPathTokenType]):
             self.parser.advance()
         return token
 
-    def parse_occurrence(self):
+    def parse_occurrence(self) -> None:
         if self.parser.next_token.symbol in ('*', '+', '?'):
             self.occurrence = self.parser.next_token.symbol
             self.parser.advance()
@@ -370,7 +375,7 @@ class XPathToken(Token[XPathTokenType]):
 
     def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
 
-        def _iter_flatten(items):
+        def _iter_flatten(items: Iterable[Any]) -> Iterator[Any]:
             for item in items:
                 if isinstance(item, list):
                     yield from _iter_flatten(item)
@@ -405,7 +410,7 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(item, XPathFunction) and not isinstance(item, XPathArray):
                 raise self.error('FOTY0013', f"{item.label!r} has no typed value")
             elif isinstance(item, AnyAtomicType):
-                yield item
+                yield cast(AtomicValueType, item)
             else:
                 msg = f"sequence item {item!r} is not appropriate for the context"
                 raise self.error('XPTY0004', msg)
@@ -706,7 +711,7 @@ class XPathToken(Token[XPathTokenType]):
         self.namespace = namespace
 
     def adjust_datetime(self, context: XPathContext, cls: Type[DatetimeValueType]) \
-            -> Optional[Union[DatetimeValueType, DayTimeDuration]]:
+            -> Union[List[Any], DatetimeValueType, DayTimeDuration]:
         """
         XSD datetime adjust function helper.
 
@@ -936,7 +941,7 @@ class XPathToken(Token[XPathTokenType]):
         type_name = type_name[3:].rstrip('+*?')
         token = cast(XPathConstructor, self.parser.symbol_table[type_name](self.parser))
 
-        def cast_value(v):
+        def cast_value(v: Any) -> Any:
             try:
                 if isinstance(v, (UntypedAtomic, AnyURI)):
                     return token.cast(v)
@@ -1508,7 +1513,7 @@ class XPathMap(XPathFunction):
         self._values = []
         if items is not None:
             _items = items.items() if isinstance(items, dict) else items
-            _map = {}
+            _map: Dict[Any, Any] = {}
             for k, v in _items:
                 if k is None:
                     raise self.error('XPTY0004', 'missing key value')
@@ -1583,7 +1588,7 @@ class XPathMap(XPathFunction):
         )
 
     def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
-        _map = {}
+        _map: Dict[Any, Any] = {}
         nan_key = None
 
         for key, value in zip(self._items, self._values):
@@ -1614,6 +1619,7 @@ class XPathMap(XPathFunction):
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
+        map_dict: Dict[Any, Any]
         key = cast(AnyAtomicType, args[0])
         if self._map is not None:
             map_dict = self._map
@@ -1630,8 +1636,10 @@ class XPathMap(XPathFunction):
 
     def keys(self, context: Optional[XPathContext] = None) -> List[AnyAtomicType]:
         if self._map is not None:
-            return [self._nan_key if k is None else k for k in self._map.keys()]
-        return [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
+            keys = [self._nan_key if k is None else k for k in self._map.keys()]
+        else:
+            keys = [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
+        return cast(List[AnyAtomicType], keys)
 
     def values(self, context: Optional[XPathContext] = None) -> List[Any]:
         if self._map is not None:
@@ -1639,6 +1647,7 @@ class XPathMap(XPathFunction):
         return [v for v in self._evaluate(context).values()]
 
     def items(self, context: Optional[XPathContext] = None) -> List[Tuple[AnyAtomicType, Any]]:
+        _map: Dict[Any, Any]
         if self._map is not None:
             _map = self._map
         else:
@@ -1734,7 +1743,7 @@ class XPathArray(XPathFunction):
     def _evaluate(self, context: Optional[XPathContext] = None) -> List[Any]:
         if self.symbol == 'array':
             # A comma in a curly array constructor is the comma operator, not a delimiter.
-            items = []
+            items: List[Any] = []
             for tk in self._items:
                 items.extend(tk.select(context))
             return items

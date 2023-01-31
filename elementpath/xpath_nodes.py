@@ -418,11 +418,6 @@ class ProcessingInstructionNode(XPathNode):
         except IndexError:
             return ''
 
-        target: Optional[str] = getattr(self.elem, 'target', None)
-        if not target:
-            return self.elem.text or ''
-        return f'{target} {self.elem.text}' if self.elem.text else target
-
     @property
     def typed_value(self) -> str:
         return self.string_value
@@ -806,7 +801,7 @@ class DocumentNode(XPathNode):
                 return base_uri
         return None
 
-    def is_extended(self):
+    def is_extended(self) -> bool:
         if self.document.getroot() is None:
             return True
         elif len(self.children) <= 1:

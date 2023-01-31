@@ -101,7 +101,7 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         parent.children.append(child)
         parent = child
     else:
-        elem = cast(ElementProtocol, root)
+        elem = root
         parent = None
         elements = {}
         root_node = parent = build_element_node()
@@ -176,7 +176,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         position += 1
     else:
         # create a new ElementTree for the root element at position==0
-        document = cast(LxmlElementProtocol, root).getroottree()
+        document = root.getroottree()
         root_node = parent = DocumentNode(document, 0)
 
     elem = cast(LxmlElementProtocol, document.getroot())

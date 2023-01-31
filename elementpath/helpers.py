@@ -194,20 +194,20 @@ def numeric_not_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
     return not math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)
 
 
-def is_nan(x) -> bool:
+def is_nan(x: Any) -> bool:
     return isinstance(x, float) and math.isnan(x)
 
 
 def equal(op1: Any, op2: Any) -> bool:
     if isinstance(op1, float) and math.isnan(op1):
         return isinstance(op2, float) and math.isnan(op2)
-    return op1 == op2
+    return bool(op1 == op2)
 
 
 def not_equal(op1: Any, op2: Any) -> bool:
     if isinstance(op1, float) and math.isnan(op1):
         return not isinstance(op2, float) or not math.isnan(op2)
-    return op1 != op2
+    return bool(op1 != op2)
 
 
 def match_wildcard(name: str, wildcard: str) -> bool:
@@ -245,7 +245,7 @@ def escape_json_string(s: str, escaped: bool = False) -> str:
 
 def unescape_json_string(s: str) -> str:
 
-    def unicode_escape_callback(match: Match) -> str:
+    def unicode_escape_callback(match: Match[str]) -> str:
         return chr(int(match.group(1).upper(), 16))
 
     s = s.replace('\\"', '\"').\

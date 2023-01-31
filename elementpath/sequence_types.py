@@ -371,8 +371,10 @@ def match_sequence_type(value: Any,
             return True
 
         try:
-            return bool(v.name == get_expanded_name(name, parser.namespaces))
+            exp_name = get_expanded_name(name, parser.namespaces)  # type: ignore[union-attr]
         except (KeyError, ValueError, AttributeError):
             return False
+        else:
+            return True if v.name == exp_name else False
 
     return match_st(value, sequence_type)

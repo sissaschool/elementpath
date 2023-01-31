@@ -375,6 +375,6 @@ def same_key(k1: Any, k2: Any) -> bool:
         return isinstance(k2, float) and math.isnan(k2)
 
     try:
-        return k1 == k2
+        return True if k1 == k2 else False
     except TypeError:
         return False  # EAFP :)
