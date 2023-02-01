@@ -949,7 +949,7 @@ def evaluate_parse_ietf_date_function(self, context=None):
 
         try:
             dt = datetime.strptime(value, fmt)
-        except ValueError as err:
+        except ValueError:
             continue
         else:
             if tzname_match is not None and dt.tzinfo is None:
@@ -1080,7 +1080,7 @@ def evaluate_xml_to_json_function(self, context=None):
             if child.tag == NULL_TAG:
                 check_attributes()
                 if child.text is not None:
-                    msg = f'a null element cannot have a text value'
+                    msg = 'a null element cannot have a text value'
                     raise self.error('FOJS0006', msg)
                 chunks.append('null')
 

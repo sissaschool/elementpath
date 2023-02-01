@@ -15,14 +15,11 @@ from abc import ABCMeta
 from typing import cast, Any, ClassVar, Dict, MutableMapping, \
     Optional, Tuple, Type, Set, Sequence
 
-from ..exceptions import MissingContextError, ElementPathKeyError, \
-    ElementPathValueError, xpath_error
-from ..datatypes import AnyAtomicType, NumericProxy, UntypedAtomic, QName, \
-    xsd10_atomic_types, xsd11_atomic_types
+from ..exceptions import MissingContextError, ElementPathValueError, xpath_error
+from ..datatypes import QName
 from ..tdop import Token, Parser
-from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, XSD_ERROR, \
-    XPATH_FUNCTIONS_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
-    XSD_UNTYPED_ATOMIC, XSD_NUMERIC, get_namespace
+from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
+    XPATH_FUNCTIONS_NAMESPACE
 from ..sequence_types import match_sequence_type
 from ..schema_proxy import AbstractSchemaProxy
 from ..xpath_tokens import NargsType, XPathToken, XPathAxis, XPathFunction, ProxyToken

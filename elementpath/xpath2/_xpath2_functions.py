@@ -531,7 +531,7 @@ def select_exists_function(self, context=None):
     except StopIteration:
         yield False
     else:
-        yield not(not value and isinstance(value, list))
+        yield not (not value and isinstance(value, list))
 
 
 @method(function('distinct-values', nargs=(1, 2),

@@ -11,7 +11,6 @@ from typing import Any, Optional
 
 from ..helpers import QNAME_PATTERN
 from .atomic_types import AtomicTypeMeta
-from .untyped import UntypedAtomic
 
 
 class AbstractQName(metaclass=AtomicTypeMeta):

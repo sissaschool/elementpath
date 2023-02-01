@@ -73,12 +73,12 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             elif key == 'indent':
                 if not isinstance(value, bool):
                     raise xpath_error('XPTY0004', token=token)
-                
+
             elif key == 'item-separator':
                 if not isinstance(value, str):
                     raise xpath_error('XPTY0004', token=token)
                 kwargs['item_separator'] = value
-            
+
             elif key == 'use-character-maps':
                 if not isinstance(value, XPathMap):
                     raise xpath_error('XPTY0004', token=token)
