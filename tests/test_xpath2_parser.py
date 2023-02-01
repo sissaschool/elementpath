@@ -1212,7 +1212,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         locale_collation = get_locale_category(locale.LC_COLLATE)
         if locale_collation == 'en_US.UTF-8':
             locale_collation = "http://www.w3.org/2005/xpath-functions/collation/codepoint"
-        self.assertEqual(self.parser.__class__().default_collation, locale_collation)
+            self.assertEqual(self.parser.__class__().default_collation, locale_collation)
 
         parser = self.parser.__class__(default_collation='it_IT.UTF-8')
         self.assertEqual(parser.default_collation, 'it_IT.UTF-8')
