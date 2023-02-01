@@ -7,10 +7,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '3.1.0'
+__version__ = '4.0.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
-__copyright__ = "Copyright 2018-2022, SISSA"
+__copyright__ = "Copyright 2018-2023, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 

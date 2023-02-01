@@ -21,9 +21,6 @@ class XPath31Parser(XPath30Parser):
     """
     version = '3.1'
 
-    # TODO list
-    # 'json-to-xml', 'xml-to-json',
-
     DEFAULT_NAMESPACES = {
         'map': XPATH_MAP_FUNCTIONS_NAMESPACE,
         'array': XPATH_ARRAY_FUNCTIONS_NAMESPACE,

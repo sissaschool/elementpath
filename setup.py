@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='3.1.0',
+    version='4.0.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     package_data={
         'elementpath.validators': ['analyze-string.xsd', 'schema-for-json.xsd'],
@@ -26,12 +26,12 @@ setup(
     keywords=['XPath', 'XPath2', 'XPath3', 'Pratt-parser', 'ElementTree', 'lxml'],
     license='MIT',
     license_file='LICENSE',
-    description='XPath 1.0/2.0/3.0 parsers and selectors for ElementTree and lxml',
+    description='XPath 1.0/2.0/3.0/3.1 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
     python_requires='>=3.7',
     extras_require={
         'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=2.0.0', 'Sphinx',
-                'memory-profiler', 'memray', 'flake8', 'mypy==0.971', 'lxml-stubs']
+                'memory-profiler', 'memray', 'flake8', 'mypy', 'lxml-stubs']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

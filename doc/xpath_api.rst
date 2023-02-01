@@ -35,8 +35,8 @@ XPath parsers
 
 
 .. autoclass:: elementpath.XPath2Parser
-
 .. autoclass:: elementpath.xpath3.XPath30Parser
+.. autoclass:: elementpath.xpath3.XPath31Parser
 
 
 XPath tokens
@@ -57,7 +57,6 @@ XPath tokens
     .. automethod:: get_results
     .. automethod:: select_results
     .. automethod:: adjust_datetime
-    .. automethod:: use_locale
 
     Schema context methods
     .. automethod:: select_xsd_nodes

@@ -18,12 +18,13 @@ elementpath
 
 .. elementpath-introduction
 
-The proposal of this package is to provide XPath 1.0, 2.0 and 3.0 selectors for ElementTree XML
-data structures, both for the standard ElementTree library and for the
-`lxml.etree <http://lxml.de>`_ library.
+The proposal of this package is to provide XPath 1.0, 2.0, 3.0 and 3.1
+selectors for ElementTree XML data structures, both for the standard
+ElementTree library and for the `lxml.etree <http://lxml.de>`_ library.
 
-For `lxml.etree <http://lxml.de>`_ this package can be useful for providing XPath 2.0/3.0 selectors,
-because `lxml.etree <http://lxml.de>`_ already has it's own implementation of XPath 1.0.
+For `lxml.etree <http://lxml.de>`_ this package can be useful for providing
+XPath 2.0/3.0/3.1 selectors, because `lxml.etree <http://lxml.de>`_ already
+has it's own implementation of XPath 1.0.
 
 
 Installation and usage
@@ -79,11 +80,20 @@ For default the XPath 2.0 is used. If you need XPath 1.0 parser provide the *par
 >>> select(root, '/A/B2/*', parser=XPath1Parser)
 [<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
 
-For XPath 3.0 import the parser from *elementpath.xpath3* subpackage, that is not loaded
+For XPath 3.0/3.1 import the parser from *elementpath.xpath3* subpackage, that is not loaded
 for default:
 
 >>> from elementpath.xpath3 import XPath3Parser
 >>> select(root, 'math:atan(1.0e0)', parser=XPath3Parser)
+0.7853981633974483
+
+Note: *XPath3Parser* is an alias of *XPath31Parser*.
+
+If you need only XPath 3.0 you can also use a more specific subpackage,
+avoiding the loading of XPath 3.1 implementation:
+
+>>> from elementpath.xpath30 import XPath30Parser
+>>> select(root, 'math:atan(1.0e0)', parser=XPath30Parser)
 0.7853981633974483
 
 
