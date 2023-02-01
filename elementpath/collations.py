@@ -18,6 +18,9 @@ from .exceptions import xpath_error
 
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken
+    context_class_base = AbstractContextManager[Any]
+else:
+    context_class_base = AbstractContextManager
 
 UNICODE_COLLATION_BASE_URI = "http://www.w3.org/2013/collation/UCA"
 
@@ -69,7 +72,7 @@ def case_insensitive_strxfrm(s: str) -> str:
     return s.casefold()
 
 
-class CollationManager(AbstractContextManager[Any]):
+class CollationManager(context_class_base):
     """
     Context Manager for collations. Provide helper operators as methods.
     """

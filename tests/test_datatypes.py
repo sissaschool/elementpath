@@ -153,7 +153,12 @@ class FloatTypesTest(unittest.TestCase):
     def test_nan(self):
         self.assertNotEqual(math.nan, math.nan)  # NaN is not equal to itself!
         self.assertIs(math.nan, math.nan)
-        self.assertIsNot(float('nan'), float('nan'))
+
+        if platform.python_implementation() == 'PyPy':
+            # PyPy uses the same instance for float('nan') and math.nan
+            self.assertIs(float('nan'), float('nan'))
+        else:
+            self.assertIsNot(float('nan'), float('nan'))
 
         self.assertTrue(math.isnan(Float10('NaN')))
         self.assertTrue(math.isnan(Float10(math.nan)))

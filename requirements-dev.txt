@@ -1,6 +1,6 @@
 # Requirements for setup a development environment
 setuptools
-tox
+tox>=4.0
 coverage
 lxml
 xmlschema>=2.0.0
