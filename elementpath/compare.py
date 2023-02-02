@@ -15,7 +15,7 @@ from typing import Any, Callable, Optional, Iterable, Iterator
 
 from .protocols import ElementProtocol
 from .exceptions import xpath_error
-from .datatypes import UntypedAtomic, AnyURI
+from .datatypes import UntypedAtomic, AnyURI, AbstractQName
 from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
     TextNode, CommentNode, ProcessingInstructionNode, DocumentNode
@@ -103,6 +103,13 @@ def deep_equal(seq1: Iterable[Any],
                             return False
 
                     elif isinstance(value2, bool):
+                        return False
+
+                    if isinstance(value1, AbstractQName):
+                        if not isinstance(value2, AbstractQName) or value1 != value2:
+                            return False
+
+                    elif isinstance(value2, AbstractQName):
                         return False
 
                     elif isinstance(value1, (str, AnyURI, UntypedAtomic)) \
@@ -370,6 +377,8 @@ def same_key(k1: Any, k2: Any) -> bool:
         return str(k1) == str(k2)
     elif isinstance(k1, float) and math.isnan(k1):
         return isinstance(k2, float) and math.isnan(k2)
+    elif isinstance(k1, AbstractQName) ^ isinstance(k2, AbstractQName):
+        return False
 
     try:
         return True if k1 == k2 else False

@@ -24,7 +24,7 @@ from urllib.request import urlopen
 from urllib.parse import urlsplit
 
 from ..datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
-    AbstractQName, DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, \
+    DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, \
     DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
 from ..exceptions import ElementPathTypeError
 from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
@@ -46,7 +46,7 @@ XPath31Parser.unregister('string-join')
 XPath31Parser.unregister('trace')
 
 SAFE_KEY_ATOMIC_TYPES = (
-    int, Decimal, AbstractBinary, AbstractDateTime, AbstractQName, Duration
+    int, Decimal, AbstractBinary, AbstractDateTime, Duration
 )
 
 TIMEZONE_MAP = {
@@ -229,6 +229,8 @@ def evaluate_map_merge_function(self, context=None):
                         items[k1] = [items[k1], v]
                 continue
 
+            # TODO: too slow. An alternative idea is to couple with the type
+            #   or an index for unsafe types, and then unpack after merge.
             for k2 in items:
                 if same_key(k1, k2):
                     if duplicates == 'reject':
@@ -343,10 +345,11 @@ def evaluate_array_insert_before_function(self, context=None):
     if member is None:
         member = []
 
-    if position <= 0:
+    items = array_.items(context)
+
+    if position <= 0 or position > len(items) + 1:
         raise self.error('FOAY0001')
 
-    items = array_.items(context)
     try:
         items.insert(position - 1, member)
     except IndexError:
@@ -517,7 +520,14 @@ def evaluate_array_filter_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
     items = array_.items(context)
-    return XPathArray(self.parser, items=filter(lambda x: func(context, x), items))
+
+    def filter_function(x):
+        choice = func(context, x)
+        if not isinstance(choice, bool):
+            raise self.error('XPTY0004', f'{func} must return xs:boolean values')
+        return choice
+
+    return XPathArray(self.parser, items=filter(filter_function, items))
 
 
 @method(function('fold-left', prefix='array', label='array:fold-left function', nargs=3,
