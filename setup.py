@@ -15,9 +15,10 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='4.0.0',
+    version='4.0.1',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     package_data={
+        'elementpath': ['py.typed'],
         'elementpath.validators': ['analyze-string.xsd', 'schema-for-json.xsd'],
     },
     author='Davide Brunato',
