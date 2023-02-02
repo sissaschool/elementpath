@@ -123,7 +123,7 @@ def deep_equal(seq1: Iterable[Any],
 
                     elif isinstance(value1, float):
                         if math.isnan(value1):
-                            if not math.isnan(value2):  # type: ignore[arg-type]
+                            if not math.isnan(value2):
                                 return False
                         elif math.isinf(value1):
                             if value1 != value2:
