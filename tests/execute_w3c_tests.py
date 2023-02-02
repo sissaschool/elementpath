@@ -17,6 +17,7 @@ into only one module.
 """
 import argparse
 import contextlib
+import datetime
 import decimal
 import re
 import json
@@ -1416,6 +1417,8 @@ def main():
     parser.add_argument('-v', dest='verbose', action='count', default=1,
                         help='increase verbosity: one option to show unexpected errors, '
                              'two for show also unmatched error codes, three for debug')
+    parser.add_argument('-q', '--quiet', action='store_true', default=False,
+                        help="run without printing steps or errors")
     parser.add_argument('-r', dest='report', metavar='REPORT_FILE',
                         help="write a report (JSON format) to the given file")
     args = parser.parse_args()
@@ -1431,9 +1434,19 @@ def main():
     pattern = re.compile(args.pattern, flags=re.IGNORECASE if args.ignore_case else 0)
     etree = lxml.etree if args.use_lxml else ElementTree
 
+    if not args.quiet:
+        verbose = args.verbose
+    elif args.verbose > 1:
+        print("Error: quiet and verbose options are mutually exclusive")
+        sys.exit(1)
+    else:
+        verbose = 0
+
     if not os.path.isfile(catalog_file):
         print("Error: catalog file %s does not exist" % args.catalog)
         sys.exit(1)
+
+    start_time = datetime.datetime.now()
 
     if args.xp31:
         from elementpath.xpath31 import XPath31Parser
@@ -1564,10 +1577,12 @@ def main():
 
                 count_run += 1
                 if args.show_test_case:
-                    print(f"Run test case {test_case.name!r}")
+                    print(f"Run test case {test_case.name!r}", flush=True)
+                elif verbose == 1:
+                    print('.', end='', flush=True)
 
                 try:
-                    case_result = test_case.run(verbose=args.verbose)
+                    case_result = test_case.run(verbose)
                     if case_result is True:
                         if args.report:
                             report['success'].append(test_case.name)
@@ -1581,16 +1596,21 @@ def main():
                             report['unknown'].append(test_case.name)
                         count_unknown += 1
                 except Exception as err:
-                    print("\nUnexpected failure for test %r" % test_case.name)
-                    print(type(err), str(err))
+                    if verbose:
+                        print("\nUnexpected failure for test %r" % test_case.name)
+                        print(type(err), str(err), flush=True)
 
-                    if args.verbose >= 4:
+                    if verbose >= 4:
                         traceback.print_exc()
                     if args.report:
                         report['other_failures'].append(test_case.name)
                     count_other_failures += 1
 
+        elapsed_time = (datetime.datetime.now() - start_time).seconds
+
         print("\n*** Totals of W3C XPath tests execution ***\n")
+
+        print(f"Total elapsed time: {elapsed_time}s\n")
         print("%d test cases read" % count_read)
         print("%d test cases skipped" % count_skip)
         print("%d test cases run\n" % count_run)
