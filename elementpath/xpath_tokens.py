@@ -405,7 +405,10 @@ class XPathToken(Token[XPathTokenType]):
                     if value is None:
                         msg = f"argument node {item!r} does not have a typed value"
                         raise self.error('FOTY0012', msg)
-                    yield value
+                    elif isinstance(value, list):
+                        yield from value
+                    else:
+                        yield value
 
             elif isinstance(item, XPathFunction) and not isinstance(item, XPathArray):
                 raise self.error('FOTY0013', f"{item.label!r} has no typed value")
