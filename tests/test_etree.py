@@ -23,6 +23,11 @@ from elementpath.etree import ElementTree, PyElementTree, \
     SafeXMLParser, etree_tostring, is_etree_document
 
 
+XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
+                      '  <pfb:elem xmlns:pfb="http://xpath.test/nsb"/>\n' \
+                      '</pfa:root>'
+
+
 class TestElementTree(unittest.TestCase):
 
     @unittest.skipUnless(platform.python_implementation() == 'CPython', "requires CPython")
@@ -44,6 +49,13 @@ class TestElementTree(unittest.TestCase):
                          b'    <element />')
         self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
                          b'<?xml version="1.0" encoding="us-ascii"?>\n<element />')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+        elem.text = None
 
         self.assertEqual(etree_tostring(elem, encoding='ascii'),
                          b"<?xml version='1.0' encoding='ascii'?>\n<element />")
@@ -67,10 +79,39 @@ class TestElementTree(unittest.TestCase):
                                '</root>')
         self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
 
+        root = ElementTree.XML(XML_WITH_NAMESPACES)
+        result = etree_tostring(root)
+        self.assertNotEqual(result, XML_WITH_NAMESPACES)
+        self.assertNotIn('pxa', result)
+        self.assertNotIn('pxa', result)
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsa')
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsb')
+
+        namespaces = {
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<pxa:root xmlns:pxa="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</pxa:root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
     def test_py_element_string_serialization(self):
         elem = PyElementTree.Element('element')
         self.assertEqual(etree_tostring(elem), '<element />')
         self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element />')
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element />')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+        elem.text = None
 
         self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element />')
         self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
@@ -98,11 +139,40 @@ class TestElementTree(unittest.TestCase):
                                  '</root>')
         self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
 
+        root = PyElementTree.XML(XML_WITH_NAMESPACES)
+        result = etree_tostring(root)
+        self.assertNotEqual(result, XML_WITH_NAMESPACES)
+        self.assertNotIn('pxa', result)
+        self.assertNotIn('pxa', result)
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsa')
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsb')
+
+        namespaces = {
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<pxa:root xmlns:pxa="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</pxa:root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
     @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
     def test_lxml_element_string_serialization(self):
         elem = lxml_etree.Element('element')
         self.assertEqual(etree_tostring(elem), '<element/>')
         self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element/>')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+        elem.text = None
 
         self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element/>')
         self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
@@ -129,6 +199,19 @@ class TestElementTree(unittest.TestCase):
                               '  <elem>text2</elem>\n'
                               '</root>')
         self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
+
+        root = lxml_etree.XML(XML_WITH_NAMESPACES)
+        self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
+
+        namespaces = {
+            'tns0': "http://xpath.test/nsa",
+            'tns1': "http://xpath.test/nsb"
+        }
+        self.assertEqual(etree_tostring(root, namespaces), XML_WITH_NAMESPACES)
+
+        for prefix, uri in namespaces.items():
+            lxml_etree.register_namespace(prefix, uri)
+        self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
 
     def test_defuse_xml_entities(self):
         xml_file = Path(__file__).parent.joinpath('resources/with_entity.xml')
