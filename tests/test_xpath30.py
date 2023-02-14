@@ -849,7 +849,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root, variables={'a': 9.0, 'b': 3.0})
-        self.assertListEqual(token(context), [2, 3, 5, 7, 11, 13])
+        self.assertListEqual(token(context=context), [2, 3, 5, 7, 11, 13])
 
         token = self.parser.parse(
             "function($a as xs:double, $b as xs:double) as xs:double { $a * $b } (9.0, 3.0)"
@@ -859,12 +859,12 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         root = self.etree.XML('<root/>')
         context = XPathContext(root=root)
-        self.assertAlmostEqual(token(context), 27.0)
+        self.assertAlmostEqual(token.evaluate(context), 27.0)
 
         token = self.parser.parse("function($a) { $a } (10)")
         with self.assertRaises(MissingContextError):
             token.evaluate()
-        self.assertEqual(token(context), 10)
+        self.assertEqual(token.evaluate(context), 10)
 
     def test_function_lookup(self):
         token = self.parser.parse("fn:function-lookup(xs:QName('fn:substring'), 2)('abcd', 2)")

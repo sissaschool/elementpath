@@ -91,9 +91,6 @@ class XPathToken(Token[XPathTokenType]):
     namespace = None  # for namespace binding of names and wildcards
     occurrence = None  # occurrence indicator for item types
 
-    def __call__(self, context: Optional[XPathContext] = None) -> Any:
-        return self.evaluate(context)
-
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         """
         Evaluate default method for XPath tokens.
@@ -1199,8 +1196,8 @@ class XPathFunction(XPathToken):
             else:
                 self.nargs = nargs
 
-    def __call__(self, context: Optional[XPathContext] = None,
-                 *args: XPathFunctionArgType) -> Any:
+    def __call__(self, *args: XPathFunctionArgType,
+                 context: Optional[XPathContext] = None) -> Any:
         self.check_arguments_number(len(args))
 
         # Check provided argument with arity
@@ -1615,8 +1612,8 @@ class XPathMap(XPathFunction):
         self._nan_key = nan_key
         return cast(Dict[AnyAtomicType, Any], _map)
 
-    def __call__(self, context: Optional[XPathContext] = None,
-                 *args: XPathFunctionArgType) -> Any:
+    def __call__(self, *args: XPathFunctionArgType,
+                 context: Optional[XPathContext] = None) -> Any:
         if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
             args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
@@ -1753,8 +1750,8 @@ class XPathArray(XPathFunction):
         else:
             return [tk.evaluate(context) for tk in self._items]
 
-    def __call__(self, context: Optional[XPathContext] = None,
-                 *args: XPathFunctionArgType) -> Any:
+    def __call__(self, *args: XPathFunctionArgType,
+                 context: Optional[XPathContext] = None) -> Any:
         if len(args) != 1 or not isinstance(args[0], int):
             raise self.error('XPTY0004', 'exactly one xs:integer argument is expected')
 

@@ -140,7 +140,7 @@ def evaluate_map_get_function(self, context=None):
 
     map_ = self.get_argument(context, required=True, cls=XPathMap)
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
-    return map_(context, key)
+    return map_(key, context=context)
 
 
 @method(function('put', prefix='map', label='put function', nargs=3,
@@ -289,7 +289,7 @@ def select_map_for_each_function(self, context=None):
     func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
 
     for k, v in map_.items(context):
-        yield func(context, k, v)
+        yield func(k, v, context=context)
 
 
 @method(function('size', prefix='array', label='array function', nargs=1,
@@ -306,7 +306,7 @@ def evaluate_array_get_function(self, context=None):
 
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     position = self.get_argument(context, index=1, required=True, cls=int)
-    return array_(context, position)
+    return array_(position, context=context)
 
 
 @method(function('put', prefix='array', label='array:put function', nargs=3,
@@ -494,7 +494,7 @@ def evaluate_array_for_each_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
     items = array_.items(context)
-    return XPathArray(self.parser, items=map(lambda x: func(context, x), items))
+    return XPathArray(self.parser, items=map(lambda x: func(x, context=context), items))
 
 
 @method(function('for-each-pair', prefix='array', label='array:for-each-pair function', nargs=3,
@@ -508,7 +508,7 @@ def evaluate_array_for_each_pair_function(self, context=None):
     array2 = self.get_argument(context, index=1, required=True, cls=XPathArray)
     func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
     items = zip(array1.items(context), array2.items(context))
-    return XPathArray(self.parser, items=map(lambda x: func(context, *x), items))
+    return XPathArray(self.parser, items=map(lambda x: func(*x, context=context), items))
 
 
 @method(function('filter', prefix='array', label='array:filter function', nargs=2,
@@ -522,7 +522,7 @@ def evaluate_array_filter_function(self, context=None):
     items = array_.items(context)
 
     def filter_function(x):
-        choice = func(context, x)
+        choice = func(x, context=context)
         if not isinstance(choice, bool):
             raise self.error('XPTY0004', f'{func} must return xs:boolean values')
         return choice
@@ -553,10 +553,10 @@ def select_array_fold_left_right_functions(self, context=None):
 
     if self.symbol == 'fold-left':
         for item in array_.items(context):
-            result = func(context, result, item)
+            result = func(result, item, context=context)
     else:
         for item in reversed(array_.items(context)):
-            result = func(context, item, result)
+            result = func(item, result, context=context)
 
     if isinstance(result, list):
         yield from result
@@ -581,7 +581,7 @@ def evaluate_sort_function(self, context=None):
     if len(self) == 3:
         func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
         key_function = get_key_function(
-            collation, key_func=lambda x: func(context, x), token=self
+            collation, key_func=lambda x: func(x, context=context), token=self
         )
     else:
         key_function = get_key_function(collation, token=self)
@@ -613,7 +613,7 @@ def evaluate_array_sort_function(self, context=None):
     if len(self) == 3:
         func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
         key_function = get_key_function(
-            collation, key_func=lambda x: func(context, x), token=self
+            collation, key_func=lambda x: func(x, context=context), token=self
         )
     else:
         key_function = get_key_function(collation, token=self)
@@ -704,7 +704,7 @@ def evaluate_parse_json_functions(self, context=None):
             return json.dumps(value, ensure_ascii=True)[1:-1].replace('\\"', '"')
 
         return ''.join(
-            x if is_xml_codepoint(ord(x)) else fallback(context, rf'\u{ord(x):04X}')
+            x if is_xml_codepoint(ord(x)) else fallback(rf'\u{ord(x):04X}', context=context)
             for x in value
         )
 
@@ -814,7 +814,7 @@ def evaluate_random_number_generator_function(self, context=None):
         nargs = 1
         sequence_types = ('item()*', 'item()*')
 
-        def __call__(self, context_=None, *args):
+        def __call__(self, *args, **kwargs):
             if not args:
                 return []
 
@@ -855,7 +855,7 @@ def evaluate_apply_function(self, context=None):
     array_ = self.get_argument(context, index=1, required=True, cls=XPathArray)
 
     try:
-        return func(context, *array_.items(context))
+        return func(*array_.items(context), context=context)
     except ElementPathTypeError as err:
         if not err.code.endswith(('XPST0017', 'XPTY0004')):
             raise

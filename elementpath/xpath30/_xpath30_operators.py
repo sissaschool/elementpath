@@ -115,9 +115,9 @@ def evaluate_parenthesized_expression(self, context=None):
             if func.label == 'partial function' and func[0].symbol == '?' and len(func[0]):
                 if context is None:
                     raise self.missing_context()
-                return func(context, context.item, *arguments)
+                return func(context.item, *arguments, context=context)
 
-            return func(context, *arguments)
+            return func(*arguments, context=context)
 
         elif self[0].symbol == '(':
             if not isinstance(value, list):
@@ -134,7 +134,7 @@ def evaluate_parenthesized_expression(self, context=None):
             not isinstance(value, XPathFunction) or self[0].span[0] > self.span[0]:
         return value
     else:
-        return value(context)
+        return value(context=context)
 
 
 @method(infix('||', bp=32))

@@ -78,8 +78,8 @@ class InlineFunction(XPathFunction):
     varnames: Optional[List[str]] = None
     "Inline function arguments varnames."
 
-    def __call__(self, context: Optional[XPathContext] = None,
-                 *args: XPathFunctionArgType) -> Any:
+    def __call__(self, *args: XPathFunctionArgType,
+                 context: Optional[XPathContext] = None) -> Any:
 
         def get_argument(v: Any) -> Any:
             if isinstance(v, XPathToken) and not isinstance(v, XPathFunction):
@@ -1546,7 +1546,7 @@ def select_for_each_function(self, context=None):
         func = self.get_argument(context, index=1, cls=XPathFunction, required=True)
 
     for item in self[0].select(copy(context)):
-        result = func(context, item)
+        result = func(item, context=context)
         if isinstance(result, list):
             yield from result
         else:
@@ -1564,7 +1564,7 @@ def select_filter_function(self, context=None):
         raise self.error('XPTY0004', f'invalid number of arguments {func.nargs}')
 
     for item in self[0].select(copy(context)):
-        cond = func(context, item)
+        cond = func(item, context=context)
         if not isinstance(cond, bool):
             raise self.error('XPTY0004', 'a single boolean value required')
         if cond:
@@ -1585,7 +1585,7 @@ def select_fold_left_function(self, context=None):
 
     result = zero
     for item in self[0].select(copy(context)):
-        result = func(context, result, item)
+        result = func(result, item, context=context)
 
     if isinstance(result, list):
         yield from result
@@ -1609,7 +1609,7 @@ def select_fold_right_function(self, context=None):
     sequence = [x for x in self[0].select(copy(context))]
 
     for item in reversed(sequence):
-        result = func(context, item, result)
+        result = func(item, result, context=context)
 
     if isinstance(result, list):
         yield from result
@@ -1631,7 +1631,7 @@ def select_for_each_pair_function(self, context=None):
         raise self.error('XPTY0004', "function arity of 3rd argument must be 2")
 
     for item1, item2 in zip(self[0].select(copy(context)), self[1].select(copy(context))):
-        result = func(context, item1, item2)
+        result = func(item1, item2, context=context)
         if isinstance(result, list):
             yield from result
         else:

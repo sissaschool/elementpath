@@ -268,7 +268,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         result = token.evaluate(context)
         self.assertIsInstance(result, XPathMap)
         self.assertEqual(len(result), 1)
-        self.assertEqual(result(context, 'M'), 'Monday')
+        self.assertEqual(result('M', context=context), 'Monday')
 
     def test_map_merge_function(self):
         week = {0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch",
@@ -741,19 +741,19 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathMap)
 
         self.assertListEqual(list(result.keys()), ['number', 'next', 'permute'])
-        self.assertTrue(0 <= result(context, 'number') <= 1)
+        self.assertTrue(0 <= result('number', context=context) <= 1)
 
-        seq = result(context, 'permute')(context, range(10))
+        seq = result('permute', context=context)(range(10))
         _seq = tuple(seq)
         self.assertNotEqual(seq, list(range(10)))
-        self.assertNotEqual(seq, result(context, 'permute')(context, seq))
-        self.assertNotEqual(seq, result(context, 'permute')(context, range(10)))
+        self.assertNotEqual(seq, result('permute', context=context)(seq))
+        self.assertNotEqual(seq, result('permute', context=context)(range(10)))
         self.assertListEqual(seq, list(_seq))
 
         expression = 'random-number-generator(1000)'
         token = self.parser.parse(expression)
         result = token.evaluate()
-        self.assertNotEqual(seq, result(context, 'permute')(None, seq))
+        self.assertNotEqual(seq, result('permute', context=context)(seq))
 
     def test_apply_function(self):
         expression = 'fn:apply(fn:concat#3, ["a", "b", "c"])'
