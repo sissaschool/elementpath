@@ -103,7 +103,6 @@ class XPath2Parser(XPath1Parser):
         """Trace data collector"""
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
-                 variable_types: Optional[Dict[str, str]] = None,
                  strict: bool = True,
                  compatibility_mode: bool = False,
                  default_collation: Optional[str] = None,
@@ -112,6 +111,7 @@ class XPath2Parser(XPath1Parser):
                  xsd_version: Optional[str] = None,
                  schema: Optional[AbstractSchemaProxy] = None,
                  base_uri: Optional[str] = None,
+                 variable_types: Optional[Dict[str, str]] = None,
                  document_types: Optional[Dict[str, str]] = None,
                  collection_types: Optional[Dict[str, str]] = None,
                  default_collection_type: str = 'node()*') -> None:
@@ -174,6 +174,32 @@ class XPath2Parser(XPath1Parser):
             raise ElementPathValueError('invalid sequence type for '
                                         'default_collection_type argument')
         self.default_collection_type = default_collection_type
+
+    def __repr__(self) -> str:
+        args = []
+        if self.compatibility_mode:
+            args.append('compatibility_mode=True')
+        if self.default_collation != UNICODE_CODEPOINT_COLLATION:
+            args.append(f'default_collation={self.default_collation!r}')
+        if self.function_namespace != XPATH_FUNCTIONS_NAMESPACE:
+            args.append(f'function_namespace={self.function_namespace!r}')
+        if self._xsd_version != '1.0':
+            args.append(f'xsd_version={self._xsd_version!r}')
+        if self.schema is not None:
+            args.append(f'schema={self.schema!r}')
+        if self.base_uri is not None:
+            args.append(f'base_uri={self.base_uri!r}')
+        if self.variable_types:
+            args.append(f'variable_types={self.variable_types!r}')
+        if self.document_types:
+            args.append(f'document_types={self.document_types!r}')
+        if self.collection_types:
+            args.append(f'collection_types={self.collection_types!r}')
+        if self.default_collection_type != 'node()*':
+            args.append(f'default_collection_type={self.default_collection_type!r}')
+        if not args:
+            return super().__repr__()
+        return super().__repr__()[:-1] + f", {', '.join(args)})"
 
     def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()

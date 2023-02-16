@@ -74,18 +74,27 @@ class XPath1Parser(Parser[XPathToken]):
     namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
     """
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None, strict: bool = True,
-                 *args: Any, **kwargs: Any) -> None:
+    def __init__(self, namespaces: Optional[NamespacesType] = None,
+                 strict: bool = True) -> None:
         super(XPath1Parser, self).__init__()
         self.namespaces: Dict[str, str] = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
         self.strict: bool = strict
 
+    def __repr__(self) -> str:
+        args = []
+        if self.namespaces != self.DEFAULT_NAMESPACES:
+            args.append(str(self.other_namespaces))
+        if not self.strict:
+            args.append('strict=False')
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
     @property
     def other_namespaces(self) -> Dict[str, str]:
         """The subset of namespaces not known by default."""
-        return {k: v for k, v in self.namespaces.items() if k not in self.DEFAULT_NAMESPACES}
+        return {k: v for k, v in self.namespaces.items()
+                if k not in self.DEFAULT_NAMESPACES or self.DEFAULT_NAMESPACES[k] != v}
 
     @property
     def xsd_version(self) -> str:

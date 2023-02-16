@@ -78,8 +78,8 @@ def _symbol_to_classname(symbol: str) -> str:
 
 class MultiLabel:
     """
-    Helper class for defining multi-value label for tokens. Useful when a symbol has more roles.
-    A label of this type has equivalence with each of its values.
+    Helper class for defining multi-value label for tokens. Useful when a symbol
+    has more roles. A label of this type has equivalence with each of its values.
 
     Example:
         label = MultiLabel('function', 'operator')
@@ -202,11 +202,9 @@ class Token(MutableSequence[TK]):
             return '%r %s' % (self.symbol, str(self.label))
 
     def __repr__(self) -> str:
-        symbol, value = self.symbol, self.value
-        if value != symbol:
-            return '%s(value=%r)' % (self.__class__.__name__, value)
-        else:
-            return '%s()' % self.__class__.__name__
+        if self.value == self.symbol:
+            return '%s(%r)' % (self.__class__.__name__, self.parser)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self.value)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Token):
@@ -470,6 +468,9 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         self.next_match = None
         self._start_token = self.symbol_table['(start)'](self)
         self.token = self.next_token = self._start_token
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}()'
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Parser) and \

@@ -106,7 +106,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
                      'Fr': 'Friday',
                      'Sa': 'Saturday'}
 
+        self.assertEqual(token.symbol, 'map')
+        self.assertEqual(token.label, 'map')
+        self.assertEqual(token.source, f'map{map_value!r}'.replace(': ', ':'))
+        self.assertEqual(repr(token), f'XPathMap({self.parser!r}, None)')
+        self.assertEqual(str(token), 'not evaluated map constructor with 7 entries')
+
         self.assertDictEqual(token.evaluate()._map, map_value)
+        self.assertEqual(repr(token.evaluate()), f'XPathMap({self.parser!r}, {map_value!r})')
+        self.assertEqual(str(token.evaluate()), f'map{map_value!r}')
 
         token = self.parser.parse(f"{MAP_WEEKDAYS}('Mo')")
         self.assertEqual(token.evaluate(), 'Monday')
@@ -173,9 +181,29 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         token = self.parser.parse('array { 1, 2, 5, 7 }')
         self.assertIsInstance(token, XPathArray)
 
+        self.assertEqual(token.symbol, 'array')
+        self.assertEqual(token.label, 'array')
+        self.assertEqual(token.source, 'array{1, 2, 5, 7}')
+        self.assertEqual(repr(token), f'XPathArray({self.parser!r}, None)')
+        self.assertEqual(str(token), 'not evaluated curly array constructor with 4 items')
+
+        array = token.evaluate()
+        self.assertEqual(repr(array), f'XPathArray({self.parser!r}, [1, 2, 5, 7])')
+        self.assertEqual(str(array), '[1, 2, 5, 7]')
+
     def test_square_array_constructor(self):
         token = self.parser.parse('[ 1, 2, 5, 7 ]')
         self.assertIsInstance(token, XPathArray)
+
+        self.assertEqual(token.symbol, '[')
+        self.assertEqual(token.label, 'array')
+        self.assertEqual(token.source, '[1, 2, 5, 7]')
+        self.assertEqual(repr(token), f'XPathArray({self.parser!r}, None)')
+        self.assertEqual(str(token), 'not evaluated square array constructor with 4 items')
+
+        array = token.evaluate()
+        self.assertEqual(repr(array), f'XPathArray({self.parser!r}, [1, 2, 5, 7])')
+        self.assertEqual(str(array), '[1, 2, 5, 7]')
 
     def test_array_lookup(self):
         token = self.parser.parse('array { 1, 2, 5, 7 }(4)')

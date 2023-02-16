@@ -112,15 +112,10 @@ class XPathToken(Token[XPathTokenType]):
             yield item
 
     def __str__(self) -> str:
-        symbol, label = self.symbol, self.label
-        if symbol == '$':
+        if self.symbol == '$':
             return '$%s variable reference' % (self[0].value if self._items else '')
-        elif symbol == ',':
+        elif self.symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
-        elif symbol == 'function':
-            return str(label)
-        elif label.endswith('function') or label in ('axis', 'sequence type', 'kind test'):
-            return '%r %s' % (symbol, str(label))
         return super(XPathToken, self).__str__()
 
     @property
@@ -1107,6 +1102,9 @@ class XPathAxis(XPathToken):
     label = 'axis'
     reverse_axis: bool = False
 
+    def __str__(self) -> str:
+        return f'{self.symbol!r} axis'
+
     def nud(self) -> 'XPathAxis':
         self.parser.advance('::')
         self.parser.expected_next(
@@ -1195,6 +1193,14 @@ class XPathFunction(XPathToken):
                 raise self.error('XPST0017', 'incongruent number of arguments')
             else:
                 self.nargs = nargs
+
+    def __repr__(self) -> str:
+        if self.nargs == self.__class__.nargs:
+            return '%s(%r)' % (self.__class__.__name__, self.parser)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self.nargs)
+
+    def __str__(self) -> str:
+        return '%r %s' % (self.symbol, self.label)
 
     def __call__(self, *args: XPathFunctionArgType,
                  context: Optional[XPathContext] = None) -> Any:
@@ -1533,10 +1539,12 @@ class XPathMap(XPathFunction):
             self._map = _map
 
     def __repr__(self) -> str:
-        return '%s(%r)' % (self.__class__.__name__, self._map)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self._map)
 
     def __str__(self) -> str:
-        return self.label
+        if self._map is None:
+            return f'not evaluated map constructor with {len(self._items)} entries'
+        return f'map{self._map}'
 
     def __len__(self) -> int:
         if self._map is None:
@@ -1696,10 +1704,14 @@ class XPathArray(XPathFunction):
         super().__init__(parser)
 
     def __repr__(self) -> str:
-        return '%s(%r)' % (self.__class__.__name__, self._array)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self._array)
 
     def __str__(self) -> str:
-        return self.label
+        if self._array is not None:
+            return str(self._array)
+        elif self.symbol == 'array':
+            return f'not evaluated curly array constructor with {len(self._items)} items'
+        return f'not evaluated square array constructor with {len(self._items)} items'
 
     def __len__(self) -> int:
         if self._array is None:

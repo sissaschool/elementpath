@@ -78,6 +78,9 @@ class InlineFunction(XPathFunction):
     varnames: Optional[List[str]] = None
     "Inline function arguments varnames."
 
+    def __str__(self) -> str:
+        return str(self.label)
+
     def __call__(self, *args: XPathFunctionArgType,
                  context: Optional[XPathContext] = None) -> Any:
 
