@@ -127,11 +127,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.evaluate(context), ['Monday'])
 
     def test_nested_map(self):
-        token = self.parser.parse(MAP_WEEKDAYS)
-        self.assertIsInstance(token, XPathMap)
-
         token = self.parser.parse(f'{NESTED_MAP}("book")("title")')
         self.assertEqual(token.evaluate(), 'Data on the Web')
+
+        self.assertEqual(token.symbol, '(')
+        self.assertEqual(token.label, 'expression')
+        self.assertTrue(token.source.startswith("map{'book':map{'title':'Data on the Web', "))
+        self.assertTrue(token.source.endswith(", 'price':39.95}}('book')('title')"))
+        self.assertEqual(repr(token), f'_LeftParenthesisExpression({self.parser!r})')
+        self.assertEqual(str(token), "function call expression")
 
         token = self.parser.parse(f'{NESTED_MAP}("book")("author")')
         self.assertIsInstance(token.evaluate(), XPathArray)

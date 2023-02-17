@@ -116,6 +116,11 @@ class XPathToken(Token[XPathTokenType]):
             return '$%s variable reference' % (self[0].value if self._items else '')
         elif self.symbol == ',':
             return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
+        elif self.symbol == '(':
+            if not self or self[0].span[0] >= self.span[0]:
+                return 'parenthesized expression'
+            else:
+                return 'function call expression'
         return super(XPathToken, self).__str__()
 
     @property
@@ -137,7 +142,14 @@ class XPathToken(Token[XPathTokenType]):
             else:
                 return f'{self[0].source}{symbol}{self[1].source}'
         elif symbol == '(':
-            return '()' if not self else '(%s)' % self[0].source
+            if not self:
+                return '()'
+            elif len(self) == 2:
+                return f'{self[0].source}({self[1].source})'
+            elif self[0].span[0] < self.span[0]:
+                return f'{self[0].source}()'
+            else:
+                return f'({self[0].source})'
         elif symbol == '[':
             return '%s[%s]' % (self[0].source, self[1].source)
         elif symbol == ',':

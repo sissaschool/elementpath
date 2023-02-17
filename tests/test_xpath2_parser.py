@@ -938,7 +938,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value("() instance of empty-sequence()", True)
 
         self.wrong_syntax("5 instance of unknown()",
-                          'XPST0003', "unexpected '(' expression")
+                          'XPST0003', "unexpected parenthesized expression")
         self.wrong_syntax("5 instance of unknown::node()",
                           'XPST0003', "unexpected '::' symbol")
         self.wrong_syntax("1e3 instance of empty-sequence()(", 'XPST0003')
