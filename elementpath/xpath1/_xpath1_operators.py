@@ -127,8 +127,9 @@ def select_name_literal(self, context=None):
 
 
 ###
-# Namespace prefix reference
-class NamespacePrefixToken(XPathToken):
+# Prefixed reference (name or function)
+
+class _PrefixedReferenceToken(XPathToken):
 
     symbol = lookup_name = ':'
     lbp = 95
@@ -142,6 +143,23 @@ class NamespacePrefixToken(XPathToken):
             self.lbp = self.rbp = 0
         elif self.parser.token.symbol not in ('*', '(name)', 'array'):
             self.lbp = self.rbp = 0
+
+    def __str__(self):
+        if len(self) < 2:
+            return 'unparsed prefixed reference'
+        elif self[1].label.endswith('function'):
+            return f"{self.value!r} {self[1].label}"
+        elif '*' in self.value:
+            return f"{self.value!r} prefixed wildcard"
+        else:
+            return f"{self.value!r} prefixed name"
+
+    @property
+    def source(self) -> str:
+        if self.occurrence:
+            return ':'.join(tk.source for tk in self) + self.occurrence
+        else:
+            return ':'.join(tk.source for tk in self)
 
     def led(self, left):
         version = self.parser.version
@@ -174,7 +192,10 @@ class NamespacePrefixToken(XPathToken):
             raise self.wrong_syntax()
 
         self[:] = left, self.parser.expression(95)
-        self.value = '{}:{}'.format(self[0].value, self[1].value)
+        if self[1].label.endswith('function'):
+            self.value = f'{self[0].value}:{self[1].symbol}'
+        else:
+            self.value = f'{self[0].value}:{self[1].value}'
         return self
 
     def evaluate(self, context=None):
@@ -234,7 +255,7 @@ class NamespacePrefixToken(XPathToken):
                         yield context.item
 
 
-XPath1Parser.symbol_table[':'] = NamespacePrefixToken
+XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
 
 
 ###

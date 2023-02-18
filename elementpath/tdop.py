@@ -687,10 +687,14 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                 if isinstance(label, tuple):
                     label = kwargs['label'] = MultiLabel(*label)
 
-                token_class_name = "_{}{}".format(
-                    _symbol_to_classname(symbol),
-                    str(label).title().replace(' ', '')
-                )
+                if 'class_name' in kwargs:
+                    token_class_name = kwargs.pop('class_name')
+                else:
+                    token_class_name = "_{}{}".format(
+                        _symbol_to_classname(symbol),
+                        str(label).title().replace(' ', '')
+                    )
+
                 token_class_bases = kwargs.get('bases', (cls.token_base_class,))
                 kwargs.update({
                     '__module__': cls.__module__,

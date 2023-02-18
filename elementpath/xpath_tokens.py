@@ -129,11 +129,6 @@ class XPathToken(Token[XPathTokenType]):
         if self.label == 'axis':
             # For XPath 2.0 'attribute' multirole token ('kind test', 'axis')
             return '%s::%s' % (symbol, self[0].source)
-        elif symbol == ':':
-            if self.occurrence:
-                return str(self.value) + self.occurrence
-            else:
-                return str(self.value)
         elif symbol == '/' or symbol == '//':
             if not self:
                 return symbol
