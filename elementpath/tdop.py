@@ -242,7 +242,7 @@ class Token(MutableSequence[TK]):
         elif symbol == '(decimal)':
             return str(self.value)
         elif symbol in SPECIAL_SYMBOLS:
-            return repr(self.value)
+            return repr(self.value).replace(r'\\', '\\')
         else:
             length = len(self)
             if not length:

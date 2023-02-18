@@ -246,6 +246,8 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('map:contains(map{1:"yes", 2:"no"}, 1)', True)
         self.check_value('map:contains(map{"xyz":23}, "xyz")', True)
         self.check_value('map:contains(map{"abc":23, "xyz":()}, "xyz")', True)
+        self.check_source('map:contains(map{"xyz":23}, "xyz")',
+                          "map:contains(map{'xyz':23}, 'xyz')")
 
         context = XPathContext(self.etree.XML('<empty/>'))
 
@@ -261,6 +263,16 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = f"let $x := {MAP_WEEKDAYS} return map:get($x, 'Mo')"
         self.check_value(expression, ['Monday'], context=context)
 
+        # Tht source property returns a compacted normalized form
+        expected = expression.\
+            replace('\n', '').\
+            replace('\r', '').\
+            replace('  ', ' ').\
+            replace('"', "'").\
+            replace('map {', 'map{').\
+            replace('{ ', '{').replace(' : ', ':')
+        self.check_source(expression, expected)
+
         expression = f"let $x := {MAP_WEEKDAYS} return map:get($x, 'Mon')"
         self.check_value(expression, [], context=context)
 
@@ -272,6 +284,13 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             4: "Donnerstag", 5: "Freitag", 6: "Sonnabend"
         })
         self.check_value(expression, [result], context=context)
+
+        expected = expression.\
+            replace('\n', '').\
+            replace('\r', '').\
+            replace('"', "'").\
+            replace('     ', ' ')
+        self.check_source(expression, expected)
 
     def test_map_remove_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
@@ -296,6 +315,13 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         })
         self.check_value(expression, [result], context=context)
 
+        expected = expression.\
+            replace('\n', '').\
+            replace('\r', '').\
+            replace('"', "'").\
+            replace('     ', ' ')
+        self.check_source(expression, expected)
+
         expression = f'let $week := {MAP_WEEKDAYS_DE} return map:remove($week, 4)'
         result = XPathMap(self.parser, items={
             0: "Sonntag", 1: "Montag", 2: "Dienstag",
@@ -310,6 +336,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'map:entry("M", "Monday")'
         result = XPathMap(self.parser, items={'M': 'Monday'})
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression.replace('"', "'"))
 
         # e.g.: Alternative low level token-based check
         token = self.parser.parse('map:entry("M", "Monday")')
@@ -333,6 +360,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'map:merge((map:entry(0, "no"), map:entry(1, "yes")))'
         result = XPathMap(self.parser, items={0: 'no', 1: 'yes'})
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'map:merge(($week, map{7:"Unbekannt"}))'
         result = XPathMap(self.parser, items={
@@ -340,6 +368,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             4: "Donnerstag", 5: "Freitag", 6: "Samstag", 7: "Unbekannt"
         })
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"use-last"})'
         result = XPathMap(self.parser, items={
@@ -347,6 +376,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             4: "Donnerstag", 5: "Freitag", 6: "Sonnabend"
         })
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"use-first"}) '
         result = XPathMap(self.parser, items={
@@ -354,6 +384,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             4: "Donnerstag", 5: "Freitag", 6: "Samstag"
         })
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression.strip().replace('"', "'"))
 
         expression = 'map:merge(($week, map{6:"Sonnabend"}), map{"duplicates":"combine"})'
         result = XPathMap(self.parser, items={
@@ -383,6 +414,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'map:find($responses, 2)'
         result = XPathArray(self.parser, items=[])
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression)
 
         array1 = XPathArray(self.parser, items=[])
         map1 = XPathMap(self.parser, {"name": "engine", "id": "YW678", "parts": array1})
@@ -397,6 +429,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'map:find($inventory, "parts")'
         result = XPathArray(self.parser, items=[array2, array1])
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'let $inventory := map{"name":"car", "id":"QZ123", ' \
                      '"parts": [map{"name":"engine", "id":"YW678", "parts":[]}]} ' \
@@ -411,8 +444,9 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value(expression, [1, 2], context=context)
 
         expression = 'distinct-values(map:for-each(map{1:"yes", 2:"no"}, ' \
-                     'function($k, $v){$v}))'
+                     'function($k, $v) {$v}))'
         self.check_value(expression, ['yes', 'no'], context=context)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'map:merge(map:for-each(map{"a":1, "b":2}, ' \
                      'function($k, $v){map:entry($k, $v+1)}))'
@@ -424,9 +458,13 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('array:size(["a", ["b", "c"]])', 2)
         self.check_value('array:size([ ])', 0)
         self.check_value('array:size([[ ]])', 1)
+        self.check_source('array:size(["a", ["b", "c"]])',
+                          "array:size(['a', ['b', 'c']])")
 
     def test_array_get_function(self):
-        self.check_value('array:get(["a", "b", "c"], 2)', 'b')
+        expression = 'array:get(["a", "b", "c"], 2)'
+        self.check_value(expression, 'b')
+        self.check_source(expression, expression.replace('"', "'"))
 
         token = self.parser.parse('array:get(["a", ["b", "c"]], 2)')
         result = token.evaluate()
@@ -434,10 +472,12 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(result._array, ['b', 'c'])
 
     def test_array_put_function(self):
-        token = self.parser.parse(' array:put(["a", "b", "c"], 2, "d")')
+        expression = ' array:put(["a", "b", "c"], 2, "d")'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ['a', 'd', 'c'])
+        self.check_source(expression, expression.lstrip().replace('"', "'"))
 
         token = self.parser.parse('array:put(["a", "b", "c"], 2, ("d", "e"))')
         result = token.evaluate()
@@ -451,10 +491,12 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(result.items()[0].items(), ['d', 'e'])
 
     def test_array_insert_before_function(self):
-        token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 3, ("x", "y"))')
+        expression = 'array:insert-before(["a", "b", "c", "d"], 3, ("x", "y"))'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ['a', 'b', ['x', 'y'], 'c', 'd'])
+        self.check_source(expression, expression.replace('"', "'"))
 
         token = self.parser.parse('array:insert-before(["a", "b", "c", "d"], 5, ("x", "y"))')
         result = token.evaluate()
@@ -474,10 +516,12 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ['a', 'b', 'c', 'd'])
 
-        token = self.parser.parse('array:append(["a", "b", "c"], ("d", "e"))')
+        expression = 'array:append(["a", "b", "c"], ("d", "e"))'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ['a', 'b', 'c', ['d', 'e']])
+        self.check_source(expression, expression.replace('"', "'"))
 
         token = self.parser.parse('array:append(["a", "b", "c"], ["d", "e"])')
         result = token.evaluate()
@@ -512,30 +556,38 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ['b', 'c'])
 
-        token = self.parser.parse('array:subarray(["a", "b", "c", "d"], 5, 0)')
+        expression = 'array:subarray(["a", "b", "c", "d"], 5, 0)'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [])
+        self.check_source(expression, expression.replace('"', "'"))
 
-        token = self.parser.parse('array:subarray([ ], 1, 0)')
+        expression = 'array:subarray([ ], 1, 0)'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [])
+        self.check_source(expression, expression.replace('[ ]', '[]'))
 
     def test_array_head_function(self):
         self.check_value('array:head([5, 6, 7, 8])', 5)
         self.check_value('array:head([("a", "b"), ("c", "d")])', ['a', 'b'])
 
-        token = self.parser.parse('array:head([["a", "b"], ["c", "d"]])')
+        expression = 'array:head([["a", "b"], ["c", "d"]])'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ['a', 'b'])
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_array_tail_function(self):
-        token = self.parser.parse('array:tail([5, 6, 7, 8])')
+        expression = 'array:tail([5, 6, 7, 8])'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [6, 7, 8])
+        self.check_source(expression, expression)
 
         token = self.parser.parse('array:tail([5])')
         result = token.evaluate()
@@ -548,15 +600,19 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["d", "c", "b", "a"])
 
-        token = self.parser.parse('array:reverse([("a", "b"), ("c", "d")])')
+        expression = 'array:reverse([("a", "b"), ("c", "d")])'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [["c", "d"], ["a", "b"]])
+        self.check_source(expression, expression.replace('"', "'"))
 
-        token = self.parser.parse('array:reverse([(1 to 5)])')
+        expression = 'array:reverse([(1 to 5)])'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [[1, 2, 3, 4, 5]])
+        self.check_source(expression, expression)
 
         token = self.parser.parse('array:reverse([])')
         result = token.evaluate()
@@ -579,10 +635,12 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [])
 
-        token = self.parser.parse('array:remove(["a", "b", "c", "d"], 1 to 3)')
+        expression = 'array:remove(["a", "b", "c", "d"], 1 to 3)'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["d"])
+        self.check_source(expression, expression.replace('"', "'"))
 
         token = self.parser.parse('array:remove(["a", "b", "c", "d"], ())')
         result = token.evaluate()
@@ -612,25 +670,31 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["a", "b", "c", "d"])
 
-        token = self.parser.parse('array:join((["a", "b"], ["c", "d"], [["e", "f"]]))')
+        expression = 'array:join((["a", "b"], ["c", "d"], [["e", "f"]]))'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(
             result.items(), ["a", "b", "c", "d", XPathArray(self.parser, ['e', 'f'])]
         )
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_array_flatten_function(self):
         token = self.parser.parse('array:flatten([1, 4, 6, 5, 3])')
         result = token.evaluate()
         self.assertListEqual(result, [1, 4, 6, 5, 3])
 
-        token = self.parser.parse('array:flatten(([1, 2, 5], [[10, 11], 12], [], 13))')
+        expression = 'array:flatten(([1, 2, 5], [[10, 11], 12], [], 13))'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertListEqual(result, [1, 2, 5, 10, 11, 12, 13])
+        self.check_source(expression, expression)
 
-        token = self.parser.parse('array:flatten([(1,0), (1,1), (0,1), (0,0)])')
+        expression = 'array:flatten([(1, 0), (1, 1), (0, 1), (0, 0)])'
+        token = self.parser.parse(expression)
         result = token.evaluate()
         self.assertListEqual(result, [1, 0, 1, 1, 0, 1, 0, 0])
+        self.check_source(expression, expression)
 
     def test_array_for_each_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
@@ -646,6 +710,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         result = token.evaluate(context)
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), [["the", "cat"], "sat", ["on", "the", "mat"]])
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_array_for_each_pair_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
@@ -660,12 +725,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             XPathArray(self.parser, ['B', 2]),
             XPathArray(self.parser, ['C', 3])
         ])
+        expected = expression.replace('"', "'").replace('{ array ', '{array')
+        self.check_source(expression, expected)
 
         expression = 'let $A := ["A", "B", "C", "D"] ' \
                      'return array:for-each-pair($A, array:tail($A), concat#2)'
         token = self.parser.parse(expression)
         result = token.evaluate(context)
         self.assertListEqual(result, [XPathArray(self.parser, ['AB', 'BC', 'CD'])])
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_array_filter_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
@@ -677,17 +745,19 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(result.items(), [1, 2])
 
         expression = 'array:filter(["the cat", "sat", "on the mat"], ' \
-                     'function($s){fn:count(fn:tokenize($s)) gt 1})'
+                     'function($s) {fn:count(fn:tokenize($s)) gt 1})'
         token = self.parser.parse(expression)
         result = token.evaluate(context)
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["the cat", "on the mat"])
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'array:filter(["A", "B", "", 0, 1], boolean#1)'
         token = self.parser.parse(expression)
         result = token.evaluate(context)
         self.assertIsInstance(result, XPathArray)
         self.assertListEqual(result.items(), ["A", "B", 1])
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_array_fold_left_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
@@ -700,12 +770,13 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
                      'function($x, $y){$x or $y})'
         self.check_value(expression, [True], context=context)
 
-        expression = 'array:fold-left([1,2,3], [], function($x, $y){[$x, $y]})'
+        expression = 'array:fold-left([1, 2, 3], [], function($x, $y){[$x, $y]})'
         ar1 = XPathArray(self.parser, [])
         ar2 = XPathArray(self.parser, items=[ar1, 1])
         ar3 = XPathArray(self.parser, items=[ar2, 2])
         ar4 = XPathArray(self.parser, items=[ar3, 3])
         self.check_value(expression, [ar4], context=context)
+        self.check_source(expression, expression.replace('){', ') {'))
 
     def test_array_fold_right_function(self):
         context = XPathContext(self.etree.XML('<empty/>'))
@@ -724,6 +795,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         ar3 = XPathArray(self.parser, items=[2, ar2])
         ar4 = XPathArray(self.parser, items=[1, ar3])
         self.check_value(expression, [ar4], context=context)
+        self.check_source(expression, expression.replace('){', ') {').replace('2,', ' 2, '))
 
     def test_array_sort_function(self):
         expression = 'array:sort([1, 4, 6, 5, 3])'
@@ -731,6 +803,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = 'array:sort([1, -2, 5, 10, -10, 10, 8], (), fn:abs#1)'
         self.check_value(expression, XPathArray(self.parser, [1, -2, 5, 8, 10, -10, 10]))
+        self.check_source(expression, expression)
 
         expression = 'array:sort([(1,0), (1,1), (0,1), (0,0)])'
         self.check_value(expression, XPathArray(self.parser, [[0, 0], [0, 1], [1, 0], [1, 1]]))
@@ -741,6 +814,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = 'fn:sort((1, -2, 5, 10, -10, 10, 8), (), fn:abs#1)'
         self.check_value(expression, [1, -2, 5, 8, 10, -10, 10])
+        self.check_source(expression, expression)
 
     def test_parse_json_function(self):
         expression = 'parse-json(\'{"x":1, "y":[3,4,5]}\')'
@@ -753,6 +827,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'parse-json(\'{"x":"\\\\", "y":"\\u0025"}\')'
         result = XPathMap(self.parser, {"x": "\\", "y": "%"})
         self.check_value(expression, result)
+        self.check_source(expression, expression)
 
         expression = 'parse-json(\'{"x":"\\\\", "y":"\\u0025"}\', map{\'escape\':true()})'
         result = XPathMap(self.parser, {"x": "\\\\", "y": "%"})
@@ -785,6 +860,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = 'random-number-generator()'
         token = self.parser.parse(expression)
+        self.assertEqual(token.source, expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathMap)
 
@@ -800,12 +876,14 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = 'random-number-generator(1000)'
         token = self.parser.parse(expression)
+        self.assertEqual(token.source, expression)
         result = token.evaluate()
         self.assertNotEqual(seq, result('permute', context=context)(seq))
 
     def test_apply_function(self):
         expression = 'fn:apply(fn:concat#3, ["a", "b", "c"])'
         self.check_value(expression, 'abc')
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'fn:apply(fn:concat#3, ["a", "b", "c", "d"])'
         self.wrong_type(expression, 'FOAP0001')
@@ -813,27 +891,33 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = 'fn:apply(fn:concat#4, array:subarray(["a", "b", "c", "d", "e", "f"], ' \
                      '1, fn:function-arity(fn:concat#4)))'
         self.check_value(expression, 'abcd')
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_parse_ietf_date_function(self):
         expression = 'fn:parse-ietf-date("Wed, 06 Jun 1994 07:29:35 GMT")'
         result = DateTime.fromstring('1994-06-06T07:29:35Z')
         self.check_value(expression, result)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'fn:parse-ietf-date("Wed, 6 Jun 94 07:29:35 GMT")'
         result = DateTime.fromstring('1994-06-06T07:29:35Z')
         self.check_value(expression, result)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'fn:parse-ietf-date("Wed Jun 06 11:54:45 EST 2013")'
         result = DateTime.fromstring('2013-06-06T11:54:45-05:00')
         self.check_value(expression, result)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'fn:parse-ietf-date("Sunday, 06-Nov-94 08:49:37 GMT")'
         result = DateTime.fromstring('1994-11-06T08:49:37Z')
         self.check_value(expression, result)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'fn:parse-ietf-date("Wed, 6 Jun 94 07:29:35 +0500")'
         result = DateTime.fromstring('1994-06-06T07:29:35+05:00')
         self.check_value(expression, result)
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_contains_token_function(self):
         expression = 'fn:contains-token("red green blue ", "red")'
@@ -841,6 +925,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         expression = 'fn:contains-token(("red", "green", "blue"), " red ")'
         self.check_value(expression, True)
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = 'fn:contains-token("red, green, blue", "red")'
         self.check_value(expression, False)
@@ -849,20 +934,25 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             'fn:contains-token("red green blue", "RED", ' \
             '"http://www.w3.org/2005/xpath-functions/collation/html-ascii-case-insensitive")'
         self.check_value(expression, True)
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_collation_key_function(self):
-        self.check_value('fn:collation-key("foo")', Base64Binary(b'Zm9v'))
+        expression = 'fn:collation-key("foo")'
+        self.check_value(expression, Base64Binary(b'Zm9v'))
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_lookup_unary_operator(self):
         context = XPathContext(self.etree.XML('<empty/>'))
 
-        expression = '([1,2,3], [1,2,5], [1,2,6])[?3 = 5]'
+        expression = '([1, 2, 3], [1, 2, 5], [1, 2, 6])[?3 = 5]'
         result = [XPathArray(self.parser, [1, 2, 5])]
         self.check_value(expression, result, context=context)
+        self.check_source(expression, expression)
 
     def test_lookup_postfix_operator(self):
         expression = '[1, 2, 5, 7]?*'
         self.check_value(expression, [1, 2, 5, 7])
+        self.check_source(expression, expression)
 
         expression = '[[1, 2, 3], [4, 5, 6]]?*'
         result = [
@@ -870,6 +960,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             XPathArray(self.parser, [4, 5, 6])
         ]
         self.check_value(expression, result)
+        self.check_source(expression, expression)
 
         expression = 'map { "first" : "Jenna", "last" : "Scott" }?first'
         self.check_value(expression, ['Jenna'])
@@ -879,9 +970,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = '(map {"first": "Tom"}, map {"first": "Dick"}, ' \
                      'map {"first": "Harry"})?first'
         self.check_value(expression, ['Tom', 'Dick', 'Harry'])
+        expected = expression.\
+            replace('"', "'").\
+            replace('map ', 'map').\
+            replace(': ', ':')
+        self.check_source(expression, expected)
 
         expression = '([1,2,3], [4,5,6])?2'
         self.check_value(expression, [2, 5])
+        self.check_source(expression, '([1, 2, 3], [4, 5, 6])?2')
 
         self.wrong_value('["a","b"]?3', 'FOAY0001')
 
@@ -901,6 +998,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
     def test_arrow_operator(self):
         expression = '"foo" => $f("bar")'
         self.check_tree(expression, "(=> ('foo') ($ (f)) ('bar'))")
+        self.check_source(expression, expression.replace('"', "'"))
 
         expression = '"foo" => $f()'
         self.check_tree(expression, "(=> ('foo') ($ (f)) ())")
@@ -908,15 +1006,18 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         expression = '"foo" => upper-case()'
         # self.check_tree(expression, "(=> ('foo') (upper-case) ())")
         self.check_value(expression, 'FOO')
+        self.check_source(expression, expression.replace('"', "'"))
 
     def test_xml_to_json_function(self):
         root = self.etree.XML('<array xmlns="http://www.w3.org/2005/xpath-functions">'
                               '<number>1</number><string>is</string><boolean>1</boolean>'
                               '</array>')
 
+        expression = 'fn:xml-to-json(.)'
         context = XPathContext(root)
         result = '[1,"is",true]'
-        self.check_value('fn:xml-to-json(.)', result, context=context)
+        self.check_value(expression, result, context=context)
+        self.check_source(expression, expression)
 
         root = self.etree.XML('<map xmlns="http://www.w3.org/2005/xpath-functions">'
                               '<number key="Sunday">1</number><number key="Monday">2</number>'
@@ -924,7 +1025,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 
         context = XPathContext(root)
         result = '{"Sunday":1,"Monday":2}'
-        self.check_value('fn:xml-to-json(.)', result, context=context)
+        self.check_value(expression, result, context=context)
 
     def test_json_to_xml_function(self):
         context = XPathContext(root=self.etree.XML('<empty/>'))
@@ -938,7 +1039,10 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
               </array>
             </map>"""))
 
-        token = self.parser.parse('json-to-xml(\'{"x": 1, "y": [3,4,5]}\')')
+        expression = 'json-to-xml(\'{"x": 1, "y": [3,4,5]}\')'
+        token = self.parser.parse(expression)
+        self.check_source(expression, expression)
+
         result = token.evaluate(context)
         self.assertIsInstance(result, DocumentNode)
         self.assertTrue(etree_deep_equal(result.value.getroot(), root))
@@ -957,7 +1061,10 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
               <string key="y">%</string>
             </map>"""))
 
-        token = self.parser.parse('json-to-xml(\'{"x": "\\\\", "y": "\\u0025"}\')')
+        expression = 'json-to-xml(\'{"x": "\\\\", "y": "\\u0025"}\')'
+        token = self.parser.parse(expression)
+        self.check_source(expression, expression)
+
         result = token.evaluate(context)
         self.assertIsInstance(result, DocumentNode)
         self.assertTrue(etree_deep_equal(result.value.getroot(), root))
@@ -968,8 +1075,11 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
               <string key="y">%</string>
             </map>"""))
 
-        token = self.parser.parse('json-to-xml(\'{"x": "\\\\", "y": "\\u0025"}\', '
-                                  'map{\'escape\': true()})')
+        expression = 'json-to-xml(\'{"x": "\\\\", "y": "\\u0025"}\', ' \
+                     'map{\'escape\':true()})'
+        token = self.parser.parse(expression)
+        self.check_source(expression, expression)
+
         result = token.evaluate(context)
         self.assertIsInstance(result, DocumentNode)
         self.assertTrue(etree_deep_equal(result.value.getroot(), root))

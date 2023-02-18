@@ -81,6 +81,21 @@ class InlineFunction(XPathFunction):
     def __str__(self) -> str:
         return str(self.label)
 
+    @property
+    def source(self) -> str:
+        if self.label == 'function test':
+            if len(self.sequence_types) == 1 and self.sequence_types[0] == '*':
+                return 'function(*)'
+            else:
+                return 'function(%s) as %s' % (
+                    ', '.join(self.sequence_types[:-1]), self.sequence_types[-1]
+                )
+        return '%s(%s) {%s}' % (
+            self.symbol,
+            ', '.join(item.source for item in self),
+            getattr(self.body, 'source', '')
+        )
+
     def __call__(self, *args: XPathFunctionArgType,
                  context: Optional[XPathContext] = None) -> Any:
 

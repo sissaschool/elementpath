@@ -125,6 +125,15 @@ class LookupOperatorToken(XPathToken):
             # in a list of function arguments.
             self.lbp = self.rbp = 0
 
+    @property
+    def source(self) -> str:
+        if not self:
+            return '?'
+        elif len(self) == 1:
+            return f'?{self[0].source}'
+        else:
+            return f'{self[0].source}?{self[1].source}'
+
     def nud(self):
         try:
             self.parser.expected_next('(name)', '(integer)', '(', '*')

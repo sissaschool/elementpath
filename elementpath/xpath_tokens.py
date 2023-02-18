@@ -151,8 +151,14 @@ class XPathToken(Token[XPathTokenType]):
             return '%s, %s' % (self[0].source, self[1].source)
         elif symbol == '$' or symbol == '@':
             return f'{symbol}{self[0].source}'
+        elif symbol == '#':
+            return '%s#%s' % (self[0].source, self[1].source)
         elif symbol == '{' or symbol == 'Q{':
             return '{%s}%s' % (self[0].value, self[1].value)
+        elif symbol == '=>':
+            if isinstance(self[1], XPathFunction):
+                return '%s => %s%s' % (self[0].source, self[1].symbol, self[2].source)
+            return '%s => %s%s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'if':
             return 'if (%s) then %s else %s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'instance':
@@ -165,6 +171,14 @@ class XPathToken(Token[XPathTokenType]):
                           for k in range(0, len(self) - 1, 2)),
                 self[-1].source
             )
+        elif symbol == 'let':
+            return 'let %s return %s' % (
+                ', '.join('%s := %s' % (self[k].source, self[k + 1].source)
+                          for k in range(0, len(self) - 1, 2)),
+                self[-1].source
+            )
+        elif symbol in ('-', '+') and len(self) == 1:
+            return symbol + self[0].source
         return super(XPathToken, self).source
 
     @property
@@ -1133,6 +1147,10 @@ class ValueToken(XPathToken):
     """
     symbol = '(value)'
 
+    @property
+    def source(self) -> str:
+        return str(self.value)
+
     def evaluate(self, context: Optional[XPathContext] = None) -> Any:
         return self.value
 
@@ -1291,14 +1309,7 @@ class XPathFunction(XPathToken):
 
     @property
     def source(self) -> str:
-        if self.label == 'function test':
-            if len(self.sequence_types) == 1 and self.sequence_types[0] == '*':
-                return 'function(*)'
-            else:
-                return 'function(%s) as %s' % (
-                    ', '.join(self.sequence_types[:-1]), self.sequence_types[-1]
-                )
-        elif self.label in ('sequence type', 'kind test', ''):
+        if self.label in ('sequence type', 'kind test', ''):
             return '%s(%s)%s' % (
                 self.symbol, ', '.join(item.source for item in self), self.occurrence or ''
             )
