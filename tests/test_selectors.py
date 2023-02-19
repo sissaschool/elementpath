@@ -13,9 +13,15 @@ import xml.etree.ElementTree as ElementTree
 
 from elementpath import select, iter_select, Selector, XPath2Parser
 
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
+
 
 class XPathSelectorsTest(unittest.TestCase):
     root = ElementTree.XML('<author>Dickens</author>')
+    etree = ElementTree
 
     def test_select_function(self):
         self.assertListEqual(select(self.root, 'text()'), ['Dickens'])
@@ -44,20 +50,44 @@ class XPathSelectorsTest(unittest.TestCase):
 
     def test_issue_001(self):
         selector = Selector("//FullPath[ends-with(., 'Temp')]")
-        self.assertListEqual(selector.select(ElementTree.XML('<A/>')), [])
-        self.assertListEqual(selector.select(ElementTree.XML('<FullPath/>')), [])
-        root = ElementTree.XML('<FullPath>High Temp</FullPath>')
+        self.assertListEqual(selector.select(self.etree.XML('<A/>')), [])
+        self.assertListEqual(selector.select(self.etree.XML('<FullPath/>')), [])
+        root = self.etree.XML('<FullPath>High Temp</FullPath>')
         self.assertListEqual(selector.select(root), [root])
 
     def test_issue_042(self):
         selector1 = Selector('text()')
         selector2 = Selector('sup[last()]/preceding-sibling::text()')
-        root = ElementTree.XML('<root>a<sup>1</sup>b<sup>2</sup>c<sup>3</sup></root>')
+        root = self.etree.XML('<root>a<sup>1</sup>b<sup>2</sup>c<sup>3</sup></root>')
         self.assertListEqual(selector1.select(root), selector2.select(root))
 
         selector2 = Selector('sup[1]/following-sibling::text()')
-        root = ElementTree.XML('<root><sup>1</sup>b<sup>2</sup>c<sup>3</sup>d</root>')
+        root = self.etree.XML('<root><sup>1</sup>b<sup>2</sup>c<sup>3</sup>d</root>')
         self.assertListEqual(selector1.select(root), selector2.select(root))
+
+
+@unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
+class LxmlXPathSelectorsTest(XPathSelectorsTest):
+    root = lxml_etree.XML('<author>Dickens</author>')
+    etree = lxml_etree
+
+    def test_issue_058(self):
+        tei = """<?xml version='1.0' encoding='UTF8'?>
+        <?xml-model type="application/xml"?>
+        <TEI xmlns="http://www.tei-c.org/ns/1.0">
+          <text>
+                <pb n="page1"/>
+                <pb n="page2"/>
+          </text>
+        </TEI>
+        """
+
+        doc = self.etree.XML(tei.encode())
+        for k, p in enumerate(select(doc, '//pb'), start=1):
+            self.assertEqual(p.attrib['n'], f'page{k}')
+            self.assertListEqual(p.xpath('./@n'), [f'page{k}'])
+            self.assertListEqual(select(doc, './@n'), [])
+            self.assertListEqual(select(doc, './@n', item=p), [f'page{k}'])
 
 
 if __name__ == '__main__':
