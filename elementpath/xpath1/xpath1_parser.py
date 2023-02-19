@@ -174,7 +174,11 @@ class XPath1Parser(Parser[XPathToken]):
             namespace = cls.DEFAULT_NAMESPACES[prefix]
             qname = QName(namespace, '%s:%s' % (prefix, symbol))
             kwargs['lookup_name'] = qname.expanded_name
-            kwargs['class_name'] = f'_{prefix.capitalize()}{symbol.capitalize()}Token'
+            kwargs['class_name'] = '_%s%s%s' % (
+                prefix.capitalize(),
+                symbol.capitalize(),
+                str(label).title().replace(' ', '')
+            )
             kwargs['namespace'] = namespace
             cls.proxy(symbol, label='proxy function', bp=bp)
         else:

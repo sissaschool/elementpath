@@ -17,6 +17,7 @@ import re
 import codecs
 import math
 from copy import copy
+from itertools import zip_longest
 from typing import cast, Any, Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
 
@@ -62,7 +63,7 @@ function = XPath30Parser.function
 ###
 # 'inline function' expression or 'function test'
 
-class InlineFunction(XPathFunction):
+class _InlineFunction(XPathFunction):
 
     symbol = lookup_name = 'function'
     lbp = 90
@@ -90,9 +91,22 @@ class InlineFunction(XPathFunction):
                 return 'function(%s) as %s' % (
                     ', '.join(self.sequence_types[:-1]), self.sequence_types[-1]
                 )
-        return '%s(%s) {%s}' % (
+
+        arguments = []
+        return_type = ''
+        for var, sq in zip_longest(self, self.sequence_types):
+            if var is None:
+                if sq != 'item()*':
+                    return_type = f' as {sq}'
+            elif sq is None or sq == 'item()*':
+                arguments.append(var.source)
+            else:
+                arguments.append(f'{var.source} as {sq}')
+
+        return '%s(%s)%s {%s}' % (
             self.symbol,
-            ', '.join(item.source for item in self),
+            ', '.join(arguments),
+            return_type,
             getattr(self.body, 'source', '')
         )
 
@@ -289,7 +303,7 @@ class InlineFunction(XPathFunction):
         self.nargs = nargs
 
 
-XPath30Parser.symbol_table['function'] = InlineFunction
+XPath30Parser.symbol_table['function'] = _InlineFunction
 
 
 ###

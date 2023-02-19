@@ -112,7 +112,7 @@ class XPathTestCase(unittest.TestCase):
         token = self.parser.parse(path)
         self.assertEqual(token.tree, expected)
 
-    def check_source(self, path, expected):
+    def check_source(self, path, expected=None):
         """
         Checks the source representation of a parsed path.
 
@@ -120,7 +120,7 @@ class XPathTestCase(unittest.TestCase):
         :param expected: the expected result string.
         """
         token = self.parser.parse(path)
-        self.assertEqual(token.source, expected)
+        self.assertEqual(token.source, expected or path)
 
     def check_value(self, path, expected=None, context=None):
         """

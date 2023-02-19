@@ -154,7 +154,7 @@ class XPathToken(Token[XPathTokenType]):
         elif symbol == '#':
             return '%s#%s' % (self[0].source, self[1].source)
         elif symbol == '{' or symbol == 'Q{':
-            return '{%s}%s' % (self[0].value, self[1].value)
+            return '%s%s}%s' % (symbol, self[0].value, self[1].source)
         elif symbol == '=>':
             if isinstance(self[1], XPathFunction):
                 return '%s => %s%s' % (self[0].source, self[1].symbol, self[2].source)
@@ -1225,7 +1225,15 @@ class XPathFunction(XPathToken):
         return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self.nargs)
 
     def __str__(self) -> str:
-        return '%r %s' % (self.symbol, self.label)
+        namespace = self.namespace
+        if namespace is None or namespace == XPATH_FUNCTIONS_NAMESPACE:
+            return f'{self.symbol!r} {self.label}'
+
+        for prefix, uri in self.parser.namespaces.items():
+            if uri == namespace:
+                return f"'{prefix}:{self.symbol}' {self.label}"
+        else:
+            return f"'Q{{{namespace}}}{self.symbol}' {self.label}"
 
     def __call__(self, *args: XPathFunctionArgType,
                  context: Optional[XPathContext] = None) -> Any:
