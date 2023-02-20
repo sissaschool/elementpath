@@ -774,8 +774,9 @@ def select_schema_attribute_kind_test(self, context=None):
         raise self.missing_context()
 
     attribute_name = self[0].source
+    qname = get_expanded_name(attribute_name, self.parser.namespaces)
+
     for _ in context.iter_children_or_self():
-        qname = get_expanded_name(attribute_name, self.parser.namespaces)
         if self.parser.schema.get_attribute(qname) is None:
             raise self.error('XPST0008', "attribute %r not found in schema" % attribute_name)
 
@@ -793,10 +794,10 @@ def select_schema_element_kind_test(self, context=None):
         raise self.missing_context()
 
     element_name = self[0].source
+    qname = get_expanded_name(element_name, self.parser.namespaces)
 
     if self.parser.schema is not None:
         for _ in context.iter_children_or_self():
-            qname = get_expanded_name(element_name, self.parser.namespaces)
             if self.parser.schema.get_element(qname) is None \
                     and self.parser.schema.get_substitution_group(qname) is None:
                 raise self.error('XPST0008', "element %r not found in schema" % element_name)

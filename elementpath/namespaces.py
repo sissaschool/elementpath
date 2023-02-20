@@ -92,14 +92,12 @@ def get_prefixed_name(
     :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     """
     try:
-        if qname[0] == '{':
-            ns_uri, local_name = qname[1:].split('}')
-        elif qname[1] == '{' and qname[0] == 'Q':
-            ns_uri, local_name = qname[2:].split('}')
-        else:
+        if not qname.startswith(('{', 'Q{')):
             return qname
-    except IndexError:
-        return qname
+        elif qname[0] == '{':
+            ns_uri, local_name = qname[1:].split('}')
+        else:
+            ns_uri, local_name = qname[2:].split('}')
     except (ValueError, TypeError):
         raise ValueError("{!r} is not a QName".format(qname))
 
@@ -121,11 +119,10 @@ def get_expanded_name(
     :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     :return: the expanded format of a QName or a local name.
     """
-    try:
-        if qname[0] == '{' or qname[1] == '{' and qname[0] == 'Q':
-            return qname
-    except IndexError:
+    if not qname or qname.startswith('{'):
         return qname
+    elif qname.startswith('Q{'):
+        return qname[1:]
 
     try:
         prefix, local_name = qname.split(':')

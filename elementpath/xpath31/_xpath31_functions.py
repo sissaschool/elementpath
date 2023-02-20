@@ -654,7 +654,7 @@ def evaluate_parse_json_functions(self, context=None):
         if json_text is None:
             return []
 
-    def _fallback(*args):
+    def _fallback(*_args, **_kwargs):
         return '\uFFFD'
 
     liberal = False
@@ -1196,7 +1196,7 @@ def evaluate_json_to_xml_function(self, context=None):
     else:
         raise self.missing_context()
 
-    def _fallback(*args):
+    def _fallback(*_args, **_kwargs):
         return '&#xFFFD;'
 
     liberal = False
@@ -1275,7 +1275,7 @@ def evaluate_json_to_xml_function(self, context=None):
         elif isinstance(v, str):
             if not escape:
                 v = ''.join(x if is_xml_codepoint(ord(x)) else
-                            fallback(context, rf'\u{ord(x):04X}') for x in v)
+                            fallback(rf'\u{ord(x):04X}', context=context) for x in v)
                 elem = etree.Element(STRING_TAG, **attrib)
             else:
                 v = escape_string(v)
@@ -1307,7 +1307,7 @@ def evaluate_json_to_xml_function(self, context=None):
 
             if not escape:
                 k = ''.join(x if is_xml_codepoint(ord(x))
-                            else fallback(context, rf'\u{ord(x):04X}') for x in k)
+                            else fallback(rf'\u{ord(x):04X}', context=context) for x in k)
                 k = k.replace('"', '&#34;')
                 attrib = {'key': k}
             else:
