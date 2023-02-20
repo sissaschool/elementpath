@@ -163,10 +163,17 @@ class XPathToken(Token[XPathTokenType]):
             return 'if (%s) then %s else %s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'instance':
             return '%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
-        elif symbol == 'treat':
-            return '%s treat as %s' % (self[0].source, ''.join(t.source for t in self[1:]))
+        elif symbol in ('treat', 'cast', 'castable'):
+            return '%s %s as %s' % (self[0].source, symbol, ''.join(t.source for t in self[1:]))
         elif symbol == 'for':
             return 'for %s return %s' % (
+                ', '.join('%s in %s' % (self[k].source, self[k + 1].source)
+                          for k in range(0, len(self) - 1, 2)),
+                self[-1].source
+            )
+        elif symbol in ('every', 'some'):
+            return '%s %s satisfies %s' % (
+                symbol,
                 ', '.join('%s in %s' % (self[k].source, self[k + 1].source)
                           for k in range(0, len(self) - 1, 2)),
                 self[-1].source

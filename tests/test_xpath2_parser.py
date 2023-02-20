@@ -129,6 +129,11 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_variable_reference(self):
         root = self.etree.XML('<a><b1/><b2/></a>')
 
+        token = self.parser.parse('$var1')
+        self.assertEqual(token.source, '$var1')
+        self.assertEqual(repr(token), f'_DollarSignOperator({self.parser})')
+        self.assertEqual(str(token), '$var1 variable reference')
+
         context = XPathContext(root=root, variables={'var1': root[0]})
         self.check_value('$var1', context.root[0], context=context)
 
@@ -189,9 +194,21 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     def test_token_source(self):
         super(XPath2ParserTest, self).test_token_source()
-        self.check_source("(5, 6) instance of xs:integer+", '(5, 6) instance of xs:integer+')
-        self.check_source("$myaddress treat as element(*, USAddress)",
-                          "$myaddress treat as element(*, USAddress)")
+        self.check_source("(5, 6) instance of xs:integer+")
+        self.check_source("$myaddress treat as element(*, USAddress)")
+        self.check_source("(10, 1 to 4)")
+        self.check_source("if (true()) then /A/B1 else /A/B2")
+        self.check_source("every $part in /parts/part satisfies $part/@discounted")
+        self.check_source("some $x in (1, 2, 3), $y in (2, 3, 4) satisfies $x + $y = 4")
+        self.check_source("-3.5 idiv -2")
+        self.check_source("xs:float('1e0') eq 1e2", "xs:float('1e0') eq 100.0")
+        self.check_source("sum(//price[../available = false()])")
+        self.check_source("self::node()")
+        self.check_source('child (: nasty (:nested :) axis comment :) ::B1', 'child::B1')
+        self.check_source("() cast as xs:integer?")
+        self.check_source("() treat as empty-sequence()")
+        self.check_source("'NaN' castable as xs:double")
+        self.check_source("(1, fn:round-half-to-even(()), 7)")
 
     def test_xpath_comments(self):
         self.wrong_syntax("(: this is a comment :)")
