@@ -83,11 +83,15 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
         """
 
         doc = self.etree.XML(tei.encode())
+        k = None
         for k, p in enumerate(select(doc, '//pb'), start=1):
             self.assertEqual(p.attrib['n'], f'page{k}')
             self.assertListEqual(p.xpath('./@n'), [f'page{k}'])
             self.assertListEqual(select(doc, './@n'), [])
+            self.assertListEqual(select(p, './@n'), [f'page{k}'])
             self.assertListEqual(select(doc, './@n', item=p), [f'page{k}'])
+        else:
+            self.assertEqual(k, 2)
 
 
 if __name__ == '__main__':

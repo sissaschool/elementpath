@@ -170,50 +170,68 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
         return node
 
+    def build_document_node() -> ElementNode:
+        nonlocal position
+        nonlocal child
+
+        # Add root siblings (comments and processing instructions)
+        for e in reversed([x for x in elem.itersiblings(preceding=True)]):
+            if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                parent.children.append(CommentNode(e, parent, position))
+            else:
+                parent.children.append(ProcessingInstructionNode(e, parent, position))
+            position += 1
+
+        node = build_lxml_element_node()
+        parent.children.append(node)
+
+        for e in elem.itersiblings():
+            if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                parent.children.append(CommentNode(e, parent, position))
+            else:
+                parent.children.append(ProcessingInstructionNode(e, parent, position))
+            position += 1
+
+        return node
+
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
         root_node = parent = DocumentNode(document, position)
         position += 1
-    else:
-        # create a new ElementTree for the root element at position==0
+
+        elem = cast(LxmlElementProtocol, document.getroot())
+        if elem is None:
+            return root_node
+
+        elements = root_node.elements
+        parent = build_document_node()
+
+    elif root.getparent() is None:
+        # if it's the effective root of the tree creates a root
+        # document node with none value and position==0
         document = root.getroottree()
         root_node = parent = DocumentNode(document, 0)
+        elem = root
+        elements = root_node.elements
+        parent = build_document_node()
 
-    elem = cast(LxmlElementProtocol, document.getroot())
-    elements = root_node.elements
+        if len(root_node.children) == 1:
+            # Remove the document node if root element has no siblings
+            parent.elements = root_node.elements
+            parent.parent = None
+            root_node = parent
 
-    if elem is None:
-        return root_node
+    else:
+        elem = root
+        parent = None
+        elements = {}
+        root_node = parent = build_lxml_element_node()
+        root_node.elements = elements
 
-    # Add root siblings (comments and processing instructions)
-    for e in reversed([x for x in elem.itersiblings(preceding=True)]):
-        if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-            parent.children.append(CommentNode(e, parent, position))
-        else:
-            parent.children.append(ProcessingInstructionNode(e, parent, position))
-        position += 1
-
-    child = build_lxml_element_node()
-    parent.children.append(child)
-
-    for e in elem.itersiblings():
-        if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-            parent.children.append(CommentNode(e, parent, position))
-        else:
-            parent.children.append(ProcessingInstructionNode(e, parent, position))
-        position += 1
-
-    if not root_node.position and len(parent.children) == 1:
-        # Remove non-root document if root element has no siblings
-        child.elements = root_node.elements
-        root_node = child
-        root_node.parent = None
-
-    parent = child
+    children = iter(elem)
     iterators: List[Any] = []
     ancestors: List[Any] = []
 
-    children = iter(elem)
     while True:
         for elem in children:
             if not callable(elem.tag):
