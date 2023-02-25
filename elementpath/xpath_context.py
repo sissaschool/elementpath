@@ -109,10 +109,14 @@ class XPathContext:
         self.namespaces = dict(namespaces) if namespaces else {}
         self.root = get_node_tree(root, self.namespaces)
 
-        if item is None:
-            self.item = self.root if isinstance(self.root, ElementNode) else None
-        else:
+        if item is not None:
             self.item = self.get_context_item(item)
+        elif isinstance(self.root, ElementNode):
+            self.item = self.root
+        elif self.root.document is root or isinstance(root, DocumentNode):
+            self.item = None
+        else:
+            self.item = self.get_context_item(root)
 
         self.position = position
         self.size = size
