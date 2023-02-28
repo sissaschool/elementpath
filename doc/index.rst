@@ -10,6 +10,7 @@ elementpath manual
    :maxdepth: 2
 
    introduction
+   advanced
    xpath_api
    pratt_api
 

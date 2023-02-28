@@ -707,6 +707,9 @@ class DocumentNode(XPathNode):
         self.elements = {}
         self.children = []
 
+    def __repr__(self) -> str:
+        return '%s(document=%r)' % (self.__class__.__name__, self.document)
+
     @property
     def base_uri(self) -> Optional[str]:
         if not self.children:

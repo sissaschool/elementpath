@@ -107,7 +107,7 @@ behaviour. The provided testing code shall be added to the tests of the package.
 The XPath parsers are based on an implementation of the Pratt's Top Down Operator Precedence parser.
 The implemented parser includes some lookup-ahead features, helpers for registering tokens and for
 extending language implementations. Also the token class has been generalized using a `MutableSequence`
-as base class. See *tdop_parser.py* for the basic internal classes and *xpath1_parser.py* for extensions
+as base class. See *tdop.py* for the basic internal classes and *xpath1_parser.py* for extensions
 and for a basic usage of the parser.
 
 If you like you can use the basic parser and tokens provided by the *tdop_parser.py* module to
