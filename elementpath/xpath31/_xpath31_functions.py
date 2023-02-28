@@ -1353,12 +1353,8 @@ def evaluate_json_to_xml_function(self, context=None):
         root.set(XML_BASE, self.parser.base_uri)
 
     if validate:
-        try:
-            from ..validators import validate_json_to_xml
-        except ImportError:
-            raise self.error('FOJS0004')
-        else:
-            validate_json_to_xml(document.getroot())
+        from ..validators import validate_json_to_xml
+        validate_json_to_xml(document.getroot())
 
     return get_node_tree(document, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})
 
