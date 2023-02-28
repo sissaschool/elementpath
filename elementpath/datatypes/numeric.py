@@ -48,6 +48,12 @@ class Float10(float, AnyAtomicType):
             return super().__new__(cls, -0.0 if str(_value).startswith('-') else 0.0)
         return _value
 
+    def __repr__(self) -> str:
+        return '%s(%s)' % (self.__class__.__name__, self)
+
+    def __str__(self) -> str:
+        return str(float(self))
+
     def __hash__(self) -> int:
         return super(Float10, self).__hash__()
 
@@ -161,6 +167,12 @@ class Integer(int, metaclass=AtomicTypeMeta):
         elif self.higher_bound is not None and self >= self.higher_bound:
             raise ValueError("value {} is too high for {!r}".format(value, self.__class__))
         super(Integer, self).__init__()
+
+    def __repr__(self) -> str:
+        return '%s(%s)' % (self.__class__.__name__, self)
+
+    def __str__(self) -> str:
+        return str(int(self))
 
     @classmethod
     def __subclasshook__(cls, subclass: Type[Any]) -> bool:

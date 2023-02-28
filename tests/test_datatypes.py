@@ -32,8 +32,9 @@ from elementpath.datatypes import DateTime, DateTime10, Date, Date10, Time, \
     GregorianYear, GregorianYear10, GregorianYearMonth, GregorianYearMonth10, \
     GregorianMonthDay, GregorianMonth, GregorianDay, AbstractDateTime, NumericProxy, \
     ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
-    XsdToken, Language, Float, Float10, Integer, AnyURI, BooleanProxy, DecimalProxy, \
-    DoubleProxy10, DoubleProxy, StringProxy, get_atomic_value
+    XsdToken, Language, Name, NCName, NMToken, Idref, Float, Float10, Integer, Short, \
+    UnsignedByte, Long, AnyURI, BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
+    StringProxy, get_atomic_value
 from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.datetime import OrderedDateTime
 
@@ -82,6 +83,20 @@ class StringTypesTest(unittest.TestCase):
             Language(10), '10'
         self.assertEqual("invalid value '10' for xs:language", str(ctx.exception))
 
+    def test_string_representation(self):
+        for cls in (NormalizedString, XsdToken):
+            self.assertEqual(repr(cls(10.0)), f"{cls.__name__}('10.0')")
+            self.assertEqual(repr(cls('foo')), f"{cls.__name__}('foo')")
+            self.assertEqual(str(cls(10.0)), '10.0')
+            self.assertEqual(str(cls('foo')), 'foo')
+
+        for cls in (Name, NCName, NMToken, Idref):
+            self.assertEqual(repr(cls('foo')), f"{cls.__name__}('foo')")
+            self.assertEqual(str(cls('foo')), 'foo')
+
+        self.assertEqual(repr(Language(True)), "Language('true')")
+        self.assertEqual(str(Language(True)), 'true')
+
 
 class FloatTypesTest(unittest.TestCase):
 
@@ -104,6 +119,12 @@ class FloatTypesTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             Float10('inf')
+
+    def test_string_representation(self):
+        self.assertEqual(repr(Float10(89.4)), 'Float10(89.4)')
+        self.assertEqual(repr(Float(89.4)), 'Float(89.4)')
+        self.assertEqual(str(Float10(89.4)), '89.4')
+        self.assertEqual(str(Float(89.4)), '89.4')
 
     def test_hash(self):
         self.assertEqual(hash(Float10(892.1)), hash(892.1))
@@ -191,6 +212,14 @@ class IntegerTypesTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Integer.validate('10.1')
 
+    def test_string_representation(self):
+        self.assertEqual(repr(Integer(67)), 'Integer(67)')
+        self.assertEqual(repr(Short(-67)), 'Short(-67)')
+        self.assertEqual(repr(UnsignedByte(180)), 'UnsignedByte(180)')
+        self.assertEqual(str(Integer(-38)), '-38')
+        self.assertEqual(str(Long(-75)), '-75')
+        self.assertEqual(str(UnsignedByte(90)), '90')
+
 
 class UntypedAtomicTest(unittest.TestCase):
 
@@ -207,8 +236,9 @@ class UntypedAtomicTest(unittest.TestCase):
             UntypedAtomic(None)
         self.assertEqual(str(err.exception), "None is not an atomic value")
 
-    def test_repr(self):
+    def test_string_representation(self):
         self.assertEqual(repr(UntypedAtomic(7)), "UntypedAtomic('7')")
+        self.assertEqual(str(UntypedAtomic(7)), '7')
 
     def test_eq(self):
         self.assertTrue(UntypedAtomic(-10) == UntypedAtomic(-10))
@@ -430,7 +460,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(DateTime(-1, 10, 7).iso_year, '0000')
         self.assertEqual(DateTime10(-1, 10, 7).iso_year, '-0001')
 
-    def test_datetime_repr(self):
+    def test_datetime_string_representation(self):
         dt = DateTime.fromstring('2000-10-07T00:00:00')
         self.assertEqual(repr(dt), "DateTime(2000, 10, 7, 0, 0, 0)")
         self.assertEqual(str(dt), '2000-10-07T00:00:00')
@@ -458,7 +488,7 @@ class DateTimeTypesTest(unittest.TestCase):
         dt = DateTime.fromstring('0000-09-19T24:00:00Z')
         self.assertEqual(str(dt), '0000-09-20T00:00:00Z')
 
-    def test_date_repr(self):
+    def test_date_string_representation(self):
         dt = Date.fromstring('2000-10-07')
         self.assertEqual(repr(dt), "Date(2000, 10, 7)")
         self.assertEqual(str(dt), '2000-10-07')
@@ -479,7 +509,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "Date10(-3, 1, 1)")
         self.assertEqual(str(dt), '-0003-01-01')
 
-    def test_gregorian_year_repr(self):
+    def test_gregorian_year_string_representation(self):
         dt = GregorianYear.fromstring('1991')
         self.assertEqual(repr(dt), "GregorianYear(1991)")
         self.assertEqual(str(dt), '1991')
@@ -492,7 +522,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "GregorianYear10(-50)")
         self.assertEqual(str(dt), '-0050')
 
-    def test_gregorian_day_repr(self):
+    def test_gregorian_day_string_representation(self):
         dt = GregorianDay.fromstring('---31')
         self.assertEqual(repr(dt), "GregorianDay(31)")
         self.assertEqual(str(dt), '---31')
@@ -501,17 +531,17 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "GregorianDay(5, tzinfo=Timezone(datetime.timedelta(0)))")
         self.assertEqual(str(dt), '---05Z')
 
-    def test_gregorian_month_repr(self):
+    def test_gregorian_month_string_representation(self):
         dt = GregorianMonth.fromstring('--09')
         self.assertEqual(repr(dt), "GregorianMonth(9)")
         self.assertEqual(str(dt), '--09')
 
-    def test_gregorian_month_day_repr(self):
+    def test_gregorian_month_day_string_representation(self):
         dt = GregorianMonthDay.fromstring('--07-23')
         self.assertEqual(repr(dt), "GregorianMonthDay(7, 23)")
         self.assertEqual(str(dt), '--07-23')
 
-    def test_gregorian_year_month_repr(self):
+    def test_gregorian_year_month_string_representation(self):
         dt = GregorianYearMonth.fromstring('-1890-12')
         self.assertEqual(repr(dt), "GregorianYearMonth(-1891, 12)")
         self.assertEqual(str(dt), '-1890-12')
@@ -520,7 +550,7 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertEqual(repr(dt), "GregorianYearMonth10(-50, 4)")
         self.assertEqual(str(dt), '-0050-04')
 
-    def test_time_repr(self):
+    def test_time_string_representation(self):
         dt = Time.fromstring('20:40:13')
         self.assertEqual(repr(dt), "Time(20, 40, 13)")
         self.assertEqual(str(dt), '20:40:13')
@@ -1349,6 +1379,7 @@ class AnyUriTest(unittest.TestCase):
 
     def test_string_representation(self):
         self.assertEqual(repr(AnyURI('http://xpath.test')), "AnyURI('http://xpath.test')")
+        self.assertEqual(str(AnyURI('http://xpath.test')), 'http://xpath.test')
 
     def test_bool_value(self):
         self.assertTrue(bool(AnyURI('http://xpath.test')))
