@@ -76,9 +76,15 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def setUp(self):
         self.parser = XPath1Parser(self.namespaces, strict=True)
 
-    #
-    # Test methods
-    @unittest.skipIf(sys.version_info < (3,), "Python 2 pickling is not supported.")
+    def test_string_representation(self):
+        parser = self.parser.__class__()
+        self.assertEqual(repr(parser), f"{parser.__class__.__name__}()")
+
+        parser = self.parser.__class__(namespaces={'tst': 'http://xpath.test/ns'})
+        self.assertEqual(
+            repr(parser), f"{parser.__class__.__name__}({{'tst': 'http://xpath.test/ns'}})"
+        )
+
     def test_parser_pickling(self):
         if getattr(self.parser, 'schema', None) is None:
             obj = pickle.dumps(self.parser)

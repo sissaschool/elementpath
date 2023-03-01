@@ -94,4 +94,8 @@ class XPath30Parser(XPath2Parser):
             args.append('defuse_xml=False')
         if not args:
             return super().__repr__()
-        return super().__repr__()[:-1] + f", {', '.join(args)})"
+
+        repr_string = super().__repr__()[:-1]
+        if repr_string.endswith('('):
+            return f"{repr_string}{', '.join(args)})"
+        return f"{repr_string}, {', '.join(args)})"

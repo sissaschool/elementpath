@@ -7,3 +7,4 @@ omit = elementpath/regex/generate_categories.py
 exclude_lines =
     pragma: no cover
     raise NotImplementedError()
+    if TYPE_CHECKING:

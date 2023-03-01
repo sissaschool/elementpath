@@ -199,7 +199,11 @@ class XPath2Parser(XPath1Parser):
             args.append(f'default_collection_type={self.default_collection_type!r}')
         if not args:
             return super().__repr__()
-        return super().__repr__()[:-1] + f", {', '.join(args)})"
+
+        repr_string = super().__repr__()[:-1]
+        if repr_string.endswith('('):
+            return f"{repr_string}{', '.join(args)})"
+        return f"{repr_string}, {', '.join(args)})"
 
     def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()

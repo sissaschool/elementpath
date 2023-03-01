@@ -79,6 +79,44 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
     def setUp(self):
         self.parser = XPath30Parser(namespaces=self.namespaces)
 
+    def test_decimal_formats_argument(self):
+        decimal_formats = {None: {'decimal-separator': '|', 'grouping-separator': '.'}}
+        parser = self.parser.__class__(decimal_formats=decimal_formats)
+        expected = {
+            'decimal-separator': '|',
+            'grouping-separator': '.',
+            'exponent-separator': 'e',
+            'infinity': 'Infinity',
+            'minus-sign': '-', 'NaN': 'NaN',
+            'percent': '%',
+            'per-mille': '‰',
+            'zero-digit': '0',
+            'digit': '#',
+            'pattern-separator': ';'
+        }
+        self.assertDictEqual(parser.decimal_formats[None], expected)
+        self.assertEqual(
+            repr(parser),
+            f'{parser.__class__.__name__}(decimal_formats={parser.decimal_formats})'
+        )
+
+        decimal_formats = {'foo': {'decimal-separator': '|', 'grouping-separator': '.'}}
+        parser = self.parser.__class__(decimal_formats=decimal_formats)
+        self.assertDictEqual(parser.decimal_formats[None],
+                             self.parser.__class__.decimal_formats[None])
+        self.assertDictEqual(parser.decimal_formats.get('foo'), expected)
+
+    def test_defuse_xml_argument(self):
+        parser = self.parser.__class__(defuse_xml=False)
+        self.assertFalse(parser.defuse_xml)
+        self.assertEqual(repr(parser), f'{parser.__class__.__name__}(defuse_xml=False)')
+
+        parser = self.parser.__class__({'tst': 'http://xpath.test/ns'}, defuse_xml=False)
+        self.assertEqual(
+            repr(parser),
+            f"{parser.__class__.__name__}({{'tst': 'http://xpath.test/ns'}}, defuse_xml=False)"
+        )
+
     def test_function_match(self):
         token = self.parser.parse('math:pi()')
         self.assertEqual(repr(token), f"_PrefixedReferenceToken({self.parser}, 'math:pi')")
