@@ -15,6 +15,7 @@ import unittest
 import sys
 import re
 import string
+from copy import copy
 from itertools import chain
 from unicodedata import category
 
@@ -386,6 +387,20 @@ class TestCharacterClass(unittest.TestCase):
         char_class.complement()
         self.assertEqual(repr(char_class), 'CharacterClass([^a-z])')
 
+    def test_char_class_copy(self):
+        char_class = CharacterClass('a-z')
+        char_class_copy = copy(char_class)
+        self.assertEqual(char_class.xsd_version, char_class_copy.xsd_version)
+        self.assertEqual(char_class.positive, char_class_copy.positive)
+        self.assertEqual(char_class.negative, char_class_copy.negative)
+        self.assertEqual(char_class, char_class_copy)
+
+    def test_char_class_contains(self):
+        char_class = CharacterClass('a-z')
+        self.assertIn('a', char_class)
+        self.assertIn(97, char_class)
+        self.assertNotIn(97.0, char_class)
+
     def test_char_class_split(self):
         self.assertListEqual(CharacterClass._re_char_set.split(r'2-\\'), [r'2-\\'])
 
@@ -427,6 +442,10 @@ class TestCharacterClass(unittest.TestCase):
         other.complement()
         char_class -= other
         self.assertEqual(str(char_class), '[d-z]')
+
+        char_class = CharacterClass('a-z')
+        with self.assertRaises(TypeError):
+            char_class -= 'a'
 
     def test_in_operator(self):
         char_class = CharacterClass('A-Za-z')
@@ -489,6 +508,10 @@ class TestCharacterClass(unittest.TestCase):
         self.assertListEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 10)
 
+        char_class = CharacterClass()
+        char_class.add(ord('0'))
+        self.assertListEqual(char_class.positive.codepoints, [48])
+
         char_class.add(r'\p{Nd}')
         self.assertEqual(len(char_class), 630)
 
@@ -510,6 +533,10 @@ class TestCharacterClass(unittest.TestCase):
         self.assertListEqual(char_class.positive.codepoints, [(48, 54)])
         self.assertListEqual(char_class.negative.codepoints, [])
         self.assertEqual(len(char_class), 6)
+
+        char_class = CharacterClass('0-9')
+        char_class.discard(ord('6'))
+        self.assertListEqual(char_class.positive.codepoints, [(48, 54), (55, 58)])
 
         char_class.add(r'\p{Nd}')
         self.assertEqual(len(char_class), 630)
@@ -933,6 +960,10 @@ class TestPatterns(unittest.TestCase):
         with self.assertRaises(RegexError) as ctx:
             translate_pattern('((.*)')
         self.assertIn("unterminated subpattern in expression", str(ctx.exception))
+
+    def test_extra_escapes(self):
+        self.assertEqual(translate_pattern('^{2}alpha'), '(?:^){2}alpha')
+        self.assertEqual(translate_pattern('alp^+ha'), 'alp(?:^)+ha')
 
     def test_verbose_patterns(self):
         regex = translate_pattern('\\  s*[a-z]+', flags=re.VERBOSE)

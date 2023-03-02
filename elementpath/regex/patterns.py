@@ -154,7 +154,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
                 raise RegexError(msg.format(ch, pos, pattern))
 
             if regex and regex[-1] in ('^', r'(?<!\n\Z)^', '$', r'$(?!\n\Z)'):
-                # ^{n} or ${n} allowed but useless. Invalid im Python re
+                # ^{n} or ${n} allowed but useless. Invalid in Python re
                 # so incapsulate '^'/'$' inside a non-capturing group.
                 regex[-1] = f'(?:{regex[-1]})'
 
@@ -197,7 +197,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
                     raise RegexError(msg.format(pattern[pos + 1], pos + 1, pattern))
 
             if regex and regex[-1] in ('^', r'(?<!\n\Z)^', '$', r'$(?!\n\Z)'):
-                # ^*/^+/^? or $*/$+/$? allowed but useless. Invalid im Python re
+                # ^*/^+/^? or $*/$+/$? allowed but useless. Invalid in Python re
                 # so incapsulate '^'/'$' inside a non-capturing group.
                 regex[-1] = f'(?:{regex[-1]})'
 

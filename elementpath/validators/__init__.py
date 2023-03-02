@@ -16,7 +16,7 @@ from typing import Optional
 
 try:
     import xmlschema
-except ImportError:
+except ImportError:  # pragma: no cover
     from ..exceptions import xpath_error
 
     def validate_analyzed_string(xml_data: str) -> None:
