@@ -57,11 +57,9 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         if parser.schema is not self:
             parser.schema = self
 
-        parser.symbol_table = dict(parser.__class__.symbol_table)
         for xsd_type in self.iter_atomic_types():
             if xsd_type.name is not None:
                 parser.schema_constructor(xsd_type.name)
-        parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
 
     def get_context(self) -> XPathSchemaContext:
         """

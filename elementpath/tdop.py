@@ -827,8 +827,6 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
 
         cls.tokenizer = cls.create_tokenizer(cls.symbol_table)
 
-    build_tokenizer = build  # For backward compatibility
-
     @classmethod
     def create_tokenizer(cls, symbol_table: MutableMapping[str, Type[TK_co]]) -> Pattern[str]:
         """

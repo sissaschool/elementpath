@@ -352,13 +352,21 @@ class XPath2Parser(XPath1Parser):
             Type[XPathFunction], ABCMeta(token_class_name, (XPathFunction,), kwargs)
         )
         MutableSequence.register(token_class)
+
+        if self.symbol_table is self.__class__.symbol_table:
+            self.symbol_table = dict(self.__class__.symbol_table)
         self.symbol_table[symbol] = token_class
+        self.tokenizer = None
+
         return token_class
 
     def is_schema_bound(self) -> bool:
         return 'symbol_table' in self.__dict__
 
     def parse(self, source: str) -> XPathToken:
+        if self.tokenizer is None:
+            self.tokenizer = self.create_tokenizer(self.symbol_table)
+
         root_token = super(XPath1Parser, self).parse(source)
         if root_token.label in ('sequence type', 'function test'):
             raise root_token.error('XPST0003', "not allowed in XPath expression")
