@@ -1171,22 +1171,24 @@ class ValueToken(XPathToken):
 class ProxyToken(XPathToken):
     """
     A proxy token for resolving or calling namespace related functions.
-    TODO: adding dynamic function definitions and resolving possible conflicts
-      for axes (e.g.: defining tns:child() function)
+
+    It cannot handle symbols associated with tokens that are not related
+    to namespaces, like operators, type tests or axes. Those tokens can
+    have also different binding powers, so handling disambiguation could
+    be impracticable.
     """
     label = 'proxy function'
 
     def nud(self) -> XPathToken:
-        namespace = self.namespace or XPATH_FUNCTIONS_NAMESPACE
-        expanded_name = '{%s}%s' % (namespace, self.value)
+        lookup_name = f'{{{self.namespace or XPATH_FUNCTIONS_NAMESPACE}}}{self.value}'
         try:
-            token = self.parser.symbol_table[expanded_name](self.parser)
+            token = self.parser.symbol_table[lookup_name](self.parser)
         except KeyError:
             if self.namespace == XSD_NAMESPACE:
-                raise self.error('XPST0017',
-                                 'unknown constructor function {!r}'.format(self.symbol))
+                msg = f'unknown constructor function {self.symbol!r}'
             else:
-                raise self.error('XPST0017', 'unknown function {!r}'.format(self.symbol))
+                msg = f'unknown function {self.symbol!r}'
+            raise self.error('XPST0017', msg) from None
         else:
             if self.parser.next_token.symbol == '#':
                 if self.parser.version >= '2.0':

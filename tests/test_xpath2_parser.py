@@ -42,8 +42,10 @@ from elementpath import XPath2Parser, XPathContext, MissingContextError, \
     ElementNode, select, iter_select
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
+from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
 from elementpath.sequence_types import is_instance
+from elementpath.xpath_tokens import ProxyToken, XPathFunction
 
 try:
     from tests import test_xpath1_parser
@@ -1249,6 +1251,139 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         result = ['attrib1', 'attrib2', 'isbn', 'lang', 'isbn', 'lang']
         self.check_selector('//@*/local-name()', root, result)
         self.check_selector('//@*/name()', root, result)
+
+    def test_external_function_registration(self):
+        parser = self.parser.__class__()
+
+        def foo(x):
+            return str(x)
+
+        self.assertIs(parser.symbol_table, parser.__class__.symbol_table)
+        parser.external_function(foo)
+        self.assertIsNot(parser.symbol_table, parser.__class__.symbol_table)
+
+        self.assertIn('foo', parser.symbol_table)
+        token_class = parser.symbol_table['foo']
+        self.assertTrue(issubclass(token_class, ProxyToken))
+
+        symbol = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}foo'
+        self.assertIn(symbol, parser.symbol_table)
+        token_class = parser.symbol_table[symbol]
+        self.assertTrue(issubclass(token_class, XPathFunction))
+        assert issubclass(token_class, XPathFunction)
+        self.assertEqual(token_class.nargs, 1)
+
+        token = parser.parse('foo(8)')
+        self.assertEqual(token.evaluate(), '8')
+
+        token = parser.parse('fn:foo("abc")')
+        self.assertEqual(token.evaluate(), 'abc')
+
+        with self.assertRaises(ValueError):
+            parser.external_function(foo)
+
+        parser.external_function(foo, name='bar')
+        token = parser.parse('bar(99)')
+        self.assertEqual(token.evaluate(), '99')
+
+        with self.assertRaises(ValueError) as ctx:
+            parser.external_function(foo)
+        self.assertEqual(str(ctx.exception), "function 'fn:foo' is already registered")
+
+        with self.assertRaises(ValueError) as ctx:
+            parser.external_function(foo, 'concat')
+        self.assertEqual(str(ctx.exception), "function 'fn:concat' is already registered")
+
+        if self.parser.version >= '3.0':
+            with self.assertRaises(ValueError) as ctx:
+                parser.external_function(foo, 'pi', 'math')
+            self.assertEqual(str(ctx.exception), "function 'math:pi' is already registered")
+
+        with self.assertRaises(ValueError) as ctx:
+            parser.external_function(foo, 'some')
+        self.assertIn("'some' name collides with <class", str(ctx.exception))
+
+    def test_external_function_arity(self):
+
+        def foo():
+            return 'bar'
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertEqual(token_class.nargs, 0)
+        self.assertEqual(parser.parse('foo()').evaluate(), 'bar')
+        self.assertRaises(SyntaxError, parser.parse, 'foo(1)')
+
+        def foo(x):
+            return str(x)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertEqual(token_class.nargs, 1)
+        self.assertEqual(parser.parse('foo(77)').evaluate(), '77')
+        self.assertRaises(TypeError, parser.parse, 'foo()')
+
+        def foo(x, y):
+            return str(x) + str(y)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertEqual(token_class.nargs, 2)
+        self.assertEqual(parser.parse('foo(77, 88)').evaluate(), '7788')
+        self.assertRaises(TypeError, parser.parse, 'foo()')
+        self.assertRaises(SyntaxError, parser.parse, 'foo(6)')
+
+        def foo(x, y=0):
+            return str(x) + str(y)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertEqual(token_class.nargs, (1, 2))
+        self.assertEqual(parser.parse('foo(77, 88)').evaluate(), '7788')
+        self.assertEqual(parser.parse('foo(6)').evaluate(), '60')
+        self.assertRaises(TypeError, parser.parse, 'foo()')
+
+        def foo(x=0, y=0):
+            return str(x) + str(y)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertEqual(token_class.nargs, (0, 2))
+        self.assertEqual(parser.parse('foo(77, 88)').evaluate(), '7788')
+        self.assertEqual(parser.parse('foo(6)').evaluate(), '60')
+        self.assertEqual(parser.parse('foo()').evaluate(), '00')
+        self.assertRaises(SyntaxError, parser.parse, 'foo(1, 2, 3)')
+
+        def foo(x, *args):
+            return str(x) + ''.join(str(a) for a in args)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertEqual(token_class.nargs, (1, None))
+        self.assertEqual(parser.parse('foo(7, 8, 9)').evaluate(), '789')
+        self.assertEqual(parser.parse('foo(6)').evaluate(), '6')
+        self.assertRaises(TypeError, parser.parse, 'foo()')
+
+        def foo(*args):
+            return ''.join(str(a) for a in args)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo)
+        self.assertIsNone(token_class.nargs)
+        self.assertEqual(parser.parse('foo(7, 8, 9)').evaluate(), '789')
+        self.assertEqual(parser.parse('foo(6)').evaluate(), '6')
+        self.assertRaises(SyntaxError, parser.parse, 'foo()')
+
+    def test_external_function_arguments(self):
+
+        def foo(x):
+            return str(x)
+
+        parser = self.parser.__class__()
+        token_class = parser.external_function(foo, sequence_types=('xs:integer', 'xs:string'))
+        self.assertEqual(token_class.nargs, 1)
+        self.assertEqual(parser.parse('foo(77)').evaluate(), '77')
+        self.assertRaises(TypeError, parser.parse, 'foo(77.0)')
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

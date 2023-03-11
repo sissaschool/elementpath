@@ -42,8 +42,16 @@ WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-F\d]{2})')
 XML_NEWLINES_PATTERN = re.compile('\r\n|\r|\n')
 
 
+def upper_camel_case(s: str) -> str:
+    return re.sub(r'^\d+', '', re.sub(r'[\W_]', '', s.title()))
+
+
 def collapse_white_spaces(s: str) -> str:
     return WHITESPACES_PATTERN.sub(' ', s).strip(' ')
+
+
+def is_ncname(s: str) -> bool:
+    return re.match(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$', s) is not None
 
 
 def is_idrefs(value: Optional[str]) -> bool:
