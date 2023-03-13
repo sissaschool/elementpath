@@ -24,9 +24,6 @@ class NormalizedString(str, metaclass=AtomicTypeMeta):
         except TypeError:
             return super().__new__(cls, obj)
 
-    def __repr__(self) -> str:
-        return '%s(%r)' % (self.__class__.__name__, str(self))
-
 
 class XsdToken(NormalizedString):
     name = 'token'

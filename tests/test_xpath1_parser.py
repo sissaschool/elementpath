@@ -20,7 +20,6 @@
 #           https://www.w3.org/TR/charmod-norm/
 #
 import unittest
-import sys
 import io
 import math
 import pickle

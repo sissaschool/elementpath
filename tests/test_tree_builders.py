@@ -21,8 +21,7 @@ except ImportError:
 from elementpath.tree_builders import build_node_tree, \
     build_lxml_node_tree
 from elementpath.xpath_nodes import ElementNode, \
-    DocumentNode, TextNode, CommentNode, AttributeNode, \
-    ProcessingInstructionNode, NamespaceNode
+    DocumentNode, TextNode, CommentNode, ProcessingInstructionNode
 
 
 XML_DATA = """\
