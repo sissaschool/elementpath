@@ -1591,17 +1591,23 @@ def main():
                         if args.report:
                             report['failed'].append(test_case.name)
                         count_failed += 1
+                        if verbose == 1:
+                            print('F', end='', flush=True)
                     else:
                         if args.report:
                             report['unknown'].append(test_case.name)
                         count_unknown += 1
+                        if verbose == 1:
+                            print('U', end='', flush=True)
                 except Exception as err:
-                    if verbose:
+                    if verbose == 1:
+                        print('E', end='', flush=True)
+                    elif verbose:
                         print("\nUnexpected failure for test %r" % test_case.name)
                         print(type(err), str(err), flush=True)
+                        if verbose >= 4:
+                            traceback.print_exc()
 
-                    if verbose >= 4:
-                        traceback.print_exc()
                     if args.report:
                         report['other_failures'].append(test_case.name)
                     count_other_failures += 1

@@ -12,7 +12,7 @@ import unittest
 from xml.etree import ElementTree
 
 from elementpath.sequence_types import is_instance, is_sequence_type, \
-    match_sequence_type
+    match_sequence_type, is_sequence_type_restriction
 from elementpath import XPath2Parser, XPathContext
 from elementpath.xpath3 import XPath30Parser
 from elementpath.namespaces import XSD_NAMESPACE, XSD_UNTYPED_ATOMIC, \
@@ -22,7 +22,57 @@ from elementpath.datatypes import UntypedAtomic
 
 class SequenceTypesTest(unittest.TestCase):
 
-    def test_is_instance_method(self):
+    def test_is_sequence_type_restriction_function(self):
+        self.assertTrue(is_sequence_type_restriction('xs:error?', 'none'))
+        self.assertTrue(is_sequence_type_restriction('empty-sequence()', 'none'))
+        self.assertTrue(is_sequence_type_restriction('xs:error*', 'empty-sequence()'))
+
+        self.assertFalse(is_sequence_type_restriction('xs:integer', 'item()*'))
+        self.assertFalse(is_sequence_type_restriction('xs:integer', 'item()?'))
+        self.assertFalse(is_sequence_type_restriction('xs:integer', 'item()'))
+
+        self.assertFalse(is_sequence_type_restriction('xs:integer+', 'xs:integer*'))
+        self.assertFalse(is_sequence_type_restriction('xs:integer+', 'xs:integer?'))
+        self.assertTrue(is_sequence_type_restriction('xs:integer+', 'xs:integer+'))
+        self.assertTrue(is_sequence_type_restriction('xs:integer+', 'xs:integer'))
+
+        self.assertFalse(is_sequence_type_restriction('xs:integer*', 'xs:integer?'))
+        self.assertFalse(is_sequence_type_restriction('xs:integer*', 'xs:integer+'))
+        self.assertTrue(is_sequence_type_restriction('xs:integer*', 'xs:integer*'))
+        self.assertTrue(is_sequence_type_restriction('xs:integer*', 'xs:integer'))
+
+        self.assertFalse(is_sequence_type_restriction('xs:integer?', 'xs:integer*'))
+        self.assertFalse(is_sequence_type_restriction('xs:integer?', 'xs:integer+'))
+        self.assertTrue(is_sequence_type_restriction('xs:integer?', 'xs:integer?'))
+        self.assertTrue(is_sequence_type_restriction('xs:integer?', 'xs:integer'))
+
+        self.assertTrue(is_sequence_type_restriction('node()', 'element()'))
+        self.assertFalse(is_sequence_type_restriction('element()', 'node()'))
+        self.assertTrue(is_sequence_type_restriction('xs:anyAtomicType', 'xs:string'))
+        self.assertFalse(is_sequence_type_restriction('xs:anyAtomicType', 'xs:unknown'))
+        self.assertTrue(is_sequence_type_restriction('xs:string', 'xs:anyAtomicType'))
+        self.assertTrue(is_sequence_type_restriction('xs:string', 'xs:token'))
+        self.assertFalse(is_sequence_type_restriction('xs:string', 'xs:int'))
+        self.assertFalse(is_sequence_type_restriction('xs:string', 'xs:unknown'))
+        self.assertFalse(is_sequence_type_restriction('element()', 'xs:string'))
+        self.assertFalse(is_sequence_type_restriction('function(*)', 'xs:string'))
+        self.assertFalse(is_sequence_type_restriction(
+            'function(item()+) as xs:boolean', 'function(item()*) as xs:boolean'
+        ))
+        self.assertTrue(is_sequence_type_restriction(
+            'function(item()) as xs:boolean', 'function(item()*) as xs:boolean'
+        ))
+        self.assertFalse(is_sequence_type_restriction(
+            'function(item()+) as xs:boolean', 'function(item()) as xs:boolean'
+        ))
+        self.assertFalse(is_sequence_type_restriction(
+            'function(item()) as xs:boolean', 'function(item()) as xs:string'
+        ))
+        self.assertFalse(is_sequence_type_restriction(
+            'function(item(), item()) as xs:boolean', 'function(item()) as xs:boolean'
+        ))
+
+    def test_is_instance_function(self):
         self.assertTrue(is_instance(UntypedAtomic(1), XSD_UNTYPED_ATOMIC))
         self.assertFalse(is_instance(1, XSD_UNTYPED_ATOMIC))
         self.assertTrue(is_instance(1, XSD_ANY_ATOMIC_TYPE))
@@ -42,7 +92,7 @@ class SequenceTypesTest(unittest.TestCase):
         with self.assertRaises(KeyError):
             is_instance('foo', '{%s}unknown' % XSD_NAMESPACE)
 
-    def test_is_sequence_type(self):
+    def test_is_sequence_type_function(self):
         self.assertTrue(is_sequence_type('empty-sequence()'))
         self.assertTrue(is_sequence_type('xs:string'))
         self.assertTrue(is_sequence_type('xs:float+'))

@@ -58,7 +58,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
             parser.schema = self
 
         for xsd_type in self.iter_atomic_types():
-            if xsd_type.name is not None:
+            if xsd_type.name is not None:  # pragma: no cover
                 parser.schema_constructor(xsd_type.name)
 
     def get_context(self) -> XPathSchemaContext:

@@ -43,6 +43,7 @@ COMMON_SEQUENCE_TYPES = {
 
 
 def is_sequence_type_restriction(st1: str, st2: str) -> bool:
+    """Returns `True` if st2 is a restriction of st1."""
     if st2 in ('empty-sequence()', 'none') and \
             (st1 in ('empty-sequence()', 'none') or st1.endswith(('?', '*'))):
         return True
@@ -68,7 +69,7 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
         elif st2[-1] == '*':
             st2 = st2[:-1]
 
-    elif st1[-1] == '?':
+    else:
         st1 = st1[:-1]
         if st2[-1] in '+*':
             return False
