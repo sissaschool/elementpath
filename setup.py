@@ -24,7 +24,7 @@ setup(
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/sissaschool/elementpath',
-    keywords=['XPath', 'XPath2', 'XPath3', 'Pratt-parser', 'ElementTree', 'lxml'],
+    keywords=['XPath', 'XPath2', 'XPath3', 'XPath31', 'Pratt-parser', 'ElementTree', 'lxml'],
     license='MIT',
     license_file='LICENSE',
     description='XPath 1.0/2.0/3.0/3.1 parsers and selectors for ElementTree and lxml',

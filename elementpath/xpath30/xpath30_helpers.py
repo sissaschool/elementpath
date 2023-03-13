@@ -11,7 +11,7 @@ import calendar
 import datetime
 import decimal
 import re
-from typing import Iterator, List, Optional, Tuple, Union
+from typing import Any, Iterator, List, Optional, Tuple, Union
 from unicodedata import category
 
 from ..exceptions import xpath_error
@@ -34,6 +34,7 @@ def decimal_to_string(value: decimal.Decimal) -> str:
     Convert a Decimal value to a string representation
     that not includes exponent and with its decimals.
     """
+    exponent: Any
     sign, digits, exponent = value.as_tuple()
 
     if not exponent:

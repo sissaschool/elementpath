@@ -235,7 +235,7 @@ def etree_tostring(elem: ElementProtocol,
     elif not hasattr(elem, 'nsmap'):
         etree_module = ElementTree
     else:
-        import lxml.etree as etree_module  # type: ignore[no-redef]
+        import lxml.etree as etree_module
 
     if namespaces and not hasattr(elem, 'nsmap'):
         default_namespace = namespaces.get('')
