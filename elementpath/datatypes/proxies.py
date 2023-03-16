@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Union, SupportsFloat
 
 from ..helpers import BOOLEAN_VALUES, collapse_white_spaces, get_double
-from .atomic_types import AtomicTypeMeta
+from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Float10, Integer
 from .datetime import AbstractDateTime, Duration
@@ -25,7 +25,7 @@ FloatArgType = Union[SupportsFloat, str, bytes]
 # and validates its Python datatype and virtual registered types.
 
 
-class BooleanProxy(metaclass=AtomicTypeMeta):
+class BooleanProxy(AnyAtomicType):
     name = 'boolean'
     pattern = re.compile(r'^(?:true|false|1|0)$')
 
@@ -60,7 +60,7 @@ class BooleanProxy(metaclass=AtomicTypeMeta):
             raise cls.invalid_type(value)
 
 
-class DecimalProxy(metaclass=AtomicTypeMeta):
+class DecimalProxy(AnyAtomicType):
     name = 'decimal'
     pattern = re.compile(r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$')
 
@@ -96,7 +96,7 @@ class DecimalProxy(metaclass=AtomicTypeMeta):
             raise cls.invalid_type(value)
 
 
-class DoubleProxy10(metaclass=AtomicTypeMeta):
+class DoubleProxy10(AnyAtomicType):
     name = 'double'
     xsd_version = '1.0'
     pattern = re.compile(
@@ -126,7 +126,7 @@ class DoubleProxy(DoubleProxy10):
     xsd_version = '1.1'
 
 
-class StringProxy(metaclass=AtomicTypeMeta):
+class StringProxy(AnyAtomicType):
     name = 'string'
 
     def __new__(cls, *args: object, **kwargs: object) -> str:  # type: ignore[misc]

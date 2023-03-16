@@ -13,11 +13,11 @@ import re
 import codecs
 
 from ..helpers import collapse_white_spaces
-from .atomic_types import AtomicTypeMeta
+from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
 
-class AbstractBinary(metaclass=AtomicTypeMeta):
+class AbstractBinary(AnyAtomicType):
     """
     Abstract class for xs:base64Binary data.
 

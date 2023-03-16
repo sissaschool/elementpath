@@ -37,28 +37,6 @@ from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
 from .proxies import BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
     StringProxy, NumericProxy, ArithmeticProxy
 
-##
-# Register not derived XSD primitive types as virtual subclasses of AnyAtomicType
-
-AnyAtomicType.register(BooleanProxy)
-AnyAtomicType.register(Base64Binary)
-AnyAtomicType.register(DecimalProxy)
-AnyAtomicType.register(StringProxy)
-AnyAtomicType.register(Date10)
-AnyAtomicType.register(DateTime10)
-AnyAtomicType.register(DoubleProxy10)
-AnyAtomicType.register(GregorianDay)
-AnyAtomicType.register(GregorianMonth)
-AnyAtomicType.register(GregorianMonthDay)
-AnyAtomicType.register(GregorianYear10)
-AnyAtomicType.register(GregorianYearMonth10)
-AnyAtomicType.register(HexBinary)
-AnyAtomicType.register(Notation)
-AnyAtomicType.register(QName)
-AnyAtomicType.register(Time)
-AnyAtomicType.register(UntypedAtomic)
-StringProxy.register(NormalizedString)
-
 xsd11_atomic_types.update(
     (k, v) for k, v in xsd10_atomic_types.items() if k not in xsd11_atomic_types
 )

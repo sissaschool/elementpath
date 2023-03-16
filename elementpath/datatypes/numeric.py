@@ -12,7 +12,7 @@ import math
 from typing import Any, Optional, SupportsFloat, SupportsInt, Union, Type
 
 from ..helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, collapse_white_spaces
-from .atomic_types import AtomicTypeMeta, AnyAtomicType
+from .atomic_types import AnyAtomicType
 
 
 class Float10(float, AnyAtomicType):
@@ -148,7 +148,7 @@ class Float(Float10):
 float_nan = Float10('NaN')
 
 
-class Integer(int, metaclass=AtomicTypeMeta):
+class Integer(int, AnyAtomicType):
     """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
     pattern = re.compile(r'^[\-+]?[0-9]+$')

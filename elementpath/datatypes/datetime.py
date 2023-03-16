@@ -19,7 +19,7 @@ from typing import cast, Any, Callable, Dict, Optional, Tuple, Union
 from ..helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
     normalized_seconds, months2days, round_number
-from .atomic_types import AtomicTypeMeta, AnyAtomicType
+from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
 
@@ -112,7 +112,7 @@ class Timezone(datetime.tzinfo):
         raise TypeError("fromutc() argument must be a datetime.datetime instance")
 
 
-class AbstractDateTime(metaclass=AtomicTypeMeta):
+class AbstractDateTime(AnyAtomicType):
     """
     A class for representing XSD date/time objects. It uses and internal datetime.datetime
     attribute and an integer attribute for processing BCE years or for years after 9999 CE.

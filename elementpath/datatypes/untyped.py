@@ -12,10 +12,10 @@ from decimal import Decimal
 from typing import Any, Tuple, Union
 
 from ..helpers import BOOLEAN_VALUES, get_double
-from .atomic_types import AtomicTypeMeta, AnyAtomicType
+from .atomic_types import AnyAtomicType
 
 
-class UntypedAtomic(metaclass=AtomicTypeMeta):
+class UntypedAtomic(AnyAtomicType):
     """
     Class for xs:untypedAtomic data. Provides special methods for comparing
     and converting to basic data types.
