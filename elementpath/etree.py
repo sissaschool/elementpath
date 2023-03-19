@@ -36,7 +36,7 @@ import xml.etree.ElementTree as PyElementTree  # noqa
 import xml.etree  # noqa
 
 # Restore original modules
-if _cmod is not None:
+if _cmod is not None:  # pragma: no cover
     sys.modules['_elementtree'] = _cmod
 xml.etree.ElementTree = ElementTree
 sys.modules['xml.etree.ElementTree'] = ElementTree
@@ -87,7 +87,7 @@ def defuse_xml(xml_source: Union[str, bytes]) -> Union[str, bytes]:
     safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
 
     try:
-        for _ in PyElementTree.iterparse(resource, ('start',), safe_parser):
+        for _ in PyElementTree.iterparse(resource, ('start',), safe_parser):  # pragma: no cover
             break
     except PyElementTree.ParseError as err:
         msg = str(err)
@@ -277,9 +277,13 @@ def etree_tostring(elem: ElementProtocol,
 
     last_indent = ' ' * min(k for k in range(len(lines[-1])) if lines[-1][k] != ' ')
     if len(lines) > 2:
-        child_indent = ' ' * min(
-            k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' '
-        )
+        try:
+            child_indent = ' ' * min(
+                k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' '
+            )
+        except ValueError:
+            child_indent = ''
+
         min_indent = min(child_indent, last_indent)
     else:
         min_indent = child_indent = last_indent

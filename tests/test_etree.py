@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 import unittest
 import platform
 import importlib
@@ -20,7 +21,9 @@ except ImportError:
     lxml_etree = None
 
 from elementpath.etree import ElementTree, PyElementTree, \
-    SafeXMLParser, etree_tostring, is_etree_document
+    SafeXMLParser, defuse_xml, etree_tostring, is_etree_document, \
+    is_lxml_etree_element, is_lxml_etree_document, etree_deep_equal, \
+    etree_iter_paths
 
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
@@ -55,6 +58,15 @@ class TestElementTree(unittest.TestCase):
         self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
         self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
         self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+
+        elem.text = '\n\n'
+        self.assertEqual(etree_tostring(elem), '<element>\n\n</element>')
+        self.assertEqual(etree_tostring(elem, indent='  '), '  <element>\n\n  </element>')
+
+        elem.text = '\nfoo\n'
+        self.assertEqual(etree_tostring(elem), '<element>\nfoo\n</element>')
+        self.assertEqual(etree_tostring(elem, indent=' '), ' <element>\n foo\n </element>')
+
         elem.text = None
 
         self.assertEqual(etree_tostring(elem, encoding='ascii'),
@@ -78,6 +90,7 @@ class TestElementTree(unittest.TestCase):
                                '  <elem>text2</elem>\n'
                                '</root>')
         self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
+        self.assertEqual(etree_tostring(root, max_lines=1), '<root>\n  ...\n  ...\n</root>')
 
         root = ElementTree.XML(XML_WITH_NAMESPACES)
         result = etree_tostring(root)
@@ -95,6 +108,23 @@ class TestElementTree(unittest.TestCase):
                    'xmlns:pxb="http://xpath.test/nsb">\n' \
                    '  <pxb:elem />\n' \
                    '</pxa:root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+        namespaces = {
+            '': "http://xpath.test/nsa",
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+        namespaces = {
+            '': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<root xmlns="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</root>'
         self.assertEqual(etree_tostring(root, namespaces), expected)
 
     def test_py_element_string_serialization(self):
@@ -224,6 +254,11 @@ class TestElementTree(unittest.TestCase):
             ElementTree.parse(xml_file, parser=parser)
         self.assertEqual("Entities are forbidden (entity_name='e')", str(ctx.exception))
 
+        with self.assertRaises(PyElementTree.ParseError) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Entities are forbidden (entity_name='e')", str(ctx.exception))
+
     def test_defuse_xml_external_entities(self):
         xml_file = Path(__file__).parent.joinpath('resources/external_entity.xml')
 
@@ -234,6 +269,11 @@ class TestElementTree(unittest.TestCase):
         parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
         with self.assertRaises(PyElementTree.ParseError) as ctx:
             ElementTree.parse(str(xml_file), parser=parser)
+        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
+
+        with self.assertRaises(PyElementTree.ParseError) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
         self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
 
     def test_defuse_xml_unused_external_entities(self):
@@ -247,12 +287,23 @@ class TestElementTree(unittest.TestCase):
             ElementTree.parse(xml_file, parser=parser)
         self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
 
+        with self.assertRaises(PyElementTree.ParseError) as ctx:
+            with open(xml_file) as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
+
     def test_defuse_xml_unparsed_entities(self):
         xml_file = Path(__file__).parent.joinpath('resources/unparsed_entity.xml')
 
         parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
         with self.assertRaises(PyElementTree.ParseError) as ctx:
             ElementTree.parse(str(xml_file), parser=parser)
+        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
+                         str(ctx.exception))
+
+        with self.assertRaises(PyElementTree.ParseError) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
         self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
                          str(ctx.exception))
 
@@ -268,10 +319,91 @@ class TestElementTree(unittest.TestCase):
         self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
                          str(ctx.exception))
 
+        with self.assertRaises(PyElementTree.ParseError) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
+                         str(ctx.exception))
+
     def test_is_etree_document_function(self):
         document = ElementTree.parse(io.StringIO('<A/>'))
         self.assertTrue(is_etree_document(document))
         self.assertFalse(is_etree_document(ElementTree.XML('<A/>')))
+
+    def test_is_lxml_etree_document_function(self):
+        document = ElementTree.parse(io.StringIO('<A/>'))
+        self.assertFalse(is_lxml_etree_document(document))
+        if lxml_etree is not None:
+            document = lxml_etree.parse(io.StringIO('<A/>'))
+            self.assertTrue(is_lxml_etree_document(document))
+            self.assertFalse(is_lxml_etree_document(lxml_etree.XML('<A/>')))
+
+    def test_is_lxml_etree_element_function(self):
+        self.assertFalse(is_lxml_etree_element(ElementTree.XML('<A/>')))
+        if lxml_etree is not None:
+            self.assertTrue(is_lxml_etree_element(lxml_etree.XML('<A/>')))
+
+    def test_etree_deep_equal_function(self):
+        e1 = ElementTree.XML('<root a="foo"/>')
+        e2 = ElementTree.XML('<root a="foo"/>')
+        self.assertTrue(etree_deep_equal(e1, e2))
+
+        e2 = ElementTree.XML('<ROOT a="foo"/>')
+        self.assertFalse(etree_deep_equal(e1, e2))
+
+        e2 = ElementTree.XML('<root a="bar"/>')
+        self.assertFalse(etree_deep_equal(e1, e2))
+
+        e2 = ElementTree.XML('<root a="foo">bar</root>')
+        self.assertFalse(etree_deep_equal(e1, e2))
+
+    def test_etree_iter_paths_function(self):
+        root = ElementTree.XML('<root><child/></root>')
+        result = list(etree_iter_paths(root))
+        self.assertListEqual(
+            result, [(root, '.'), (root[0], './Q{}child[1]')]
+        )
+
+        root = ElementTree.XML('<root><tns:child xmlns:tns="http://xpath.test/ns"/></root>')
+        result = list(etree_iter_paths(root))
+        self.assertListEqual(
+            result, [(root, '.'), (root[0], './Q{http://xpath.test/ns}child[1]')]
+        )
+
+        if sys.version_info >= (3, 8):
+            parser = ElementTree.XMLParser(
+                target=ElementTree.TreeBuilder(insert_comments=True)
+            )
+            root = ElementTree.XML('<root><!-- comment --></root>', parser)
+            result = list(etree_iter_paths(root))
+            self.assertListEqual(
+                result, [(root, '.'), (root[0], './comment()[1]')]
+            )
+            parser = ElementTree.XMLParser(
+                target=ElementTree.TreeBuilder(insert_pis=True)
+            )
+            root = ElementTree.XML(
+                '<root><?xml-stylesheet type="text/xsl" href="style.xsl"?></root>', parser
+            )
+            result = list(etree_iter_paths(root))
+            self.assertListEqual(
+                result, [(root, '.'), (root[0], './processing-instruction(xml-stylesheet)[1]')]
+            )
+
+        if lxml_etree is not None:
+            root = lxml_etree.XML('<root><!-- comment --></root>')
+            result = list(etree_iter_paths(root))
+            self.assertListEqual(
+                result, [(root, '.'), (root[0], './comment()[1]')]
+            )
+
+            root = lxml_etree.XML(
+                '<root><?xml-stylesheet type="text/xsl" href="style.xsl"?></root>'
+            )
+            result = list(etree_iter_paths(root))
+            self.assertListEqual(
+                result, [(root, '.'), (root[0], './processing-instruction(xml-stylesheet)[1]')]
+            )
 
 
 if __name__ == '__main__':

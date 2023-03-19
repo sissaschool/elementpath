@@ -41,8 +41,10 @@ class NamespacesTest(unittest.TestCase):
 
     def test_prefixed_to_qname_function(self):
         self.assertEqual(get_expanded_name('{ns}foo', {'bar': 'ns'}), '{ns}foo')
+        self.assertEqual(get_expanded_name('Q{ns}foo', {'bar': 'ns'}), '{ns}foo')
         self.assertEqual(get_expanded_name('bar:foo', {'bar': 'ns'}), '{ns}foo')
         self.assertEqual(get_expanded_name('foo', {'': 'ns'}), '{ns}foo')
+        self.assertEqual(get_expanded_name('foo', {None: 'ns'}), '{ns}foo')
         self.assertEqual(get_expanded_name('', {'': 'ns'}), '')
 
         with self.assertRaises(KeyError):
