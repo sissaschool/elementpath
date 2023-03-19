@@ -12,6 +12,7 @@ import unittest
 
 from elementpath.exceptions import ElementPathError, xpath_error
 from elementpath.namespaces import XSD_NAMESPACE
+from elementpath.datatypes import QName
 from elementpath.xpath1 import XPath1Parser
 
 
@@ -44,6 +45,15 @@ class ExceptionsTest(unittest.TestCase):
         self.assertEqual(str(xpath_error('{http://www.w3.org/2005/xqt-errors}XPST0001')),
                          '[err:XPST0001] Parser not bound to a schema')
 
+        code = QName('http://www.w3.org/2005/xqt-errors', 'err:XPST0001')
+        self.assertEqual(str(xpath_error(code)), '[err:XPST0001] Parser not bound to a schema')
+
+        code = QName('', 'XPST0001')
+        self.assertEqual(str(xpath_error(code)), '[Q{}XPST0001] Parser not bound to a schema')
+
+        code = QName('http://xpath.test/errors', 'ce:XPCE0001')
+        self.assertEqual(str(xpath_error(code)), '[ce:XPCE0001] custom XPath error')
+
         with self.assertRaises(ValueError) as err:
             xpath_error('{http://www.w3.org/2005/xpath-functions}XPST0001')
         self.assertEqual(str(err.exception), "[err:XPTY0004] invalid namespace "
@@ -53,6 +63,17 @@ class ExceptionsTest(unittest.TestCase):
             xpath_error('{http://www.w3.org/2005/xpath-functions}}XPST0001')
         self.assertEqual(str(err.exception), "[err:XPTY0004] '{http://www.w3.org/2005/xpath-"
                                              "functions}}XPST0001' is not an xs:QName",)
+
+        code = '{http://www.w3.org/2005/xqt-errors}XPST0001'
+        namespaces = {'fn': 'http://www.w3.org/2005/xpath-functions',
+                      'e': 'http://www.w3.org/2005/xqt-errors'}
+        self.assertEqual(str(xpath_error(code, namespaces=namespaces)),
+                         '[e:XPST0001] Parser not bound to a schema')
+
+        namespaces = {'fn': 'http://www.w3.org/2005/xpath-functions',
+                      '': 'http://www.w3.org/2005/xqt-errors'}
+        self.assertEqual(str(xpath_error(code, namespaces=namespaces)),
+                         '[XPST0001] Parser not bound to a schema')
 
 
 if __name__ == '__main__':
