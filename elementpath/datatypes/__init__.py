@@ -15,7 +15,6 @@ exceptions in order to be reusable in other packages.
 from decimal import Decimal
 from typing import Dict, Optional, Union
 
-from ..helpers import QNAME_PATTERN  # For backward compatibility
 from ..namespaces import XSD_NAMESPACE
 from ..protocols import XsdTypeProtocol
 
@@ -40,7 +39,6 @@ from .proxies import BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
 xsd11_atomic_types.update(
     (k, v) for k, v in xsd10_atomic_types.items() if k not in xsd11_atomic_types
 )
-XSD_BUILTIN_TYPES = xsd10_atomic_types
 
 DatetimeValueType = Union[OrderedDateTime, Date10, Date, DateTime10, DateTime, Time,
                           GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10,
@@ -116,10 +114,10 @@ def get_atomic_value(xsd_type: Optional[XsdTypeProtocol]) -> AtomicValueType:
             return UntypedAtomic('1')
 
 
-__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value', 'AtomicTypeMeta',
-           'AnyAtomicType', 'XSD_BUILTIN_TYPES', 'NumericProxy', 'ArithmeticProxy',
-           'QNAME_PATTERN', 'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp',
-           'Date10', 'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
+__all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value',
+           'AtomicTypeMeta', 'AnyAtomicType', 'NumericProxy', 'ArithmeticProxy',
+           'AbstractDateTime', 'DateTime10', 'DateTime', 'DateTimeStamp', 'Date10',
+           'Date', 'Time', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay',
            'GregorianYear10', 'GregorianYear', 'GregorianYearMonth10', 'GregorianYearMonth',
            'Timezone', 'Duration', 'YearMonthDuration', 'DayTimeDuration', 'StringProxy',
            'NormalizedString', 'XsdToken', 'Language', 'Name', 'NCName', 'Id', 'Idref',

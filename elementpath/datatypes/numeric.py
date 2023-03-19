@@ -36,7 +36,7 @@ class Float10(float, AnyAtomicType):
         elif math.isnan(value):
             try:
                 return float_nan
-            except NameError:
+            except NameError:  # pragma: no cover
                 pass
 
         _value = super().__new__(cls, value)
@@ -66,70 +66,70 @@ class Float10(float, AnyAtomicType):
         return super(Float10, self).__ne__(other)
 
     def __add__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__add__(other))
         elif isinstance(other, float):
             return super(Float10, self).__add__(other)
         return NotImplemented
 
     def __radd__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__radd__(other))
         elif isinstance(other, float):
             return super(Float10, self).__radd__(other)
         return NotImplemented
 
     def __sub__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__sub__(other))
         elif isinstance(other, float):
             return super(Float10, self).__sub__(other)
         return NotImplemented
 
     def __rsub__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__rsub__(other))
         elif isinstance(other, float):
             return super(Float10, self).__rsub__(other)
         return NotImplemented
 
     def __mul__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__mul__(other))
         elif isinstance(other, float):
             return super(Float10, self).__mul__(other)
         return NotImplemented
 
     def __rmul__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__rmul__(other))
         elif isinstance(other, float):
             return super(Float10, self).__rmul__(other)
         return NotImplemented
 
     def __truediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__truediv__(other))
         elif isinstance(other, float):
             return super(Float10, self).__truediv__(other)
         return NotImplemented
 
     def __rtruediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__rtruediv__(other))
         elif isinstance(other, float):
             return super(Float10, self).__rtruediv__(other)
         return NotImplemented
 
     def __mod__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__mod__(other))
         elif isinstance(other, float):
             return super(Float10, self).__mod__(other)
         return NotImplemented
 
     def __rmod__(self, other: object) -> Union[float, 'Float10', 'Float']:
-        if isinstance(other, (self.__class__, int)):
+        if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
             return self.__class__(super(Float10, self).__rmod__(other))
         elif isinstance(other, float):
             return super(Float10, self).__rmod__(other)

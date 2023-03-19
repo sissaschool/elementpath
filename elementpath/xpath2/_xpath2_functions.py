@@ -23,9 +23,9 @@ from string import ascii_letters
 from urllib.parse import urlsplit, quote as urllib_quote
 
 from ..exceptions import ElementPathValueError
-from ..helpers import is_idrefs, is_xml_codepoint, round_number
-from ..datatypes import QNAME_PATTERN, DateTime10, DateTime, Date10, Date, \
-    Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
+from ..helpers import QNAME_PATTERN, is_idrefs, is_xml_codepoint, round_number
+from ..datatypes import DateTime10, DateTime, Date10, Date, Float10, \
+    DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
     XML_BASE, XML_ID, XML_LANG
