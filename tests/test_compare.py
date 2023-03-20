@@ -9,13 +9,47 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+from xml.etree import ElementTree
 
-from elementpath.compare import deep_compare, get_key_function
+from elementpath import XPath2Parser
+from elementpath.xpath_nodes import ElementNode
+from elementpath.compare import deep_equal, deep_compare, get_key_function
 
 
 class CompareTest(unittest.TestCase):
 
+    def test_deep_equal_function(self):
+        parser = XPath2Parser()
+        token = parser.parse('true()')
+
+        with self.assertRaises(TypeError):
+            deep_equal([token], [1])
+
+        with self.assertRaises(TypeError):
+            deep_equal([1], [token])
+
+        self.assertTrue(deep_equal([1], [1]))
+        self.assertFalse(deep_equal([1], [2]))
+        self.assertFalse(deep_equal([1, 1], [1]))
+        self.assertFalse(deep_equal([1], [1, 1]))
+
+        root = ElementTree.Element('root')
+        elem = ElementTree.Element('elem')
+        element = ElementNode(elem)
+        self.assertTrue(deep_equal([element], [element]))
+        self.assertFalse(deep_equal([1], [element]))
+        self.assertFalse(deep_equal([ElementNode(root)], [element]))
+
     def test_deep_compare(self):
+        parser = XPath2Parser()
+        token = parser.parse('true()')
+
+        with self.assertRaises(TypeError):
+            deep_compare([token], [1])
+
+        with self.assertRaises(TypeError):
+            deep_compare([1], [token])
+
         self.assertEqual(deep_compare([1], [1]), 0)
 
     def test_key_function(self):
