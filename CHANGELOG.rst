@@ -2,6 +2,14 @@
 CHANGELOG
 *********
 
+`v4.1.0`_ (2023-03-21)
+======================
+* Refactor XPath function call (context=None only as keyword argument)
+* Add external function support (issue #60)
+* Some fixes to string representation and source property of tokens
+* Extend documentation and tests
+* Clean XSD datatypes hierarchy
+
 `v4.0.1`_ (2023-02-02)
 ======================
 * Fix packaging: include py.typed in package data
@@ -397,3 +405,4 @@ CHANGELOG
 .. _v3.0.2: https://github.com/sissaschool/elementpath/compare/v3.0.1...v3.0.2
 .. _v4.0.0: https://github.com/sissaschool/elementpath/compare/v3.0.2...v4.0.0
 .. _v4.0.1: https://github.com/sissaschool/elementpath/compare/v4.0.0...v4.0.1
+.. _v4.1.0: https://github.com/sissaschool/elementpath/compare/v4.0.1...v4.1.0
