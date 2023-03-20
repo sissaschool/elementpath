@@ -202,10 +202,6 @@ def numeric_not_equal(op1: SupportsFloat, op2: SupportsFloat) -> bool:
     return not math.isclose(op1, op2, rel_tol=1e-7, abs_tol=0.0)
 
 
-def is_nan(x: Any) -> bool:
-    return isinstance(x, float) and math.isnan(x)
-
-
 def equal(op1: Any, op2: Any) -> bool:
     if isinstance(op1, float) and math.isnan(op1):
         return isinstance(op2, float) and math.isnan(op2)

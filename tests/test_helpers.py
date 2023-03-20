@@ -13,7 +13,9 @@ import math
 from xml.etree import ElementTree
 from elementpath.helpers import days_from_common_era, months2days, \
     round_number, is_idrefs, collapse_white_spaces, normalize_sequence_type, \
-    escape_json_string
+    escape_json_string, get_double, numeric_equal, numeric_not_equal, equal, \
+    not_equal, match_wildcard, unescape_json_string, iter_sequence, \
+    split_function_test
 
 
 class HelperFunctionsTest(unittest.TestCase):
@@ -148,9 +150,105 @@ class HelperFunctionsTest(unittest.TestCase):
             'function(item()*) as xs:integer'
         )
 
-    def test_escape_to_json(self):
+    def test_get_double_function(self):
+        self.assertEqual(get_double(1), 1.0)
+        self.assertEqual(get_double(1.0), 1.0)
+
+        self.assertIs(get_double('NaN'), math.nan)
+        self.assertIs(get_double(float('nan')), math.nan)
+        self.assertTrue(math.isinf(get_double('INF')))
+
+        self.assertRaises(ValueError, get_double, 'nan')
+        self.assertRaises(ValueError, get_double, 'Inf')
+        self.assertRaises(ValueError, get_double, 'alfa')
+
+    def test_numeric_equal_function(self):
+        self.assertTrue(numeric_equal(1.0, 1))
+        self.assertFalse(numeric_equal(1.000001, 1.0))
+        self.assertTrue(numeric_equal(1.0000001, 1.0))
+        self.assertFalse(numeric_equal(float('nan'), float('nan')))
+        self.assertRaises(TypeError, numeric_equal, 'xyz', 1)
+
+    def test_numeric_not_equal_function(self):
+        self.assertFalse(numeric_not_equal(1.0, 1))
+        self.assertTrue(numeric_not_equal(1.000001, 1.0))
+        self.assertFalse(numeric_not_equal(1.0000001, 1.0))
+        self.assertTrue(numeric_not_equal(float('nan'), float('nan')))
+
+    def test_equal_function(self):
+        self.assertTrue(equal(1.0, 1))
+        self.assertFalse(equal(1.000001, 1.0))
+        self.assertFalse(equal(1.0000001, 1.0))
+        self.assertTrue(equal(float('nan'), float('nan')))
+        self.assertTrue(equal('xyz', 'xyz'))
+
+    def test_not_equal_function(self):
+        self.assertFalse(not_equal(1.0, 1))
+        self.assertTrue(not_equal(1.000001, 1.0))
+        self.assertTrue(not_equal(1.0000001, 1.0))
+        self.assertFalse(not_equal(float('nan'), float('nan')))
+        self.assertFalse(not_equal('xyz', 'xyz'))
+
+    def test_match_wildcard_function(self):
+        self.assertTrue(match_wildcard('foo', '*'))
+        self.assertTrue(match_wildcard('foo', '*:*'))
+        self.assertTrue(match_wildcard('foo', '*:foo'))
+        self.assertFalse(match_wildcard('foo', '*:bar'))
+        self.assertTrue(match_wildcard('{ns}foo', '*:foo'))
+        self.assertFalse(match_wildcard('{ns}foo', '*:bar'))
+        self.assertTrue(match_wildcard('tns:foo', 'tns:*'))
+        self.assertFalse(match_wildcard('tns:foo', 'bar:*'))
+        self.assertTrue(match_wildcard('{ns}foo', '{ns}*'))
+        self.assertFalse(match_wildcard('{ns}foo', '{ns}foo'))  # is not a wildcard
+        self.assertFalse(match_wildcard('{ns}foo', '{ns}bar'))
+
+    def test_escape_json_string_function(self):
         self.assertEqual(escape_json_string("\""), '\\"')
         self.assertEqual(escape_json_string("\""), '\\"')
+        self.assertEqual(escape_json_string('\\"', escaped=True), '\\"')
+        self.assertEqual(escape_json_string('\\u000A', escaped=True), '\\u000A')
+
+    def test_unescape_json_string_function(self):
+        self.assertEqual(unescape_json_string('foo'), 'foo')
+        self.assertEqual(unescape_json_string('\\n'), '\n')
+        self.assertEqual(unescape_json_string('\\u0031'), '1')
+        self.assertEqual(unescape_json_string('\\"'), '"')
+        self.assertEqual(unescape_json_string('\\\\'), '\\')
+        self.assertEqual(unescape_json_string('\\u000a'), '\n')
+        self.assertEqual(unescape_json_string('-\\r-'), '-\r-')
+        self.assertEqual(unescape_json_string("-\\t-"), '-\t-')
+
+    def test_iter_sequence_function(self):
+        self.assertListEqual(list(iter_sequence(None)), [])
+        self.assertListEqual(list(iter_sequence([None, 8])), [8])
+        self.assertListEqual(list(iter_sequence([])), [])
+        self.assertListEqual(list(iter_sequence([[], 8])), [8])
+        self.assertListEqual(list(iter_sequence([[], [], []])), [])
+        self.assertListEqual(list(iter_sequence([[], 8, [9]])), [8, 9])
+
+    def test_split_function_test_function(self):
+        self.assertListEqual(
+            split_function_test('element(*)'), []
+        )
+        self.assertListEqual(
+            split_function_test('function(*)'), ['*']
+        )
+        self.assertListEqual(
+            split_function_test('function(item()) as xs:anyAtomicType'),
+            ['item()', 'xs:anyAtomicType']
+        )
+        self.assertListEqual(
+            split_function_test('function(xs:string) as xs:integer*'),
+            ['xs:string', 'xs:integer*']
+        )
+        self.assertListEqual(
+            split_function_test('function() as map(xs:string, item())'),
+            ['map(xs:string, item())']
+        )
+        self.assertListEqual(
+            split_function_test('function(item()*, item()*, item()*) as item()*'),
+            ['item()*', 'item()*', 'item()*', 'item()*']
+        )
 
 
 if __name__ == '__main__':
