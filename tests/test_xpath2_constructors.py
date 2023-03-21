@@ -288,6 +288,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:double(.)', float, context=context)
         self.check_value('xs:double(.)', 10.3, context=context)
 
+        self.check_value('xs:double(1) instance of xs:double', True)
+        self.check_value('xs:double(1) instance of xs:float', False)
+
     def test_float_constructor(self):
         self.wrong_value('xs:float("..")')
         self.wrong_value('xs:float("ab")', 'FORG0001')
@@ -311,6 +314,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
             self.check_value('xs:float(9.001)', 9.001)
         finally:
             self.parser._xsd_version = '1.1'
+
+        self.check_value('xs:float(1) instance of xs:float', True)
+        self.check_value('xs:float(1) instance of xs:double', False)
 
     def test_datetime_constructor(self):
         tz1 = Timezone(datetime.timedelta(hours=5, minutes=24))
