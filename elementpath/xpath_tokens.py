@@ -31,8 +31,7 @@ from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
 from .datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
-    Integer, DoubleProxy10, DoubleProxy, QName, DatetimeValueType, \
-    AtomicValueType, AnyAtomicType
+    Integer, DoubleProxy10, DoubleProxy, QName, AtomicValueType, AnyAtomicType
 from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from .sequence_types import is_sequence_type_restriction, match_sequence_type
@@ -733,8 +732,8 @@ class XPathToken(Token[XPathTokenType]):
 
         self.namespace = namespace
 
-    def adjust_datetime(self, context: XPathContext, cls: Type[DatetimeValueType]) \
-            -> Union[List[Any], DatetimeValueType, DayTimeDuration]:
+    def adjust_datetime(self, context: XPathContext, cls: Type[AbstractDateTime]) \
+            -> Union[List[Any], AbstractDateTime, DayTimeDuration]:
         """
         XSD datetime adjust function helper.
 
@@ -744,8 +743,8 @@ class XPathToken(Token[XPathTokenType]):
         or the adjusted XSD datetime instance.
         """
         timezone: Optional[Any]
-        item: Optional[DatetimeValueType]
-        _item: Union[DatetimeValueType, DayTimeDuration]
+        item: Optional[AbstractDateTime]
+        _item: Union[AbstractDateTime, DayTimeDuration]
 
         if len(self) == 1:
             item = self.get_argument(context, cls=cls)
@@ -1663,7 +1662,7 @@ class XPathMap(XPathFunction):
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         map_dict: Dict[Any, Any]
-        key = cast(AnyAtomicType, args[0])
+        key = args[0]
         if self._map is not None:
             map_dict = self._map
         else:

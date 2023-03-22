@@ -40,13 +40,8 @@ xsd11_atomic_types.update(
     (k, v) for k, v in xsd10_atomic_types.items() if k not in xsd11_atomic_types
 )
 
-DatetimeValueType = Union[OrderedDateTime, Date10, Date, DateTime10, DateTime, Time,
-                          GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10,
-                          GregorianYear, GregorianYearMonth10, GregorianYearMonth]
-
-AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
-                        AnyURI, HexBinary, Base64Binary, QName, AbstractDateTime, Duration,
-                        UntypedAtomic, DatetimeValueType]
+DatetimeValueType = AbstractDateTime  # keep until v5.0 for backward compatibility
+AtomicValueType = Union[str, int, float, Decimal, bool, AnyAtomicType]
 
 
 ATOMIC_VALUES: Dict[Optional[str], AtomicValueType] = {

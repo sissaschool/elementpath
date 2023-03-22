@@ -367,9 +367,6 @@ class XPath2Parser(XPath1Parser):
                           sequence_types: Tuple[str, ...] = (),
                           bp: int = 90) -> Type[XPathFunction]:
         """Registers a token class for an external function."""
-        """
-        Registers a token class for a symbol that represents an XPath function.
-        """
         import inspect
 
         symbol = name or callback.__name__

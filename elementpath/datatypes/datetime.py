@@ -171,7 +171,31 @@ class AbstractDateTime(AnyAtomicType):
 
     @abstractmethod
     def __str__(self) -> str:
-        raise NotImplementedError()
+        raise NotImplementedError
+
+    @abstractmethod
+    def __lt__(self, other: object) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __le__(self, other: object) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __gt__(self, other: object) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __ge__(self, other: object) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __add__(self, other: object) -> Any:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __sub__(self, other: object) -> Any:
+        raise NotImplementedError
 
     @property
     def year(self) -> int:
@@ -348,7 +372,7 @@ class OrderedDateTime(AbstractDateTime):
 
     @abstractmethod
     def __str__(self) -> str:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
     def fromdelta(cls, delta: datetime.timedelta, adjust_timezone: bool = False) \
