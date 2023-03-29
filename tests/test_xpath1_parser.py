@@ -33,11 +33,6 @@ try:
 except ImportError:
     lxml_etree = None
 
-try:
-    import xmlschema
-except ImportError:
-    xmlschema = None
-
 from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextError, \
     AttributeNode, NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, select, XPathFunction
@@ -385,9 +380,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector("./{http://xpath.test/ns}*", root, root[:], strict=False)
 
     def test_node_types(self):
-        document = self.etree.parse(io.StringIO(u'<A/>'))
         element = self.etree.Element('schema')
-
         context = XPathContext(element)
         attribute = AttributeNode('id', '0212349350')
         namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
@@ -1412,14 +1405,26 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         if self.parser.version == '1.0':
             self.check_selector('/A/namespace::*', root, expected=set(namespaces),
                                 namespaces=namespaces[-1:])
+            self.check_selector('/A/namespace::tst', root,
+                                expected=[('tst', 'http://xpath.test/ns')],
+                                namespaces=namespaces[-1:])
         else:
             self.check_selector('/A/namespace::*', root,
                                 expected={'http://www.w3.org/XML/1998/namespace',
                                           'http://xpath.test/ns'},
                                 namespaces=namespaces[-1:])
+            self.check_selector('/A/namespace::tst', root,
+                                expected=['http://xpath.test/ns'],
+                                namespaces=namespaces[-1:])
 
         self.check_value('namespace::*', MissingContextError)
         self.check_value('./text()/namespace::*', [], context=XPathContext(root))
+
+        if self.parser.version >= '3.0':
+            self.check_selector('/A/namespace::namespace-node()', root,
+                                expected={'http://www.w3.org/XML/1998/namespace',
+                                          'http://xpath.test/ns'},
+                                namespaces=namespaces[-1:])
 
     def test_parent_shortcut_and_axis(self):
         root = self.etree.XML(

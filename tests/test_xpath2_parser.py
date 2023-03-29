@@ -38,8 +38,8 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import XPath2Parser, XPathContext, MissingContextError, \
-    ElementNode, select, iter_select
+from elementpath import XPath2Parser, XPathContext, XPathSchemaContext, \
+    MissingContextError, ElementNode, select, iter_select
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
     Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
@@ -569,6 +569,19 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("a[2] = (1 to 10, 30)", root, True)
         self.check_selector("a[3] = (1 to 10, 30)", root, True)
         self.check_selector("a[4] = (1 to 10, 30)", root, False)
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
+    def test_namespace_axis_on_schema_context(self):
+        schema = xmlschema.XMLSchema(dedent("""\n
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="floatType">
+                    <xs:restriction base="xs:double"/>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        context = XPathSchemaContext(schema)
+        token = self.parser.parse('/namespace::*')
+        self.assertListEqual(token.evaluate(context), [])
 
     def test_unknown_axis(self):
         self.wrong_syntax('unknown::node()', 'XPST0003')
