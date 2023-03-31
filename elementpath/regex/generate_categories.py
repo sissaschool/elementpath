@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """Codepoints module generator utility."""
 
 CATEGORIES_TEMPLATE = """#

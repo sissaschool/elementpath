@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """
 XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 """
