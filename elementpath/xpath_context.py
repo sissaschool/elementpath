@@ -20,17 +20,19 @@ from .namespaces import NamespacesType
 from .datatypes import AnyAtomicType, Timezone, Language
 from .protocols import ElementProtocol, DocumentProtocol
 from .etree import is_etree_element, is_etree_document
-from .xpath_nodes import RootArgType, ChildNodeType, XPathNode, \
-    AttributeNode, NamespaceNode, CommentNode, ProcessingInstructionNode, \
-    ElementNode, DocumentNode
-from .tree_builders import get_node_tree
+from .xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
+from .tree_builders import RootArgType, get_node_tree
 
 if TYPE_CHECKING:
-    from .xpath_tokens import XPathToken, XPathAxis
+    from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
+    ItemType = Union[XPathNode, AnyAtomicType, XPathFunction]
+else:
+    ItemType = Any
 
 __all__ = ['XPathContext', 'XPathSchemaContext']
 
-ItemArgType = Union[RootArgType, XPathNode, AnyAtomicType]
+ItemArgType = Union[RootArgType, ItemType]
 
 
 def is_xpath_node(obj: Any) -> bool:
@@ -78,7 +80,7 @@ class XPathContext:
     """
     _etree: Optional[ModuleType] = None
     root: Union[DocumentNode, ElementNode]
-    item: Union[XPathNode, AnyAtomicType, None]
+    item: Optional[ItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
     documents: Optional[Dict[str, Union[DocumentNode, ElementNode]]] = None
@@ -197,15 +199,13 @@ class XPathContext:
             return isinstance(self.item, ElementNode)
 
     @overload
-    def get_context_item(self, item: ItemArgType) \
-        -> Union[XPathNode, AnyAtomicType]: ...
+    def get_context_item(self, item: ItemArgType) -> ItemType: ...
 
     @overload
-    def get_context_item(self, item: List[ItemArgType]) \
-        -> List[Union[XPathNode, AnyAtomicType]]: ...
+    def get_context_item(self, item: List[ItemArgType]) -> List[ItemType]: ...
 
     def get_context_item(self, item: Union[ItemArgType, List[ItemArgType]]) \
-            -> Union[XPathNode, AnyAtomicType, List[Union[XPathNode, AnyAtomicType]]]:
+            -> Union[ItemType, List[ItemType]]:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
@@ -241,7 +241,7 @@ class XPathContext:
                 else:
                     return ProcessingInstructionNode(cast(ElementProtocol, item))
         else:
-            return cast(AnyAtomicType, item)
+            return cast(Union[AnyAtomicType, 'XPathFunction'], item)
 
         return get_node_tree(
             root=cast(Union[RootArgType], item),
@@ -304,7 +304,7 @@ class XPathContext:
     ##
     # Context item iterators for axis
 
-    def iter_self(self) -> Iterator[Union[XPathNode, AnyAtomicType, None]]:
+    def iter_self(self) -> Iterator[Optional[ItemType]]:
         """Iterator for 'self' axis and '.' shortcut."""
         status = self.axis
         self.axis = 'self'
@@ -330,7 +330,7 @@ class XPathContext:
 
             self.item, self.axis = status
 
-    def iter_children_or_self(self) -> Iterator[Union[XPathNode, AnyAtomicType, None]]:
+    def iter_children_or_self(self) -> Iterator[Optional[ItemType]]:
         """Iterator for 'child' forward axis and '/' step."""
         if self.axis is not None:
             yield self.item

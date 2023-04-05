@@ -11,8 +11,6 @@ elementpath
 .. image:: https://img.shields.io/badge/License-MIT-blue.svg
    :alt: MIT License
    :target: https://lbesson.mit-license.org/
-.. image:: https://travis-ci.org/sissaschool/elementpath.svg?branch=master
-   :target: https://travis-ci.org/sissaschool/elementpath
 .. image:: https://img.shields.io/pypi/dm/elementpath.svg
    :target: https://pypi.python.org/pypi/elementpath/
 

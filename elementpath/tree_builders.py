@@ -13,11 +13,15 @@ from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import SchemaElemType, RootArgType, ChildNodeType, \
-    ElementMapType, TextNode, CommentNode, ProcessingInstructionNode, \
+from .xpath_nodes import SchemaElemType, ChildNodeType, ElementMapType, \
+    TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
-__all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
+__all__ = ['RootArgType', 'get_node_tree', 'build_node_tree',
+           'build_lxml_node_tree', 'build_schema_node_tree']
+
+RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
+                    'DocumentNode', 'ElementNode']
 
 
 def is_schema(obj: Any) -> bool:

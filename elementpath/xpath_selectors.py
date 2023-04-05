@@ -10,7 +10,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Union, Type
 
 from .namespaces import NamespacesType
-from .xpath_nodes import RootArgType
+from .tree_builders import RootArgType
 from .xpath_context import XPathContext
 from .xpath2 import XPath2Parser
 

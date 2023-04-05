@@ -274,7 +274,8 @@ class XPathToken(Token[XPathTokenType]):
         :param cls: if a type is provided performs a type checking on item.
         :param promote: a class or a tuple of classes that are promoted to `cls` class.
         """
-        item: Union[None, ElementProtocol, DocumentProtocol, XPathNode, AnyAtomicType]
+        item: Union[None, ElementProtocol, DocumentProtocol,
+                    XPathNode, AnyAtomicType, XPathFunction]
 
         try:
             token = self._items[index]

@@ -19,7 +19,7 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
 from .helpers import match_wildcard
 from .etree import etree_iter_strings
 
-__all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType', 'ElementMapType',
+__all__ = ['SchemaElemType', 'ChildNodeType', 'ElementMapType',
            'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode',
            'CommentNode', 'ProcessingInstructionNode', 'ElementNode',
            'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
@@ -27,8 +27,6 @@ __all__ = ['SchemaElemType', 'RootArgType', 'ChildNodeType', 'ElementMapType',
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
-RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
-                    'DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
 ElementMapType = Dict[Union[ElementProtocol, SchemaElemType], 'ElementNode']
 
