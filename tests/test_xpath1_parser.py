@@ -39,6 +39,7 @@ from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextErr
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import is_sequence_type
+from elementpath.xpath3 import XPath31Parser
 
 try:
     from tests import xpath_test_class
@@ -1627,7 +1628,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
             self.assertIsInstance(value, str)
             self.assertTrue(value.startswith('function('))
-            self.assertTrue(is_sequence_type(value, self.parser), msg=value)
+            self.assertTrue(is_sequence_type(value), msg=value)
 
     def test_descendant_predicate__issue_51(self):
         root = self.etree.XML(dedent("""<doc>

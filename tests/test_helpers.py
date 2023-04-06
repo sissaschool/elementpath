@@ -12,10 +12,9 @@ import unittest
 import math
 from xml.etree import ElementTree
 from elementpath.helpers import days_from_common_era, months2days, \
-    round_number, is_idrefs, collapse_white_spaces, normalize_sequence_type, \
-    escape_json_string, get_double, numeric_equal, numeric_not_equal, equal, \
-    not_equal, match_wildcard, unescape_json_string, iter_sequence, \
-    split_function_test
+    round_number, is_idrefs, collapse_white_spaces, escape_json_string, \
+    get_double, numeric_equal, numeric_not_equal, equal, not_equal, \
+    match_wildcard, unescape_json_string, iter_sequence, split_function_test
 
 
 class HelperFunctionsTest(unittest.TestCase):
@@ -138,17 +137,6 @@ class HelperFunctionsTest(unittest.TestCase):
     def test_collapse_white_spaces_function(self):
         self.assertEqual(collapse_white_spaces('  ab  c  '), 'ab c')
         self.assertEqual(collapse_white_spaces('  ab\t\nc  '), 'ab c')
-
-    def test_normalize_sequence_type_function(self):
-        self.assertEqual(normalize_sequence_type(' xs:integer + '), 'xs:integer+')
-        self.assertEqual(normalize_sequence_type(' xs :integer + '), 'xs :integer+')  # Invalid
-        self.assertEqual(normalize_sequence_type(' element( * ) '), 'element(*)')
-        self.assertEqual(normalize_sequence_type(' element( *,xs:int ) '), 'element(*, xs:int)')
-        self.assertEqual(normalize_sequence_type(' \nfunction  ( * )\t '), 'function(*)')
-        self.assertEqual(
-            normalize_sequence_type(' \nfunction  ( item( ) * ) as  xs:integer\t '),
-            'function(item()*) as xs:integer'
-        )
 
     def test_get_double_function(self):
         self.assertEqual(get_double(1), 1.0)

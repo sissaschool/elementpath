@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 from typing import cast, Any, Callable, ClassVar, Dict, List, \
     MutableMapping, Optional, Tuple, Type, Union
 
-from ..helpers import upper_camel_case, is_ncname, normalize_sequence_type, ordinal
+from ..helpers import upper_camel_case, is_ncname, ordinal
 from ..exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
@@ -152,9 +152,7 @@ class XPath2Parser(XPath1Parser):
         if not variable_types:
             self.variable_types = {}
         elif all(is_sequence_type(v, self) for v in variable_types.values()):
-            self.variable_types = {
-                k: normalize_sequence_type(v) for k, v in variable_types.items()
-            }
+            self.variable_types = variable_types.copy()
         else:
             raise ElementPathValueError('invalid sequence type for in-scope variable types')
 

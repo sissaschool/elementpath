@@ -61,16 +61,6 @@ def is_idrefs(value: Optional[str]) -> bool:
 
 node_position = attrgetter('position')
 
-###
-# Sequence type checking
-SEQUENCE_TYPE_PATTERN = re.compile(r'\s?([()?*+,])\s?')
-
-
-def normalize_sequence_type(sequence_type: str) -> str:
-    sequence_type = WHITESPACES_PATTERN.sub(' ', sequence_type).strip()
-    sequence_type = SEQUENCE_TYPE_PATTERN.sub(r'\1', sequence_type)
-    return sequence_type.replace(',', ', ').replace(')as', ') as')
-
 
 ###
 # Date/Time helpers

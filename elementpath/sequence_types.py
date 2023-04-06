@@ -7,11 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import re
 from itertools import zip_longest
 from typing import TYPE_CHECKING, cast, Any, Optional
 
 from .exceptions import ElementPathKeyError, xpath_error
-from .helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, normalize_sequence_type
+from .helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, WHITESPACES_PATTERN
 from .namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
     get_expanded_name
 from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType, \
@@ -41,9 +42,21 @@ COMMON_SEQUENCE_TYPES = {
     'processing-instruction()', 'item()', 'node()', 'numeric'
 }
 
+###
+# Sequence type checking
+SEQUENCE_TYPE_PATTERN = re.compile(r'\s?([()?*+,])\s?')
+
+
+def normalize_sequence_type(sequence_type: str) -> str:
+    sequence_type = WHITESPACES_PATTERN.sub(' ', sequence_type).strip()
+    sequence_type = SEQUENCE_TYPE_PATTERN.sub(r'\1', sequence_type)
+    return sequence_type.replace(',', ', ').replace(')as', ') as')
+
 
 def is_sequence_type_restriction(st1: str, st2: str) -> bool:
     """Returns `True` if st2 is a restriction of st1."""
+    st1, st2 = normalize_sequence_type(st1), normalize_sequence_type(st2)
+
     if st2 in ('empty-sequence()', 'none') and \
             (st1 in ('empty-sequence()', 'none') or st1.endswith(('?', '*'))):
         return True
@@ -170,7 +183,7 @@ def is_sequence_type(value: Any, parser: Optional['XPath1Parser'] = None) -> boo
             return True
 
         elif st.startswith(('map(', 'array(')):
-            if version < '3.1' or not st.endswith(')'):
+            if parser and parser.version < '3.1' or not st.endswith(')'):
                 return False
 
             if st in ('map(*)', 'array(*)'):
@@ -203,40 +216,37 @@ def is_sequence_type(value: Any, parser: Optional['XPath1Parser'] = None) -> boo
             return is_st(st[14:-1])
 
         elif st.startswith('function('):
-            if getattr(parser, 'version', '1.0') >= '3.0':
-                if st == 'function(*)':
-                    return True
-                elif ' as ' in st:
-                    pass
-                elif not st.endswith(')'):
-                    return False
-                else:
-                    return is_st(st[9:-1])
-
-            try:
-                st, return_type = st.rsplit(' as ', 1)
-            except ValueError:
+            if parser and parser.version < '3.0':
+                return False
+            elif st == 'function(*)':
+                return True
+            elif ' as ' in st:
+                pass
+            elif not st.endswith(')'):
                 return False
             else:
-                if not is_st(return_type):
-                    return False
-                elif st == 'function()':
-                    return True
+                return is_st(st[9:-1])
 
-                st = st[9:-1]
-                if st.endswith(', ...'):
-                    st = st[:-5]
+            st, return_type = st.rsplit(' as ', 1)
+            if not is_st(return_type):
+                return False
+            elif st == 'function()':
+                return True
 
-                if 'function(' not in st:
-                    return all(is_st(x) for x in st.split(', '))
-                elif st.startswith('function(*)') and 'function(' not in st[11:]:
-                    return all(is_st(x) for x in st.split(', '))
+            st = st[9:-1]
+            if st.endswith(', ...'):
+                st = st[:-5]
 
-                # Cover only if function() spec is the last argument
-                k = st.index('function(')
-                if not is_st(st[k:]):
-                    return False
-                return all(is_st(x) for x in st[:k].split(', ') if x)
+            if 'function(' not in st:
+                return all(is_st(x) for x in st.split(', '))
+            elif st.startswith('function(*)') and 'function(' not in st[11:]:
+                return all(is_st(x) for x in st.split(', '))
+
+            # Cover only if function() spec is the last argument
+            k = st.index('function(')
+            if not is_st(st[k:]):
+                return False
+            return all(is_st(x) for x in st[:k].split(', ') if x)
 
         elif QName.pattern.match(st) is None:
             return False
@@ -250,8 +260,6 @@ def is_sequence_type(value: Any, parser: Optional['XPath1Parser'] = None) -> boo
             return False
         else:
             return True
-
-    version = '2.0' if parser is None else parser.version
 
     if not isinstance(value, str):
         return False
@@ -323,9 +331,7 @@ def match_sequence_type(value: Any,
         else:
             try:
                 return is_instance(v, st, parser)
-            except ValueError:
-                return False
-            except KeyError:
+            except (KeyError, ValueError):
                 raise xpath_error('XPST0051')
 
         if st == 'node()':
@@ -346,10 +352,10 @@ def match_sequence_type(value: Any,
             return False
 
         _, params = st[:-1].split('(')
-        if ',' not in st:
+        if ', ' not in st:
             name = params
         else:
-            name, type_name = params.split(',')
+            name, type_name = params.rsplit(', ', 1)
             if type_name.endswith('?'):
                 type_name = type_name[:-1]
             elif isinstance(v, ElementNode) and v.nilled:
@@ -361,11 +367,9 @@ def match_sequence_type(value: Any,
                     return False
             else:
                 try:
-                    if not is_instance(v, type_name, parser):
+                    if not is_instance(v.typed_value, type_name, parser):
                         return False
-                except ValueError:
-                    return False
-                except KeyError:
+                except (KeyError, ValueError):
                     raise xpath_error('XPST0051')
 
         if name == '*':
@@ -373,9 +377,11 @@ def match_sequence_type(value: Any,
 
         try:
             exp_name = get_expanded_name(name, parser.namespaces)  # type: ignore[union-attr]
-        except (KeyError, ValueError, AttributeError):
+        except (KeyError, ValueError):
             return False
+        except AttributeError:
+            return True if v.name == name else False
         else:
             return True if v.name == exp_name else False
 
-    return match_st(value, sequence_type)
+    return match_st(value, normalize_sequence_type(sequence_type))
