@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.1.1`_ (2023-04-11)
+======================
+* Simplify type annotations for XSD datatypes
+* Full test coverage of sequence type functions with bugfixes
+
 `v4.1.0`_ (2023-03-21)
 ======================
 * Refactor XPath function call (context=None only as keyword argument)
@@ -406,3 +411,4 @@ CHANGELOG
 .. _v4.0.0: https://github.com/sissaschool/elementpath/compare/v3.0.2...v4.0.0
 .. _v4.0.1: https://github.com/sissaschool/elementpath/compare/v4.0.0...v4.0.1
 .. _v4.1.0: https://github.com/sissaschool/elementpath/compare/v4.0.1...v4.1.0
+.. _v4.1.1: https://github.com/sissaschool/elementpath/compare/v4.1.0...v4.1.1

@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: elementpath
 url: 'https://github.com/sissaschool/elementpath'
 landingURL: 'https://github.com/sissaschool/elementpath'
-releaseDate: '2023-03-21'
-softwareVersion: v4.1.0
+releaseDate: '2023-04-11'
+softwareVersion: v4.1.1
 developmentStatus: stable
 platforms:
   - linux
@@ -76,4 +76,4 @@ description:
       ~~~~  
 
     features:
-      - XPath 1.0, XPath 2.0 amd XPath 3.0 implementations
+      - XPath 1.0, XPath 2.0, XPath 3.0 and XPath 3.1 implementations

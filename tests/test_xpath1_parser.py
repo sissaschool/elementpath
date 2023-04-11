@@ -39,7 +39,6 @@ from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextErr
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import is_sequence_type
-from elementpath.xpath3 import XPath31Parser
 
 try:
     from tests import xpath_test_class
