@@ -45,6 +45,15 @@ class XPath30Parser(XPath2Parser):
         '*', '@', '..', '.', '(', '{', 'Q{', '$',
     }
 
+    # https://www.w3.org/TR/xpath-30/#id-reserved-fn-names
+    RESERVED_FUNCTION_NAMES = {
+        'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
+        'function', 'if', 'item', 'namespace-node', 'node', 'processing-instruction',
+        'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
+    }
+
+    function_signatures = XPath2Parser.function_signatures.copy()
+
     decimal_formats: DecimalFormatsType = {
         None: {
             'decimal-separator': '.',
@@ -60,21 +69,13 @@ class XPath30Parser(XPath2Parser):
             'pattern-separator': ';',
         }
     }
-
-    # https://www.w3.org/TR/xpath-30/#id-reserved-fn-names
-    RESERVED_FUNCTION_NAMES = {
-        'attribute', 'comment', 'document-node', 'element', 'empty-sequence',
-        'function', 'if', 'item', 'namespace-node', 'node', 'processing-instruction',
-        'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
-    }
-
-    function_signatures = XPath2Parser.function_signatures.copy()
+    defuse_xml: bool = True
 
     def __init__(self, *args: Any, decimal_formats: Optional[DecimalFormatsType] = None,
                  defuse_xml: bool = True, **kwargs: Any) -> None:
         kwargs.pop('strict', None)
         super(XPath30Parser, self).__init__(*args, **kwargs)
-        self.defuse_xml = defuse_xml
+
         if decimal_formats is not None:
             self.decimal_formats = deepcopy(self.decimal_formats)
 
@@ -85,6 +86,8 @@ class XPath30Parser(XPath2Parser):
 
             if None in decimal_formats:
                 self.decimal_formats[None].update(decimal_formats[None])
+        if not defuse_xml:
+            self.defuse_xml = defuse_xml
 
     def __repr__(self) -> str:
         args = []
