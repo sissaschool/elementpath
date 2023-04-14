@@ -20,8 +20,11 @@ except ImportError:
 
 
 class XPathSelectorsTest(unittest.TestCase):
-    root = ElementTree.XML('<author>Dickens</author>')
     etree = ElementTree
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.root = cls.etree.XML('<author>Dickens</author>')
 
     def test_select_function(self):
         self.assertListEqual(select(self.root, 'text()'), ['Dickens'])
@@ -68,7 +71,6 @@ class XPathSelectorsTest(unittest.TestCase):
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPathSelectorsTest(XPathSelectorsTest):
-    root = lxml_etree.XML('<author>Dickens</author>')
     etree = lxml_etree
 
     def test_issue_058(self):

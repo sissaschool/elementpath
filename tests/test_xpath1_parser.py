@@ -19,6 +19,7 @@
 #           https://www.w3.org/Consortium/Legal/2015/doc-license
 #           https://www.w3.org/TR/charmod-norm/
 #
+import sys
 import unittest
 import io
 import math
@@ -1129,7 +1130,10 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML(XML_DATA_TEST)
         context = XPathContext(root, variables=self.variables)
         self.check_value("sum($values)", 35, context)
-        self.check_selector("sum(/values/a)", root, 13.299999999999999)
+        if sys.version_info < (3, 12):
+            self.check_selector("sum(/values/a)", root, 13.299999999999999)
+        else:
+            self.check_selector("sum(/values/a)", root, 13.3)
 
         if self.parser.version == '1.0':
             self.check_selector("sum(/values/*)", root, math.isnan)

@@ -13,7 +13,10 @@ import io
 from textwrap import dedent
 from xml.etree import ElementTree
 
-import xmlschema.xpath
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
 
 from elementpath.sequence_types import normalize_sequence_type, is_instance, \
     is_sequence_type, match_sequence_type, is_sequence_type_restriction
