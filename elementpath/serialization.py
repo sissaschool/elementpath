@@ -39,7 +39,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
 
     kwargs: Dict[str, Any] = {}
     if isinstance(params, XPathMap):
-        if len(params[:]) > len(params.keys()):
+        if len(params[:]) > len(params.keys()):  # pragma: no cover
             raise xpath_error('SEPM0019', token=token)
 
         for key, value in params.items():
@@ -63,16 +63,17 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                     value = value.items()
                 if not isinstance(value, list) or not all(isinstance(x, QName) for x in value):
                     raise xpath_error('XPTY0004', token=token)
-                kwargs['cdata-section-elements'] = value
+                kwargs[key] = value
 
             elif key == 'method':
                 if value not in ('html', 'xml', 'xhtml', 'text', 'adaptive', 'json'):
                     raise xpath_error('SEPM0017', token=token)
-                kwargs['method'] = value if value != 'xhtml' else 'html'
+                kwargs[key] = value if value != 'xhtml' else 'html'
 
             elif key == 'indent':
                 if not isinstance(value, bool):
                     raise xpath_error('XPTY0004', token=token)
+                kwargs[key] = value
 
             elif key == 'item-separator':
                 if not isinstance(value, str):
@@ -90,14 +91,15 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                     elif len(k) != 1:
                         msg = f'invalid character {k!r} in character map'
                         raise xpath_error('SEPM0016', msg, token)
-                    elif k in character_map:
-                        msg = f'duplicate character {k!r} in character map'
-                        raise xpath_error('SEPM0018', msg, token)
                     else:
                         character_map[k] = v
 
-            elif key == 'suppress-indentation':
-                pass  # TODO param
+            elif key == 'suppress-indentation':  # pragma: no cover
+                if isinstance(value, QName) or isinstance(value, list) \
+                        and all(isinstance(x, QName) for x in value):
+                    kwargs[key] = value
+                else:
+                    raise xpath_error('XPTY0004', token=token)
             elif key == 'standalone':
                 if not value and isinstance(value, list):
                     pass
@@ -130,7 +132,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 kwargs[key] = value
 
     elif isinstance(params, ElementNode):
-        root = params.value
+        root = params.elem
         if root.tag != SERIALIZATION_PARAMS:
             msg = 'output:serialization-parameters tag expected'
             raise xpath_error('XPTY0004', msg, token)
