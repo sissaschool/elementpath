@@ -63,7 +63,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                     value = value.items()
                 if not isinstance(value, list) or not all(isinstance(x, QName) for x in value):
                     raise xpath_error('XPTY0004', token=token)
-                kwargs[key] = value
+                kwargs['cdata_section'] = value
 
             elif key == 'method':
                 if value not in ('html', 'xml', 'xhtml', 'text', 'adaptive', 'json'):
@@ -119,7 +119,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             elif key == 'allow-duplicate-names':
                 if value is not None and not isinstance(value, bool):
                     raise xpath_error('XPTY0004', token=token)
-                kwargs[key] = value
+                kwargs['allow_duplicate_names'] = value
 
             elif key == 'encoding':
                 if not isinstance(value, str):
@@ -260,16 +260,16 @@ def serialize_to_xml(elements: Iterable[Any],
     item_separator = params.get('item_separator')
     character_map = params.get('character_map')
 
-    cdata_sections: Union[Set[str], Tuple[()]]
+    cdata_section: Union[Set[str], Tuple[()]]
     kwargs = {}
     if 'xml_declaration' in params:
         kwargs['xml_declaration'] = params['xml_declaration']
     if 'standalone' in params:
         kwargs['standalone'] = params['standalone']
-    if 'cdata-section-elements' in params:
-        cdata_sections = {x.expanded_name for x in params['cdata-section-elements']}
+    if 'cdata_section' in params:
+        cdata_section = {x.expanded_name for x in params['cdata_section']}
     else:
-        cdata_sections = ()
+        cdata_section = ()
 
     method = kwargs.get('method', 'xml')
     if method == 'xhtml':
@@ -282,7 +282,7 @@ def serialize_to_xml(elements: Iterable[Any],
         elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise xpath_error('SENR0001', token=token)
         elif isinstance(item, TextNode):
-            if item.parent is not None and item.parent.name in cdata_sections:
+            if item.parent is not None and item.parent.name in cdata_section:
                 chunks.append(f'<![CDATA[{item.value}]]>')
             else:
                 chunks.append(item.value)
@@ -357,7 +357,7 @@ def serialize_to_json(elements: Iterable[Any],
                 elif isinstance(obj, CommentNode):
                     return f'<!--{obj.string_value}-->'
                 else:
-                    return f'<?{obj.string_value}?>'
+                    return f'<?{obj.name} {obj.string_value}?>'
             elif isinstance(obj, XPathMap):
                 if any(isinstance(v, list) and len(v) > 1 for v in obj.values()):
                     raise xpath_error('SERE0023', token=token)
@@ -372,7 +372,7 @@ def serialize_to_json(elements: Iterable[Any],
 
                     if k not in map_keys:
                         map_keys.add(k)
-                    elif not params.get('allow-duplicate-names'):
+                    elif not params.get('allow_duplicate_names'):
                         raise xpath_error('SERE0022', token=token)
                 return MapEncodingDict(map_items)
 
@@ -382,8 +382,6 @@ def serialize_to_json(elements: Iterable[Any],
                 return str(obj)
             elif isinstance(obj, Decimal):
                 return float(Decimal(obj).quantize(Decimal("0.01"), ROUND_UP))
-            elif not obj and isinstance(obj, list):
-                return super().default(None)
             else:
                 return super().default(obj)
 
@@ -399,6 +397,8 @@ def serialize_to_json(elements: Iterable[Any],
         raise
     except ValueError:
         raise xpath_error('SERE0020', token=token)
+    except TypeError:
+        raise xpath_error('SERE0021', token=token)
 
     if not parts:
         return 'null'
