@@ -39,7 +39,10 @@ XML_DATA = """\
     </child1>
     <child2/>
     <tns:other/>
+    <?PI-target PI content?>
 </root>
+<?xml-model type="application/xml"?>
+<!-- Document comment 2 -->
 """
 
 
@@ -81,7 +84,7 @@ class TreeBuildersTest(unittest.TestCase):
 
     @unittest.skipIf(sys.version_info <= (3, 8),
                      "Comments not available in ElementTree")
-    def test_build_node_tree_with_comments(self):
+    def test_build_node_tree_with_comments_and_pis(self):
         parser = ElementTree.XMLParser(
             target=ElementTree.TreeBuilder(
                 insert_comments=True, insert_pis=True
@@ -91,7 +94,7 @@ class TreeBuildersTest(unittest.TestCase):
         node = build_node_tree(root, self.namespaces)
         self.assertIsInstance(node, ElementNode)
 
-        self.assertEqual(len(node.children), 9)
+        self.assertEqual(len(node.children), 11)
         self.assertIsInstance(node.children[0], TextNode)
         self.assertIsInstance(node.children[1], CommentNode)
         self.assertIsInstance(node.children[2], TextNode)
@@ -99,8 +102,10 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node.children[4], TextNode)
         self.assertIsInstance(node.children[5], ElementNode)
         self.assertIsInstance(node.children[6], TextNode)
-        self.assertIsInstance(node.children[5], ElementNode)
-        self.assertIsInstance(node.children[6], TextNode)
+        self.assertIsInstance(node.children[7], ElementNode)
+        self.assertIsInstance(node.children[8], TextNode)
+        self.assertIsInstance(node.children[9], ProcessingInstructionNode)
+        self.assertIsInstance(node.children[10], TextNode)
 
     @unittest.skipIf(lxml_etree is None, "lxml library is not installed")
     def test_build_lxml_node_tree_with_element(self):
@@ -110,14 +115,16 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node, DocumentNode)
         self.assertEqual(node.position, 0)
         self.assertIsNotNone(node.document)
-        self.assertEqual(len(node.children), 3)
+        self.assertEqual(len(node.children), 5)
         self.assertIsInstance(node.children[0], ProcessingInstructionNode)
         self.assertIsInstance(node.children[1], CommentNode)
         self.assertIsInstance(node.children[2], ElementNode)
+        self.assertIsInstance(node.children[3], ProcessingInstructionNode)
+        self.assertIsInstance(node.children[4], CommentNode)
 
         self.assertIsInstance(node[2], ElementNode)
         self.assertEqual(node[2].position, 3)
-        self.assertEqual(len(node[2].children), 9)
+        self.assertEqual(len(node[2].children), 11)
         self.assertIsInstance(node[2].children[0], TextNode)
         self.assertIsInstance(node[2].children[1], CommentNode)
         self.assertIsInstance(node[2].children[2], TextNode)
@@ -147,14 +154,16 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node, DocumentNode)
         self.assertEqual(node.position, 1)
         self.assertIs(node.document, root)
-        self.assertEqual(len(node.children), 3)
+        self.assertEqual(len(node.children), 5)
         self.assertIsInstance(node.children[0], ProcessingInstructionNode)
         self.assertIsInstance(node.children[1], CommentNode)
         self.assertIsInstance(node.children[2], ElementNode)
+        self.assertIsInstance(node.children[3], ProcessingInstructionNode)
+        self.assertIsInstance(node.children[4], CommentNode)
 
         self.assertIsInstance(node[2], ElementNode)
         self.assertEqual(node[2].position, 4)
-        self.assertEqual(len(node[2].children), 9)
+        self.assertEqual(len(node[2].children), 11)
         self.assertIsInstance(node[2].children[0], TextNode)
         self.assertIsInstance(node[2].children[1], CommentNode)
         self.assertIsInstance(node[2].children[2], TextNode)
@@ -164,6 +173,15 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node[2].children[6], TextNode)
         self.assertIsInstance(node[2].children[5], ElementNode)
         self.assertIsInstance(node[2].children[6], TextNode)
+
+        root = lxml_etree.ElementTree()
+        self.assertIsNone(root.getroot())
+        node = build_lxml_node_tree(root)
+
+        self.assertIsInstance(node, DocumentNode)
+        self.assertEqual(node.position, 1)
+        self.assertIs(node.document, root)
+        self.assertEqual(len(node.children), 0)
 
 
 if __name__ == '__main__':

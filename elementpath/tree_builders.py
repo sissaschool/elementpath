@@ -261,10 +261,6 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
             try:
                 children, parent = iterators.pop(), ancestors.pop()
             except IndexError:
-                if isinstance(root_node, ElementNode) and root_node.elem is not root:
-                    for _node in root_node.iter_descendants():
-                        if isinstance(_node, ElementNode) and _node.elem is root:
-                            return _node
                 return root_node
 
 
