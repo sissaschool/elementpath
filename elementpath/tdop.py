@@ -174,10 +174,10 @@ class Token(MutableSequence[TK]):
         self.span = (0, 0) if parser.next_match is None else parser.next_match.span()
 
     @overload
-    def __getitem__(self, i: int) -> TK: ...
+    def __getitem__(self, i: int) -> TK: ...  # pragma: no cover
 
     @overload
-    def __getitem__(self, s: slice) -> MutableSequence[TK]: ...
+    def __getitem__(self, s: slice) -> MutableSequence[TK]: ...  # pragma: no cover
 
     def __getitem__(self, i: Union[int, slice]) \
             -> Union[TK, MutableSequence[TK]]:
@@ -223,15 +223,13 @@ class Token(MutableSequence[TK]):
         elif self.symbol in SPECIAL_SYMBOLS:
             return '(%r)' % self.value
         elif self.symbol == '(':
-            if not self:
-                return '()'
-            elif len(self) == 1:
+            if len(self) == 1:
                 return self[0].tree
-            return '(%s)' % ' '.join(item.tree for item in self)
+            return f"({' '.join(item.tree for item in self)})"
         elif not self:
             return '(%s)' % self.symbol
         else:
-            return '(%s %s)' % (self.symbol, ' '.join(item.tree for item in self))
+            return f"({self.symbol} {' '.join(item.tree for item in self)})"
 
     @property
     def source(self) -> str:
@@ -330,22 +328,7 @@ class Token(MutableSequence[TK]):
         tk: 'Token[TK]'
 
         while True:
-            try:
-                tk = next(children)
-            except StopIteration:
-                try:
-                    parent, children = status.pop()
-                except IndexError:
-                    if parent is not None:
-                        if not symbols or parent.symbol in symbols:
-                            yield parent
-                    return
-                else:
-                    if parent is not None:
-                        if not symbols or parent.symbol in symbols:
-                            yield parent
-                        parent = None
-            else:
+            for tk in children:
                 if parent is not None and len(parent._items) == 1:
                     if not symbols or parent.symbol in symbols:
                         yield parent
@@ -361,6 +344,20 @@ class Token(MutableSequence[TK]):
                     continue
                 status.append((parent, children))
                 parent, children = tk, iter(tk)
+                break
+            else:
+                try:
+                    parent, children = status.pop()
+                except IndexError:
+                    if parent is not None:
+                        if not symbols or parent.symbol in symbols:
+                            yield parent
+                    return
+                else:
+                    if parent is not None:
+                        if not symbols or parent.symbol in symbols:
+                            yield parent
+                        parent = None
 
     def expected(self, *symbols: str, message: Optional[str] = None) -> None:
         if symbols and self.symbol not in symbols:
@@ -804,7 +801,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         def bind(func: Callable[..., Any]) -> Callable[..., Any]:
             method_name = func.__name__.partition('_')[0]
             if not callable(getattr(token_class, method_name)):
-                raise TypeError(f"The attribute {method_name!r} is not a callable of {token_class}")
+                raise TypeError(f"{method_name!r} is not a method of {token_class}")
             setattr(token_class, method_name, func)
             return func
         return bind

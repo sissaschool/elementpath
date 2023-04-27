@@ -22,8 +22,6 @@ class TdopParserTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         class ExpressionParser(Parser):
-            SYMBOLS = {'(integer)', '+', '-', '(name)', '(end)', '(invalid)', '(unknown)'}
-
             @classmethod
             def create_tokenizer(cls, symbol_table):
                 return re.compile(
@@ -32,10 +30,7 @@ class TdopParserTest(unittest.TestCase):
                 )
 
         ExpressionParser.literal('(integer)')
-        ExpressionParser.register('(name)', bp=100, lbp=100)
-        ExpressionParser.register('(end)')
-        ExpressionParser.register('(invalid)')
-        ExpressionParser.register('(unknown)')
+        ExpressionParser.register('(name)')
 
         @ExpressionParser.method(ExpressionParser.infix('+', bp=40))
         def evaluate_plus(self, context=None):
@@ -135,9 +130,35 @@ class TdopParserTest(unittest.TestCase):
             self.parser.parse('INCOMPATIBLE')
         self.assertIn("incompatible tokenizer", str(ec.exception))
 
+    def test_string_repr(self):
+        self.assertEqual(repr(self.parser), 'ExpressionParser()')
+        self.assertEqual(str(self.parser), repr(self.parser))
+
     def test_expression(self):
         token = self.parser.parse('10 + 6')
         self.assertEqual(token.evaluate(), 16)
+
+    def test_iter_method(self):
+        token = self.parser.parse('9 + 7 - 5')
+
+        self.assertListEqual(list(tk.source for tk in token.iter()),
+                             ['9', '9 + 7', '7', '9 + 7 - 5', '5'])
+        self.assertListEqual(list(tk.source for tk in token.iter('(integer)')),
+                             ['9', '7', '5'])
+        self.assertListEqual(list(tk.source for tk in token.iter('(name)')), [])
+
+        class SampleParser(Parser):
+            pass
+
+        @SampleParser.method(SampleParser.nullary('.'))
+        def evaluate_self(_self, _context=None):
+            return _self
+
+        parser = SampleParser()
+        token = parser.parse('.')
+        self.assertListEqual(list(tk.source for tk in token.iter()), ['.'])
+        self.assertListEqual(list(tk.source for tk in token.iter('.')), ['.'])
+        self.assertListEqual(list(tk.source for tk in token.iter('..')), [])
 
     def test_syntax_errors(self):
         with self.assertRaises(ParseError) as ec:
@@ -304,19 +325,29 @@ class TdopParserTest(unittest.TestCase):
     def test_invalid_registrations(self):
 
         class AnotherParser(Parser):
-            SYMBOLS = {'(integer)', r'function\(', '(name)', '(end)'}
+            SYMBOLS = {'(integer)', '(name)'}
 
         with self.assertRaises(ValueError) as ec:
             AnotherParser.register(r'function \(')
         self.assertIn("a symbol can't contain whitespaces", str(ec.exception))
 
+        with self.assertRaises(TypeError) as ec:
+            AnotherParser.register(9)
+        self.assertIn("A string or a", str(ec.exception))
+
+        with self.assertRaises(ValueError) as ec:
+            AnotherParser.register(self.parser.symbol_table['+'])
+        self.assertIn("Token class ", str(ec.exception))
+        self.assertIn("is not registered", str(ec.exception))
+
     def test_other_operators(self):
 
         class ExpressionParser(Parser):
-            SYMBOLS = {'(integer)', '+', '++', '-', '*', '(end)'}
+            SYMBOLS = {'(integer)', '+', '++', '-', '*', '(name)'}
 
         ExpressionParser.prefix('++')
         ExpressionParser.postfix('+')
+        ExpressionParser.nullary('(name)')
 
         @ExpressionParser.method(ExpressionParser.prefix('++', bp=90))
         def evaluate_increment(self_, context=None):
@@ -344,11 +375,30 @@ class TdopParserTest(unittest.TestCase):
         ExpressionParser.literal('(integer)')
         ExpressionParser.register('(end)')
 
+        with self.assertRaises(AttributeError) as ec:
+            @ExpressionParser.method('*', bp=70)
+            def foo_mul(self_):
+                return None
+        self.assertIn("has no attribute 'foo'", str(ec.exception))
+
+        with self.assertRaises(TypeError) as ec:
+            @ExpressionParser.method('*', bp=70)
+            def label_mul(self_):
+                return None
+        self.assertIn("'label' is not a method of ", str(ec.exception))
+
         parser = ExpressionParser()
+
+        token = parser.parse('foo')
+        self.assertEqual(token.evaluate(), 'foo')
 
         token = parser.parse('++5')
         self.assertEqual(token.source, '++ 5')
         self.assertEqual(token.evaluate(), 6)
+
+        with self.assertRaises(ParseError) as ec:
+            parser.parse('1 ++ 5')
+        self.assertEqual(str(ec.exception), "unexpected '++' prefix operator")
 
         token = parser.parse('8 +')
         self.assertEqual(token.source, '8 +')
