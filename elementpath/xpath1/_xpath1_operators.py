@@ -406,7 +406,7 @@ def select_self_shortcut(self, context=None):
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_self():
             if isinstance(item, (AttributeNode, ElementNode)):
-                if item.is_schema_element():
+                if item.is_schema_node():
                     self.add_xsd_type(item)
                 elif item is context.root:
                     # item is the schema

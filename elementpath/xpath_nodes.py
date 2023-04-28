@@ -94,9 +94,12 @@ class XPathNode:
     def typed_value(self) -> Optional[AtomicValueType]:
         raise NotImplementedError()
 
-    # Other common attributes and methods
+    # Other common attributes, properties and methods
     value: Any
     position: int  # for document total order
+
+    def is_schema_node(self) -> Optional[bool]:
+        return None
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         """
@@ -189,6 +192,9 @@ class AttributeNode(XPathNode):
         if self.parent is None:
             return f'@{self._name}'
         return f'{self.parent.path}/@{self._name}'
+
+    def is_schema_node(self) -> bool:
+        return hasattr(self.value, 'name') and hasattr(self.value, 'type')
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if '*' in name:
@@ -563,9 +569,6 @@ class ElementNode(XPathNode):
             ]
         return self._attributes
 
-    def is_schema_element(self) -> bool:
-        return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
-
     @property
     def path(self) -> str:
         """Returns an absolute path for the node."""
@@ -578,6 +581,11 @@ class ElementNode(XPathNode):
             item = item.parent
             if item is None:
                 return '/{}'.format('/'.join(reversed(path)))
+
+    def is_schema_node(self) -> bool:
+        return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
+
+    is_schema_element = is_schema_node
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if '*' in name:

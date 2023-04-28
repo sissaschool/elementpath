@@ -10,14 +10,22 @@
 #
 import unittest
 from unittest.mock import patch
+from textwrap import dedent
 import io
 import xml.etree.ElementTree as ElementTree
+
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+else:
+    xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
 from elementpath.xpath_nodes import DocumentNode, ElementNode, AttributeNode, TextNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode
-from elementpath.xpath_context import XPathContext
+from elementpath.xpath_context import XPathContext, XPathSchemaContext
 
 
 class DummyXsdType:
@@ -348,6 +356,26 @@ class XPathNodesTest(unittest.TestCase):
             list(e.elem for e in context.root.iter() if isinstance(e, ElementNode)),
             list(doc.iter())
         )
+
+    def test_is_schema_node(self):
+        root = ElementTree.XML('<root a="10">text</root>')
+        context = XPathContext(root)
+
+        self.assertFalse(context.root.is_schema_node())
+        self.assertFalse(context.root.attributes[0].is_schema_node())
+        self.assertIsNone(context.root.children[0].is_schema_node())
+
+        if xmlschema is not None:
+            schema = xmlschema.XMLSchema(dedent("""
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                  <xs:element name="elem"/>
+                  <xs:attribute name="attr" type="xs:string"/>
+                </xs:schema>"""))
+
+            context = XPathSchemaContext(schema)
+            self.assertFalse(context.root.is_schema_node())  # Is the schema
+            self.assertTrue(context.root.attributes[0].is_schema_node())
+            self.assertTrue(context.root.children[0].is_schema_node())
 
     def test_etree_iter_paths(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
