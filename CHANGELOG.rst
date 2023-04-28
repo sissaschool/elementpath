@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.1.2`_ (2023-04-28)
+======================
+* Add support for Python 3.12
+* Fix self shortcut operator (adding is_schema_node() to node classes)
+
 `v4.1.1`_ (2023-04-11)
 ======================
 * Simplify type annotations for XSD datatypes
@@ -412,3 +417,4 @@ CHANGELOG
 .. _v4.0.1: https://github.com/sissaschool/elementpath/compare/v4.0.0...v4.0.1
 .. _v4.1.0: https://github.com/sissaschool/elementpath/compare/v4.0.1...v4.1.0
 .. _v4.1.1: https://github.com/sissaschool/elementpath/compare/v4.1.0...v4.1.1
+.. _v4.1.2: https://github.com/sissaschool/elementpath/compare/v4.1.1...v4.1.2

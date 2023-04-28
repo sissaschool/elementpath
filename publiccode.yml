@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: elementpath
 url: 'https://github.com/sissaschool/elementpath'
 landingURL: 'https://github.com/sissaschool/elementpath'
-releaseDate: '2023-04-11'
-softwareVersion: v4.1.1
+releaseDate: '2023-04-28'
+softwareVersion: v4.1.2
 developmentStatus: stable
 platforms:
   - linux
@@ -43,13 +43,13 @@ description:
     apiDocumentation: 'https://elementpath.readthedocs.io/en/latest/xpath_api.html'
     documentation: 'https://elementpath.readthedocs.io/en/latest/'
     shortDescription: >-
-      Python library that provides XPath 1.0/2.0/3.0 parsers and selectors 
+      Python library that provides XPath 1.0/2.0/3.0/3.1 parsers and selectors 
       for ElementTree and lxml
     longDescription: |
-      This is a library for Python 3.7+ that provides XPath 1.0, 2.0 and 3.0
+      This is a library for Python 3.7+ that provides XPath 1.0, 2.0, 3.0 and 3.1
       selectors for Python's ElementTree XML data structures, both for the
       standard **ElementTree** library and for the **lxml** library. For lxml
-      this package can be useful for providing XPath 2.0 selectors, because lxml
+      this package can be useful for providing XPath 2.0+ selectors, because lxml
       already has it's own implementation of XPath 1.0.
 
 
