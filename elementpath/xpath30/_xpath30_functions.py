@@ -1086,8 +1086,12 @@ def evaluate_path_function(self, context=None):
 
     if isinstance(context.root, DocumentNode):
         root = context.root.getroot().elem
-        path = f'/Q{root.tag}[1]'
+        if root.tag.startswith('{'):
+            path = f'/Q{root.tag}[1]'
+        else:
+            path = f'/Q{{}}{root.tag}[1]'
     else:
+        # If root is an element use the function that returns the root of the tree
         root = context.root.elem
         path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
 

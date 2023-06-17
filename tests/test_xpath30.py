@@ -19,6 +19,7 @@
 #           https://www.w3.org/Consortium/Legal/2015/doc-license
 #           https://www.w3.org/TR/charmod-norm/
 #
+import io
 import unittest
 import os
 import re
@@ -26,6 +27,7 @@ import math
 import pathlib
 import platform
 import xml.etree.ElementTree as ElementTree
+from textwrap import dedent
 from typing import cast
 
 try:
@@ -40,7 +42,7 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import XPathContext, MissingContextError, datatypes, XPathFunction
+from elementpath import select, XPathContext, MissingContextError, datatypes, XPathFunction
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.etree import is_etree_element, is_lxml_etree_document, is_etree_document
 from elementpath.xpath_nodes import ElementNode, DocumentNode
@@ -1178,6 +1180,93 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
 
         self.check_value("format-integer(123, '0000')", '0123')
         self.check_source("format-integer(-8912, 'W')")
+
+    def test_path_function__issue_067(self):
+        xml_sample = dedent("""
+            <root>
+                <item>
+                    <name>item 1</name>
+                    <value>value 1</value>
+                </item>
+            </root>""")
+
+        root = self.etree.parse(io.StringIO(xml_sample))
+        paths = select(root, '//*/path()', parser=self.parser.__class__)
+        expected = [
+            '/Q{}root[1]',
+            '/Q{}root[1]/Q{}item[1]',
+            '/Q{}root[1]/Q{}item[1]/Q{}name[1]',
+            '/Q{}root[1]/Q{}item[1]/Q{}value[1]'
+        ]
+        self.assertListEqual(paths, expected)
+
+        root = self.etree.XML(xml_sample)
+        paths = select(root, '//*/path()', parser=self.parser.__class__)
+
+        expected = [
+            'Q{http://www.w3.org/2005/xpath-functions}root()',
+            'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]',
+            'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{}name[1]',
+            'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{}value[1]'
+        ]
+        self.assertListEqual(paths, expected)
+
+    def test_path_function_with_namespaces(self):
+        xml_sample = dedent("""
+            <tns:root xmlns:tns="http://xpath.test/ns">
+                <item>
+                    <name>item 1</name>
+                    <foo:value xmlns:foo="bar">value 1</foo:value>
+                </item>
+            </tns:root>""")
+
+        root = self.etree.parse(io.StringIO(xml_sample))
+        paths = select(root, '//*/path()', parser=self.parser.__class__)
+        expected = [
+            '/Q{http://xpath.test/ns}root[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{}name[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{bar}value[1]'
+        ]
+        self.assertListEqual(paths, expected)
+
+        root = self.etree.XML(xml_sample)
+        paths = select(root, '//*/path()', parser=self.parser.__class__)
+
+        expected = [
+            'Q{http://www.w3.org/2005/xpath-functions}root()',
+            'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]',
+            'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{}name[1]',
+            'Q{http://www.w3.org/2005/xpath-functions}root()/Q{}item[1]/Q{bar}value[1]'
+        ]
+        self.assertListEqual(paths, expected)
+
+    def test_path_function_with_same_child(self):
+        xml_sample = dedent("""
+            <tns:root xmlns:tns="http://xpath.test/ns">
+                <item>
+                    <name>item 1</name>
+                    <value>value 1</value>
+                    <name>item 2</name>
+                    <name>item 3</name>
+                </item>
+                <item2/>
+                <item/>
+            </tns:root>""")
+
+        root = self.etree.parse(io.StringIO(xml_sample))
+        paths = select(root, '//*/path()', parser=self.parser.__class__)
+        expected = [
+            '/Q{http://xpath.test/ns}root[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{}name[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{}value[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{}name[2]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[1]/Q{}name[3]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item2[1]',
+            '/Q{http://xpath.test/ns}root[1]/Q{}item[2]',
+        ]
+        self.assertListEqual(paths, expected)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

@@ -19,7 +19,6 @@
 #           https://www.w3.org/Consortium/Legal/2015/doc-license
 #           https://www.w3.org/TR/charmod-norm/
 #
-import sys
 import unittest
 import io
 import math
