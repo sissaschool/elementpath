@@ -145,24 +145,31 @@ class XPathTestCase(unittest.TestCase):
                 return
             raise
 
-        if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, root_token.evaluate, context)
-        elif isinstance(expected, float) and math.isnan(expected):
-            value = root_token.evaluate(context)
-            if isinstance(value, list):
-                self.assertTrue(any(math.isnan(x) for x in value))
+        if isinstance(expected, type):
+            if issubclass(expected, Exception):
+                self.assertRaises(expected, root_token.evaluate, context)
             else:
+                self.assertIsInstance(root_token.evaluate(context), expected)
+
+        elif isinstance(expected, float):
+            value = root_token.evaluate(context)
+            if not math.isnan(expected):
+                self.assertAlmostEqual(value, expected)
+            else:
+                if isinstance(value, list):
+                    value = [x for x in value if value is not None and value != []]
+                    self.assertTrue(len(value) == 1)
+                    value = value[0]
+
+                self.assertIsInstance(value, float)
                 self.assertTrue(math.isnan(value))
 
-        elif isinstance(expected, list) and expected:
+        elif isinstance(expected, list):
             self.assertListEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.evaluate(context)), expected)
         elif isinstance(expected, XPathFunction) or not callable(expected):
             self.assertEqual(root_token.evaluate(context), expected)
-        elif isinstance(expected, type):
-            value = root_token.evaluate(context)
-            self.assertIsInstance(value, expected)
         else:
             self.assertTrue(expected(root_token.evaluate(context)))
 
@@ -190,10 +197,10 @@ class XPathTestCase(unittest.TestCase):
             self.assertListEqual(list(root_token.select(context)), expected)
         elif isinstance(expected, set):
             self.assertEqual(set(root_token.select(context)), expected)
-        elif isinstance(expected, XPathFunction) or not callable(expected):
-            self.assertEqual(list(root_token.select(context)), expected)
-        else:
+        elif callable(expected):
             self.assertTrue(expected(list(root_token.parser.parse(path).select(context))))
+        else:
+            self.assertEqual(list(root_token.select(context)), expected)  # must fail
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """
@@ -217,8 +224,11 @@ class XPathTestCase(unittest.TestCase):
                 self.assertListEqual(results, expected)
             elif isinstance(expected, set):
                 self.assertEqual(set(results), expected)
-            elif isinstance(expected, float) and math.isnan(expected):
-                self.assertTrue(math.isnan(results))
+            elif isinstance(expected, float):
+                if math.isnan(expected):
+                    self.assertTrue(math.isnan(results))
+                else:
+                    self.assertAlmostEqual(results, expected)
             elif not callable(expected):
                 self.assertEqual(results, expected)
             elif isinstance(expected, type):

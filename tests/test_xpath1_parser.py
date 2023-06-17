@@ -1130,10 +1130,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         root = self.etree.XML(XML_DATA_TEST)
         context = XPathContext(root, variables=self.variables)
         self.check_value("sum($values)", 35, context)
-        if sys.version_info < (3, 12):
-            self.check_selector("sum(/values/a)", root, 13.299999999999999)
-        else:
-            self.check_selector("sum(/values/a)", root, 13.3)
+        self.check_selector("sum(/values/a)", root, 13.3)
 
         if self.parser.version == '1.0':
             self.check_selector("sum(/values/*)", root, math.isnan)
@@ -1679,6 +1676,17 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
                     set(root.xpath(path, namespaces=namespaces, **variables)), expected
                 )
                 self.assertEqual(set(results), expected)
+            elif isinstance(expected, float):
+                if math.isnan(expected):
+                    self.assertTrue(math.isnan(
+                        root.xpath(path, namespaces=namespaces, **variables)
+                    ))
+                    self.assertTrue(math.isnan(results))
+                else:
+                    self.assertAlmostEqual(
+                        root.xpath(path, namespaces=namespaces, **variables), expected
+                    )
+                    self.assertAlmostEqual(results, expected)
             elif not callable(expected):
                 self.assertEqual(root.xpath(path, namespaces=namespaces, **variables), expected)
                 self.assertEqual(results, expected)
