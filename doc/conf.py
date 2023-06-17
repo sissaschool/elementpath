@@ -31,7 +31,7 @@ author = 'Davide Brunato'
 # The short X.Y version
 version = '4.1'
 # The full version, including alpha/beta/rc tags
-release = '4.1.2'
+release = '4.1.3'
 
 # -- General configuration ---------------------------------------------------
 

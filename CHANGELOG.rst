@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.1.3`_ (2023-06-17)
+======================
+* Fix XP30+ fn:path (issue #67)
+* Fix weak tests (issues #64 and #66)
+
 `v4.1.2`_ (2023-04-28)
 ======================
 * Add support for Python 3.12
@@ -418,3 +423,4 @@ CHANGELOG
 .. _v4.1.0: https://github.com/sissaschool/elementpath/compare/v4.0.1...v4.1.0
 .. _v4.1.1: https://github.com/sissaschool/elementpath/compare/v4.1.0...v4.1.1
 .. _v4.1.2: https://github.com/sissaschool/elementpath/compare/v4.1.1...v4.1.2
+.. _v4.1.3: https://github.com/sissaschool/elementpath/compare/v4.1.2...v4.1.3
