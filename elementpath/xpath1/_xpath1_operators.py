@@ -218,7 +218,7 @@ class _PrefixedReferenceToken(XPathToken):
             name = '{%s}%s' % (self.get_namespace(self[0].value), self[1].value)
 
         if context is None:
-            yield name
+            raise self.missing_context()
         elif isinstance(context, XPathSchemaContext):
             yield from self.select_xsd_nodes(context, name)
 

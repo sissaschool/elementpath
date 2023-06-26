@@ -18,7 +18,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import XPathContext, AttributeNode
+from elementpath import XPathContext, AttributeNode, select
 from elementpath.datatypes import Timezone, DateTime10, DateTime, DateTimeStamp, \
     GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYearMonth10, \
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic, \
@@ -701,6 +701,25 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.wrong_type('xs:NOTATION(())', 'XPST0017',
                         'no constructor function exists for xs:NOTATION')
         self.wrong_name('"A120" castable as xs:NOTATION', 'XPST0080')
+
+    def test_missing_context_on_namespaced_name__issue_068(self):
+        namespaces = {
+            'test': "urn:example:names:common-test-names"
+        }
+
+        root = self.etree.XML("""
+        <A xmlns:test="urn:example:names:common-test-names">
+            <B>
+                <test:number>1</test:number>
+            </B>
+        </A>
+        """)
+
+        context_node = select(root, "B", namespaces=namespaces)[0]
+        result = select(root, "xs:decimal(./test:number)", namespaces, item=context_node)
+        self.assertEqual(result, 1)
+        result = select(root, "xs:decimal(test:number)", namespaces, item=context_node)
+        self.assertEqual(result, 1)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
