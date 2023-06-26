@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.1.4`_ (2023-06-26)
+======================
+* Fix select of prefixed names (issue #68)
+* Fix zero length *xs:base64Binary* (pull request #69)
+
 `v4.1.3`_ (2023-06-17)
 ======================
 * Fix XP30+ fn:path (issue #67)
@@ -424,3 +429,4 @@ CHANGELOG
 .. _v4.1.1: https://github.com/sissaschool/elementpath/compare/v4.1.0...v4.1.1
 .. _v4.1.2: https://github.com/sissaschool/elementpath/compare/v4.1.1...v4.1.2
 .. _v4.1.3: https://github.com/sissaschool/elementpath/compare/v4.1.2...v4.1.3
+.. _v4.1.4: https://github.com/sissaschool/elementpath/compare/v4.1.3...v4.1.4
