@@ -144,11 +144,14 @@ class Base64Binary(AbstractBinary):
         return hash(self.value)
 
     def __len__(self) -> int:
-        if self.value[-2] == ord('='):
-            return len(self.value) // 4 * 3 - 2
+        length = len(self.value)
+        if length == 0:
+            return 0
+        elif self.value[-2] == ord('='):
+            return length // 4 * 3 - 2
         elif self.value[-1] == ord('='):
-            return len(self.value) // 4 * 3 - 1
-        return len(self.value) // 4 * 3
+            return length // 4 * 3 - 1
+        return length // 4 * 3
 
     @staticmethod
     def encoder(value: bytes) -> bytes:
