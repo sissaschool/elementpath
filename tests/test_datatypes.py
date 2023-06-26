@@ -1440,7 +1440,8 @@ class BinaryTypesTest(unittest.TestCase):
         self.assertEqual(hash(HexBinary(b'F859')), hash(b'F859'))
 
     def test_length(self):
-        self.assertEqual(len(Base64Binary(b'ZQ==')), 1)
+        self.assertEqual(len(Base64Binary(b'')), 0)
+        self.assertEqual(len(Base64Binary(b'ZQ==')), 1),
         self.assertEqual(len(Base64Binary(b'YWxwaGE=')), 5)
         self.assertEqual(len(Base64Binary(b'bGNlbmdnamh4eXBy')), 12)
         self.assertEqual(len(HexBinary(b'F859')), 2)
