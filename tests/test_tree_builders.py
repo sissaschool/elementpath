@@ -12,14 +12,22 @@ import unittest
 import io
 import sys
 import xml.etree.ElementTree as ElementTree
+from textwrap import dedent
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+else:
+    xmlschema.XMLSchema.meta_schema.build()
+
 from elementpath.tree_builders import build_node_tree, \
-    build_lxml_node_tree
+    build_lxml_node_tree, build_schema_node_tree
 from elementpath.xpath_nodes import ElementNode, \
     DocumentNode, TextNode, CommentNode, ProcessingInstructionNode
 
@@ -182,6 +190,33 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertEqual(node.position, 1)
         self.assertIs(node.document, root)
         self.assertEqual(len(node.children), 0)
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
+    def test_build_schema_node_tree(self):
+        schema = xmlschema.XMLSchema(dedent("""\n
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="elem1"/>
+                            <xs:element name="elem2"/>
+                            <xs:element name="elem3"/>
+                            <xs:element ref="root"/>                            
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>"""))
+
+        root_node = build_schema_node_tree(schema)
+        self.assertIs(root_node.elem, schema)
+
+        global_elements = []
+        root_node = build_schema_node_tree(schema, global_elements=global_elements)
+        self.assertIs(root_node.elem, schema)
+        self.assertIn(root_node, global_elements)
+
+        root_node = build_schema_node_tree(schema.elements['root'])
+        self.assertIs(root_node.elem, schema.elements['root'])
 
 
 if __name__ == '__main__':
