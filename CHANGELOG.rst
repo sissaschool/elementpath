@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v4.1.5`_ (2023-07-25)
+======================
+* Fix typed value of ElementNode() if self.elem.text is None
+
 `v4.1.4`_ (2023-06-26)
 ======================
 * Fix select of prefixed names (issue #68)
@@ -430,3 +434,4 @@ CHANGELOG
 .. _v4.1.2: https://github.com/sissaschool/elementpath/compare/v4.1.1...v4.1.2
 .. _v4.1.3: https://github.com/sissaschool/elementpath/compare/v4.1.2...v4.1.3
 .. _v4.1.4: https://github.com/sissaschool/elementpath/compare/v4.1.3...v4.1.4
+.. _v4.1.5: https://github.com/sissaschool/elementpath/compare/v4.1.4...v4.1.5
