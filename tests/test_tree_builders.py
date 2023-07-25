@@ -201,7 +201,7 @@ class TreeBuildersTest(unittest.TestCase):
                             <xs:element name="elem1"/>
                             <xs:element name="elem2"/>
                             <xs:element name="elem3"/>
-                            <xs:element ref="root"/>                            
+                            <xs:element ref="root"/>
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
