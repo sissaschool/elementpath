@@ -540,7 +540,7 @@ class ElementNode(XPathNode):
         elif self.elem.get(XSI_NIL) in ('1', 'true'):
             return ''
         else:
-            value = self.xsd_type.decode(self.elem.text)
+            value = self.xsd_type.decode('')
 
         return cast(Optional[AtomicValueType], value)
 
