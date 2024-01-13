@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v4.2.0`_ (2024-01-xx)
+======================
+* Drop support for Python 3.7
+
 `v4.1.5`_ (2023-07-25)
 ======================
 * Fix typed value of ElementNode() if self.elem.text is None
@@ -435,3 +439,4 @@ CHANGELOG
 .. _v4.1.3: https://github.com/sissaschool/elementpath/compare/v4.1.2...v4.1.3
 .. _v4.1.4: https://github.com/sissaschool/elementpath/compare/v4.1.3...v4.1.4
 .. _v4.1.5: https://github.com/sissaschool/elementpath/compare/v4.1.4...v4.1.5
+.. _v4.2.0: https://github.com/sissaschool/elementpath/compare/v4.1.5...v4.2.0
