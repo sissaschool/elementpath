@@ -308,11 +308,11 @@ def deep_compare(obj1: Any,
 
                     elif isinstance(value1, float):
                         if math.isnan(value1):
-                            if not math.isnan(value2):  # type: ignore[arg-type]
+                            if not math.isnan(value2):
                                 return -1
                         elif math.isinf(value1):
                             if value1 != value2:
-                                return -1 if value1 < value2 else 1  # type: ignore[operator]
+                                return -1 if value1 < value2 else 1
                         elif isinstance(value2, Decimal):
                             if value1 != float(value2):
                                 return -1 if value1 < float(value2) else 1
@@ -326,7 +326,7 @@ def deep_compare(obj1: Any,
                             return -1
                         elif math.isinf(value2):
                             if value1 != value2:
-                                return -1 if value1 < value2 else 1  # type: ignore[operator]
+                                return -1 if value1 < value2 else 1
                         elif isinstance(value1, Decimal):
                             if value2 != float(value1):
                                 return -1 if float(value1) < value2 else 1
@@ -341,7 +341,7 @@ def deep_compare(obj1: Any,
                         if result:
                             return result
                     elif value1 != value2:
-                        return -1 if value1 < value2 else 1  # type: ignore[operator]
+                        return -1 if value1 < value2 else 1
 
                 except TypeError as err:
                     raise xpath_error('XPTY0004', message_or_error=err, token=token)

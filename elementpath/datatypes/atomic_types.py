@@ -68,7 +68,7 @@ class AtomicTypeMeta(ABCMeta):
 
         return cls
 
-    def validate(cls, value: object) -> None:
+    def validate(cls: Type[Any], value: object) -> None:
         if isinstance(value, cls):
             return
         elif isinstance(value, str):
@@ -77,7 +77,7 @@ class AtomicTypeMeta(ABCMeta):
         else:
             raise cls.invalid_type(value)
 
-    def is_valid(cls, value: object) -> bool:
+    def is_valid(cls: Type[Any], value: object) -> bool:
         try:
             cls.validate(value)
         except (TypeError, ValueError):
@@ -85,12 +85,12 @@ class AtomicTypeMeta(ABCMeta):
         else:
             return True
 
-    def invalid_type(cls, value: object) -> TypeError:
+    def invalid_type(cls: Type[Any], value: object) -> TypeError:
         if cls.name:
             return TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
         return TypeError('invalid type {!r} for {!r}'.format(type(value), cls))
 
-    def invalid_value(cls, value: object) -> ValueError:
+    def invalid_value(cls: Type[Any], value: object) -> ValueError:
         if cls.name:
             return ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))

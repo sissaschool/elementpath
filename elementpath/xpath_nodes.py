@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
@@ -56,6 +56,8 @@ class XPathNode:
 
     @property
     def base_uri(self) -> Optional[str]:
+        if isinstance(self.parent, ElementNode):
+            return self.parent.base_uri
         return None
 
     @property
@@ -296,12 +298,6 @@ class TextNode(XPathNode):
         return '%s(value=%r)' % (self.__class__.__name__, self.value)
 
     @property
-    def base_uri(self) -> Optional[str]:
-        if isinstance(self.parent, ElementNode):
-            return self.parent.elem.get(XML_BASE)
-        return None
-
-    @property
     def string_value(self) -> str:
         return self.value
 
@@ -348,12 +344,6 @@ class CommentNode(XPathNode):
         return self.elem
 
     @property
-    def base_uri(self) -> Optional[str]:
-        if self.parent is not None:
-            return self.parent.base_uri
-        return None
-
-    @property
     def string_value(self) -> str:
         return self.elem.text or ''
 
@@ -397,12 +387,6 @@ class ProcessingInstructionNode(XPathNode):
     @property
     def value(self) -> ElementProtocol:
         return self.elem
-
-    @property
-    def base_uri(self) -> Optional[str]:
-        if self.parent is not None:
-            return self.parent.base_uri
-        return None
 
     @property
     def name(self) -> str:
@@ -511,6 +495,10 @@ class ElementNode(XPathNode):
 
     @property
     def base_uri(self) -> Optional[str]:
+        if isinstance(self.parent, (ElementNode, DocumentNode)):
+            uri = self.elem.get(XML_BASE)
+            if uri is not None:
+                return urljoin(self.parent.base_uri or '', uri)
         return self.elem.get(XML_BASE)
 
     @property

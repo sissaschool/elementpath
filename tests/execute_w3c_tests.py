@@ -1324,7 +1324,7 @@ class Result(object):
             with open(self.attrib['file']) as fp:
                 expected = fp.read()
 
-        if type(result) == list:
+        if isinstance(result, list):
             parts = []
             for item in result:
                 if isinstance(item, elementpath.ElementNode):

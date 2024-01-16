@@ -398,7 +398,7 @@ class ParserMeta(ABCMeta):
     literals_pattern: Pattern[str]
     name_pattern: Pattern[str]
     tokenizer: Optional[Pattern[str]]
-    symbol_table: Dict[str, Token[Any]]
+    symbol_table: MutableMapping[str, Type[Any]]
 
     def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], namespace: Dict[str, Any]) \
             -> 'ParserMeta':
@@ -437,14 +437,12 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     Parser class for implementing a Top-Down Operator Precedence parser.
 
     :cvar symbol_table: a dictionary that stores the token classes defined for the language.
-    :type symbol_table: dict
     :cvar token_base_class: the base class for creating language's token classes.
-    :type token_base_class: Token
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
     token_base_class = Token
     tokenizer: Optional[Pattern[str]] = None
-    symbol_table: MutableMapping[str, Type[TK_co]] = {}
+    symbol_table: Dict[str, Type[TK_co]] = {}
 
     _start_token: TK_co
     source: str
@@ -667,6 +665,8 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         :param kwargs: Optional attributes/methods for the token class.
         :return: A token class.
         """
+        token_class: Type[TK_co]
+
         if isinstance(symbol, str):
             if ' ' in symbol:
                 raise ValueError("%r: a symbol can't contain whitespaces" % symbol)

@@ -80,19 +80,14 @@ class PackageTest(unittest.TestCase):
                     )
 
     def test_python_requirement(self):
-        message = "\nFound a different version at line %d of file %r: %r (maybe %r)."
         files = [
             os.path.join(self.package_dir, 'setup.py'),
             os.path.join(self.package_dir, 'setup.py'),
         ]
 
-        min_version = filename = None
+        min_version = None
 
         for line in fileinput.input(files):
-            if fileinput.isfirstline():
-                filename = fileinput.filename()
-            lineno = fileinput.filelineno()
-
             if min_version is None:
                 match = self.get_python_requires.search(line)
                 if match is not None:

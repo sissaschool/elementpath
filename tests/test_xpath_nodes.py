@@ -25,6 +25,7 @@ from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
 from elementpath.xpath_nodes import DocumentNode, ElementNode, AttributeNode, TextNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode
+from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 
 
@@ -118,6 +119,17 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(DocumentNode(document).base_uri, '/')
         self.assertIsNone(ElementNode(self.elem).base_uri)
         self.assertIsNone(TextNode('a text node').base_uri)
+
+        xml_test = dedent("""\
+            <?xml version="1.0"?>
+            <e1 xml:base="http://example.org/wine/">
+              <e2 xml:base="rosé"/>
+            </e1>""")
+
+        root_node = get_node_tree(ElementTree.XML(xml_test))
+        self.assertEqual(root_node.base_uri, 'http://example.org/wine/')
+        self.assertIsInstance(root_node[0], TextNode)
+        self.assertEqual(root_node[1].base_uri, 'http://example.org/wine/rosé')
 
     def test_node_document_uri_function(self):
         node = ElementNode(self.elem)
