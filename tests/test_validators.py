@@ -17,9 +17,15 @@ try:
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+
 from elementpath.validators import validate_analyzed_string, validate_json_to_xml
 
 
+@unittest.skipIf(xmlschema is None, "xmlschema library is not installed")
 class ValidatorsTest(unittest.TestCase):
     etree = ElementTree
 
@@ -60,6 +66,7 @@ class ValidatorsTest(unittest.TestCase):
             validate_json_to_xml(self.etree.XML('<invalid/>'))
 
 
+@unittest.skipIf(xmlschema is None, "xmlschema library is not installed")
 @unittest.skipIf(lxml_etree is None, "lxml library is not installed")
 class ValidatorsTest(ValidatorsTest):
     etree = lxml_etree
