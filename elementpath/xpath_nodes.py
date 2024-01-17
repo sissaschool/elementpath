@@ -498,8 +498,10 @@ class ElementNode(XPathNode):
         if isinstance(self.parent, (ElementNode, DocumentNode)):
             uri = self.elem.get(XML_BASE)
             if uri is not None:
-                return urljoin(self.parent.base_uri or '', uri)
-        return self.elem.get(XML_BASE)
+                return urljoin(self.parent.base_uri or '', uri.strip())
+
+        base_uri = self.elem.get(XML_BASE)
+        return base_uri.strip() if base_uri is not None else None
 
     @property
     def nilled(self) -> bool:
@@ -708,13 +710,15 @@ class DocumentNode(XPathNode):
     def base_uri(self) -> Optional[str]:
         if not self.children:
             # Fallback for not built documents
-            return self.document.getroot().get(XML_BASE)
+            base_uri = self.document.getroot().get(XML_BASE)
+            if base_uri is not None:
+                return base_uri.strip()
 
         for child in self.children:
             if isinstance(child, ElementNode):
                 base_uri = child.elem.get(XML_BASE)
                 if base_uri is not None:
-                    return base_uri
+                    return base_uri.strip()
         else:
             return None
 

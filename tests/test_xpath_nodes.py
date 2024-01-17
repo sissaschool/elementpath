@@ -131,6 +131,26 @@ class XPathNodesTest(unittest.TestCase):
         self.assertIsInstance(root_node[0], TextNode)
         self.assertEqual(root_node[1].base_uri, 'http://example.org/wine/rosé')
 
+        xml_test = dedent("""\
+            <collection xml:base="http://example.test/xpath/ ">
+              <item xml:base="urn:isbn:0451450523"/>
+              <item xml:base="urn:isan:0000-0000-2CEA-0000-1-0000-0000-Y "/>
+              <item xml:base="urn:ISSN:0167-6423 "/>
+              <item xml:base=" urn:ietf:rfc:2648 "/>
+              <item xml:base="urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66 "/>
+            </collection>""")
+
+        root_node = get_node_tree(ElementTree.XML(xml_test))
+        self.assertEqual(root_node.base_uri, 'http://example.test/xpath/')
+        self.assertIsInstance(root_node[0], TextNode)
+        self.assertEqual(root_node[0].base_uri, 'http://example.test/xpath/')
+        self.assertEqual(root_node[1].base_uri, 'urn:isbn:0451450523')
+        self.assertIsInstance(root_node[2], TextNode)
+        self.assertEqual(root_node[3].base_uri, 'urn:isan:0000-0000-2CEA-0000-1-0000-0000-Y')
+        self.assertEqual(root_node[5].base_uri, 'urn:ISSN:0167-6423')
+        self.assertEqual(root_node[7].base_uri, 'urn:ietf:rfc:2648')
+        self.assertEqual(root_node[9].base_uri, 'urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66')
+
     def test_node_document_uri_function(self):
         node = ElementNode(self.elem)
         self.assertIsNone(node.document_uri)
