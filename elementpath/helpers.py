@@ -12,6 +12,7 @@ import math
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
+from urllib.parse import urlsplit
 from typing import Any, Iterator, List, Match, Optional, Union, SupportsFloat
 
 ###
@@ -79,7 +80,7 @@ def adjust_day(year: int, month: int, day: int) -> int:
 
 def days_from_common_era(year: int) -> int:
     """
-    Returns the number of days from from 0001-01-01 to the provided year. For a
+    Returns the number of days from 0001-01-01 to the provided year. For a
     common era year the days are counted until the last day of December, for a
     BCE year the days are counted down from the end to the 1st of January.
     """
@@ -103,7 +104,7 @@ def months2days(year: int, month: int, months_delta: int) -> int:
     relative to the year and the month passed as arguments.
 
     :param year: the reference start year, a negative or zero value means a BCE year \
-    (0 is 1 BCE, -1 is 2 BCE, -2 is 3 BCE, etc).
+    (0 is 1 BCE, -1 is 2 BCE, -2 is 3 BCE, etc.).
     :param month: the starting month (1-12).
     :param months_delta: the number of months, if negative count backwards.
     """
@@ -278,3 +279,14 @@ def split_function_test(function_test: str) -> List[str]:
         sequence_types = [parts[2]]
 
     return sequence_types
+
+
+def is_absolute_uri(uri: str) -> bool:
+    try:
+        parts = urlsplit(uri)
+    except ValueError:
+        return False
+    else:
+        return parts.scheme == 'urn' or \
+            parts.scheme and parts.netloc or \
+            parts.path.startswith('/')

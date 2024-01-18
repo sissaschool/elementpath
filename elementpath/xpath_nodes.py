@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin
 from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
@@ -16,7 +16,7 @@ from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XML_ID, XSD_IDREF, XSD_IDREFS
 from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol
-from .helpers import match_wildcard
+from .helpers import match_wildcard, is_absolute_uri
 from .etree import etree_iter_strings
 
 __all__ = ['SchemaElemType', 'ChildNodeType', 'ElementMapType',
@@ -694,33 +694,24 @@ class DocumentNode(XPathNode):
     kind = 'document'
     elements: Dict[ElementProtocol, ElementNode]
 
-    __slots__ = 'document', 'elements', 'children'
+    __slots__ = 'document', 'elements', 'children', 'uri'
 
-    def __init__(self, document: DocumentProtocol, position: int = 1) -> None:
+    def __init__(self, document: DocumentProtocol,
+                 position: int = 1,
+                 uri: Optional[str] = None) -> None:
         self.document = document
         self.parent = None
         self.position = position
         self.elements = {}
         self.children = []
+        self.uri = uri.strip() if uri is not None else None
 
     def __repr__(self) -> str:
         return '%s(document=%r)' % (self.__class__.__name__, self.document)
 
     @property
     def base_uri(self) -> Optional[str]:
-        if not self.children:
-            # Fallback for not built documents
-            base_uri = self.document.getroot().get(XML_BASE)
-            if base_uri is not None:
-                return base_uri.strip()
-
-        for child in self.children:
-            if isinstance(child, ElementNode):
-                base_uri = child.elem.get(XML_BASE)
-                if base_uri is not None:
-                    return base_uri.strip()
-        else:
-            return None
+        return self.uri
 
     def getroot(self) -> ElementNode:
         for child in self.children:
@@ -789,18 +780,10 @@ class DocumentNode(XPathNode):
 
     @property
     def document_uri(self) -> Optional[str]:
-        base_uri = self.base_uri
-        if base_uri is None:
-            return None
-
-        try:
-            parts = urlparse(base_uri)
-        except ValueError:
-            pass
+        if self.uri is not None and is_absolute_uri(self.uri):
+            return self.uri
         else:
-            if parts.scheme and parts.netloc or parts.path.startswith('/'):
-                return base_uri
-        return None
+            return None
 
     def is_extended(self) -> bool:
         if self.document.getroot() is None:

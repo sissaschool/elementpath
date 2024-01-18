@@ -116,7 +116,7 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(ElementNode(ElementTree.XML(xml_test)).base_uri, '/')
         document = ElementTree.parse(io.StringIO(xml_test))
 
-        self.assertEqual(DocumentNode(document).base_uri, '/')
+        self.assertIsNone(DocumentNode(document).base_uri, '/')
         self.assertIsNone(ElementNode(self.elem).base_uri)
         self.assertIsNone(TextNode('a text node').base_uri)
 
@@ -158,23 +158,26 @@ class XPathNodesTest(unittest.TestCase):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/root" />'
         document = ElementTree.parse(io.StringIO(xml_test))
         node = DocumentNode(document)
-        self.assertEqual(node.document_uri, '/root')
+        self.assertIsNone(node.document_uri)
+
+        node = DocumentNode(document, uri=' http://xpath.test/doc.xml ')
+        self.assertEqual(node.document_uri, 'http://xpath.test/doc.xml')
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" ' \
                    'xml:base="http://xpath.test" />'
         document = ElementTree.parse(io.StringIO(xml_test))
         node = DocumentNode(document)
-        self.assertEqual(node.document_uri, 'http://xpath.test')
+        self.assertIsNone(node.document_uri)
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="dir1/dir2" />'
         document = ElementTree.parse(io.StringIO(xml_test))
-        node = DocumentNode(document)
+        node = DocumentNode(document, uri="dir1/dir2")
         self.assertIsNone(node.document_uri)
 
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" ' \
                    'xml:base="http://[xpath.test" />'
         document = ElementTree.parse(io.StringIO(xml_test))
-        node = DocumentNode(document)
+        node = DocumentNode(document, uri="http://[xpath.test")
         self.assertIsNone(node.document_uri)
 
     def test_attribute_nodes(self):
