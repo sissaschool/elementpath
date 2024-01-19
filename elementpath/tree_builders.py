@@ -28,47 +28,51 @@ def is_schema(obj: Any) -> bool:
     return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps') and not hasattr(obj, 'parent')
 
 
-def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None) \
-        -> Union[DocumentNode, ElementNode]:
+def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None,
+                  uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
     :param root: an Element or an ElementTree or a schema or a schema element.
     :param namespaces: an optional mapping from prefixes to namespace URIs, \
     Ignored if root is a lxml etree or a schema structure.
+    :param uri: an optional URI associated with the root element or the document.
     """
     if isinstance(root, (DocumentNode, ElementNode)):
+        if uri is not None and root.uri is None:
+            root.uri = uri
         return root
+
     elif is_etree_document(root):
         if hasattr(root, 'xpath'):
-            return build_lxml_node_tree(cast(DocumentProtocol, root))
-        return build_node_tree(
-            cast(DocumentProtocol, root), namespaces
-        )
+            return build_lxml_node_tree(cast(DocumentProtocol, root), uri)
+        else:
+            return build_node_tree(cast(DocumentProtocol, root), namespaces, uri)
+
     elif hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
         # schema or schema node
-        return build_schema_node_tree(
-            cast(SchemaElemType, root)
-        )
+        return build_schema_node_tree(cast(SchemaElemType, root), uri)
+
     elif is_etree_element(root) and not callable(root.tag):  # type: ignore[union-attr]
         if hasattr(root, 'nsmap') and hasattr(root, 'xpath'):
-            return build_lxml_node_tree(cast(LxmlElementProtocol, root))
-        return build_node_tree(
-            cast(ElementProtocol, root), namespaces
-        )
+            return build_lxml_node_tree(cast(LxmlElementProtocol, root), uri)
+        else:
+            return build_node_tree(cast(ElementProtocol, root), namespaces, uri)
+
     else:
         msg = "invalid root {!r}, an Element or an ElementTree or a schema node required"
         raise ElementPathTypeError(msg.format(root))
 
 
 def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
-                    namespaces: Optional[MutableMapping[str, str]] = None) \
-        -> Union[DocumentNode, ElementNode]:
+                    namespaces: Optional[MutableMapping[str, str]] = None,
+                    uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
     :param root: an Element or an ElementTree.
     :param namespaces: an optional mapping from prefixes to namespace URIs.
+    :param uri: an optional URI associated with the document or the root element.
     """
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
@@ -96,7 +100,7 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
 
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
-        root_node = parent = DocumentNode(document, position)
+        root_node = parent = DocumentNode(document, uri, position)
         position += 1
         elements = root_node.elements
 
@@ -110,6 +114,8 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
         elements = {}
         root_node = parent = build_element_node()
         root_node.elements = elements
+        if uri is not None:
+            root_node.uri = uri
 
     children = iter(elem)
     iterators: List[Any] = []
@@ -143,12 +149,13 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
                 return root_node
 
 
-def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
-        -> Union[DocumentNode, ElementNode]:
+def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol],
+                         uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided lxml root tree.
 
     :param root: a lxml Element or a lxml ElementTree.
+    :param uri: an optional URI associated with the document or the root element.
     """
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
@@ -200,7 +207,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
-        root_node = parent = DocumentNode(document, position)
+        root_node = parent = DocumentNode(document, position=position)
         position += 1
 
         elem = cast(LxmlElementProtocol, document.getroot())
@@ -214,7 +221,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
         # if it's the effective root of the tree creates a root
         # document node with none value and position==0
         document = root.getroottree()
-        root_node = parent = DocumentNode(document, 0)
+        root_node = parent = DocumentNode(document, position=0)
         elem = root
         elements = root_node.elements
         parent = build_document_node()
@@ -235,6 +242,9 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
     children = iter(elem)
     iterators: List[Any] = []
     ancestors: List[Any] = []
+
+    if uri is not None:
+        root_node.uri = uri
 
     while True:
         for elem in children:
@@ -265,6 +275,7 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol]) \
 
 
 def build_schema_node_tree(root: SchemaElemType,
+                           uri: Optional[str] = None,
                            elements: Optional[ElementMapType] = None,
                            global_elements: Optional[List[ChildNodeType]] = None) \
         -> SchemaElementNode:
@@ -272,6 +283,7 @@ def build_schema_node_tree(root: SchemaElemType,
     Returns a tree of XPath nodes that wrap the provided XSD schema structure.
 
     :param root: a schema or a schema element.
+    :param uri: an optional URI associated with the root element.
     :param elements: a shared map from XSD elements to tree nodes. Provided for \
     linking together parts of the same schema or other schemas.
     :param global_elements: a list for schema global elements, used for linking \
@@ -302,6 +314,8 @@ def build_schema_node_tree(root: SchemaElemType,
     parent = None
     root_node = parent = build_schema_element_node()
     root_node.elements = _elements
+    if uri is not None:
+        root_node.uri = uri
 
     if global_elements is not None:
         global_elements.append(root_node)
@@ -354,7 +368,7 @@ def build_schema_node_tree(root: SchemaElemType,
                     else:
                         # Extend node tree with other globals
                         element_node.ref = build_schema_node_tree(
-                            ref, _elements, global_elements
+                            ref, elements=_elements, global_elements=global_elements
                         )
 
                 return root_node

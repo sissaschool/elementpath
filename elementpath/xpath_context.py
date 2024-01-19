@@ -63,7 +63,7 @@ class XPathContext:
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
     not have a timezone.
     :param documents: available documents. This is a mapping of absolute URI \
-    strings onto document nodes. Used by the function fn:doc.
+    strings into document nodes. Used by the function fn:doc.
     :param collections: available collections. This is a mapping of absolute URI \
     strings onto sequences of nodes. Used by the XPath 2.0+ function fn:collection.
     :param default_collection: this is the sequence of nodes used when fn:collection \
@@ -79,16 +79,16 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: Union[DocumentNode, ElementNode]
+    root: Union[DocumentNode, ElementNode, None] = None
     item: Optional[ItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    documents: Optional[Dict[str, Union[DocumentNode, ElementNode]]] = None
+    documents: Optional[Dict[str, Union[DocumentNode, ElementNode, None]]] = None
     collections = None
     default_collection: Optional[List[Union[XPathNode, ElementProtocol, DocumentProtocol]]] = None
 
     def __init__(self,
-                 root: RootArgType,
+                 root: Optional[RootArgType],
                  namespaces: Optional[NamespacesType] = None,
                  item: Optional[ItemArgType] = None,
                  position: int = 1,
@@ -97,7 +97,7 @@ class XPathContext:
                  variables: Optional[Dict[str, Any]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
-                 documents: Optional[Dict[str, RootArgType]] = None,
+                 documents: Optional[Dict[str, Optional[RootArgType]]] = None,
                  collections: Optional[Dict[str, List[ItemArgType]]] = None,
                  default_collection: Optional[str] = None,
                  text_resources: Optional[Dict[str, str]] = None,
@@ -109,15 +109,19 @@ class XPathContext:
                  default_place: Optional[str] = None) -> None:
 
         self.namespaces = dict(namespaces) if namespaces else {}
-        self.root = get_node_tree(root, self.namespaces)
+        if root is not None:
+            self.root = get_node_tree(root, self.namespaces)
 
         if item is not None:
             self.item = self.get_context_item(item)
+        elif self.root is None:
+            raise ElementPathTypeError("Missing both root node and context item!")
         elif isinstance(self.root, ElementNode):
             self.item = self.root
         elif self.root.document is root or isinstance(root, DocumentNode):
             self.item = None
         else:
+            assert root is not None
             self.item = self.get_context_item(root)
 
         self.position = position
@@ -131,7 +135,7 @@ class XPathContext:
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         if documents is not None:
-            self.documents = {k: get_node_tree(v, self.namespaces) if v is not None else v
+            self.documents = {k: get_node_tree(v, self.namespaces, k) if v is not None else v
                               for k, v in documents.items()}
 
         if variables is None:
@@ -160,7 +164,12 @@ class XPathContext:
         self.default_place = default_place
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(root={self.root.value})'
+        if self.root is not None:
+            return f'{self.__class__.__name__}(root={self.root.value})'
+        elif isinstance(self.item, XPathNode):
+            return f'{self.__class__.__name__}(item={self.item.value})'
+        else:
+            return f'{self.__class__.__name__}(item={self.item!r})'
 
     def __copy__(self) -> 'XPathContext':
         obj: XPathContext = object.__new__(self.__class__)
@@ -172,21 +181,26 @@ class XPathContext:
     @property
     def etree(self) -> ModuleType:
         if self._etree is None:
-            etree_module_name = self.root.value.__class__.__module__
+            if isinstance(self.root, (DocumentNode, ElementNode)):
+                etree_module_name = self.root.value.__class__.__module__
+            elif isinstance(self.item, (DocumentNode, ElementNode, CommentNode,
+                                        ProcessingInstructionNode)):
+                etree_module_name = self.item.value.__class__.__module__
+            else:
+                etree_module_name = 'xml.etree.ElementTree'
+
             self._etree: ModuleType = importlib.import_module(etree_module_name)
+
         return self._etree
 
     def get_root(self, node: Any) -> Union[None, ElementNode, DocumentNode]:
-        if any(node is x for x in self.root.iter()):
+        if self.root is not None and any(node is x for x in self.root.iter()):
             return self.root
 
         if self.documents is not None:
-            try:
-                for uri, doc in self.documents.items():
-                    if any(node is x for x in doc.iter()):
-                        return doc
-            except AttributeError:
-                pass
+            for uri, doc in self.documents.items():
+                if doc is not None and any(node is x for x in doc.iter()):
+                    return doc
 
         return None
 
@@ -216,23 +230,23 @@ class XPathContext:
         elif isinstance(item, (list, tuple)):
             return [self.get_context_item(x) for x in item]
         elif is_etree_document(item):
-            if item is self.root.value:
+            if self.root is not None and item is self.root.value:
                 return self.root
 
             if self.documents:
                 for doc in self.documents.values():
-                    if item is doc.value:
+                    if doc is not None and item is doc.value:
                         return doc
 
         elif is_etree_element(item):
             try:
-                return self.root.elements[item]  # type: ignore[index]
-            except (TypeError, KeyError):
+                return self.root.elements[item]  # type: ignore[union-attr, index]
+            except (TypeError, KeyError, AttributeError):
                 pass
 
             if self.documents:
                 for doc in self.documents.values():
-                    if doc.elements is not None and item in doc.elements:
+                    if doc is not None and doc.elements is not None and item in doc.elements:
                         return doc.elements[item]  # type: ignore[index]
 
             if callable(item.tag):  # type: ignore[union-attr]
@@ -416,7 +430,9 @@ class XPathContext:
         if isinstance(self.item, (ElementNode, DocumentNode)):
             descendants = self.item.iter_descendants(with_self)
         elif self.item is None:
-            if isinstance(self.root, DocumentNode):
+            if self.root is None:
+                descendants = iter(())
+            elif isinstance(self.root, DocumentNode):
                 descendants = self.root.iter_descendants(with_self)
             elif with_self:
                 # Yields None in order to emulate position on document
@@ -472,7 +488,8 @@ class XPathContext:
         item: XPathNode
         parent: Union[None, ElementNode, DocumentNode]
 
-        if not isinstance(self.item, XPathNode) or self.item is self.root:
+        if not isinstance(self.item, XPathNode) or \
+                self.root is None or self.item is self.root:
             return
 
         parent = self.item.parent
@@ -500,7 +517,7 @@ class XPathContext:
 
     def iter_followings(self) -> Iterator[ChildNodeType]:
         """Iterator for 'following' forward axis."""
-        if self.item is None or self.item is self.root:
+        if self.item is None or self.root is None or self.item is self.root:
             return
         elif isinstance(self.item, ElementNode):
             status = self.item, self.axis

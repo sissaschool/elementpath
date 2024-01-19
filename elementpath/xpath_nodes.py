@@ -56,9 +56,7 @@ class XPathNode:
 
     @property
     def base_uri(self) -> Optional[str]:
-        if isinstance(self.parent, ElementNode):
-            return self.parent.base_uri
-        return None
+        return self.parent.base_uri if self.parent is not None else None
 
     @property
     def document_uri(self) -> Optional[str]:
@@ -432,8 +430,10 @@ class ElementNode(XPathNode):
     _namespace_nodes: Optional[List['NamespaceNode']]
     _attributes: Optional[List['AttributeNode']]
 
+    uri: Optional[str] = None
+
     __slots__ = 'nsmap', 'elem', 'xsd_type', 'elements', \
-                '_namespace_nodes', '_attributes', 'children'
+                '_namespace_nodes', '_attributes', 'children', '__dict__'
 
     def __init__(self,
                  elem: Union[ElementProtocol, SchemaElemType],
@@ -495,13 +495,20 @@ class ElementNode(XPathNode):
 
     @property
     def base_uri(self) -> Optional[str]:
-        if isinstance(self.parent, (ElementNode, DocumentNode)):
-            uri = self.elem.get(XML_BASE)
-            if uri is not None:
-                return urljoin(self.parent.base_uri or '', uri.strip())
-
         base_uri = self.elem.get(XML_BASE)
-        return base_uri.strip() if base_uri is not None else None
+        if isinstance(base_uri, str):
+            base_uri = base_uri.strip()
+        elif base_uri is not None:
+            base_uri = ''
+        elif self.uri is not None:
+            base_uri = self.uri.strip()
+
+        if self.parent is None:
+            return base_uri
+        elif base_uri is None:
+            return self.parent.base_uri
+        else:
+            return urljoin(self.parent.base_uri or '', base_uri)
 
     @property
     def nilled(self) -> bool:
@@ -694,24 +701,24 @@ class DocumentNode(XPathNode):
     kind = 'document'
     elements: Dict[ElementProtocol, ElementNode]
 
-    __slots__ = 'document', 'elements', 'children', 'uri'
+    __slots__ = 'document', 'uri', 'elements', 'children'
 
     def __init__(self, document: DocumentProtocol,
-                 position: int = 1,
-                 uri: Optional[str] = None) -> None:
+                 uri: Optional[str] = None,
+                 position: int = 1) -> None:
         self.document = document
+        self.uri = uri
         self.parent = None
         self.position = position
         self.elements = {}
         self.children = []
-        self.uri = uri.strip() if uri is not None else None
 
     def __repr__(self) -> str:
         return '%s(document=%r)' % (self.__class__.__name__, self.document)
 
     @property
     def base_uri(self) -> Optional[str]:
-        return self.uri
+        return self.uri.strip() if self.uri is not None else None
 
     def getroot(self) -> ElementNode:
         for child in self.children:
@@ -781,7 +788,7 @@ class DocumentNode(XPathNode):
     @property
     def document_uri(self) -> Optional[str]:
         if self.uri is not None and is_absolute_uri(self.uri):
-            return self.uri
+            return self.uri.strip()
         else:
             return None
 
@@ -850,7 +857,7 @@ class SchemaElementNode(ElementNode):
     The resulting structure can be a tree or a set of disjoint trees.
     With more roots only one of them is the schema node.
     """
-    __slots__ = '__dict__'
+    __slots__ = ()
 
     ref: Optional['SchemaElementNode'] = None
     elem: SchemaElemType

@@ -288,5 +288,5 @@ def is_absolute_uri(uri: str) -> bool:
         return False
     else:
         return parts.scheme == 'urn' or \
-            parts.scheme and parts.netloc or \
+            parts.scheme != '' and parts.netloc != '' or \
             parts.path.startswith('/')

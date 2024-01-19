@@ -43,8 +43,8 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
-    MissingContextError, select, Selector, datatypes, AttributeNode, \
-    NamespaceNode, TextNode
+    MissingContextError, select, Selector, datatypes, get_node_tree, \
+    AttributeNode, NamespaceNode, TextNode
 from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE, XML_ID
 from elementpath.datatypes import DateTime10, DateTime, Date10, Date, Time, \
     Timezone, DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
@@ -1529,7 +1529,16 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         document = self.etree.parse(io.StringIO('<A xml:base="/base_path/"/>'))
         context = XPathContext(root=document)
-        self.check_value('fn:document-uri(.)', '/base_path/', context=context)
+        self.check_value('fn:document-uri(.)', context=context)  # xml:base doesn't apply!
+
+        document_node = get_node_tree(document, uri='/foo/bar.xml')
+        context = XPathContext(root=document_node)
+        self.check_value('fn:document-uri(.)', '/foo/bar.xml', context=context)
+
+        # Relative URIs doesn't apply for fn:document-uri
+        document_node = get_node_tree(document, uri='foo/bar.xml')
+        context = XPathContext(root=document_node)
+        self.check_value('fn:document-uri(.)', None, context=context)
 
     def test_doc_functions(self):
         root = self.etree.XML("<A><B1><C1/></B1><B2/><B3/></A>")
