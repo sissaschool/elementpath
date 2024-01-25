@@ -722,7 +722,7 @@ def select_child_path(self, context=None):
     elif len(self) == 1:
         if context.item is context.root and context.item.parent is not None:
             return  # A rooted subtree -> document root produce []
-        elif not isinstance(context, XPathSchemaContext):
+        elif not isinstance(context, XPathSchemaContext) and isinstance(context.root, ElementNode):
             context.item = None
         else:
             context.item = context.root
@@ -780,7 +780,7 @@ def select_descendant_path(self, context=None):
     else:
         if context.item is context.root and context.item.parent is not None:
             return  # A rooted subtree -> document root produce []
-        elif not isinstance(context, XPathSchemaContext):
+        elif not isinstance(context, XPathSchemaContext) and isinstance(context.root, ElementNode):
             context.item = None
         else:
             context.item = context.root

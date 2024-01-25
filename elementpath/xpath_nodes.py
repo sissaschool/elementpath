@@ -98,6 +98,10 @@ class XPathNode:
     value: Any
     position: int  # for document total order
 
+    @property
+    def root_node(self, namespace: Optional[str] = None) -> 'XPathNode':
+        return self if self.parent is None else self.parent.root_node
+
     def is_schema_node(self) -> Optional[bool]:
         return None
 

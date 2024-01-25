@@ -79,7 +79,7 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: Union[DocumentNode, ElementNode, None] = None
+    root: Optional[XPathNode] = None
     item: Optional[ItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
@@ -109,20 +109,20 @@ class XPathContext:
                  default_place: Optional[str] = None) -> None:
 
         self.namespaces = dict(namespaces) if namespaces else {}
+
         if root is not None:
             self.root = get_node_tree(root, self.namespaces)
+            if item is not None:
+                self.item = self.get_context_item(item)
+            else:
+                self.item = self.root
 
-        if item is not None:
+        elif item is not None:
             self.item = self.get_context_item(item)
-        elif self.root is None:
-            raise ElementPathTypeError("Missing both root node and context item!")
-        elif isinstance(self.root, ElementNode):
-            self.item = self.root
-        elif self.root.document is root or isinstance(root, DocumentNode):
-            self.item = None
+            if isinstance(self.item, XPathNode):
+                self.root = self.item.root_node
         else:
-            assert root is not None
-            self.item = self.get_context_item(root)
+            raise ElementPathTypeError("Missing both root node and context item!")
 
         self.position = position
         self.size = size
@@ -178,6 +178,12 @@ class XPathContext:
         obj.variables = {k: v for k, v in self.variables.items()}
         return obj
 
+    def __setattr__(self, key, value):
+        if key == 'item' and value is None:
+            pass  # raise RuntimeError('')
+
+        super().__setattr__(key, value)
+
     @property
     def etree(self) -> ModuleType:
         if self._etree is None:
@@ -194,8 +200,9 @@ class XPathContext:
         return self._etree
 
     def get_root(self, node: Any) -> Union[None, ElementNode, DocumentNode]:
-        if self.root is not None and any(node is x for x in self.root.iter()):
-            return self.root
+        if isinstance(self.root, (DocumentNode, ElementNode)):
+            if any(node is x for x in self.root.iter()):
+                return self.root
 
         if self.documents is not None:
             for uri, doc in self.documents.items():
@@ -240,7 +247,7 @@ class XPathContext:
 
         elif is_etree_element(item):
             try:
-                return self.root.elements[item]  # type: ignore[union-attr, index]
+                return self.root.elements[item]  # type: ignore[union-attr]
             except (TypeError, KeyError, AttributeError):
                 pass
 
@@ -359,14 +366,8 @@ class XPathContext:
 
         elif self.item is None:
             self.axis = 'child'
-
-            if isinstance(self.root, DocumentNode):
-                for self.item in self.root:
-                    yield self.item
-            else:
-                # document position without a document node -> yield root ElementNode
-                yield self.root
-
+            # document position without a document node -> yield root ElementNode
+            yield self.root
             self.item = self.axis = None
 
     def iter_parent(self) -> Iterator[Union[ElementNode, DocumentNode]]:
@@ -432,8 +433,6 @@ class XPathContext:
         elif self.item is None:
             if self.root is None:
                 descendants = iter(())
-            elif isinstance(self.root, DocumentNode):
-                descendants = self.root.iter_descendants(with_self)
             elif with_self:
                 # Yields None in order to emulate position on document
                 # FIXME replacing the self.root with ElementTree(self.root)?

@@ -150,7 +150,7 @@ class _InlineFunction(XPathFunction):
             if context is None:
                 raise self.missing_context()
             elif not args and self:
-                if context.item is None:
+                if isinstance(context.item, DocumentNode):
                     if isinstance(context.root, DocumentNode):
                         context.item = context.root.getroot()
                     else:
@@ -1053,8 +1053,6 @@ def evaluate_path_function(self, context=None):
     if isinstance(context, XPathSchemaContext):
         return []
     elif not self:
-        if context.item is None:
-            return '/'
         item = context.item
     else:
         item = self.get_argument(context)
@@ -1117,9 +1115,6 @@ def evaluate_has_children_function(self, context=None):
         raise self.missing_context()
 
     if not self:
-        if context.item is None:
-            return isinstance(context.root, DocumentNode)
-
         item = context.item
         if not isinstance(item, XPathNode):
             raise self.error('XPTY0004', 'context item must be a node')

@@ -60,7 +60,7 @@ function('empty-sequence', nargs=0, label='sequence type')
 def evaluate_item_sequence_type(self, context=None):
     if context is None:
         raise self.missing_context()
-    return context.root if context.item is None else context.item
+    return context.item
 
 
 @method('item')
@@ -1367,9 +1367,7 @@ def evaluate_root_function(self, context=None):
     if isinstance(context, XPathSchemaContext):
         return []
     elif not self:
-        if context.item is None:
-            return context.root
-        elif not isinstance(context.item, XPathNode):
+        if not isinstance(context.item, XPathNode):
             raise self.error('XPTY0004')
 
         root = context.get_root(context.item)

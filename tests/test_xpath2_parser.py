@@ -959,7 +959,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         context = XPathContext(element)
         self.check_value(". instance of element()", True, context)
-        context.item = None
+        context.item = "foo"
         self.check_value(". instance of element()", False, context)
 
         self.check_value("(5, 6) instance of xs:integer", False)

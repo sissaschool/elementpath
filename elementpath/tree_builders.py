@@ -13,7 +13,7 @@ from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import SchemaElemType, ChildNodeType, ElementMapType, \
+from .xpath_nodes import XPathNode, SchemaElemType, ChildNodeType, ElementMapType, \
     TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
@@ -29,7 +29,7 @@ def is_schema(obj: Any) -> bool:
 
 
 def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None,
-                  uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
+                  uri: Optional[str] = None) -> Optional[XPathNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -38,8 +38,9 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
     Ignored if root is a lxml etree or a schema structure.
     :param uri: an optional URI associated with the root element or the document.
     """
-    if isinstance(root, (DocumentNode, ElementNode)):
-        if uri is not None and root.uri is None:
+    if isinstance(root, XPathNode):
+        if isinstance(root, (DocumentNode, ElementNode)) \
+                and uri is not None and root.uri is None:
             root.uri = uri
         return root
 

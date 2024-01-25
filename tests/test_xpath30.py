@@ -617,7 +617,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         context = XPathContext(root=self.etree.XML('<dummy/>'))
         self.assertFalse(self.parser.parse('has-children()').evaluate(context))
         self.assertFalse(self.parser.parse('has-children(.)').evaluate(context))
-        context.item = None
+
+        context.item = ElementNode(self.etree.XML('<root/>'))
         self.assertFalse(self.parser.parse('has-children()').evaluate(context))
         self.assertFalse(self.parser.parse('has-children(.)').evaluate(context))
 
