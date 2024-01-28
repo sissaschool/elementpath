@@ -22,7 +22,7 @@ from .protocols import ElementProtocol, DocumentProtocol
 from .etree import is_etree_element, is_etree_document
 from .xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
-from .tree_builders import RootArgType, get_node_tree
+from .tree_builders import RootArgType, get_node_tree, get_dummy_document
 
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
@@ -53,6 +53,11 @@ class XPathContext:
     used when namespace information is not available within document and element nodes. \
     This can be useful when the dynamic context has additional namespaces and root \
     is an Element or an ElementTree instance of the standard library.
+    :param uri: an optional URI associated with the root element or the document.
+    :param fragment: if `True` a root element is considered a fragment, otherwise \
+    a root element is considered the root of an XML document, and a dummy document \
+    is created for selection. In this case the dummy document value is not included \
+    in the results.
     :param item: the context item. A `None` value means that the context is positioned on \
     the document node.
     :param position: the current position of the node within the input sequence.
@@ -80,16 +85,19 @@ class XPathContext:
     """
     _etree: Optional[ModuleType] = None
     root: Optional[XPathNode] = None
+    document: Optional[DocumentNode] = None
     item: Optional[ItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    documents: Optional[Dict[str, Union[DocumentNode, ElementNode, None]]] = None
+    documents: Optional [Dict[str, Union[DocumentNode, ElementNode, None]]] = None
     collections = None
     default_collection: Optional[List[Union[XPathNode, ElementProtocol, DocumentProtocol]]] = None
 
     def __init__(self,
                  root: Optional[RootArgType],
                  namespaces: Optional[NamespacesType] = None,
+                 uri: Optional[str] = None,
+                 fragment: bool = False,
                  item: Optional[ItemArgType] = None,
                  position: int = 1,
                  size: int = 1,
@@ -111,7 +119,7 @@ class XPathContext:
         self.namespaces = dict(namespaces) if namespaces else {}
 
         if root is not None:
-            self.root = get_node_tree(root, self.namespaces)
+            self.root = get_node_tree(root, self.namespaces, uri)
             if item is not None:
                 self.item = self.get_context_item(item)
             else:
@@ -123,6 +131,11 @@ class XPathContext:
                 self.root = self.item.root_node
         else:
             raise ElementPathTypeError("Missing both root node and context item!")
+
+        if isinstance(self.root, DocumentNode):
+            self.document = self.root
+        elif not fragment and isinstance(self.root, ElementNode):
+            self.document = get_dummy_document(self.root)
 
         self.position = position
         self.size = size

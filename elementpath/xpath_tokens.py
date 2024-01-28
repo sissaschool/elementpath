@@ -559,7 +559,7 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(result, DocumentNode):
                 if result.is_extended():
                     yield result
-                else:
+                elif result is context.root or result is not context.document:
                     yield result.value
             else:
                 yield result.value
@@ -588,7 +588,7 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(item, DocumentNode):
                 if item.is_extended():
                     results.append(item)
-                else:
+                elif item is context.root or item is not context.document:
                     results.append(item.value)
             else:
                 results.append(item.value)

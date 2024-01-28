@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Union
+from xml.etree import ElementTree
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
@@ -17,8 +18,8 @@ from .xpath_nodes import XPathNode, SchemaElemType, ChildNodeType, ElementMapTyp
     TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
-__all__ = ['RootArgType', 'get_node_tree', 'build_node_tree',
-           'build_lxml_node_tree', 'build_schema_node_tree']
+__all__ = ['RootArgType', 'get_node_tree', 'get_dummy_document',
+           'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
 
 RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
                     'DocumentNode', 'ElementNode']
@@ -63,6 +64,27 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
     else:
         msg = "invalid root {!r}, an Element or an ElementTree or a schema node required"
         raise ElementPathTypeError(msg.format(root))
+
+
+def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
+    """
+    Returns a dummy document node for the element root node. For schema
+    elements and lxml elements that are not root nodes returns `None`.
+    """
+    root = root_node.elem
+    if hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
+        return None
+    elif not hasattr(root, 'getparent'):
+        document = ElementTree.ElementTree(root)
+    elif cast(LxmlElementProtocol, root).getparent() is not None:
+        return None
+    else:
+        document = cast(LxmlElementProtocol, root).getroottree()
+
+    document_node = DocumentNode(document, root_node.uri, position=0)
+    document_node.elements = root_node.elements
+    root_node.parent = document_node
+    return document_node
 
 
 def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
