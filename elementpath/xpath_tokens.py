@@ -559,8 +559,9 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(result, DocumentNode):
                 if result.is_extended():
                     yield result
-                elif result is context.root or result is not context.document:
-                    yield result.value
+                elif context is not None:
+                    if result is context.root or result is not context.document:
+                        yield result.value
             else:
                 yield result.value
 

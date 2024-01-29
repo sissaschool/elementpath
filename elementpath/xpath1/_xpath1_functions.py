@@ -36,10 +36,9 @@ def select_node_kind_test(self, context=None):
         raise self.missing_context()
 
     for item in context.iter_children_or_self():
-        if item is None:
-            yield context.root
-        elif isinstance(item, XPathNode):
-            yield item
+        if isinstance(item, XPathNode):
+            if not isinstance(item, DocumentNode) or item is context.root:
+                yield item
 
 
 @method('node')

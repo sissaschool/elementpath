@@ -724,7 +724,7 @@ def select_child_path(self, context=None):
                 context.root.parent is not context.document:
             return  # A rooted subtree -> document root produce []
         elif not isinstance(context, XPathSchemaContext) and isinstance(context.root, ElementNode):
-            context.item = None
+            context.item = context.document
         else:
             context.item = context.root
         yield from self[0].select(context)
@@ -783,7 +783,7 @@ def select_descendant_path(self, context=None):
                 context.root.parent is not context.document:
             return  # A rooted subtree -> document root produce []
         elif not isinstance(context, XPathSchemaContext) and isinstance(context.root, ElementNode):
-            context.item = None
+            context.item = context.document
         else:
             context.item = context.root
 

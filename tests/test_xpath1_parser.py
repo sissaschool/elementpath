@@ -423,7 +423,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             # Skip lxml test because lxml's XPath doesn't include document root
             self.check_selector("//self::node()", document, [document, root, 'Dickens'])
             self.check_selector("/self::node()", document, [document])
-            self.check_selector("/self::node()", root, [root])
+            self.check_selector("/self::node()", root, [])
 
         self.check_selector("//self::text()", root, ['Dickens'])
 
@@ -431,9 +431,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_select("node()", [context.root.getroot()], context)
 
         context = XPathContext(root)
-        context.item = None
-        # lxml differs: doesn't consider the document position even if select from an ElementTree
-        self.check_value("/self::node()", expected=[context.root], context=context)
+        self.check_value("/self::node()", expected=[], context=context)
 
         context.item = 1
         self.check_value("self::node()", expected=[], context=context)

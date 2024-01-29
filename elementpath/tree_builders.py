@@ -14,7 +14,7 @@ from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import XPathNode, SchemaElemType, ChildNodeType, ElementMapType, \
+from .xpath_nodes import SchemaElemType, ChildNodeType, ElementMapType, \
     TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
@@ -30,7 +30,7 @@ def is_schema(obj: Any) -> bool:
 
 
 def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None,
-                  uri: Optional[str] = None) -> Optional[XPathNode]:
+                  uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -39,9 +39,8 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
     Ignored if root is a lxml etree or a schema structure.
     :param uri: an optional URI associated with the root element or the document.
     """
-    if isinstance(root, XPathNode):
-        if isinstance(root, (DocumentNode, ElementNode)) \
-                and uri is not None and root.uri is None:
+    if isinstance(root, (DocumentNode, ElementNode)):
+        if uri is not None and root.uri is None:
             root.uri = uri
         return root
 
@@ -75,14 +74,18 @@ def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
     if hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
         return None
     elif not hasattr(root, 'getparent'):
-        document = ElementTree.ElementTree(root)
+        document = cast(
+            DocumentProtocol,
+            ElementTree.ElementTree(cast(ElementTree.Element, root))
+        )
     elif cast(LxmlElementProtocol, root).getparent() is not None:
         return None
     else:
         document = cast(LxmlElementProtocol, root).getroottree()
 
     document_node = DocumentNode(document, root_node.uri, position=0)
-    document_node.elements = root_node.elements
+    document_node.children.append(root_node)
+    document_node.elements = cast(Dict[ElementProtocol, ElementNode], root_node.elements)
     root_node.parent = document_node
     return document_node
 

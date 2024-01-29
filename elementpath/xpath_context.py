@@ -10,7 +10,6 @@
 import datetime
 import importlib
 from copy import copy
-from itertools import chain
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, overload, Dict, Any, List, Iterator, \
     Optional, Sequence, Union, Callable, Set
@@ -84,12 +83,12 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: Optional[XPathNode] = None
+    root: Union[DocumentNode, ElementNode, None]
     document: Optional[DocumentNode] = None
     item: Optional[ItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    documents: Optional [Dict[str, Union[DocumentNode, ElementNode, None]]] = None
+    documents: Optional[Dict[str, Union[DocumentNode, ElementNode, None]]] = None
     collections = None
     default_collection: Optional[List[Union[XPathNode, ElementProtocol, DocumentProtocol]]] = None
 
@@ -127,8 +126,6 @@ class XPathContext:
 
         elif item is not None:
             self.item = self.get_context_item(item)
-            if isinstance(self.item, XPathNode):
-                self.root = self.item.root_node
         else:
             raise ElementPathTypeError("Missing both root node and context item!")
 
@@ -148,8 +145,10 @@ class XPathContext:
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         if documents is not None:
-            self.documents = {k: get_node_tree(v, self.namespaces, k) if v is not None else v
-                              for k, v in documents.items()}
+            self.documents = {
+                k: get_node_tree(v, self.namespaces, k) if v is not None else v
+                for k, v in documents.items()
+            }
 
         if variables is None:
             self.variables = {}
@@ -190,12 +189,6 @@ class XPathContext:
         obj.axis = None
         obj.variables = {k: v for k, v in self.variables.items()}
         return obj
-
-    def __setattr__(self, key, value):
-        if key == 'item' and value is None:
-            pass  # raise RuntimeError('')
-
-        super().__setattr__(key, value)
 
     @property
     def etree(self) -> ModuleType:
@@ -260,7 +253,7 @@ class XPathContext:
 
         elif is_etree_element(item):
             try:
-                return self.root.elements[item]  # type: ignore[union-attr]
+                return self.root.elements[item]  # type: ignore[index,union-attr]
             except (TypeError, KeyError, AttributeError):
                 pass
 
@@ -366,22 +359,21 @@ class XPathContext:
 
     def iter_children_or_self(self) -> Iterator[Optional[ItemType]]:
         """Iterator for 'child' forward axis and '/' step."""
-        if self.axis is not None:
+        if self.item is None:
+            return  # None means the empty sequence []
+        elif self.axis is not None:
             yield self.item
         elif isinstance(self.item, (ElementNode, DocumentNode)):
             _status = self.item, self.axis
             self.axis = 'child'
 
-            for self.item in self.item:
-                yield self.item
+            if self.item is self.document and self.root is not self.document:
+                yield self.root
+            else:
+                for self.item in self.item:
+                    yield self.item
 
             self.item, self.axis = _status
-
-        elif self.item is None:
-            self.axis = 'child'
-            # document position without a document node -> yield root ElementNode
-            yield self.root
-            self.item = self.axis = None
 
     def iter_parent(self) -> Iterator[Union[ElementNode, DocumentNode]]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
@@ -438,32 +430,19 @@ class XPathContext:
 
         :param axis: the context axis, for default has no explicit axis.
         """
-        descendants: Iterator[Union[None, XPathNode]]
-        with_self = axis != 'descendant'
+        if isinstance(self.item, (DocumentNode, ElementNode)):
+            status = self.item, self.axis
+            self.axis = axis
 
-        if isinstance(self.item, (ElementNode, DocumentNode)):
-            descendants = self.item.iter_descendants(with_self)
-        elif self.item is None:
-            if self.root is None:
-                descendants = iter(())
-            elif with_self:
-                # Yields None in order to emulate position on document
-                # FIXME replacing the self.root with ElementTree(self.root)?
-                descendants = chain((None,), self.root.iter_descendants())
-            else:
-                descendants = self.root.iter_descendants()
-        else:
-            if with_self and isinstance(self.item, XPathNode):
-                self.axis, axis = axis, self.axis
+            for self.item in self.item.iter_descendants(with_self=axis != 'descendant'):
                 yield self.item
-                self.axis = axis
-            return
 
-        status = self.item, self.axis
-        self.axis = axis
-        for self.item in descendants:
+            self.item, self.axis = status
+
+        elif axis != 'descendant' and isinstance(self.item, XPathNode):
+            self.axis, axis = axis, self.axis
             yield self.item
-        self.item, self.axis = status
+            self.axis = axis
 
     def iter_ancestors(self, axis: Optional[str] = None) -> Iterator[XPathNode]:
         """
