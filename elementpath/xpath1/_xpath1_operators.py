@@ -720,11 +720,10 @@ def select_child_path(self, context=None):
         if isinstance(context.root, DocumentNode):
             yield context.root
     elif len(self) == 1:
-        if context.item is context.root and context.item.parent is not None and \
-                context.root.parent is not context.document:
-            return  # A rooted subtree -> document root produce []
-        elif not isinstance(context, XPathSchemaContext) and isinstance(context.root, ElementNode):
+        if isinstance(context.document, DocumentNode):
             context.item = context.document
+        elif context.root is None or isinstance(context.root.parent, ElementNode):
+            return  # A rooted subtree -> document root produce []
         else:
             context.item = context.root
         yield from self[0].select(context)
@@ -779,11 +778,10 @@ def select_descendant_path(self, context=None):
                             self[1].add_xsd_type(result)
 
     else:
-        if context.item is context.root and context.item.parent is not None and \
-                context.root.parent is not context.document:
-            return  # A rooted subtree -> document root produce []
-        elif not isinstance(context, XPathSchemaContext) and isinstance(context.root, ElementNode):
+        if isinstance(context.document, DocumentNode):
             context.item = context.document
+        elif context.root is None or isinstance(context.root.parent, ElementNode):
+            return  # A rooted subtree -> document root produce []
         else:
             context.item = context.root
 

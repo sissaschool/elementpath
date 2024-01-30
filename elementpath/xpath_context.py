@@ -333,10 +333,11 @@ class XPathContext:
 
     def iter_self(self) -> Iterator[Optional[ItemType]]:
         """Iterator for 'self' axis and '.' shortcut."""
-        status = self.axis
-        self.axis = 'self'
-        yield self.item
-        self.axis = status
+        if self.item is not None:
+            status = self.axis
+            self.axis = 'self'
+            yield self.item
+            self.axis = status
 
     def iter_attributes(self) -> Iterator[AttributeNode]:
         """Iterator for 'attribute' axis and '@' shortcut."""
@@ -359,37 +360,35 @@ class XPathContext:
 
     def iter_children_or_self(self) -> Iterator[Optional[ItemType]]:
         """Iterator for 'child' forward axis and '/' step."""
-        if self.item is None:
-            return  # None means the empty sequence []
-        elif self.axis is not None:
-            yield self.item
-        elif isinstance(self.item, (ElementNode, DocumentNode)):
-            _status = self.item, self.axis
-            self.axis = 'child'
+        if self.item is not None:
+            if self.axis is not None:
+                yield self.item
+            elif isinstance(self.item, (ElementNode, DocumentNode)):
+                _status = self.item, self.axis
+                self.axis = 'child'
 
-            if self.item is self.document and self.root is not self.document:
-                yield self.root
-            else:
-                for self.item in self.item:
-                    yield self.item
+                if self.item is self.document and self.root is not self.document:
+                    yield self.root
+                else:
+                    for self.item in self.item:
+                        yield self.item
 
-            self.item, self.axis = _status
+                self.item, self.axis = _status
 
     def iter_parent(self) -> Iterator[Union[ElementNode, DocumentNode]]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
-        if not isinstance(self.item, XPathNode):
-            return  # not applicable
+        if isinstance(self.item, XPathNode):
 
-        if self.item is not self.root:
-            parent = self.item.parent
-            if parent is not None:
-                status = self.item, self.axis
-                self.axis = 'parent'
+            # A stop rule for non-rooted fragments (e.g. root is a schema elements)
+            if self.document is not None or self.item is not self.root:
+                if self.item.parent is not None:
+                    status = self.item, self.axis
+                    self.axis = 'parent'
 
-                self.item = parent
-                yield self.item
+                    self.item = self.item.parent
+                    yield self.item
 
-                self.item, self.axis = status
+                    self.item, self.axis = status
 
     def iter_siblings(self, axis: Optional[str] = None) -> Iterator[ChildNodeType]:
         """
@@ -397,32 +396,30 @@ class XPathContext:
 
         :param axis: the context axis, default is 'following-sibling'.
         """
-        if not isinstance(self.item, XPathNode) or self.item is self.root:
-            return
+        if isinstance(self.item, XPathNode):
+            if self.document is not None or self.item is not self.root:
+                item = self.item
 
-        parent = self.item.parent
-        if parent is None:
-            return
+                if item.parent is not None:
+                    status = self.item, self.axis
+                    self.axis = axis or 'following-sibling'
 
-        item = self.item
-        status = self.item, self.axis
-        self.axis = axis or 'following-sibling'
+                    if axis == 'preceding-sibling':
+                        for child in item.parent:  # pragma: no cover
+                            if child is item:
+                                break
+                            self.item = child
+                            yield child
+                    else:
+                        follows = False
+                        for child in item.parent:
+                            if follows:
+                                self.item = child
+                                yield child
+                            elif child is item:
+                                follows = True
 
-        if axis == 'preceding-sibling':
-            for child in parent:  # pragma: no cover
-                if child is item:
-                    break
-                self.item = child
-                yield child
-        else:
-            follows = False
-            for child in parent:
-                if follows:
-                    self.item = child
-                    yield child
-                elif child is item:
-                    follows = True
-        self.item, self.axis = status
+                    self.item, self.axis = status
 
     def iter_descendants(self, axis: Optional[str] = None) -> Iterator[Union[None, XPathNode]]:
         """
@@ -450,28 +447,26 @@ class XPathContext:
 
         :param axis: the context axis, default is 'ancestor'.
         """
-        if not isinstance(self.item, XPathNode):
-            return  # item is not an XPath node or document position without a document root
+        if isinstance(self.item, XPathNode):
+            status = self.item, self.axis
+            self.axis = axis or 'ancestor'
 
-        status = self.item, self.axis
-        self.axis = axis or 'ancestor'
+            ancestors: List[XPathNode] = []
+            if axis == 'ancestor-or-self':
+                ancestors.append(self.item)
 
-        ancestors: List[XPathNode] = []
-        if axis == 'ancestor-or-self':
-            ancestors.append(self.item)
+            if self.document is not None or self.item is not self.root:
+                parent = self.item.parent
+                while parent is not None:
+                    ancestors.append(parent)
+                    if parent is self.root and self.document is None:
+                        break
+                    parent = parent.parent
 
-        if self.item is not self.root:
-            parent = self.item.parent
-            while parent is not None:
-                ancestors.append(parent)
-                if parent is self.root:
-                    break
-                parent = parent.parent
+            for self.item in reversed(ancestors):
+                yield self.item
 
-        for self.item in reversed(ancestors):
-            yield self.item
-
-        self.item, self.axis = status
+            self.item, self.axis = status
 
     def iter_preceding(self) -> Iterator[Union[DocumentNode, ChildNodeType]]:
         """Iterator for 'preceding' reverse axis."""
@@ -479,45 +474,45 @@ class XPathContext:
         item: XPathNode
         parent: Union[None, ElementNode, DocumentNode]
 
-        if not isinstance(self.item, XPathNode) or \
-                self.root is None or self.item is self.root:
-            return
+        if isinstance(self.item, XPathNode):
+            if self.document is not None or self.item is not self.root:
+                item = self.item
 
-        parent = self.item.parent
-        if parent is None:
-            return
+                if (root := item.parent) is not None:
+                    status = self.item, self.axis
+                    self.axis = 'preceding'
+                    ancestors = {root}
 
-        status = self.item, self.axis
-        self.axis = 'preceding'
+                    while root.parent is not None:
+                        if root is self.root and self.document is None:
+                            break
+                        root = root.parent
+                        ancestors.add(root)
 
-        ancestors = set()
-        while parent is not None:
-            ancestors.add(parent)
-            if parent is self.root:
-                break
-            parent = parent.parent
+                    for self.item in root.iter_descendants():
+                        if self.item is item:
+                            break
+                        if self.item not in ancestors:
+                            yield self.item
 
-        item = self.item
-        for self.item in self.root.iter_descendants():
-            if self.item is item:
-                break
-            if self.item not in ancestors:
-                yield self.item
-
-        self.item, self.axis = status
+                    self.item, self.axis = status
 
     def iter_followings(self) -> Iterator[ChildNodeType]:
         """Iterator for 'following' forward axis."""
-        if self.item is None or self.root is None or self.item is self.root:
-            return
-        elif isinstance(self.item, ElementNode):
+        if isinstance(self.item, ElementNode):
             status = self.item, self.axis
             self.axis = 'following'
-            item = self.item
 
-            descendants = set(item.iter_descendants())
-            for self.item in self.root.iter_descendants(with_self=False):
-                if item.position < self.item.position and self.item not in descendants:
+            descendants = set(self.item.iter_descendants())
+            position = self.item.position
+
+            root = self.item
+            while isinstance(root.parent, ElementNode) and root is not self.root:
+                root = root.parent
+
+            for item in root.iter_descendants(with_self=False):
+                if position < item.position and item not in descendants:
+                    self.item = item
                     yield cast(ChildNodeType, self.item)
 
             self.item, self.axis = status
