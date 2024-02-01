@@ -472,7 +472,6 @@ class XPathContext:
         """Iterator for 'preceding' reverse axis."""
         ancestors: Set[Union[ElementNode, DocumentNode]]
         item: XPathNode
-        parent: Union[None, ElementNode, DocumentNode]
 
         if isinstance(self.item, XPathNode):
             if self.document is not None or self.item is not self.root:
