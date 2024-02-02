@@ -7,7 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from importlib import import_module
 from urllib.parse import urljoin
+from types import ModuleType
 from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Tuple, Union
 
 from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
@@ -17,7 +19,7 @@ from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
 from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from .helpers import match_wildcard, is_absolute_uri
-from .etree import etree_iter_strings
+from .etree import etree_iter_strings, is_etree_element
 
 __all__ = ['SchemaElemType', 'ChildNodeType', 'ElementMapType',
            'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode',
@@ -797,19 +799,66 @@ class DocumentNode(XPathNode):
             return None
 
     def is_extended(self) -> bool:
-        if len(self.children) <= 1:
-            return False
-        elif not hasattr(self.document.getroot(), 'itersiblings'):
-            return True  # an xml.etree.ElementTree structure
-
-        root = None
-        for e in self.children:
-            if isinstance(e, ElementNode):
-                if root is not None:
-                    return True
-                root = e
+        """
+        Returns `True` if the document node cannot be represented with an
+        ElementTree structure, `False` otherwise.
+        """
+        root = self.document.getroot()
+        if root is None or not is_etree_element(root):
+            return True
+        elif not self.children:
+            raise RuntimeError("Missing document root")
+        elif len(self.children) == 1:
+            return not isinstance(self.children[0], ElementNode)
+        elif not hasattr(root, 'itersiblings'):
+            return True  # an extended xml.etree.ElementTree structure
+        elif any(isinstance(x, TextNode) for x in root):
+            return True
         else:
-            return False
+            return sum(isinstance(x, ElementNode) for x in root) != 1
+
+    @classmethod
+    def from_element_node(cls, root_node: ElementNode, replace: bool = True) -> 'DocumentNode':
+        """
+        Build a `DocumentNode` from a tree based on an ElementNode.
+
+        :param root_node: the root element node.
+        :param replace: if `True` the root element is replaced by a document node. \
+        This is usually useful for extended data models (more element children, text nodes).
+        """
+        etree_module_name = root_node.elem.__class__.__module__
+        etree: ModuleType = import_module(etree_module_name)
+
+        assert root_node.elements is not None, "Not a root element node"
+        assert all(not isinstance(x, SchemaElementNode) for x in root_node.elements)
+        elements = cast(Dict[ElementProtocol, ElementNode], root_node.elements)
+
+        if replace:
+            document = etree.ElementTree()
+            if sum(isinstance(x, ElementNode) for x in root_node.children) == 1:
+                for child in root_node.children:
+                    if isinstance(child, ElementNode):
+                        document = etree.ElementTree(child.elem)
+                        break
+
+            document_node = cls(document, root_node.uri, root_node.position)
+            for child in root_node.children:
+                document_node.children.append(child)
+                child.parent = document_node
+
+            elements.pop(root_node, None)  # type: ignore[call-overload]
+            document_node.elements = elements
+            del root_node
+            return document_node
+
+        else:
+            document = etree.ElementTree(root_node.elem)
+            document_node = cls(document, root_node.uri, root_node.position - 1)
+            document_node.children.append(root_node)
+            root_node.parent = document_node
+            document_node.elements = elements
+
+        return document_node
 
 
 ###

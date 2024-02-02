@@ -559,10 +559,12 @@ class XPathToken(Token[XPathTokenType]):
                     else:
                         yield result.uri
                 elif isinstance(result, DocumentNode):
-                    if result is not context.document or result is context.root:
+                    if result.is_extended():
+                        yield result
+                    elif result is context.root or result is not context.document:
                         yield result.value
                 else:
-                    yield result.value
+                        yield result.value
 
     def get_results(self, context: XPathContext) -> Union[List[XPathResultType], AtomicValueType]:
         """
@@ -588,7 +590,9 @@ class XPathToken(Token[XPathTokenType]):
                     else:
                         results.append(item.uri)
                 elif isinstance(item, DocumentNode):
-                    if item is not context.document or item is context.root:
+                    if item.is_extended():
+                        results.append(item)
+                    elif item is not context.document or item is context.root:
                         results.append(item.value)
                 else:
                     results.append(item.value)

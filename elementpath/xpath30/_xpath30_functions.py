@@ -1439,8 +1439,7 @@ def evaluate_parse_xml_fragment_function(self, context=None):
         else:
             root = etree.XML(arg)
     except etree.ParseError as err:
-        # A DocumentNode with more children (maybe elements), so
-        # parse the XML including it in a dummy element.
+        # A not parsable fragment try to parse including XML data in a dummy element.
         try:
             dummy_element_node = get_node_tree(
                 root=etree.XML(f'<document>{arg}</document>'),
@@ -1448,31 +1447,13 @@ def evaluate_parse_xml_fragment_function(self, context=None):
             )
         except etree.ParseError:
             raise self.error('FODC0006', str(err)) from None
+        else:
+            return DocumentNode.from_element_node(dummy_element_node)
     else:
         return get_node_tree(
             root=etree.ElementTree(root),
             namespaces=self.parser.namespaces
         )
-
-    # Manually build the DocumentNode, removing the dummy element.
-    root_node = None
-    for child in dummy_element_node:
-        if isinstance(child, ElementNode):
-            root_node = child
-            break
-
-    if root_node is not None:
-        document = etree.ElementTree(root_node.elem)
-    else:
-        document = etree.ElementTree()
-
-    document_node = DocumentNode(document)
-    for child in dummy_element_node:
-        document_node.children.append(child)
-        child.parent = document_node
-
-    dummy_element_node.children.clear()
-    return document_node
 
 
 @method(function('serialize', nargs=(1, 2), sequence_types=(
