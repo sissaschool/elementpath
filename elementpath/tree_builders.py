@@ -72,21 +72,21 @@ def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
     """
     root = root_node.elem
     if hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
-        return None
+        return None  # It's an XSD schema or component
     elif not hasattr(root, 'getparent'):
         document = cast(
             DocumentProtocol,
             ElementTree.ElementTree(cast(ElementTree.Element, root))
         )
     elif cast(LxmlElementProtocol, root).getparent() is not None:
-        return None
+        return None  # It's a non-root element in a lxml element tree
     else:
         document = cast(LxmlElementProtocol, root).getroottree()
 
     document_node = DocumentNode(document, root_node.uri, position=0)
     document_node.children.append(root_node)
     document_node.elements = cast(Dict[ElementProtocol, ElementNode], root_node.elements)
-    root_node.parent = document_node
+    # root_node.parent = document_node  TODO: for v5? It's necessary?
     return document_node
 
 
@@ -244,8 +244,10 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol],
         parent = build_document_node()
 
     elif root.getparent() is None:
-        # if it's the effective root of the tree creates a root
-        # document node with none value and position==0
+        # If it's the effective root of the tree creates a dummy root
+        # document node for parsing possibly present root's siblings.
+        # Keep the dummy document if the root element has siblings (so
+        # it cannot be a fragment).
         document = root.getroottree()
         root_node = parent = DocumentNode(document, position=0)
         elem = root

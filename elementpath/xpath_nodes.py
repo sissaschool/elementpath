@@ -797,9 +797,7 @@ class DocumentNode(XPathNode):
             return None
 
     def is_extended(self) -> bool:
-        if self.document.getroot() is None:
-            return True
-        elif len(self.children) <= 1:
+        if len(self.children) <= 1:
             return False
         elif not hasattr(self.document.getroot(), 'itersiblings'):
             return True  # an xml.etree.ElementTree structure
