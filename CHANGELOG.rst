@@ -2,9 +2,12 @@
 CHANGELOG
 *********
 
-`v4.2.0`_ (2024-01-xx)
+`v4.2.0`_ (2024-02-03)
 ======================
 * Drop support for Python 3.7
+* Add *uri* and *fragment* options to dynamic context
+* Make context root node not mandatory (issue #63)
+* Add function objects constructor (issue #70)
 
 `v4.1.5`_ (2023-07-25)
 ======================
