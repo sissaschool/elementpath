@@ -15,7 +15,8 @@ from abc import ABCMeta
 from typing import cast, Any, ClassVar, Dict, MutableMapping, \
     Optional, Tuple, Type, Set, Sequence
 
-from ..exceptions import MissingContextError, ElementPathValueError, xpath_error
+from ..exceptions import MissingContextError, ElementPathValueError, \
+    ElementPathNameError, ElementPathKeyError, xpath_error
 from ..datatypes import QName
 from ..tdop import Token, Parser
 from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
@@ -245,6 +246,41 @@ class XPath1Parser(Parser[XPathToken]):
             ):
                 message = "Unmatched sequence type for variable {!r}".format(varname)
                 raise xpath_error('XPDY0050', message)
+
+    def get_function(self, name: str, arity: Optional[int]) -> XPathFunction:
+        """
+        Returns a XPathFunction object for direct usage.
+
+        :param name: the name of the function.
+        :param arity: the arity of the function object, must be compatible \
+        with the signature of the XPath function.
+        """
+        if ':' not in name:
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, f'fn:{name}')
+        elif name.startswith('fn:'):
+            qname = QName(XPATH_FUNCTIONS_NAMESPACE, name)
+            name = name[3:]
+        else:
+            prefix, name = name.split(':')
+            try:
+                namespace = self.namespaces[prefix]
+            except KeyError:
+                raise ElementPathKeyError(f"Unknown namespace {prefix!r}") from None
+            else:
+                qname = QName(namespace, f'{prefix}:{name}')
+
+        token_class = self.symbol_table.get(name)
+        if token_class is None or not issubclass(token_class, XPathFunction):
+            raise ElementPathNameError(f'unknown function {name!r}')
+
+        qname = QName(XPATH_FUNCTIONS_NAMESPACE, name)
+        try:
+            func = token_class(self, nargs=arity)
+        except TypeError:
+            msg = f"unknown function {qname.qname}#{arity}"
+            raise xpath_error('XPST0017', msg) from None
+        else:
+            return func
 
 
 ###

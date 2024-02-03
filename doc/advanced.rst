@@ -194,8 +194,7 @@ done using a subtree of nodes:
 Both choices can be useful, depends if you need to keep the whole tree or
 to restrict the scope to a subtree.
 
-The context *item* can be set with an XPath node, an atomic value or an XPath function
-(XPath 3.0+).
+The context *item* can be set with an XPath node, an atomic value or an XPath function.
 
 .. note::
     Since release v4.2.0 the *root* is optional. If the argument *root* is absent

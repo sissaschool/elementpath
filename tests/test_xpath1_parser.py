@@ -1652,6 +1652,40 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         self.check_selector("//target[name=//var/name]", root, expected=[root[0]])
 
+    def test_get_function(self):
+        func = self.parser.get_function('fn:true', 0)
+        self.assertEqual("'true' function", str(func))
+        self.assertTrue(func())
+
+        with self.assertRaises(NameError) as ctx:
+            self.parser.get_function('foo', 1)
+        self.assertIn("unknown function 'foo'", str(ctx.exception))
+
+        with self.assertRaises(TypeError) as ctx:
+            self.parser.get_function('fn:true', 1)
+        self.assertIn('unknown function true#1', str(ctx.exception))
+
+        func = self.parser.get_function('fn:false', 0)
+        self.assertEqual("'false' function", str(func))
+        self.assertFalse(func())
+
+        func = self.parser.get_function('concat', 2)
+        self.assertEqual("'concat' function", str(func))
+        self.assertEqual(func('foo', 1), 'foo1')
+
+        with self.assertRaises(TypeError) as ctx:
+            func('foo')
+        self.assertIn('missing required arguments', str(ctx.exception))
+
+        with self.assertRaises(TypeError) as ctx:
+            func('foo', 1, 2)
+        self.assertIn('too many arguments', str(ctx.exception))
+
+        func = self.parser.get_function('concat', 4)
+        self.assertEqual("'concat' function", str(func))
+        self.assertEqual(func('foo', 1, ' bar', 2), 'foo1 bar2')
+
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath1ParserTest(XPath1ParserTest):
