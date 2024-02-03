@@ -1,0 +1,2 @@
+Sphinx==7.2.6
+readthedocs-sphinx-search==0.3.2
