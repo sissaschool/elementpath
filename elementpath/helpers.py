@@ -283,7 +283,7 @@ def split_function_test(function_test: str) -> List[str]:
 
 def is_absolute_uri(uri: str) -> bool:
     try:
-        parts = urlsplit(uri)
+        parts = urlsplit(uri.strip())
     except ValueError:
         return False
     else:

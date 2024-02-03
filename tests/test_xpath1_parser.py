@@ -1686,7 +1686,6 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.assertEqual(func('foo', 1, ' bar', 2), 'foo1 bar2')
 
 
-
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath1ParserTest(XPath1ParserTest):
     etree = lxml_etree
