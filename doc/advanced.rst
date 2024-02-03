@@ -194,9 +194,24 @@ done using a subtree of nodes:
 Both choices can be useful, depends if you need to keep the whole tree or
 to restrict the scope to a subtree.
 
+The context *item* can be set with an XPath node, an atomic value or an XPath function
+(XPath 3.0+).
+
+.. note::
+    Since release v4.2.0 the *root* is optional. If the argument *root* is absent
+    the argument *item* is mandatory and the dynamic context remain without a root.
+
 
 The root document and the root element
 ======================================
+
+.. warning::
+    The initialization of context root and item is changed in release v4.2.0.
+
+    Since then the provided XML is still considered a document for default, but the
+    item is set with the root instead of `None` and the new attribute *document* is
+    set with a dummy document for handling the document position. The dummy document
+    is not referred by the root element and is discarded from results.
 
 Canonically the dynamic evaluation is performed on an XML document, created
 from an ElementTree instance:
@@ -212,18 +227,20 @@ from an ElementTree instance:
     <xml.etree.ElementTree.ElementTree object at ...>
 
 In this case a document node is created at context initialization and the
-context item is not set:
+context item is set to context root:
 
 .. doctest::
 
     >>> context = XPathContext(doc)
     >>> context.root
     DocumentNode(document=<xml.etree.ElementTree.ElementTree object at ...>)
-    >>> context.item is None
+    >>> context.item is context.root
+    True
+    >>> context.document is context.root
     True
 
 Providing a root element the document is not created and the context item is
-set to root element node:
+set to root element node. In this case the context document is a dummy document:
 
 .. doctest::
 
@@ -232,6 +249,10 @@ set to root element node:
     >>> context.root
     ElementNode(elem=<Element 'root' at ...>)
     >>> context.item is context.root
+    True
+    >>> context.document
+    DocumentNode(document=<xml.etree.ElementTree.ElementTree object at ...>)
+    >>> context.root.parent is None
     True
 
 Exception to this is if XML data root has siblings and if you process
@@ -244,6 +265,22 @@ the data with lxml:
     >>> context = XPathContext(root)
     >>> context.root
     DocumentNode(document=<lxml.etree._ElementTree object at ...>)
-    >>> context.item
-    ElementNode(elem=<Element root at ...>)
+    >>> context.item is context.root
+    True
+    >>> context.document is context.root
+    True
 
+Provide the option *fragment* with value `True` for processing an XML root element
+as a fragment. In this case a dummy document is not created and the context document
+is set to `None`:
+
+.. doctest::
+
+    >>> root = ElementTree.XML('<root><child1/><child2/><child3/></root>')
+    >>> context = XPathContext(root, fragment=True)
+    >>> context.root
+    ElementNode(elem=<Element 'root' at ...>)
+    >>> context.item is context.root
+    True
+    >>> context.document is None
+    True
