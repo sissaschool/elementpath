@@ -19,9 +19,9 @@ from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
 from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from .helpers import match_wildcard, is_absolute_uri
-from .etree import etree_iter_strings, is_etree_element
+from .etree import etree_iter_strings, is_etree_element, is_etree_document
 
-__all__ = ['SchemaElemType', 'ChildNodeType', 'ElementMapType',
+__all__ = ['is_xpath_node', 'SchemaElemType', 'ChildNodeType', 'ElementMapType',
            'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode',
            'CommentNode', 'ProcessingInstructionNode', 'ElementNode',
            'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
@@ -1005,3 +1005,7 @@ class SchemaElementNode(ElementNode):
                     children = iterators.pop()
                 except IndexError:
                     return
+
+
+def is_xpath_node(obj: Any) -> bool:
+    return isinstance(obj, XPathNode) or is_etree_element(obj) or is_etree_document(obj)

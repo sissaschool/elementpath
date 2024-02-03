@@ -18,7 +18,8 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import XPathContext, DocumentNode, ElementNode, datatypes, select
+from elementpath import XPathContext, DocumentNode, ElementNode, datatypes, \
+    select, get_node_tree, TextNode
 
 
 class DummyXsdType:
@@ -40,8 +41,11 @@ class DummyXsdType:
 class XPathContextTest(unittest.TestCase):
     root = ElementTree.XML('<author>Dickens</author>')
 
-    def test_basic_initialization(self):
+    def test_invalid_initialization(self):
         self.assertRaises(TypeError, XPathContext, None)
+
+        with self.assertRaises(TypeError):
+            XPathContext(item=[1])
 
     def test_timezone_argument(self):
         context = XPathContext(self.root)
@@ -51,6 +55,8 @@ class XPathContextTest(unittest.TestCase):
 
     def test_repr(self):
         self.assertEqual(repr(XPathContext(self.root)), f"XPathContext(root={self.root})")
+        self.assertEqual(repr(XPathContext(item=self.root)), f"XPathContext(item={self.root})")
+        self.assertEqual(repr(XPathContext(item=9.0)), "XPathContext(item=9.0)")
 
     def test_copy(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -69,6 +75,104 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         self.assertEqual(context.etree.__name__, 'lxml.etree')
         self.assertEqual(context.etree.__name__, 'lxml.etree')
+
+    def test_context_root_type(self):
+        root = ElementTree.XML('<root/>')
+        context = XPathContext(root)
+        self.assertTrue(context.is_document())
+        self.assertIsInstance(context.root, ElementNode)
+        self.assertIsInstance(context.document, DocumentNode)
+        self.assertFalse(context.is_fragment())
+        self.assertFalse(context.is_rooted_subtree())
+
+        root = ElementTree.XML('<root/>')
+        context = XPathContext(root, fragment=True)
+        self.assertFalse(context.is_document())
+        self.assertIsInstance(context.root, ElementNode)
+        self.assertIsNone(context.document)
+        self.assertIsNone(context.root.parent)
+        self.assertTrue(context.is_fragment())
+        self.assertFalse(context.is_rooted_subtree())
+
+        root = ElementTree.XML('<root><child/></root>')
+        context = XPathContext(root[0], fragment=True)
+
+        self.assertFalse(context.is_document())
+        self.assertIsInstance(context.root, ElementNode)
+        self.assertIsNone(context.root.parent)
+        self.assertIsNone(context.document)
+        self.assertTrue(context.is_fragment())
+        self.assertFalse(context.is_rooted_subtree())
+
+    def test_no_root(self):
+        with self.assertRaises(TypeError) as ctx:
+            XPathContext()
+        self.assertEqual(str(ctx.exception),
+                         "Missing both the root node and the context item!")
+
+        context = XPathContext(item=7)
+        self.assertIsNone(context.root)
+        self.assertEqual(context.item, 7)
+
+        self.assertListEqual(list(context.iter_self()), [7])
+        self.assertListEqual(list(context.iter_children_or_self()), [])
+        self.assertListEqual(list(context.iter_attributes()), [])
+        self.assertListEqual(list(context.iter_descendants()), [])
+        self.assertListEqual(list(context.iter_parent()), [])
+        self.assertListEqual(list(context.iter_preceding()), [])
+        self.assertListEqual(list(context.iter_followings()), [])
+        self.assertListEqual(list(context.iter_ancestors()), [])
+        self.assertEqual(context.item, 7)
+
+        root = ElementTree.XML('<root><child1/><child2/></root>')
+        root_node = get_node_tree(root)
+        context = XPathContext(item=root_node)
+        self.assertEqual(context.item, root_node)
+
+        self.assertListEqual(list(context.iter_self()), [root_node])
+        self.assertListEqual(list(context.iter_children_or_self()), root_node[:])
+        self.assertListEqual(list(context.iter_attributes()), [])
+        self.assertListEqual(list(context.iter_descendants()),
+                             [root_node, root_node[0], root_node[1]])
+        self.assertListEqual(list(context.iter_parent()), [])
+        self.assertListEqual(list(context.iter_preceding()), [])
+        self.assertListEqual(list(context.iter_followings()), [])
+        self.assertListEqual(list(context.iter_ancestors()), [])
+        self.assertEqual(context.item, root_node)
+
+        context = XPathContext(item=root_node[0])
+        self.assertEqual(context.item, root_node[0])
+
+        self.assertListEqual(list(context.iter_self()), [root_node[0]])
+        self.assertListEqual(list(context.iter_children_or_self()), [])
+        self.assertListEqual(list(context.iter_attributes()), [])
+        self.assertListEqual(list(context.iter_descendants()), [root_node[0]])
+        self.assertListEqual(list(context.iter_parent()), [root_node])
+        self.assertListEqual(list(context.iter_preceding()), [])
+        self.assertListEqual(list(context.iter_followings()), [root_node[1]])
+        self.assertListEqual(list(context.iter_ancestors()), [root_node])
+        self.assertEqual(context.item, root_node[0])
+
+        context = XPathContext(item=root_node[1])
+        self.assertEqual(context.item, root_node[1])
+
+        self.assertListEqual(list(context.iter_self()), [root_node[1]])
+        self.assertListEqual(list(context.iter_children_or_self()), [])
+        self.assertListEqual(list(context.iter_attributes()), [])
+        self.assertListEqual(list(context.iter_descendants()), [root_node[1]])
+        self.assertListEqual(list(context.iter_parent()), [root_node])
+        self.assertListEqual(list(context.iter_preceding()), [root_node[0]])
+        self.assertListEqual(list(context.iter_followings()), [])
+        self.assertListEqual(list(context.iter_ancestors()), [root_node])
+        self.assertEqual(context.item, root_node[1])
+
+    def test_default_collection(self):
+        node = TextNode('hello world!')
+
+        context = XPathContext(self.root, default_collection=1)
+        self.assertListEqual(context.default_collection, [1])
+        context = XPathContext(self.root, default_collection=[node])
+        self.assertListEqual(context.default_collection, [node])
 
     def test_is_principal_node_kind(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')

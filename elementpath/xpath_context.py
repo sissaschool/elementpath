@@ -11,10 +11,11 @@ import datetime
 import importlib
 from copy import copy
 from types import ModuleType
-from typing import TYPE_CHECKING, cast, overload, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, Set
+from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
+    Optional, Sequence, Union, Callable, Set, Tuple
 
 from .exceptions import ElementPathTypeError
+from .tdop import Token
 from .namespaces import NamespacesType
 from .datatypes import AnyAtomicType, Timezone, Language
 from .protocols import ElementProtocol, DocumentProtocol
@@ -25,17 +26,16 @@ from .tree_builders import RootArgType, get_node_tree, get_dummy_document
 
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
-    ItemType = Union[XPathNode, AnyAtomicType, XPathFunction]
+    ItemType = Union[None, XPathNode, AnyAtomicType, XPathFunction]
+    ItemArgType = Union[XPathNode, AnyAtomicType, XPathFunction,
+                        ElementProtocol, DocumentProtocol]
 else:
     ItemType = Any
+    ItemArgType = Any
 
 __all__ = ['XPathContext', 'XPathSchemaContext']
 
-ItemArgType = Union[RootArgType, ItemType]
-
-
-def is_xpath_node(obj: Any) -> bool:
-    return isinstance(obj, XPathNode) or is_etree_element(obj) or is_etree_document(obj)
+CollectionArgType = Union[None, ItemArgType, List[ItemArgType], Tuple[ItemArgType, ...]]
 
 
 class XPathContext:
@@ -83,17 +83,18 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: Union[DocumentNode, ElementNode, None]
+    root: Union[DocumentNode, ElementNode, None] = None
     document: Optional[DocumentNode] = None
     item: Optional[ItemType]
     total_nodes: int = 0  # Number of nodes associated to the context
 
+    variables: Dict[str, Union[ItemType, List[ItemType]]]
     documents: Optional[Dict[str, Union[DocumentNode, ElementNode, None]]] = None
     collections = None
-    default_collection: Optional[List[Union[XPathNode, ElementProtocol, DocumentProtocol]]] = None
+    default_collection = None
 
     def __init__(self,
-                 root: Optional[RootArgType],
+                 root: Optional[RootArgType] = None,
                  namespaces: Optional[NamespacesType] = None,
                  uri: Optional[str] = None,
                  fragment: bool = False,
@@ -101,12 +102,12 @@ class XPathContext:
                  position: int = 1,
                  size: int = 1,
                  axis: Optional[str] = None,
-                 variables: Optional[Dict[str, Any]] = None,
+                 variables: Optional[Dict[str, CollectionArgType]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
                  documents: Optional[Dict[str, Optional[RootArgType]]] = None,
-                 collections: Optional[Dict[str, List[ItemArgType]]] = None,
-                 default_collection: Optional[str] = None,
+                 collections: Optional[Dict[str, CollectionArgType]] = None,
+                 default_collection: CollectionArgType = None,
                  text_resources: Optional[Dict[str, str]] = None,
                  resource_collections: Optional[Dict[str, List[str]]] = None,
                  default_resource_collection: Optional[str] = None,
@@ -127,7 +128,7 @@ class XPathContext:
         elif item is not None:
             self.item = self.get_context_item(item)
         else:
-            raise ElementPathTypeError("Missing both root node and context item!")
+            raise ElementPathTypeError("Missing both the root node and the context item!")
 
         if isinstance(self.root, DocumentNode):
             self.document = self.root
@@ -150,22 +151,19 @@ class XPathContext:
                 for k, v in documents.items()
             }
 
-        if variables is None:
-            self.variables = {}
-        else:
-            self.variables = {k: self.get_context_item(v) for k, v in variables.items()}
+        self.variables = {}
+        if variables is not None:
+            for k, v in variables.items():
+                if v is None or isinstance(v, (list, tuple)):
+                    self.variables[k] = self.get_collection(v)
+                else:
+                    self.variables[k] = self.get_context_item(v)
 
         if collections is not None:
-            self.collections = {k: self.get_context_item(v) if v is not None else v
-                                for k, v in collections.items()}
+            self.collections = {k: self.get_collection(v) for k, v in collections.items()}
 
         if default_collection is not None:
-            if isinstance(default_collection, list) and \
-                    all(is_xpath_node(x) for x in default_collection):
-                self.default_collection = self.get_context_item(default_collection)
-            else:
-                msg = "'default_collection' argument must be a list of XPath nodes"
-                raise ElementPathTypeError(msg)
+            self.default_collection = self.get_collection(default_collection)
 
         self.text_resources = text_resources if text_resources is not None else {}
         self.resource_collections = resource_collections
@@ -217,6 +215,15 @@ class XPathContext:
 
         return None
 
+    def is_document(self) -> bool:
+        return isinstance(self.document, DocumentNode)
+
+    def is_fragment(self) -> bool:
+        return self.document is None and self.root is not None
+
+    def is_rooted_subtree(self) -> bool:
+        return self.root is not None and isinstance(self.root.parent, ElementNode)
+
     def is_principal_node_kind(self) -> bool:
         if self.axis == 'attribute':
             return isinstance(self.item, AttributeNode)
@@ -225,23 +232,14 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    @overload
-    def get_context_item(self, item: ItemArgType) -> ItemType: ...
-
-    @overload
-    def get_context_item(self, item: List[ItemArgType]) -> List[ItemType]: ...
-
-    def get_context_item(self, item: Union[ItemArgType, List[ItemArgType]]) \
-            -> Union[ItemType, List[ItemType]]:
+    def get_context_item(self, item: ItemArgType) -> ItemType:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
         context. If it fails then builds a new node.
         """
-        if isinstance(item, XPathNode):
+        if isinstance(item, (XPathNode, AnyAtomicType)):
             return item
-        elif isinstance(item, (list, tuple)):
-            return [self.get_context_item(x) for x in item]
         elif is_etree_document(item):
             if self.root is not None and item is self.root.value:
                 return self.root
@@ -267,13 +265,24 @@ class XPathContext:
                     return CommentNode(cast(ElementProtocol, item))
                 else:
                     return ProcessingInstructionNode(cast(ElementProtocol, item))
+        elif not isinstance(item, Token) or not callable(item):
+            msg = f"Unexpected type {type(item)} for context item"
+            raise ElementPathTypeError(msg)
         else:
-            return cast(Union[AnyAtomicType, 'XPathFunction'], item)
+            return item
 
         return get_node_tree(
             root=cast(Union[RootArgType], item),
             namespaces=self.namespaces
         )
+
+    def get_collection(self, items: Optional[CollectionArgType]) -> Optional[List[ItemType]]:
+        if items is None:
+            return None
+        elif isinstance(items, (list, tuple)):
+            return [self.get_context_item(x) for x in items]
+        else:
+            return [self.get_context_item(items)]
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""

@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 else:
     XPathParserType = Any
 
+ContextArgType = Optional[XPathContext]
+
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 _CHILD_AXIS_TOKENS = {
@@ -90,7 +92,7 @@ class XPathToken(Token[XPathTokenType]):
     namespace = None  # for namespace binding of names and wildcards
     occurrence = None  # occurrence indicator for item types
 
-    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
+    def evaluate(self, context: ContextArgType = None) -> Any:
         """
         Evaluate default method for XPath tokens.
 
@@ -98,7 +100,7 @@ class XPathToken(Token[XPathTokenType]):
         """
         return [x for x in self.select(context)]
 
-    def select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+    def select(self, context: ContextArgType = None) -> Iterator[Any]:
         """
         Select operator that generates XPath results.
 
@@ -252,7 +254,7 @@ class XPathToken(Token[XPathTokenType]):
 
     ###
     # Dynamic context methods
-    def get_argument(self, context: Optional[XPathContext],
+    def get_argument(self, context: ContextArgType,
                      index: int = 0,
                      required: bool = False,
                      default_to_context: bool = False,
@@ -333,7 +335,7 @@ class XPathToken(Token[XPathTokenType]):
                 tokens.append(tk)
                 return tokens[::-1]
 
-    def get_function(self, context: Optional[XPathContext], arity: int = 0) -> 'XPathFunction':
+    def get_function(self, context: ContextArgType, arity: int = 0) -> 'XPathFunction':
         if isinstance(self, XPathFunction):
             func = self
         elif self.symbol in (':', 'Q{') and isinstance(self[1], XPathFunction):
@@ -393,7 +395,7 @@ class XPathToken(Token[XPathTokenType]):
             msg = f"{ordinal(index+1)} argument has type {type(item)!r} instead of {cls!r}"
         raise self.error(code, msg)
 
-    def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+    def iter_flatten(self, context: ContextArgType = None) -> Iterator[Any]:
 
         def _iter_flatten(items: Iterable[Any]) -> Iterator[Any]:
             for item in items:
@@ -406,7 +408,7 @@ class XPathToken(Token[XPathTokenType]):
 
         yield from _iter_flatten(self.select(context))
 
-    def atomization(self, context: Optional[XPathContext] = None) \
+    def atomization(self, context: ContextArgType = None) \
             -> Iterator[AtomicValueType]:
         """
         Helper method for value atomization of a sequence.
@@ -438,7 +440,7 @@ class XPathToken(Token[XPathTokenType]):
                 msg = f"sequence item {item!r} is not appropriate for the context"
                 raise self.error('XPTY0004', msg)
 
-    def get_atomized_operand(self, context: Optional[XPathContext] = None) \
+    def get_atomized_operand(self, context: ContextArgType = None) \
             -> Optional[AtomicValueType]:
         """
         Get the atomized value for an XPath operator.
@@ -480,7 +482,7 @@ class XPathToken(Token[XPathTokenType]):
                 msg = "atomized operand is a sequence of length greater than one"
                 raise self.error('XPTY0004', msg)
 
-    def iter_comparison_data(self, context: XPathContext) -> Iterator[OperandsType]:
+    def iter_comparison_data(self, context: ContextArgType) -> Iterator[OperandsType]:
         """
         Generates comparison data couples for the general comparison of sequences.
         Different sequences maybe generated with an XPath 2.0 parser, depending on
@@ -539,7 +541,7 @@ class XPathToken(Token[XPathTokenType]):
 
             yield values
 
-    def select_results(self, context: Optional[XPathContext]) -> Iterator[XPathResultType]:
+    def select_results(self, context: ContextArgType) -> Iterator[XPathResultType]:
         """
         Generates formatted XPath results.
 
@@ -560,13 +562,15 @@ class XPathToken(Token[XPathTokenType]):
                         yield result.uri
                 elif isinstance(result, DocumentNode):
                     if result.is_extended():
+                        # cannot represent with an ElementTree: yield the document node
                         yield result
                     elif result is context.root or result is not context.document:
                         yield result.value
                 else:
-                        yield result.value
+                    yield result.value
 
-    def get_results(self, context: XPathContext) -> Union[List[XPathResultType], AtomicValueType]:
+    def get_results(self, context: ContextArgType) \
+            -> Union[List[XPathResultType], AtomicValueType]:
         """
         Returns results formatted according to XPath specifications.
 
@@ -605,7 +609,7 @@ class XPathToken(Token[XPathTokenType]):
 
         return results
 
-    def get_operands(self, context: XPathContext, cls: Optional[Type[Any]] = None) \
+    def get_operands(self, context: ContextArgType, cls: Optional[Type[Any]] = None) \
             -> OperandsType:
         """
         Returns the operands for a binary operator. Float arguments are converted
@@ -737,7 +741,7 @@ class XPathToken(Token[XPathTokenType]):
 
         self.namespace = namespace
 
-    def adjust_datetime(self, context: XPathContext, cls: Type[AbstractDateTime]) \
+    def adjust_datetime(self, context: ContextArgType, cls: Type[AbstractDateTime]) \
             -> Union[List[Any], AbstractDateTime, DayTimeDuration]:
         """
         XSD datetime adjust function helper.
@@ -1162,10 +1166,10 @@ class ValueToken(XPathToken):
     def source(self) -> str:
         return str(self.value)
 
-    def evaluate(self, context: Optional[XPathContext] = None) -> Any:
+    def evaluate(self, context: ContextArgType = None) -> Any:
         return self.value
 
-    def select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+    def select(self, context: ContextArgType = None) -> Iterator[Any]:
         if isinstance(self.value, list):
             yield from self.value
         elif self.value is not None:
@@ -1215,7 +1219,7 @@ class XPathFunction(XPathToken):
     nargs: NargsType = None
     "Number of arguments: a single value or a couple with None that means unbounded."
 
-    context: Optional[XPathContext] = None
+    context: ContextArgType = None
     "Dynamic context associated by function reference evaluation."
 
     def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
@@ -1249,7 +1253,7 @@ class XPathFunction(XPathToken):
             return f"'Q{{{namespace}}}{self.symbol}' {self.label}"
 
     def __call__(self, *args: XPathFunctionArgType,
-                 context: Optional[XPathContext] = None) -> Any:
+                 context: ContextArgType = None) -> Any:
         self.check_arguments_number(len(args))
 
         # Check provided argument with arity
@@ -1498,10 +1502,10 @@ class XPathFunction(XPathToken):
         assert nargs, "a partial function requires at least a placeholder token"
 
         if self.label != 'partial function':
-            def evaluate(context: Optional[XPathContext] = None) -> Any:
+            def evaluate(context: ContextArgType = None) -> Any:
                 return self
 
-            def select(context: Optional[XPathContext] = None) -> Any:
+            def select(context: ContextArgType = None) -> Any:
                 yield self
 
             if self.__class__.evaluate is not XPathToken.evaluate:
@@ -1516,10 +1520,10 @@ class XPathFunction(XPathToken):
         self.label = 'partial function'
         self.nargs = nargs
 
-    def _partial_evaluate(self, context: Optional[XPathContext] = None) -> Any:
+    def _partial_evaluate(self, context: ContextArgType = None) -> Any:
         return [x for x in self._partial_select(context)]
 
-    def _partial_select(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+    def _partial_select(self, context: ContextArgType = None) -> Iterator[Any]:
         item = self._partial_evaluate(context)
         if item is not None:
             if isinstance(item, list):
@@ -1623,7 +1627,7 @@ class XPathMap(XPathFunction):
             items = ', '.join(f'{k!r}:{v!r}' for k, v in self._map.items())
         return f'map{{{items}}}'
 
-    def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathMap':
+    def evaluate(self, context: ContextArgType = None) -> 'XPathMap':
         if self._map is not None:
             return self
         return XPathMap(
@@ -1634,7 +1638,7 @@ class XPathMap(XPathFunction):
             )
         )
 
-    def _evaluate(self, context: Optional[XPathContext] = None) -> Dict[AnyAtomicType, Any]:
+    def _evaluate(self, context: ContextArgType = None) -> Dict[AnyAtomicType, Any]:
         _map: Dict[Any, Any] = {}
         nan_key = None
 
@@ -1660,7 +1664,7 @@ class XPathMap(XPathFunction):
         return cast(Dict[AnyAtomicType, Any], _map)
 
     def __call__(self, *args: XPathFunctionArgType,
-                 context: Optional[XPathContext] = None) -> Any:
+                 context: ContextArgType = None) -> Any:
         if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
             args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
@@ -1681,19 +1685,19 @@ class XPathMap(XPathFunction):
         except KeyError:
             return []
 
-    def keys(self, context: Optional[XPathContext] = None) -> List[AnyAtomicType]:
+    def keys(self, context: ContextArgType = None) -> List[AnyAtomicType]:
         if self._map is not None:
             keys = [self._nan_key if k is None else k for k in self._map.keys()]
         else:
             keys = [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
         return cast(List[AnyAtomicType], keys)
 
-    def values(self, context: Optional[XPathContext] = None) -> List[Any]:
+    def values(self, context: ContextArgType = None) -> List[Any]:
         if self._map is not None:
             return [v for v in self._map.values()]
         return [v for v in self._evaluate(context).values()]
 
-    def items(self, context: Optional[XPathContext] = None) -> List[Tuple[AnyAtomicType, Any]]:
+    def items(self, context: ContextArgType = None) -> List[Tuple[AnyAtomicType, Any]]:
         _map: Dict[Any, Any]
         if self._map is not None:
             _map = self._map
@@ -1786,12 +1790,12 @@ class XPathArray(XPathFunction):
         self.parser.advance('}')
         return self
 
-    def evaluate(self, context: Optional[XPathContext] = None) -> 'XPathArray':
+    def evaluate(self, context: ContextArgType = None) -> 'XPathArray':
         if self._array is not None:
             return self
         return XPathArray(self.parser, items=self._evaluate(context))
 
-    def _evaluate(self, context: Optional[XPathContext] = None) -> List[Any]:
+    def _evaluate(self, context: ContextArgType = None) -> List[Any]:
         if self.symbol == 'array':
             # A comma in a curly array constructor is the comma operator, not a delimiter.
             items: List[Any] = []
@@ -1802,7 +1806,7 @@ class XPathArray(XPathFunction):
             return [tk.evaluate(context) for tk in self._items]
 
     def __call__(self, *args: XPathFunctionArgType,
-                 context: Optional[XPathContext] = None) -> Any:
+                 context: ContextArgType = None) -> Any:
         if len(args) != 1 or not isinstance(args[0], int):
             raise self.error('XPTY0004', 'exactly one xs:integer argument is expected')
 
@@ -1820,12 +1824,12 @@ class XPathArray(XPathFunction):
         except IndexError:
             raise self.error('FOAY0001')
 
-    def items(self, context: Optional[XPathContext] = None) -> List[Any]:
+    def items(self, context: ContextArgType = None) -> List[Any]:
         if self._array is not None:
             return self._array.copy()
         return self._evaluate(context)
 
-    def iter_flatten(self, context: Optional[XPathContext] = None) -> Iterator[Any]:
+    def iter_flatten(self, context: ContextArgType = None) -> Iterator[Any]:
         if self._array is not None:
             items = self._array
         else:
