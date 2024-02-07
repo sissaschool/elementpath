@@ -36,7 +36,7 @@ except ImportError:
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
-from elementpath import XPathContext
+from elementpath import XPathContext, select
 from elementpath.etree import etree_deep_equal
 from elementpath.datatypes import DateTime, Base64Binary
 from elementpath.xpath_nodes import DocumentNode
@@ -1088,6 +1088,88 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath31ParserTest(XPath31ParserTest):
     etree = lxml_etree
+
+    def test_regression_ep415_ep420__issue_71(self):
+        # This is not really a regression because ep415.
+        import lxml.html as lxml_html
+
+        xml_source = dedent("""\
+        <hotel>
+          <branch location="California">
+            <staff>
+              <date>2023-10-10</date>
+              <given_name>Christopher</given_name>
+              <surname>Anderson</surname>
+              <age>25</age>
+            </staff>
+            <staff>
+              <date>2023-10-11</date>
+              <given_name>Christopher</given_name>
+              <surname>Carter</surname>
+              <age>30</age>
+            </staff>
+          </branch>
+          <branch location="Las Vegas">
+            <staff>
+              <given_name>Lisa</given_name>
+              <surname>Walker</surname>
+              <age>60</age>
+            </staff>
+            <staff>
+              <given_name>Jessica</given_name>
+              <surname>Walker</surname>
+              <age>32</age>
+            </staff>
+            <staff>
+              <given_name>Jennifer</given_name>
+              <surname>Roberts</surname>
+              <age>50</age>
+            </staff>
+          </branch>
+        </hotel>
+        """)
+
+        queries = [
+            'if (count(//hotel/branch/staff) = 5) then true() else false()',
+            '//hotel/branch/staff',
+            'if (count(/hotel/branch/staff) = 5) then true() else false()',
+            '(count(/hotel/branch/staff) = 5)',
+            '(count(/hotel/branch/staff))',
+            '/hotel/branch/staff',
+            'for $i in /hotel/branch/staff return $i/given_name',
+            'for $i in //hotel/branch/staff return $i/given_name',
+            'distinct-values(for $i in /hotel/branch/staff return $i/given_name)',
+            'distinct-values(for $i in //hotel/branch/staff return $i/given_name)',
+            'date(/hotel/branch[1]/staff[1]/date) instance of xs:date',
+            '/hotel/branch[1]/staff[1]/date cast as xs:date',
+        ]
+
+        html_parser = lxml_html.HTMLParser()
+        xml_parser = lxml_etree.XMLParser(strip_cdata=False)
+
+        xml_data = bytes(xml_source, encoding='utf-8')
+        data_trees = {
+            'html': lxml_html.fromstring(xml_data, parser=html_parser),
+            'xml': lxml_etree.fromstring(xml_data, parser=xml_parser)
+        }
+
+        for query in queries:
+            results = []
+            for doctype, document in data_trees.items():
+                try:
+                    res = select(document, query, parser=XPath31Parser)
+                except Exception as e:
+                    results.append(e)
+                else:
+                    results.append(res)
+
+            if isinstance(results[0], list):
+                self.assertIsInstance(results[1], list)
+                self.assertEqual(len(results[0]), len(results[1]))
+                for e1, e2 in zip(*results):
+                    self.assertEqual(e1.tag, e2.tag)
+            else:
+                self.assertEqual(results[0], results[1])
 
 
 class XPath31FunctionsTest(test_xpath30.XPath30FunctionsTest):
