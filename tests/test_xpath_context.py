@@ -15,8 +15,10 @@ import xml.etree.ElementTree as ElementTree
 
 try:
     import lxml.etree as lxml_etree
+    import lxml.html as lxml_html
 except ImportError:
     lxml_etree = None
+    lxml_html = None
 
 from elementpath import XPathContext, DocumentNode, ElementNode, datatypes, \
     select, get_node_tree, TextNode
@@ -312,6 +314,23 @@ class XPathContextTest(unittest.TestCase):
         result = select(root, 'node()[1]/following-sibling::node()')
         self.assertListEqual(result, [root[0], 'text 2', root[1], ' text 3'])
         self.assertListEqual(result, root.xpath('node()[1]/following-sibling::node()'))
+
+    @unittest.skipIf(lxml_etree is None, 'lxml library is not installed')
+    def test_set_context_root__issue_71(self):
+        root = lxml_etree.XML('<root><child1/><child2/></root>')
+        self.assertIsNone(root.getparent())
+
+        context = XPathContext(root)
+        self.assertIs(context.root.value, root)
+        self.assertIsInstance(context.document, DocumentNode)
+
+        parser = lxml_html.HTMLParser()
+        root = lxml_html.fromstring('<root><child1/><child2/></root>', parser=parser)
+        self.assertIsNotNone(root.getparent())
+
+        context = XPathContext(root)
+        self.assertIsNot(context.root.value, root)
+        self.assertIsInstance(context.document, DocumentNode)
 
     def test_iter_descendants(self):
         root = ElementTree.XML('<A a1="10" a2="20"><B1/><B2/></A>')

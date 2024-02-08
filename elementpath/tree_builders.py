@@ -12,7 +12,7 @@ from xml.etree import ElementTree
 
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
-    DocumentProtocol, XsdElementProtocol
+    DocumentProtocol, LxmlDocumentProtocol, XsdElementProtocol
 from .etree import is_etree_document, is_etree_element
 from .xpath_nodes import SchemaElemType, ChildNodeType, ElementMapType, \
     TextNode, CommentNode, ProcessingInstructionNode, \
@@ -24,13 +24,18 @@ __all__ = ['RootArgType', 'get_node_tree', 'get_dummy_document',
 RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
                     'DocumentNode', 'ElementNode']
 
+ElementTreeRootType = Union[DocumentProtocol, ElementProtocol]
+LxmlRootType = Union[LxmlDocumentProtocol, LxmlElementProtocol]
+
 
 def is_schema(obj: Any) -> bool:
     return hasattr(obj, 'xsd_version') and hasattr(obj, 'maps') and not hasattr(obj, 'parent')
 
 
-def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None,
-                  uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
+def get_node_tree(root: RootArgType,
+                  namespaces: Optional[Dict[str, str]] = None,
+                  uri: Optional[str] = None,
+                  fragment: bool = False) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -38,31 +43,46 @@ def get_node_tree(root: RootArgType, namespaces: Optional[Dict[str, str]] = None
     :param namespaces: an optional mapping from prefixes to namespace URIs, \
     Ignored if root is a lxml etree or a schema structure.
     :param uri: an optional URI associated with the root element or the document.
+    :param fragment: if `True` a root element is considered a fragment, otherwise \
+    a root element is considered the root of an XML document. If the root is a \
+    document node or an ElementTree instance, and fragment is `True` then use the \
+    root element and returns an element node.
     """
     if isinstance(root, (DocumentNode, ElementNode)):
         if uri is not None and root.uri is None:
             root.uri = uri
+
+        if fragment and isinstance(root, DocumentNode):
+            root_node = root.getroot()
+            if root_node.uri is None:
+                root_node.uri = root.uri
+            return root_node
+
         return root
 
-    elif is_etree_document(root):
-        if hasattr(root, 'xpath'):
-            return build_lxml_node_tree(cast(DocumentProtocol, root), uri)
-        else:
-            return build_node_tree(cast(DocumentProtocol, root), namespaces, uri)
-
-    elif hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
-        # schema or schema node
-        return build_schema_node_tree(cast(SchemaElemType, root), uri)
-
-    elif is_etree_element(root) and not callable(root.tag):  # type: ignore[union-attr]
-        if hasattr(root, 'nsmap') and hasattr(root, 'xpath'):
-            return build_lxml_node_tree(cast(LxmlElementProtocol, root), uri)
-        else:
-            return build_node_tree(cast(ElementProtocol, root), namespaces, uri)
-
+    # If a fragment is requested remove the ElementTree instance
+    if is_etree_document(root):
+        _root = cast(DocumentProtocol, root).getroot() if fragment else root
+    elif is_etree_element(root) and not callable(cast(ElementProtocol, root).tag):
+        _root = root
     else:
         msg = "invalid root {!r}, an Element or an ElementTree or a schema node required"
         raise ElementPathTypeError(msg.format(root))
+
+    if hasattr(_root, 'xpath'):
+        # a lxml element tree data
+        return build_lxml_node_tree(
+            cast(LxmlRootType, _root), uri, fragment
+        )
+    elif hasattr(_root, 'xsd_version') and hasattr(_root, 'maps'):
+        # a schema or a schema node
+        return build_schema_node_tree(
+            cast(SchemaElemType, root), uri
+        )
+    else:
+        return build_node_tree(
+            cast(ElementTreeRootType, root), namespaces, uri
+        )
 
 
 def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
@@ -79,7 +99,7 @@ def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
             ElementTree.ElementTree(cast(ElementTree.Element, root))
         )
     elif cast(LxmlElementProtocol, root).getparent() is not None:
-        return None  # It's a non-root element in a lxml element tree
+        return None  # A fragment, it's a non-root element in a lxml element tree
     else:
         document = cast(LxmlElementProtocol, root).getroottree()
 
@@ -90,7 +110,7 @@ def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
     return document_node
 
 
-def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
+def build_node_tree(root: ElementTreeRootType,
                     namespaces: Optional[MutableMapping[str, str]] = None,
                     uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
     """
@@ -126,7 +146,8 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
 
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
-        root_node = parent = DocumentNode(document, uri, position)
+        parent = DocumentNode(document, uri, position)
+        root_node = parent
         position += 1
         elements = root_node.elements
 
@@ -179,13 +200,16 @@ def build_node_tree(root: Union[DocumentProtocol, ElementProtocol],
                 return root_node
 
 
-def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol],
-                         uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
+def build_lxml_node_tree(root: LxmlRootType,
+                         uri: Optional[str] = None,
+                         fragment: bool = False) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided lxml root tree.
 
     :param root: a lxml Element or a lxml ElementTree.
     :param uri: an optional URI associated with the document or the root element.
+    :param fragment: if `True` a root element is considered a fragment, otherwise \
+    a root element is considered the root of an XML document.
     """
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
@@ -235,12 +259,27 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol],
 
         return node
 
-    if hasattr(root, 'parse'):
-        document = cast(DocumentProtocol, root)
+    if fragment:
+        if hasattr(root, 'parse'):
+            root_elem = cast(LxmlDocumentProtocol, root).getroot()
+            if root_elem is None:
+                msg = "requested a fragment of an empty ElementTree document"
+                raise ElementPathTypeError(msg)
+            elem = root_elem
+        else:
+            elem = root
+
+        parent = None
+        elements = {}
+        root_node = parent = build_lxml_element_node()
+        root_node.elements = elements
+
+    elif hasattr(root, 'parse'):
+        document = cast(LxmlDocumentProtocol, root)
         root_node = parent = DocumentNode(document, position=position)
         position += 1
 
-        root_elem = cast(Optional[LxmlElementProtocol], document.getroot())
+        root_elem = document.getroot()
         if root_elem is None:
             return root_node
 
@@ -249,13 +288,14 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol],
         parent = build_document_node()
 
     elif root.getparent() is None:
-        # If it's the effective root of the tree creates a dummy root
-        # document node for parsing possibly present root's siblings.
-        # Keep the dummy document if the root element has siblings (so
-        # it cannot be a fragment).
+        # Creates a root document node for parsing root's siblings.
         document = root.getroottree()
         root_node = parent = DocumentNode(document, position=0)
-        elem = root
+
+        root_elem = document.getroot()
+        assert root_elem is not None
+
+        elem = root_elem
         elements = root_node.elements
         parent = build_document_node()
 
@@ -264,7 +304,6 @@ def build_lxml_node_tree(root: Union[DocumentProtocol, LxmlElementProtocol],
             parent.elements = root_node.elements
             parent.parent = None
             root_node = parent
-
     else:
         elem = root
         parent = None
