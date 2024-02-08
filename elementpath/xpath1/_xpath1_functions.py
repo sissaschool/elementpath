@@ -280,8 +280,8 @@ def evaluate_substring_function(self, context=None):
         context = self.context
 
     item = self.get_argument(context, default='', cls=str)
-    start = self.get_argument(context, index=1)
     try:
+        start = self.get_argument(context, index=1, required=True)
         if math.isnan(start) or math.isinf(start):
             return ''
     except TypeError:
@@ -292,8 +292,8 @@ def evaluate_substring_function(self, context=None):
     if len(self) == 2:
         return item[max(start, 0):]
     else:
-        length = self.get_argument(context, index=2)
         try:
+            length = self.get_argument(context, index=2, required=True)
             if math.isnan(length) or length <= 0:
                 return ''
         except TypeError:

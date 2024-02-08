@@ -28,11 +28,11 @@ from ..datatypes import DateTime10, DateTime, Date10, Date, Float10, \
     DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy
 from ..namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
-    XML_BASE, XML_ID, XML_LANG
+    XML_ID, XML_LANG
 from ..compare import deep_equal
 from ..sequence_types import match_sequence_type
 from ..xpath_context import XPathSchemaContext
-from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
+from ..xpath_nodes import XPathNode, DocumentNode, ElementNode, SchemaElementNode
 from ..xpath_tokens import XPathFunction
 from ..regex import RegexError, translate_pattern
 from ..collations import CollationManager
@@ -294,31 +294,11 @@ def evaluate_base_uri_function(self, context=None):
         raise self.missing_context("context item is undefined")
     elif item is None:
         return []
-    elif not isinstance(item, XPathNode):
-        raise self.error('XPTY0004', "context item is not a node")
-    elif isinstance(item, DocumentNode):
-        for e in item:
-            if isinstance(e, ElementNode):
-                base_uri = e.elem.get(XML_BASE)
-                if base_uri is not None:
-                    return AnyURI(base_uri)
-        else:
-            return AnyURI('')
+    elif isinstance(item, XPathNode):
+        uri = item.base_uri
+        return AnyURI(uri if uri is not None else '')
     else:
-        context.item = item
-        base_uri = []
-        for item in context.iter_ancestors(axis='ancestor-or-self'):
-            if isinstance(item, ElementNode):
-                uri = item.elem.get(XML_BASE)
-                if uri is not None:
-                    if base_uri and urlsplit(uri).scheme:
-                        break
-
-                    base_uri.append(uri)
-                    if not urlsplit(uri).path.endswith('/'):
-                        break
-
-        return AnyURI(''.join(base_uri))
+        raise self.error('XPTY0004', "context item is not a node")
 
 
 @method(function('document-uri', nargs=1, sequence_types=('node()?', 'xs:anyURI?')))
@@ -1399,6 +1379,8 @@ def evaluate_lang_function(self, context=None):
 
     if not isinstance(item, ElementNode):
         raise self.error('XPTY0004')
+    elif isinstance(item, SchemaElementNode):
+        return False
 
     try:
         lang = item.elem.attrib[XML_LANG].strip()
