@@ -9,7 +9,7 @@
 #
 import operator
 from decimal import Decimal
-from typing import Any, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 from ..helpers import BOOLEAN_VALUES, get_double
 from .atomic_types import AnyAtomicType
@@ -138,6 +138,9 @@ class UntypedAtomic(AnyAtomicType):
 
     def __mod__(self, other: Any) -> Any:
         return operator.mod(*self._get_operands(other))
+
+    def __round__(self, n: Optional[int] = None) -> float:
+        return round(float(self.value), ndigits=n)
 
     def __str__(self) -> str:
         return self.value
