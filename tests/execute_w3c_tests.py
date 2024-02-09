@@ -145,6 +145,10 @@ SKIP_TESTS = {
     'fn-function-lookup__fn-function-lookup-764',  # Error code should be FOQM0001
 }
 
+SKIP_XP20 = {
+    'fn-subsequence__fn-subsequence-mix-args-026',  # fn:tail is XP30+
+}
+
 # Tests that can be run only with lxml.etree
 LXML_ONLY = {
     # parse of comments or PIs required
@@ -210,6 +214,7 @@ LXML_ONLY = {
     'prod-EQName__eqname-018',
     'prod-EQName__eqname-023',
     'prod-NamedFunctionRef__function-literal-262',
+    'fn-format-number__numberformat83',
 
     # XML declaration
     'fn-serialize__serialize-xml-029b',
@@ -802,8 +807,10 @@ class TestCase(object):
 
             if '.' in environment.sources:
                 root = environment.sources['.'].xml
+                root_uri = environment.sources['.'].uri
             else:
                 root = self.etree.XML("<empty/>")
+                root_uri = None
 
             if any(k.startswith('$') for k in environment.sources):
                 variables.update(
@@ -841,7 +848,7 @@ class TestCase(object):
             if self.calendar:
                 kwargs['default_calendar'] = self.calendar
 
-            context = XPathContext(root=root, **kwargs)
+            context = XPathContext(root=root, uri=root_uri, **kwargs)
 
         try:
             if with_xpath_nodes:
@@ -1556,6 +1563,10 @@ def main():
 
                 # Other test cases to skip for technical limitations
                 if test_case.name in SKIP_TESTS:
+                    count_skip += 1
+                    continue
+
+                if test_case.name in SKIP_XP20 and not args.xp30 and not args.xp31:
                     count_skip += 1
                     continue
 

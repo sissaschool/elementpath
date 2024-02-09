@@ -1518,6 +1518,7 @@ def evaluate_function_lookup_function(self, context=None):
         return []
 
     func.namespace = qname.namespace
+    func.context = copy(context)
     return func
 
 
