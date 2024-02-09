@@ -329,7 +329,7 @@ class XPathContextTest(unittest.TestCase):
         self.assertIsNotNone(root.getparent())
 
         context = XPathContext(root)
-        self.assertIsNot(context.root.value, root)
+        self.assertIs(context.root.value, root)
         self.assertIsInstance(context.document, DocumentNode)
 
     def test_iter_descendants(self):

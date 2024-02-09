@@ -723,9 +723,9 @@ def select_child_path(self, context=None):
         if isinstance(context.document, DocumentNode):
             context.item = context.document
         elif context.root is None or isinstance(context.root.parent, ElementNode):
-            return  # A rooted subtree -> document root produce []
+            return  # No root or a rooted subtree -> document root produce []
         else:
-            context.item = context.root
+            context.item = context.root  # A fragment or a schema node
         yield from self[0].select(context)
     else:
         items = set()
@@ -781,9 +781,9 @@ def select_descendant_path(self, context=None):
         if isinstance(context.document, DocumentNode):
             context.item = context.document
         elif context.root is None or isinstance(context.root.parent, ElementNode):
-            return  # A rooted subtree -> document root produce []
+            return  # No root or a rooted subtree -> document root produce []
         else:
-            context.item = context.root
+            context.item = context.root  # A fragment or a schema node
 
         items = set()
         for _ in context.iter_descendants():

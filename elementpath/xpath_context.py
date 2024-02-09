@@ -21,8 +21,8 @@ from .datatypes import AnyAtomicType, Timezone, Language
 from .protocols import ElementProtocol, DocumentProtocol
 from .etree import is_etree_element, is_etree_document
 from .xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
-from .tree_builders import RootArgType, get_node_tree, get_dummy_document
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, SchemaElementNode
+from .tree_builders import RootArgType, get_node_tree
 
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
@@ -47,7 +47,10 @@ class XPathContext:
     The other optional arguments are needed only if a specific position on the context is
     required, but have to be used with the knowledge of what is their meaning.
 
-    :param root: the root of the XML document, can be a ElementTree instance or an Element.
+    :param root: the root of the XML document, usually an ElementTree instance or an \
+    Element. A schema or a schema element can also be provided, or an already built \
+    node tree. For default is `None`, in which case no XML root is set, and you have \
+    to provide an *item* argument.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs, \
     used when namespace information is not available within document and element nodes. \
     This can be useful when the dynamic context has additional namespaces and root \
@@ -119,21 +122,28 @@ class XPathContext:
         self.namespaces = dict(namespaces) if namespaces else {}
 
         if root is not None:
-            self.root = get_node_tree(root, self.namespaces, uri)
+            self.root = get_node_tree(root, self.namespaces, uri, fragment)
             if item is not None:
-                self.item = self.get_context_item(item)
+                self.item = self.get_context_item(item, self.namespaces)
             else:
                 self.item = self.root
 
         elif item is not None:
-            self.item = self.get_context_item(item)
+            self.item = self.get_context_item(item, self.namespaces, uri, fragment)
         else:
             raise ElementPathTypeError("Missing both the root node and the context item!")
 
         if isinstance(self.root, DocumentNode):
             self.document = self.root
-        elif not fragment and isinstance(self.root, ElementNode):
-            self.document = get_dummy_document(self.root)
+        elif fragment or isinstance(self.root, SchemaElementNode):
+            pass
+        elif isinstance(self.root, ElementNode):
+            # Creates a dummy document
+            document = cast(DocumentProtocol, self.etree.ElementTree(self.root.elem))
+            self.document = DocumentNode(document, self.root.uri, position=0)
+            self.document.children.append(self.root)
+            self.document.elements = cast(Dict[ElementProtocol, ElementNode], self.root.elements)
+            # self.root.parent = self.document  TODO for v5? It's necessary?
 
         self.position = position
         self.size = size
@@ -192,12 +202,17 @@ class XPathContext:
     def etree(self) -> ModuleType:
         if self._etree is None:
             if isinstance(self.root, (DocumentNode, ElementNode)):
-                etree_module_name = self.root.value.__class__.__module__
+                module_name = self.root.value.__class__.__module__
             elif isinstance(self.item, (DocumentNode, ElementNode, CommentNode,
                                         ProcessingInstructionNode)):
-                etree_module_name = self.item.value.__class__.__module__
+                module_name = self.item.value.__class__.__module__
             else:
+                module_name = 'xml.etree.ElementTree'
+
+            if not isinstance(module_name, str) or not module_name.startswith('lxml.'):
                 etree_module_name = 'xml.etree.ElementTree'
+            else:
+                etree_module_name = 'lxml.etree'
 
             self._etree: ModuleType = importlib.import_module(etree_module_name)
 
@@ -232,11 +247,15 @@ class XPathContext:
         else:
             return isinstance(self.item, ElementNode)
 
-    def get_context_item(self, item: ItemArgType) -> ItemType:
+    def get_context_item(self, item: ItemArgType,
+                         namespaces: Optional[NamespacesType] = None,
+                         uri: Optional[str] = None,
+                         fragment: bool = False) -> ItemType:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
-        context. If it fails then builds a new node.
+        context. If it fails then builds a new node using also the provided
+        optional arguments.
         """
         if isinstance(item, (XPathNode, AnyAtomicType)):
             return item
@@ -272,8 +291,10 @@ class XPathContext:
             return item
 
         return get_node_tree(
-            root=cast(Union[RootArgType], item),
-            namespaces=self.namespaces
+            root=cast(Union[ElementProtocol, DocumentProtocol], item),
+            namespaces=namespaces,
+            uri=uri,
+            fragment=fragment
         )
 
     def get_collection(self, items: Optional[CollectionArgType]) -> Optional[List[ItemType]]:

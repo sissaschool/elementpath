@@ -1090,7 +1090,6 @@ class LxmlXPath31ParserTest(XPath31ParserTest):
     etree = lxml_etree
 
     def test_regression_ep415_ep420__issue_71(self):
-        # This is not really a regression because ep415.
         import lxml.html as lxml_html
 
         xml_source = dedent("""\
@@ -1167,7 +1166,7 @@ class LxmlXPath31ParserTest(XPath31ParserTest):
                 self.assertIsInstance(results[1], list)
                 self.assertEqual(len(results[0]), len(results[1]))
                 for e1, e2 in zip(*results):
-                    self.assertEqual(e1.tag, e2.tag)
+                    self.assertEqual(getattr(e1, 'tag', e1), getattr(e2, 'tag', e2))
             else:
                 self.assertEqual(results[0], results[1])
 

@@ -7,9 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Union
-from xml.etree import ElementTree
+from typing import cast, Any, Iterator, List, Optional, Union
 
+from .namespaces import NamespacesType
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, LxmlDocumentProtocol, XsdElementProtocol
@@ -18,8 +18,8 @@ from .xpath_nodes import SchemaElemType, ChildNodeType, ElementMapType, \
     TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
-__all__ = ['RootArgType', 'get_node_tree', 'get_dummy_document',
-           'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
+__all__ = ['RootArgType', 'get_node_tree', 'build_node_tree',
+           'build_lxml_node_tree', 'build_schema_node_tree']
 
 RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
                     'DocumentNode', 'ElementNode']
@@ -33,7 +33,7 @@ def is_schema(obj: Any) -> bool:
 
 
 def get_node_tree(root: RootArgType,
-                  namespaces: Optional[Dict[str, str]] = None,
+                  namespaces: Optional[NamespacesType] = None,
                   uri: Optional[str] = None,
                   fragment: bool = False) -> Union[DocumentNode, ElementNode]:
     """
@@ -85,33 +85,8 @@ def get_node_tree(root: RootArgType,
         )
 
 
-def get_dummy_document(root_node: ElementNode) -> Optional[DocumentNode]:
-    """
-    Returns a dummy document node for the element root node. For schema
-    elements and lxml elements that are not root nodes returns `None`.
-    """
-    root = root_node.elem
-    if hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
-        return None  # It's an XSD schema or component
-    elif not hasattr(root, 'getparent'):
-        document = cast(
-            DocumentProtocol,
-            ElementTree.ElementTree(cast(ElementTree.Element, root))
-        )
-    elif cast(LxmlElementProtocol, root).getparent() is not None:
-        return None  # A fragment, it's a non-root element in a lxml element tree
-    else:
-        document = cast(LxmlElementProtocol, root).getroottree()
-
-    document_node = DocumentNode(document, root_node.uri, position=0)
-    document_node.children.append(root_node)
-    document_node.elements = cast(Dict[ElementProtocol, ElementNode], root_node.elements)
-    # root_node.parent = document_node  TODO: for v5? It's necessary?
-    return document_node
-
-
 def build_node_tree(root: ElementTreeRootType,
-                    namespaces: Optional[MutableMapping[str, str]] = None,
+                    namespaces: Optional[NamespacesType] = None,
                     uri: Optional[str] = None) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.

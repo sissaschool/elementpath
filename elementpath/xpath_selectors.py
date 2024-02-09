@@ -23,7 +23,7 @@ else:
     ParserType = XPath2Parser
 
 
-def select(root: RootArgType,
+def select(root: Optional[RootArgType],
            path: str,
            namespaces: Optional[NamespacesType] = None,
            parser: Optional[ParserType] = None,
@@ -31,7 +31,10 @@ def select(root: RootArgType,
     """
     XPath selector function that apply a *path* expression on *root* Element.
 
-    :param root: an Element or ElementTree instance.
+    :param root: the root of the XML document, usually an ElementTree instance or an \
+    Element. A schema or a schema element can also be provided, or an already built \
+    node tree. You can also provide `None`, in which case no XML root node is set in \
+    the dynamic context, and you have to provide the keyword argument *item*.
     :param path: the XPath expression.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
     :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
@@ -40,6 +43,8 @@ def select(root: RootArgType,
     on a function or literal.
     """
     context_kwargs = {
+        'uri': kwargs.pop('uri', None),
+        'fragment': kwargs.pop('fragment', False),
         'item': kwargs.pop('item', None),
         'position': kwargs.pop('position', 1),
         'size': kwargs.pop('size', 1),
@@ -54,7 +59,7 @@ def select(root: RootArgType,
     return root_token.get_results(context)
 
 
-def iter_select(root: RootArgType,
+def iter_select(root: Optional[RootArgType],
                 path: str,
                 namespaces: Optional[NamespacesType] = None,
                 parser: Optional[ParserType] = None,
@@ -63,7 +68,10 @@ def iter_select(root: RootArgType,
     A function that creates an XPath selector generator for apply a *path* expression
     on *root* Element.
 
-    :param root: an Element or ElementTree instance.
+    :param root: the root of the XML document, usually an ElementTree instance or an \
+    Element. A schema or a schema element can also be provided, or an already built \
+    node tree. You can also provide `None`, in which case no XML root node is set in \
+    the dynamic context, and you have to provide the keyword argument *item*.
     :param path: the XPath expression.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
     :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
@@ -71,6 +79,8 @@ def iter_select(root: RootArgType,
     :return: a generator of the XPath expression results.
     """
     context_kwargs = {
+        'uri': kwargs.pop('uri', None),
+        'fragment': kwargs.pop('fragment', False),
         'item': kwargs.pop('item', None),
         'position': kwargs.pop('position', 1),
         'size': kwargs.pop('size', 1),
@@ -122,11 +132,12 @@ class Selector(object):
         """A dictionary with mapping from namespace prefixes into URIs."""
         return self.parser.namespaces
 
-    def select(self, root: RootArgType, **kwargs: Any) -> Any:
+    def select(self, root: Optional[RootArgType], **kwargs: Any) -> Any:
         """
         Applies the instance's XPath expression on *root* Element.
 
-        :param root: an Element or ElementTree instance.
+        :param root: the root of the XML document, usually an ElementTree instance \
+        or an Element.
         :param kwargs: other optional parameters for the XPath dynamic context.
         :return: a list with XPath nodes or a basic type for expressions based on \
         a function or literal.
@@ -137,12 +148,13 @@ class Selector(object):
         context = XPathContext(root, **kwargs)
         return self.root_token.get_results(context)
 
-    def iter_select(self, root: RootArgType, **kwargs: Any) -> Iterator[Any]:
+    def iter_select(self, root: Optional[RootArgType], **kwargs: Any) -> Iterator[Any]:
         """
         Creates an XPath selector generator for apply the instance's XPath expression
         on *root* Element.
 
-        :param root: an Element or ElementTree instance.
+        :param root: the root of the XML document, usually an ElementTree instance \
+        or an Element.
         :param kwargs: other optional parameters for the XPath dynamic context.
         :return: a generator of the XPath expression results.
         """
