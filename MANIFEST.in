@@ -12,5 +12,6 @@ include doc/*
 
 recursive-include elementpath *
 recursive-include tests *
+recursive-exclude tests/.mypy_cache *
 
 global-exclude *.py[cod]
