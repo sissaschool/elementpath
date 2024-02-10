@@ -103,8 +103,6 @@ SKIP_TESTS = {
     # For XP30+
     'fn-root__K-NodeRootFunc-2',  # includes a XPath 3.0 fn:generate-id()
     'fn-codepoints-to-string__cbcl-codepoints-to-string-021',  # Too long ...
-    'fn-unparsed-text__fn-unparsed-text-038',  # Typo in filename
-    'fn-unparsed-text-lines__fn-unparsed-text-lines-038',  # Typo in filename
     'fn-serialize__serialize-xml-015b',  # Do not raise, attribute is good
     'fn-parse-xml-fragment__parse-xml-fragment-022-st',  # conflict with parse-xml-fragment-022
     'fn-for-each-pair__fn-for-each-pair-017',  # Requires PI and comments parsing

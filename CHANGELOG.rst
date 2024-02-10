@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v4.2.1`_ (2024-02-10)
+======================
+* Fix dynamic context initialization with lxml a non-root element (issue #71)
+* Fix XP30+ function fn:function-lookup
+* Fix XP30+ fn:unparsed-text, fn:unparsed-text-lines and fn:unparsed-text-available
+
 `v4.2.0`_ (2024-02-03)
 ======================
 * Drop support for Python 3.7
@@ -443,3 +449,4 @@ CHANGELOG
 .. _v4.1.4: https://github.com/sissaschool/elementpath/compare/v4.1.3...v4.1.4
 .. _v4.1.5: https://github.com/sissaschool/elementpath/compare/v4.1.4...v4.1.5
 .. _v4.2.0: https://github.com/sissaschool/elementpath/compare/v4.1.5...v4.2.0
+.. _v4.2.1: https://github.com/sissaschool/elementpath/compare/v4.2.0...v4.2.1

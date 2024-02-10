@@ -1268,33 +1268,29 @@ def evaluate_unparsed_text_functions(self, context=None):
         raise self.error('FOUT1190') from None
 
     if context is not None and uri in context.text_resources:
-        obj = context.text_resources[uri]
+        text = context.text_resources[uri]
     else:
         try:
             with urlopen(uri) as rp:
-                obj = rp.read()
-        except (ValueError, URLError) as err:
-            message = str(err)
-            if 'No such file' in message or \
-                    'unknown url type' in message or \
-                    'HTTP Error 404' in message or \
-                    'failure in name resolution' in message:
-                raise self.error('FOUT1170', message) from None
-            raise self.error('FOUT1190') from None
-        else:
-            if context is not None:
-                context.text_resources[uri] = obj
+                stream_reader = codecs.getreader(encoding)(rp)
+                text = stream_reader.read()
+        except URLError as err:
+            raise self.error('FOUT1170', err) from None
+        except ValueError as err:
+            if len(self) > 1:
+                raise self.error('FOUT1190', err) from None
 
-    try:
-        text = codecs.decode(obj, encoding)
-    except UnicodeDecodeError:
-        if len(self) > 1:
-            raise self.error('FOUT1190') from None
+            try:
+                with urlopen(uri) as rp:
+                    stream_reader = codecs.getreader('UTF-16')(rp)
+                    text = stream_reader.read()
+            except URLError as err:
+                raise self.error('FOUT1170', err) from None
+            except ValueError as err:
+                raise self.error('FOUT1190', err) from None
 
-        try:
-            text = codecs.decode(obj, 'UTF-16')
-        except UnicodeDecodeError:
-            raise self.error('FOUT1190') from None
+        if context is not None:
+            context.text_resources[uri] = text
 
     if not all(is_xml_codepoint(ord(s)) for s in text):
         raise self.error('FOUT1190')
@@ -1330,22 +1326,39 @@ def evaluate_unparsed_text_available_function(self, context=None):
 
     try:
         uri = self.get_absolute_uri(href)
-        codecs.lookup(encoding)
-        with urlopen(uri) as rp:
-            obj = rp.read()
-    except (ValueError, URLError, LookupError):
+    except ValueError:
         return False
 
     try:
-        return all(is_xml_codepoint(ord(s)) for s in codecs.decode(obj, encoding))
-    except UnicodeDecodeError:
+        codecs.lookup(encoding)
+    except LookupError:
+        return False
+
+    try:
+        with urlopen(uri) as rp:
+            stream_reader = codecs.getreader(encoding)(rp)
+            for line in stream_reader:
+                if any(not is_xml_codepoint(ord(s)) for s in line):
+                    return False
+    except URLError:
+        return False
+    except ValueError:
         if len(self) > 1:
             return False
+    else:
+        return True
 
-        try:
-            return all(is_xml_codepoint(ord(s)) for s in codecs.decode(obj, 'UTF-16'))
-        except UnicodeDecodeError:
-            return False
+    # Fallback auto-detection with utf-16
+    try:
+        with urlopen(uri) as rp:
+            stream_reader = codecs.getreader('UTF-16')(rp)
+            for line in stream_reader:
+                if any(not is_xml_codepoint(ord(s)) for s in line):
+                    return False
+    except (ValueError, URLError):
+        return False
+    else:
+        return True
 
 
 @method(function('environment-variable', nargs=1,
