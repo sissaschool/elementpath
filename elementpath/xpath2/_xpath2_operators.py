@@ -137,16 +137,24 @@ def nud_if_expression(self):
 @method('if')
 def evaluate_if_expression(self, context=None):
     if self.boolean_value(self[0].evaluate(copy(context))):
+        if isinstance(context, XPathSchemaContext):
+            self[2].evaluate(copy(context))
         return self[1].evaluate(context)
     else:
+        if isinstance(context, XPathSchemaContext):
+            self[1].evaluate(copy(context))
         return self[2].evaluate(context)
 
 
 @method('if')
 def select_if_expression(self, context=None):
     if self.boolean_value([x for x in self[0].select(copy(context))]):
+        if isinstance(context, XPathSchemaContext):
+            self[2].evaluate(copy(context))
         yield from self[1].select(context)
     else:
+        if isinstance(context, XPathSchemaContext):
+            self[1].evaluate(copy(context))
         yield from self[2].select(context)
 
 

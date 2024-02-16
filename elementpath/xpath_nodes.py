@@ -930,6 +930,16 @@ class SchemaElementNode(ElementNode):
         return self._attributes
 
     @property
+    def base_uri(self) -> Optional[str]:
+        base_uri = self.uri.strip() if self.uri is not None else None
+        if self.parent is None:
+            return base_uri
+        elif base_uri is None:
+            return self.parent.base_uri
+        else:
+            return urljoin(self.parent.base_uri or '', base_uri)
+
+    @property
     def string_value(self) -> str:
         if not hasattr(self.elem, 'type'):
             return ''

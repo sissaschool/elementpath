@@ -1402,18 +1402,18 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         if self.parser.version == '1.0':
             self.check_selector('/A/namespace::*', root, expected=set(namespaces),
-                                namespaces=namespaces[-1:])
+                                namespaces=dict(namespaces[-1:]))
             self.check_selector('/A/namespace::tst', root,
                                 expected=[('tst', 'http://xpath.test/ns')],
-                                namespaces=namespaces[-1:])
+                                namespaces=dict(namespaces[-1:]))
         else:
             self.check_selector('/A/namespace::*', root,
                                 expected={'http://www.w3.org/XML/1998/namespace',
                                           'http://xpath.test/ns'},
-                                namespaces=namespaces[-1:])
+                                namespaces=dict(namespaces[-1:]))
             self.check_selector('/A/namespace::tst', root,
                                 expected=['http://xpath.test/ns'],
-                                namespaces=namespaces[-1:])
+                                namespaces=dict(namespaces[-1:]))
 
         self.check_value('namespace::*', MissingContextError)
         self.check_value('./text()/namespace::*', [], context=XPathContext(root))
@@ -1422,7 +1422,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector('/A/namespace::namespace-node()', root,
                                 expected={'http://www.w3.org/XML/1998/namespace',
                                           'http://xpath.test/ns'},
-                                namespaces=namespaces[-1:])
+                                namespaces=dict(namespaces[-1:]))
 
     def test_parent_shortcut_and_axis(self):
         root = self.etree.XML(
@@ -1732,14 +1732,14 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
         namespaces += [('tst', 'http://xpath.test/ns')]
 
         self.check_selector('/A/namespace::*', root, expected=set(namespaces),
-                            namespaces=namespaces[-1:])
+                            namespaces=dict(namespaces[-1:]))
         self.check_selector('/A/namespace::*', root, expected=set(namespaces))
 
         root = self.etree.XML('<tst:A xmlns:tst="http://xpath.test/ns" '
                               'xmlns="http://xpath.test/ns"><B1/></tst:A>')
         namespaces.append((None, 'http://xpath.test/ns'))
         self.check_selector('/tst:A/namespace::*', root, set(namespaces),
-                            namespaces=namespaces[-2:-1])
+                            namespaces=dict(namespaces[-2:-1]))
 
     def test_issue_25_with_count_function(self):
         root = lxml_etree.fromstring("""

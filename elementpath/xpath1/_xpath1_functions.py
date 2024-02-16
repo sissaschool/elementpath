@@ -19,8 +19,9 @@ from ..datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10
 from ..namespaces import XML_ID, XML_LANG, get_prefixed_name
 from ..xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
-    ProcessingInstructionNode, DocumentNode
+    ProcessingInstructionNode, DocumentNode, SchemaElementNode
 from ..xpath_tokens import XPathFunction
+from ..xpath_context import XPathSchemaContext
 
 from ._xpath1_operators import XPath1Parser
 
@@ -285,7 +286,10 @@ def evaluate_substring_function(self, context=None):
         if math.isnan(start) or math.isinf(start):
             return ''
     except TypeError:
-        raise self.error('FORG0006', "the second argument must be xs:numeric") from None
+        if isinstance(context, XPathSchemaContext):
+            start = 0
+        else:
+            raise self.error('FORG0006', "the second argument must be xs:numeric") from None
     else:
         start = int(round(start)) - 1
 
@@ -297,7 +301,10 @@ def evaluate_substring_function(self, context=None):
             if math.isnan(length) or length <= 0:
                 return ''
         except TypeError:
-            raise self.error('FORG0006', "the third argument must be xs:numeric") from None
+            if isinstance(context, XPathSchemaContext):
+                length = len(item)
+            else:
+                raise self.error('FORG0006', "the third argument must be xs:numeric") from None
 
         if math.isinf(length):
             return item[max(start, 0):]
@@ -357,11 +364,14 @@ def evaluate_lang_function(self, context=None):
     elif context is None:
         raise self.missing_context()
 
-    if not isinstance(context.item, ElementNode):
+    if not isinstance(context.item, ElementNode) \
+            or isinstance(context.item, SchemaElementNode):
         return False
     else:
         try:
             lang = context.item.elem.attrib[XML_LANG].strip()
+        except AttributeError:
+            return False  # is an XsdAttribute
         except KeyError:
             for e in context.iter_ancestors():
                 if isinstance(e, ElementNode) and XML_LANG in e.elem.attrib:

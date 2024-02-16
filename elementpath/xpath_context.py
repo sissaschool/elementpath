@@ -119,7 +119,10 @@ class XPathContext:
                  default_calendar: Optional[str] = None,
                  default_place: Optional[str] = None) -> None:
 
-        self.namespaces = dict(namespaces) if namespaces else {}
+        if namespaces:
+            self.namespaces = {k: v for k, v in namespaces.items()}
+        else:
+            self.namespaces = {}
 
         if root is not None:
             self.root = get_node_tree(root, self.namespaces, uri, fragment)

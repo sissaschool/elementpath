@@ -480,12 +480,15 @@ def evaluate_comparison_operators(self, context=None):
     op = OPERATORS_MAP[self.symbol]
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
-    except ElementPathTypeError:
-        raise
-    except TypeError as err:
-        raise self.error('XPTY0004', err) from None
-    except ValueError as err:
-        raise self.error('FORG0001', err) from None
+    except (TypeError, ValueError) as err:
+        if isinstance(context, XPathSchemaContext):
+            return False
+        elif isinstance(err, ElementPathTypeError):
+            raise
+        elif isinstance(err, TypeError):
+            raise self.error('XPTY0004', err) from None
+        else:
+            raise self.error('FORG0001', err) from None
 
 
 ###

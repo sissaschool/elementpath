@@ -674,7 +674,7 @@ class XPathToken(Token[XPathTokenType]):
         returns the URI as xs:anyURI instance.
         :returns: the argument if it's an absolute URI, otherwise returns the URI
         obtained by the join o the base_uri of the static context with the
-        argument. Returns the argument if the base_uri is `None'.
+        argument. Returns the argument if the base_uri is `None`.
         """
         if not base_uri:
             base_uri = self.parser.base_uri
@@ -1668,6 +1668,8 @@ class XPathMap(XPathFunction):
         if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
             args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
+            if isinstance(context, XPathSchemaContext):
+                return None
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         map_dict: Dict[Any, Any]

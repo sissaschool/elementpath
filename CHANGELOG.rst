@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v4.3.0`_ (2024-02-xx)
+======================
+* Change the scope of the dynamic schema context evaluation
+
 `v4.2.1`_ (2024-02-10)
 ======================
 * Fix dynamic context initialization with lxml a non-root element (issue #71)
@@ -450,3 +454,4 @@ CHANGELOG
 .. _v4.1.5: https://github.com/sissaschool/elementpath/compare/v4.1.4...v4.1.5
 .. _v4.2.0: https://github.com/sissaschool/elementpath/compare/v4.1.5...v4.2.0
 .. _v4.2.1: https://github.com/sissaschool/elementpath/compare/v4.2.0...v4.2.1
+.. _v4.3.0: https://github.com/sissaschool/elementpath/compare/v4.2.1...v4.3.0
