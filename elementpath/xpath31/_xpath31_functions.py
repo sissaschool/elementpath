@@ -328,6 +328,8 @@ def evaluate_array_put_function(self, context=None):
     try:
         items[position - 1] = member
     except IndexError:
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('FOAY0001')
 
     return XPathArray(self.parser, items=items)
@@ -353,6 +355,8 @@ def evaluate_array_insert_before_function(self, context=None):
     try:
         items.insert(position - 1, member)
     except IndexError:
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('FOAY0001')
 
     return XPathArray(self.parser, items=items)
@@ -387,6 +391,8 @@ def evaluate_array_remove_function(self, context=None):
 
     positions = positions_ if isinstance(positions_, list) else [positions_]
     if any(p <= 0 or p > len(array_) for p in positions):
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('FOAY0001')
 
     items = (v for k, v in enumerate(array_.items(context), 1) if k not in positions)
@@ -402,6 +408,8 @@ def evaluate_array_subarray_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     start = self.get_argument(context, index=1, required=True, cls=int)
     if start < 1 or start > len(array_) + 1:
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('FOAY0001')
 
     if len(self) > 2:
@@ -426,6 +434,8 @@ def evaluate_array_head_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     items = array_.items(context)
     if not items:
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('FOAY0001')
     return items[0]
 
@@ -439,6 +449,8 @@ def evaluate_array_tail_function(self, context=None):
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     items = array_.items(context)
     if not items:
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('FOAY0001')
     return XPathArray(self.parser, items=items[1:])
 
@@ -591,6 +603,8 @@ def evaluate_sort_function(self, context=None):
     except ElementPathTypeError:
         raise
     except TypeError:
+        if isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('XPTY0004')
 
 
@@ -623,6 +637,8 @@ def evaluate_array_sort_function(self, context=None):
     except ElementPathTypeError:
         raise
     except TypeError:
+        if isinstance(context, XPathSchemaContext):
+            return array_
         raise self.error('XPTY0004')
     else:
         return XPathArray(self.parser, items)

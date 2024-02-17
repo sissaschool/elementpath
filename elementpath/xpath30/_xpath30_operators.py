@@ -211,6 +211,11 @@ def evaluate_function_reference(self, context=None):
     if isinstance(self[0], XPathFunction):
         token_class = self[0].__class__
         namespace = self[0].namespace
+        name = self[0].name
+        if isinstance(name, QName):
+            qname = name
+        else:
+            qname = QName(None, f'anonymous {self[0].label}'.replace(' ', '-'))
     else:
         if self[0].symbol == ':':
             qname = QName(self[0][1].namespace, self[0].value)

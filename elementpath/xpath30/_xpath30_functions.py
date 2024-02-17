@@ -610,6 +610,7 @@ def evaluate_format_number_function(self, context=None):
     ])
 
     exponent_pattern = None
+    exponent_separator = 'e'
     if self.parser.version > '3.0':
         # Check optional exponent spec correctness in each sub-picture
         exponent_separator = decimal_format['exponent-separator']
@@ -890,7 +891,8 @@ def evaluate_format_date_time_functions(self, context=None):
         try:
             zone = zoneinfo.ZoneInfo(place.strip())
         except zoneinfo.ZoneInfoNotFoundError:
-            raise self.error('FOFD1340', f'Invalid place argument {place!r}')
+            if not isinstance(context, XPathSchemaContext):
+                raise self.error('FOFD1340', f'Invalid place argument {place!r}')
         else:
             value = value.astimezone(zone)
 
@@ -1424,7 +1426,7 @@ def evaluate_parse_xml_fragment_function(self, context=None):
         context = self.context
 
     arg = self.get_argument(context, cls=str)
-    if arg is None:
+    if arg is None or isinstance(context, XPathSchemaContext):
         return []
     elif context is None:
         raise self.missing_context()
@@ -1803,12 +1805,18 @@ def evaluate_round_function(self, context=None):
         else:
             return type(arg)(number.quantize(exponent, rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
         if isinstance(arg, str):
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('XPTY0004') from None
         return round(arg)
     except decimal.DecimalException as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('FOCA0002', err) from None
 
 
