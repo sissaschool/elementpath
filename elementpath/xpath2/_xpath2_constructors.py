@@ -18,6 +18,7 @@ from ..datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
     GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
     YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
     Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy
+from ..xpath_context import XPathSchemaContext
 from ._xpath2_functions import XPath2Parser
 
 
@@ -222,10 +223,13 @@ def evaluate_other_datetime_types(self, context=None):
 
     try:
         return self.cast(arg)
-    except TypeError as err:
-        raise self.error('FORG0006', err) from None
-    except OverflowError as err:
-        raise self.error('FODT0001', err) from None
+    except (TypeError, OverflowError) as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
+        elif isinstance(err, TypeError):
+            raise self.error('FORG0006', err) from None
+        else:
+            raise self.error('FODT0001', err) from None
 
 
 ###
@@ -362,6 +366,8 @@ def evaluate_binary_types(self, context=None):
     try:
         return self.cast(arg)
     except ElementPathError as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         err.token = self
         raise
 
@@ -435,6 +441,8 @@ def evaluate_boolean_type_and_function(self, context=None):
     try:
         return self.cast(arg)
     except ElementPathError as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         err.token = self
         raise
 
@@ -556,10 +564,13 @@ def evaluate_qname_type_and_function(self, context=None):
         qname = self.get_argument(context, index=1)
         try:
             return QName(uri, qname)
-        except TypeError as err:
-            raise self.error('XPTY0004', err)
-        except ValueError as err:
-            raise self.error('FOCA0002', err)
+        except (TypeError, ValueError) as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
+            elif isinstance(err, TypeError):
+                raise self.error('XPTY0004', err)
+            else:
+                raise self.error('FOCA0002', err)
 
 
 @method('dateTime')
@@ -574,10 +585,13 @@ def evaluate_datetime_type_and_function(self, context=None):
 
         try:
             return self.cast(arg)
-        except ValueError as err:
-            raise self.error('FORG0001', err) from None
-        except TypeError as err:
-            raise self.error('FORG0006', err) from None
+        except (ValueError, TypeError) as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
+            elif isinstance(err, ValueError):
+                raise self.error('FORG0001', err) from None
+            else:
+                raise self.error('FORG0006', err) from None
     else:
         dt = self.get_argument(context, cls=Date10)
         tm = self.get_argument(context, 1, cls=Time)

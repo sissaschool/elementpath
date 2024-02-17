@@ -86,9 +86,10 @@ def evaluate_variable_reference(self, context=None):
                 except KeyError:
                     pass
                 else:
-                    xsd_type = context.root.elem.xpath_proxy.get_type(type_name)
-                    if xsd_type is not None:
-                        return get_atomic_value(xsd_type)
+                    if self.parser.schema is not None:
+                        xsd_type = self.parser.schema.get_type(type_name)
+                        if xsd_type is not None:
+                            return get_atomic_value(xsd_type)
 
             return UntypedAtomic('1')
 
@@ -375,7 +376,7 @@ def led_cast_expressions(self, left):
 def evaluate_cast_expressions(self, context=None):
     type_name = self[1].source.rstrip('+*?')
     try:
-        atomic_type = get_expanded_name(type_name, namespaces=self.parser.namespaces)
+        atomic_type = get_expanded_name(type_name, self.parser.namespaces)
     except KeyError as err:
         raise self.error('XPST0081', 'prefix {} not found'.format(str(err)))
 
@@ -423,10 +424,14 @@ def evaluate_cast_expressions(self, context=None):
     except ElementPathError:
         if self.symbol != 'cast':
             return False
+        elif isinstance(context, XPathSchemaContext):
+            return UntypedAtomic('1')
         raise
     except (TypeError, ValueError) as err:
         if self.symbol != 'cast':
             return False
+        elif isinstance(context, XPathSchemaContext):
+            return UntypedAtomic('1')
         elif isinstance(arg, (UntypedAtomic, str)):
             raise self.error('FORG0001', err) from None
         raise self.error('XPTY0004', err) from None
@@ -656,11 +661,15 @@ def evaluate_idiv_operator(self, context=None):
         elif math.isnan(op1) or math.isnan(op2):
             raise self.error('FOAR0002')
     except TypeError as err:
+        if isinstance(context, XPathSchemaContext):
+            return UntypedAtomic('1')
         raise self.error('XPTY0004', err) from None
 
     try:
         result = op1 // op2
     except (ZeroDivisionError, DivisionByZero):
+        if isinstance(context, XPathSchemaContext):
+            return UntypedAtomic('1')
         raise self.error('FOAR0001') from None
     else:
         if result >= 0 or isinstance(op1, Decimal) or \
@@ -744,12 +753,12 @@ def select_element_kind_test(self, context=None):
                 if item.nilled:
                     if type_annotation[-1] in '*?':
                         yield item
-                elif item.xsd_type is None:
-                    if type_annotation == XSD_UNTYPED and self[0].symbol != '*':
+                elif item.xsd_type is not None:
+                    if type_annotation == item.xsd_type.name:
                         yield item
-                elif type_annotation == item.xsd_type.name:
-                    yield item
-                elif is_instance(item.typed_value, type_annotation, self.parser):
+                    elif is_instance(item.typed_value, type_annotation, self.parser):
+                        yield item
+                elif type_annotation == XSD_UNTYPED and self[0].symbol != '*':
                     yield item
 
 

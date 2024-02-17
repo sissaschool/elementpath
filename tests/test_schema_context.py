@@ -200,8 +200,11 @@ class XMLSchemaContextTest(unittest.TestCase):
 
     def test_schema_variables(self):
         variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}
-        parser = XPath2Parser(default_namespace="http://xpath.test/ns",
-                              variable_types=variable_types)
+        parser = XPath2Parser(
+            default_namespace="http://xpath.test/ns",
+            variable_types=variable_types,
+            schema=self.schema1.xpath_proxy,
+        )
         context = XPathSchemaContext(self.schema1)
 
         token = parser.parse('$a')

@@ -349,6 +349,8 @@ def evaluate_round_half_to_even_function(self, context=None):
             return Float10(round(item, precision))
         return float(round(Decimal.from_float(item), precision))
     except TypeError as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('XPTY0004', err)
     except (DecimalException, OverflowError):
         if isinstance(item, Decimal):
@@ -371,6 +373,8 @@ def evaluate_abs_function(self, context=None):
         try:
             return abs(Decimal(value))
         except DecimalException:
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('FOCA0002', "invalid string value {!r} for {!r}".format(value, item))
     elif isinstance(item, bool) or not isinstance(item, (float, int, Decimal)):
         raise self.error('XPTY0004', "invalid argument type {!r}".format(type(item)))
@@ -403,6 +407,8 @@ def evaluate_avg_function(self, context=None):
                 value = value + item
             return value / len(values)
         except TypeError as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('FORG0006', err)
     elif all(isinstance(x, int) for x in values):
         result = sum(values) / Decimal(len(values))
@@ -413,11 +419,15 @@ def evaluate_avg_function(self, context=None):
         try:
             return sum(Float10(x) if isinstance(x, Decimal) else x for x in values) / len(values)
         except TypeError as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('FORG0006', err)
     else:
         try:
             return sum(float(x) if isinstance(x, Decimal) else x for x in values) / len(values)
         except TypeError as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('FORG0006', err)
 
 
@@ -483,6 +493,8 @@ def evaluate_max_min_functions(self, context=None):
         try:
             return max_or_min()
         except TypeError as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('FORG0006', err)
 
 
@@ -734,9 +746,13 @@ def evaluate_matches_function(self, context=None):
         python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
         return re.search(python_pattern, input_string, flags=flags) is not None
     except (re.error, RegexError) as err:
+        if isinstance(context, XPathSchemaContext):
+            return False
         msg = "Invalid regular expression: {}"
         raise self.error('FORX0002', msg.format(str(err))) from None
     except OverflowError as err:
+        if isinstance(context, XPathSchemaContext):
+            return False
         raise self.error('FORX0002', err) from None
 
 
@@ -768,6 +784,8 @@ def evaluate_replace_function(self, context=None):
         python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
         pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
+        if isinstance(context, XPathSchemaContext):
+            return input_string
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern)
     else:
         if pattern.search(''):
@@ -818,6 +836,8 @@ def evaluate_tokenize_function(self, context=None):
         python_pattern = translate_pattern(pattern, flags, self.parser.xsd_version)
         pattern = re.compile(python_pattern, flags=flags)
     except (re.error, RegexError):
+        if isinstance(context, XPathSchemaContext):
+            return [input_string]
         raise self.error('FORX0002', "Invalid regular expression %r" % pattern) from None
     else:
         if pattern.search(''):
@@ -1383,7 +1403,7 @@ def evaluate_lang_function(self, context=None):
         return False
 
     try:
-        lang = item.elem.attrib[XML_LANG].strip()
+        attr = item.elem.attrib[XML_LANG]
     except KeyError:
         if len(self) > 1:
             return False
@@ -1397,6 +1417,10 @@ def evaluate_lang_function(self, context=None):
                 pass  # is a document node
         else:
             return False
+    else:
+        if not isinstance(attr, str):
+            return False
+        lang = attr.strip()
 
     test_lang = self.get_argument(context, cls=str)
     if test_lang is None:

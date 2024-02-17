@@ -505,10 +505,12 @@ def evaluate_plus_operator(self, context=None):
 
         try:
             return op1 + op2
-        except TypeError as err:
-            raise self.error('XPTY0004', err) from None
-        except OverflowError as err:
-            if isinstance(op1, AbstractDateTime):
+        except (TypeError, OverflowError) as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
+            elif isinstance(err, TypeError):
+                raise self.error('XPTY0004', err) from None
+            elif isinstance(op1, AbstractDateTime):
                 raise self.error('FODT0001', err) from None
             elif isinstance(op1, Duration):
                 raise self.error('FODT0002', err) from None
@@ -528,10 +530,12 @@ def evaluate_minus_operator(self, context=None):
 
         try:
             return op1 - op2
-        except TypeError as err:
-            raise self.error('XPTY0004', err) from None
-        except OverflowError as err:
-            if isinstance(op1, AbstractDateTime):
+        except (TypeError, OverflowError) as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
+            elif isinstance(err, TypeError):
+                raise self.error('XPTY0004', err) from None
+            elif isinstance(op1, AbstractDateTime):
                 raise self.error('FODT0001', err) from None
             elif isinstance(op1, Duration):
                 raise self.error('FODT0002', err) from None
@@ -557,6 +561,9 @@ def evaluate_multiply_operator(self, context=None):
                 return op2 * op1
             return op1 * op2
         except TypeError as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
+
             if isinstance(op1, (float, decimal.Decimal)):
                 if math.isnan(op1):
                     raise self.error('FOCA0005') from None
@@ -571,9 +578,13 @@ def evaluate_multiply_operator(self, context=None):
 
             raise self.error('XPTY0004', err) from None
         except ValueError as err:
+            if isinstance(context, XPathSchemaContext):
+                return []
             raise self.error('FOCA0005', err) from None
         except OverflowError as err:
-            if isinstance(op1, AbstractDateTime):
+            if isinstance(context, XPathSchemaContext):
+                return []
+            elif isinstance(op1, AbstractDateTime):
                 raise self.error('FODT0001', err) from None
             elif isinstance(op1, Duration):
                 raise self.error('FODT0002', err) from None

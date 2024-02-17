@@ -216,11 +216,10 @@ def evaluate_string_length_function(self, context=None):
 
     if self:
         return len(self.get_argument(context, default_to_context=True, default='', cls=str))
-
-    try:
+    elif context is None:
+        raise self.missing_context()
+    else:
         return len(self.string_value(context.item))
-    except AttributeError:
-        raise self.missing_context() from None
 
 
 @method(function('normalize-space', nargs=(0, 1),
@@ -369,9 +368,7 @@ def evaluate_lang_function(self, context=None):
         return False
     else:
         try:
-            lang = context.item.elem.attrib[XML_LANG].strip()
-        except AttributeError:
-            return False  # is an XsdAttribute
+            attr = context.item.elem.attrib[XML_LANG]
         except KeyError:
             for e in context.iter_ancestors():
                 if isinstance(e, ElementNode) and XML_LANG in e.elem.attrib:
@@ -379,6 +376,10 @@ def evaluate_lang_function(self, context=None):
                     break
             else:
                 return False
+        else:
+            if not isinstance(attr, str):
+                return False
+            lang = attr.strip()
 
         if '-' in lang:
             lang, _ = lang.split('-')
@@ -407,6 +408,8 @@ def evaluate_sum_function(self, context=None):
     except (TypeError, ValueError):
         if self.parser.version == '1.0':
             return math.nan
+        elif isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('FORG0006') from None
 
     if not values:
@@ -432,6 +435,8 @@ def evaluate_sum_function(self, context=None):
     except TypeError:
         if self.parser.version == '1.0':
             return math.nan
+        elif isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('FORG0006') from None
 
 
@@ -456,7 +461,9 @@ def evaluate_ceiling_and_floor_functions(self, context=None):
         else:
             return type(arg)(math.ceil(arg))
     except TypeError as err:
-        if isinstance(arg, str):
+        if isinstance(context, XPathSchemaContext):
+            return []
+        elif isinstance(arg, str):
             raise self.error('XPTY0004', err) from None
         raise self.error('FORG0006', err) from None
 
@@ -482,12 +489,18 @@ def evaluate_round_function(self, context=None):
         else:
             return type(arg)(number.quantize(decimal.Decimal('1'), rounding='ROUND_HALF_DOWN'))
     except TypeError as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('FORG0006', err) from None
     except decimal.InvalidOperation:
-        if isinstance(arg, str):
-            raise self.error('XPTY0004') from None
-        return round(arg)
+        if not isinstance(arg, str):
+            return round(arg)
+        elif isinstance(context, XPathSchemaContext):
+            return []
+        raise self.error('XPTY0004') from None
     except decimal.DecimalException as err:
+        if isinstance(context, XPathSchemaContext):
+            return []
         raise self.error('FOCA0002', err) from None
 
 # XPath 1.0 definitions continue into module xpath1_axes
