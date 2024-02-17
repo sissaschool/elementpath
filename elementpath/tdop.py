@@ -15,9 +15,9 @@ import re
 from abc import ABCMeta
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
-from typing import Any, cast, overload, no_type_check_decorator, Callable, \
-    Dict, Generic, List, Optional, Union, Tuple, Type, Pattern, Match, \
-    MutableMapping, MutableSequence, Iterator, TypeVar
+from typing import Any, cast, overload, Callable, Dict, Generic, List, \
+    Optional, Union, Tuple, Type, Pattern, Match, MutableMapping, \
+    MutableSequence, Iterator, TypeVar
 
 #
 # Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
@@ -797,7 +797,6 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         """
         token_class = cls.register(symbol, label='operator', lbp=bp, rbp=bp)
 
-        @no_type_check_decorator
         def bind(func: Callable[..., Any]) -> Callable[..., Any]:
             method_name = func.__name__.partition('_')[0]
             if not callable(getattr(token_class, method_name)):

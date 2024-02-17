@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v4.3.0`_ (2024-02-xx)
+`v4.3.0`_ (2024-02-17)
 ======================
-* Change the scope of the dynamic schema context evaluation
+* Change the purpose of the evaluation with a dynamic schema context
+* Add a tox.ini testenv with Python 3.13 pre-releases
 
 `v4.2.1`_ (2024-02-10)
 ======================

@@ -910,7 +910,7 @@ def evaluate_parse_ietf_date_function(self, context=None):
     tzname_match = re.search(tzname_regex, value, re.IGNORECASE)
     if tzname_match is not None:
         # only to let be parsed by strptime()
-        value = re.sub(tzname_regex, 'UTC', value, re.IGNORECASE)
+        value = re.sub(tzname_regex, 'UTC', value, flags=re.IGNORECASE)
 
     illegal_tzname_regex = r'\b(CET)\b'
     if re.search(illegal_tzname_regex, value, re.IGNORECASE) is not None:
