@@ -8,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Iterator, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Set, Union
 
 from .exceptions import ElementPathTypeError
-from .protocols import ElementProtocol, XsdTypeProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XsdSchemaProtocol
+from .protocols import XsdTypeProtocol, XsdAttributeProtocol, XsdElementProtocol, \
+    XsdSchemaProtocol
 from .datatypes import AtomicValueType
 from .etree import is_etree_element
 from .xpath_context import XPathSchemaContext
@@ -28,13 +28,14 @@ else:
 
 class AbstractSchemaProxy(metaclass=ABCMeta):
     """
-    Abstract base class for defining schema proxies.
+    Abstract base class for defining schema proxies. An implementation can override
+    initialization type annotations
 
-    :param schema: a schema instance that implements the `AbstractEtreeElement` interface.
+    :param schema: a schema instance compatible with the XsdSchemaProtocol.
     :param base_element: the schema element used as base item for static analysis.
     """
     def __init__(self, schema: XsdSchemaProtocol,
-                 base_element: Optional[ElementProtocol] = None) -> None:
+                 base_element: Optional[XsdElementProtocol] = None) -> None:
         if not is_etree_element(schema):
             raise ElementPathTypeError(
                 "argument {!r} is not a compatible schema instance".format(schema)
@@ -45,7 +46,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
             )
 
         self._schema = schema
-        self._base_element: Optional[ElementProtocol] = base_element
+        self._base_element: Optional[XsdElementProtocol] = base_element
 
     def bind_parser(self, parser: XPathParserType) -> None:
         """
@@ -78,7 +79,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: The first matching schema component, or ``None`` if there is no match.
         """
-        return cast(Optional[XsdElementProtocol], self._schema.find(path, namespaces))
+        return self._schema.find(path, namespaces)
 
     @property
     def xsd_version(self) -> str:
@@ -94,7 +95,10 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the type to retrieve.
         :returns: an object that represents an XSD type or `None`.
         """
-        return self._schema.maps.types.get(qname)
+        xsd_type = self._schema.maps.types.get(qname)
+        if isinstance(xsd_type, tuple):
+            return None
+        return xsd_type
 
     def get_attribute(self, qname: str) -> Optional[XsdAttributeProtocol]:
         """
@@ -105,7 +109,10 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the attribute to retrieve.
         :returns: an object that represents an XSD attribute or `None`.
         """
-        return self._schema.maps.attributes.get(qname)
+        xsd_attribute = self._schema.maps.attributes.get(qname)
+        if isinstance(xsd_attribute, tuple):
+            return None
+        return xsd_attribute
 
     def get_element(self, qname: str) -> Optional[XsdElementProtocol]:
         """
@@ -116,9 +123,12 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the element to retrieve.
         :returns: an object that represents an XSD element or `None`.
         """
-        return self._schema.maps.elements.get(qname)
+        xsd_element = self._schema.maps.elements.get(qname)
+        if isinstance(xsd_element, tuple):
+            return None
+        return xsd_element
 
-    def get_substitution_group(self, qname: str) -> Optional[List[XsdElementProtocol]]:
+    def get_substitution_group(self, qname: str) -> Optional[Set[XsdElementProtocol]]:
         """
         Get a substitution group. A concrete implementation must returns a list containing
         substitution elements or `None` if the substitution group is not found. Moreover each item

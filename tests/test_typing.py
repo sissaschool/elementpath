@@ -11,7 +11,6 @@
 """Tests about static typing of elementpath objects."""
 
 import unittest
-import sys
 import importlib
 from pathlib import Path
 
@@ -28,7 +27,6 @@ except ImportError:
 
 @unittest.skipIf(mypy_api is None, "mypy is not installed")
 @unittest.skipIf(lxml_stubs_module is None, "lxml-stubs is not installed")
-@unittest.skipIf(sys.version_info < (3, 8), "Python version is lesser than 3.8")
 class TestTyping(unittest.TestCase):
 
     @classmethod
@@ -41,6 +39,14 @@ class TestTyping(unittest.TestCase):
             '--strict',
             '--config-file', str(self.config_file),
             str(self.cases_dir.joinpath('selectors.py'))
+        ])
+        self.assertEqual(result[2], 0, msg=result[1] or result[0])
+
+    def test_protocols(self):
+        result = mypy_api.run([
+            '--strict',
+            '--config-file', str(self.config_file),
+            str(self.cases_dir.joinpath('protocols.py'))
         ])
         self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
