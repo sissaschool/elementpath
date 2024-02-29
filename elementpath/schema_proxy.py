@@ -71,7 +71,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         return XPathSchemaContext(root=self._schema, item=self._base_element)
 
     def find(self, path: str, namespaces: Optional[Dict[str, str]] = None) \
-            -> Optional[XsdElementProtocol]:
+            -> Optional[Union[XsdSchemaProtocol, XsdElementProtocol]]:
         """
         Find a schema element or attribute using an XPath expression.
 

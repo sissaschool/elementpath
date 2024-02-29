@@ -524,19 +524,15 @@ class ElementNode(XPathNode):
     def string_value(self) -> str:
         if self.xsd_type is not None and self.xsd_type.is_element_only():
             # Element-only text content is normalized
-            return ''.join(
-                etree_iter_strings(cast(ElementProtocol, self.elem), normalize=True)
-            )
-        return ''.join(etree_iter_strings(cast(ElementProtocol, self.elem)))
+            return ''.join(etree_iter_strings(self.elem, normalize=True))
+        return ''.join(etree_iter_strings(self.elem))
 
     @property
     def typed_value(self) -> Optional[AtomicValueType]:
         if self.xsd_type is None or \
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
-            return UntypedAtomic(
-                ''.join(etree_iter_strings(cast(ElementProtocol, self.elem)))
-            )
+            return UntypedAtomic(''.join(etree_iter_strings(self.elem)))
         elif self.xsd_type.is_element_only() or self.xsd_type.is_empty():
             return None
         elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
@@ -881,7 +877,7 @@ class LazyElementNode(ElementNode):
             if self.elem.text is not None:
                 self.children.append(TextNode(self.elem.text, self))
             if len(self.elem):
-                for elem in cast(ElementProtocol, self.elem):
+                for elem in self.elem:
                     if not callable(elem.tag):
                         nsmap = cast(Dict[Any, str], getattr(elem, 'nsmap', self.nsmap))
                         self.children.append(LazyElementNode(elem, self, nsmap=nsmap))

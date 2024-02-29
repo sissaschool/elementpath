@@ -13,15 +13,18 @@ Define type hints protocols for XPath related objects.
 from typing import overload, Any, Dict, Iterator, Iterable, Optional, \
     Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
 
-ET_co = TypeVar("ET_co", covariant=True)
 _T = TypeVar("_T")
 
 
-class GenericElement(Iterable[ET_co], Sized, Hashable, Protocol[ET_co]):
+class ElementProtocol(Sized, Hashable, Protocol):
+    """A protocol for generic ElementTree elements."""
+
+    def __iter__(self) -> Iterator['ElementProtocol']: ...
+
     def find(
             self, path: str, namespaces: Optional[Dict[str, str]] = ...
-    ) -> Optional[ET_co]: ...
-    def iter(self, tag: Optional[str] = ...) -> Iterator[ET_co]: ...
+    ) -> Optional['ElementProtocol']: ...
+    def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
 
     @overload
     def get(self, key: str) -> Optional[str]: ...
@@ -38,15 +41,25 @@ class GenericElement(Iterable[ET_co], Sized, Hashable, Protocol[ET_co]):
     @property
     def tail(self) -> Optional[str]: ...
 
+    @property
+    def attrib(self) -> Dict[str, Any]: ...
 
-class ElementProtocol(GenericElement['ElementProtocol'], Protocol):
-    """A protocol for ElementTree elements."""
+
+class EtreeElementProtocol(ElementProtocol, Protocol):
+    """A protocol for xml.etree.ElementTree elements."""
     @property
     def attrib(self) -> Dict[str, str]: ...
 
 
-class LxmlElementProtocol(GenericElement['LxmlElementProtocol'], Protocol):
+class LxmlElementProtocol(ElementProtocol, Protocol):
     """A protocol for lxml.etree elements."""
+    def __iter__(self) -> Iterator['LxmlElementProtocol']: ...
+
+    def find(
+            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+    ) -> Optional['LxmlElementProtocol']: ...
+    def iter(self, tag: Optional[str] = ...) -> Iterator['LxmlElementProtocol']: ...
+
     def getroottree(self) -> 'LxmlDocumentProtocol': ...
     def getnext(self) -> Optional['LxmlElementProtocol']: ...
     def getparent(self) -> Optional['LxmlElementProtocol']: ...
@@ -181,15 +194,33 @@ class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
 
 
 XsdElementType = Union['XsdElementProtocol', 'XsdAnyElementProtocol']
+XsdXPathNodeType = Union['XsdSchemaProtocol', 'XsdElementProtocol']
 
 
-class XsdAnyElementProtocol(XsdComponentProtocol, GenericElement[XsdElementType], Protocol):
+class XsdAnyElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
+
+    def __iter__(self) -> Iterator[Any]: ...
+
+    def find(
+            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+    ) -> Optional[XsdXPathNodeType]: ...
+    def iter(self, tag: Optional[str] = ...) -> Iterator[Any]: ...
 
     @property
     def type(self) -> None: ...
 
+    @property
+    def attrib(self) -> Any: ...
 
-class XsdElementProtocol(XsdComponentProtocol, GenericElement[XsdElementType], Protocol):
+
+class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
+
+    def __iter__(self) -> Iterator[XsdElementType]: ...
+
+    def find(
+            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+    ) -> Optional[XsdXPathNodeType]: ...
+    def iter(self, tag: Optional[str] = ...) -> Iterator[XsdElementType]: ...
 
     @property
     def name(self) -> str: ...
@@ -206,6 +237,7 @@ XsdGlobalValue = Union[GT, Tuple[ElementProtocol, Any]]
 
 
 class GlobalMapsProtocol(Protocol):
+
     @property
     def types(self) -> Mapping[str, XsdGlobalValue[XsdTypeProtocol]]: ...
 
@@ -219,10 +251,14 @@ class GlobalMapsProtocol(Protocol):
     def substitution_groups(self) -> Mapping[str, Set[Any]]: ...
 
 
-XsdSchemaType = Union['XsdSchemaProtocol', 'XsdElementProtocol']
+class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
 
+    def __iter__(self) -> Iterator[XsdXPathNodeType]: ...
 
-class XsdSchemaProtocol(XsdValidatorProtocol, GenericElement[XsdSchemaType], Protocol):
+    def find(
+            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+    ) -> Optional[XsdXPathNodeType]: ...
+    def iter(self, tag: Optional[str] = ...) -> Iterator[XsdXPathNodeType]: ...
 
     @property
     def tag(self) -> str: ...
@@ -231,9 +267,8 @@ class XsdSchemaProtocol(XsdValidatorProtocol, GenericElement[XsdSchemaType], Pro
     def attrib(self) -> Dict[str, 'XsdAttributeProtocol']: ...
 
 
-__allx__ = ['ElementProtocol', 'LxmlElementProtocol',
-            'DocumentProtocol', 'LxmlDocumentProtocol',
-            'XsdValidatorProtocol', 'XsdSchemaProtocol',
-            'XsdComponentProtocol', 'XsdTypeProtocol',
-            'XsdElementProtocol', 'XsdAttributeProtocol',
-            'XsdAnyElementProtocol', 'GlobalMapsProtocol']
+__allx__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlElementProtocol',
+            'DocumentProtocol', 'LxmlDocumentProtocol', 'XsdValidatorProtocol',
+            'XsdSchemaProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
+            'XsdElementProtocol', 'XsdAttributeProtocol', 'XsdAnyElementProtocol',
+            'GlobalMapsProtocol']
