@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v4.3.1`_ (2024-03-xx)
+======================
+* Fix static typing protocols to work with etree and XSD elements
+
 `v4.3.0`_ (2024-02-17)
 ======================
 * Change the purpose of the evaluation with a dynamic schema context
@@ -456,3 +460,4 @@ CHANGELOG
 .. _v4.2.0: https://github.com/sissaschool/elementpath/compare/v4.1.5...v4.2.0
 .. _v4.2.1: https://github.com/sissaschool/elementpath/compare/v4.2.0...v4.2.1
 .. _v4.3.0: https://github.com/sissaschool/elementpath/compare/v4.2.1...v4.3.0
+.. _v4.3.1: https://github.com/sissaschool/elementpath/compare/v4.3.0...v4.3.1
