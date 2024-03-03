@@ -404,8 +404,8 @@ def build_schema_node_tree(root: SchemaElemType,
             except IndexError:
                 # connect references to proper nodes
                 for element_node in ref_nodes:
-                    ref = cast(XsdElementProtocol, element_node.elem).ref
-                    assert ref is not None
+                    elem = element_node.elem
+                    ref = cast(XsdElementProtocol, elem.ref)
 
                     other: Any
                     for other in global_elements:

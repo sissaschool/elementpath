@@ -9,8 +9,8 @@ def main() -> None:
     from xmlschema import XMLSchema
     from xmlschema.validators import XsdSimpleType, XsdComplexType, XsdAnyElement
 
-    from elementpath.protocols import ElementProtocol, LxmlElementProtocol, DocumentProtocol, \
-        LxmlDocumentProtocol, XsdTypeProtocol, XsdElementProtocol, XsdAnyElementProtocol, \
+    from elementpath.protocols import ElementProtocol, LxmlElementProtocol, \
+        DocumentProtocol, LxmlDocumentProtocol, XsdTypeProtocol, XsdElementProtocol, \
         XsdAttributeProtocol, GlobalMapsProtocol, XsdSchemaProtocol
 
     ###
@@ -70,7 +70,7 @@ def main() -> None:
     def check_elem_type(xsd_element: XsdElementProtocol) -> None:
         assert xsd_element.type is not None
 
-    def check_any_elem_type(xsd_element: XsdAnyElementProtocol) -> None:
+    def check_any_elem_type(xsd_element: XsdElementProtocol) -> None:
         assert xsd_element.type is None
 
     def check_attr_type(xsd_attribute: XsdAttributeProtocol) -> bool:
