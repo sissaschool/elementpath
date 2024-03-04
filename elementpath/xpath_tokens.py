@@ -17,6 +17,7 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
+from textwrap import shorten
 from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, \
     Union, Any, Iterable, Iterator, SupportsFloat, Type
 import urllib.parse
@@ -1216,6 +1217,7 @@ class XPathFunction(XPathToken):
     """
     A token for processing XPath functions.
     """
+    __name__: str
     _name: Optional[QName] = None
     pattern = r'(?<!\$)\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*' \
               r'(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
@@ -1245,19 +1247,25 @@ class XPathFunction(XPathToken):
 
     def __repr__(self) -> str:
         if self.nargs == self.__class__.nargs:
-            return '%s(%r)' % (self.__class__.__name__, self.parser)
-        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self.nargs)
+            return '%s(parser=%r)' % (self.__class__.__name__, self.parser)
+        return '%s(parser=%r, nargs=%r)' % (self.__class__.__name__, self.parser, self.nargs)
 
     def __str__(self) -> str:
-        namespace = self.namespace
-        if namespace is None or namespace == XPATH_FUNCTIONS_NAMESPACE:
-            return f'{self.symbol!r} {self.label}'
+        if hasattr(self, '__name__'):
+            if not isinstance(self.nargs, int):
+                return '<XPathFunction %s at %#x>' % (self.__name__, id(self))
+            return '<XPathFunction %s#%r at %#x>' % (self.__name__, self.nargs, id(self))
 
-        for prefix, uri in self.parser.namespaces.items():
-            if uri == namespace:
-                return f"'{prefix}:{self.symbol}' {self.label}"
+        elif self.namespace is None:
+            return f'{self.symbol!r} {self.label}'
+        elif self.namespace == XPATH_FUNCTIONS_NAMESPACE:
+            return f"'fn:{self.symbol}' {self.label}"
         else:
-            return f"'Q{{{namespace}}}{self.symbol}' {self.label}"
+            for prefix, uri in self.parser.namespaces.items():
+                if uri == self.namespace:
+                    return f"'{prefix}:{self.symbol}' {self.label}"
+            else:
+                return f"'Q{{{self.namespace}}}{self.symbol}' {self.label}"
 
     def __call__(self, *args: XPathFunctionArgType,
                  context: ContextArgType = None) -> Any:
@@ -1589,7 +1597,11 @@ class XPathMap(XPathFunction):
             self._map = _map
 
     def __repr__(self) -> str:
-        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self._map)
+        return '%s(parser=%s(), items=%s)' % (
+            self.__class__.__name__,
+            self.parser.__class__.__name__,
+            shorten(repr(self._map), 60, placeholder='...}')
+        )
 
     def __str__(self) -> str:
         if self._map is None:
@@ -1756,7 +1768,11 @@ class XPathArray(XPathFunction):
         super().__init__(parser)
 
     def __repr__(self) -> str:
-        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self._array)
+        return '%s(parser=%s(), items=%s)' % (
+            self.__class__.__name__,
+            self.parser.__class__.__name__,
+            shorten(repr(self._array), 60, placeholder='...]')
+        )
 
     def __str__(self) -> str:
         if self._array is not None:

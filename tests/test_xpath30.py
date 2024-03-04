@@ -99,6 +99,10 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertDictEqual(parser.decimal_formats[None], expected)
         self.assertEqual(
             repr(parser),
+            f'{parser.__class__.__name__}()'
+        )
+        self.assertEqual(
+            str(parser),
             f'{parser.__class__.__name__}(decimal_formats={parser.decimal_formats})'
         )
 
@@ -118,10 +122,17 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
             repr(parser),
             f"{parser.__class__.__name__}({{'tst': 'http://xpath.test/ns'}}, defuse_xml=False)"
         )
+        self.assertEqual(
+            repr(parser),
+            f"{parser.__class__.__name__}({{'tst': 'http://xpath.test/ns'}}, defuse_xml=False)"
+        )
 
     def test_function_match(self):
         token = self.parser.parse('math:pi()')
-        self.assertEqual(repr(token), f"_PrefixedReferenceToken({self.parser}, 'math:pi')")
+        self.assertEqual(
+            repr(token),
+            f"_PrefixedReferenceToken(parser={self.parser!r}, value='math:pi')"
+        )
         self.assertEqual(str(token), "'math:pi' function")
         self.assertEqual(token.source, 'math:pi()')
 
@@ -439,7 +450,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'math:sin(-math:pi() div 2)'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_MathSinFunction({self.parser})")
+        self.assertEqual(repr(token[1]), f"_MathSinFunction(parser={self.parser!r})")
         self.assertEqual(str(token[1]), "'math:sin' function")
 
     def test_cos_math_function(self):
@@ -458,7 +469,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = "math:cos(xs:double('INF'))"
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_MathCosFunction({self.parser})")
+        self.assertEqual(repr(token[1]), f"_MathCosFunction(parser={self.parser!r})")
         self.assertEqual(str(token[1]), "'math:cos' function")
 
     def test_tan_math_function(self):
@@ -482,7 +493,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'math:tan(-0.0e0)'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, 'math:tan(-0.0)')
-        self.assertEqual(repr(token[1]), f"_MathTanFunction({self.parser})")
+        self.assertEqual(repr(token[1]), f"_MathTanFunction(parser={self.parser!r})")
         self.assertEqual(str(token[1]), "'math:tan' function")
 
     def test_asin_math_function(self):
@@ -557,9 +568,9 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'fn:analyze-string("The cat sat on the mat.", "unmatchable")'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression.replace('"', "'"))
-        self.assertEqual(repr(token[1]), f"_AnalyzeStringFunction({self.parser!r})")
+        self.assertEqual(repr(token[1]), f"_AnalyzeStringFunction(parser={self.parser!r})")
         self.assertEqual(str(token), "'fn:analyze-string' function")
-        self.assertEqual(str(token[1]), "'analyze-string' function")
+        self.assertEqual(str(token[1]), "'fn:analyze-string' function")
 
         context = XPathContext(root=self.etree.XML('<root/>'))
 
@@ -629,8 +640,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'has-children($elem/b1)'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token), f"_HasChildrenFunction({self.parser!r})")
-        self.assertEqual(str(token), "'has-children' function")
+        self.assertEqual(repr(token), f"_HasChildrenFunction(parser={self.parser!r})")
+        self.assertEqual(str(token), "'fn:has-children' function")
 
     def test_innermost_function(self):
         with self.assertRaises(MissingContextError):
@@ -680,8 +691,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'innermost($nodes)'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token), f"_InnermostFunction({self.parser!r})")
-        self.assertEqual(str(token), "'innermost' function")
+        self.assertEqual(repr(token), f"_InnermostFunction(parser={self.parser!r})")
+        self.assertEqual(str(token), "'fn:innermost' function")
 
     def test_outermost_function(self):
         with self.assertRaises(MissingContextError):
@@ -743,8 +754,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'outermost($nodes)'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token), f"_OutermostFunction({self.parser!r})")
-        self.assertEqual(str(token), "'outermost' function")
+        self.assertEqual(repr(token), f"_OutermostFunction(parser={self.parser!r})")
+        self.assertEqual(str(token), "'fn:outermost' function")
 
     def test_parse_xml_function(self):
         with self.assertRaises(MissingContextError):
@@ -779,8 +790,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = "parse-xml('<alpha>abcd<alpha>')"
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token), f"_ParseXmlFunction({self.parser!r})")
-        self.assertEqual(str(token), "'parse-xml' function")
+        self.assertEqual(repr(token), f"_ParseXmlFunction(parser={self.parser!r})")
+        self.assertEqual(str(token), "'fn:parse-xml' function")
 
     def test_parse_xml_fragment_function(self):
         root = self.etree.XML('<root/>')
@@ -851,8 +862,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = "parse-xml-fragment(' ')"
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token), f"_ParseXmlFragmentFunction({self.parser!r})")
-        self.assertEqual(str(token), "'parse-xml-fragment' function")
+        self.assertEqual(repr(token), f"_ParseXmlFragmentFunction(parser={self.parser!r})")
+        self.assertEqual(str(token), "'fn:parse-xml-fragment' function")
 
     def test_serialize_function(self):
         root = self.etree.XML('<root/>')
@@ -979,7 +990,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             token.evaluate()
 
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token), f"_InlineFunction({self.parser!r})")
+        self.assertEqual(repr(token), f"_InlineFunction(parser={self.parser!r})")
         self.assertEqual(str(token), "inline function")
 
         root = self.etree.XML('<root/>')
@@ -1008,8 +1019,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         token = self.parser.parse(expression)
         self.assertEqual(token.evaluate(), "bcd")
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[0][1]), f"_FunctionLookupFunction({self.parser!r})")
-        self.assertEqual(str(token[0][1]), "'function-lookup' function")
+        self.assertEqual(repr(token[0][1]), f"_FunctionLookupFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[0][1]), "'fn:function-lookup' function")
 
         with self.xsd_version_parser('1.1'):
             token = self.parser.parse("(fn:function-lookup(xs:QName('xs:dateTimeStamp'), 1), "
@@ -1031,8 +1042,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = "fn:function-name(function($node) {count($node/*)})"
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_FunctionNameFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'function-name' function")
+        self.assertEqual(repr(token[1]), f"_FunctionNameFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:function-name' function")
 
         # Context is not used if the argument is a function
         self.assertEqual(token.evaluate(), [])
@@ -1047,8 +1058,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = "fn:function-arity(function($node) {name($node)})"
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_FunctionArityFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'function-arity' function")
+        self.assertEqual(repr(token[1]), f"_FunctionArityFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:function-arity' function")
 
         # Context is not used if the argument is a function
         self.assertEqual(token.evaluate(), 1)
@@ -1060,8 +1071,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'fn:for-each(1 to 5, function($a) {$a * $a})'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_ForEachFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'for-each' function")
+        self.assertEqual(repr(token[1]), f"_ForEachFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:for-each' function")
 
         with self.assertRaises(MissingContextError):
             token.evaluate()
@@ -1080,8 +1091,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'fn:filter(1 to 10, function($a) {$a mod 2 = 0})'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_FilterFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'filter' function")
+        self.assertEqual(repr(token[1]), f"_FilterFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:filter' function")
 
         with self.assertRaises(MissingContextError):
             token.evaluate()
@@ -1094,8 +1105,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'fn:fold-left(1 to 5, 0, function($a, $b) {$a + $b})'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_FoldLeftFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'fold-left' function")
+        self.assertEqual(repr(token[1]), f"_FoldLeftFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:fold-left' function")
 
         with self.assertRaises(MissingContextError):
             token.evaluate()
@@ -1131,8 +1142,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'fn:fold-right(1 to 5, 0, function($a, $b) {$a + $b})'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
-        self.assertEqual(repr(token[1]), f"_FoldRightFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'fold-right' function")
+        self.assertEqual(repr(token[1]), f"_FoldRightFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:fold-right' function")
 
         with self.assertRaises(MissingContextError):
             token.evaluate()
@@ -1152,8 +1163,8 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         expression = 'fn:for-each-pair(("a", "b", "c"), ("x", "y", "z"), concat#2)'
         token = self.parser.parse(expression)
         self.assertEqual(token.source, expression.replace('"', "'"))
-        self.assertEqual(repr(token[1]), f"_ForEachPairFunction({self.parser!r})")
-        self.assertEqual(str(token[1]), "'for-each-pair' function")
+        self.assertEqual(repr(token[1]), f"_ForEachPairFunction(parser={self.parser!r})")
+        self.assertEqual(str(token[1]), "'fn:for-each-pair' function")
         self.assertListEqual(token.evaluate(), ["ax", "by", "cz"])
 
         token = self.parser.parse('fn:for-each-pair(1 to 5, 1 to 5, function($a, $b){10*$a + $b})')

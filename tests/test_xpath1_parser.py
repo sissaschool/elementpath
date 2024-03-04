@@ -136,32 +136,49 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_token_classes(self):
         # Literals
-        self.check_token('(string)', 'literal', "'hello' string",
-                         f"_StringLiteral({self.parser!r}, 'hello')", 'hello')
-        self.check_token('(integer)', 'literal', "1999 integer",
-                         f"_IntegerLiteral({self.parser!r}, 1999)", 1999)
-        self.check_token('(float)', 'literal', "3.1415 float",
-                         f"_FloatLiteral({self.parser!r}, 3.1415)", 3.1415)
-        self.check_token('(decimal)', 'literal', "217.35 decimal",
-                         f"_DecimalLiteral({self.parser!r}, 217.35)", 217.35)
-        self.check_token('(name)', 'literal', "'schema' name",
-                         f"_NameLiteral({self.parser!r}, 'schema')", 'schema')
+        self.check_token(
+            '(string)', 'literal', "'hello' string",
+            f"_StringLiteral(parser={self.parser.__class__.__name__}(), value='hello')",
+            'hello'
+        )
+        self.check_token(
+            '(integer)', 'literal', "1999 integer",
+            f"_IntegerLiteral(parser={self.parser.__class__.__name__}(), value=1999)",
+            1999
+        )
+        self.check_token(
+            '(float)', 'literal', "3.1415 float",
+            f"_FloatLiteral(parser={self.parser.__class__.__name__}(), value=3.1415)",
+            3.1415
+        )
+        self.check_token(
+            '(decimal)', 'literal', "217.35 decimal",
+            f"_DecimalLiteral(parser={self.parser.__class__.__name__}(), value=217.35)",
+            217.35
+        )
+        self.check_token(
+            '(name)', 'literal', "'schema' name",
+            f"_NameLiteral(parser={self.parser.__class__.__name__}(), value='schema')",
+            'schema'
+        )
 
         # Variables
         self.check_token('$', 'operator', "$ variable reference",
-                         f"_DollarSignOperator({self.parser!r})")
+                         f"_DollarSignOperator(parser={self.parser.__class__.__name__}())")
 
         # Axes
         self.check_token('self', 'axis', "'self' axis",
-                         f"_SelfAxis({self.parser!r})")
+                         f"_SelfAxis(parser={self.parser.__class__.__name__}())")
         self.check_token('child', 'axis', "'child' axis",
-                         f"_ChildAxis({self.parser!r})")
+                         f"_ChildAxis(parser={self.parser.__class__.__name__}())")
         self.check_token('parent', 'axis', "'parent' axis",
-                         f"_ParentAxis({self.parser!r})")
+                         f"_ParentAxis(parser={self.parser.__class__.__name__}())")
         self.check_token('ancestor', 'axis', "'ancestor' axis",
-                         f"_AncestorAxis({self.parser!r})")
-        self.check_token('preceding', 'axis', "'preceding' axis",
-                         expected_repr=f"_PrecedingAxis({self.parser!r})")
+                         f"_AncestorAxis(parser={self.parser.__class__.__name__}())")
+        self.check_token(
+            'preceding', 'axis', "'preceding' axis",
+            expected_repr=f"_PrecedingAxis(parser={self.parser.__class__.__name__}())"
+        )
         self.check_token('descendant-or-self', 'axis', "'descendant-or-self' axis")
         self.check_token('following-sibling', 'axis', "'following-sibling' axis")
         self.check_token('preceding-sibling', 'axis', "'preceding-sibling' axis")
@@ -176,21 +193,24 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_token(
             symbol='position',
             expected_label='function',
-            expected_str="'position' function",
-            expected_repr=f"_PositionFunction({self.parser!r})"
+            expected_str="'fn:position' function",
+            expected_repr=f"_PositionFunction(parser={self.parser.__class__.__name__}())"
         )
 
         # Operators
         self.check_token(
-            'and', 'operator', "'and' operator", f"_AndOperator({self.parser!r})"
+            'and', 'operator', "'and' operator",
+            f"_AndOperator(parser={self.parser.__class__.__name__}())"
         )
         if self.parser.version == '1.0':
             self.check_token(
-                ',', 'symbol', "comma symbol", f"_CommaSymbol({self.parser!r})"
+                ',', 'symbol', "comma symbol",
+                f"_CommaSymbol(parser={self.parser.__class__.__name__}())"
             )
         else:
             self.check_token(
-                ',', 'operator', "comma operator", f"_CommaOperator({self.parser!r})"
+                ',', 'operator', "comma operator",
+                f"_CommaOperator(parser={self.parser.__class__.__name__}())"
             )
 
     def test_token_tree(self):
@@ -818,7 +838,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value("boolean('   ')", True)
         self.check_value("boolean('')", False)
 
-        self.wrong_type("true(1)", 'XPST0017', "'true' function has no arguments")
+        self.wrong_type("true(1)", 'XPST0017', "'fn:true' function has no arguments")
         self.wrong_syntax("true(", 'unexpected end of source')
 
         if self.parser.version == '1.0':
@@ -1654,7 +1674,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_get_function(self):
         func = self.parser.get_function('fn:true', 0)
-        self.assertEqual("'true' function", str(func))
+        self.assertTrue(str(func).startswith('<XPathFunction fn:true#0 at 0x'))
         self.assertTrue(func())
 
         with self.assertRaises(NameError) as ctx:
@@ -1663,14 +1683,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         with self.assertRaises(TypeError) as ctx:
             self.parser.get_function('fn:true', 1)
-        self.assertIn('unknown function true#1', str(ctx.exception))
+        self.assertIn('unknown function fn:true#1', str(ctx.exception))
 
         func = self.parser.get_function('fn:false', 0)
-        self.assertEqual("'false' function", str(func))
+        self.assertTrue(str(func).startswith('<XPathFunction fn:false#0 at 0x'))
         self.assertFalse(func())
 
         func = self.parser.get_function('concat', 2)
-        self.assertEqual("'concat' function", str(func))
+        self.assertTrue(str(func).startswith('<XPathFunction fn:concat#2 at 0x'))
         self.assertEqual(func('foo', 1), 'foo1')
 
         with self.assertRaises(TypeError) as ctx:
@@ -1682,7 +1702,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.assertIn('too many arguments', str(ctx.exception))
 
         func = self.parser.get_function('concat', 4)
-        self.assertEqual("'concat' function", str(func))
+        self.assertTrue(str(func).startswith('<XPathFunction fn:concat#4 at 0x'))
         self.assertEqual(func('foo', 1, ' bar', 2), 'foo1 bar2')
 
 

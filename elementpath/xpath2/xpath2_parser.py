@@ -173,7 +173,7 @@ class XPath2Parser(XPath1Parser):
                                         'default_collection_type argument')
         self.default_collection_type = default_collection_type
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         args = []
         if self.compatibility_mode:
             args.append('compatibility_mode=True')
@@ -196,9 +196,9 @@ class XPath2Parser(XPath1Parser):
         if self.default_collection_type != 'node()*':
             args.append(f'default_collection_type={self.default_collection_type!r}')
         if not args:
-            return super().__repr__()
+            return super().__str__()
 
-        repr_string = super().__repr__()[:-1]
+        repr_string = super().__str__()[:-1]
         if repr_string.endswith('('):
             return f"{repr_string}{', '.join(args)})"
         return f"{repr_string}, {', '.join(args)})"

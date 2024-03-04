@@ -29,9 +29,11 @@ class ExceptionsTest(unittest.TestCase):
         self.assertEqual(str(err), '[XPST0001] unknown error')
         token = self.parser.symbol_table['true'](self.parser)
         err = ElementPathError("unknown error", token=token)
-        self.assertEqual(str(err), "'true' function at line 1, column 1: unknown error")
+        self.assertEqual(str(err), "'fn:true' function at line 1, column 1: unknown error")
         err = ElementPathError("unknown error", code='XPST0001', token=token)
-        self.assertEqual(str(err), "'true' function at line 1, column 1: [XPST0001] unknown error")
+        self.assertEqual(
+            str(err), "'fn:true' function at line 1, column 1: [XPST0001] unknown error"
+        )
 
     def test_xpath_error(self):
         self.assertEqual(str(xpath_error('XPST0001')),

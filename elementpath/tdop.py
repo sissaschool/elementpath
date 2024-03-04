@@ -203,8 +203,8 @@ class Token(MutableSequence[TK]):
 
     def __repr__(self) -> str:
         if self.value == self.symbol:
-            return '%s(%r)' % (self.__class__.__name__, self.parser)
-        return '%s(%r, %r)' % (self.__class__.__name__, self.parser, self.value)
+            return '%s(parser=%r)' % (self.__class__.__name__, self.parser)
+        return '%s(parser=%r, value=%r)' % (self.__class__.__name__, self.parser, self.value)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Token):

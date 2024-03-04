@@ -84,6 +84,12 @@ class XPath1Parser(Parser[XPathToken]):
         self.strict: bool = strict
 
     def __repr__(self) -> str:
+        string_repr = self.__str__()
+        if len(string_repr) > 80:
+            return f'{self.__class__.__name__}()'  # Avoid excessive long representations
+        return string_repr
+
+    def __str__(self) -> str:
         args = []
         if self.namespaces != self.DEFAULT_NAMESPACES:
             args.append(str(self.other_namespaces))
@@ -269,17 +275,26 @@ class XPath1Parser(Parser[XPathToken]):
             else:
                 qname = QName(namespace, f'{prefix}:{name}')
 
-        token_class = self.symbol_table.get(name)
-        if token_class is None or not issubclass(token_class, XPathFunction):
+        if qname.expanded_name in self.symbol_table:
+            token_class = self.symbol_table[qname.expanded_name]
+        elif name in self.symbol_table:
+            token_class = self.symbol_table[name]
+        else:
             raise ElementPathNameError(f'unknown function {name!r}')
 
-        qname = QName(XPATH_FUNCTIONS_NAMESPACE, name)
+        if not issubclass(token_class, XPathFunction):
+            raise ElementPathNameError(f'{name!r} is not an XPath function')
+
+        if token_class.namespace != qname.namespace:
+            raise ElementPathNameError(f'namespace mismatch: {token_class.namespace}')
+
         try:
             func = token_class(self, nargs=arity)
         except TypeError:
             msg = f"unknown function {qname.qname}#{arity}"
             raise xpath_error('XPST0017', msg) from None
         else:
+            func.__name__ = qname.qname
             return func
 
 
