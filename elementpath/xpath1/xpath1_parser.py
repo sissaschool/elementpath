@@ -23,7 +23,8 @@ from ..namespaces import NamespacesType, XML_NAMESPACE, XSD_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE
 from ..sequence_types import match_sequence_type
 from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_tokens import NargsType, XPathToken, XPathAxis, XPathFunction, ProxyToken
+from ..xpath_tokens import NargsType, XPathToken, XPathAxis, XPathFunction, \
+    ProxyToken, ContextArgType
 
 
 class XPath1Parser(Parser[XPathToken]):
@@ -82,12 +83,6 @@ class XPath1Parser(Parser[XPathToken]):
         if namespaces is not None:
             self.namespaces.update(namespaces)
         self.strict: bool = strict
-
-    def __repr__(self) -> str:
-        string_repr = self.__str__()
-        if len(string_repr) > 80:
-            return f'{self.__class__.__name__}()'  # Avoid excessive long representations
-        return string_repr
 
     def __str__(self) -> str:
         args = []
@@ -253,13 +248,15 @@ class XPath1Parser(Parser[XPathToken]):
                 message = "Unmatched sequence type for variable {!r}".format(varname)
                 raise xpath_error('XPDY0050', message)
 
-    def get_function(self, name: str, arity: Optional[int]) -> XPathFunction:
+    def get_function(self, name: str, arity: Optional[int],
+                     context: ContextArgType = None) -> XPathFunction:
         """
-        Returns a XPathFunction object for direct usage.
+        Returns an XPathFunction object suitable for stand-alone usage.
 
         :param name: the name of the function.
         :param arity: the arity of the function object, must be compatible \
         with the signature of the XPath function.
+        :param context: an optional context to bound to the function.
         """
         if ':' not in name:
             qname = QName(XPATH_FUNCTIONS_NAMESPACE, f'fn:{name}')
@@ -294,7 +291,8 @@ class XPath1Parser(Parser[XPathToken]):
             msg = f"unknown function {qname.qname}#{arity}"
             raise xpath_error('XPST0017', msg) from None
         else:
-            func.__name__ = qname.qname
+            if context is not None:
+                func.context = context
             return func
 
 

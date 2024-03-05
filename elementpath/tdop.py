@@ -202,9 +202,7 @@ class Token(MutableSequence[TK]):
             return '%r %s' % (self.symbol, str(self.label))
 
     def __repr__(self) -> str:
-        if self.value == self.symbol:
-            return '%s(parser=%r)' % (self.__class__.__name__, self.parser)
-        return '%s(parser=%r, value=%r)' % (self.__class__.__name__, self.parser, self.value)
+        return '<%s object at %#x>' % (self.__class__.__name__, id(self))
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Token):
@@ -465,6 +463,9 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         self.token = self.next_token = self._start_token
 
     def __repr__(self) -> str:
+        return '<%s object at %#x>' % (self.__class__.__name__, id(self))
+
+    def __str__(self) -> str:
         return f'{self.__class__.__name__}()'
 
     def __eq__(self, other: object) -> bool:
