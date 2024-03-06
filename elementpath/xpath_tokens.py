@@ -46,8 +46,9 @@ if TYPE_CHECKING:
     from .xpath1 import XPath1Parser
     from .xpath2 import XPath2Parser
     from .xpath30 import XPath30Parser
+    from .xpath31 import XPath31Parser
 
-    XPathParserType = Union[XPath1Parser, XPath2Parser, XPath30Parser]
+    XPathParserType = Union[XPath1Parser, XPath2Parser, XPath30Parser, XPath31Parser]
 else:
     XPathParserType = Any
 
@@ -1234,7 +1235,7 @@ class XPathFunction(XPathToken):
     context: ContextArgType = None
     "Dynamic context associated by function reference evaluation or explicitly by a builder."
 
-    def __init__(self, parser: 'XPath1Parser', nargs: Optional[int] = None) -> None:
+    def __init__(self, parser: XPathParserType, nargs: Optional[int] = None) -> None:
         super().__init__(parser)
         if isinstance(nargs, int) and nargs != self.nargs:
             if nargs < 0:
@@ -1602,7 +1603,7 @@ class XPathMap(XPathFunction):
     _values: List[XPathToken]
     _nan_key: Optional[float] = None
 
-    def __init__(self, parser: 'XPath1Parser', items: Optional[Any] = None) -> None:
+    def __init__(self, parser: XPathParserType, items: Optional[Any] = None) -> None:
         super().__init__(parser)
         self._values = []
         if items is not None:
@@ -1791,7 +1792,7 @@ class XPathArray(XPathFunction):
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
     _array: Optional[List[Any]] = None
 
-    def __init__(self, parser: 'XPath1Parser',
+    def __init__(self, parser: XPathParserType,
                  items: Optional[Iterable[Any]] = None) -> None:
         if items is not None:
             self._array = [x for x in items]
