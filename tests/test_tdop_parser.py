@@ -131,8 +131,9 @@ class TdopParserTest(unittest.TestCase):
         self.assertIn("incompatible tokenizer", str(ec.exception))
 
     def test_string_repr(self):
-        self.assertEqual(repr(self.parser), 'ExpressionParser()')
-        self.assertEqual(str(self.parser), repr(self.parser))
+        self.assertEqual(repr(self.parser),
+                         f'<ExpressionParser object at {hex(id(self.parser))}>')
+        self.assertEqual(str(self.parser), 'ExpressionParser()')
 
     def test_expression(self):
         token = self.parser.parse('10 + 6')

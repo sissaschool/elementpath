@@ -16,7 +16,6 @@ import decimal
 import math
 from copy import copy
 from decimal import Decimal
-from textwrap import shorten
 from itertools import product
 from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, \
     Union, Any, Iterable, Iterator, SupportsFloat, Type, Callable
@@ -1628,10 +1627,10 @@ class XPathMap(XPathFunction):
             self._map = _map
 
     def __repr__(self) -> str:
-        return '%s(parser=%s(), items=%s)' % (
-            self.__class__.__name__,
-            self.parser.__class__.__name__,
-            shorten(repr(self._map), 60, placeholder='...}')
+        if self._map is not None:
+            return f'<{self.__class__.__name__} object at {hex(id(self))}>'
+        return "<{} object (not evaluated constructor) at {}>".format(
+            self.__class__.__name__, hex(id(self))
         )
 
     def __str__(self) -> str:
@@ -1799,18 +1798,20 @@ class XPathArray(XPathFunction):
         super().__init__(parser)
 
     def __repr__(self) -> str:
-        return '%s(parser=%s(), items=%s)' % (
-            self.__class__.__name__,
-            self.parser.__class__.__name__,
-            shorten(repr(self._array), 60, placeholder='...]')
+        if self._array is not None:
+            return f'<{self.__class__.__name__} object at {hex(id(self))}>'
+        return "<{} object (not evaluated constructor) at {}>".format(
+            self.__class__.__name__, hex(id(self))
         )
 
     def __str__(self) -> str:
         if self._array is not None:
             return str(self._array)
-        elif self.symbol == 'array':
-            return f'not evaluated curly array constructor with {len(self._items)} items'
-        return f'not evaluated square array constructor with {len(self._items)} items'
+
+        items_desc = f'{len(self)} items' if len(self) != 1 else '1 item'
+        if self.symbol == 'array':
+            return f'not evaluated curly array constructor with {items_desc}'
+        return f'not evaluated square array constructor with {items_desc}'
 
     def __len__(self) -> int:
         if self._array is None:

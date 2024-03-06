@@ -72,11 +72,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
     def test_string_representation(self):
         parser = self.parser.__class__()
-        self.assertEqual(repr(parser), f"{parser.__class__.__name__}()")
+        self.assertEqual(
+            repr(parser), f"<{parser.__class__.__name__} object at {hex(id(parser))}>"
+        )
+        self.assertEqual(str(parser), f"{parser.__class__.__name__}()")
 
         parser = self.parser.__class__(namespaces={'tst': 'http://xpath.test/ns'})
         self.assertEqual(
-            repr(parser), f"{parser.__class__.__name__}({{'tst': 'http://xpath.test/ns'}})"
+            str(parser), f"{parser.__class__.__name__}({{'tst': 'http://xpath.test/ns'}})"
         )
 
     def test_parser_pickling(self):
@@ -138,46 +141,35 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         # Literals
         self.check_token(
             '(string)', 'literal', "'hello' string",
-            f"_StringLiteral(parser={self.parser.__class__.__name__}(), value='hello')",
-            'hello'
+            value='hello'
         )
         self.check_token(
             '(integer)', 'literal', "1999 integer",
-            f"_IntegerLiteral(parser={self.parser.__class__.__name__}(), value=1999)",
-            1999
+            value=1999
         )
         self.check_token(
             '(float)', 'literal', "3.1415 float",
-            f"_FloatLiteral(parser={self.parser.__class__.__name__}(), value=3.1415)",
-            3.1415
+            value=3.1415
         )
         self.check_token(
             '(decimal)', 'literal', "217.35 decimal",
-            f"_DecimalLiteral(parser={self.parser.__class__.__name__}(), value=217.35)",
-            217.35
+            value=217.35
         )
         self.check_token(
             '(name)', 'literal', "'schema' name",
-            f"_NameLiteral(parser={self.parser.__class__.__name__}(), value='schema')",
-            'schema'
+            value='schema'
         )
 
         # Variables
-        self.check_token('$', 'operator', "$ variable reference",
-                         f"_DollarSignOperator(parser={self.parser.__class__.__name__}())")
+        self.check_token('$', 'operator', "$ variable reference")
 
         # Axes
-        self.check_token('self', 'axis', "'self' axis",
-                         f"_SelfAxis(parser={self.parser.__class__.__name__}())")
-        self.check_token('child', 'axis', "'child' axis",
-                         f"_ChildAxis(parser={self.parser.__class__.__name__}())")
-        self.check_token('parent', 'axis', "'parent' axis",
-                         f"_ParentAxis(parser={self.parser.__class__.__name__}())")
-        self.check_token('ancestor', 'axis', "'ancestor' axis",
-                         f"_AncestorAxis(parser={self.parser.__class__.__name__}())")
+        self.check_token('self', 'axis', "'self' axis")
+        self.check_token('child', 'axis', "'child' axis")
+        self.check_token('parent', 'axis', "'parent' axis")
+        self.check_token('ancestor', 'axis', "'ancestor' axis")
         self.check_token(
-            'preceding', 'axis', "'preceding' axis",
-            expected_repr=f"_PrecedingAxis(parser={self.parser.__class__.__name__}())"
+            'preceding', 'axis', "'preceding' axis"
         )
         self.check_token('descendant-or-self', 'axis', "'descendant-or-self' axis")
         self.check_token('following-sibling', 'axis', "'following-sibling' axis")
@@ -194,24 +186,14 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             symbol='position',
             expected_label='function',
             expected_str="'fn:position' function",
-            expected_repr=f"_PositionFunction(parser={self.parser.__class__.__name__}())"
         )
 
         # Operators
-        self.check_token(
-            'and', 'operator', "'and' operator",
-            f"_AndOperator(parser={self.parser.__class__.__name__}())"
-        )
+        self.check_token('and', 'operator', "'and' operator")
         if self.parser.version == '1.0':
-            self.check_token(
-                ',', 'symbol', "comma symbol",
-                f"_CommaSymbol(parser={self.parser.__class__.__name__}())"
-            )
+            self.check_token(',', 'symbol', "comma symbol")
         else:
-            self.check_token(
-                ',', 'operator', "comma operator",
-                f"_CommaOperator(parser={self.parser.__class__.__name__}())"
-            )
+            self.check_token(',', 'operator', "comma operator")
 
     def test_token_tree(self):
         self.check_tree('child::B1', '(child (B1))')

@@ -21,7 +21,7 @@
 #
 import unittest
 import os
-from textwrap import dedent, shorten
+from textwrap import dedent
 from typing import cast
 
 try:
@@ -109,14 +109,16 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.symbol, 'map')
         self.assertEqual(token.label, 'map')
         self.assertEqual(token.source, f'map{map_value!r}'.replace(': ', ':'))
-        self.assertEqual(repr(token), f'XPathMap(parser={self.parser!r}, items=None)')
+        self.assertEqual(
+            repr(token),
+            f"<XPathMap object (not evaluated constructor) at {hex(id(token))}>"
+        )
         self.assertEqual(str(token), 'not evaluated map constructor with 7 entries')
 
         self.assertDictEqual(token.evaluate()._map, map_value)
-        self.assertEqual(
-            repr(token.evaluate()),
-            f'XPathMap(parser={self.parser!r}, '
-            f'items={shorten(repr(map_value), 60, placeholder="...}")})'
+
+        self.assertTrue(
+            repr(token.evaluate()).startswith('<XPathMap object at ')
         )
         self.assertEqual(str(token.evaluate()), f'map{map_value!r}')
 
@@ -138,7 +140,9 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.label, 'expression')
         self.assertTrue(token.source.startswith("map{'book':map{'title':'Data on the Web', "))
         self.assertTrue(token.source.endswith(", 'price':39.95}}('book')('title')"))
-        self.assertEqual(repr(token), f'_LeftParenthesisExpression(parser={self.parser!r})')
+        self.assertEqual(
+            repr(token), f'<_LeftParenthesisExpression object at {hex(id(token))}>'
+        )
         self.assertEqual(str(token), "function call expression")
 
         token = self.parser.parse(f'{NESTED_MAP}("book")("author")')
@@ -192,11 +196,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.symbol, 'array')
         self.assertEqual(token.label, 'array')
         self.assertEqual(token.source, 'array{1, 2, 5, 7}')
-        self.assertEqual(repr(token), f'XPathArray(parser={self.parser!r}, items=None)')
+        self.assertEqual(
+            repr(token), f'<XPathArray object (not evaluated constructor) at {hex(id(token))}>'
+        )
         self.assertEqual(str(token), 'not evaluated curly array constructor with 4 items')
 
-        array = token.evaluate()
-        self.assertEqual(repr(array), f'XPathArray(parser={self.parser!r}, items=[1, 2, 5, 7])')
+        array = token.evaluate()  # Create a new object ...
+        self.assertEqual(
+            repr(token), f'<XPathArray object (not evaluated constructor) at {hex(id(token))}>'
+        )
         self.assertEqual(str(array), '[1, 2, 5, 7]')
 
     def test_square_array_constructor(self):
@@ -206,24 +214,38 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.symbol, '[')
         self.assertEqual(token.label, 'array')
         self.assertEqual(token.source, '[1, 2, 5, 7]')
-        self.assertEqual(repr(token), f'XPathArray(parser={self.parser!r}, items=None)')
+        self.assertEqual(
+            repr(token),
+            f"<XPathArray object (not evaluated constructor) at {hex(id(token))}>"
+        )
         self.assertEqual(str(token), 'not evaluated square array constructor with 4 items')
 
         array = token.evaluate()
-        self.assertEqual(repr(array), f'XPathArray(parser={self.parser!r}, items=[1, 2, 5, 7])')
+        self.assertEqual(
+            repr(array),
+            f"<{array.__class__.__name__} object at {hex(id(array))}>"
+        )
         self.assertEqual(str(array), '[1, 2, 5, 7]')
 
     def test_array_lookup(self):
         token = self.parser.parse('array { 1, 2, 5, 7 }(4)')
         self.assertEqual(token.evaluate(), 7)
         self.assertEqual(token.source, 'array{1, 2, 5, 7}(4)')
-        self.assertEqual(repr(token), f'_LeftParenthesisExpression(parser={self.parser!r})')
+        self.assertEqual(repr(token), f'<_LeftParenthesisExpression object at {hex(id(token))}>')
+        self.assertEqual(
+            repr(token[0]),
+            f"<XPathArray object (not evaluated constructor) at {hex(id(token[0]))}>"
+        )
         self.assertEqual(str(token), "function call expression")
 
         token = self.parser.parse('[ 1, 2, 5, 7 ](4)')
         self.assertEqual(token.evaluate(), 7)
         self.assertEqual(token.source, '[1, 2, 5, 7](4)')
-        self.assertEqual(repr(token), f'_LeftParenthesisExpression(parser={self.parser!r})')
+        self.assertEqual(repr(token), f'<_LeftParenthesisExpression object at {hex(id(token))}>')
+        self.assertEqual(
+            repr(token[0]),
+            f"<XPathArray object (not evaluated constructor) at {hex(id(token[0]))}>"
+        )
         self.assertEqual(str(token), "function call expression")
 
     def test_map_size_function(self):
@@ -231,8 +253,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.evaluate(), 0)
         self.assertEqual(str(token), "'map:size' function")
         self.assertEqual(
-            repr(token),
-            f"_PrefixedReferenceToken(parser={self.parser!r}, value='map:size')"
+            repr(token), f'<_PrefixedReferenceToken object at {hex(id(token))}>'
         )
         self.assertEqual(token.source, 'map:size(map{})')
 
@@ -243,8 +264,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(token.evaluate(), [])
         self.assertEqual(str(token), "'map:keys' function")
         self.assertEqual(
-            repr(token),
-            f"_PrefixedReferenceToken(parser={self.parser!r}, value='map:keys')"
+            repr(token), f'<_PrefixedReferenceToken object at {hex(id(token))}>'
         )
         self.assertEqual(token.source, 'map:keys(map{})')
 

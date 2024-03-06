@@ -38,7 +38,7 @@ class XPath30Parser(XPath2Parser):
     """
     version = '3.0'
 
-    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]]  = {
+    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
     PATH_STEP_SYMBOLS = {
