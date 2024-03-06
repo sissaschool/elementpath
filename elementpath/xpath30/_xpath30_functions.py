@@ -20,6 +20,8 @@ from copy import copy
 from itertools import zip_longest
 from typing import cast, Any, Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
+from urllib.request import urlopen
+from urllib.error import URLError
 
 try:
     import zoneinfo
@@ -1242,9 +1244,6 @@ def evaluate_uri_collection_function(self, context=None):
 @method(function('unparsed-text-lines', nargs=(1, 2),
                  sequence_types=('xs:string?', 'xs:string', 'xs:string*')))
 def evaluate_unparsed_text_functions(self, context=None):
-    from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
-    from urllib.error import URLError
-
     if self.context is not None:
         context = self.context
 
@@ -1309,9 +1308,6 @@ def evaluate_unparsed_text_functions(self, context=None):
 @method(function('unparsed-text-available', nargs=(1, 2),
                  sequence_types=('xs:string?', 'xs:string', 'xs:boolean')))
 def evaluate_unparsed_text_available_function(self, context=None):
-    from urllib.request import urlopen  # optional because it consumes ~4.3 MiB
-    from urllib.error import URLError
-
     if self.context is not None:
         context = self.context
 

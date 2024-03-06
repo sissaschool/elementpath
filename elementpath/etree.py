@@ -13,6 +13,7 @@ A unified loader module for ElementTree with a safe parser and helper functions.
 import sys
 import re
 import io
+import importlib
 from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
     Tuple, Union
 from .protocols import ElementProtocol, DocumentProtocol
@@ -242,7 +243,7 @@ def etree_tostring(elem: ElementProtocol,
     elif not hasattr(elem, 'nsmap'):
         etree_module = ElementTree
     else:
-        import lxml.etree as etree_module
+        etree_module = importlib.import_module('lxml.etree')
 
     if namespaces and not hasattr(elem, 'nsmap'):
         default_namespace = namespaces.get('')

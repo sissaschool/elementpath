@@ -37,6 +37,7 @@ from ..tree_builders import get_node_tree
 from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
 from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
 from ..xpath_context import XPathSchemaContext
+from ..validators import validate_json_to_xml
 from ._xpath31_operators import XPath31Parser
 
 method = XPath31Parser.method
@@ -1369,7 +1370,6 @@ def evaluate_json_to_xml_function(self, context=None):
         root.set(XML_BASE, self.parser.base_uri)
 
     if validate:
-        from ..validators import validate_json_to_xml
         validate_json_to_xml(document.getroot())
 
     return get_node_tree(document, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})

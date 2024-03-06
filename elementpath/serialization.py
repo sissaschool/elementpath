@@ -11,6 +11,7 @@ import json
 from decimal import Decimal, ROUND_UP
 from types import ModuleType
 from typing import cast, Any, Dict, Iterator, Iterable, Optional, Set, Union, Tuple
+from xml.etree import ElementTree
 
 from .exceptions import ElementPathError, xpath_error
 from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -254,7 +255,6 @@ def serialize_to_xml(elements: Iterable[Any],
                      token: Optional['XPathToken'] = None,
                      **params: Any) -> str:
     if etree_module is None:
-        from xml.etree import ElementTree
         etree_module = ElementTree
 
     item_separator = params.get('item_separator')
@@ -319,7 +319,6 @@ def serialize_to_json(elements: Iterable[Any],
                       token: Optional['XPathToken'] = None,
                       **params: Any) -> str:
     if etree_module is None:
-        from xml.etree import ElementTree
         etree_module = ElementTree
 
     class MapEncodingDict(dict):  # type: ignore[type-arg]
