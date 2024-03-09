@@ -39,6 +39,8 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                              token: Optional[XPathToken] = None) -> Dict['str', Any]:
 
     kwargs: Dict[str, Any] = {}
+    character_map: Dict[str, str]
+
     if isinstance(params, XPathMap):
         if len(params[:]) > len(params.keys()):  # pragma: no cover
             raise xpath_error('SEPM0019', token=token)
@@ -183,7 +185,10 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 kwargs['method'] = value if value != 'xhtml' else 'html'
 
             elif child.tag == SER_PARAM_INDENT:
-                value = child.attrib.get('value', '').strip()
+                value = child.attrib.get('value', '')
+                assert isinstance(value, str)
+
+                value = value.strip()
                 if value not in ('yes', 'no') or len(child.attrib) > 1:
                     raise xpath_error('SEPM0017', token=token)
 
@@ -198,7 +203,10 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             elif child.tag == SER_PARAM_NO_INDENT:
                 pass  # TODO param
             elif child.tag == SER_PARAM_STANDALONE:
-                value = child.attrib.get('value', '').strip()
+                value = child.attrib.get('value', '')
+                assert isinstance(value, str)
+
+                value = value.strip()
                 if value not in ('yes', 'no', 'omit') or len(child.attrib) > 1:
                     raise xpath_error('SEPM0017', token=token)
                 if value != 'omit':

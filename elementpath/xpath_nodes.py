@@ -142,7 +142,7 @@ class AttributeNode(XPathNode):
     __slots__ = '_name', 'value', 'xsd_type'
 
     def __init__(self,
-                 name: str, value: Union[str, XsdAttributeProtocol],
+                 name: Optional[str], value: Union[str, XsdAttributeProtocol],
                  parent: Optional['ElementNode'] = None,
                  position: int = 1,
                  xsd_type: Optional[XsdTypeProtocol] = None) -> None:
@@ -164,7 +164,7 @@ class AttributeNode(XPathNode):
         return root_type.name == XSD_IDREF or root_type.name == XSD_IDREFS
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         return self._name
 
     @property
@@ -187,7 +187,7 @@ class AttributeNode(XPathNode):
             return UntypedAtomic(self.value)
         return cast(AtomicValueType, self.xsd_type.decode(self.value))
 
-    def as_item(self) -> Tuple[str, Union[str, XsdAttributeProtocol]]:
+    def as_item(self) -> Tuple[Optional[str], Union[str, XsdAttributeProtocol]]:
         return self._name, self.value
 
     def __repr__(self) -> str:
@@ -203,7 +203,9 @@ class AttributeNode(XPathNode):
         return hasattr(self.value, 'name') and hasattr(self.value, 'type')
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
-        if '*' in name:
+        if self._name is None:
+            return False
+        elif '*' in name:
             return match_wildcard(self._name, name)
         else:
             return self._name == name

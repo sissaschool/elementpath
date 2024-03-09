@@ -39,8 +39,8 @@ def deep_equal(seq1: Iterable[Any],
         elif len(e1) != len(e2) or len(e1.attrib) != len(e2.attrib):
             return False
 
-        items1 = {(cm.strxfrm(k), cm.strxfrm(v)) for k, v in e1.attrib.items()}
-        items2 = {(cm.strxfrm(k), cm.strxfrm(v)) for k, v in e2.attrib.items()}
+        items1 = {(cm.strxfrm(k or ''), cm.strxfrm(v)) for k, v in e1.attrib.items()}
+        items2 = {(cm.strxfrm(k or ''), cm.strxfrm(v)) for k, v in e2.attrib.items()}
         if items1 != items2:
             return False
         return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))
@@ -274,7 +274,7 @@ def deep_compare(obj1: Any,
 
                     if isinstance(value1, AttributeNode):
                         assert isinstance(value2, AttributeNode)
-                        result = cm.strcoll(value1.name, value2.name)
+                        result = cm.strcoll(value1.name or '', value2.name or '')
                         if result:
                             return result
                     elif isinstance(value1, NamespaceNode):

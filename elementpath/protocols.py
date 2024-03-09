@@ -10,10 +10,30 @@
 """
 Define type hints protocols for XPath related objects.
 """
-from typing import overload, Any, Dict, Iterator, Iterable, Optional, \
-    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
+from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, \
+    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set, MutableMapping
 
 _T = TypeVar("_T")
+
+
+class LxmlAttribProtocol(Protocol):
+    """A minimal protocol for attribute of lxml Element objects."""
+    def get(self, *args: Any, **kwargs: Any) -> Optional[str]: ...
+
+    def items(self) -> Sequence[Tuple[Any, Any]]: ...
+
+    def __contains__(self, key: Any) -> bool: ...
+
+    def __getitem__(self, key: Any) -> Any: ...
+
+    def __iter__(self) -> Iterator[Any]: ...
+
+    def __len__(self) -> int: ...
+
+
+AttribType = Union[
+    MutableMapping[str, Any], MutableMapping[Optional[str], Any], LxmlAttribProtocol
+]
 
 
 class ElementProtocol(Sized, Hashable, Protocol):
@@ -42,7 +62,7 @@ class ElementProtocol(Sized, Hashable, Protocol):
     def tail(self) -> Optional[str]: ...
 
     @property
-    def attrib(self) -> Dict[str, Any]: ...
+    def attrib(self) -> AttribType: ...
 
 
 class EtreeElementProtocol(ElementProtocol, Protocol):
@@ -71,7 +91,7 @@ class LxmlElementProtocol(ElementProtocol, Protocol):
     def nsmap(self) -> Dict[Optional[str], str]: ...
 
     @property
-    def attrib(self) -> Any: ...
+    def attrib(self) -> LxmlAttribProtocol: ...
 
 
 class DocumentProtocol(Hashable, Protocol):
@@ -215,7 +235,7 @@ class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
     def ref(self) -> Optional[Any]: ...
 
     @property
-    def attrib(self) -> Dict[str, XsdAttributeProtocol]: ...
+    def attrib(self) -> MutableMapping[Optional[str], XsdAttributeProtocol]: ...
 
 
 GT = TypeVar("GT")
@@ -250,7 +270,7 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
     def tag(self) -> str: ...
 
     @property
-    def attrib(self) -> Dict[str, 'XsdAttributeProtocol']: ...
+    def attrib(self) -> MutableMapping[Optional[str], 'XsdAttributeProtocol']: ...
 
 
 __allx__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlElementProtocol',
