@@ -23,7 +23,7 @@ having as result a tree of tokens:
     >>> isinstance(token, XPathToken)
     True
     >>> token
-    _SolidusOperator(...)
+    <_SolidusOperator object at 0x...
     >>> str(token)
     "'/' operator"
     >>> token.tree

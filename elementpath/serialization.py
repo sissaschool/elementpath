@@ -20,6 +20,7 @@ from .datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
 from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
 from .xpath_tokens import XPathToken, XPathMap, XPathArray
+from .protocols import EtreeElementProtocol, LxmlElementProtocol
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -135,7 +136,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 kwargs[key] = value
 
     elif isinstance(params, ElementNode):
-        root = params.elem
+        root = cast(Union[EtreeElementProtocol, LxmlElementProtocol], params.elem)
         if root.tag != SERIALIZATION_PARAMS:
             msg = 'output:serialization-parameters tag expected'
             raise xpath_error('XPTY0004', msg, token)

@@ -39,8 +39,14 @@ def deep_equal(seq1: Iterable[Any],
         elif len(e1) != len(e2) or len(e1.attrib) != len(e2.attrib):
             return False
 
-        items1 = {(cm.strxfrm(k or ''), cm.strxfrm(v)) for k, v in e1.attrib.items()}
-        items2 = {(cm.strxfrm(k or ''), cm.strxfrm(v)) for k, v in e2.attrib.items()}
+        try:
+            items1 = {(cm.strxfrm(k or ''), cm.strxfrm(v))  # type: ignore[arg-type]
+                      for k, v in e1.attrib.items()}
+            items2 = {(cm.strxfrm(k or ''), cm.strxfrm(v))  # type: ignore[arg-type]
+                      for k, v in e2.attrib.items()}
+        except TypeError:
+            return False
+
         if items1 != items2:
             return False
         return all(etree_deep_equal(c1, c2) for c1, c2 in zip(e1, e2))

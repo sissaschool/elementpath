@@ -10,7 +10,7 @@
 """
 Define type hints protocols for XPath related objects.
 """
-from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, \
+from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, ItemsView, \
     Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set, MutableMapping
 
 _T = TypeVar("_T")
@@ -32,7 +32,10 @@ class LxmlAttribProtocol(Protocol):
 
 
 AttribType = Union[
-    MutableMapping[str, Any], MutableMapping[Optional[str], Any], LxmlAttribProtocol
+    MutableMapping[str, Any],
+    MutableMapping[Optional[str], Any],
+    LxmlAttribProtocol,
+    'XsdAttributeGroupProtocol'
 ]
 
 
@@ -67,6 +70,13 @@ class ElementProtocol(Sized, Hashable, Protocol):
 
 class EtreeElementProtocol(ElementProtocol, Protocol):
     """A protocol for xml.etree.ElementTree elements."""
+    def __iter__(self) -> Iterator['EtreeElementProtocol']: ...
+
+    def find(
+            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+    ) -> Optional['EtreeElementProtocol']: ...
+    def iter(self, tag: Optional[str] = ...) -> Iterator['EtreeElementProtocol']: ...
+
     @property
     def attrib(self) -> Dict[str, str]: ...
 
@@ -106,7 +116,7 @@ class LxmlDocumentProtocol(Hashable, Protocol):
     def iter(self, tag: Optional[str] = ...) -> Iterator[LxmlElementProtocol]: ...
 
 
-class XsdValidatorProtocol(Protocol):
+class XsdValidatorProtocol(Hashable, Protocol):
     def is_matching(self, name: Optional[str],
                     default_namespace: Optional[str] = None) -> bool: ...
 
@@ -216,6 +226,30 @@ class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
 XsdXPathNodeType = Union['XsdSchemaProtocol', 'XsdElementProtocol']
 
 
+class XsdAttributeGroupProtocol(XsdComponentProtocol, Protocol):
+
+    @overload
+    def get(self, key: Optional[str]) -> Optional[XsdAttributeProtocol]: ...
+
+    @overload
+    def get(self, key: Optional[str], default: _T) -> Union[XsdAttributeProtocol, _T]: ...
+
+    def items(self) -> ItemsView[Optional[str], XsdAttributeProtocol]: ...
+
+    def __contains__(self, key: Optional[str]) -> bool: ...
+
+    def __getitem__(self, key: Optional[str]) -> XsdAttributeProtocol: ...
+
+    def __iter__(self) -> Iterator[Optional[str]]: ...
+
+    def __len__(self) -> int: ...
+
+    def __hash__(self) -> int: ...
+
+    @property
+    def ref(self) -> Optional[Any]: ...
+
+
 class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
 
     def __iter__(self) -> Iterator['XsdElementProtocol']: ...
@@ -235,7 +269,7 @@ class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
     def ref(self) -> Optional[Any]: ...
 
     @property
-    def attrib(self) -> MutableMapping[Optional[str], XsdAttributeProtocol]: ...
+    def attrib(self) -> XsdAttributeGroupProtocol: ...
 
 
 GT = TypeVar("GT")
@@ -273,7 +307,8 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
     def attrib(self) -> MutableMapping[Optional[str], 'XsdAttributeProtocol']: ...
 
 
-__allx__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlElementProtocol',
-            'DocumentProtocol', 'LxmlDocumentProtocol', 'XsdValidatorProtocol',
-            'XsdSchemaProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
-            'XsdElementProtocol', 'XsdAttributeProtocol', 'GlobalMapsProtocol']
+__all__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlAttribProtocol',
+           'LxmlElementProtocol', 'DocumentProtocol', 'LxmlDocumentProtocol',
+           'XsdValidatorProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
+           'XsdAttributeProtocol', 'XsdAttributeGroupProtocol',
+           'XsdElementProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol',]

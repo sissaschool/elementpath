@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-__version__ = '4.3.1'
+__version__ = '4.4.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2018-2024, SISSA"
@@ -38,8 +38,6 @@ from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
 from .regex import RegexError, translate_pattern
 
-TypedElement = ElementNode  # for backward compatibility with xmlschema<=1.10.0
-
 __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContextError',
            'ElementPathKeyError', 'ElementPathZeroDivisionError', 'ElementPathNameError',
            'ElementPathOverflowError', 'ElementPathRuntimeError', 'ElementPathSyntaxError',
@@ -47,7 +45,7 @@ __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContex
            'XPathContext', 'XPathSchemaContext', 'XPathNode', 'DocumentNode',
            'ElementNode', 'AttributeNode', 'NamespaceNode', 'CommentNode',
            'ProcessingInstructionNode', 'TextNode', 'LazyElementNode',
-           'SchemaElementNode', 'TypedElement', 'get_node_tree', 'build_node_tree',
+           'SchemaElementNode', 'get_node_tree', 'build_node_tree',
            'build_lxml_node_tree', 'build_schema_node_tree', 'XPathToken',
            'XPathFunction', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select',
            'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern']

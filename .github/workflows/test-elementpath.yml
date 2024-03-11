@@ -41,7 +41,7 @@ jobs:
           flake8 elementpath --max-line-length=100 --statistics
       - name: Lint with mypy
         run: |
-          pip install mypy==1.8.0 xmlschema lxml-stubs
+          pip install mypy==1.9.0 xmlschema lxml-stubs
           mypy --show-error-codes --strict elementpath
       - name: Test with unittest
         run: |
