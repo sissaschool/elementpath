@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from collections import deque
 from importlib import import_module
 from urllib.parse import urljoin
 from types import ModuleType
@@ -622,10 +623,24 @@ class ElementNode(XPathNode):
             return None
 
     def iter(self) -> Iterator[XPathNode]:
-        # Iterate the tree not including the not built lazy components.
+        """Iterates the tree building lazy components."""
+        yield self
+        yield from self.namespace_nodes
+        yield from self.attributes
+
+        for child in self:
+            if isinstance(child, ElementNode):
+                yield from child.iter()
+            else:
+                yield child
+
+    iter_document = iter  # For backward compatibility
+
+    def iter_lazy(self) -> Iterator[XPathNode]:
+        """Iterates the tree not including the not built lazy components."""
         yield self
 
-        iterators: List[Any] = []
+        iterators: deque[Any] = deque()  # slightly faster than list()
         children: Iterator[Any] = iter(self.children)
 
         if self._namespace_nodes:
@@ -652,19 +667,6 @@ class ElementNode(XPathNode):
                     children = iterators.pop()
                 except IndexError:
                     return
-
-    def iter_document(self) -> Iterator[XPathNode]:
-        # Iterate the tree but building lazy components.
-        # Rarely used, don't need optimization.
-        yield self
-        yield from self.namespace_nodes
-        yield from self.attributes
-
-        for child in self:
-            if isinstance(child, ElementNode):
-                yield from child.iter()
-            else:
-                yield child
 
     def iter_descendants(self, with_self: bool = True) -> Iterator[ChildNodeType]:
         if with_self:
@@ -746,12 +748,14 @@ class DocumentNode(XPathNode):
             else:
                 yield e
 
-    def iter_document(self) -> Iterator[XPathNode]:
+    iter_document = iter
+
+    def iter_lazy(self) -> Iterator[XPathNode]:
         yield self
 
         for e in self.children:
             if isinstance(e, ElementNode):
-                yield from e.iter_document()
+                yield from e.iter_lazy()
             else:
                 yield e
 

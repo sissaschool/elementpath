@@ -223,12 +223,12 @@ class XPathContext:
 
     def get_root(self, node: Any) -> Union[None, ElementNode, DocumentNode]:
         if isinstance(self.root, (DocumentNode, ElementNode)):
-            if any(node is x for x in self.root.iter()):
+            if any(node is x for x in self.root.iter_lazy()):
                 return self.root
 
         if self.documents is not None:
             for uri, doc in self.documents.items():
-                if doc is not None and any(node is x for x in doc.iter()):
+                if doc is not None and any(node is x for x in doc.iter_lazy()):
                     return doc
 
         return None

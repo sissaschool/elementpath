@@ -15,6 +15,11 @@ import io
 import xml.etree.ElementTree as ElementTree
 
 try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
+
+try:
     import xmlschema
 except ImportError:
     xmlschema = None
@@ -391,6 +396,24 @@ class XPathNodesTest(unittest.TestCase):
             list(e.elem for e in context.root.iter() if isinstance(e, ElementNode)),
             list(doc.iter())
         )
+
+    @unittest.skipIf(lxml_etree is None, 'lxml.etree is not installed')
+    def test_lazy_attributes_iter__issue_72(self):
+        xml = lxml_etree.fromstring('<root id="test"></root>')
+        node_tree = get_node_tree(root=xml)
+
+        nodes = list(node for node in node_tree.iter_lazy())
+        self.assertListEqual(nodes, [node_tree])
+
+        nodes = list(node for node in node_tree.iter())
+        self.assertListEqual(nodes, [
+            node_tree, node_tree.namespace_nodes[0], node_tree.attributes[0]
+        ])
+
+        nodes = list(node for node in node_tree.iter_lazy())
+        self.assertListEqual(nodes, [
+            node_tree, node_tree.namespace_nodes[0], node_tree.attributes[0]
+        ])
 
     def test_is_schema_node(self):
         root = ElementTree.XML('<root a="10">text</root>')
