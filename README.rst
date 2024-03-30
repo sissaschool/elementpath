@@ -34,11 +34,13 @@ You can install the package with *pip* in a Python 3.8+ environment::
 
 For using it import the package and apply the selectors on ElementTree nodes:
 
->>> import elementpath
->>> from xml.etree import ElementTree
->>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
->>> elementpath.select(root, '/A/B2/*')
-[<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
+.. code-block:: pycon
+
+    >>> import elementpath
+    >>> from xml.etree import ElementTree
+    >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> elementpath.select(root, '/A/B2/*')
+    [<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
 
 The *select* API provides the standard XPath result format that is a list or an elementary
 datatype's value. If you want only to iterate over results you can use the generator function
@@ -47,52 +49,62 @@ datatype's value. If you want only to iterate over results you can use the gener
 The selectors API works also using XML data trees based on the `lxml.etree <http://lxml.de>`_
 library:
 
->>> import elementpath
->>> import lxml.etree as etree
->>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
->>> elementpath.select(root, '/A/B2/*')
-[<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
+.. code-block:: pycon
+
+    >>> import elementpath
+    >>> import lxml.etree as etree
+    >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> elementpath.select(root, '/A/B2/*')
+    [<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 When you need to apply the same XPath expression to several XML data you can also use the
 *Selector* class, creating an instance and then using it to apply the path on distinct XML
 data:
 
->>> import elementpath
->>> import lxml.etree as etree
->>> selector = elementpath.Selector('/A/*/*')
->>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
->>> selector.select(root)
-[<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
->>> root = etree.XML('<A><B1><C0/></B1><B2><C1/><C2/><C3/></B2></A>')
->>> selector.select(root)
-[<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
+.. code-block:: pycon
+
+    >>> import elementpath
+    >>> import lxml.etree as etree
+    >>> selector = elementpath.Selector('/A/*/*')
+    >>> root = etree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> selector.select(root)
+    [<Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
+    >>> root = etree.XML('<A><B1><C0/></B1><B2><C1/><C2/><C3/></B2></A>')
+    >>> selector.select(root)
+    [<Element C0 at ...>, <Element C1 at ...>, <Element C2 at ...>, <Element C3 at ...>]
 
 Public API classes and functions are described into the
 `elementpath manual on the "Read the Docs" site <http://elementpath.readthedocs.io/en/latest/>`_.
 
 For default the XPath 2.0 is used. If you need XPath 1.0 parser provide the *parser* argument:
 
->>> from elementpath import select, XPath1Parser
->>> from xml.etree import ElementTree
->>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
->>> select(root, '/A/B2/*', parser=XPath1Parser)
-[<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
+.. code-block:: pycon
+
+    >>> from elementpath import select, XPath1Parser
+    >>> from xml.etree import ElementTree
+    >>> root = ElementTree.XML('<A><B1/><B2><C1/><C2/><C3/></B2></A>')
+    >>> select(root, '/A/B2/*', parser=XPath1Parser)
+    [<Element 'C1' at ...>, <Element 'C2' at ...>, <Element 'C3' at ...>]
 
 For XPath 3.0/3.1 import the parser from *elementpath.xpath3* subpackage, that is not loaded
 for default:
 
->>> from elementpath.xpath3 import XPath3Parser
->>> select(root, 'math:atan(1.0e0)', parser=XPath3Parser)
-0.7853981633974483
+.. code-block:: pycon
+
+    >>> from elementpath.xpath3 import XPath3Parser
+    >>> select(root, 'math:atan(1.0e0)', parser=XPath3Parser)
+    0.7853981633974483
 
 Note: *XPath3Parser* is an alias of *XPath31Parser*.
 
 If you need only XPath 3.0 you can also use a more specific subpackage,
 avoiding the loading of XPath 3.1 implementation:
 
->>> from elementpath.xpath30 import XPath30Parser
->>> select(root, 'math:atan(1.0e0)', parser=XPath30Parser)
-0.7853981633974483
+.. code-block:: pycon
+
+    >>> from elementpath.xpath30 import XPath30Parser
+    >>> select(root, 'math:atan(1.0e0)', parser=XPath30Parser)
+    0.7853981633974483
 
 
 Contributing
