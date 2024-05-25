@@ -429,6 +429,8 @@ class ParserMeta(ABCMeta):
 
 TK_co = TypeVar('TK_co', bound=Token[Any], covariant=True)
 
+RT = TypeVar('RT')
+
 
 class Parser(Generic[TK_co], metaclass=ParserMeta):
     """
@@ -791,7 +793,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
 
     @classmethod
     def method(cls, symbol: Union[str, Type[TK_co]], bp: int = 0) \
-            -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+            -> Callable[[Callable[..., RT]], Callable[..., RT]]:
         """
         Register a token for a symbol that represents a custom operator or redefine
         a method for an existing token.

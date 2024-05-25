@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# mypy: ignore-errors
 """
 XPath 1.0 implementation - part 2 (operators and expressions)
 """
@@ -49,7 +48,7 @@ axis = XPath1Parser.axis
 
 
 @method(register('(name)', bp=10, label='literal'))
-def nud_name_literal(self):
+def nud_name_literal(self) -> XPathToken:
     if self.parser.next_token.symbol == '::':
         msg = "axis '%s::' not found" % self.value
         if self.parser.compatibility_mode:
@@ -135,7 +134,7 @@ class _PrefixedReferenceToken(XPathToken):
     lbp = 95
     rbp = 95
 
-    def __init__(self, parser, value=None):
+    def __init__(self, parser, value=None) -> None:
         super().__init__(parser, value)
 
         # Change bind powers if it cannot be a namespace related token
@@ -343,7 +342,7 @@ def nud_variable_reference(self):
 
 
 @method('$')
-def evaluate_variable_reference(self, context=None):
+def evaluate_variable_reference(self: XPathToken, context=None):
     if context is None:
         raise self.missing_context()
 
