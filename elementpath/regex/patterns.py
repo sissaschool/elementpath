@@ -122,7 +122,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
     while pos < pattern_len:
         ch = pattern[pos]
         if ch == '.':
-            regex.append(ch if dot_all else '[^\r\n]')
+            regex.append(ch if dot_all else r'[^\r\n]')
         elif ch in ('^', '$'):
             if not anchors:
                 regex.append(r'\%s' % ch)
