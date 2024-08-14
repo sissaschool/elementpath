@@ -25,6 +25,7 @@ import locale
 import os
 from decimal import Decimal
 from textwrap import dedent
+import xml.etree.ElementTree as ET
 
 try:
     import lxml.etree as lxml_etree
@@ -1399,6 +1400,74 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(token_class.nargs, 1)
         self.assertEqual(parser.parse('foo(77)').evaluate(), '77')
         self.assertRaises(TypeError, parser.parse, 'foo(77.0)')
+
+    @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
+    def test_raw_resolution_for_issue_73(self):
+        from xmlschema import XMLSchema
+        from xmlschema.xpath import XMLSchemaProxy
+        from elementpath import get_node_tree, XPath2Parser, XPathContext
+        from elementpath.datatypes import Date10
+
+        xsd_source = dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="values">
+                <xs:complexType>
+                    <xs:choice maxOccurs="unbounded">
+                        <xs:element name="decimal_value" type="xs:decimal"/>
+                        <xs:element name="string_value" type="xs:string"/>
+                        <xs:element name="boolean_value" type="xs:boolean"/>
+                        <xs:element name="datetime_value" type="xs:dateTime"/>
+                        <xs:element name="date_value" type="xs:date"/>
+                    </xs:choice>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>""")
+
+        xml_source = dedent("""\
+        <values>
+            <decimal_value>3.14</decimal_value>
+            <string_value>foo</string_value>
+            <boolean_value>true</boolean_value>
+            <datetime_value>2018-01-23T12:34:56Z</datetime_value>
+            <date_value>2018-01-23</date_value>
+        </values>""")
+
+        schema = xmlschema.XMLSchema(xsd_source)
+        assert schema.is_valid(xml_source)
+
+        root = ET.fromstring(xml_source)
+
+        root_node = get_node_tree(root)
+        date_node = root_node.get_element_node(root[4])
+        assert date_node.name == 'date_value'
+        assert date_node.xsd_type is None
+        assert date_node.typed_value == '2018-01-23'
+
+        schema_proxy = XMLSchemaProxy(schema)
+        parser = XPath2Parser(schema=schema_proxy)
+
+        assert date_node.xsd_type is None
+        assert date_node.typed_value == '2018-01-23'
+
+        root_token = parser.parse('fn:data(//*)')
+        assert date_node.xsd_type is None
+        assert date_node.typed_value == '2018-01-23'
+
+        context = XPathContext(root_node)
+        result = root_token.get_results(context)
+
+        assert date_node.xsd_type is xmlschema.XMLSchema10.meta_schema.types['date']
+        assert date_node.typed_value == Date10(2018, 1, 23)
+        assert len(result) == 5
+        assert result[-1] == Date10(2018, 1, 23)
+
+        token = XPath2Parser().parse('fn:data(.)')
+        context = XPathContext(root_node, item=date_node)
+        result = token.get_results(context)
+
+        assert len(result) == 1
+        assert result[-1] == Date10(2018, 1, 23)
+
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
