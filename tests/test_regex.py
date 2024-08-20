@@ -626,7 +626,7 @@ class TestPatterns(unittest.TestCase):
 
     def test_dot_wildcard(self):
         regex = translate_pattern('.+', anchors=False)
-        self.assertEqual(regex, '^([^\r\n]+)$(?!\\n\\Z)')
+        self.assertEqual(regex, '^([^\\r\\n]+)$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('line1\rline2\r'))
         self.assertIsNone(pattern.search('line1\nline2'))
@@ -635,7 +635,7 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('abc').group(0), 'abc')
 
         regex = translate_pattern('.+T.+(Z|[+-].+)', anchors=False)
-        self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\\+\\-][^\r\n]+))$(?!\\n\\Z)')
+        self.assertEqual(regex, '^([^\\r\\n]+T[^\\r\\n]+(Z|[\\+\\-][^\\r\\n]+))$(?!\\n\\Z)')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12T0A3+36').group(0), '12T0A3+36')
         self.assertEqual(pattern.search('12T0A3Z').group(0), '12T0A3Z')
@@ -903,7 +903,7 @@ class TestPatterns(unittest.TestCase):
 
     def test_lazy_quantifiers(self):
         regex = translate_pattern('.*?')
-        self.assertEqual(regex, '[^\r\n]*?')
+        self.assertEqual(regex, '[^\\r\\n]*?')
         regex = translate_pattern('[a-z]{2,3}?')
         self.assertEqual(regex, '[a-z]{2,3}?')
         regex = translate_pattern('[a-z]*?')
