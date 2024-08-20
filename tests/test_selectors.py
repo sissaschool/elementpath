@@ -95,6 +95,26 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
         else:
             self.assertEqual(k, 2)
 
+    def test_issue_074(self):
+        root = lxml_etree.XML("<root><trunk><branch></branch></trunk></root>")
+
+        result = select(root, "trunk")
+        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+
+        result = select(root, "/root/trunk")
+        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+
+        root = lxml_etree.XML("<!--comment--><root><trunk><branch></branch></trunk></root>")
+
+        result = select(root, "trunk")
+        self.assertListEqual(result, [])
+
+        result = select(root, "root/trunk")
+        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+
+        result = select(root, "/root/trunk")
+        self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
+
 
 if __name__ == '__main__':
     unittest.main()
