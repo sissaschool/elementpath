@@ -1516,12 +1516,7 @@ def select_idref_function(self, context=None):
 
     if isinstance(context, XPathSchemaContext):
         return
-    elif context is None or node is not context.item:
-        pass
-    elif context.item is None:
-        node = context.root
-
-    if not isinstance(node, XPathNode):
+    elif not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
     elif isinstance(node, (ElementNode, DocumentNode)):
         for element in filter(lambda x: isinstance(x, ElementNode), node.iter_descendants()):

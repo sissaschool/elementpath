@@ -10,11 +10,11 @@
 """
 XPath 1.0 implementation - part 4 (axes)
 """
-from typing import Iterator, Optional, Union
+from typing import Iterator, Union
 
-from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, ElementNode, \
+from elementpath.xpath_nodes import ChildNodeType, AttributeNode, ElementNode, \
     NamespaceNode, TextNode, DocumentNode
-from elementpath.xpath_tokens import ContextArgType, XPathToken, XPathAxis
+from elementpath.xpath_tokens import ContextArgType, XPathAxis
 from elementpath.xpath_context import ItemType, XPathSchemaContext
 
 from ._xpath1_functions import XPath1Parser
@@ -63,7 +63,7 @@ def select_namespace_axis(self: XPathAxis, context: ContextArgType = None) \
 
 @method(axis('self'))
 def select_self_axis(self: XPathAxis, context: ContextArgType = None) \
-        -> Iterator[XPathToken]:
+        -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
     else:
@@ -73,7 +73,7 @@ def select_self_axis(self: XPathAxis, context: ContextArgType = None) \
 
 @method(axis('child'))
 def select_child_axis(self: XPathAxis, context: ContextArgType = None) \
-        -> Iterator[Optional[ItemType]]:
+        -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
     else:

@@ -39,7 +39,7 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, 
 from .sequence_types import is_sequence_type_restriction, match_sequence_type
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
-from .xpath_context import XPathContext, XPathSchemaContext
+from .xpath_context import ItemType, XPathContext, XPathSchemaContext
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser
@@ -68,8 +68,8 @@ _LEAF_ELEMENTS_TOKENS = {
 # Type annotations aliases
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
-PrincipalNodeType = Union[ElementProtocol, AttributeNode, ElementNode]
-OperandsType = Tuple[Optional[AtomicValueType], Optional[AtomicValueType]]
+PrincipalNodeType = Union[AttributeNode, ElementNode]
+
 XPathResultType = Union[
     AtomicValueType,
     ElementProtocol,
@@ -79,24 +79,29 @@ XPathResultType = Union[
     DocumentNode
 ]
 
-XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
+XPathTokenType = Token[Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']]
 XPathFunctionArgType = Union[None, ElementProtocol, DocumentProtocol,
                              'XPathToken', XPathNode, AtomicValueType,
                              List[Union['XPathToken', XPathNode, AtomicValueType]]]
+XsdTypesType = Union[
+    None, AbstractSchemaProxy,
+    Dict[Optional[str], Union[XsdTypeProtocol, List[XsdTypeProtocol]]]
+]
 
 
-class XPathToken(Token[XPathTokenType]):
+class XPathToken(XPathTokenType):
     """Base class for XPath tokens."""
     parser: XPathParserType
-    xsd_types: Optional[Dict[Optional[str], Union[XsdTypeProtocol, List[XsdTypeProtocol]]]]
+    xsd_types: XsdTypesType
     namespace: Optional[str]
     occurrence: Optional[str]
 
     xsd_types = None  # for XPath 2.0+ XML Schema types labeling
     namespace = None  # for namespace binding of names and wildcards
     occurrence = None  # occurrence indicator for item types
+    concatenated = False  # for infix operators that can be concatenated
 
-    def evaluate(self, context: ContextArgType = None) -> Any:
+    def evaluate(self, context: ContextArgType = None) -> Union[Any, List[Any]]:
         """
         Evaluate default method for XPath tokens.
 
@@ -488,7 +493,7 @@ class XPathToken(Token[XPathTokenType]):
                 msg = "atomized operand is a sequence of length greater than one"
                 raise self.error('XPTY0004', msg)
 
-    def iter_comparison_data(self, context: ContextArgType) -> Iterator[OperandsType]:
+    def iter_comparison_data(self, context: ContextArgType) -> Iterator[Any]:
         """
         Generates comparison data couples for the general comparison of sequences.
         Different sequences maybe generated with an XPath 2.0 parser, depending on
@@ -615,8 +620,7 @@ class XPathToken(Token[XPathTokenType]):
 
         return results
 
-    def get_operands(self, context: ContextArgType, cls: Optional[Type[Any]] = None) \
-            -> OperandsType:
+    def get_operands(self, context: ContextArgType, cls: Optional[Type[Any]] = None) -> Any:
         """
         Returns the operands for a binary operator. Float arguments are converted
         to decimal if the other argument is a `Decimal` instance.
@@ -804,7 +808,7 @@ class XPathToken(Token[XPathTokenType]):
     ###
     # XSD types related methods
     def select_xsd_nodes(self, schema_context: XPathSchemaContext, name: str) \
-            -> Iterator[Union[None, AttributeNode, ElementNode]]:
+            -> Iterator[Union[AttributeNode, ElementNode]]:
         """
         Selector for XSD nodes (elements, attributes and schemas). If there is
         a match with an attribute or an element the node's type is added to
@@ -821,11 +825,7 @@ class XPathToken(Token[XPathTokenType]):
                         schema_context.root.value)
 
         for xsd_node in schema_context.iter_children_or_self():
-            if xsd_node is None:
-                if name == XSD_SCHEMA == schema_context.root.elem.tag:
-                    yield None
-
-            elif isinstance(xsd_node, AttributeNode):
+            if isinstance(xsd_node, AttributeNode):
                 assert not isinstance(xsd_node.value, str)
                 if not xsd_node.value.is_matching(name):
                     continue
@@ -877,7 +877,7 @@ class XPathToken(Token[XPathTokenType]):
         name: str = item.name
         xsd_type: XsdTypeProtocol = item.type
 
-        if self.xsd_types is None:
+        if self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
             self.xsd_types = {name: xsd_type}
         else:
             obj = self.xsd_types.get(name)
@@ -1177,10 +1177,10 @@ class ValueToken(XPathToken):
     def source(self) -> str:
         return str(self.value)
 
-    def evaluate(self, context: ContextArgType = None) -> Any:
+    def evaluate(self, context: ContextArgType = None) -> AnyAtomicType:
         return self.value
 
-    def select(self, context: ContextArgType = None) -> Iterator[Any]:
+    def select(self, context: ContextArgType = None) -> Iterator[AnyAtomicType]:
         if isinstance(self.value, list):
             yield from self.value
         elif self.value is not None:
@@ -1525,10 +1525,10 @@ class XPathFunction(XPathToken):
         assert nargs, "a partial function requires at least a placeholder token"
 
         if self.label != 'partial function':
-            def evaluate(context: ContextArgType = None) -> Any:
+            def evaluate(context: ContextArgType = None) -> 'XPathFunction':
                 return self
 
-            def select(context: ContextArgType = None) -> Any:
+            def select(context: ContextArgType = None) -> Iterator['XPathFunction']:
                 yield self
 
             if self.__class__.evaluate is not XPathToken.evaluate:

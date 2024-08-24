@@ -14,17 +14,19 @@ import math
 import decimal
 import operator
 from copy import copy
+from typing import Any, cast, Iterator, List, Literal, NoReturn, Optional, \
+    Sequence, Union, TypeVar, Self
 
-from ..datatypes import AnyURI
-from ..exceptions import ElementPathKeyError, ElementPathTypeError
-from ..helpers import collapse_white_spaces, node_position
-from ..datatypes import AbstractDateTime, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy
-from ..xpath_context import XPathSchemaContext
-from ..namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
-from ..schema_proxy import AbstractSchemaProxy
-from ..xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
-from ..xpath_tokens import XPathToken
+from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
+from elementpath.helpers import collapse_white_spaces, node_position
+from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
+    YearMonthDuration, NumericProxy, ArithmeticProxy, NumericType, \
+    ArithmeticType, ArithmeticOpsType
+from elementpath.xpath_context import ItemType, XPathSchemaContext
+from elementpath.namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
+from elementpath.schema_proxy import AbstractSchemaProxy
+from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
+from elementpath.xpath_tokens import XPathParserType, ContextArgType, XPathToken, XPathTokenType
 
 from .xpath1_parser import XPath1Parser
 
@@ -39,16 +41,12 @@ OPERATORS_MAP = {
 
 register = XPath1Parser.register
 nullary = XPath1Parser.nullary
-prefix = XPath1Parser.prefix
 infix = XPath1Parser.infix
-postfix = XPath1Parser.postfix
 method = XPath1Parser.method
-function = XPath1Parser.function
-axis = XPath1Parser.axis
 
 
 @method(register('(name)', bp=10, label='literal'))
-def nud_name_literal(self) -> XPathToken:
+def nud_name_literal(self: XPathToken) -> XPathToken:
     if self.parser.next_token.symbol == '::':
         msg = "axis '%s::' not found" % self.value
         if self.parser.compatibility_mode:
@@ -69,15 +67,20 @@ def nud_name_literal(self) -> XPathToken:
 
 
 @method('(name)')
-def evaluate_name_literal(self, context=None):
+def evaluate_name_literal(self: XPathToken, context: ContextArgType = None) \
+        -> List[ItemType]:
     return [x for x in self.select(context)]
 
 
 @method('(name)')
-def select_name_literal(self, context=None):
+def select_name_literal(self: XPathToken, context: ContextArgType = None) \
+        -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
-    elif isinstance(context, XPathSchemaContext):
+
+    assert isinstance(self.value, str)
+
+    if isinstance(context, XPathSchemaContext):
         yield from self.select_xsd_nodes(context, self.value)
         return
     else:
@@ -88,41 +91,33 @@ def select_name_literal(self, context=None):
     # try a match using the element path. If this match fails the xsd_type attribute
     # is set with the schema object to prevent other checks until the schema change.
     if self.xsd_types is self.parser.schema:
-
         # Untyped selection
-        for item in context.iter_children_or_self():
-            if item.match_name(name, default_namespace):
-                yield item
+        yield from context.iter_matching_nodes(name, default_namespace)
 
     elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
 
         # Try to match the type using the item's path
-        for item in context.iter_children_or_self():
-            if item.match_name(name, default_namespace):
-
-                if item.xsd_type is not None:
-                    yield item
+        for item in context.iter_matching_nodes(name, default_namespace):
+            if item.xsd_type is not None:
+                yield item
+            elif self.parser.schema is not None:
+                xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
+                if xsd_node is None:
+                    self.xsd_types = self.parser.schema
+                elif isinstance(item, AttributeNode):
+                    self.xsd_types = {item.name: xsd_node.type}
                 else:
-                    xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
-                    if xsd_node is None:
-                        self.xsd_types = self.parser.schema
-                    elif isinstance(item, AttributeNode):
-                        self.xsd_types = {item.name: xsd_node.type}
-                    else:
-                        self.xsd_types = {item.elem.tag: xsd_node.type}
+                    self.xsd_types = {item.elem.tag: xsd_node.type}
 
-                    context.item = self.get_typed_node(item)
-                    yield context.item
+                item.xsd_type = self.get_xsd_type(item)
+                yield item
 
     else:
         # XSD typed selection
-        for item in context.iter_children_or_self():
-            if item.match_name(name, default_namespace):
-                if item.xsd_type is not None:
-                    yield item
-                else:
-                    context.item = self.get_typed_node(item)
-                    yield context.item
+        for item in context.iter_matching_nodes(name, default_namespace):
+            if item.xsd_type is None:
+                item.xsd_type = self.get_xsd_type(item)
+            yield item
 
 
 ###
@@ -134,7 +129,7 @@ class _PrefixedReferenceToken(XPathToken):
     lbp = 95
     rbp = 95
 
-    def __init__(self, parser, value=None) -> None:
+    def __init__(self, parser: XPathParserType, value: Optional[Any] = None) -> None:
         super().__init__(parser, value)
 
         # Change bind powers if it cannot be a namespace related token
@@ -143,7 +138,7 @@ class _PrefixedReferenceToken(XPathToken):
         elif self.parser.token.symbol not in ('*', '(name)', 'array'):
             self.lbp = self.rbp = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         if len(self) < 2:
             return 'unparsed prefixed reference'
         elif self[1].label.endswith('function'):
@@ -154,13 +149,13 @@ class _PrefixedReferenceToken(XPathToken):
             return f"{self.value!r} prefixed name"
 
     @property
-    def source(self) -> str:
+    def source(self: XPathToken) -> str:
         if self.occurrence:
             return ':'.join(tk.source for tk in self) + self.occurrence
         else:
             return ':'.join(tk.source for tk in self)
 
-    def led(self, left):
+    def led(self: XPathToken, left: XPathToken) -> XPathToken:
         version = self.parser.version
         if self.is_spaced():
             if version <= '3.0':
@@ -197,12 +192,13 @@ class _PrefixedReferenceToken(XPathToken):
             self.value = f'{self[0].value}:{self[1].value}'
         return self
 
-    def evaluate(self, context=None):
+    def evaluate(self: XPathToken, context: ContextArgType = None) \
+            -> Union[ItemType, List[Union[AttributeNode, ElementNode]]]:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
         return [x for x in self.select(context)]
 
-    def select(self, context=None):
+    def select(self, context: ContextArgType = None) -> Iterator[ItemType]:
         if self[1].label.endswith('function'):
             value = self[1].evaluate(context)
             if isinstance(value, list):
@@ -222,36 +218,26 @@ class _PrefixedReferenceToken(XPathToken):
             yield from self.select_xsd_nodes(context, name)
 
         elif self.xsd_types is self.parser.schema:
-            for item in context.iter_children_or_self():
-                if item.match_name(name):
-                    yield item
+            yield from context.iter_matching_nodes(name)
 
         elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
-            for item in context.iter_children_or_self():
-                if item.match_name(name):
-                    assert isinstance(item, (ElementNode, AttributeNode))
-                    if item.xsd_type is not None:
-                        yield item
+            for item in context.iter_matching_nodes(name):
+                if item.xsd_type is None:
+                    xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
+                    if xsd_node is not None:
+                        self.add_xsd_type(xsd_node)
                     else:
-                        xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
-                        if xsd_node is not None:
-                            self.add_xsd_type(xsd_node)
-                        else:
-                            self.xsd_types = self.parser.schema
+                        self.xsd_types = self.parser.schema
 
-                        context.item = self.get_typed_node(item)
-                        yield context.item
+                    item.xsd_type = self.get_xsd_type(item)
 
+                yield item
         else:
             # XSD typed selection
-            for item in context.iter_children_or_self():
-                if item.match_name(name):
-                    assert isinstance(item, (ElementNode, AttributeNode))
-                    if item.xsd_type is not None:
-                        yield item
-                    else:
-                        context.item = self.get_typed_node(item)
-                        yield context.item
+            for item in context.iter_matching_nodes(name):
+                if item.xsd_type is None:
+                    item.xsd_type = self.get_xsd_type(item)
+                yield item
 
 
 XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
@@ -260,7 +246,7 @@ XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
 ###
 # Namespace URI as in ElementPath
 @method('{', bp=95)
-def nud_namespace_uri(self):
+def nud_namespace_uri(self: XPathToken) -> XPathToken:
     if self.parser.strict and self.symbol == '{':
         raise self.wrong_syntax("not allowed symbol if parser has strict=True")
 
@@ -297,14 +283,16 @@ def nud_namespace_uri(self):
 
 
 @method('{')
-def evaluate_namespace_uri(self, context=None):
+def evaluate_namespace_uri(self: XPathToken, context: ContextArgType = None) \
+        -> Union[ItemType, List[Union[AttributeNode, ElementNode]]]:
     if self[1].label.endswith('function'):
         return self[1].evaluate(context)
     return [x for x in self.select(context)]
 
 
 @method('{')
-def select_namespace_uri(self, context=None):
+def select_namespace_uri(self: XPathToken, context: ContextArgType = None) \
+        -> Iterator[ItemType]:
     if self[1].label.endswith('function'):
         yield self[1].evaluate(context)
         return
@@ -315,25 +303,19 @@ def select_namespace_uri(self, context=None):
         yield from self.select_xsd_nodes(context, self.value)
 
     elif self.xsd_types is None:
-        for item in context.iter_children_or_self():
-            if item.match_name(self.value):
-                yield item
+        yield from context.iter_matching_nodes(self.value)
     else:
         # XSD typed selection
-        for item in context.iter_children_or_self():
-            if item.match_name(self.value):
-                assert isinstance(item, (ElementNode, AttributeNode))
-                if item.xsd_type is not None:
-                    yield item
-                else:
-                    context.item = self.get_typed_node(item)
-                    yield context.item
+        for item in context.iter_matching_nodes(self.value):
+            if item.xsd_type is None:
+                item.xsd_type = self.get_xsd_type(item)
+            yield item
 
 
 ###
 # Variables
 @method('$', bp=90)
-def nud_variable_reference(self):
+def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
     if ':' in self[0].value:
@@ -342,7 +324,8 @@ def nud_variable_reference(self):
 
 
 @method('$')
-def evaluate_variable_reference(self: XPathToken, context=None):
+def evaluate_variable_reference(self: XPathToken, context: ContextArgType = None) \
+        -> Union[ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -357,7 +340,7 @@ def evaluate_variable_reference(self: XPathToken, context=None):
 ###
 # Nullary operators (use only the context)
 @method(nullary('*'))
-def select_wildcard(self, context=None):
+def select_wildcard(self: XPathToken, context: ContextArgType = None):
     if self:
         # Product operator
         item = self.evaluate(context)
@@ -371,7 +354,7 @@ def select_wildcard(self, context=None):
     # Wildcard literal
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
-            if item is not None:
+            if isinstance(item, (ElementNode, AttributeNode)):
                 self.add_xsd_type(item)
                 yield item
 
@@ -388,17 +371,15 @@ def select_wildcard(self, context=None):
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
-            if context.item is not None and context.is_principal_node_kind():
-                if isinstance(item, (ElementNode, AttributeNode)) and \
-                        item.xsd_type is not None:
+            if context.is_principal_node_kind():
+                if isinstance(item, (ElementNode, AttributeNode)):
+                    if item.xsd_type is None:
+                        item.xsd_type = self.get_xsd_type(item)
                     yield item
-                else:
-                    context.item = self.get_typed_node(item)
-                    yield context.item
 
 
 @method(nullary('.'))
-def select_self_shortcut(self, context=None):
+def select_self_shortcut(self: XPathToken, context: ContextArgType = None) -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -407,34 +388,25 @@ def select_self_shortcut(self, context=None):
             if isinstance(item, (AttributeNode, ElementNode)):
                 if item.is_schema_node():
                     self.add_xsd_type(item)
-                elif item is context.root:
+                elif item is context.root and isinstance(item, ElementNode):
                     # item is the schema
                     for xsd_element in item:
                         self.add_xsd_type(xsd_element)
             yield item
 
     elif self.xsd_types is None:
-        for item in context.iter_self():
-            if item is not None:
-                yield item
-            elif isinstance(context.root, DocumentNode):
-                yield context.root
-
+        yield from context.iter_self()
     else:
         for item in context.iter_self():
-            if item is not None:
-                if isinstance(item, (ElementNode, AttributeNode)) and \
-                        item.xsd_type is not None:
-                    yield item
-                else:
-                    context.item = self.get_typed_node(item)
-                    yield context.item
-            elif isinstance(context.root, DocumentNode):
-                yield context.root
+            if isinstance(item, (AttributeNode, ElementNode)):
+                if item.xsd_type is None:
+                    item.xsd_type = self.get_xsd_type(item)
+            yield item
 
 
 @method(nullary('..'))
-def select_parent_shortcut(self, context=None):
+def select_parent_shortcut(self: XPathToken, context: ContextArgType = None) \
+        -> Iterator[Union[ElementNode, DocumentNode]]:
     if context is None:
         raise self.missing_context()
     yield from context.iter_parent()
@@ -443,13 +415,13 @@ def select_parent_shortcut(self, context=None):
 ###
 # Logical Operators
 @method(infix('or', bp=20))
-def evaluate_or_operator(self, context=None):
+def evaluate_or_operator(self: XPathToken, context: ContextArgType = None) -> bool:
     return self.boolean_value(self[0].evaluate(copy(context))) or \
         self.boolean_value(self[1].evaluate(copy(context)))
 
 
 @method(infix('and', bp=25))
-def evaluate_and_operator(self, context=None):
+def evaluate_and_operator(self: XPathToken, context: ContextArgType = None) -> bool:
     return self.boolean_value(self[0].evaluate(copy(context))) and \
         self.boolean_value(self[1].evaluate(copy(context)))
 
@@ -462,7 +434,7 @@ def evaluate_and_operator(self, context=None):
 @method('>', bp=30)
 @method('<=', bp=30)
 @method('>=', bp=30)
-def led_comparison_operators(self, left):
+def led_comparison_operators(self: XPathToken, left: XPathToken) -> XPathToken:
     if left.symbol in OPERATORS_MAP:
         raise self.wrong_syntax()
     self[:] = left, self.parser.expression(rbp=30)
@@ -475,7 +447,7 @@ def led_comparison_operators(self, left):
 @method('>')
 @method('<=')
 @method('>=')
-def evaluate_comparison_operators(self, context=None):
+def evaluate_comparison_operators(self: XPathToken, context: ContextArgType = None) -> bool:
     op = OPERATORS_MAP[self.symbol]
     try:
         return any(op(x1, x2) for x1, x2 in self.iter_comparison_data(context))
@@ -493,17 +465,20 @@ def evaluate_comparison_operators(self, context=None):
 ###
 # Numerical operators
 @method(infix('+', bp=40))
-def evaluate_plus_operator(self, context=None):
+def evaluate_plus_operator(self: XPathToken, context: ContextArgType = None) \
+        -> Union[List[NoReturn], ArithmeticType]:
     if len(self) == 1:
-        arg = self.get_argument(context, cls=NumericProxy)
+        arg: NumericType = self.get_argument(context, cls=NumericProxy)
         return [] if arg is None else +arg
     else:
+        op1: Optional[ArithmeticType]
+        op2: ArithmeticType
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is None:
             return []
 
         try:
-            return op1 + op2
+            return op1 + op2  # type:ignore[operator]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
                 return []
@@ -518,17 +493,18 @@ def evaluate_plus_operator(self, context=None):
 
 
 @method(infix('-', bp=40))
-def evaluate_minus_operator(self, context=None):
+def evaluate_minus_operator(self: XPathToken, context: ContextArgType = None) \
+        -> Union[List[NoReturn], ArithmeticType]:
     if len(self) == 1:
-        arg = self.get_argument(context, cls=NumericProxy)
+        arg: NumericType = self.get_argument(context, cls=NumericProxy)
         return [] if arg is None else -arg
     else:
-        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
+        op1, op2 = cast(ArithmeticOpsType, self.get_operands(context, cls=ArithmeticProxy))
         if op1 is None:
             return []
 
         try:
-            return op1 - op2
+            return op1 - op2  # type:ignore[operator]
         except (TypeError, OverflowError) as err:
             if isinstance(context, XPathSchemaContext):
                 return []
@@ -544,13 +520,16 @@ def evaluate_minus_operator(self, context=None):
 
 @method('+')
 @method('-')
-def nud_plus_minus_operators(self):
+def nud_plus_minus_operators(self: XPathToken) -> XPathToken:
     self[:] = self.parser.expression(rbp=70),
     return self
 
 
 @method(infix('*', bp=45))
-def evaluate_multiply_operator(self, context=None):
+def evaluate_multiply_operator(self: XPathToken, context: ContextArgType = None) \
+        -> Union[ArithmeticType, List[ItemType]]:
+    op1: Optional[ArithmeticType]
+    op2: ArithmeticType
     if self:
         op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is None:
@@ -558,7 +537,7 @@ def evaluate_multiply_operator(self, context=None):
         try:
             if isinstance(op2, (YearMonthDuration, DayTimeDuration)):
                 return op2 * op1
-            return op1 * op2
+            return op1 * op2  # type:ignore[operator]
         except TypeError as err:
             if isinstance(context, XPathSchemaContext):
                 return []
@@ -595,7 +574,10 @@ def evaluate_multiply_operator(self, context=None):
 
 
 @method(infix('div', bp=45))
-def evaluate_div_operator(self, context=None):
+def evaluate_div_operator(self: XPathToken, context: ContextArgType = None) \
+        -> Union[int, float, decimal.Decimal, List[Any]]:
+    dividend: Optional[ArithmeticType]
+    divisor: ArithmeticType
     dividend, divisor = self.get_operands(context, cls=ArithmeticProxy)
     if dividend is None:
         return []
@@ -603,7 +585,7 @@ def evaluate_div_operator(self, context=None):
         try:
             if isinstance(dividend, int) and isinstance(divisor, int):
                 return decimal.Decimal(dividend) / decimal.Decimal(divisor)
-            return dividend / divisor
+            return dividend / divisor  # type:ignore[operator]
         except TypeError as err:
             raise self.error('XPTY0004', err) from None
         except ValueError as err:
@@ -624,13 +606,16 @@ def evaluate_div_operator(self, context=None):
     elif dividend == 0:
         return math.nan
     elif dividend > 0:
-        return float('-inf') if str(divisor).startswith('-') else float('inf')
+        return float('-inf') if str(divisor).startswith(    '-') else float('inf')
     else:
         return float('inf') if str(divisor).startswith('-') else float('-inf')
 
 
 @method(infix('mod', bp=45))
-def evaluate_mod_operator(self, context=None):
+def evaluate_mod_operator(self: XPathToken, context: ContextArgType = None) \
+        -> Union[List[NoReturn], ArithmeticType]:
+    op1: Optional[NumericType]
+    op2: Optional[NumericType]
     op1, op2 = self.get_operands(context, cls=NumericProxy)
     if op1 is None:
         return []
@@ -642,7 +627,7 @@ def evaluate_mod_operator(self, context=None):
     try:
         if isinstance(op1, int) and isinstance(op2, int):
             return op1 % op2 if op1 * op2 >= 0 else -(abs(op1) % op2)
-        return op1 % op2
+        return op1 % op2  # type: ignore[operator]
     except TypeError as err:
         raise self.error('FORG0006', err) from None
     except (ZeroDivisionError, decimal.InvalidOperation):
@@ -654,30 +639,30 @@ def evaluate_mod_operator(self, context=None):
 @method('and')
 @method('div')
 @method('mod')
-def nud_disambiguation_of_infix_operators(self):
+def nud_disambiguation_of_infix_operators(self: XPathToken) -> XPathTokenType:
     return self.as_name()
 
 
 ###
 # Union expressions
 @method('|', bp=50)
-def led_union_operator(self, left):
-    self.cut_and_sort = True
+def led_union_operator(self: XPathToken, left: XPathToken) -> XPathToken:
     if left.symbol in ('|', 'union'):
-        left.cut_and_sort = False
+        left.concatenated = True
     self[:] = left, self.parser.expression(rbp=50)
     return self
 
 
 @method('|')
-def select_union_operator(self, context=None):
+def select_union_operator(self: XPathToken, context: ContextArgType = None) \
+        -> Iterator[XPathNode]:
     if context is None:
         raise self.missing_context()
 
     results = {item for k in range(2) for item in self[k].select(copy(context))}
     if any(not isinstance(x, XPathNode) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
-    elif not self.cut_and_sort:
+    elif self.concatenated:
         yield from results
     else:
         yield from sorted(results, key=node_position)
@@ -686,7 +671,7 @@ def select_union_operator(self, context=None):
 ###
 # Path expressions
 @method('//', bp=75)
-def nud_descendant_path(self):
+def nud_descendant_path(self: XPathToken) -> XPathToken:
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
 
@@ -695,7 +680,7 @@ def nud_descendant_path(self):
 
 
 @method('/', bp=75)
-def nud_child_path(self):
+def nud_child_path(self: XPathToken) -> XPathToken:
     if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:
         try:
             self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)
@@ -708,7 +693,7 @@ def nud_child_path(self):
 
 @method('//')
 @method('/')
-def led_child_or_descendant_path(self, left):
+def led_child_or_descendant_path(self: XPathToken, left: XPathToken) -> XPathToken:
     if left.symbol in ('/', '//', ':', '[', '$'):
         pass
     elif left.label not in self.parser.PATH_STEP_LABELS and \
@@ -723,7 +708,8 @@ def led_child_or_descendant_path(self, left):
 
 
 @method('/')
-def select_child_path(self, context=None):
+def select_child_path(self: XPathToken, context: ContextArgType = None) \
+        -> Iterator[ItemType]:
     """
     Child path expression. Selects child:: axis as default (when bind to '*' or '(name)').
     """
@@ -764,7 +750,8 @@ def select_child_path(self, context=None):
 
 
 @method('//')
-def select_descendant_path(self, context=None):
+def select_descendant_path(self: XPathToken, context: ContextArgType = None) \
+        -> Iterator[ItemType]:
     """Operator '//' is a short equivalent to /descendant-or-self::node()/"""
     if context is None:
         raise self.missing_context()
@@ -819,14 +806,14 @@ def select_descendant_path(self, context=None):
 ###
 # Predicate filters
 @method('[', bp=80)
-def led_predicate(self, left):
+def led_predicate(self: XPathToken, left: XPathToken) -> XPathToken:
     self[:] = left, self.parser.expression()
     self.parser.advance(']')
     return self
 
 
 @method('[')
-def select_predicate(self, context=None):
+def select_predicate(self: XPathToken, context: ContextArgType = None) -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
 
@@ -838,6 +825,7 @@ def select_predicate(self, context=None):
             yield context.item
             continue
 
+        predicate: Sequence[NumericType]
         predicate = [x for x in self[1].select(copy(context))]
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
@@ -849,19 +837,19 @@ def select_predicate(self, context=None):
 ###
 # Parenthesized expressions
 @method('(', bp=100)
-def nud_parenthesized_expr(self):
+def nud_parenthesized_expr(self: XPathToken) -> XPathToken:
     self[:] = self.parser.expression(),
     self.parser.advance(')')
     return self
 
 
 @method('(')
-def evaluate_parenthesized_expr(self, context=None):
+def evaluate_parenthesized_expr(self: XPathToken, context: ContextArgType = None) -> Any:
     return self[0].evaluate(context)
 
 
 @method('(')
-def select_parenthesized_expr(self, context=None):
+def select_parenthesized_expr(self: XPathToken, context: ContextArgType = None) -> Iterator[Any]:
     return self[0].select(context)
 
 # XPath 1.0 definitions continue into module xpath1_functions

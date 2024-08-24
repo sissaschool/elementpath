@@ -24,17 +24,16 @@ from .xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode,
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, SchemaElementNode
 from .tree_builders import RootArgType, get_node_tree
 
+__all__ = ['XPathContext', 'XPathSchemaContext', 'ItemType']
+
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
-    ItemType = Union[None, XPathNode, AnyAtomicType, XPathFunction]
-    ItemArgType = Union[XPathNode, AnyAtomicType, XPathFunction,
-                        ElementProtocol, DocumentProtocol]
-else:
-    ItemType = Any
-    ItemArgType = Any
 
-__all__ = ['XPathContext', 'XPathSchemaContext']
-
+# Type annotations aliases
+ItemType = Union[XPathNode, AnyAtomicType, 'XPathFunction']
+ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
+VariablesType = Dict[str, Union[ItemType, List[ItemType], None]]
+DocumentsType = Dict[str, Union[DocumentNode, ElementNode, None]]
 CollectionArgType = Union[None, ItemArgType, List[ItemArgType], Tuple[ItemArgType, ...]]
 
 
@@ -88,11 +87,11 @@ class XPathContext:
     _etree: Optional[ModuleType] = None
     root: Union[DocumentNode, ElementNode, None] = None
     document: Optional[DocumentNode] = None
-    item: Optional[ItemType]
+    item: ItemType
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    variables: Dict[str, Union[ItemType, List[ItemType]]]
-    documents: Optional[Dict[str, Union[DocumentNode, ElementNode, None]]] = None
+    variables: VariablesType
+    documents: Optional[DocumentsType] = None
     collections = None
     default_collection = None
 
@@ -364,7 +363,7 @@ class XPathContext:
     ##
     # Context item iterators for axis
 
-    def iter_self(self) -> Iterator[Optional[ItemType]]:
+    def iter_self(self) -> Iterator[ItemType]:
         """Iterator for 'self' axis and '.' shortcut."""
         if self.item is not None:
             status = self.axis
@@ -391,7 +390,7 @@ class XPathContext:
 
             self.item, self.axis = status
 
-    def iter_children_or_self(self) -> Iterator[Optional[ItemType]]:
+    def iter_children_or_self(self) -> Iterator[ItemType]:
         """Iterator for 'child' forward axis and '/' step."""
         if self.item is not None:
             if self.axis is not None:
@@ -407,6 +406,30 @@ class XPathContext:
                         yield self.item
 
                 self.item, self.axis = _status
+
+    def iter_matching_nodes(self, name: str, default_namespace: Optional[str] = None) \
+            -> Iterator[Union[AttributeNode, ElementNode]]:
+        """
+        Iterator for matching elements or attributes. For default uses 'child'
+        forward axis if no axis is active, otherwise tests the current item.
+        """
+        if self.axis is not None:
+            if isinstance(self.item, (AttributeNode, ElementNode)):
+                if self.item.match_name(name, default_namespace):
+                    yield self.item
+        elif isinstance(self.item, (ElementNode, DocumentNode)):
+            _status = self.item, self.axis
+            self.axis = 'child'
+
+            if self.item is self.document and self.root is not self.document:
+                if self.root.match_name(name, default_namespace):
+                    yield self.root
+            else:
+                for self.item in self.item:
+                    if self.item.match_name(name, default_namespace):
+                        yield self.item
+
+            self.item, self.axis = _status
 
     def iter_parent(self) -> Iterator[Union[ElementNode, DocumentNode]]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""

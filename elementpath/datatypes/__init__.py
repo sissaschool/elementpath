@@ -13,7 +13,7 @@ classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
 from decimal import Decimal
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 from ..namespaces import XSD_NAMESPACE
 from ..protocols import XsdTypeProtocol
@@ -40,8 +40,14 @@ xsd11_atomic_types.update(
     (k, v) for k, v in xsd10_atomic_types.items() if k not in xsd11_atomic_types
 )
 
+###
+# Aliases for type annotations
 DatetimeValueType = AbstractDateTime  # keep until v5.0 for backward compatibility
 AtomicValueType = Union[str, int, float, Decimal, bool, AnyAtomicType]
+NumericType = Union[int, float, Decimal]
+NumericOpsType = Tuple[Optional[NumericType], Optional[NumericType]]
+ArithmeticType = Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
+ArithmeticOpsType = Tuple[Optional[ArithmeticType], Optional[ArithmeticType]]
 
 
 ATOMIC_VALUES: Dict[Optional[str], AtomicValueType] = {
@@ -121,4 +127,5 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value',
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
            'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
-           'AtomicValueType', 'DatetimeValueType', 'OrderedDateTime', 'AbstractQName']
+           'AtomicValueType', 'DatetimeValueType', 'OrderedDateTime', 'AbstractQName',
+           'NumericType', 'NumericOpsType', 'ArithmeticType', 'ArithmeticOpsType']

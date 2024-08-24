@@ -449,11 +449,6 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('./B/@xml:id[id("bar")]', expected=[], context=context)
 
-        context.item = None
-        self.check_value('id("none")', expected=[], context=context)
-        self.check_value('id("foo")', expected=[context.root[0]], context=context)
-        self.check_value('id("bar")', expected=[context.root[2]], context=context)
-
         context.item = CommentNode(self.etree.Comment('a comment'))
         self.check_value('id("foo")', expected=[], context=context)
 

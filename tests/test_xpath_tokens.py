@@ -594,13 +594,6 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertListEqual(
                 list(e.elem for e in root_token.select_xsd_nodes(context, tag)), [schema]
             )
-
-            context.item = None
-            self.assertListEqual(list(root_token.select_xsd_nodes(context, 'root')), [])
-
-            context.item = None
-            result = list(root_token.select_xsd_nodes(context, tag))
-            self.assertListEqual(result, [])  # Schema as document node
         finally:
             self.parser.schema = None
 

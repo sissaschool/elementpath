@@ -50,6 +50,7 @@ class XPathNode:
     kind: str = ''
     children: Optional[List[ChildNodeType]]
     parent: Union['ElementNode', 'DocumentNode', None]
+    xsd_type: Optional[XsdTypeProtocol] = None
 
     __slots__ = 'parent', 'position'
 
@@ -1025,3 +1026,7 @@ class SchemaElementNode(ElementNode):
 
 def is_xpath_node(obj: Any) -> bool:
     return isinstance(obj, XPathNode) or is_etree_element(obj) or is_etree_document(obj)
+
+
+XPathNodeType = Union[DocumentNode, NamespaceNode, AttributeNode, TextNode,
+                      ElementNode, CommentNode, ProcessingInstructionNode]

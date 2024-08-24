@@ -1295,8 +1295,13 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value("idref('ID21256', $x)", [], context=context)
 
         context = XPathContext(root, variables={'x': None})
-        context.item = None
-        self.check_value("idref('ID21256', $x)", [], context=context)
+        self.wrong_type("idref('ID21256', $x)", 'XPTY0004', context=context)
+
+        context = XPathContext(root, variables={'x': []})
+        self.wrong_type("idref('ID21256', $x)", 'XPTY0004', context=context)
+
+        context = XPathContext(root)
+        self.wrong_type("idref('ID21256', ())", 'XPTY0004', context=context)
 
     def test_deep_equal_function(self):
         root = self.etree.XML("""

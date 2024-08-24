@@ -239,9 +239,6 @@ class XPathContextTest(unittest.TestCase):
             self.assertListEqual(list(context.iter_attributes()), context.root.attributes)
             self.assertNotEqual(attributes, context.root.attributes)
 
-        context.item = None
-        self.assertListEqual(list(context.iter_attributes()), [])
-
     def test_iter_children_or_self(self):
         doc = ElementTree.ElementTree(self.root)
         context = XPathContext(doc)
