@@ -50,7 +50,6 @@ class XPathNode:
     kind: str = ''
     children: Optional[List[ChildNodeType]]
     parent: Union['ElementNode', 'DocumentNode', None]
-    xsd_type: Optional[XsdTypeProtocol] = None
 
     __slots__ = 'parent', 'position'
 
@@ -116,7 +115,8 @@ class XPathNode:
 
         :param name: a fully qualified name, a local name or a wildcard. The accepted \
         wildcard formats are '*', '*:*', '*:local-name' and '{namespace}*'.
-        :param default_namespace: the default namespace for unprefixed names.
+        :param default_namespace: the default namespace for matching element names. \
+        The default is no-namespace.
         """
         return False
 
@@ -589,6 +589,13 @@ class ElementNode(XPathNode):
             if item is None:
                 return '/{}'.format('/'.join(reversed(path)))
 
+    @property
+    def default_namespace(self) -> Optional[str]:
+        if None in self.nsmap:
+            return self.nsmap[None]
+        else:
+            return self.nsmap.get('')
+
     def is_schema_node(self) -> bool:
         return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
 
@@ -601,15 +608,10 @@ class ElementNode(XPathNode):
             return not self.elem.tag
         elif hasattr(self.elem, 'type'):
             return cast(XsdElementProtocol, self.elem).is_matching(name, default_namespace)
-        elif name[0] == '{' or default_namespace is None:
+        elif name[0] == '{' or not default_namespace:
             return self.elem.tag == name
-
-        if None in self.nsmap:
-            default_namespace = self.nsmap[None]  # lxml element in-scope namespaces
-
-        if default_namespace:
-            return self.elem.tag == '{%s}%s' % (default_namespace, name)
-        return self.elem.tag == name
+        else:
+            return self.elem.tag == f'{{{default_namespace}}}{name}'
 
     def get_element_node(self, elem: Union[ElementProtocol, SchemaElemType]) \
             -> Optional['ElementNode']:

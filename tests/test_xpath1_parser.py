@@ -1562,10 +1562,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector('/*:foo', root, [root], namespaces={'': 'ns'})  # foo --> {ns}foo
 
         root = self.etree.XML('<foo xmlns="ns">bar</foo>')
-        if self.parser.version == '1.0' or self.etree is not lxml_etree:
-            self.check_selector('/foo', root, [])
-        else:
-            self.check_selector('/foo', root, [root])
+        self.check_selector('/foo', root, [])
 
         if self.parser.version == '1.0':
             self.check_selector('/foo', root, [], namespaces={'': 'ns'})

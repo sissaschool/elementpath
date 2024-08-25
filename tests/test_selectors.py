@@ -85,8 +85,9 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
         """
 
         doc = self.etree.XML(tei.encode())
+        namespaces = {'': "http://www.tei-c.org/ns/1.0"}
         k = None
-        for k, p in enumerate(select(doc, '//pb'), start=1):
+        for k, p in enumerate(select(doc, '//pb', namespaces), start=1):
             self.assertEqual(p.attrib['n'], f'page{k}')
             self.assertListEqual(p.xpath('./@n'), [f'page{k}'])
             self.assertListEqual(select(doc, './@n'), [])

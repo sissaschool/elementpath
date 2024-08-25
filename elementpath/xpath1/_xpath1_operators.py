@@ -15,7 +15,7 @@ import decimal
 import operator
 from copy import copy
 from typing import Any, cast, Iterator, List, Literal, NoReturn, Optional, \
-    Sequence, Union, TypeVar, Self
+    Sequence, Union
 
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, node_position
@@ -174,7 +174,7 @@ class _PrefixedReferenceToken(XPathToken):
 
         if left.symbol == '(name)':
             try:
-                namespace = self.get_namespace(left.value)
+                namespace = self.get_namespace(cast(str, left.value))
             except ElementPathKeyError:
                 self.parser.advance()  # Assure there isn't a following incomplete comment
                 self[:] = left, self.parser.token
