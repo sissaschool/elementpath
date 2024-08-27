@@ -98,25 +98,20 @@ def select_name_literal(self: XPathToken, context: ContextArgType = None) \
 
         # Try to match the type using the item's path
         for item in context.iter_matching_nodes(name, default_namespace):
-            if item.xsd_type is not None:
-                yield item
-            elif self.parser.schema is not None:
+            if self.parser.schema is not None and item.xsd_type is None:
                 xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
                 if xsd_node is None:
                     self.xsd_types = self.parser.schema
-                elif isinstance(item, AttributeNode):
-                    self.xsd_types = {item.name: xsd_node.type}
                 else:
-                    self.xsd_types = {item.elem.tag: xsd_node.type}
-
-                item.xsd_type = self.get_xsd_type(item)
-                yield item
+                    self.xsd_types = {item.name: xsd_node.type}
+                    item.xsd_type = xsd_node.type
+            yield item
 
     else:
         # XSD typed selection
         for item in context.iter_matching_nodes(name, default_namespace):
             if item.xsd_type is None:
-                item.xsd_type = self.get_xsd_type(item)
+                item.xsd_type = self.get_xsd_type(item.name)
             yield item
 
 
@@ -222,21 +217,20 @@ class _PrefixedReferenceToken(XPathToken):
 
         elif self.xsd_types is None or isinstance(self.xsd_types, AbstractSchemaProxy):
             for item in context.iter_matching_nodes(name):
-                if item.xsd_type is None:
+                if self.parser.schema is not None and item.xsd_type is None:
                     xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
-                    if xsd_node is not None:
-                        self.add_xsd_type(xsd_node)
-                    else:
+                    if xsd_node is None:
                         self.xsd_types = self.parser.schema
-
-                    item.xsd_type = self.get_xsd_type(item)
-
+                    else:
+                        self.xsd_types = {item.name: xsd_node.type}
+                        item.xsd_type = xsd_node.type
                 yield item
+
         else:
             # XSD typed selection
             for item in context.iter_matching_nodes(name):
                 if item.xsd_type is None:
-                    item.xsd_type = self.get_xsd_type(item)
+                    item.xsd_type = self.get_xsd_type(item.name)
                 yield item
 
 
@@ -308,7 +302,7 @@ def select_namespace_uri(self: XPathToken, context: ContextArgType = None) \
         # XSD typed selection
         for item in context.iter_matching_nodes(self.value):
             if item.xsd_type is None:
-                item.xsd_type = self.get_xsd_type(item)
+                item.xsd_type = self.get_xsd_type(item.name)
             yield item
 
 
@@ -374,7 +368,7 @@ def select_wildcard(self: XPathToken, context: ContextArgType = None):
             if context.is_principal_node_kind():
                 if isinstance(item, (ElementNode, AttributeNode)):
                     if item.xsd_type is None:
-                        item.xsd_type = self.get_xsd_type(item)
+                        item.xsd_type = self.get_xsd_type(item.name)
                     yield item
 
 
@@ -400,7 +394,7 @@ def select_self_shortcut(self: XPathToken, context: ContextArgType = None) -> It
         for item in context.iter_self():
             if isinstance(item, (AttributeNode, ElementNode)):
                 if item.xsd_type is None:
-                    item.xsd_type = self.get_xsd_type(item)
+                    item.xsd_type = self.get_xsd_type(item.name)
             yield item
 
 

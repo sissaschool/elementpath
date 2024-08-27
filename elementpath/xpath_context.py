@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
 
 from .exceptions import ElementPathTypeError
 from .tdop import Token
-from .namespaces import NamespacesType
+from .aliases import NamespacesType
 from .datatypes import AnyAtomicType, Timezone, Language
 from .protocols import ElementProtocol, DocumentProtocol
 from .etree import is_etree_element, is_etree_document
@@ -400,7 +400,8 @@ class XPathContext:
                 self.axis = 'child'
 
                 if self.item is self.document and self.root is not self.document:
-                    yield self.root
+                    if self.root is not None:
+                        yield self.root
                 else:
                     for self.item in self.item:
                         yield self.item
@@ -421,12 +422,13 @@ class XPathContext:
             _status = self.item, self.axis
             self.axis = 'child'
 
-            if self.item is self.document and self.root is not self.document:
+            if self.item is self.document and isinstance(self.root, ElementNode):
                 if self.root.match_name(name, default_namespace):
                     yield self.root
             else:
                 for self.item in self.item:
                     if self.item.match_name(name, default_namespace):
+                        assert isinstance(self.item, ElementNode)
                         yield self.item
 
             self.item, self.axis = _status

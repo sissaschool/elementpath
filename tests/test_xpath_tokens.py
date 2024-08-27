@@ -37,6 +37,8 @@ from elementpath.xpath2 import XPath2Parser
 class DummyXsdType:
     name = local_name = None
 
+    @property
+    def root_type(self): return self
     def is_matching(self, name, default_namespace): pass
     def is_empty(self): pass
     def is_simple(self): pass
@@ -752,72 +754,6 @@ class XPath2TokenTest(XPath1TokenTest):
             del elem[1]
             self.assertEqual(root_token.get_xsd_type(ElementNode(elem)),
                              schema.meta_schema.types['boolean'])
-        finally:
-            self.parser.schema = None
-
-    @unittest.skipIf(xmlschema is None, "xmlschema library required.")
-    def test_get_typed_node(self):
-        schema = xmlschema.XMLSchema("""
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-              <xs:element name="root" type="xs:int"/>
-              <xs:attribute name="a" type="xs:int"/>
-            </xs:schema>""")
-
-        self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
-
-        try:
-            root_token = self.parser.parse('root')
-            elem = ElementTree.Element('root')
-            elem.text = '49'
-
-            context = XPathContext(elem)
-            node = root_token.get_typed_node(context.root)
-            self.assertIsInstance(node, ElementNode)
-            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
-            self.assertEqual(node.typed_value, 49)
-            self.assertIs(root_token.get_typed_node(node), node)
-
-            # elem.text = 'beta'
-            # with self.assertRaises(TypeError) as err:
-            #     root_token.get_typed_node(elem)
-            # self.assertIn('XPDY0050', str(err.exception))
-            # self.assertIn('does not match sequence type', str(err.exception))
-
-            root_token.xsd_types['root'] = schema.meta_schema.types['anySimpleType']
-            elem.text = '36'
-            context = XPathContext(elem)
-            node = root_token.get_typed_node(context.root)
-            self.assertIsInstance(node, ElementNode)
-            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
-            self.assertIsInstance(node.typed_value, UntypedAtomic)
-            self.assertEqual(node.typed_value, 36)  # Convert untyped to int
-
-            root_token.xsd_types['root'] = schema.meta_schema.types['anyType']
-            context = XPathContext(elem)
-
-            node = root_token.get_typed_node(context.root)
-            self.assertIs(node.elem, elem)
-
-            root_token = self.parser.parse('@a')
-            self.assertEqual(root_token[0].xsd_types, {'a': schema.meta_schema.types['int']})
-
-            elem = ElementTree.Element('root', a='10')
-            context = XPathContext(elem)
-
-            attribute = context.root.attributes[0]
-            node = root_token[0].get_typed_node(attribute)
-            self.assertIsInstance(node, AttributeNode)
-            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
-            self.assertEqual(node.value, '10')
-
-            root_token[0].xsd_types['a'] = schema.meta_schema.types['anyType']
-            node = root_token[0].get_typed_node(attribute)
-            self.assertIsInstance(node, AttributeNode)
-            self.assertIsInstance(node.xsd_type, xmlschema.XsdType)
-            self.assertIsInstance(node.typed_value, int)
-            self.assertEqual(node.value, '10')
-            self.assertEqual(node.typed_value, 10)
-
         finally:
             self.parser.schema = None
 

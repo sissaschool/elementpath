@@ -25,6 +25,8 @@ from ..xpath_context import XPathSchemaContext
 
 from ._xpath1_operators import XPath1Parser
 
+__all__ = ['XPath1Parser']
+
 method = XPath1Parser.method
 function = XPath1Parser.function
 

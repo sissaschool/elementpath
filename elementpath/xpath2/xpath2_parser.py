@@ -17,10 +17,11 @@ from urllib.parse import urlparse
 from typing import cast, Any, Callable, ClassVar, Dict, List, \
     MutableMapping, Optional, Tuple, Type, Union
 
-from ..helpers import upper_camel_case, is_ncname, ordinal
-from ..exceptions import ElementPathError, ElementPathTypeError, \
+from elementpath.aliases import NamespacesType
+from elementpath.helpers import upper_camel_case, is_ncname, ordinal
+from elementpath.exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
-from ..namespaces import NamespacesType, XSD_NAMESPACE, XML_NAMESPACE, \
+from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from ..collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION

@@ -88,8 +88,7 @@ def evaluate_variable_reference(self, context=None):
                 else:
                     if self.parser.schema is not None:
                         xsd_type = self.parser.schema.get_type(type_name)
-                        if xsd_type is not None:
-                            return get_atomic_value(xsd_type)
+                        return get_atomic_value(xsd_type)
 
             return UntypedAtomic('1')
 

@@ -12,11 +12,13 @@ XSD atomic datatypes subpackage. Includes a class for UntypedAtomic data and
 classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
+from collections import namedtuple
 from decimal import Decimal
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
-from ..namespaces import XSD_NAMESPACE
-from ..protocols import XsdTypeProtocol
+from elementpath.aliases import MutableMapping, NsmapType
+from elementpath.protocols import XsdTypeProtocol
+from elementpath.namespaces import XSD_NAMESPACE
 
 from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, \
     AtomicTypeMeta, AnyAtomicType
@@ -49,70 +51,109 @@ NumericOpsType = Tuple[Optional[NumericType], Optional[NumericType]]
 ArithmeticType = Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
 ArithmeticOpsType = Tuple[Optional[ArithmeticType], Optional[ArithmeticType]]
 
+Builder = namedtuple('Builder', ['cls', 'value'])
 
-ATOMIC_VALUES: Dict[Optional[str], AtomicValueType] = {
-    f'{{{XSD_NAMESPACE}}}untypedAtomic': UntypedAtomic('1'),
-    f'{{{XSD_NAMESPACE}}}anyType': UntypedAtomic('1'),
-    f'{{{XSD_NAMESPACE}}}anySimpleType': UntypedAtomic('1'),
-    f'{{{XSD_NAMESPACE}}}anyAtomicType': UntypedAtomic('1'),
-    f'{{{XSD_NAMESPACE}}}boolean': True,
-    f'{{{XSD_NAMESPACE}}}decimal': Decimal('1.0'),
-    f'{{{XSD_NAMESPACE}}}double': 1.0,
-    f'{{{XSD_NAMESPACE}}}float': Float10(1.0),
-    f'{{{XSD_NAMESPACE}}}string': '  alpha\t',
-    f'{{{XSD_NAMESPACE}}}date': Date.fromstring('2000-01-01'),
-    f'{{{XSD_NAMESPACE}}}dateTime': DateTime.fromstring('2000-01-01T12:00:00'),
-    f'{{{XSD_NAMESPACE}}}gDay': GregorianDay.fromstring('---31'),
-    f'{{{XSD_NAMESPACE}}}gMonth': GregorianMonth.fromstring('--12'),
-    f'{{{XSD_NAMESPACE}}}gMonthDay': GregorianMonthDay.fromstring('--12-01'),
-    f'{{{XSD_NAMESPACE}}}gYear': GregorianYear.fromstring('1999'),
-    f'{{{XSD_NAMESPACE}}}gYearMonth': GregorianYearMonth.fromstring('1999-09'),
-    f'{{{XSD_NAMESPACE}}}time': Time.fromstring('09:26:54'),
-    f'{{{XSD_NAMESPACE}}}duration': Duration.fromstring('P1MT1S'),
-    f'{{{XSD_NAMESPACE}}}dayTimeDuration': DayTimeDuration.fromstring('P1DT1S'),
-    f'{{{XSD_NAMESPACE}}}yearMonthDuration': YearMonthDuration.fromstring('P1Y1M'),
-    f'{{{XSD_NAMESPACE}}}QName': QName("http://www.w3.org/2001/XMLSchema", 'xs:element'),
-    f'{{{XSD_NAMESPACE}}}anyURI': AnyURI('https://example.com'),
-    f'{{{XSD_NAMESPACE}}}normalizedString': NormalizedString(' alpha  '),
-    f'{{{XSD_NAMESPACE}}}token': XsdToken('a token'),
-    f'{{{XSD_NAMESPACE}}}language': Language('en-US'),
-    f'{{{XSD_NAMESPACE}}}Name': Name('_a.name::'),
-    f'{{{XSD_NAMESPACE}}}NCName': NCName('nc-name'),
-    f'{{{XSD_NAMESPACE}}}ID': Id('id1'),
-    f'{{{XSD_NAMESPACE}}}IDREF': Idref('id_ref1'),
-    f'{{{XSD_NAMESPACE}}}ENTITY': Entity('entity1'),
-    f'{{{XSD_NAMESPACE}}}NMTOKEN': NMToken('a_token'),
-    f'{{{XSD_NAMESPACE}}}base64Binary': Base64Binary(b'YWxwaGE='),
-    f'{{{XSD_NAMESPACE}}}hexBinary': HexBinary(b'31'),
-    f'{{{XSD_NAMESPACE}}}dateTimeStamp': DateTimeStamp.fromstring('2000-01-01T12:00:00+01:00'),
-    f'{{{XSD_NAMESPACE}}}integer': Integer(1),
-    f'{{{XSD_NAMESPACE}}}long': Long(1),
-    f'{{{XSD_NAMESPACE}}}int': Int(1),
-    f'{{{XSD_NAMESPACE}}}short': Short(1),
-    f'{{{XSD_NAMESPACE}}}byte': Byte(1),
-    f'{{{XSD_NAMESPACE}}}positiveInteger': PositiveInteger(1),
-    f'{{{XSD_NAMESPACE}}}negativeInteger': NegativeInteger(-1),
-    f'{{{XSD_NAMESPACE}}}nonPositiveInteger': NonPositiveInteger(0),
-    f'{{{XSD_NAMESPACE}}}nonNegativeInteger': NonNegativeInteger(0),
-    f'{{{XSD_NAMESPACE}}}unsignedLong': UnsignedLong(1),
-    f'{{{XSD_NAMESPACE}}}unsignedInt': UnsignedInt(1),
-    f'{{{XSD_NAMESPACE}}}unsignedShort': UnsignedShort(1),
-    f'{{{XSD_NAMESPACE}}}unsignedByte': UnsignedByte(1),
+ATOMIC_TYPES: MutableMapping[Optional[str], Builder] = {
+    f'{{{XSD_NAMESPACE}}}untypedAtomic': Builder(UntypedAtomic, '1'),
+    f'{{{XSD_NAMESPACE}}}anyType': Builder(UntypedAtomic, '1'),
+    f'{{{XSD_NAMESPACE}}}anySimpleType': Builder(UntypedAtomic, '1'),
+    f'{{{XSD_NAMESPACE}}}anyAtomicType': Builder(UntypedAtomic, '1'),
+    f'{{{XSD_NAMESPACE}}}boolean': Builder(bool, True),
+    f'{{{XSD_NAMESPACE}}}decimal': Builder(Decimal, '1.0'),
+    f'{{{XSD_NAMESPACE}}}double': Builder(float, 1.0),
+    f'{{{XSD_NAMESPACE}}}float': Builder(Float10, 1.0),
+    f'{{{XSD_NAMESPACE}}}string': Builder(str, '  alpha\t'),
+    f'{{{XSD_NAMESPACE}}}date': Builder(Date, '2000-01-01'),
+    f'{{{XSD_NAMESPACE}}}dateTime': Builder(DateTime, '2000-01-01T12:00:00'),
+    f'{{{XSD_NAMESPACE}}}gDay': Builder(GregorianDay, '---31'),
+    f'{{{XSD_NAMESPACE}}}gMonth': Builder(GregorianMonth, '--12'),
+    f'{{{XSD_NAMESPACE}}}gMonthDay': Builder(GregorianMonthDay, '--12-01'),
+    f'{{{XSD_NAMESPACE}}}gYear': Builder(GregorianYear, '1999'),
+    f'{{{XSD_NAMESPACE}}}gYearMonth': Builder(GregorianYearMonth, '1999-09'),
+    f'{{{XSD_NAMESPACE}}}time': Builder(Time, '09:26:54'),
+    f'{{{XSD_NAMESPACE}}}duration': Builder(Duration, 'P1MT1S'),
+    f'{{{XSD_NAMESPACE}}}dayTimeDuration': Builder(DayTimeDuration, 'P1DT1S'),
+    f'{{{XSD_NAMESPACE}}}yearMonthDuration': Builder(YearMonthDuration, 'P1Y1M'),
+    f'{{{XSD_NAMESPACE}}}QName':
+        Builder(QName, ("http://www.w3.org/2001/XMLSchema", 'xs:element')),
+    f'{{{XSD_NAMESPACE}}}anyURI': Builder(AnyURI, 'https://example.com'),
+    f'{{{XSD_NAMESPACE}}}normalizedString': Builder(NormalizedString, ' alpha  '),
+    f'{{{XSD_NAMESPACE}}}token': Builder(XsdToken, 'a token'),
+    f'{{{XSD_NAMESPACE}}}language': Builder(Language, 'en-US'),
+    f'{{{XSD_NAMESPACE}}}Name': Builder(Name, '_a.name::'),
+    f'{{{XSD_NAMESPACE}}}NCName': Builder(NCName, 'nc-name'),
+    f'{{{XSD_NAMESPACE}}}ID': Builder(Id, 'id1'),
+    f'{{{XSD_NAMESPACE}}}IDREF': Builder(Idref, 'id_ref1'),
+    f'{{{XSD_NAMESPACE}}}ENTITY': Builder(Entity, 'entity1'),
+    f'{{{XSD_NAMESPACE}}}NMTOKEN': Builder(NMToken, 'a_token'),
+    f'{{{XSD_NAMESPACE}}}base64Binary': Builder(Base64Binary, b'YWxwaGE='),
+    f'{{{XSD_NAMESPACE}}}hexBinary': Builder(HexBinary, b'31'),
+    f'{{{XSD_NAMESPACE}}}dateTimeStamp':
+        Builder(DateTimeStamp.fromstring, '2000-01-01T12:00:00+01:00'),
+    f'{{{XSD_NAMESPACE}}}integer': Builder(Integer, 1),
+    f'{{{XSD_NAMESPACE}}}long': Builder(Long, 1),
+    f'{{{XSD_NAMESPACE}}}int': Builder(Int, 1),
+    f'{{{XSD_NAMESPACE}}}short': Builder(Short, 1),
+    f'{{{XSD_NAMESPACE}}}byte': Builder(Byte, 1),
+    f'{{{XSD_NAMESPACE}}}positiveInteger': Builder(PositiveInteger, 1),
+    f'{{{XSD_NAMESPACE}}}negativeInteger': Builder(NegativeInteger, -1),
+    f'{{{XSD_NAMESPACE}}}nonPositiveInteger': Builder(NonPositiveInteger, 0),
+    f'{{{XSD_NAMESPACE}}}nonNegativeInteger': Builder(NonNegativeInteger, 0),
+    f'{{{XSD_NAMESPACE}}}unsignedLong': Builder(UnsignedLong, 1),
+    f'{{{XSD_NAMESPACE}}}unsignedInt': Builder(UnsignedInt, 1),
+    f'{{{XSD_NAMESPACE}}}unsignedShort': Builder(UnsignedShort, 1),
+    f'{{{XSD_NAMESPACE}}}unsignedByte': Builder(UnsignedByte, 1),
 }
 
 
-def get_atomic_value(xsd_type: Optional[XsdTypeProtocol]) -> AtomicValueType:
-    """Gets an atomic value for an XSD type instance. Used for schema contexts."""
+def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
+                     text: Optional[str] = None,
+                     namespaces: Optional[NsmapType] = None) -> AtomicValueType:
+    """Gets an atomic value for an XSD type instance and a source text/value."""
+    ns: Optional[str]
+
     if xsd_type is None:
-        return UntypedAtomic('1')
+        return UntypedAtomic(text or '')
 
     try:
-        return ATOMIC_VALUES[xsd_type.name]
+        builder = ATOMIC_TYPES[xsd_type.name]
     except KeyError:
         try:
-            return ATOMIC_VALUES[xsd_type.root_type.name]
+            builder = ATOMIC_TYPES[xsd_type.root_type.name]
         except KeyError:
-            return UntypedAtomic('1')
+            return UntypedAtomic(text or '')
+
+    if type(xsd_type) is Notation:
+        if xsd_type.name is None:
+            name = '_Notation'
+        elif '}' in xsd_type.name:
+            name = f"{xsd_type.name.split('}')[-1].title()}_Notation"
+        else:
+            name = f"{xsd_type.name.split(':')[-1].title()}_Notation"
+
+        cls = type(name, (Notation,), {})
+    else:
+        cls = builder.cls
+
+    if text is None:
+        value = builder.value
+    else:
+        if namespaces is None:
+            namespaces = {}
+        xsd_type.validate(text, namespaces=namespaces)
+
+        if not issubclass(cls, (QName, Notation)):
+            value = text
+        elif ':' not in text:
+            value = namespaces.get(''), text
+        else:
+            value = namespaces[text.split(':')[0]], text
+
+    if isinstance(value, tuple):
+        return cls(*value)
+    elif issubclass(cls, (AbstractDateTime, Duration)):
+        return cls.fromstring(value)
+    return cls(value)
 
 
 __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value',

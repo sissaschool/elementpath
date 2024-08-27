@@ -10,14 +10,26 @@
 """
 Define type hints protocols for XPath related objects.
 """
-from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, ItemsView, \
-    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set, MutableMapping
+from typing import overload, Any, Iterator, Iterable, Optional, Sequence, ItemsView, \
+    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
+
+from elementpath.aliases import MutableMapping, Dict, NamespacesType, NsmapType
 
 _T = TypeVar("_T")
+_AnyStr = Union[str, bytes]
+
+
+class LxmlQNameProtocol(Protocol):
+    localname: _AnyStr
+    namespace: _AnyStr
+    text: _AnyStr
+
+
+LxmlKeyType = Union[str, bytes, LxmlQNameProtocol]
 
 
 class LxmlAttribProtocol(Protocol):
-    """A minimal protocol for attribute of lxml Element objects."""
+    """A minimal protocol for attributes of lxml Element objects."""
     def get(self, *args: Any, **kwargs: Any) -> Optional[str]: ...
 
     def items(self) -> Sequence[Tuple[Any, Any]]: ...
@@ -55,6 +67,8 @@ class ElementProtocol(Sized, Hashable, Protocol):
     @overload
     def get(self, key: str, default: _T) -> Union[str, _T]: ...
 
+    def get(self, key: str, default: Optional[_T] = None) -> Union[str, _T, None]: ...
+
     @property
     def tag(self) -> str: ...
 
@@ -86,7 +100,7 @@ class LxmlElementProtocol(ElementProtocol, Protocol):
     def __iter__(self) -> Iterator['LxmlElementProtocol']: ...
 
     def find(
-            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+            self, path: str, namespaces: Optional[MutableMapping[str, str]] = ...
     ) -> Optional['LxmlElementProtocol']: ...
     def iter(self, tag: Optional[str] = ...) -> Iterator['LxmlElementProtocol']: ...
 
@@ -98,7 +112,7 @@ class LxmlElementProtocol(ElementProtocol, Protocol):
                      preceding: bool = False) -> Iterable['LxmlElementProtocol']: ...
 
     @property
-    def nsmap(self) -> Dict[Optional[str], str]: ...
+    def nsmap(self) -> NsmapType: ...
 
     @property
     def attrib(self) -> LxmlAttribProtocol: ...
@@ -180,6 +194,14 @@ class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         """Returns `True` if it's a simpleType derived from xs:NOTATION, `False` otherwise."""
         ...
 
+    @overload
+    def is_valid(self, obj: Any, use_defaults: bool = True,
+                 namespaces: Optional[NamespacesType] = None,
+                 *args: Any, **kwargs: Any) -> bool: ...
+
+    @overload
+    def is_valid(self, obj: Any, *args: Any, **kwargs: Any) -> bool: ...
+
     def is_valid(self, obj: Any, *args: Any, **kwargs: Any) -> bool:
         """
         Validates an XML object node using the XSD type. The argument *obj* is an element
@@ -188,19 +210,19 @@ class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         """
         ...
 
+    @overload
+    def validate(self, obj: Any, use_defaults: bool = True,
+                 namespaces: Optional[NamespacesType] = None,
+                 *args: Any, **kwargs: Any) -> None: ...
+
+    @overload
+    def validate(self, obj: Any, *args: Any, **kwargs: Any) -> None: ...
+
     def validate(self, obj: Any, *args: Any, **kwargs: Any) -> None:
         """
         Validates an XML object node using the XSD type. The argument *obj* is an element
         for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
         compatible exception (a `ValueError` or a subclass of it) if the argument is not valid.
-        """
-        ...
-
-    def decode(self, obj: Any, *args: Any, **kwargs: Any) -> Any:
-        """
-        Decodes an XML object node using the XSD type. The argument *obj* is an element
-        for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
-        or a `TypeError` compatible exception if the argument it's not valid.
         """
         ...
 
@@ -229,10 +251,13 @@ XsdXPathNodeType = Union['XsdSchemaProtocol', 'XsdElementProtocol']
 class XsdAttributeGroupProtocol(XsdComponentProtocol, Protocol):
 
     @overload
-    def get(self, key: Optional[str]) -> Optional[XsdAttributeProtocol]: ...
+    def get(self, key: Optional[str], default: None) -> Optional[XsdAttributeProtocol]: ...
 
     @overload
     def get(self, key: Optional[str], default: _T) -> Union[XsdAttributeProtocol, _T]: ...
+
+    def get(self, key: Optional[str], default: Optional[_T] = None) \
+        -> Union[XsdAttributeProtocol, _T, None]: ...
 
     def items(self) -> ItemsView[Optional[str], XsdAttributeProtocol]: ...
 
@@ -255,7 +280,7 @@ class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
     def __iter__(self) -> Iterator['XsdElementProtocol']: ...
 
     def find(
-            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+            self, path: str, namespaces: Optional[NamespacesType] = ...
     ) -> Optional[XsdXPathNodeType]: ...
     def iter(self, tag: Optional[str] = ...) -> Iterator['XsdElementProtocol']: ...
 
@@ -296,7 +321,7 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
     def __iter__(self) -> Iterator[XsdXPathNodeType]: ...
 
     def find(
-            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+            self, path: str, namespaces: Optional[NamespacesType] = ...
     ) -> Optional[XsdXPathNodeType]: ...
     def iter(self, tag: Optional[str] = ...) -> Iterator[XsdXPathNodeType]: ...
 

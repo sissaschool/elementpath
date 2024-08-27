@@ -187,7 +187,9 @@ class AttributeNode(XPathNode):
             return get_atomic_value(self.value.type)
         elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.value)
-        return cast(AtomicValueType, self.xsd_type.decode(self.value))
+        elif self.parent is None:
+            return get_atomic_value(self.xsd_type, self.value)
+        return get_atomic_value(self.xsd_type, self.value, self.parent.nsmap)
 
     def as_item(self) -> Tuple[Optional[str], Union[str, XsdAttributeProtocol]]:
         return self._name, self.value
@@ -200,6 +202,10 @@ class AttributeNode(XPathNode):
         if self.parent is None:
             return f'@{self._name}'
         return f'{self.parent.path}/@{self._name}'
+
+    @property
+    def nsmap(self) -> Optional[MutableMapping[Optional[str], str]]:
+        return self.parent.nsmap if self.parent is not None else None
 
     def is_schema_node(self) -> bool:
         return hasattr(self.value, 'name') and hasattr(self.value, 'type')
@@ -541,15 +547,12 @@ class ElementNode(XPathNode):
             return None
         elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
             return None
-
-        if self.elem.text is not None:
-            value = self.xsd_type.decode(self.elem.text)
+        elif self.elem.text is not None:
+            return get_atomic_value(self.xsd_type, self.elem.text, self.nsmap)
         elif self.elem.get(XSI_NIL) in ('1', 'true'):
             return ''
         else:
-            value = self.xsd_type.decode('')
-
-        return cast(Optional[AtomicValueType], value)
+            return get_atomic_value(self.xsd_type, '')
 
     @property
     def namespace_nodes(self) -> List['NamespaceNode']:

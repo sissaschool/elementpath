@@ -9,10 +9,10 @@
 #
 from typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Union, Type
 
-from .namespaces import NamespacesType
-from .tree_builders import RootArgType
-from .xpath_context import XPathContext
-from .xpath2 import XPath2Parser
+from elementpath.aliases import NamespacesType
+from elementpath.tree_builders import RootArgType
+from elementpath.xpath_context import XPathContext
+from elementpath.xpath2 import XPath2Parser
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser

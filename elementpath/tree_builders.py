@@ -9,7 +9,7 @@
 #
 from typing import cast, Any, Iterator, List, Optional, Union
 
-from .namespaces import NamespacesType
+from elementpath.aliases import NamespacesType
 from .exceptions import ElementPathTypeError
 from .protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, LxmlDocumentProtocol, XsdElementProtocol

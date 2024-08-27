@@ -80,7 +80,7 @@ class AtomicTypesTest(unittest.TestCase):
         with self.assertRaises(AttributeError):
             get_atomic_value(schema)
 
-        self.assertEqual(get_atomic_value(xsd_type=None), UntypedAtomic(value='1'))
+        self.assertEqual(get_atomic_value(xsd_type=None), UntypedAtomic(value=''))
 
         value = get_atomic_value(schema.elements['a'].type)
         self.assertIsInstance(value, UntypedAtomic)
@@ -100,7 +100,7 @@ class AtomicTypesTest(unittest.TestCase):
 
         value = get_atomic_value(schema.elements['e'].type)
         self.assertIsInstance(value, UntypedAtomic)
-        self.assertEqual(value, UntypedAtomic(value='1'))
+        self.assertEqual(value, UntypedAtomic(value=''))
 
 
 class AnyAtomicTypeTest(unittest.TestCase):

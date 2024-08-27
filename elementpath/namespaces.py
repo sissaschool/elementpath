@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from typing import cast, Dict, Optional, Tuple, MutableMapping, Union
+from typing import cast, Tuple, Union
 
-NamespacesType = MutableMapping[str, str]
+from elementpath.aliases import NamespacesType, NsmapType
 
 # Regex patterns related to names and namespaces
 NAMESPACE_URI_PATTERN = re.compile(r'{([^}]+)}')
@@ -78,67 +78,65 @@ def get_namespace(name: str) -> str:
 def split_expanded_name(name: str) -> Tuple[str, str]:
     match = EXPANDED_NAME_PATTERN.match(name)
     if match is None:
-        raise ValueError("{!r} is not an expanded QName".format(name))
+        raise ValueError(f"{name!r} is not an expanded QName")
     namespace, local_name = match.groups()
     return namespace or '', local_name
 
 
-def get_prefixed_name(
-        qname: str, namespaces: Union[Dict[str, str], Dict[Optional[str], str]]) -> str:
+def get_prefixed_name(name: str, namespaces: Union[NamespacesType, NsmapType]) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
 
-    :param qname: an extended QName or a local name or a prefixed QName.
+    :param name: an extended QName or a local name or a prefixed QName.
     :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     """
     try:
-        if not qname.startswith(('{', 'Q{')):
-            return qname
-        elif qname[0] == '{':
-            ns_uri, local_name = qname[1:].split('}')
+        if not name.startswith(('{', 'Q{')):
+            return name
+        elif name[0] == '{':
+            ns_uri, local_name = name[1:].split('}')
         else:
-            ns_uri, local_name = qname[2:].split('}')
+            ns_uri, local_name = name[2:].split('}')
     except (ValueError, TypeError):
-        raise ValueError("{!r} is not a QName".format(qname))
+        raise ValueError(f"{name!r} is not a QName")
 
     for prefix, uri in sorted(namespaces.items(), reverse=True,
                               key=lambda x: x if x[0] is not None else ('', x[1])):
         if uri == ns_uri:
-            return '%s:%s' % (prefix, local_name) if prefix else local_name
+            return f'{prefix}:{local_name}' if prefix else local_name
     else:
-        return qname
+        return name
 
 
-def get_expanded_name(
-        qname: str, namespaces: Union[Dict[str, str], Dict[Optional[str], str]]) -> str:
+def get_expanded_name(name: str, namespaces: Union[NamespacesType, NsmapType]) -> str:
     """
     Get the expanded form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
 
-    :param qname: a prefixed QName or a local name or an extended QName.
+    :param name: a prefixed QName or a local name or an extended QName.
     :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     :return: the expanded format of a QName or a local name.
     """
-    if not qname or qname.startswith('{'):
-        return qname
-    elif qname.startswith('Q{'):
-        return qname[1:]
+    if not name or name.startswith('{'):
+        return name
+    elif name.startswith('Q{'):
+        return name[1:]
 
     try:
-        prefix, local_name = qname.split(':')
+        prefix, local_name = name.split(':')
     except ValueError:
-        if ':' in qname:
-            raise ValueError("wrong format for prefixed QName %r" % qname)
+        if ':' in name:
+            raise ValueError(f"wrong format for prefixed QName {name!r}")
         elif '' in namespaces:
             uri = namespaces['']
         elif None in namespaces:
-            uri = cast(Dict[Optional[str], str], namespaces)[None]  # lxml nsmap
+            uri = cast(NsmapType, namespaces)[None]  # lxml nsmap
         else:
-            return qname
+            return name
 
-        return '{%s}%s' % (uri, qname) if uri else qname
+        return f'{{{uri}}}{name}' if uri else name
     else:
         if not prefix or not local_name:
-            raise ValueError("wrong format for reference name %r" % qname)
+            raise ValueError(f"wrong format for reference name {name!r}")
         uri = namespaces[prefix]
-        return '{%s}%s' % (uri, local_name) if uri else local_name
+        return f'{{{uri}}}{local_name}' if uri else local_name

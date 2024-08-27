@@ -39,7 +39,7 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, 
 from .sequence_types import is_sequence_type_restriction, match_sequence_type
 from .schema_proxy import AbstractSchemaProxy
 from .tdop import Token, MultiLabel
-from .xpath_context import ItemType, XPathContext, XPathSchemaContext
+from .xpath_context import XPathContext, XPathSchemaContext
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser
@@ -897,10 +897,18 @@ class XPathToken(XPathTokenType):
         Returns the XSD type associated with an item. Match by item's name
         and XSD validity. Returns `None` if no XSD type is matching.
 
+        Ref:
+          https://www.w3.org/TR/xpath20/#id-processing-model
+          https://www.w3.org/TR/xpath20/#id-static-analysis
+          https://www.w3.org/TR/xquery-semantics/
+
         :param item: a string or an AttributeNode or an element.
         """
-        if not self.xsd_types or isinstance(self.xsd_types, AbstractSchemaProxy):
+        if not isinstance(self.xsd_types, dict):
             return None
+
+        if isinstance(item, str):
+            xsd_type = self.xsd_types.get(item)
         elif isinstance(item, AttributeNode):
             if item.xsd_type is not None:
                 return item.xsd_type
@@ -909,8 +917,6 @@ class XPathToken(XPathTokenType):
             if item.xsd_type is not None:
                 return item.xsd_type
             xsd_type = self.xsd_types.get(item.elem.tag)
-        elif isinstance(item, str):
-            xsd_type = self.xsd_types.get(item)
         else:
             return None
 
@@ -921,38 +927,17 @@ class XPathToken(XPathTokenType):
             return xsd_type
         elif isinstance(item, AttributeNode):
             for x in xsd_type:
-                if x.is_valid(item.value):
+                if x.is_valid(item.value, namespaces=item.nsmap):
                     return x
         elif isinstance(item, ElementNode):
             for x in xsd_type:
                 if x.is_simple():
-                    if x.is_valid(item.elem.text):
+                    if x.is_valid(item.elem.text, namespaces=item.nsmap):
                         return x
-                elif x.is_valid(item.elem):
+                elif x.is_valid(item.elem, namespaces=item.nsmap):
                     return x
 
         return xsd_type[0]
-
-    def get_typed_node(self, item: PrincipalNodeType) -> PrincipalNodeType:
-        """
-        Returns a typed node if the item is matching an XSD type.
-
-        Ref:
-          https://www.w3.org/TR/xpath20/#id-processing-model
-          https://www.w3.org/TR/xpath20/#id-static-analysis
-          https://www.w3.org/TR/xquery-semantics/
-
-        :param item: an untyped attribute or element.
-        :return: a typed AttributeNode/ElementNode if the argument is matching \
-        any associated XSD type.
-        """
-        if isinstance(item, (ElementNode, AttributeNode)) and item.xsd_type is not None:
-            return item
-
-        xsd_type = self.get_xsd_type(item)
-        if xsd_type is not None and isinstance(item, (ElementNode, AttributeNode)):
-            item.xsd_type = xsd_type
-        return item
 
     def cast_to_qname(self, qname: str) -> QName:
         """Cast a prefixed qname string to a QName object."""
