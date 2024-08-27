@@ -105,6 +105,8 @@ def get_prefixed_name(name: str, namespaces: Union[NamespacesType, NsmapType]) -
         if uri == ns_uri:
             return f'{prefix}:{local_name}' if prefix else local_name
     else:
+        if ns_uri == XML_NAMESPACE:
+            return f'xml:{local_name}'
         return name
 
 
@@ -138,5 +140,10 @@ def get_expanded_name(name: str, namespaces: Union[NamespacesType, NsmapType]) -
     else:
         if not prefix or not local_name:
             raise ValueError(f"wrong format for reference name {name!r}")
+        elif prefix == 'xml':
+            return f'{{{XML_NAMESPACE}}}{local_name}'
+
         uri = namespaces[prefix]
-        return f'{{{uri}}}{local_name}' if uri else local_name
+        if not uri:
+            raise ValueError(f"prefix {prefix!r} is mapped to an empty URI")
+        return f'{{{uri}}}{local_name}'

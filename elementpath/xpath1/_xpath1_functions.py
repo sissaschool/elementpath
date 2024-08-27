@@ -164,8 +164,7 @@ def evaluate_name_related_functions(self, context=None):
 
     symbol = self.symbol
     if symbol == 'name':
-        nsmap = getattr(arg, 'nsmap', self.parser.namespaces)
-        return get_prefixed_name(name, nsmap)
+        return get_prefixed_name(name, arg.nsmap)
     elif symbol == 'local-name':
         return name if not name or name[0] != '{' else name.split('}')[1]
     elif self.parser.version == '1.0':

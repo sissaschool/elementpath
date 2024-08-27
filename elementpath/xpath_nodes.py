@@ -105,6 +105,10 @@ class XPathNode:
     def root_node(self, namespace: Optional[str] = None) -> 'XPathNode':
         return self if self.parent is None else self.parent.root_node
 
+    @property
+    def nsmap(self) -> Optional[MutableMapping[Optional[str], str]]:
+        return self.parent.nsmap if self.parent is not None else None
+
     def is_schema_node(self) -> Optional[bool]:
         return None
 
@@ -202,10 +206,6 @@ class AttributeNode(XPathNode):
         if self.parent is None:
             return f'@{self._name}'
         return f'{self.parent.path}/@{self._name}'
-
-    @property
-    def nsmap(self) -> Optional[MutableMapping[Optional[str], str]]:
-        return self.parent.nsmap if self.parent is not None else None
 
     def is_schema_node(self) -> bool:
         return hasattr(self.value, 'name') and hasattr(self.value, 'type')
