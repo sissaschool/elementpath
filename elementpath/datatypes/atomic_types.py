@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Optional, Pattern, Tuple, Type
 import re
 
@@ -98,3 +98,7 @@ class AtomicTypeMeta(ABCMeta):
 
 class AnyAtomicType(metaclass=AtomicTypeMeta):
     name = 'anyAtomicType'
+
+    @abstractmethod
+    def __init__(self, value: Any) -> None:
+        raise NotImplementedError()

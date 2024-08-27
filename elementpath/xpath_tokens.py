@@ -355,10 +355,11 @@ class XPathToken(XPathTokenType):
             msg = f'unknown function: {self.value}#{arity}'
             raise self.error('XPST0017', msg)
         else:
-            func = self.evaluate(context)
-            if not isinstance(func, XPathFunction):
-                msg = f'unknown function: {func}#{arity}'
+            item = self.evaluate(context)
+            if not isinstance(item, XPathFunction):
+                msg = f'unknown function: {item}#{arity}'
                 raise self.error('XPST0017', msg)
+            func = item
 
         max_args = func.max_args
         if func.min_args > arity or max_args is not None and max_args < arity:
@@ -1157,6 +1158,7 @@ class ValueToken(XPathToken):
     A dummy token for encapsulating a value.
     """
     symbol = '(value)'
+    value: AnyAtomicType
 
     @property
     def source(self) -> str:

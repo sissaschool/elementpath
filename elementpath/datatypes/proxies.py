@@ -45,6 +45,9 @@ class BooleanProxy(AnyAtomicType):
             raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         return 't' in value or '1' in value
 
+    def __init__(self, value: object) -> None:
+        bool.__init__(self)
+
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, bool)
@@ -78,6 +81,9 @@ class DecimalProxy(AnyAtomicType):
             msg = 'invalid value {!r} for xs:{}'
             raise ArithmeticError(msg.format(value, cls.name)) from None
 
+    def __init__(self, value: Any) -> None:
+        pass
+
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, (int, Decimal, Integer)) and not issubclass(subclass, bool)
@@ -106,6 +112,9 @@ class DoubleProxy10(AnyAtomicType):
     def __new__(cls, value: Union[SupportsFloat, str]) -> float:  # type: ignore[misc]
         return get_double(value, cls.xsd_version)
 
+    def __init__(self, value: Union[SupportsFloat, str]) -> None:
+        float.__init__(self)
+
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:
         return issubclass(subclass, float) and not issubclass(subclass, Float10)
@@ -131,6 +140,9 @@ class StringProxy(AnyAtomicType):
 
     def __new__(cls, *args: object, **kwargs: object) -> str:  # type: ignore[misc]
         return str(*args, **kwargs)
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        str.__init__(self)
 
     @classmethod
     def __subclasshook__(cls, subclass: type) -> bool:

@@ -14,11 +14,11 @@ exceptions in order to be reusable in other packages.
 """
 from collections import namedtuple
 from decimal import Decimal
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Type, Union
 
 from elementpath.aliases import MutableMapping, NsmapType
 from elementpath.protocols import XsdTypeProtocol
-from elementpath.namespaces import XSD_NAMESPACE
+from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION
 
 from .atomic_types import xsd10_atomic_types, xsd11_atomic_types, \
     AtomicTypeMeta, AnyAtomicType
@@ -123,8 +123,9 @@ def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
         except KeyError:
             return UntypedAtomic(text or '')
 
-    if type(xsd_type) is Notation:
-        if xsd_type.name is None:
+    cls: Type[AtomicValueType]
+    if xsd_type.is_notation():
+        if xsd_type.name is None or xsd_type.name == XSD_NOTATION:
             name = '_Notation'
         elif '}' in xsd_type.name:
             name = f"{xsd_type.name.split('}')[-1].title()}_Notation"
