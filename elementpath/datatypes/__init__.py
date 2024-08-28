@@ -16,7 +16,7 @@ from collections import namedtuple
 from decimal import Decimal
 from typing import Optional, Tuple, Type, Union
 
-from elementpath.aliases import MutableMapping, NsmapType
+from elementpath.aliases import MutableMapping, AnyNsmapType
 from elementpath.protocols import XsdTypeProtocol
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION
 
@@ -108,10 +108,8 @@ ATOMIC_TYPES: MutableMapping[Optional[str], Builder] = {
 
 def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
                      text: Optional[str] = None,
-                     namespaces: Optional[NsmapType] = None) -> AtomicValueType:
+                     namespaces: AnyNsmapType = None) -> AtomicValueType:
     """Gets an atomic value for an XSD type instance and a source text/value."""
-    ns: Optional[str]
-
     if xsd_type is None:
         return UntypedAtomic(text or '')
 
@@ -132,6 +130,7 @@ def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
         else:
             name = f"{xsd_type.name.split(':')[-1].title()}_Notation"
 
+        # noinspection PyTypeChecker
         cls = type(name, (Notation,), {})
     else:
         cls = builder.cls

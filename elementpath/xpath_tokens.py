@@ -17,29 +17,31 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import TYPE_CHECKING, cast, Dict, Optional, List, Tuple, \
-    Union, Any, Iterable, Iterator, SupportsFloat, Type, Callable
+from typing import TYPE_CHECKING, Any, Callable, cast, Iterable, Iterator, \
+    List, Optional, SupportsFloat, Tuple, Type, Union
 import urllib.parse
 
-from .exceptions import ElementPathError, ElementPathValueError, \
+from elementpath.exceptions import ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError, xpath_error
-from .helpers import ordinal, get_double, split_function_test
-from .etree import is_etree_element, is_etree_document
-from .namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
+from elementpath.helpers import ordinal, get_double, split_function_test
+from elementpath.etree import is_etree_element, is_etree_document
+from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_SCHEMA, XSD_DECIMAL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
-from .tree_builders import get_node_tree
-from .xpath_nodes import XPathNode, ElementNode, AttributeNode, \
+from elementpath.tree_builders import get_node_tree
+from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
-from .datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
+from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType
+from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
-    Integer, DoubleProxy10, DoubleProxy, QName, AtomicValueType, AnyAtomicType
-from .protocols import ElementProtocol, DocumentProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
-from .sequence_types import is_sequence_type_restriction, match_sequence_type
-from .schema_proxy import AbstractSchemaProxy
-from .tdop import Token, MultiLabel
-from .xpath_context import XPathContext, XPathSchemaContext
+    Integer, DoubleProxy10, DoubleProxy, QName, AtomicValueType, AnyAtomicType, \
+    get_atomic_value
+from elementpath.protocols import ElementProtocol, DocumentProtocol, \
+    XsdAttributeProtocol, XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
+from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
+from elementpath.schema_proxy import AbstractSchemaProxy
+from elementpath.tdop import Token, MultiLabel
+from elementpath.xpath_context import XPathContext, XPathSchemaContext
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser
@@ -66,8 +68,6 @@ _LEAF_ELEMENTS_TOKENS = {
 }
 
 # Type annotations aliases
-NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
-ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 PrincipalNodeType = Union[AttributeNode, ElementNode]
 
 XPathResultType = Union[
@@ -99,7 +99,7 @@ class XPathToken(XPathTokenType):
     xsd_types = None  # for XPath 2.0+ XML Schema types labeling
     namespace = None  # for namespace binding of names and wildcards
     occurrence = None  # occurrence indicator for item types
-    concatenated = False  # for infix operators that can be concatenated
+    concatenated = False  # a flag for infix operators that can be concatenated
 
     def evaluate(self, context: ContextArgType = None) -> Union[Any, List[Any]]:
         """
@@ -460,39 +460,35 @@ class XPathToken(XPathTokenType):
         :param context: the XPath dynamic context.
         :return: the atomized value of a single length sequence or `None` if the sequence is empty.
         """
-        selector = iter(self.atomization(context))
-        try:
-            value = next(selector)
-        except StopIteration:
-            return None
-        else:
-            item = getattr(context, 'item', None)
-
-            try:
-                next(selector)
-            except StopIteration:
-                if isinstance(value, UntypedAtomic):
-                    value = str(value)
-
-                if not isinstance(context, XPathSchemaContext) and \
-                        item is not None and \
-                        self.xsd_types and \
-                        isinstance(value, str):
-
-                    xsd_type = self.get_xsd_type(item)
-                    if xsd_type is None or xsd_type.name in _XSD_SPECIAL_TYPES:
-                        pass
-                    else:
-                        try:
-                            value = xsd_type.decode(value)
-                        except (TypeError, ValueError):
-                            msg = "Type {!r} is not appropriate for the context"
-                            raise self.error('XPTY0004', msg.format(type(value)))
-
-                return value
-            else:
+        value = None
+        for k, value in enumerate(self.atomization(context)):
+            if k:
                 msg = "atomized operand is a sequence of length greater than one"
                 raise self.error('XPTY0004', msg)
+        else:
+            if value is None:
+                return None
+            elif isinstance(value, UntypedAtomic):
+                value = str(value)
+
+            if isinstance(value, str) and isinstance(self.xsd_types, dict) and \
+                    context is not None and not isinstance(context, XPathSchemaContext):
+
+                xsd_type = self.get_xsd_type(context.item)
+                if xsd_type is not None and xsd_type.name not in _XSD_SPECIAL_TYPES:
+                    namespaces: AnyNsmapType
+                    if isinstance(context.item, XPathNode):
+                        namespaces = context.item.nsmap
+                    else:
+                        namespaces = context.namespaces
+
+                    try:
+                        value = get_atomic_value(xsd_type, value, namespaces)
+                    except (TypeError, ValueError):
+                        msg = "Type {!r} is not appropriate for the context"
+                        raise self.error('XPTY0004', msg.format(type(value)))
+
+            return value
 
     def iter_comparison_data(self, context: ContextArgType) -> Iterator[Any]:
         """
@@ -892,8 +888,7 @@ class XPathToken(XPathTokenType):
 
         return xsd_type
 
-    def get_xsd_type(self, item: Union[str, PrincipalNodeType]) \
-            -> Optional[XsdTypeProtocol]:
+    def get_xsd_type(self, item: object) -> Optional[XsdTypeProtocol]:
         """
         Returns the XSD type associated with an item. Match by item's name
         and XSD validity. Returns `None` if no XSD type is matching.

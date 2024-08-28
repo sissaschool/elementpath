@@ -14,23 +14,22 @@ from abc import ABCMeta
 import locale
 from collections.abc import MutableSequence
 from urllib.parse import urlparse
-from typing import cast, Any, Callable, ClassVar, Dict, List, \
-    MutableMapping, Optional, Tuple, Type, Union
+from typing import cast, Any, Callable, ClassVar, List, Optional, Tuple, Type, Union
 
-from elementpath.aliases import NamespacesType
+from elementpath.aliases import MutableMapping, Dict, NamespacesType, NargsType
 from elementpath.helpers import upper_camel_case, is_ncname, ordinal
 from elementpath.exceptions import ElementPathError, ElementPathTypeError, \
     ElementPathValueError, MissingContextError, xpath_error
 from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
-from ..collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from ..datatypes import UntypedAtomic, AtomicValueType, QName
-from ..xpath_tokens import NargsType, XPathToken, ProxyToken, XPathFunction, XPathConstructor
-from ..xpath_context import XPathContext, XPathSchemaContext
-from ..sequence_types import is_sequence_type, match_sequence_type
-from ..schema_proxy import AbstractSchemaProxy
-from ..xpath1 import XPath1Parser
+from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
+from elementpath.datatypes import UntypedAtomic, AtomicValueType, QName
+from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
+from elementpath.xpath_context import XPathContext, XPathSchemaContext
+from elementpath.sequence_types import is_sequence_type, match_sequence_type
+from elementpath.schema_proxy import AbstractSchemaProxy
+from elementpath.xpath1 import XPath1Parser
 
 
 class XPath2Parser(XPath1Parser):

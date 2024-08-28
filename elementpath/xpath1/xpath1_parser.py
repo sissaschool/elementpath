@@ -14,7 +14,7 @@ import re
 from abc import ABCMeta
 from typing import cast, Any, ClassVar, Dict, Optional, Tuple, Type, Set, Sequence
 
-from elementpath.aliases import NamespacesType, MutableMapping
+from elementpath.aliases import NamespacesType, MutableMapping, NargsType
 from elementpath.exceptions import MissingContextError, ElementPathValueError, \
     ElementPathNameError, ElementPathKeyError, xpath_error
 from elementpath.datatypes import QName
@@ -22,7 +22,7 @@ from elementpath.tdop import Token, Parser
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
-from elementpath.xpath_tokens import NargsType, XPathToken, XPathAxis, XPathFunction, \
+from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, \
     ProxyToken, ContextArgType
 
 

@@ -14,9 +14,9 @@ import math
 import decimal
 import operator
 from copy import copy
-from typing import Any, cast, Iterator, List, Literal, NoReturn, Optional, \
-    Sequence, Union
+from typing import Any, cast, Iterator, NoReturn, Optional, Sequence, Union
 
+from elementpath.aliases import List, Set
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, node_position
 from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
@@ -100,9 +100,9 @@ def select_name_literal(self: XPathToken, context: ContextArgType = None) \
         for item in context.iter_matching_nodes(name, default_namespace):
             if self.parser.schema is not None and item.xsd_type is None:
                 xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
-                if xsd_node is None:
+                if xsd_node is None or not hasattr(xsd_node, 'type'):
                     self.xsd_types = self.parser.schema
-                else:
+                elif xsd_node.type is not None:
                     self.xsd_types = {item.name: xsd_node.type}
                     item.xsd_type = xsd_node.type
             yield item
@@ -110,7 +110,7 @@ def select_name_literal(self: XPathToken, context: ContextArgType = None) \
     else:
         # XSD typed selection
         for item in context.iter_matching_nodes(name, default_namespace):
-            if item.xsd_type is None:
+            if item.xsd_type is None and isinstance(item.name, str):
                 item.xsd_type = self.get_xsd_type(item.name)
             yield item
 
@@ -123,6 +123,7 @@ class _PrefixedReferenceToken(XPathToken):
     symbol = lookup_name = ':'
     lbp = 95
     rbp = 95
+    value: str
 
     def __init__(self, parser: XPathParserType, value: Optional[Any] = None) -> None:
         super().__init__(parser, value)
@@ -202,10 +203,12 @@ class _PrefixedReferenceToken(XPathToken):
                 yield value
             return
 
-        if self[0].value == '*':
+        prefix = self[0].value
+        assert isinstance(prefix, str)
+        if prefix == '*':
             name = '*:%s' % self[1].value
         else:
-            name = '{%s}%s' % (self.get_namespace(self[0].value), self[1].value)
+            name = f'{{{self.get_namespace(prefix)}}}{self[1].value}'
 
         if context is None:
             raise self.missing_context()
@@ -219,9 +222,9 @@ class _PrefixedReferenceToken(XPathToken):
             for item in context.iter_matching_nodes(name):
                 if self.parser.schema is not None and item.xsd_type is None:
                     xsd_node = self.parser.schema.find(item.path, self.parser.namespaces)
-                    if xsd_node is None:
+                    if xsd_node is None or not hasattr(xsd_node, 'type'):
                         self.xsd_types = self.parser.schema
-                    else:
+                    elif xsd_node.type is not None:
                         self.xsd_types = {item.name: xsd_node.type}
                         item.xsd_type = xsd_node.type
                 yield item
@@ -248,7 +251,9 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
     if self.parser.next_token.symbol == '}':
         namespace = ''
     else:
-        namespace = self.parser.next_token.value + self.parser.advance_until('}')
+        value = self.parser.next_token.value
+        assert isinstance(value, str)
+        namespace = value + self.parser.advance_until('}')
         namespace = collapse_white_spaces(namespace)
 
     try:
@@ -270,9 +275,9 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
         self.parser.expression(90)
 
     if self[1].value is None or not self[0].value:
-        self.value = self[1].value
+        self.value = None
     else:
-        self.value = '{%s}%s' % (self[0].value, self[1].value)
+        self.value = f'{{{self[0].value}}}{self[1].value}'
     return self
 
 
@@ -286,16 +291,17 @@ def evaluate_namespace_uri(self: XPathToken, context: ContextArgType = None) \
 
 @method('{')
 def select_namespace_uri(self: XPathToken, context: ContextArgType = None) \
-        -> Iterator[ItemType]:
+        -> Iterator[Union[ItemType, List[ItemType]]]:
     if self[1].label.endswith('function'):
         yield self[1].evaluate(context)
         return
     elif context is None:
         raise self.missing_context()
+    elif not isinstance(self.value, str):
+        return
 
     if isinstance(context, XPathSchemaContext):
         yield from self.select_xsd_nodes(context, self.value)
-
     elif self.xsd_types is None:
         yield from context.iter_matching_nodes(self.value)
     else:
@@ -312,19 +318,19 @@ def select_namespace_uri(self: XPathToken, context: ContextArgType = None) \
 def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
-    if ':' in self[0].value:
+    if not isinstance(self[0].value, str) or ':' in self[0].value:
         raise self[0].wrong_syntax("variable reference requires a simple reference name")
     return self
 
 
 @method('$')
 def evaluate_variable_reference(self: XPathToken, context: ContextArgType = None) \
-        -> Union[ItemType]:
+        -> Union[ItemType, List[ItemType]]:
     if context is None:
         raise self.missing_context()
 
     try:
-        value = context.variables[self[0].value]
+        value = context.variables[cast(str, self[0].value)]
     except KeyError as err:
         raise self.error('XPST0008', 'unknown variable %r' % str(err)) from None
     else:
@@ -334,14 +340,20 @@ def evaluate_variable_reference(self: XPathToken, context: ContextArgType = None
 ###
 # Nullary operators (use only the context)
 @method(nullary('*'))
-def select_wildcard(self: XPathToken, context: ContextArgType = None):
+def select_wildcard(self: XPathToken, context: ContextArgType = None) -> Iterator[ItemType]:
     if self:
         # Product operator
         item = self.evaluate(context)
-        if item or not isinstance(item, list):
+        if not isinstance(item, list):
             if context is not None:
                 context.item = item
             yield item
+        elif context is not None:
+            for context.item in item:
+                yield context.item
+        else:
+            yield from item
+
     elif context is None:
         raise self.missing_context()
 
@@ -600,7 +612,7 @@ def evaluate_div_operator(self: XPathToken, context: ContextArgType = None) \
     elif dividend == 0:
         return math.nan
     elif dividend > 0:
-        return float('-inf') if str(divisor).startswith(    '-') else float('inf')
+        return float('-inf') if str(divisor).startswith('-') else float('inf')
     else:
         return float('inf') if str(divisor).startswith('-') else float('-inf')
 
@@ -613,6 +625,8 @@ def evaluate_mod_operator(self: XPathToken, context: ContextArgType = None) \
     op1, op2 = self.get_operands(context, cls=NumericProxy)
     if op1 is None:
         return []
+    elif op2 is None:
+        raise self.error('XPTY0004', '2nd operand is an empty sequence')
     elif op2 == 0 and isinstance(op2, float):
         return math.nan
     elif math.isinf(op2) and not math.isinf(op1) and op1 != 0:
@@ -721,7 +735,7 @@ def select_child_path(self: XPathToken, context: ContextArgType = None) \
             context.item = context.root  # A fragment or a schema node
         yield from self[0].select(context)
     else:
-        items = set()
+        items: Set[ItemType] = set()
         for _ in context.inner_focus_select(self[0]):
             if not isinstance(context.item, XPathNode):
                 msg = f"Intermediate step contains an atomic value {context.item!r}"
@@ -750,7 +764,7 @@ def select_descendant_path(self: XPathToken, context: ContextArgType = None) \
     if context is None:
         raise self.missing_context()
     elif len(self) == 2:
-        items = set()
+        items: Set[ItemType] = set()
         for _ in context.inner_focus_select(self[0]):
             if not isinstance(context.item, XPathNode):
                 raise self.error('XPTY0019')
