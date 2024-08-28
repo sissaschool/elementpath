@@ -11,7 +11,7 @@
 Imports for subscriptable types and common type hints aliases.
 """
 import sys
-from typing import Any, Optional, Tuple, Type, Union
+from typing import Any, Optional, NoReturn, Tuple, Type, Union
 
 if sys.version_info < (3, 9):
     from typing import Dict, List, MutableMapping, MutableSequence, Set
@@ -22,6 +22,8 @@ else:
     List = list
     Set = set
 
+Never = NoReturn
+
 NamespacesType = MutableMapping[str, str]
 NsmapType = MutableMapping[Optional[str], str]  # compatible with the nsmap of lxml Element
 AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and function arguments
@@ -29,5 +31,5 @@ AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and fun
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 
-__all__ = ['MutableMapping', 'MutableSequence', 'Dict', 'List', 'Set', 'NamespacesType',
-           'NsmapType', 'AnyNsmapType', 'NargsType', 'ClassCheckType']
+__all__ = ['MutableMapping', 'MutableSequence', 'Dict', 'List', 'Set', 'Never',
+           'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType', 'ClassCheckType']

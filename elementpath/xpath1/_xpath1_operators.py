@@ -30,6 +30,8 @@ from elementpath.xpath_tokens import XPathParserType, ContextArgType, XPathToken
 
 from .xpath1_parser import XPath1Parser
 
+__all__ = ['XPath1Parser']
+
 OPERATORS_MAP = {
     '=': operator.eq,
     '!=': operator.ne,

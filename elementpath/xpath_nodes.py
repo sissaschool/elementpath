@@ -106,8 +106,8 @@ class XPathNode:
         return self if self.parent is None else self.parent.root_node
 
     @property
-    def nsmap(self) -> Optional[MutableMapping[Optional[str], str]]:
-        return self.parent.nsmap if self.parent is not None else None
+    def nsmap(self) -> MutableMapping[Optional[str], str]:
+        return self.parent.nsmap if self.parent is not None else {}
 
     def is_schema_node(self) -> Optional[bool]:
         return None
