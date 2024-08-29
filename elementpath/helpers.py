@@ -140,7 +140,7 @@ def round_number(value: Union[float, int, Decimal]) -> Union[float, int, Decimal
         return type(value)(number.quantize(Decimal('1'), rounding='ROUND_HALF_DOWN'))
 
 
-def normalized_seconds(seconds: Decimal) -> str:
+def normalized_seconds(seconds: Union[int, Decimal]) -> str:
     # Decimal.normalize() does not remove exp every time: eg. Decimal('1E+1')
     return '{:.6f}'.format(seconds).rstrip('0').rstrip('.')
 

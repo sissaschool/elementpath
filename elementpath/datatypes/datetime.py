@@ -14,9 +14,9 @@ import re
 import datetime
 from calendar import isleap
 from decimal import Decimal, Context
-from typing import cast, Any, Callable, Dict, Optional, Tuple, Union
+from typing import cast, Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
-from ..helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
+from elementpath.helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
     normalized_seconds, months2days, round_number
 from .atomic_types import AnyAtomicType
@@ -110,6 +110,9 @@ class Timezone(datetime.tzinfo):
         if isinstance(dt, datetime.datetime):
             return dt + self.offset
         raise TypeError("fromutc() argument must be a datetime.datetime instance")
+
+
+_DT = TypeVar('_DT', bound='AbstractDateTime')
 
 
 class AbstractDateTime(AnyAtomicType):
@@ -260,8 +263,8 @@ class AbstractDateTime(AnyAtomicType):
         return self._dt.isocalendar()
 
     @classmethod
-    def fromstring(cls, datetime_string: str, tzinfo: Optional[Timezone] = None) \
-            -> 'AbstractDateTime':
+    def fromstring(cls: Type[_DT], datetime_string: str, tzinfo: Optional[Timezone] = None) \
+            -> _DT:
         """
         Creates an XSD date/time instance from a string formatted value.
 
@@ -317,7 +320,7 @@ class AbstractDateTime(AnyAtomicType):
         Creates an XSD date/time instance from a datetime.datetime/date/time instance.
 
         :param dt: the datetime, date or time instance that stores the XSD Date/Time value.
-        :param year: if an year is provided the created instance refers to it and the \
+        :param year: if a year is provided the created instance refers to it and the \
         possibly present *dt.year* part is ignored.
         :return: an AbstractDateTime concrete subclass instance.
         """
@@ -331,7 +334,7 @@ class AbstractDateTime(AnyAtomicType):
             kwargs['year'] = year
         return cls(**kwargs)
 
-    # Python can't compares offset-naive and offset-aware datetimes
+    # Python can't compare offset-naive and offset-aware datetimes
     def _get_operands(self, other: object) -> Tuple[datetime.datetime, datetime.datetime]:
         if isinstance(other, (self.__class__, datetime.datetime)) or \
                 isinstance(self, other.__class__):
@@ -755,6 +758,9 @@ class Time(AbstractDateTime):
             raise TypeError("wrong type %r for operand %r" % (type(other), other))
 
 
+_D = TypeVar('_D', bound='Duration')
+
+
 class Duration(AnyAtomicType):
     """
     Base class for the XSD duration types.
@@ -817,7 +823,7 @@ class Duration(AnyAtomicType):
         return value
 
     @classmethod
-    def fromstring(cls, text: str) -> 'Duration':
+    def fromstring(cls: Type[_D], text: str) -> _D:
         """
         Creates a Duration instance from a formatted XSD duration string.
 

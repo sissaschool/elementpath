@@ -38,6 +38,8 @@ from ..regex import RegexError, translate_pattern
 from ..collations import CollationManager
 from ._xpath2_operators import XPath2Parser
 
+__all__ = ['XPath2Parser']
+
 method = XPath2Parser.method
 function = XPath2Parser.function
 

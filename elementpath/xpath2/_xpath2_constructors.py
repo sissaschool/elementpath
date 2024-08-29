@@ -7,25 +7,36 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# mypy: ignore-errors
 """
 XPath 2.0 implementation - part 4 (XSD constructors)
 """
-from ..exceptions import ElementPathError, ElementPathSyntaxError
-from ..namespaces import XSD_NAMESPACE
-from ..datatypes import xsd10_atomic_types, xsd11_atomic_types, GregorianDay, \
-    GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYear, \
-    GregorianYearMonth10, GregorianYearMonth, Duration, DayTimeDuration, \
-    YearMonthDuration, Date10, Date, DateTime10, DateTime, DateTimeStamp, \
-    Time, UntypedAtomic, QName, HexBinary, Base64Binary, BooleanProxy
-from ..xpath_context import XPathSchemaContext
-from ._xpath2_functions import XPath2Parser
+import decimal
+from typing import cast, Optional, Union
 
+from elementpath.aliases import List, Never
+from elementpath.exceptions import ElementPathError, ElementPathSyntaxError
+from elementpath.namespaces import XSD_NAMESPACE
+from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, \
+    GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, \
+    GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
+    DayTimeDuration, YearMonthDuration, Date10, Date, DateTime10, DateTime, \
+    DateTimeStamp, Time, UntypedAtomic, QName, HexBinary, Base64Binary, \
+    BooleanProxy, AnyURI, AtomicValueType, NumericType, Notation
+from elementpath.xpath_context import XPathSchemaContext
+from elementpath.xpath_tokens import ContextArgType, XPathConstructor
+
+from ._xpath2_functions import XPath2Parser
 
 register = XPath2Parser.register
 unregister = XPath2Parser.unregister
 method = XPath2Parser.method
 constructor = XPath2Parser.constructor
+
+# Type annotations aliases
+OtherDateTimeTypes = Union[
+    Date10, GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10,
+    GregorianYear, GregorianYearMonth10, GregorianYearMonth, Time
+]
 
 
 ###
@@ -40,11 +51,15 @@ constructor = XPath2Parser.constructor
 @constructor('IDREF')
 @constructor('ENTITY')
 @constructor('anyURI')
-def cast_string_based_types(self, value):
+def cast_string_based_types(self: XPathConstructor, value: AtomicValueType) \
+        -> Union[str, AnyURI]:
     try:
-        return xsd10_atomic_types[self.symbol](value)
+        result = xsd10_atomic_types[self.symbol](value)
     except ValueError as err:
         raise self.error('FORG0001', err)
+    else:
+        assert isinstance(result, (str, AnyURI))
+        return result
 
 
 ###
@@ -52,15 +67,19 @@ def cast_string_based_types(self, value):
 @constructor('decimal')
 @constructor('double')
 @constructor('float')
-def cast_numeric_types(self, value):
+def cast_numeric_types(self: XPathConstructor, value: AtomicValueType) -> NumericType:
     try:
         if self.parser.xsd_version == '1.0':
-            return xsd10_atomic_types[self.symbol](value)
-        return xsd11_atomic_types[self.symbol](value)
+            result = xsd10_atomic_types[self.symbol](value)
+        else:
+            result = xsd11_atomic_types[self.symbol](value)
     except ValueError as err:
         if isinstance(value, (str, UntypedAtomic)):
             raise self.error('FORG0001', err)
         raise self.error('FOCA0002', err)
+    else:
+        assert isinstance(result, (int, float, decimal.Decimal))
+        return result
 
 
 @constructor('integer')
@@ -76,9 +95,9 @@ def cast_numeric_types(self, value):
 @constructor('unsignedInt')
 @constructor('unsignedShort')
 @constructor('unsignedByte')
-def cast_integer_types(self, value):
+def cast_integer_types(self: XPathConstructor, value: AtomicValueType) -> int:
     try:
-        return xsd10_atomic_types[self.symbol](value)
+        result = xsd10_atomic_types[self.symbol](value)
     except ValueError:
         msg = 'could not convert {!r} to xs:{}'.format(value, self.symbol)
         if isinstance(value, (str, bytes, int, UntypedAtomic)):
@@ -86,45 +105,56 @@ def cast_integer_types(self, value):
         raise self.error('FOCA0002', msg) from None
     except OverflowError as err:
         raise self.error('FOCA0002', err) from None
+    else:
+        assert isinstance(result, int)
+        return result
 
 
 ###
 # Constructors for datetime XSD types
 @constructor('date')
-def cast_date_type(self, value):
+def cast_date_type(self: XPathConstructor, value: AtomicValueType) -> Date10:
     cls = Date if self.parser.xsd_version == '1.1' else Date10
     if isinstance(value, cls):
         return value
 
     try:
         if isinstance(value, UntypedAtomic):
-            return cls.fromstring(value.value)
+            result = cls.fromstring(value.value)
         elif isinstance(value, DateTime10):
-            return cls(value.year, value.month, value.day, value.tzinfo)
-        return cls.fromstring(value)
+            result = cls(value.year, value.month, value.day, value.tzinfo)
+        else:
+            result = cls.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0001', err) from None
     except ValueError as err:
         raise self.error('FORG0001', err)
+    else:
+        assert isinstance(result, Date10)
+        return result
 
 
 @constructor('gDay')
-def cast_gregorian_day_type(self, value):
+def cast_gregorian_day_type(self: XPathConstructor, value: AtomicValueType) -> GregorianDay:
     if isinstance(value, GregorianDay):
         return value
 
     try:
         if isinstance(value, UntypedAtomic):
-            return GregorianDay.fromstring(value.value)
+            result = GregorianDay.fromstring(value.value)
         elif isinstance(value, (Date10, DateTime10)):
-            return GregorianDay(value.day, value.tzinfo)
-        return GregorianDay.fromstring(value)
+            result = GregorianDay(value.day, value.tzinfo)
+        else:
+            result = GregorianDay.fromstring(value)  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err)
+    else:
+        assert isinstance(result, GregorianDay)
+        return result
 
 
 @constructor('gMonth')
-def cast_gregorian_month_type(self, value):
+def cast_gregorian_month_type(self: XPathConstructor, value: AtomicValueType) -> GregorianMonth:
     if isinstance(value, GregorianMonth):
         return value
 
@@ -133,13 +163,14 @@ def cast_gregorian_month_type(self, value):
             return GregorianMonth.fromstring(value.value)
         elif isinstance(value, (Date10, DateTime10)):
             return GregorianMonth(value.month, value.tzinfo)
-        return GregorianMonth.fromstring(value)
+        return GregorianMonth.fromstring(value)  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err)
 
 
 @constructor('gMonthDay')
-def cast_gregorian_month_day_type(self, value):
+def cast_gregorian_month_day_type(self: XPathConstructor, value: AtomicValueType) \
+        -> GregorianMonthDay:
     if isinstance(value, GregorianMonthDay):
         return value
 
@@ -148,13 +179,14 @@ def cast_gregorian_month_day_type(self, value):
             return GregorianMonthDay.fromstring(value.value)
         elif isinstance(value, (Date10, DateTime10)):
             return GregorianMonthDay(value.month, value.day, value.tzinfo)
-        return GregorianMonthDay.fromstring(value)
+        return GregorianMonthDay.fromstring(value)  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err)
 
 
 @constructor('gYear')
-def cast_gregorian_year_type(self, value):
+def cast_gregorian_year_type(self: XPathConstructor, value: AtomicValueType) \
+        -> Union[GregorianYear10, GregorianYear]:
     cls = GregorianYear if self.parser.xsd_version == '1.1' else GregorianYear10
     if isinstance(value, cls):
         return value
@@ -164,7 +196,7 @@ def cast_gregorian_year_type(self, value):
             return cls.fromstring(value.value)
         elif isinstance(value, (Date10, DateTime10)):
             return cls(value.year, value.tzinfo)
-        return cls.fromstring(value)
+        return cls.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0001', err) from None
     except ValueError as err:
@@ -172,7 +204,8 @@ def cast_gregorian_year_type(self, value):
 
 
 @constructor('gYearMonth')
-def cast_gregorian_year_month_type(self, value):
+def cast_gregorian_year_month_type(self: XPathConstructor, value: AtomicValueType) \
+        -> Union[GregorianYearMonth10, GregorianYearMonth]:
     cls = GregorianYearMonth \
         if self.parser.xsd_version == '1.1' else GregorianYearMonth10
     if isinstance(value, cls):
@@ -183,7 +216,7 @@ def cast_gregorian_year_month_type(self, value):
             return cls.fromstring(value.value)
         elif isinstance(value, (Date10, DateTime10)):
             return cls(value.year, value.month, value.tzinfo)
-        return cls.fromstring(value)
+        return cls.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0001', err) from None
     except ValueError as err:
@@ -191,7 +224,7 @@ def cast_gregorian_year_month_type(self, value):
 
 
 @constructor('time')
-def cast_time_type(self, value):
+def cast_time_type(self: XPathConstructor, value: AtomicValueType) -> Time:
     if isinstance(value, Time):
         return value
 
@@ -201,7 +234,7 @@ def cast_time_type(self, value):
         elif isinstance(value, DateTime10):
             return Time(value.hour, value.minute, value.second,
                         value.microsecond, value.tzinfo)
-        return Time.fromstring(value)
+        return Time.fromstring(value)  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err)
 
@@ -213,7 +246,8 @@ def cast_time_type(self, value):
 @method('gYear')
 @method('gYearMonth')
 @method('time')
-def evaluate_other_datetime_types(self, context=None):
+def evaluate_other_datetime_types(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[OtherDateTimeTypes, List[Never]]:
     if self.context is not None:
         context = self.context
 
@@ -222,7 +256,7 @@ def evaluate_other_datetime_types(self, context=None):
         return []
 
     try:
-        return self.cast(arg)
+        return cast(OtherDateTimeTypes, self.cast(arg))
     except (TypeError, OverflowError) as err:
         if isinstance(context, XPathSchemaContext):
             return []
@@ -235,14 +269,14 @@ def evaluate_other_datetime_types(self, context=None):
 ###
 # Constructors for time durations XSD types
 @constructor('duration')
-def cast_duration_type(self, value):
+def cast_duration_type(self: XPathConstructor, value: AtomicValueType) -> Duration:
     if isinstance(value, Duration):
         return value
 
     try:
         if isinstance(value, UntypedAtomic):
             return Duration.fromstring(value.value)
-        return Duration.fromstring(value)
+        return Duration.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0002', err) from None
     except ValueError as err:
@@ -250,7 +284,8 @@ def cast_duration_type(self, value):
 
 
 @constructor('yearMonthDuration')
-def cast_year_month_duration_type(self, value):
+def cast_year_month_duration_type(self: XPathConstructor, value: AtomicValueType) \
+        -> YearMonthDuration:
     if isinstance(value, YearMonthDuration):
         return value
     elif isinstance(value, Duration):
@@ -259,7 +294,7 @@ def cast_year_month_duration_type(self, value):
     try:
         if isinstance(value, UntypedAtomic):
             return YearMonthDuration.fromstring(value.value)
-        return YearMonthDuration.fromstring(value)
+        return YearMonthDuration.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0002', err) from None
     except ValueError as err:
@@ -267,7 +302,8 @@ def cast_year_month_duration_type(self, value):
 
 
 @constructor('dayTimeDuration')
-def cast_day_time_duration_type(self, value):
+def cast_day_time_duration_type(self: XPathConstructor, value: AtomicValueType) \
+        -> DayTimeDuration:
     if isinstance(value, DayTimeDuration):
         return value
     elif isinstance(value, Duration):
@@ -276,7 +312,7 @@ def cast_day_time_duration_type(self, value):
     try:
         if isinstance(value, UntypedAtomic):
             return DayTimeDuration.fromstring(value.value)
-        return DayTimeDuration.fromstring(value)
+        return DayTimeDuration.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0002', err) from None
     except ValueError as err:
@@ -284,7 +320,8 @@ def cast_day_time_duration_type(self, value):
 
 
 @constructor('dateTimeStamp')
-def cast_datetime_stamp_type(self, value):
+def cast_datetime_stamp_type(self: XPathConstructor, value: AtomicValueType) \
+        -> DateTimeStamp:
     if isinstance(value, DateTimeStamp):
         return value
     elif isinstance(value, DateTime10):
@@ -295,13 +332,14 @@ def cast_datetime_stamp_type(self, value):
             return DateTimeStamp.fromstring(value.value)
         elif isinstance(value, Date):
             return DateTimeStamp(value.year, value.month, value.day, tzinfo=value.tzinfo)
-        return DateTimeStamp.fromstring(value)
+        return DateTimeStamp.fromstring(value)  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 
 
 @method('dateTimeStamp')
-def evaluate_datetime_stamp_type(self, context=None):
+def evaluate_datetime_stamp_type(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[DateTimeStamp, List[Never]]:
     if self.context is not None:
         context = self.context
 
@@ -310,14 +348,17 @@ def evaluate_datetime_stamp_type(self, context=None):
         return []
 
     if isinstance(arg, UntypedAtomic):
-        return self.cast(arg.value)
+        result = self.cast(arg.value)
     elif isinstance(arg, Date):
-        return self.cast(arg)
-    return self.cast(str(arg))
+        result = self.cast(arg)
+    else:
+        result = self.cast(str(arg))
+    assert isinstance(result, DateTimeStamp)
+    return result
 
 
 @method('dateTimeStamp')
-def nud_datetime_stamp_type(self):
+def nud_datetime_stamp_type(self: XPathConstructor) -> XPathConstructor:
     if self.parser.xsd_version == '1.0':
         raise self.wrong_syntax("xs:dateTimeStamp is not recognized unless XSD 1.1 is enabled")
 
@@ -337,9 +378,9 @@ def nud_datetime_stamp_type(self):
 ###
 # Constructors for binary XSD types
 @constructor('base64Binary')
-def cast_base64_binary_type(self, value):
+def cast_base64_binary_type(self: XPathConstructor, value: AtomicValueType) -> Base64Binary:
     try:
-        return Base64Binary(value, ordered=self.parser.version >= '3.1')
+        return Base64Binary(value, ordered=self.parser.version >= '3.1')  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
@@ -347,9 +388,9 @@ def cast_base64_binary_type(self, value):
 
 
 @constructor('hexBinary')
-def cast_hex_binary_type(self, value):
+def cast_hex_binary_type(self: XPathConstructor, value: AtomicValueType) -> HexBinary:
     try:
-        return HexBinary(value, ordered=self.parser.version >= '3.1')
+        return HexBinary(value, ordered=self.parser.version >= '3.1')  # type: ignore[arg-type]
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
@@ -358,13 +399,14 @@ def cast_hex_binary_type(self, value):
 
 @method('base64Binary')
 @method('hexBinary')
-def evaluate_binary_types(self, context=None):
+def evaluate_binary_types(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[HexBinary, Base64Binary, List[Never]]:
     arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
         return []
 
     try:
-        return self.cast(arg)
+        return cast(Union[HexBinary, Base64Binary], self.cast(arg))
     except ElementPathError as err:
         if isinstance(context, XPathSchemaContext):
             return []
@@ -373,12 +415,12 @@ def evaluate_binary_types(self, context=None):
 
 
 @constructor('NOTATION')
-def cast_notation_type(self, value):
+def cast_notation_type(self: XPathConstructor, value: AtomicValueType) -> Notation:
     raise NotImplementedError("No value is castable to xs:NOTATION")
 
 
 @method('NOTATION')
-def nud_notation_type(self):
+def nud_notation_type(self: XPathConstructor) -> None:
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
         raise self.error('XPST0017', 'expected exactly one argument')
@@ -401,9 +443,9 @@ unregister('boolean')
 
 @constructor('boolean', label=('function', 'constructor function'),
              sequence_types=('item()*', 'xs:boolean'))
-def cast_boolean_type(self, value):
+def cast_boolean_type(self: XPathConstructor, value: AtomicValueType) -> bool:
     try:
-        return BooleanProxy(value)
+        return cast(bool, BooleanProxy(value))
     except ValueError as err:
         raise self.error('FORG0001', err) from None
     except TypeError as err:
@@ -411,7 +453,7 @@ def cast_boolean_type(self, value):
 
 
 @method('boolean')
-def nud_boolean_type_and_function(self):
+def nud_boolean_type_and_function(self: XPathConstructor) -> XPathConstructor:
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
         msg = 'Too few arguments: expected at least 1 argument'
@@ -426,7 +468,8 @@ def nud_boolean_type_and_function(self):
 
 
 @method('boolean')
-def evaluate_boolean_type_and_function(self, context=None):
+def evaluate_boolean_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[bool, List[Never]]:
     if self.context is not None:
         context = self.context
 
@@ -439,7 +482,7 @@ def evaluate_boolean_type_and_function(self, context=None):
         return []
 
     try:
-        return self.cast(arg)
+        return cast(bool, self.cast(arg))
     except ElementPathError as err:
         if isinstance(context, XPathSchemaContext):
             return []
@@ -454,12 +497,12 @@ unregister('string')
 
 @constructor('string', label=('function', 'constructor function'),
              nargs=(0, 1), sequence_types=('item()?', 'xs:string'))
-def cast_string_type(self, value):
+def cast_string_type(self: XPathConstructor, value: AtomicValueType) -> str:
     return self.string_value(value)
 
 
 @method('string')
-def nud_string_type_and_function(self):
+def nud_string_type_and_function(self: XPathConstructor) -> XPathConstructor:
     try:
         self.parser.advance('(')
         if self.label != 'function' or self.parser.next_token.symbol != ')':
@@ -473,7 +516,8 @@ def nud_string_type_and_function(self):
 
 
 @method('string')
-def evaluate_string_type_and_function(self, context=None):
+def evaluate_string_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[str, List[Never]]:
     if self.context is not None:
         context = self.context
 
@@ -497,7 +541,7 @@ def evaluate_string_type_and_function(self, context=None):
 #
 @constructor('QName', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
-def cast_qname_type(self, value):
+def cast_qname_type(self: XPathConstructor, value: AtomicValueType) -> QName:
     if isinstance(value, QName):
         return value
     elif isinstance(value, UntypedAtomic) and self.parser.version >= '3.0':
@@ -510,26 +554,30 @@ def cast_qname_type(self, value):
 
 @constructor('dateTime', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:date?', 'xs:time?', 'xs:dateTime?'))
-def cast_datetime_type(self, value):
+def cast_datetime_type(self: XPathConstructor, value: AtomicValueType) \
+        -> Optional[DateTime10]:
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
         return value
 
     try:
         if isinstance(value, UntypedAtomic):
-            return cls.fromstring(value.value)
+            result = cls.fromstring(value.value)
         elif isinstance(value, Date10):
-            return cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
-        return cls.fromstring(value)
+            result = cls(value.year, value.month, value.day, tzinfo=value.tzinfo)
+        else:
+            result = cls.fromstring(value)  # type: ignore[arg-type]
     except OverflowError as err:
         raise self.error('FODT0001', err) from None
     except ValueError as err:
         raise self.error('FORG0001', err) from None
+    else:
+        return result
 
 
 @method('QName')
 @method('dateTime')
-def nud_qname_and_datetime(self):
+def nud_qname_and_datetime(self: XPathConstructor) -> XPathConstructor:
     try:
         self.parser.advance('(')
         self[0:] = self.parser.expression(5),
@@ -552,13 +600,18 @@ def nud_qname_and_datetime(self):
 
 
 @method('QName')
-def evaluate_qname_type_and_function(self, context=None):
+def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[QName, List[Never]]:
     if self.context is not None:
         context = self.context
 
     if self.label == 'constructor function':
         arg = self.data_value(self.get_argument(context))
-        return [] if arg is None else self.cast(arg)
+        if arg is None:
+            return []
+        value = self.cast(arg)
+        assert isinstance(value, QName)
+        return value
     else:
         uri = self.get_argument(context)
         qname = self.get_argument(context, index=1)
@@ -574,7 +627,8 @@ def evaluate_qname_type_and_function(self, context=None):
 
 
 @method('dateTime')
-def evaluate_datetime_type_and_function(self, context=None):
+def evaluate_datetime_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[DateTime10, List[Never]]:
     if self.context is not None:
         context = self.context
 
@@ -584,7 +638,7 @@ def evaluate_datetime_type_and_function(self, context=None):
             return []
 
         try:
-            return self.cast(arg)
+            result = self.cast(arg)
         except (ValueError, TypeError) as err:
             if isinstance(context, XPathSchemaContext):
                 return []
@@ -592,6 +646,9 @@ def evaluate_datetime_type_and_function(self, context=None):
                 raise self.error('FORG0001', err) from None
             else:
                 raise self.error('FORG0006', err) from None
+        else:
+            assert isinstance(result, DateTime10)
+            return result
     else:
         dt = self.get_argument(context, cls=Date10)
         tm = self.get_argument(context, 1, cls=Time)
@@ -612,16 +669,19 @@ def evaluate_datetime_type_and_function(self, context=None):
 
 
 @constructor('untypedAtomic')
-def cast_untyped_atomic(self, value):
+def cast_untyped_atomic(self: XPathConstructor, value: AtomicValueType) -> UntypedAtomic:
     return UntypedAtomic(value)
 
 
 @method('untypedAtomic')
-def evaluate_untyped_atomic(self, context=None):
+def evaluate_untyped_atomic(self: XPathConstructor, context: ContextArgType = None) \
+        -> Union[UntypedAtomic, List[Never]]:
     arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
         return []
     elif isinstance(arg, UntypedAtomic):
         return arg
     else:
-        return self.cast(arg)
+        arg = self.cast(arg)
+        assert isinstance(arg, UntypedAtomic)
+        return arg
