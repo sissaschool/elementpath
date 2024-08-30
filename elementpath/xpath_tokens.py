@@ -31,7 +31,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
-from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType
+from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicValueType, AnyAtomicType, \
@@ -738,7 +738,7 @@ class XPathToken(XPathTokenType):
         self.namespace = namespace
 
     def adjust_datetime(self, context: ContextType, cls: Type[AbstractDateTime]) \
-            -> Union[List[Any], AbstractDateTime, DayTimeDuration]:
+            -> Emptiable[Union[AbstractDateTime, DayTimeDuration]]:
         """
         XSD datetime adjust function helper.
 

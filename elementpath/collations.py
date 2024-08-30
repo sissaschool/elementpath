@@ -173,8 +173,8 @@ class CollationManager(context_class_base):
     def find(self, a: str, b: str) -> int:
         return self.strxfrm(a).find(self.strxfrm(b))
 
-    def startswith(self, a: str, b: str) -> int:
+    def startswith(self, a: str, b: str) -> bool:
         return self.strxfrm(a).startswith(self.strxfrm(b))
 
-    def endswith(self, a: str, b: str) -> int:
+    def endswith(self, a: str, b: str) -> bool:
         return self.strxfrm(a).endswith(self.strxfrm(b))
