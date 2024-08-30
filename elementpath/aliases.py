@@ -11,7 +11,7 @@
 Imports for subscriptable types and common type hints aliases.
 """
 import sys
-from typing import Any, Optional, NoReturn, Tuple, Type, Union
+from typing import Any, Optional, NoReturn, Tuple, Type, TypeVar, Union
 
 if sys.version_info < (3, 9):
     from typing import Dict, List, MutableMapping, MutableSequence, Set
@@ -31,5 +31,9 @@ AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and fun
 NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 
+T = TypeVar('T')
+Emptiable = Union[T, List[Never]]
+
 __all__ = ['MutableMapping', 'MutableSequence', 'Dict', 'List', 'Set', 'Never',
-           'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType', 'ClassCheckType']
+           'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType',
+           'ClassCheckType', 'Emptiable']

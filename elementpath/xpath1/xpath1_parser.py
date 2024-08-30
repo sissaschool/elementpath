@@ -17,13 +17,14 @@ from typing import cast, Any, ClassVar, Dict, Optional, Tuple, Type, Set, Sequen
 from elementpath.aliases import NamespacesType, MutableMapping, NargsType
 from elementpath.exceptions import MissingContextError, ElementPathValueError, \
     ElementPathNameError, ElementPathKeyError, xpath_error
+from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
 from elementpath.tdop import Token, Parser
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
-from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, \
-    ProxyToken, ContextArgType
+from elementpath.xpath_context import ContextType
+from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, ProxyToken
 
 
 class XPath1Parser(Parser[XPathToken]):
@@ -61,6 +62,9 @@ class XPath1Parser(Parser[XPathToken]):
     # Class attributes for compatibility with XPath 2.0+
     schema: Optional[AbstractSchemaProxy] = None
     variable_types: Optional[Dict[str, str]] = None
+    document_types: Optional[Dict[str, str]] = None
+    collection_types: Optional[NamespacesType] = None
+    default_collection_type: str = 'node()*'
     base_uri: Optional[str] = None
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
@@ -74,6 +78,12 @@ class XPath1Parser(Parser[XPathToken]):
     The default namespace. For XPath 1.0 this value is always `None` because the default
     namespace is ignored (see https://www.w3.org/TR/1999/REC-xpath-19991116/#node-tests).
     """
+
+    default_collation = UNICODE_CODEPOINT_COLLATION
+
+    @staticmethod
+    def tracer(trace_data: str) -> None:
+        """Trace data collector"""
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  strict: bool = True) -> None:
@@ -248,7 +258,7 @@ class XPath1Parser(Parser[XPathToken]):
                 raise xpath_error('XPDY0050', message)
 
     def get_function(self, name: str, arity: Optional[int],
-                     context: ContextArgType = None) -> XPathFunction:
+                     context: ContextType = None) -> XPathFunction:
         """
         Returns an XPathFunction object suitable for stand-alone usage.
 
@@ -314,4 +324,4 @@ XPath1Parser.register(']')
 XPath1Parser.register('::')
 XPath1Parser.register('}')
 
-# XPath 1.0 definitions continue into module xpath1_operators
+# XPath 1.0 definitions continue into module _xpath1_operators

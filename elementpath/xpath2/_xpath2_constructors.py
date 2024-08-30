@@ -13,7 +13,7 @@ XPath 2.0 implementation - part 4 (XSD constructors)
 import decimal
 from typing import cast, Optional, Union
 
-from elementpath.aliases import List, Never
+from elementpath.aliases import Emptiable
 from elementpath.exceptions import ElementPathError, ElementPathSyntaxError
 from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, \
@@ -22,8 +22,8 @@ from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, \
     DayTimeDuration, YearMonthDuration, Date10, Date, DateTime10, DateTime, \
     DateTimeStamp, Time, UntypedAtomic, QName, HexBinary, Base64Binary, \
     BooleanProxy, AnyURI, AtomicValueType, NumericType, Notation
-from elementpath.xpath_context import XPathSchemaContext
-from elementpath.xpath_tokens import ContextArgType, XPathConstructor
+from elementpath.xpath_context import ContextType, XPathSchemaContext
+from elementpath.xpath_tokens import XPathConstructor
 
 from ._xpath2_functions import XPath2Parser
 
@@ -246,8 +246,8 @@ def cast_time_type(self: XPathConstructor, value: AtomicValueType) -> Time:
 @method('gYear')
 @method('gYearMonth')
 @method('time')
-def evaluate_other_datetime_types(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[OtherDateTimeTypes, List[Never]]:
+def evaluate_other_datetime_types(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[OtherDateTimeTypes]:
     if self.context is not None:
         context = self.context
 
@@ -338,8 +338,8 @@ def cast_datetime_stamp_type(self: XPathConstructor, value: AtomicValueType) \
 
 
 @method('dateTimeStamp')
-def evaluate_datetime_stamp_type(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[DateTimeStamp, List[Never]]:
+def evaluate_datetime_stamp_type(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[DateTimeStamp]:
     if self.context is not None:
         context = self.context
 
@@ -399,8 +399,8 @@ def cast_hex_binary_type(self: XPathConstructor, value: AtomicValueType) -> HexB
 
 @method('base64Binary')
 @method('hexBinary')
-def evaluate_binary_types(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[HexBinary, Base64Binary, List[Never]]:
+def evaluate_binary_types(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[Union[HexBinary, Base64Binary]]:
     arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
         return []
@@ -468,8 +468,8 @@ def nud_boolean_type_and_function(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('boolean')
-def evaluate_boolean_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[bool, List[Never]]:
+def evaluate_boolean_type_and_function(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[bool]:
     if self.context is not None:
         context = self.context
 
@@ -516,8 +516,8 @@ def nud_string_type_and_function(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('string')
-def evaluate_string_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[str, List[Never]]:
+def evaluate_string_type_and_function(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[str]:
     if self.context is not None:
         context = self.context
 
@@ -600,8 +600,8 @@ def nud_qname_and_datetime(self: XPathConstructor) -> XPathConstructor:
 
 
 @method('QName')
-def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[QName, List[Never]]:
+def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[QName]:
     if self.context is not None:
         context = self.context
 
@@ -627,8 +627,8 @@ def evaluate_qname_type_and_function(self: XPathConstructor, context: ContextArg
 
 
 @method('dateTime')
-def evaluate_datetime_type_and_function(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[DateTime10, List[Never]]:
+def evaluate_datetime_type_and_function(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[DateTime10]:
     if self.context is not None:
         context = self.context
 
@@ -674,8 +674,8 @@ def cast_untyped_atomic(self: XPathConstructor, value: AtomicValueType) -> Untyp
 
 
 @method('untypedAtomic')
-def evaluate_untyped_atomic(self: XPathConstructor, context: ContextArgType = None) \
-        -> Union[UntypedAtomic, List[Never]]:
+def evaluate_untyped_atomic(self: XPathConstructor, context: ContextType = None) \
+        -> Emptiable[UntypedAtomic]:
     arg = self.data_value(self.get_argument(self.context or context))
     if arg is None:
         return []

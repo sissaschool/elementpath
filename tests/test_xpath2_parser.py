@@ -1403,7 +1403,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
     def test_raw_resolution_for_issue_73(self):
-        from xmlschema import XMLSchema
         from xmlschema.xpath import XMLSchemaProxy
         from elementpath import get_node_tree, XPath2Parser, XPathContext
         from elementpath.datatypes import Date10
@@ -1467,7 +1466,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         assert len(result) == 1
         assert result[-1] == Date10(2018, 1, 23)
-
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

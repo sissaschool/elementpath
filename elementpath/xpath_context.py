@@ -24,17 +24,23 @@ from .xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode,
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, SchemaElementNode
 from .tree_builders import RootArgType, get_node_tree
 
-__all__ = ['XPathContext', 'XPathSchemaContext', 'ItemType']
-
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
 
+__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType']
+
 # Type annotations aliases
+ContextType = Union['XPathContext', 'XPathSchemaContext', None]
 ItemType = Union[XPathNode, AnyAtomicType, 'XPathFunction']
+
 ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
-VariablesType = Dict[str, Union[ItemType, List[ItemType], None]]
-DocumentsType = Dict[str, Union[DocumentNode, ElementNode, None]]
-CollectionArgType = Union[None, ItemArgType, List[ItemArgType], Tuple[ItemArgType, ...]]
+NodeArgType = Union[XPathNode, ElementProtocol, DocumentProtocol]
+VariableArgType = Union[ItemArgType, List[ItemArgType], Tuple[ItemArgType, ...]]
+CollectionArgType = Union[None, NodeArgType, List[NodeArgType], Tuple[NodeArgType, ...]]
+
+VariablesType = Dict[str, Union[ItemType, List[ItemType]]]
+DocumentsType = Dict[str, DocumentNode]
+CollectionsType = Dict[str, Union[XPathNode, List[XPathNode]]]
 
 
 class XPathContext:
@@ -104,10 +110,10 @@ class XPathContext:
                  position: int = 1,
                  size: int = 1,
                  axis: Optional[str] = None,
-                 variables: Optional[Dict[str, CollectionArgType]] = None,
+                 variables: Optional[Dict[str, VariableArgType]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
-                 documents: Optional[Dict[str, Optional[RootArgType]]] = None,
+                 documents: Optional[Dict[str, RootArgType]] = None,
                  collections: Optional[Dict[str, CollectionArgType]] = None,
                  default_collection: CollectionArgType = None,
                  text_resources: Optional[Dict[str, str]] = None,
@@ -158,18 +164,21 @@ class XPathContext:
         self.current_dt = current_dt or datetime.datetime.now(tz=self.timezone)
 
         if documents is not None:
+            # Assume that are all documents because type checking is done by fn:doc().
             self.documents = {
-                k: get_node_tree(v, self.namespaces, k) if v is not None else v
-                for k, v in documents.items()
+                k: cast(DocumentNode, get_node_tree(v, self.namespaces, k))
+                if v is not None else v for k, v in documents.items()
             }
 
         self.variables = {}
         if variables is not None:
-            for k, v in variables.items():
-                if v is None or isinstance(v, (list, tuple)):
-                    self.variables[k] = self.get_collection(v)
+            for varname, value in variables.items():
+                if value is None:
+                    self.variables[varname] = []
+                elif isinstance(value, (list, tuple)):
+                    self.variables[varname] = [self.get_context_item(x) for x in value]
                 else:
-                    self.variables[k] = self.get_context_item(v)
+                    self.variables[varname] = self.get_context_item(value)
 
         if collections is not None:
             self.collections = {k: self.get_collection(v) for k, v in collections.items()}
@@ -299,13 +308,14 @@ class XPathContext:
             fragment=fragment
         )
 
-    def get_collection(self, items: Optional[CollectionArgType]) -> Optional[List[ItemType]]:
+    def get_collection(self, items: CollectionArgType) -> List[XPathNode]:
         if items is None:
-            return None
+            return []
         elif isinstance(items, (list, tuple)):
-            return [self.get_context_item(x) for x in items]
+            return [x for x in map(self.get_context_item, items) if isinstance(x, XPathNode)]
         else:
-            return [self.get_context_item(items)]
+            item = self.get_context_item(items)
+            return [item] if isinstance(item, XPathNode) else []
 
     def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
         """Apply the token's selector with an inner focus."""

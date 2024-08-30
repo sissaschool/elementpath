@@ -172,7 +172,7 @@ class XPathContextTest(unittest.TestCase):
         node = TextNode('hello world!')
 
         context = XPathContext(self.root, default_collection=1)
-        self.assertListEqual(context.default_collection, [1])
+        self.assertListEqual(context.default_collection, [])
         context = XPathContext(self.root, default_collection=[node])
         self.assertListEqual(context.default_collection, [node])
 

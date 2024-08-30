@@ -72,7 +72,6 @@ class XPath2Parser(XPath1Parser):
     Default is 'node()*'.
     """
     version = '2.0'
-    default_collation = UNICODE_CODEPOINT_COLLATION
 
     DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
         'xml': XML_NAMESPACE,
@@ -98,10 +97,6 @@ class XPath2Parser(XPath1Parser):
     token: XPathToken
     next_token: XPathToken
 
-    @staticmethod
-    def tracer(trace_data: str) -> None:
-        """Trace data collector"""
-
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  strict: bool = True,
                  compatibility_mode: bool = False,
@@ -113,7 +108,7 @@ class XPath2Parser(XPath1Parser):
                  base_uri: Optional[str] = None,
                  variable_types: Optional[Dict[str, str]] = None,
                  document_types: Optional[Dict[str, str]] = None,
-                 collection_types: Optional[Dict[str, str]] = None,
+                 collection_types: Optional[NamespacesType] = None,
                  default_collection_type: str = 'node()*') -> None:
 
         super(XPath2Parser, self).__init__(namespaces, strict)

@@ -30,6 +30,8 @@ from ..xpath_tokens import XPathFunction
 
 from .xpath2_parser import XPath2Parser
 
+__all__ = ['XPath2Parser']
+
 COMPARISON_OPERATORS = {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}
 
 register = XPath2Parser.register
