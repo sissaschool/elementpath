@@ -1304,7 +1304,7 @@ def evaluate_from_date_functions(self: XPathFunction, context: ContextType = Non
     elif item.tzinfo is None:
         return []
 
-    dt = datetime.datetime(year=max(item.year, 0) , month=item.month, day=item.day)
+    dt = datetime.datetime(year=max(item.year, 0), month=item.month, day=item.day)
     seconds = Decimal.from_float(item.tzinfo.utcoffset(dt).total_seconds())
     return DayTimeDuration(seconds=seconds)
 

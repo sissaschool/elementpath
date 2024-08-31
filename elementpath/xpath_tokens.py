@@ -75,7 +75,7 @@ XPathResultType = Union[
     DocumentNode
 ]
 
-XPathTokenType = Token[Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']]
+XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
 XPathFunctionArgType = Union[None, ElementProtocol, DocumentProtocol,
                              'XPathToken', XPathNode, AtomicValueType,
                              List[Union['XPathToken', XPathNode, AtomicValueType]]]
@@ -85,7 +85,7 @@ XsdTypesType = Union[
 ]
 
 
-class XPathToken(XPathTokenType):
+class XPathToken(Token[XPathTokenType]):
     """Base class for XPath tokens."""
     parser: XPathParserType
     xsd_types: XsdTypesType
@@ -706,7 +706,7 @@ class XPathToken(XPathTokenType):
         """
         Bind a token with a namespace. The token has to be a name, a name wildcard,
         a function or a constructor, otherwise a syntax error is raised. Functions
-        and constructors must be limited to its namespaces.
+        and constructors must be limited to their namespaces.
         """
         if self.symbol in ('(name)', '*') or isinstance(self, ProxyToken):
             pass

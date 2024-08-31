@@ -19,15 +19,16 @@ from elementpath.exceptions import MissingContextError, ElementPathValueError, \
     ElementPathNameError, ElementPathKeyError, xpath_error
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
-from elementpath.tdop import Token, Parser
+from elementpath.tdop import Parser
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.xpath_context import ContextType
-from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction, ProxyToken
+from elementpath.xpath_tokens import XPathTokenType, XPathToken, XPathAxis, \
+    XPathFunction, ProxyToken
 
 
-class XPath1Parser(Parser[XPathToken]):
+class XPath1Parser(Parser[XPathTokenType]):
     """
     XPath 1.0 expression parser class. Provide a *namespaces* dictionary argument for
     mapping namespace prefixes to URI inside expressions. If *strict* is set to `False`
@@ -40,7 +41,7 @@ class XPath1Parser(Parser[XPathToken]):
     version = '1.0'
     """The XPath version string."""
 
-    token_base_class: Type[Token[Any]] = XPathToken
+    token_base_class = XPathToken
     literals_pattern = re.compile(
         r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
     )
@@ -244,7 +245,8 @@ class XPath1Parser(Parser[XPathToken]):
                 not isinstance(self.next_token, (XPathFunction, XPathAxis)) and \
                 self.name_pattern.match(self.next_token.symbol) is not None:
             # Disambiguation replacing the next token with a '(name)' token
-            self.next_token = self.symbol_table['(name)'](self, self.next_token.symbol)
+            cls = cast(Type[XPathToken], self.symbol_table['(name)'])
+            self.next_token = cls(self, self.next_token.symbol)
         else:
             raise self.next_token.wrong_syntax(message)
 

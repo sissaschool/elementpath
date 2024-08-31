@@ -14,7 +14,7 @@ import math
 import decimal
 import operator
 from copy import copy
-from typing import Any, cast, Iterator, NoReturn, Optional, Sequence, Union
+from typing import Any, cast, Iterator, NoReturn, Optional, Sequence, Type, Union
 
 from elementpath.aliases import List, Set
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
@@ -273,8 +273,8 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
         self.parser.expected_next('(name)', '*')
     self.parser.next_token.bind_namespace(namespace)
 
-    self[:] = self.parser.symbol_table['(string)'](self.parser, namespace), \
-        self.parser.expression(90)
+    cls: Type[XPathToken] = self.parser.symbol_table['(string)']
+    self[:] = cls(self.parser, namespace), self.parser.expression(90)
 
     if self[1].value is None or not self[0].value:
         self.value = None

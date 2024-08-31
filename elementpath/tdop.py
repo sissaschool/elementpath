@@ -162,11 +162,11 @@ class Token(MutableSequence[TK]):
     __slots__ = '_items', 'parser', 'value', 'span'
 
     _items: List[TK]
-    parser: 'Parser[Token[TK]]'
+    parser: 'Parser[TK]'
     value: Optional[Any]
     span: Tuple[int, int]
 
-    def __init__(self, parser: 'Parser[Token[TK]]',
+    def __init__(self, parser: 'Parser[TK]',
                  value: Optional[Any] = None) -> None:
         self._items = []
         self.parser = parser
@@ -261,7 +261,7 @@ class Token(MutableSequence[TK]):
             return 1, token_index + 1
         return line, token_index - self.parser.source[:token_index].rindex('\n')
 
-    def as_name(self) -> 'Token[TK]':
+    def as_name(self) -> TK:
         """Returns a new '(name)' token for resolving ambiguous states."""
         assert self.parser.name_pattern.match(self.symbol) is not None, \
             "Token symbol is not compatible with the name pattern!"
@@ -318,12 +318,12 @@ class Token(MutableSequence[TK]):
         """Evaluation method"""
         return self.value
 
-    def iter(self, *symbols: str) -> Iterator['Token[TK]']:
+    def iter(self: TK, *symbols: str) -> Iterator[TK]:
         """Returns a generator for iterating the token's tree."""
-        status: List[Tuple[Optional['Token[TK]'], Iterator['Token[TK]']]] = []
-        parent: Optional['Token[TK]'] = self
-        children: Iterator['Token[TK]'] = iter(self)
-        tk: 'Token[TK]'
+        status: List[Tuple[Optional[TK], Iterator[TK]]] = []
+        parent: Optional[TK] = self
+        children: Iterator[TK] = iter(self)
+        tk: TK
 
         while True:
             for tk in children:
