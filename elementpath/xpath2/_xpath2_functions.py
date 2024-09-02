@@ -289,7 +289,7 @@ def evaluate_nilled_function(self: XPathFunction, context: ContextType = None) \
         return []
     elif not isinstance(arg, XPathNode):
         raise self.error('XPTY0004', 'an XPath node required')
-    return bool(arg.nilled)
+    return [] if arg.nilled is None else arg.nilled
 
 
 @method(function('data', nargs=1, sequence_types=('item()*', 'xs:anyAtomicType*')))
