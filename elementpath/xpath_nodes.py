@@ -22,14 +22,16 @@ from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
 from .helpers import match_wildcard, is_absolute_uri
 from .etree import etree_iter_strings, is_etree_element, is_etree_document
 
-__all__ = ['is_xpath_node', 'SchemaElemType', 'ChildNodeType', 'ElementMapType',
-           'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode',
-           'CommentNode', 'ProcessingInstructionNode', 'ElementNode',
-           'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
+__all__ = ['is_xpath_node', 'SchemaElemType', 'TypedNodeType', 'ParentNodeType',
+           'ChildNodeType', 'ElementMapType', 'XPathNode', 'AttributeNode',
+           'NamespaceNode', 'TextNode', 'CommentNode', 'ProcessingInstructionNode',
+           'ElementNode', 'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
+TypedNodeType = Union['AttributeNode', 'ElementNode']
+ParentNodeType = Union['DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
 ElementMapType = Dict[Union[ElementProtocol, SchemaElemType], 'ElementNode']
 

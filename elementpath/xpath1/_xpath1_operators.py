@@ -25,7 +25,8 @@ from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDur
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
 from elementpath.namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from elementpath.schema_proxy import AbstractSchemaProxy
-from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode
+from elementpath.xpath_nodes import ParentNodeType, XPathNode, \
+    ElementNode, AttributeNode, DocumentNode
 from elementpath.xpath_tokens import XPathParserType, XPathToken, XPathTokenType
 
 from .xpath1_parser import XPath1Parser
@@ -191,7 +192,7 @@ class _PrefixedReferenceToken(XPathToken):
         return self
 
     def evaluate(self: XPathToken, context: ContextType = None) \
-            -> Union[ItemType, List[Union[AttributeNode, ElementNode]]]:
+            -> Union[ItemType, List[ItemType]]:
         if self[1].label.endswith('function'):
             return self[1].evaluate(context)
         return [x for x in self.select(context)]
@@ -285,7 +286,7 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
 
 @method('{')
 def evaluate_namespace_uri(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, List[Union[AttributeNode, ElementNode]]]:
+        -> Union[ItemType, List[ItemType]]:
     if self[1].label.endswith('function'):
         return self[1].evaluate(context)
     return [x for x in self.select(context)]
@@ -414,7 +415,7 @@ def select_self_shortcut(self: XPathToken, context: ContextType = None) -> Itera
 
 @method(nullary('..'))
 def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
-        -> Iterator[Union[ElementNode, DocumentNode]]:
+        -> Iterator[ParentNodeType]:
     if context is None:
         raise self.missing_context()
     yield from context.iter_parent()
@@ -673,9 +674,9 @@ def select_union_operator(self: XPathToken, context: ContextType = None) \
     if any(not isinstance(x, XPathNode) for x in results):
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
     elif self.concatenated:
-        yield from results
+        yield from cast(Set[XPathNode], results)
     else:
-        yield from sorted(results, key=node_position)
+        yield from cast(List[XPathNode], sorted(results, key=node_position))
 
 
 ###
@@ -836,7 +837,7 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
             continue
 
         predicate: Sequence[NumericType]
-        predicate = [x for x in self[1].select(copy(context))]
+        predicate = [x for x in cast(Iterator[NumericType], self[1].select(copy(context)))]
         if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
                 yield context.item

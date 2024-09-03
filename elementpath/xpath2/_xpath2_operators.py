@@ -120,9 +120,9 @@ def select_intersect_and_except_operators(self: XPathToken, context: ContextType
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
-        yield from sorted(s1 - s2, key=node_position)
+        yield from cast(List[XPathNode], sorted(s1 - s2, key=node_position))
     else:
-        yield from sorted(s1 & s2, key=node_position)
+        yield from cast(List[XPathNode], sorted(s1 & s2, key=node_position))
 
 
 ###
@@ -414,10 +414,13 @@ def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
             raise self.error('XPTY0004', "an atomic value is required")
 
     arg = self.data_value(result[0])
+    value: Emptiable[AtomicValueType]
     try:
         if namespace != XSD_NAMESPACE:
             if self.parser.schema is not None:
                 value = self.parser.schema.cast_as(self.string_value(arg), atomic_type)
+            else:
+                value = []
         else:
             local_name = atomic_type.split('}')[1]
             try:
@@ -667,7 +670,7 @@ def evaluate_range_expression(self: XPathToken, context: ContextType = None) -> 
 
 @method('to')
 def select_range_expression(self: XPathToken, context: ContextType = None) -> Iterator[int]:
-    yield from self.evaluate(context)
+    yield from cast(List[int], self.evaluate(context))
 
 
 ###
@@ -912,12 +915,12 @@ def nud_attribute_kind_test_or_axis(self: XPathToken) -> XPathToken:
 
 @method('attribute')
 def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = None) \
-        -> Iterator[Union[AtomicValueType, XsdAttributeProtocol]]:
+        -> Iterator[Union[AtomicValueType, AttributeNode, XsdAttributeProtocol]]:
     if context is None:
         raise self.missing_context()
     elif self.label == 'axis':
         for _ in context.iter_attributes():
-            yield from self[0].select(context)
+            yield from cast(Iterator[AttributeNode], self[0].select(context))
     elif not self:
         for attribute in context.iter_attributes():
             yield attribute.value

@@ -942,6 +942,7 @@ def evaluate_codepoints_to_string_function(
         context = self.context
 
     result = []
+    value: Union[ItemType, int]
     for value in self[0].select(context):
         if isinstance(value, UntypedAtomic):
             value = int(value)
@@ -1599,7 +1600,7 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
     if self.context is not None:
         context = self.context
 
-    ids = [x for x in self[0].select(context=copy(context))]
+    ids = [x for x in self[0].select(context=copy(context)) if hasattr(x, 'split')]
     node = self.get_argument(context, index=1, default_to_context=True)
 
     if isinstance(context, XPathSchemaContext):
@@ -1611,6 +1612,7 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
             if not isinstance(element, ElementNode):
                 continue
 
+            x: str
             text = element.elem.text
             if text and is_idrefs(text) and \
                     any(v in text.split() for x in ids for v in x.split()):

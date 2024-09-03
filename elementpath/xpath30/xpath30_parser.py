@@ -70,7 +70,6 @@ class XPath30Parser(XPath2Parser):
             'pattern-separator': ';',
         }
     }
-    defuse_xml: bool = True
 
     def __init__(self, *args: Any, decimal_formats: Optional[DecimalFormatsType] = None,
                  defuse_xml: bool = True, **kwargs: Any) -> None:

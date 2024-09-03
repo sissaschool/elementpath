@@ -70,6 +70,7 @@ class XPath1Parser(Parser[XPathTokenType]):
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
     parse_arguments: bool = True
+    defuse_xml: bool = True
 
     compatibility_mode: bool = True
     """XPath 1.0 compatibility mode."""
@@ -150,14 +151,16 @@ class XPath1Parser(Parser[XPathTokenType]):
             cls.symbol_table[f'{{{token_cls.namespace}}}{symbol}'] = token_cls
 
         proxy_class = cls.register(symbol, bases=(ProxyToken,), label=label, lbp=bp, rbp=bp)
-        return cast(Type[ProxyToken], proxy_class)
+        assert issubclass(proxy_class, ProxyToken)
+        return proxy_class
 
     @classmethod
     def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> Type[XPathAxis]:
         """Register a token for a symbol that represents an XPath *axis*."""
         token_class = cls.register(symbol, label='axis', bases=(XPathAxis,),
                                    reverse_axis=reverse_axis, lbp=bp, rbp=bp)
-        return cast(Type[XPathAxis], token_class)
+        assert issubclass(token_class, XPathAxis)
+        return token_class
 
     @classmethod
     def function(cls, symbol: str,

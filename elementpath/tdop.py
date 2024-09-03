@@ -156,7 +156,7 @@ class Token(MutableSequence[TK]):
     rbp: int = 0           # right binding power
     symbol: str = ''       # the token identifier
     lookup_name: str = ''  # the key in symbol table, usually matches the symbol.
-    label: str = 'symbol'  # optional label
+    label: Union[str, MultiLabel] = 'symbol'  # the label, that usually means a class of tokens.
     pattern: Optional[str] = None  # a custom regex pattern for building the tokenizer
 
     __slots__ = '_items', 'parser', 'value', 'span'
