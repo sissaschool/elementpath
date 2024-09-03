@@ -69,6 +69,7 @@ class XPath1Parser(Parser[XPathTokenType]):
     base_uri: Optional[str] = None
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
     function_signatures: Dict[Tuple[QName, int], str] = {}
+    decimal_formats: Dict[Optional[str], Any] = {}
     parse_arguments: bool = True
     defuse_xml: bool = True
 

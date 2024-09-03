@@ -17,15 +17,11 @@ import codecs
 import math
 from copy import copy
 from itertools import zip_longest
-from typing import cast, Any, Dict, Optional, Tuple, Union, Iterator, Type
+from types import ModuleType
+from typing import cast, Any, Dict, Optional, Tuple, Union, Iterator, Set, Type
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 from urllib.error import URLError
-
-try:
-    import zoneinfo
-except ImportError:
-    zoneinfo = None  # Python < 3.9
 
 from elementpath.aliases import Emptiable, List
 from elementpath.protocols import ElementProtocol
@@ -56,6 +52,12 @@ from .xpath30_helpers import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     format_digits, int_to_words, parse_datetime_picture, parse_datetime_marker, \
     ordinal_suffix
 
+zoneinfo: Optional[ModuleType]
+try:
+    import zoneinfo
+except ImportError:
+    zoneinfo = None  # Python < 3.9
+
 FORMAT_INTEGER_TOKENS = {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}
 
 DECL_PARAM_PATTERN = re.compile(r'([^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*)\s*=\s*')
@@ -74,7 +76,7 @@ class _InlineFunction(XPathFunction):
     symbol = lookup_name = 'function'
     lbp = 90
     rbp = 90
-    label = MultiLabel('inline function', 'function test')
+    label: Union[str, MultiLabel] = MultiLabel('inline function', 'function test')
 
     body: Optional[XPathToken] = None
     "Body of anonymous inline function."
@@ -143,9 +145,16 @@ class _InlineFunction(XPathFunction):
         if self.variables and context is not None:
             context.variables.update(self.variables)
 
+        if self.varnames is None:
+            self.varnames = []
+
+        assert self.body is not None
         if self.label == 'inline partial function':
             k = 0
             for varname, sequence_type, tk in zip(self.varnames, self.sequence_types, self):
+                if context is None:
+                    raise self.missing_context()
+
                 if tk.symbol != '?' or tk:
                     context.variables[varname] = tk.evaluate(context)
                 else:
@@ -160,7 +169,7 @@ class _InlineFunction(XPathFunction):
                 if isinstance(context.item, DocumentNode):
                     if isinstance(context.root, DocumentNode):
                         context.item = context.root.getroot()
-                    else:
+                    elif context.root is not None:
                         context.item = context.root
 
                 args = cast(Tuple[XPathFunctionArgType], (context.item,))
@@ -183,7 +192,7 @@ class _InlineFunction(XPathFunction):
 
         return self.validated_result(result)
 
-    def nud(self) -> XPathFunction:
+    def nud(self) -> Union[XPathFunction, XPathToken]:  # type: ignore[override]
         def append_sequence_type(tk: XPathToken) -> None:
             if tk.symbol == '(' and len(tk) == 1:
                 tk = tk[0]
@@ -203,6 +212,7 @@ class _InlineFunction(XPathFunction):
                     raise self.error('XPST0051', msg)
                 raise self.error('XPST0003', "a sequence type expected")
 
+            assert isinstance(self.sequence_types, list)
             self.sequence_types.append(sequence_type)
 
         if self.parser.next_token.symbol != '(':
@@ -219,6 +229,7 @@ class _InlineFunction(XPathFunction):
                 self.parser.next_token.expected('$')
                 variable = self.parser.expression(5)
                 varname = variable[0].value
+                assert isinstance(varname, str)
                 if varname in self.varnames:
                     raise self.error('XQST0039')
 
@@ -282,7 +293,7 @@ class _InlineFunction(XPathFunction):
 
         return self
 
-    def evaluate(self, context: ContextType = None) -> Emptiable[ItemType]:
+    def evaluate(self, context: ContextType = None) -> Union[ItemType, List[ItemType]]:
         if context is None:
             raise self.missing_context()
         elif self.label.endswith('function'):
@@ -571,7 +582,7 @@ def evaluate_format_number_function(self: XPathFunction, context: ContextType = 
         elif ':' in decimal_format_name:
             try:
                 decimal_format_name = get_expanded_name(
-                    qname=decimal_format_name,
+                    name=decimal_format_name,
                     namespaces=self.parser.namespaces
                 )
             except (KeyError, ValueError):
@@ -647,7 +658,7 @@ def evaluate_format_number_function(self: XPathFunction, context: ContextType = 
             raise self.error('FODF1310')
 
     if value is None or math.isnan(value):
-        return decimal_format['NaN']
+        return f"{decimal_format['NaN']}"
     elif isinstance(value, float):
         value = decimal.Decimal.from_float(value)
     elif not isinstance(value, decimal.Decimal):
@@ -715,7 +726,7 @@ def evaluate_format_number_function(self: XPathFunction, context: ContextType = 
         raise self.error('FODF1310')
 
     if math.isinf(value):
-        return prefix + decimal_format['infinity'] + suffix
+        return f"{prefix}{decimal_format['infinity']}{suffix}"
 
     # Calculate the exponent value if it's in the sub-picture
     exp_value = 0
@@ -832,6 +843,7 @@ function('format-time', nargs=(2, 5),
 @method('format-time')
 def evaluate_format_date_time_functions(self: XPathFunction, context: ContextType = None) \
         -> Emptiable[str]:
+    cls: Type[Union[DateTime10, Date10, Time]]
     if self.symbol == 'format-dateTime':
         cls = DateTime10
         invalid_markers = ''
@@ -1049,7 +1061,7 @@ def evaluate_analyze_string_function(self: XPathFunction, context: ContextType =
     else:
         root = context.etree.XML(''.join(lines))
 
-    return get_node_tree(root=root, namespaces=self.parser.namespaces)
+    return cast(ElementProtocol, get_node_tree(root=root, namespaces=self.parser.namespaces))
 
 
 ###
@@ -1075,10 +1087,12 @@ def evaluate_path_function(self: XPathFunction, context: ContextType = None) -> 
         return '/'
     elif isinstance(item, (ElementNode, CommentNode, ProcessingInstructionNode)):
         elem = item.elem
+    elif not isinstance(item, XPathNode) or item.parent is None:
+        return []
     elif isinstance(item, TextNode):
         elem = item.parent.elem
         suffix = '/text()[1]'
-    elif isinstance(item, AttributeNode):
+    elif isinstance(item, AttributeNode) and item.name is not None:
         elem = item.parent.elem
         if item.name.startswith('{'):
             suffix = f'/@Q{item.name}'
@@ -1099,6 +1113,8 @@ def evaluate_path_function(self: XPathFunction, context: ContextType = None) -> 
             path = f'/Q{root.tag}[1]'
         else:
             path = f'/Q{{}}{root.tag}[1]'
+    elif context.root is None:
+        return []
     else:
         # If root is an element use the function that returns the root of the tree
         root = context.root.elem
@@ -1153,7 +1169,7 @@ def select_innermost_function(self: XPathFunction, context: ContextType = None) 
 
     ancestors = {x for context.item in nodes for x in context.iter_ancestors(axis='ancestor')}
     results = {x for x in nodes if x not in ancestors}
-    yield from sorted(results, key=node_position)
+    yield from cast(List[XPathNode], sorted(results, key=node_position))
 
 
 @method(function('outermost', nargs=1, sequence_types=('node()*', 'node()*')))
@@ -1163,6 +1179,8 @@ def select_outermost_function(self: XPathFunction, context: ContextType = None) 
         raise self.missing_context()
 
     context = copy(context)
+
+    nodes: Union[List[ItemType], Set[ItemType]]
     nodes = [e for e in self[0].select(context)]
     if any(not isinstance(x, XPathNode) for x in nodes):
         raise self.error('XPTY0004', 'argument must contain only nodes')
@@ -1178,7 +1196,7 @@ def select_outermost_function(self: XPathFunction, context: ContextType = None) 
             continue
         results.add(item)
 
-    yield from sorted(results, key=node_position)
+    yield from cast(List[XPathNode], sorted(results, key=node_position))
 
 
 ##

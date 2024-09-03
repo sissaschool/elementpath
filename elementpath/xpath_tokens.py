@@ -84,6 +84,7 @@ XsdTypesType = Union[
     None, AbstractSchemaProxy,
     Dict[Optional[str], Union[XsdTypeProtocol, List[XsdTypeProtocol]]]
 ]
+SequenceTypesType = Union[str, List[str], Tuple[str, ...]]
 
 
 class XPathToken(Token[XPathTokenType]):
@@ -1198,7 +1199,7 @@ class XPathFunction(XPathToken):
     pattern = r'(?<!\$)\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*' \
               r'(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
 
-    sequence_types: Union[List[str], Tuple[str, ...]] = ()
+    sequence_types: SequenceTypesType = ()
     "Sequence types of arguments and of the return value of the function."
 
     nargs: NargsType = None
@@ -1453,7 +1454,7 @@ class XPathFunction(XPathToken):
 
         return self
 
-    def match_function_test(self, function_test: Union[str, List[str]],
+    def match_function_test(self, function_test: SequenceTypesType,
                             as_argument: bool = False) -> bool:
         """
         Match if function signature satisfies the provided *function_test*.
@@ -1464,7 +1465,7 @@ class XPathFunction(XPathToken):
           https://www.w3.org/TR/xpath-31/#id-function-test
           https://www.w3.org/TR/xpath-31/#id-sequencetype-subtype
         """
-        if isinstance(function_test, list):
+        if isinstance(function_test, (list, tuple)):
             sequence_types = function_test
         else:
             sequence_types = split_function_test(function_test)
@@ -1730,9 +1731,9 @@ class XPathMap(XPathFunction):
 
         return [(self._nan_key, v) if k is None else (k, v) for k, v in _map.items()]
 
-    def match_function_test(self, function_test: Union[str, List[str]],
+    def match_function_test(self, function_test: SequenceTypesType,
                             as_argument: bool = False) -> bool:
-        if isinstance(function_test, list):
+        if isinstance(function_test, (list, tuple)):
             sequence_types = function_test
         else:
             sequence_types = split_function_test(function_test)
@@ -1873,9 +1874,9 @@ class XPathArray(XPathFunction):
             else:
                 yield item
 
-    def match_function_test(self, function_test: Union[str, List[Any]],
+    def match_function_test(self, function_test: SequenceTypesType,
                             as_argument: bool = False) -> bool:
-        if isinstance(function_test, list):
+        if isinstance(function_test, (list, tuple)):
             sequence_types = function_test
         else:
             sequence_types = split_function_test(function_test)

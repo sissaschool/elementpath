@@ -1612,7 +1612,6 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
             if not isinstance(element, ElementNode):
                 continue
 
-            x: str
             text = element.elem.text
             if text and is_idrefs(text) and \
                     any(v in text.split() for x in ids for v in x.split()):

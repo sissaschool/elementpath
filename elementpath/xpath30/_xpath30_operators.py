@@ -22,6 +22,7 @@ from ..datatypes import QName
 
 from .xpath30_parser import XPath30Parser
 
+__all__ = ['XPath30Parser']
 
 register = XPath30Parser.register
 infix = XPath30Parser.infix
