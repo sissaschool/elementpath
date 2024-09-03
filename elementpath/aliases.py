@@ -33,7 +33,8 @@ ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 
 T = TypeVar('T')
 Emptiable = Union[T, List[Never]]
+Evaluate = Union[T, List[T]]
 
 __all__ = ['MutableMapping', 'MutableSequence', 'Dict', 'List', 'Set', 'Never',
            'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType',
-           'ClassCheckType', 'Emptiable']
+           'ClassCheckType', 'Emptiable', 'Evaluate']

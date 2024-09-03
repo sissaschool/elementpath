@@ -31,7 +31,8 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
-from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, Emptiable
+from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, \
+    Emptiable, Evaluate
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicValueType, AnyAtomicType, \
@@ -77,9 +78,9 @@ XPathResultType = Union[
 ]
 
 XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
-XPathFunctionArgType = Union[None, ElementProtocol, DocumentProtocol,
-                             'XPathToken', XPathNode, AtomicValueType,
-                             List[Union['XPathToken', XPathNode, AtomicValueType]]]
+FunctionArgType = Union[None, ElementProtocol, DocumentProtocol,
+                        'XPathToken', XPathNode, AtomicValueType,
+                        List[Union['XPathToken', XPathNode, AtomicValueType]]]
 XsdTypesType = Union[
     None, AbstractSchemaProxy,
     Dict[Optional[str], Union[XsdTypeProtocol, List[XsdTypeProtocol]]]
@@ -99,7 +100,7 @@ class XPathToken(Token[XPathTokenType]):
     occurrence = None  # occurrence indicator for item types
     concatenated = False  # a flag for infix operators that can be concatenated
 
-    def evaluate(self, context: ContextType = None) -> Union[ItemType, List[ItemType]]:
+    def evaluate(self, context: ContextType = None) -> Evaluate[ItemType]:
         """
         Evaluate default method for XPath tokens.
 
@@ -405,9 +406,9 @@ class XPathToken(Token[XPathTokenType]):
             msg = f"{ordinal(index+1)} argument has type {type(item)!r} instead of {cls!r}"
         raise self.error(code, msg)
 
-    def iter_flatten(self, context: ContextType = None) -> Iterator[Any]:
+    def iter_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
 
-        def _iter_flatten(items: Iterable[Any]) -> Iterator[Any]:
+        def _iter_flatten(items: Iterable[ItemType]) -> Iterator[ItemType]:
             for item in items:
                 if isinstance(item, list):
                     yield from _iter_flatten(item)
@@ -1242,8 +1243,8 @@ class XPathFunction(XPathToken):
             else:
                 return f"'Q{{{self.namespace}}}{self.symbol}' {self.label}"
 
-    def __call__(self, *args: XPathFunctionArgType,
-                 context: ContextType = None) -> Any:
+    def __call__(self, *args: FunctionArgType, context: ContextType = None) \
+            -> Evaluate[ItemType]:
         self.check_arguments_number(len(args))
 
         context = copy(self.context or context)
@@ -1315,17 +1316,17 @@ class XPathFunction(XPathToken):
         else:
             raise self.error('XPTY0004', "too many arguments")
 
-    def validated_result(self, result: Any) -> Any:
+    def validated_result(self, result: Evaluate[ItemType]) -> Evaluate[ItemType]:
         if isinstance(result, XPathToken) and result.symbol == '?':
             return result
         elif match_sequence_type(result, self.sequence_types[-1], self.parser):
             return result
 
-        _result = self.cast_to_primitive_type(result, self.sequence_types[-1])
-        if not match_sequence_type(_result, self.sequence_types[-1], self.parser):
+        result = self.cast_to_primitive_type(result, self.sequence_types[-1])
+        if not match_sequence_type(result, self.sequence_types[-1], self.parser):
             msg = "{!r} does not match sequence type {}"
             raise self.error('XPTY0004', msg.format(result, self.sequence_types[-1]))
-        return _result
+        return result
 
     @property
     def source(self) -> str:
@@ -1521,7 +1522,7 @@ class XPathFunction(XPathToken):
         """
         Wraps the XPath function instance into a standard function.
         """
-        def wrapper(*args: XPathFunctionArgType, context: ContextType = None) -> Any:
+        def wrapper(*args: FunctionArgType, context: ContextType = None) -> Any:
             return self.__call__(*args, context=context)
 
         qname = self.name
@@ -1686,7 +1687,7 @@ class XPathMap(XPathFunction):
         self._nan_key = nan_key
         return cast(Dict[AnyAtomicType, Any], _map)
 
-    def __call__(self, *args: XPathFunctionArgType,
+    def __call__(self, *args: FunctionArgType,
                  context: ContextType = None) -> Any:
         if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
             args = args[0][0],
@@ -1836,7 +1837,7 @@ class XPathArray(XPathFunction):
         else:
             return [tk.evaluate(context) for tk in self._items]
 
-    def __call__(self, *args: XPathFunctionArgType,
+    def __call__(self, *args: FunctionArgType,
                  context: ContextType = None) -> Any:
         if len(args) != 1 or not isinstance(args[0], int):
             raise self.error('XPTY0004', 'exactly one xs:integer argument is expected')

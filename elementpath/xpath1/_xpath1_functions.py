@@ -12,9 +12,9 @@ XPath 1.0 implementation - part 3 (functions)
 """
 import math
 import decimal
-from typing import Iterator, Union
+from typing import Any, Iterator, Union
 
-from elementpath.aliases import Emptiable
+from elementpath.aliases import Emptiable, List
 from elementpath.helpers import get_double
 from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, \
     StringProxy, AnyURI, Float10, AnyAtomicType, AtomicValueType, NumericType
@@ -418,6 +418,7 @@ def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
         context = self.context
 
     xsd_version = self.parser.xsd_version
+    values: List[Any]
     try:
         values = [get_double(self.string_value(x), xsd_version)
                   if isinstance(x, XPathNode) else x

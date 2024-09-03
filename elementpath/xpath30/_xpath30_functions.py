@@ -39,7 +39,7 @@ from elementpath.etree import defuse_xml, etree_iter_paths
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_tokens import XPathFunctionArgType, XPathToken, ValueToken, \
+from elementpath.xpath_tokens import FunctionArgType, XPathToken, ValueToken, \
     XPathFunction, XPathConstructor
 from elementpath.serialization import get_serialization_params, serialize_to_xml, \
     serialize_to_json
@@ -118,7 +118,7 @@ class _InlineFunction(XPathFunction):
             getattr(self.body, 'source', '')
         )
 
-    def __call__(self, *args: XPathFunctionArgType,
+    def __call__(self, *args: FunctionArgType,
                  context: Optional[XPathContext] = None) -> Any:
 
         def get_argument(v: Any) -> Any:
@@ -172,7 +172,7 @@ class _InlineFunction(XPathFunction):
                     elif context.root is not None:
                         context.item = context.root
 
-                args = cast(Tuple[XPathFunctionArgType], (context.item,))
+                args = cast(Tuple[FunctionArgType], (context.item,))
 
             partial_function = False
             if self.variables is None:
