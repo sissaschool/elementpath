@@ -755,7 +755,6 @@ def nud_document_node_kind_test(self: XPathFunction) -> XPathFunction:
     elif self.parser.next_token.symbol != ')':
         raise self.error('XPST0003', 'element or schema-element kind test expected')
     self.parser.advance(')')
-    self.value = None
     return self
 
 
@@ -805,7 +804,6 @@ def nud_element_kind_test(self: XPathFunction) -> XPathFunction:
                 self.parser.advance()
 
     self.parser.advance(')')
-    self.value = None
     return self
 
 
@@ -863,7 +861,6 @@ def nud_schema_node_kind_test(self: XPathFunction) -> XPathFunction:
     self.parser.expected_next('(name)', ':', 'Q{', message='a QName expected')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
-    self.value = None
     return self
 
 

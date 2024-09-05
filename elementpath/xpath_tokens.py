@@ -42,7 +42,7 @@ from elementpath.protocols import ElementProtocol, DocumentProtocol, \
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.tdop import Token, MultiLabel
-from elementpath.xpath_context import ContextType, ItemType, ItemArgType, XPathContext, \
+from elementpath.xpath_context import ContextType, ItemType, ItemArgType, FunctionArgType, \
     XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -79,7 +79,6 @@ XPathResultType = Union[
 ]
 
 XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstructor']
-FunctionArgType = InputData[ItemArgType]
 XsdTypesType = Union[
     None, AbstractSchemaProxy,
     Dict[Optional[str], Union[XsdTypeProtocol, List[XsdTypeProtocol]]]
@@ -90,7 +89,7 @@ SequenceTypesType = Union[str, List[str], Tuple[str, ...]]
 class XPathToken(Token[XPathTokenType]):
     """Base class for XPath tokens."""
     parser: XPathParserType
-    value: Optional[Listable[ItemType]]
+    value: Listable[ItemType]
     xsd_types: XsdTypesType
     namespace: Optional[str]
     occurrence: Optional[str]
@@ -1157,7 +1156,7 @@ class ValueToken(XPathToken):
     def select(self, context: ContextType = None) -> Iterator[AnyAtomicType]:
         if isinstance(self.value, list):
             yield from self.value
-        elif self.value is not None:
+        else:
             yield self.value
 
 
@@ -1300,8 +1299,8 @@ class XPathFunction(XPathToken):
         else:
             raise self.error('XPTY0004', "too many arguments")
 
-    def validated_argument(self, arg: InputData[ItemArgType], context: ContextType = None) \
-            -> Optional[Listable[ItemType]]:
+    def validated_argument(self, arg: FunctionArgType, context: ContextType = None) \
+            -> Listable[ItemType]:
 
         def get_arg_item(item: ItemArgType) -> ItemType:
             if isinstance(item, (XPathNode, XPathFunction, AnyAtomicType)):
@@ -1317,11 +1316,12 @@ class XPathFunction(XPathToken):
                 )
 
         if context is not None:
-            return context.get_value(arg, context.namespaces, self.parser.base_uri, )
+            return context.get_value(arg, context.namespaces, self.parser.base_uri, None)
+        elif arg is None:
+            return []
         elif not isinstance(arg, (list, tuple)):
             return get_arg_item(arg)
         return [get_arg_item(x) for x in arg]
-
 
     def validated_result(self, result: Listable[ItemType]) -> Listable[ItemType]:
         if isinstance(result, XPathToken) and result.symbol == '?':
@@ -1399,7 +1399,6 @@ class XPathFunction(XPathToken):
         return self.nargs and not len(self._items)
 
     def nud(self) -> 'XPathFunction':
-        self.value = None
         if not self.parser.parse_arguments:
             return self
 
@@ -1816,7 +1815,6 @@ class XPathArray(XPathFunction):
         return f'array{{{items}}}' if self.symbol == 'array' else f'[{items}]'
 
     def nud(self) -> 'XPathArray':
-        self.value = None
         self.parser.advance('{')
         del self._items[:]
         if self.parser.next_token.symbol not in ('}', '(end)'):

@@ -163,7 +163,7 @@ class Token(MutableSequence[TK]):
 
     _items: List[TK]
     parser: 'Parser[TK]'
-    value: Optional[Any]
+    value: Any
     span: Tuple[int, int]
 
     def __init__(self, parser: 'Parser[TK]',

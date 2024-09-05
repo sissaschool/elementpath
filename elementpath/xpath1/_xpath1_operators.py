@@ -276,8 +276,8 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
     cls: Type[XPathToken] = self.parser.symbol_table['(string)']
     self[:] = cls(self.parser, namespace), self.parser.expression(90)
 
-    if self[1].value is None or not self[0].value:
-        self.value = None
+    if not self[1].value or not self[0].value:
+        self.value = ''
     else:
         self.value = f'{{{self[0].value}}}{self[1].value}'
     return self

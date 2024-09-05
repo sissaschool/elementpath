@@ -39,11 +39,11 @@ from elementpath.etree import defuse_xml, etree_iter_paths
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
     NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_tokens import FunctionArgType, XPathToken, ValueToken, \
-    XPathFunction, XPathConstructor
+from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, XPathConstructor
 from elementpath.serialization import get_serialization_params, serialize_to_xml, \
     serialize_to_json
-from elementpath.xpath_context import ContextType, ItemType, XPathContext, XPathSchemaContext
+from elementpath.xpath_context import ContextType, ItemType, FunctionArgType, \
+    XPathContext, XPathSchemaContext
 from elementpath.regex import translate_pattern, RegexError
 
 from ._xpath30_operators import XPath30Parser
@@ -1975,8 +1975,8 @@ def nud_error_type_and_function(self: XPathConstructor) -> XPathConstructor:
         self.parser.advance(')')
     except SyntaxError:
         raise self.error('XPST0017') from None
-    self.value = None
-    return self
+    else:
+        return self
 
 
 @method('error')

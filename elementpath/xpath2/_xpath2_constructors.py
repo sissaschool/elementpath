@@ -369,7 +369,6 @@ def nud_datetime_stamp_type(self: XPathConstructor) -> XPathConstructor:
             msg = 'Too many arguments: expected at most 1 argument'
             raise self.error('XPST0017', msg)
         self.parser.advance(')')
-        self.value = None
     except SyntaxError as err:
         raise self.error('XPST0017', str(err)) from None
     return self
@@ -428,7 +427,6 @@ def nud_notation_type(self: XPathConstructor) -> None:
     if self.parser.next_token.symbol != ')':
         raise self.error('XPST0017', 'expected exactly one argument')
     self.parser.advance()
-    self.value = None
     raise self.error('XPST0017', "no constructor function exists for xs:NOTATION")
 
 
@@ -463,7 +461,6 @@ def nud_boolean_type_and_function(self: XPathConstructor) -> XPathConstructor:
         msg = 'Too many arguments: expected at most 1 argument'
         raise self.error('XPST0017', msg)
     self.parser.advance(')')
-    self.value = None
     return self
 
 
@@ -510,9 +507,8 @@ def nud_string_type_and_function(self: XPathConstructor) -> XPathConstructor:
         self.parser.advance(')')
     except ElementPathSyntaxError as err:
         raise self.error('XPST0017', err)
-
-    self.value = None
-    return self
+    else:
+        return self
 
 
 @method('string')
@@ -595,8 +591,8 @@ def nud_qname_and_datetime(self: XPathConstructor) -> XPathConstructor:
         self.parser.advance(')')
     except SyntaxError:
         raise self.error('XPST0017') from None
-    self.value = None
-    return self
+    else:
+        return self
 
 
 @method('QName')

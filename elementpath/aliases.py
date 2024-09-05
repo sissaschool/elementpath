@@ -34,7 +34,7 @@ ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 T = TypeVar('T')
 Emptiable = Union[T, List[Never]]
 Listable = Union[T, List[T]]
-InputData = Union[T, List[T], Tuple[T, ...]]
+InputData = Union[None, T, List[T], Tuple[T, ...]]
 
 __all__ = ['MutableMapping', 'MutableSequence', 'Dict', 'List', 'Set', 'Never',
            'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType',

@@ -253,13 +253,12 @@ class XPath2Parser(XPath1Parser):
                     msg = 'Too many arguments: expected at most 1 argument'
                     raise self.error('XPST0017', msg)
                 self.parser.advance(')')
-                self.value = None
             except SyntaxError:
                 raise self.error('XPST0017') from None
-
-            if self[0].symbol == '?':
-                self.to_partial_function()
-            return self
+            else:
+                if self[0].symbol == '?':
+                    self.to_partial_function()
+                return self
 
         def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
                 -> Union[List[None], AtomicType]:
@@ -311,9 +310,9 @@ class XPath2Parser(XPath1Parser):
             self_.parser.advance(')')
 
             try:
-                self_.value = self_.evaluate()  # Static context evaluation
+                self_.evaluate()  # for static context evaluation
             except MissingContextError:
-                self_.value = None
+                pass
             return self_
 
         def evaluate_(self_: XPathFunction, context: Optional[XPathContext] = None) \

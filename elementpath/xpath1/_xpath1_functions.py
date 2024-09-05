@@ -79,7 +79,6 @@ def nud_pi_kind_test(self: XPathFunction) -> XPathFunction:
         self.parser.next_token.expected('(name)', '(string)')
         self[0:] = self.parser.expression(5),
     self.parser.advance(')')
-    self.value = None
     return self
 
 

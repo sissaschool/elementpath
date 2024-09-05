@@ -55,7 +55,6 @@ def nud_map_sequence_type_or_constructor(self: XPathFunction) \
         self[-1].parse_occurrence()
 
     self.parser.advance(')')
-    self.value = None
     return self
 
 
@@ -80,7 +79,6 @@ def nud_sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathTo
         self[0].parse_occurrence()
     self.parser.advance(')')
     self.parse_occurrence()
-    self.value = None
     return self
 
 
@@ -168,8 +166,6 @@ class LookupOperatorToken(XPathToken):
 
     def evaluate(self, context: ContextType = None) -> Listable[ItemType]:
         if not self:
-            assert self.value is not None
-            print(self.value)
             return self.value  # a placeholder token
         return [x for x in self.select(context)]
 
@@ -194,7 +190,9 @@ class LookupOperatorToken(XPathToken):
                     for value in item.values(context):
                         yield from iter_sequence(value)
                 elif symbol in ('(name)', '(integer)'):
-                    yield from iter_sequence(item(self[-1].value, context=context))
+                    yield from iter_sequence(
+                        item(cast(Union[str, int], self[-1].value), context=context)
+                    )
                 elif symbol == '(':
                     for value in self[-1].select(context):
                         yield from iter_sequence(
@@ -207,7 +205,7 @@ class LookupOperatorToken(XPathToken):
                 elif symbol == '(name)':
                     raise self.error('XPTY0004')
                 elif symbol == '(integer)':
-                    yield item(self[-1].value, context=context)
+                    yield item(cast(int, self[-1].value), context=context)
                 elif symbol == '(':
                     for value in self[-1].select(context):
                         yield item(self.data_value(value), context=context)

@@ -27,14 +27,16 @@ from elementpath.tree_builders import RootArgType, get_node_tree
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
 
-__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType', 'ItemArgType']
+__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType',
+           'ItemType', 'ItemArgType', 'FunctionArgType']
 
-# Type annotations aliases
+# Type annotations aliases for context and tokens classes
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]
 ItemType = Union[XPathNode, AtomicType, 'XPathFunction']
 ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
 NodeArgType = Union[XPathNode, ElementProtocol, DocumentProtocol]
 CollectionArgType = Optional[InputData[NodeArgType]]
+FunctionArgType = Union[InputData[ItemArgType], Listable[ItemType]]
 
 
 class XPathContext:
@@ -297,9 +299,11 @@ class XPathContext:
             fragment=fragment
         )
 
-    def get_value(self, item: InputData[ItemArgType], *args: Any, **kwargs: Any) \
+    def get_value(self, item: FunctionArgType, *args: Any, **kwargs: Any) \
             -> Listable[ItemType]:
-        if not isinstance(item, (list, tuple)):
+        if item is None:
+            return []
+        elif not isinstance(item, (list, tuple)):
             return self.get_context_item(item, *args, **kwargs)
         return [self.get_context_item(x, *args, **kwargs) for x in item]
 
