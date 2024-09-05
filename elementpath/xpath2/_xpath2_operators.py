@@ -24,7 +24,7 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_no
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
 from elementpath.datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
-    Duration, Integer, DoubleProxy10, AnyAtomicType, AtomicValueType, NumericType
+    Duration, Integer, DoubleProxy10, AnyAtomicType, AtomicType, NumericType
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
@@ -64,7 +64,7 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
         raise self.missing_context()
 
     varname = self[0].value
-    assert varname is not None
+    assert isinstance(varname, str)
 
     try:
         get_expanded_name(varname, self.parser.namespaces)
@@ -384,7 +384,7 @@ def led_cast_expressions(self: XPathToken, left: XPathToken) -> XPathToken:
 @method('castable')
 @method('cast')
 def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
-        -> Emptiable[AtomicValueType]:
+        -> Emptiable[AtomicType]:
     type_name = self[1].source.rstrip('+*?')
     try:
         atomic_type = get_expanded_name(type_name, self.parser.namespaces)
@@ -414,7 +414,7 @@ def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
             raise self.error('XPTY0004', "an atomic value is required")
 
     arg = self.data_value(result[0])
-    value: Emptiable[AtomicValueType]
+    value: Emptiable[AtomicType]
     try:
         if namespace != XSD_NAMESPACE:
             if self.parser.schema is not None:
@@ -915,7 +915,7 @@ def nud_attribute_kind_test_or_axis(self: XPathToken) -> XPathToken:
 
 @method('attribute')
 def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = None) \
-        -> Iterator[Union[AtomicValueType, AttributeNode, XsdAttributeProtocol]]:
+        -> Iterator[Union[AtomicType, AttributeNode, XsdAttributeProtocol]]:
     if context is None:
         raise self.missing_context()
     elif self.label == 'axis':

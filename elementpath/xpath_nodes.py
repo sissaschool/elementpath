@@ -13,7 +13,7 @@ from urllib.parse import urljoin
 from types import ModuleType
 from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Tuple, Union
 
-from .datatypes import UntypedAtomic, get_atomic_value, AtomicValueType
+from .datatypes import UntypedAtomic, get_atomic_value, AtomicType
 from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS
@@ -96,7 +96,7 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> Optional[AtomicValueType]:
+    def typed_value(self) -> Optional[AtomicType]:
         raise NotImplementedError()
 
     # Other common attributes, properties and methods
@@ -188,7 +188,7 @@ class AttributeNode(XPathNode):
         return str(get_atomic_value(self.value.type))
 
     @property
-    def typed_value(self) -> AtomicValueType:
+    def typed_value(self) -> AtomicType:
         if not isinstance(self.value, str):
             return get_atomic_value(self.value.type)
         elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
@@ -540,7 +540,7 @@ class ElementNode(XPathNode):
         return ''.join(etree_iter_strings(self.elem))
 
     @property
-    def typed_value(self) -> Optional[AtomicValueType]:
+    def typed_value(self) -> Optional[AtomicType]:
         if self.xsd_type is None or \
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
@@ -961,7 +961,7 @@ class SchemaElementNode(ElementNode):
         return str(get_atomic_value(schema_node.type))
 
     @property
-    def typed_value(self) -> Optional[AtomicValueType]:
+    def typed_value(self) -> Optional[AtomicType]:
         if not hasattr(self.elem, 'type'):
             return UntypedAtomic('')
         schema_node = cast(XsdElementProtocol, self.elem)

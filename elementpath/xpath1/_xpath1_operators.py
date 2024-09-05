@@ -20,8 +20,7 @@ from elementpath.aliases import List, Set
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, node_position
 from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
-    YearMonthDuration, NumericProxy, ArithmeticProxy, NumericType, \
-    ArithmeticType, ArithmeticOpsType
+    YearMonthDuration, NumericProxy, ArithmeticProxy, NumericType, ArithmeticType
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
 from elementpath.namespaces import XMLNS_NAMESPACE, XSD_NAMESPACE
 from elementpath.schema_proxy import AbstractSchemaProxy
@@ -508,7 +507,9 @@ def evaluate_minus_operator(self: XPathToken, context: ContextType = None) \
         arg: NumericType = self.get_argument(context, cls=NumericProxy)
         return [] if arg is None else -arg
     else:
-        op1, op2 = cast(ArithmeticOpsType, self.get_operands(context, cls=ArithmeticProxy))
+        op1: Optional[ArithmeticType]
+        op2: ArithmeticType
+        op1, op2 = self.get_operands(context, cls=ArithmeticProxy)
         if op1 is None:
             return []
 

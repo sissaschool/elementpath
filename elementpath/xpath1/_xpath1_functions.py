@@ -17,7 +17,7 @@ from typing import Any, Iterator, Union
 from elementpath.aliases import Emptiable, List
 from elementpath.helpers import get_double
 from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, \
-    StringProxy, AnyURI, Float10, AnyAtomicType, AtomicValueType, NumericType
+    StringProxy, AnyURI, Float10, AnyAtomicType, AtomicType, NumericType
 from elementpath.namespaces import XML_ID, XML_LANG, get_prefixed_name
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
     ProcessingInstructionNode, DocumentNode, SchemaElementNode
@@ -413,7 +413,7 @@ def evaluate_number_function(self: XPathFunction, context: ContextType = None) -
 @method(function('sum', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyAtomicType?')))
 def evaluate_sum_function(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[AtomicValueType]:
+        -> Emptiable[AtomicType]:
     if self.context is not None:
         context = self.context
 

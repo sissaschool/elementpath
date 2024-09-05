@@ -14,9 +14,9 @@ import sys
 from typing import Any, Optional, NoReturn, Tuple, Type, TypeVar, Union
 
 if sys.version_info < (3, 9):
-    from typing import Dict, List, MutableMapping, MutableSequence, Set
+    from typing import Dict, List, MutableMapping, MutableSequence, Sequence, Set
 else:
-    from collections.abc import MutableMapping, MutableSequence
+    from collections.abc import MutableMapping, MutableSequence, Sequence
 
     Dict = dict
     List = list
@@ -33,8 +33,9 @@ ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 
 T = TypeVar('T')
 Emptiable = Union[T, List[Never]]
-Evaluate = Union[T, List[T]]
+Listable = Union[T, List[T]]
+InputData = Union[T, List[T], Tuple[T, ...]]
 
 __all__ = ['MutableMapping', 'MutableSequence', 'Dict', 'List', 'Set', 'Never',
            'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType',
-           'ClassCheckType', 'Emptiable', 'Evaluate']
+           'ClassCheckType', 'Emptiable', 'Listable', 'InputData']

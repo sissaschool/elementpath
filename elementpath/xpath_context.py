@@ -12,35 +12,29 @@ import importlib
 from copy import copy
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, Set, Tuple
+    Optional, Sequence, Union, Callable, Set
 
-from .exceptions import ElementPathTypeError
-from .tdop import Token
-from .aliases import NamespacesType
-from .datatypes import AnyAtomicType, Timezone, Language
-from .protocols import ElementProtocol, DocumentProtocol
-from .etree import is_etree_element, is_etree_document
-from .xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
+from elementpath.exceptions import ElementPathTypeError
+from elementpath.tdop import Token
+from elementpath.aliases import NamespacesType, Listable, InputData
+from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
+from elementpath.protocols import ElementProtocol, DocumentProtocol
+from elementpath.etree import is_etree_element, is_etree_document
+from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, SchemaElementNode
-from .tree_builders import RootArgType, get_node_tree
+from elementpath.tree_builders import RootArgType, get_node_tree
 
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
 
-__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType']
+__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType', 'ItemArgType']
 
 # Type annotations aliases
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]
-ItemType = Union[XPathNode, AnyAtomicType, 'XPathFunction']
-
+ItemType = Union[XPathNode, AtomicType, 'XPathFunction']
 ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
 NodeArgType = Union[XPathNode, ElementProtocol, DocumentProtocol]
-VariableArgType = Union[ItemArgType, List[ItemArgType], Tuple[ItemArgType, ...]]
-CollectionArgType = Union[None, NodeArgType, List[NodeArgType], Tuple[NodeArgType, ...]]
-
-VariablesType = Dict[str, Union[ItemType, List[ItemType]]]
-DocumentsType = Dict[str, DocumentNode]
-CollectionsType = Dict[str, Union[XPathNode, List[XPathNode]]]
+CollectionArgType = Optional[InputData[NodeArgType]]
 
 
 class XPathContext:
@@ -61,10 +55,10 @@ class XPathContext:
     This can be useful when the dynamic context has additional namespaces and root \
     is an Element or an ElementTree instance of the standard library.
     :param uri: an optional URI associated with the root element or the document.
-    :param fragment: if `True` a root element is considered a fragment, otherwise \
+    :param fragment: if `True` a root element is considered a fragment, if `False` \
     a root element is considered the root of an XML document, and a dummy document \
     is created for selection. In this case the dummy document value is not included \
-    in the results.
+    in the results. If `None` is provided, the root node kind is preserved.
     :param item: the context item. A `None` value means that the context is positioned on \
     the document node.
     :param position: the current position of the node within the input sequence.
@@ -96,8 +90,8 @@ class XPathContext:
     item: ItemType
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    variables: VariablesType
-    documents: Optional[DocumentsType] = None
+    variables: Dict[str, Listable[ItemType]]
+    documents: Optional[Dict[str, DocumentNode]] = None
     collections = None
     default_collection = None
 
@@ -105,12 +99,12 @@ class XPathContext:
                  root: Optional[RootArgType] = None,
                  namespaces: Optional[NamespacesType] = None,
                  uri: Optional[str] = None,
-                 fragment: bool = False,
+                 fragment: Optional[bool] = False,
                  item: Optional[ItemArgType] = None,
                  position: int = 1,
                  size: int = 1,
                  axis: Optional[str] = None,
-                 variables: Optional[Dict[str, VariableArgType]] = None,
+                 variables: Optional[Dict[str, InputData[ItemArgType]]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
                  documents: Optional[Dict[str, RootArgType]] = None,
@@ -173,12 +167,7 @@ class XPathContext:
         self.variables = {}
         if variables is not None:
             for varname, value in variables.items():
-                if value is None:
-                    self.variables[varname] = []
-                elif isinstance(value, (list, tuple)):
-                    self.variables[varname] = [self.get_context_item(x) for x in value]
-                else:
-                    self.variables[varname] = self.get_context_item(value)
+                self.variables[varname] = self.get_value(value, self.namespaces)
 
         if collections is not None:
             self.collections = {k: self.get_collection(v) for k, v in collections.items()}
@@ -261,7 +250,7 @@ class XPathContext:
     def get_context_item(self, item: ItemArgType,
                          namespaces: Optional[NamespacesType] = None,
                          uri: Optional[str] = None,
-                         fragment: bool = False) -> ItemType:
+                         fragment: Optional[bool] = False) -> ItemType:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the
@@ -307,6 +296,12 @@ class XPathContext:
             uri=uri,
             fragment=fragment
         )
+
+    def get_value(self, item: InputData[ItemArgType], *args: Any, **kwargs: Any) \
+            -> Listable[ItemType]:
+        if not isinstance(item, (list, tuple)):
+            return self.get_context_item(item, *args, **kwargs)
+        return [self.get_context_item(x, *args, **kwargs) for x in item]
 
     def get_collection(self, items: CollectionArgType) -> List[XPathNode]:
         if items is None:

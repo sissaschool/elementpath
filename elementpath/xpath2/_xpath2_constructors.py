@@ -21,7 +21,7 @@ from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, \
     GregorianYear, GregorianYearMonth10, GregorianYearMonth, Duration, \
     DayTimeDuration, YearMonthDuration, Date10, Date, DateTime10, DateTime, \
     DateTimeStamp, Time, UntypedAtomic, QName, HexBinary, Base64Binary, \
-    BooleanProxy, AnyURI, AtomicValueType, NumericType, Notation
+    BooleanProxy, AnyURI, AtomicType, NumericType, Notation
 from elementpath.xpath_context import ContextType, XPathSchemaContext
 from elementpath.xpath_tokens import XPathConstructor
 
@@ -51,7 +51,7 @@ OtherDateTimeTypes = Union[
 @constructor('IDREF')
 @constructor('ENTITY')
 @constructor('anyURI')
-def cast_string_based_types(self: XPathConstructor, value: AtomicValueType) \
+def cast_string_based_types(self: XPathConstructor, value: AtomicType) \
         -> Union[str, AnyURI]:
     try:
         result = xsd10_atomic_types[self.symbol](value)
@@ -67,7 +67,7 @@ def cast_string_based_types(self: XPathConstructor, value: AtomicValueType) \
 @constructor('decimal')
 @constructor('double')
 @constructor('float')
-def cast_numeric_types(self: XPathConstructor, value: AtomicValueType) -> NumericType:
+def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> NumericType:
     try:
         if self.parser.xsd_version == '1.0':
             result = xsd10_atomic_types[self.symbol](value)
@@ -95,7 +95,7 @@ def cast_numeric_types(self: XPathConstructor, value: AtomicValueType) -> Numeri
 @constructor('unsignedInt')
 @constructor('unsignedShort')
 @constructor('unsignedByte')
-def cast_integer_types(self: XPathConstructor, value: AtomicValueType) -> int:
+def cast_integer_types(self: XPathConstructor, value: AtomicType) -> int:
     try:
         result = xsd10_atomic_types[self.symbol](value)
     except ValueError:
@@ -113,7 +113,7 @@ def cast_integer_types(self: XPathConstructor, value: AtomicValueType) -> int:
 ###
 # Constructors for datetime XSD types
 @constructor('date')
-def cast_date_type(self: XPathConstructor, value: AtomicValueType) -> Date10:
+def cast_date_type(self: XPathConstructor, value: AtomicType) -> Date10:
     cls = Date if self.parser.xsd_version == '1.1' else Date10
     if isinstance(value, cls):
         return value
@@ -135,7 +135,7 @@ def cast_date_type(self: XPathConstructor, value: AtomicValueType) -> Date10:
 
 
 @constructor('gDay')
-def cast_gregorian_day_type(self: XPathConstructor, value: AtomicValueType) -> GregorianDay:
+def cast_gregorian_day_type(self: XPathConstructor, value: AtomicType) -> GregorianDay:
     if isinstance(value, GregorianDay):
         return value
 
@@ -154,7 +154,7 @@ def cast_gregorian_day_type(self: XPathConstructor, value: AtomicValueType) -> G
 
 
 @constructor('gMonth')
-def cast_gregorian_month_type(self: XPathConstructor, value: AtomicValueType) -> GregorianMonth:
+def cast_gregorian_month_type(self: XPathConstructor, value: AtomicType) -> GregorianMonth:
     if isinstance(value, GregorianMonth):
         return value
 
@@ -169,7 +169,7 @@ def cast_gregorian_month_type(self: XPathConstructor, value: AtomicValueType) ->
 
 
 @constructor('gMonthDay')
-def cast_gregorian_month_day_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_gregorian_month_day_type(self: XPathConstructor, value: AtomicType) \
         -> GregorianMonthDay:
     if isinstance(value, GregorianMonthDay):
         return value
@@ -185,7 +185,7 @@ def cast_gregorian_month_day_type(self: XPathConstructor, value: AtomicValueType
 
 
 @constructor('gYear')
-def cast_gregorian_year_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_gregorian_year_type(self: XPathConstructor, value: AtomicType) \
         -> Union[GregorianYear10, GregorianYear]:
     cls = GregorianYear if self.parser.xsd_version == '1.1' else GregorianYear10
     if isinstance(value, cls):
@@ -204,7 +204,7 @@ def cast_gregorian_year_type(self: XPathConstructor, value: AtomicValueType) \
 
 
 @constructor('gYearMonth')
-def cast_gregorian_year_month_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_gregorian_year_month_type(self: XPathConstructor, value: AtomicType) \
         -> Union[GregorianYearMonth10, GregorianYearMonth]:
     cls = GregorianYearMonth \
         if self.parser.xsd_version == '1.1' else GregorianYearMonth10
@@ -224,7 +224,7 @@ def cast_gregorian_year_month_type(self: XPathConstructor, value: AtomicValueTyp
 
 
 @constructor('time')
-def cast_time_type(self: XPathConstructor, value: AtomicValueType) -> Time:
+def cast_time_type(self: XPathConstructor, value: AtomicType) -> Time:
     if isinstance(value, Time):
         return value
 
@@ -269,7 +269,7 @@ def evaluate_other_datetime_types(self: XPathConstructor, context: ContextType =
 ###
 # Constructors for time durations XSD types
 @constructor('duration')
-def cast_duration_type(self: XPathConstructor, value: AtomicValueType) -> Duration:
+def cast_duration_type(self: XPathConstructor, value: AtomicType) -> Duration:
     if isinstance(value, Duration):
         return value
 
@@ -284,7 +284,7 @@ def cast_duration_type(self: XPathConstructor, value: AtomicValueType) -> Durati
 
 
 @constructor('yearMonthDuration')
-def cast_year_month_duration_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_year_month_duration_type(self: XPathConstructor, value: AtomicType) \
         -> YearMonthDuration:
     if isinstance(value, YearMonthDuration):
         return value
@@ -302,7 +302,7 @@ def cast_year_month_duration_type(self: XPathConstructor, value: AtomicValueType
 
 
 @constructor('dayTimeDuration')
-def cast_day_time_duration_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_day_time_duration_type(self: XPathConstructor, value: AtomicType) \
         -> DayTimeDuration:
     if isinstance(value, DayTimeDuration):
         return value
@@ -320,7 +320,7 @@ def cast_day_time_duration_type(self: XPathConstructor, value: AtomicValueType) 
 
 
 @constructor('dateTimeStamp')
-def cast_datetime_stamp_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_datetime_stamp_type(self: XPathConstructor, value: AtomicType) \
         -> DateTimeStamp:
     if isinstance(value, DateTimeStamp):
         return value
@@ -378,7 +378,7 @@ def nud_datetime_stamp_type(self: XPathConstructor) -> XPathConstructor:
 ###
 # Constructors for binary XSD types
 @constructor('base64Binary')
-def cast_base64_binary_type(self: XPathConstructor, value: AtomicValueType) -> Base64Binary:
+def cast_base64_binary_type(self: XPathConstructor, value: AtomicType) -> Base64Binary:
     try:
         return Base64Binary(value, ordered=self.parser.version >= '3.1')  # type: ignore[arg-type]
     except ValueError as err:
@@ -388,7 +388,7 @@ def cast_base64_binary_type(self: XPathConstructor, value: AtomicValueType) -> B
 
 
 @constructor('hexBinary')
-def cast_hex_binary_type(self: XPathConstructor, value: AtomicValueType) -> HexBinary:
+def cast_hex_binary_type(self: XPathConstructor, value: AtomicType) -> HexBinary:
     try:
         return HexBinary(value, ordered=self.parser.version >= '3.1')  # type: ignore[arg-type]
     except ValueError as err:
@@ -415,7 +415,7 @@ def evaluate_binary_types(self: XPathConstructor, context: ContextType = None) \
 
 
 @constructor('NOTATION')
-def cast_notation_type(self: XPathConstructor, value: AtomicValueType) -> Notation:
+def cast_notation_type(self: XPathConstructor, value: AtomicType) -> Notation:
     raise NotImplementedError("No value is castable to xs:NOTATION")
 
 
@@ -443,7 +443,7 @@ unregister('boolean')
 
 @constructor('boolean', label=('function', 'constructor function'),
              sequence_types=('item()*', 'xs:boolean'))
-def cast_boolean_type(self: XPathConstructor, value: AtomicValueType) -> bool:
+def cast_boolean_type(self: XPathConstructor, value: AtomicType) -> bool:
     try:
         return cast(bool, BooleanProxy(value))
     except ValueError as err:
@@ -497,7 +497,7 @@ unregister('string')
 
 @constructor('string', label=('function', 'constructor function'),
              nargs=(0, 1), sequence_types=('item()?', 'xs:string'))
-def cast_string_type(self: XPathConstructor, value: AtomicValueType) -> str:
+def cast_string_type(self: XPathConstructor, value: AtomicType) -> str:
     return self.string_value(value)
 
 
@@ -541,7 +541,7 @@ def evaluate_string_type_and_function(self: XPathConstructor, context: ContextTy
 #
 @constructor('QName', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:string?', 'xs:string', 'xs:QName'))
-def cast_qname_type(self: XPathConstructor, value: AtomicValueType) -> QName:
+def cast_qname_type(self: XPathConstructor, value: AtomicType) -> QName:
     if isinstance(value, QName):
         return value
     elif isinstance(value, UntypedAtomic) and self.parser.version >= '3.0':
@@ -554,7 +554,7 @@ def cast_qname_type(self: XPathConstructor, value: AtomicValueType) -> QName:
 
 @constructor('dateTime', bp=90, label=('function', 'constructor function'),
              nargs=(1, 2), sequence_types=('xs:date?', 'xs:time?', 'xs:dateTime?'))
-def cast_datetime_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_datetime_type(self: XPathConstructor, value: AtomicType) \
         -> Optional[DateTime10]:
     cls = DateTime if self.parser.xsd_version == '1.1' else DateTime10
     if isinstance(value, cls):
@@ -669,7 +669,7 @@ def evaluate_datetime_type_and_function(self: XPathConstructor, context: Context
 
 
 @constructor('untypedAtomic')
-def cast_untyped_atomic(self: XPathConstructor, value: AtomicValueType) -> UntypedAtomic:
+def cast_untyped_atomic(self: XPathConstructor, value: AtomicType) -> UntypedAtomic:
     return UntypedAtomic(value)
 
 

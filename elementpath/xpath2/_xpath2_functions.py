@@ -25,7 +25,7 @@ from urllib.parse import urlsplit, quote as urllib_quote
 from elementpath.aliases import Emptiable, List, AnyNsmapType
 from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import QNAME_PATTERN, is_idrefs, is_xml_codepoint, round_number
-from elementpath.datatypes import AtomicValueType, DateTime10, DateTime, Date10, Date, \
+from elementpath.datatypes import AtomicType, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy, NumericType
 from elementpath.namespaces import XML_NAMESPACE, get_namespace, split_expanded_name, \
@@ -294,7 +294,7 @@ def evaluate_nilled_function(self: XPathFunction, context: ContextType = None) \
 
 @method(function('data', nargs=1, sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self: XPathFunction, context: ContextType = None) \
-        -> Iterator[AtomicValueType]:
+        -> Iterator[AtomicType]:
     yield from self[0].atomization(self.context or context)
 
 
@@ -404,11 +404,11 @@ def evaluate_abs_function(self: XPathFunction, context: ContextType = None) \
 # Aggregate functions
 @method(function('avg', nargs=1, sequence_types=('xs:anyAtomicType*', 'xs:anyAtomicType')))
 def evaluate_avg_function(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[AtomicValueType]:
+        -> Emptiable[AtomicType]:
     if self.context is not None:
         context = self.context
 
-    values: List[AtomicValueType] = []
+    values: List[AtomicType] = []
     for item in self[0].atomization(context):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item.value))
@@ -459,9 +459,9 @@ def evaluate_avg_function(self: XPathFunction, context: ContextType = None) \
 @method(function('min', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:string', 'xs:anyAtomicType?')))
 def evaluate_max_min_functions(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[AtomicValueType]:
+        -> Emptiable[AtomicType]:
 
-    def max_or_min() -> Emptiable[AtomicValueType]:
+    def max_or_min() -> Emptiable[AtomicType]:
         if not values:
             return []
         elif all(isinstance(x, str) for x in values):
@@ -484,7 +484,7 @@ def evaluate_max_min_functions(self: XPathFunction, context: ContextType = None)
             )
         return aggregate_func(values)  # type: ignore[type-var]
 
-    values: List[AtomicValueType] = []
+    values: List[AtomicType] = []
     float_class: Union[Type[Float10], Type[float]] = Float10
     to_any_uri = None
     aggregate_func = max if self.symbol == 'max' else min
@@ -560,11 +560,11 @@ def select_exists_function(self: XPathFunction, context: ContextType = None) \
 @method(function('distinct-values', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:string', 'xs:anyAtomicType*')))
 def select_distinct_values_function(self: XPathFunction, context: ContextType = None)\
-        -> Iterator[AtomicValueType]:
+        -> Iterator[AtomicType]:
 
-    def distinct_values(case_insensitive: bool = False) -> Iterator[AtomicValueType]:
+    def distinct_values(case_insensitive: bool = False) -> Iterator[AtomicType]:
         nan = False
-        results: List[AtomicValueType] = []
+        results: List[AtomicType] = []
         for value in self[0].atomization(context):
             if case_insensitive and isinstance(value, (str, bytes)):
                 value = value.casefold()

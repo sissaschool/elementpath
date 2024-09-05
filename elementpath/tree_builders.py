@@ -35,7 +35,7 @@ def is_schema(obj: Any) -> bool:
 def get_node_tree(root: RootArgType,
                   namespaces: Optional[NamespacesType] = None,
                   uri: Optional[str] = None,
-                  fragment: bool = False) -> Union[DocumentNode, ElementNode]:
+                  fragment: Optional[bool] = False) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -43,10 +43,11 @@ def get_node_tree(root: RootArgType,
     :param namespaces: an optional mapping from prefixes to namespace URIs, \
     Ignored if root is a lxml etree or a schema structure.
     :param uri: an optional URI associated with the root element or the document.
-    :param fragment: if `True` a root element is considered a fragment, otherwise \
+    :param fragment: if `True` a root element is considered a fragment, if `False` \
     a root element is considered the root of an XML document. If the root is a \
     document node or an ElementTree instance, and fragment is `True` then use the \
-    root element and returns an element node.
+    root element and returns an element node. If `None` is provided, the root node \
+    kind is preserved.
     """
     if isinstance(root, (DocumentNode, ElementNode)):
         if uri is not None and root.uri is None:
@@ -177,14 +178,15 @@ def build_node_tree(root: ElementTreeRootType,
 
 def build_lxml_node_tree(root: LxmlRootType,
                          uri: Optional[str] = None,
-                         fragment: bool = False) -> Union[DocumentNode, ElementNode]:
+                         fragment: Optional[bool] = False) -> Union[DocumentNode, ElementNode]:
     """
     Returns a tree of XPath nodes that wrap the provided lxml root tree.
 
     :param root: a lxml Element or a lxml ElementTree.
     :param uri: an optional URI associated with the document or the root element.
-    :param fragment: if `True` a root element is considered a fragment, otherwise \
-    a root element is considered the root of an XML document.
+    :param fragment: if `True` a root element is considered a fragment, if `False` \
+    a root element is considered the root of an XML document. If `None` is provided, \
+    the root node kind is preserved.
     """
     root_node: Union[DocumentNode, ElementNode]
     parent: Any

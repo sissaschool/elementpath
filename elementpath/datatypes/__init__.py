@@ -14,7 +14,7 @@ exceptions in order to be reusable in other packages.
 """
 from collections import namedtuple
 from decimal import Decimal
-from typing import Optional, Tuple, Type, Union
+from typing import Optional, Type, Union
 
 from elementpath.aliases import MutableMapping, AnyNsmapType
 from elementpath.protocols import XsdTypeProtocol
@@ -44,12 +44,10 @@ xsd11_atomic_types.update(
 
 ###
 # Aliases for type annotations
-DatetimeValueType = AbstractDateTime  # keep until v5.0 for backward compatibility
-AtomicValueType = Union[str, int, float, Decimal, bool, AnyAtomicType]
+AtomicType = Union[str, int, float, Decimal, bool, AnyAtomicType]
 NumericType = Union[int, float, Decimal]
-NumericOpsType = Tuple[Optional[NumericType], Optional[NumericType]]
 ArithmeticType = Union[NumericType, AbstractDateTime, Duration, UntypedAtomic]
-ArithmeticOpsType = Tuple[Optional[ArithmeticType], Optional[ArithmeticType]]
+DatetimeValueType = AbstractDateTime  # keep until v5.0 for backward compatibility
 
 Builder = namedtuple('Builder', ['cls', 'value'])
 
@@ -108,7 +106,7 @@ ATOMIC_TYPES: MutableMapping[Optional[str], Builder] = {
 
 def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
                      text: Optional[str] = None,
-                     namespaces: AnyNsmapType = None) -> AtomicValueType:
+                     namespaces: AnyNsmapType = None) -> AtomicType:
     """Gets an atomic value for an XSD type instance and a source text/value."""
     if xsd_type is None:
         return UntypedAtomic(text or '')
@@ -121,7 +119,7 @@ def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
         except KeyError:
             return UntypedAtomic(text or '')
 
-    cls: Type[AtomicValueType]
+    cls: Type[AtomicType]
     if xsd_type.is_notation():
         if xsd_type.name is None or xsd_type.name == XSD_NOTATION:
             name = '_Notation'
@@ -168,5 +166,5 @@ __all__ = ['xsd10_atomic_types', 'xsd11_atomic_types', 'get_atomic_value',
            'Byte', 'NonNegativeInteger', 'PositiveInteger', 'UnsignedLong', 'UnsignedInt',
            'UnsignedShort', 'UnsignedByte', 'AnyURI', 'Notation', 'QName', 'BooleanProxy',
            'DecimalProxy', 'DoubleProxy10', 'DoubleProxy', 'UntypedAtomic', 'AbstractBinary',
-           'AtomicValueType', 'DatetimeValueType', 'OrderedDateTime', 'AbstractQName',
-           'NumericType', 'NumericOpsType', 'ArithmeticType', 'ArithmeticOpsType']
+           'AtomicType', 'DatetimeValueType', 'OrderedDateTime', 'AbstractQName',
+           'NumericType', 'ArithmeticType']

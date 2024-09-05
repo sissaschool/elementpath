@@ -11,14 +11,14 @@
 XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 """
 from copy import copy
-from typing import cast, Iterator, Type, Union
+from typing import Any, cast, Iterator, Type, Union
 
-from elementpath.aliases import List
+from elementpath.aliases import List, Listable, InputData
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, ElementNode
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
-from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
+from elementpath.xpath_context import ContextType, ItemType, ItemArgType, XPathSchemaContext
 from elementpath.datatypes import QName
 
 from .xpath30_parser import XPath30Parser
@@ -115,9 +115,8 @@ def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = N
                 func.to_partial_function()
                 return func
 
-            arguments: List[ItemType] = []
-            for tk in tokens:
-                arguments.extend(tk.iter_flatten(context))
+            arguments: List[InputData[ItemType]]
+            arguments = [tk.evaluate(context) for tk in tokens]
 
             if func.label == 'partial function' and func[0].symbol == '?' and len(func[0]):
                 if context is None:
@@ -216,8 +215,12 @@ def led_function_reference(self: XPathToken, left: XPathToken) -> XPathToken:
 
 @method('#')
 def evaluate_function_reference(self: XPathToken, context: ContextType = None) -> XPathFunction:
-    arity = self[1].value
     token_class: Type[Union[XPathFunction, XPathToken]]
+    namespace: Any
+    name: Any
+
+    arity = self[1].value
+    assert arity is None or isinstance(arity, int)
 
     if isinstance(self[0], XPathFunction):
         token_class = self[0].__class__
@@ -229,15 +232,21 @@ def evaluate_function_reference(self: XPathToken, context: ContextType = None) -
             qname = QName(None, f'anonymous {self[0].label}'.replace(' ', '-'))
     else:
         if self[0].symbol == ':':
-            qname = QName(self[0][1].namespace, cast(str, self[0].value))
+            namespace = self[0][1].namespace
+            name = self[0].value
         elif self[0].symbol == 'Q{':
-            qname = QName(self[0][0].value, cast(str, self[0][1].value))
-        elif self[0].value in self.parser.RESERVED_FUNCTION_NAMES:
+            namespace = self[0][0].value
+            name = self[0][1].value
+        elif self[0].value not in self.parser.RESERVED_FUNCTION_NAMES:
+            namespace = XPATH_FUNCTIONS_NAMESPACE
+            name = self[0].value
+        else:
             msg = f"{self[0].value!r} is not allowed as function name"
             raise self.error('XPST0003', msg)
-        else:
-            qname = QName(XPATH_FUNCTIONS_NAMESPACE, cast(str, self[0].value))
 
+        assert isinstance(name, str)
+        assert isinstance(namespace, str) or namespace is None
+        qname = QName(namespace, name)
         namespace = qname.namespace
         local_name = qname.local_name
 

@@ -7,13 +7,19 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# mypy: ignore-errors
 """
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
-from ..helpers import iter_sequence
-from ..sequence_types import is_sequence_type, match_sequence_type
-from ..xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathMap, XPathArray
+from typing import cast, Iterator, Optional, Union, Iterable
+
+from elementpath.aliases import Listable
+from elementpath.helpers import iter_sequence
+from elementpath.sequence_types import is_sequence_type, match_sequence_type
+from elementpath.xpath_tokens import XPathParserType, XPathToken, ProxyToken, \
+    XPathFunction, XPathMap, XPathArray
+from elementpath.datatypes import AtomicType
+from elementpath.xpath_context import ContextType, ItemType
+
 from .xpath31_parser import XPath31Parser
 
 register = XPath31Parser.register
@@ -25,7 +31,8 @@ register('map', bp=90, label=('kind test', 'map'), bases=(XPathFunction,),
 
 
 @method('map')
-def nud_map_sequence_type_or_constructor(self):
+def nud_map_sequence_type_or_constructor(self: XPathFunction) \
+        -> Union[XPathToken, XPathMap, XPathArray]:
     if self.parser.next_token.symbol == '{':
         self.parser.token = XPathMap(self.parser).nud()
         return self.parser.token
@@ -57,7 +64,7 @@ register('array', bp=90, label=('kind test', 'array'), bases=(XPathFunction,),
 
 
 @method('array')
-def nud_sequence_type_or_curly_array_constructor(self):
+def nud_sequence_type_or_curly_array_constructor(self: XPathFunction) -> XPathToken:
     if self.parser.next_token.symbol == '{':
         self.parser.token = XPathArray(self.parser).nud()
         return self.parser.token
@@ -79,19 +86,20 @@ def nud_sequence_type_or_curly_array_constructor(self):
 
 @method('map')
 @method('array')
-def select_map_or_array_kind_test(self, context=None):
+def select_map_or_array_kind_test(self: XPathFunction, context: ContextType = None) \
+        -> Iterator[Union[XPathMap, XPathArray]]:
     if context is None:
         raise self.missing_context()
 
     for item in context.iter_children_or_self():
         if match_sequence_type(item, self.source, self.parser):
-            yield item
+            yield cast(Union[XPathMap, XPathArray], item)
 
 
 ###
 # Square array constructor (pushed lazy)
 @method('[')
-def nud_square_array_constructor(self):
+def nud_square_array_constructor(self: XPathToken) -> XPathToken:
     if self.parser.version < '3.1':
         raise self.wrong_syntax()
 
@@ -118,7 +126,7 @@ class LookupOperatorToken(XPathToken):
     lbp = 85
     rbp = 85
 
-    def __init__(self, parser, value=None):
+    def __init__(self, parser: XPathParserType, value: Optional[AtomicType] = None) -> None:
         super().__init__(parser, value)
         if self.parser.token.symbol in ('(', ','):
             # It's a placeholder symbol or a unary lookup operator
@@ -134,7 +142,7 @@ class LookupOperatorToken(XPathToken):
         else:
             return f'{self[0].source}?{self[1].source}'
 
-    def nud(self):
+    def nud(self) -> 'LookupOperatorToken':
         try:
             self.parser.expected_next('(name)', '(integer)', '(', '*')
         except SyntaxError:
@@ -145,7 +153,7 @@ class LookupOperatorToken(XPathToken):
             self[:] = self.parser.expression(85),
             return self
 
-    def led(self, left):
+    def led(self, left: XPathToken) -> Union['LookupOperatorToken', XPathToken]:
         try:
             self.parser.expected_next('(name)', '(integer)', '(', '*')
         except SyntaxError:
@@ -158,16 +166,19 @@ class LookupOperatorToken(XPathToken):
             self[:] = left, self.parser.expression(85)
             return self
 
-    def evaluate(self, context=None):
+    def evaluate(self, context: ContextType = None) -> Listable[ItemType]:
         if not self:
+            assert self.value is not None
+            print(self.value)
             return self.value  # a placeholder token
         return [x for x in self.select(context)]
 
-    def select(self, context=None):
+    def select(self, context: ContextType = None) -> Iterator[ItemType]:
         if not self:
             yield from iter_sequence(self.value)
             return
 
+        items: Iterable[ItemType]
         if len(self) == 1:
             # unary lookup operator (used in predicates)
             if context is None:
@@ -211,7 +222,7 @@ XPath31Parser.symbol_table['?'] = LookupOperatorToken
 
 
 @method('=>', bp=67)
-def led_arrow_operator(self, left):
+def led_arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
     next_token = self.parser.next_token
     if next_token.symbol == '$':
         self[:] = left, self.parser.expression(80)
@@ -236,7 +247,7 @@ def led_arrow_operator(self, left):
 
 
 @method('=>')
-def evaluate_arrow_operator(self, context=None):
+def evaluate_arrow_operator(self: XPathToken, context: ContextType = None) -> Listable[ItemType]:
     tokens = [self[0]]
     if self[2]:
         tokens.extend(self[2][0].get_argument_tokens())

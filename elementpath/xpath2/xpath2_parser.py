@@ -24,7 +24,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XML_NAMESPACE, \
     XPATH_FUNCTIONS_NAMESPACE, XQT_ERRORS_NAMESPACE, \
     XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, get_prefixed_name
 from elementpath.collations import UNICODE_COLLATION_BASE_URI, UNICODE_CODEPOINT_COLLATION
-from elementpath.datatypes import UntypedAtomic, AtomicValueType, QName
+from elementpath.datatypes import UntypedAtomic, AtomicType, QName
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
@@ -262,7 +262,7 @@ class XPath2Parser(XPath1Parser):
             return self
 
         def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
-                -> Union[List[None], AtomicValueType]:
+                -> Union[List[None], AtomicType]:
             if self.context is not None:
                 context = self.context
 
@@ -317,7 +317,7 @@ class XPath2Parser(XPath1Parser):
             return self_
 
         def evaluate_(self_: XPathFunction, context: Optional[XPathContext] = None) \
-                -> Union[List[None], AtomicValueType]:
+                -> Union[List[None], AtomicType]:
             arg = self_.get_argument(context)
             if arg is None or self_.parser.schema is None:
                 return []

@@ -32,7 +32,7 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
-    DateTime10, Time, AnyURI, UntypedAtomic, AtomicValueType, NumericType, NMToken, \
+    DateTime10, Time, AnyURI, UntypedAtomic, AtomicType, NumericType, NMToken, \
     Idref, Entity
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml, etree_iter_paths
@@ -1747,7 +1747,7 @@ XPath30Parser.unregister('round')
 
 @method(function('data', nargs=(0, 1), sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self: XPathFunction, context: ContextType = None) \
-        -> Iterator[AtomicValueType]:
+        -> Iterator[AtomicType]:
     if not self:
         item = self.get_argument(context, default_to_context=True)
         value = self.data_value(item)
@@ -1886,7 +1886,7 @@ def evaluate_round_function(self: XPathFunction, context: ContextType = None) \
 # XSD list-based constructors
 
 @XPath30Parser.constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
-def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) \
         -> List[NMToken]:
     cast_func = xsd10_atomic_types['NMTOKEN']
     if isinstance(value, UntypedAtomic):
@@ -1903,7 +1903,7 @@ def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicValueType) \
 
 
 @XPath30Parser.constructor('IDREFS', sequence_types=('xs:IDREF*',))
-def cast_idrefs_list_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) \
         -> List[Idref]:
     cast_func = xsd10_atomic_types['IDREF']
     if isinstance(value, UntypedAtomic):
@@ -1920,7 +1920,7 @@ def cast_idrefs_list_type(self: XPathConstructor, value: AtomicValueType) \
 
 
 @XPath30Parser.constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
-def cast_entities_list_type(self: XPathConstructor, value: AtomicValueType) \
+def cast_entities_list_type(self: XPathConstructor, value: AtomicType) \
         -> List[Entity]:
     cast_func = xsd10_atomic_types['ENTITY']
     if isinstance(value, UntypedAtomic):
@@ -1945,7 +1945,7 @@ XPath30Parser.unregister('error')
 @XPath30Parser.constructor('error', bp=90, label=('function', 'constructor function'),
                            nargs=(0, 3),
                            sequence_types=('xs:QName?', 'xs:string', 'item()*', 'none'))
-def cast_error_type(self: XPathConstructor, value: AtomicValueType) -> Emptiable[None]:
+def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None]:
     if value is None or value == []:
         return []
     msg = f"Cast {value!r} to xs:error is not possible"
