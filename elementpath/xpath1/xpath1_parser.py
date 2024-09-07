@@ -41,7 +41,7 @@ class XPath1Parser(Parser[XPathTokenType]):
     version = '1.0'
     """The XPath version string."""
 
-    token_base_class = XPathToken
+    token_base_class = XPathToken  # type: ignore[assignment, unused-ignore]
     literals_pattern = re.compile(
         r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|(?:\d+|\.\d+)(?:\.\d*)?(?:[Ee][+-]?\d+)?"""
     )

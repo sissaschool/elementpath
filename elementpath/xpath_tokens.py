@@ -31,8 +31,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
-from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, \
-    Emptiable, Listable
+from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType, \
@@ -80,6 +79,15 @@ _XsdTypesType = Union[
 
 _MapDictType = Dict[Optional[AtomicType], ValueType]
 _SequenceTypesType = Union[str, List[str], Tuple[str, ...]]
+
+
+def iter_items(value: ValueType) -> Iterator[ItemType]:
+    """Iterate a result of the evaluation returning a sequence of items."""
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            yield item
+    else:
+        yield value
 
 
 class XPathToken(Token[XPathTokenType]):
@@ -1761,7 +1769,7 @@ class XPathArray(XPathFunction):
     symbol = 'array'
     label = 'array'
     pattern = r'(?<!\$)\barray(?=\s*(?:\(\:.*\:\))?\s*\{(?!\:))'
-    _array: Optional[List[Any]] = None
+    _array: Optional[List[ValueType]] = None
 
     def __init__(self, parser: XPathParserType,
                  items: Optional[Iterable[Any]] = None) -> None:
@@ -1823,10 +1831,10 @@ class XPathArray(XPathFunction):
             return self
         return XPathArray(self.parser, items=self._evaluate(context))
 
-    def _evaluate(self, context: ContextType = None) -> List[Any]:
+    def _evaluate(self, context: ContextType = None) -> List[ValueType]:
         if self.symbol == 'array':
             # A comma in a curly array constructor is the comma operator, not a delimiter.
-            items: List[Any] = []
+            items: List[ValueType] = []
             for tk in self._items:
                 items.extend(tk.select(context))
             return items
@@ -1851,12 +1859,12 @@ class XPathArray(XPathFunction):
         except IndexError:
             raise self.error('FOAY0001')
 
-    def items(self, context: ContextType = None) -> List[Any]:
+    def items(self, context: ContextType = None) -> List[ValueType]:
         if self._array is not None:
             return self._array.copy()
         return self._evaluate(context)
 
-    def iter_flatten(self, context: ContextType = None) -> Iterator[Any]:
+    def iter_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
         if self._array is not None:
             items = self._array
         else:

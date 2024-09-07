@@ -19,11 +19,11 @@ import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import product
-from typing import Any, Callable, cast, Iterable, Iterator, Optional, Tuple, Union
+from typing import Any, Callable, cast, Iterable, Iterator, Optional, Tuple
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-from elementpath.aliases import Dict, List, Listable, Emptiable, Mapping
+from elementpath.aliases import Dict, List, Listable, Emptiable
 from elementpath.protocols import ElementProtocol, EtreeElementProtocol
 from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
     DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, DoubleProxy10, \
@@ -272,8 +272,8 @@ def evaluate_map_find_function(self: XPathFunction, context: ContextType = None)
             for x in obj:
                 collect_matching_items(x)
         elif isinstance(obj, XPathArray):
-            for x in obj.items(context):
-                collect_matching_items(x)
+            for y in obj.items(context):
+                collect_matching_items(y)
         elif isinstance(obj, XPathMap):
             for k, v in obj.items(context):
                 if k == key:

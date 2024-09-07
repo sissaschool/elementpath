@@ -13,12 +13,12 @@ XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 from copy import copy
 from typing import Any, cast, Iterator, Type, Union
 
-from elementpath.aliases import List, Listable, InputData
+from elementpath.aliases import List, InputData
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, ElementNode
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
-from elementpath.xpath_context import ContextType, ItemType, ItemArgType, XPathSchemaContext
+from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
 from elementpath.datatypes import QName
 
 from .xpath30_parser import XPath30Parser

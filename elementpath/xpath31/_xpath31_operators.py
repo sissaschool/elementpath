@@ -19,6 +19,7 @@ from elementpath.xpath_tokens import XPathParserType, XPathToken, ProxyToken, \
     XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AtomicType
 from elementpath.xpath_context import ContextType, ItemType
+from elementpath.xpath_tokens import iter_items
 
 from .xpath31_parser import XPath31Parser
 
@@ -190,33 +191,27 @@ class LookupOperatorToken(XPathToken):
             if isinstance(item, XPathMap):
                 if symbol == '*':
                     for value in item.values(context):
-                        yield from iter_sequence(value)
+                        yield from iter_items(value)
+
                 elif symbol in ('(name)', '(integer)'):
-                    yield from iter_sequence(
+                    yield from iter_items(
                         item(cast(Union[str, int], self[-1].value), context=context)
                     )
                 elif symbol == '(':
-                    for value in self[-1].select(context):
-                        yield from iter_sequence(
-                            item(self.data_value(value), context=context)
-                        )
+                    for obj in self[-1].select(context):
+                        yield from iter_items(item(self.data_value(obj), context=context))
 
             elif isinstance(item, XPathArray):
                 if symbol == '*':
-                    yield from item.items(context)
-                    continue
+                    for value in item.items(context):
+                        yield from iter_items(value)
                 elif symbol == '(name)':
                     raise self.error('XPTY0004')
                 elif symbol == '(integer)':
-                    result = item(cast(int, self[-1].value), context=context)
+                    yield from iter_items(item(cast(int, self[-1].value), context=context))
                 elif symbol == '(':
                     for value in self[-1].select(context):
-                        result = item(self.data_value(value), context=context)
-
-                if isinstance(result, list):
-                    yield from result
-                else:
-                    yield result
+                        yield from iter_items(item(self.data_value(value), context=context))
 
             elif not item and isinstance(item, list):
                 continue
