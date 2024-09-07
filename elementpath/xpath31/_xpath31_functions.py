@@ -212,7 +212,7 @@ def evaluate_map_merge_function(self: XPathFunction, context: ContextType = None
         for opt, value in options.items(context):
             if opt == 'duplicates':
                 if value in ('reject', 'use-first', 'use-last', 'use-any', 'combine'):
-                    duplicates = value
+                    duplicates = cast(str, value)
                 else:
                     raise self.error('FOJS0005')
 

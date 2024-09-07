@@ -25,18 +25,21 @@ from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, Nam
 from elementpath.tree_builders import RootArgType, get_node_tree
 
 if TYPE_CHECKING:
-    from .xpath_tokens import XPathToken, XPathAxis, XPathFunction
+    from .xpath_tokens import XPathToken, XPathAxis, XPathFunction  # noqa: F401
 
-__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType',
-           'ItemType', 'ItemArgType', 'FunctionArgType']
+__all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
+           'ValueType', 'ItemArgType', 'FunctionArgType']
 
+###
 # Type annotations aliases for context and tokens classes
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]
 ItemType = Union[XPathNode, AtomicType, 'XPathFunction']
+ValueType = Listable[ItemType]
 ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
+FunctionArgType = Union[InputData[ItemArgType], ValueType]
+
 NodeArgType = Union[XPathNode, ElementProtocol, DocumentProtocol]
 CollectionArgType = Optional[InputData[NodeArgType]]
-FunctionArgType = Union[InputData[ItemArgType], Listable[ItemType]]
 
 
 class XPathContext:
@@ -92,7 +95,7 @@ class XPathContext:
     item: ItemType
     total_nodes: int = 0  # Number of nodes associated to the context
 
-    variables: Dict[str, Listable[ItemType]]
+    variables: Dict[str, ValueType]
     documents: Optional[Dict[str, DocumentNode]] = None
     collections = None
     default_collection = None
@@ -299,8 +302,7 @@ class XPathContext:
             fragment=fragment
         )
 
-    def get_value(self, item: FunctionArgType, *args: Any, **kwargs: Any) \
-            -> Listable[ItemType]:
+    def get_value(self, item: FunctionArgType, *args: Any, **kwargs: Any) -> ValueType:
         if item is None:
             return []
         elif not isinstance(item, (list, tuple)):
@@ -316,7 +318,8 @@ class XPathContext:
             item = self.get_context_item(items)
             return [item] if isinstance(item, XPathNode) else []
 
-    def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) -> Iterator[Any]:
+    def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) \
+            -> Iterator[ItemType]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
         results = [x for x in token.select(copy(self))]

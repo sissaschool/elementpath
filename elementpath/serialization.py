@@ -41,6 +41,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
 
     kwargs: Dict[str, Any] = {}
     character_map: Dict[str, str]
+    value: Any
 
     if isinstance(params, XPathMap):
         if len(params[:]) > len(params.keys()):  # pragma: no cover
