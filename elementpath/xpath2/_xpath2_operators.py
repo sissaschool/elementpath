@@ -145,7 +145,7 @@ def nud_if_expression(self: XPathToken) -> XPathToken:
 @method('if')
 def evaluate_if_expression(self: XPathToken, context: ContextType = None) \
         -> Union[ItemType, List[ItemType]]:
-    if self.boolean_value(self[0].evaluate(copy(context))):
+    if self.boolean_value(self[0].select(copy(context))):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(copy(context))
         return self[1].evaluate(context)
@@ -158,7 +158,7 @@ def evaluate_if_expression(self: XPathToken, context: ContextType = None) \
 @method('if')
 def select_if_expression(self: XPathToken, context: ContextType = None) \
         -> Iterator[ItemType]:
-    if self.boolean_value([x for x in self[0].select(copy(context))]):
+    if self.boolean_value(self[0].select(copy(context))):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(copy(context))
         yield from self[1].select(context)
@@ -210,7 +210,7 @@ def evaluate_quantified_expressions(self: XPathToken, context: ContextType = Non
 
     for results in copy(context).iter_product(selectors, varnames):
         context.variables.update(x for x in zip(varnames, results))
-        if self.boolean_value([x for x in self[-1].select(copy(context))]):
+        if self.boolean_value(self[-1].select(copy(context))):
             if some:
                 return True
         elif not some:

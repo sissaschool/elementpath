@@ -346,12 +346,12 @@ def evaluate_substring_before_or_after_functions(
 @method(function('boolean', nargs=1,
                  sequence_types=('item()*', 'xs:boolean')))
 def evaluate_boolean_function(self: XPathFunction, context: ContextType = None) -> bool:
-    return self.boolean_value([x for x in self[0].select(self.context or context)])
+    return self.boolean_value(self[0].select(self.context or context))
 
 
 @method(function('not', nargs=1, sequence_types=('item()*', 'xs:boolean')))
 def evaluate_not_function(self: XPathFunction, context: ContextType = None) -> bool:
-    return not self.boolean_value([x for x in self[0].select(self.context or context)])
+    return not self.boolean_value(self[0].select(self.context or context))
 
 
 @method(function('true', nargs=0, sequence_types=('xs:boolean',)))

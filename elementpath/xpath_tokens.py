@@ -994,6 +994,18 @@ class XPathToken(Token[XPathTokenType]):
                 raise self.error('FORG0006', message)
             else:
                 obj = obj[0]
+        elif isinstance(obj, Iterator):
+            items = obj
+            for k, obj in enumerate(items):
+                if k:
+                    message = "effective boolean value is not defined for a sequence " \
+                              "of two or more items not starting with an XPath node."
+                    raise self.error('FORG0006', message)
+                elif isinstance(obj, XPathNode):
+                    return True
+            else:
+                if obj is items:
+                    return False
 
         if isinstance(obj, (int, str, UntypedAtomic, AnyURI)):  # Include bool
             return bool(obj)

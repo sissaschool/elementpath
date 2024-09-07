@@ -424,14 +424,14 @@ def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
 # Logical Operators
 @method(infix('or', bp=20))
 def evaluate_or_operator(self: XPathToken, context: ContextType = None) -> bool:
-    return self.boolean_value(self[0].evaluate(copy(context))) or \
-        self.boolean_value(self[1].evaluate(copy(context)))
+    return self.boolean_value(self[0].select(copy(context))) or \
+        self.boolean_value(self[1].select(copy(context)))
 
 
 @method(infix('and', bp=25))
 def evaluate_and_operator(self: XPathToken, context: ContextType = None) -> bool:
-    return self.boolean_value(self[0].evaluate(copy(context))) and \
-        self.boolean_value(self[1].evaluate(copy(context)))
+    return self.boolean_value(self[0].select(copy(context))) and \
+        self.boolean_value(self[1].select(copy(context)))
 
 
 ###

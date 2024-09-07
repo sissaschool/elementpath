@@ -471,7 +471,7 @@ def evaluate_boolean_type_and_function(self: XPathConstructor, context: ContextT
         context = self.context
 
     if self.label == 'function':
-        return self.boolean_value([x for x in self[0].select(context)])
+        return self.boolean_value(self[0].select(context))
 
     # xs:boolean constructor
     arg = self.data_value(self.get_argument(context))
