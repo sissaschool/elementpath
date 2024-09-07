@@ -22,6 +22,8 @@ from elementpath.xpath_context import ContextType, ItemType
 
 from .xpath31_parser import XPath31Parser
 
+__all__ = ['XPath31Parser']
+
 register = XPath31Parser.register
 method = XPath31Parser.method
 function = XPath31Parser.function
@@ -202,13 +204,19 @@ class LookupOperatorToken(XPathToken):
             elif isinstance(item, XPathArray):
                 if symbol == '*':
                     yield from item.items(context)
+                    continue
                 elif symbol == '(name)':
                     raise self.error('XPTY0004')
                 elif symbol == '(integer)':
-                    yield item(cast(int, self[-1].value), context=context)
+                    result = item(cast(int, self[-1].value), context=context)
                 elif symbol == '(':
                     for value in self[-1].select(context):
-                        yield item(self.data_value(value), context=context)
+                        result = item(self.data_value(value), context=context)
+
+                if isinstance(result, list):
+                    yield from result
+                else:
+                    yield result
 
             elif not item and isinstance(item, list):
                 continue

@@ -314,8 +314,8 @@ class AbstractDateTime(AnyAtomicType):
         return cls(tzinfo=tzinfo, **kwargs)
 
     @classmethod
-    def fromdatetime(cls, dt: Union[datetime.datetime, datetime.date, datetime.time],
-                     year: Optional[int] = None) -> 'AbstractDateTime':
+    def fromdatetime(cls: Type[_DT], dt: Union[datetime.datetime, datetime.date, datetime.time],
+                     year: Optional[int] = None) -> _DT:
         """
         Creates an XSD date/time instance from a datetime.datetime/date/time instance.
 

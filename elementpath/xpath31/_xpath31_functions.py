@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# mypy: ignore-errors
 """
 XPath 3.1 implementation - part 3 (functions)
 """
@@ -20,24 +19,28 @@ import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import product
+from typing import Any, Callable, cast, Iterable, Iterator, Optional, Tuple, Union
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-from ..datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
-    DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, \
-    DoubleProxy10, NumericProxy, UntypedAtomic, Base64Binary, Language
-from ..exceptions import ElementPathTypeError
-from ..helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
+from elementpath.aliases import Dict, List, Listable, Emptiable, Mapping
+from elementpath.protocols import ElementProtocol, EtreeElementProtocol
+from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
+    DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, DoubleProxy10, \
+    NumericProxy, UntypedAtomic, Base64Binary, Language, AtomicType, NumericType
+from elementpath.exceptions import ElementPathTypeError
+from elementpath.helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
-from ..namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
-from ..etree import etree_iter_strings, is_etree_element
-from ..collations import CollationManager
-from ..compare import get_key_function, same_key
-from ..tree_builders import get_node_tree
-from ..xpath_nodes import XPathNode, DocumentNode, ElementNode
-from ..xpath_tokens import XPathFunction, XPathMap, XPathArray
-from ..xpath_context import XPathSchemaContext
-from ..validators import validate_json_to_xml
+from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
+from elementpath.etree import etree_iter_strings, is_etree_element
+from elementpath.collations import CollationManager
+from elementpath.compare import get_key_function, same_key
+from elementpath.tree_builders import get_node_tree
+from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode
+from elementpath.xpath_tokens import XPathFunction, XPathConstructor, XPathMap, XPathArray
+from elementpath.xpath_context import ContextType, ItemType, FunctionArgType, XPathSchemaContext
+from elementpath.validators import validate_json_to_xml
+
 from ._xpath31_operators import XPath31Parser
 
 method = XPath31Parser.method
@@ -66,12 +69,12 @@ TIMEZONE_MAP = {
 
 
 @XPath31Parser.constructor('numeric')
-def cast_numeric_type(self, value):
+def cast_numeric_type(self: XPathConstructor, value: AtomicType) -> NumericType:
     if isinstance(value, NumericProxy):
-        return value
+        return cast(NumericType, value)
 
     try:
-        return NumericProxy(value)  # returns a float (xs:double)
+        return cast(float, NumericProxy(value))  # type: ignore[arg-type]
     except ValueError as err:
         if isinstance(value, (str, UntypedAtomic)):
             raise self.error('FORG0001', err)
@@ -80,7 +83,7 @@ def cast_numeric_type(self, value):
 
 @method(function('string-join', nargs=(1, 2),
                  sequence_types=('xs:anyAtomicType*', 'xs:string', 'xs:string')))
-def evaluate_string_join_function(self, context=None):
+def evaluate_string_join_function(self: XPathFunction, context: ContextType = None) -> str:
     if self.context is not None:
         context = self.context
 
@@ -88,28 +91,30 @@ def evaluate_string_join_function(self, context=None):
 
     if len(self) == 1:
         return ''.join(items)
-    return self.get_argument(context, 1, required=True, cls=str).join(items)
+    separator: str = self.get_argument(context, 1, required=True, cls=str)
+    return separator.join(items)
 
 
 @method(function('size', prefix='map', nargs=1,
                  sequence_types=('map(*)', 'xs:integer')))
-def evaluate_map_size_function(self, context=None):
+def evaluate_map_size_function(self: XPathFunction, context: ContextType = None) -> int:
     return len(self.get_argument(self.context or context, required=True, cls=XPathMap))
 
 
 @method(function('keys', prefix='map', nargs=1,
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
-def evaluate_map_keys_function(self, context=None):
+def evaluate_map_keys_function(self: XPathFunction, context: ContextType = None) \
+        -> List[AtomicType]:
     if self.context is not None:
         context = self.context
 
-    map_ = self.get_argument(context, required=True, cls=XPathMap)
+    map_: XPathMap = self.get_argument(context, required=True, cls=XPathMap)
     return [x for x in map_.keys(context)]
 
 
 @method(function('contains', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'xs:boolean')))
-def evaluate_map_contains_function(self, context=None):
+def evaluate_map_contains_function(self: XPathFunction, context: ContextType = None) -> bool:
     if self.context is not None:
         context = self.context
 
@@ -135,18 +140,19 @@ def evaluate_map_contains_function(self, context=None):
 
 @method(function('get', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*')))
-def evaluate_map_get_function(self, context=None):
+def evaluate_map_get_function(self: XPathFunction, context: ContextType = None) \
+        -> Listable[ItemType]:
     if self.context is not None:
         context = self.context
 
-    map_ = self.get_argument(context, required=True, cls=XPathMap)
-    key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
+    map_: XPathMap = self.get_argument(context, required=True, cls=XPathMap)
+    key: AnyAtomicType = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
     return map_(key, context=context)
 
 
 @method(function('put', prefix='map', nargs=3,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'item()*', 'map(*)')))
-def evaluate_map_put_function(self, context=None):
+def evaluate_map_put_function(self: XPathFunction, context: ContextType = None) -> XPathMap:
     if self.context is not None:
         context = self.context
 
@@ -163,7 +169,7 @@ def evaluate_map_put_function(self, context=None):
 
 @method(function('remove', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType*', 'map(*)')))
-def evaluate_map_remove_function(self, context=None):
+def evaluate_map_remove_function(self: XPathFunction, context: ContextType = None) -> XPathMap:
     if self.context is not None:
         context = self.context
 
@@ -182,7 +188,7 @@ def evaluate_map_remove_function(self, context=None):
 
 @method(function('entry', prefix='map', nargs=2,
                  sequence_types=('xs:anyAtomicType', 'item()*', 'map(*)')))
-def evaluate_map_entry_function(self, context=None):
+def evaluate_map_entry_function(self: XPathFunction, context: ContextType = None) -> XPathMap:
     if self.context is not None:
         context = self.context
 
@@ -196,13 +202,13 @@ def evaluate_map_entry_function(self, context=None):
 
 @method(function('merge', prefix='map', nargs=(1, 2),
                  sequence_types=('map(*)*', 'map(*)', 'map(*)')))
-def evaluate_map_merge_function(self, context=None):
+def evaluate_map_merge_function(self: XPathFunction, context: ContextType = None) -> XPathMap:
     if self.context is not None:
         context = self.context
 
     duplicates = 'use-first'
     if len(self) > 1:
-        options = self.get_argument(context, index=1, required=True, cls=XPathMap)
+        options: XPathMap = self.get_argument(context, index=1, required=True, cls=XPathMap)
         for opt, value in options.items(context):
             if opt == 'duplicates':
                 if value in ('reject', 'use-first', 'use-last', 'use-any', 'combine'):
@@ -210,8 +216,9 @@ def evaluate_map_merge_function(self, context=None):
                 else:
                     raise self.error('FOJS0005')
 
-    items = {}
+    items: Dict[Any, Any] = {}
     for map_ in self[0].select(context):
+        assert isinstance(map_, XPathMap)
         for k1, v in map_.items(context):
             # Speed up for certain key types or float values
             if isinstance(k1, SAFE_KEY_ATOMIC_TYPES) or \
@@ -253,28 +260,28 @@ def evaluate_map_merge_function(self, context=None):
 
 @method(function('find', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'xs:anyAtomicType', 'array(*)')))
-def evaluate_map_find_function(self, context=None):
+def evaluate_map_find_function(self: XPathFunction, context: ContextType = None) -> XPathArray:
     if self.context is not None:
         context = self.context
 
     key = self.get_argument(context, index=1, required=True, cls=AnyAtomicType)
     items = []
 
-    def iter_matching_items(obj):
+    def collect_matching_items(obj: Listable[ItemType]) -> None:
         if isinstance(obj, list):
             for x in obj:
-                iter_matching_items(x)
+                collect_matching_items(x)
         elif isinstance(obj, XPathArray):
             for x in obj.items(context):
-                iter_matching_items(x)
+                collect_matching_items(x)
         elif isinstance(obj, XPathMap):
             for k, v in obj.items(context):
                 if k == key:
                     items.append(v)
-                iter_matching_items(v)
+                collect_matching_items(v)
 
     for item in self[0].select(context):
-        iter_matching_items(item)
+        collect_matching_items(item)
 
     return XPathArray(self.parser, items)
 
@@ -282,42 +289,48 @@ def evaluate_map_find_function(self, context=None):
 @method(function('for-each', prefix='map', nargs=2,
                  sequence_types=('map(*)', 'function(xs:anyAtomicType, item()*) as item()*',
                                  'item()*')))
-def select_map_for_each_function(self, context=None):
+def select_map_for_each_function(self: XPathFunction, context: ContextType = None) \
+        -> Iterator[ItemType]:
     if self.context is not None:
         context = self.context
 
-    map_ = self.get_argument(context, required=True, cls=XPathMap)
-    func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
+    map_: XPathMap = self.get_argument(context, required=True, cls=XPathMap)
+    func: XPathFunction = self.get_argument(context, index=1, required=True, cls=XPathFunction)
 
     for k, v in map_.items(context):
-        yield func(k, v, context=context)
+        result = func(k, v, context=context)
+        if isinstance(result, list):
+            yield from result
+        else:
+            yield result
 
 
 @method(function('size', prefix='array', nargs=1,
                  sequence_types=('array(*)', 'xs:integer')))
-def evaluate_array_size_function(self, context=None):
+def evaluate_array_size_function(self: XPathFunction, context: ContextType = None) -> int:
     return len(self.get_argument(self.context or context, required=True, cls=XPathArray))
 
 
 @method(function('get', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'xs:integer', 'item()*')))
-def evaluate_array_get_function(self, context=None):
+def evaluate_array_get_function(self: XPathFunction, context: ContextType = None) \
+        -> Listable[ItemType]:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
-    position = self.get_argument(context, index=1, required=True, cls=int)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    position: int = self.get_argument(context, index=1, required=True, cls=int)
     return array_(position, context=context)
 
 
 @method(function('put', prefix='array', nargs=3,
                  sequence_types=('array(*)', 'xs:integer', 'item()*', 'array(*)')))
-def evaluate_array_put_function(self, context=None):
+def evaluate_array_put_function(self: XPathFunction, context: ContextType = None) -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
-    position = self.get_argument(context, index=1, required=True, cls=int)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    position: int = self.get_argument(context, index=1, required=True, cls=int)
     member = self[2].evaluate(context)
     if member is None:
         member = []
@@ -338,12 +351,13 @@ def evaluate_array_put_function(self, context=None):
 
 @method(function('insert-before', prefix='array', nargs=3,
                  sequence_types=('array(*)', 'xs:integer', 'item()*', 'array(*)')))
-def evaluate_array_insert_before_function(self, context=None):
+def evaluate_array_insert_before_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
-    position = self.get_argument(context, index=1, required=True, cls=int)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    position: int = self.get_argument(context, index=1, required=True, cls=int)
     member = self[2].evaluate(context)
     if member is None:
         member = []
@@ -365,11 +379,12 @@ def evaluate_array_insert_before_function(self, context=None):
 
 @method(function('append', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'item()*', 'array(*)')))
-def evaluate_array_append_function(self, context=None):
+def evaluate_array_append_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
     appendage = self[1].evaluate(context)
     if appendage is None:
         appendage = []
@@ -381,20 +396,26 @@ def evaluate_array_append_function(self, context=None):
 
 @method(function('remove', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'xs:integer*', 'array(*)')))
-def evaluate_array_remove_function(self, context=None):
+def evaluate_array_remove_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
     positions_ = self[1].evaluate(context)
     if positions_ is None:
         return array_
 
-    positions = positions_ if isinstance(positions_, list) else [positions_]
-    if any(p <= 0 or p > len(array_) for p in positions):
-        if isinstance(context, XPathSchemaContext):
+    positions: List[int] = []
+    for p in positions_ if isinstance(positions_, list) else [positions_]:
+        if isinstance(p, int) and 0 < p <= len(array_):
+            positions.append(p)
+        elif isinstance(context, XPathSchemaContext):
             return array_
-        raise self.error('FOAY0001')
+        elif not isinstance(p, int):
+            raise self.error('XPTY0004')
+        else:
+            raise self.error('FOAY0001')
 
     items = (v for k, v in enumerate(array_.items(context), 1) if k not in positions)
     return XPathArray(self.parser, items=items)
@@ -402,12 +423,13 @@ def evaluate_array_remove_function(self, context=None):
 
 @method(function('subarray', prefix='array', nargs=(2, 3),
                  sequence_types=('array(*)', 'xs:integer', 'xs:integer', 'array(*)')))
-def evaluate_array_subarray_function(self, context=None):
+def evaluate_array_subarray_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
-    start = self.get_argument(context, index=1, required=True, cls=int)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    start: int = self.get_argument(context, index=1, required=True, cls=int)
     if start < 1 or start > len(array_) + 1:
         if isinstance(context, XPathSchemaContext):
             return array_
@@ -428,26 +450,28 @@ def evaluate_array_subarray_function(self, context=None):
 
 @method(function('head', prefix='array', nargs=1,
                  sequence_types=('array(*)', 'item()*')))
-def evaluate_array_head_function(self, context=None):
+def evaluate_array_head_function(self: XPathFunction, context: ContextType = None) \
+        -> Listable[ItemType]:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
     items = array_.items(context)
     if not items:
         if isinstance(context, XPathSchemaContext):
             return array_
         raise self.error('FOAY0001')
-    return items[0]
+    return cast(ItemType, items[0])
 
 
 @method(function('tail', prefix='array', nargs=1,
                  sequence_types=('array(*)', 'array(*)')))
-def evaluate_array_tail_function(self, context=None):
+def evaluate_array_tail_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
     items = array_.items(context)
     if not items:
         if isinstance(context, XPathSchemaContext):
@@ -458,10 +482,12 @@ def evaluate_array_tail_function(self, context=None):
 
 @method(function('reverse', prefix='array', nargs=1,
                  sequence_types=('array(*)', 'array(*)')))
-def evaluate_array_reverse_function(self, context=None):
+def evaluate_array_reverse_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
+    array_: XPathArray
     array_ = self.get_argument(context, required=True, cls=XPathArray)
     items = array_.items(context)
     return XPathArray(self.parser, items=reversed(items))
@@ -469,7 +495,8 @@ def evaluate_array_reverse_function(self, context=None):
 
 @method(function('join', prefix='array', nargs=1,
                  sequence_types=('array(*)', 'array(*)')))
-def evaluate_array_join_function(self, context=None):
+def evaluate_array_join_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
@@ -484,11 +511,12 @@ def evaluate_array_join_function(self, context=None):
 
 @method(function('flatten', prefix='array', nargs=1,
                  sequence_types=('item()*', 'item()*')))
-def evaluate_array_flatten_function(self, context=None):
+def evaluate_array_flatten_function(self: XPathFunction, context: ContextType = None) \
+        -> List[ItemType]:
     if self.context is not None:
         context = self.context
 
-    items = []
+    items: List[ItemType] = []
     for obj in self[0].select(context):
         if isinstance(obj, XPathArray):
             items.extend(obj.iter_flatten(context))
@@ -500,12 +528,13 @@ def evaluate_array_flatten_function(self, context=None):
 
 @method(function('for-each', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'function(item()*) as item()*', 'array(*)')))
-def evaluate_array_for_each_function(self, context=None):
+def evaluate_array_for_each_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
-    func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    func: XPathFunction = self.get_argument(context, index=1, required=True, cls=XPathFunction)
     items = array_.items(context)
     return XPathArray(self.parser, items=map(lambda x: func(x, context=context), items))
 
@@ -513,28 +542,30 @@ def evaluate_array_for_each_function(self, context=None):
 @method(function('for-each-pair', prefix='array', nargs=3,
                  sequence_types=('array(*)', 'array(*)',
                                  'function(item()*, item()*) as item()*', 'array(*)')))
-def evaluate_array_for_each_pair_function(self, context=None):
+def evaluate_array_for_each_pair_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array1 = self.get_argument(context, required=True, cls=XPathArray)
-    array2 = self.get_argument(context, index=1, required=True, cls=XPathArray)
-    func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
+    array1: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    array2: XPathArray = self.get_argument(context, index=1, required=True, cls=XPathArray)
+    func: XPathFunction = self.get_argument(context, index=2, required=True, cls=XPathFunction)
     items = zip(array1.items(context), array2.items(context))
     return XPathArray(self.parser, items=map(lambda x: func(*x, context=context), items))
 
 
 @method(function('filter', prefix='array', nargs=2,
                  sequence_types=('array(*)', 'function(item()*) as xs:boolean', 'array(*)')))
-def evaluate_array_filter_function(self, context=None):
+def evaluate_array_filter_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
-    func = self.get_argument(context, index=1, required=True, cls=XPathFunction)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
+    func: XPathFunction = self.get_argument(context, index=1, required=True, cls=XPathFunction)
     items = array_.items(context)
 
-    def filter_function(x):
+    def filter_function(x: FunctionArgType) -> bool:
         choice = func(x, context=context)
         if not isinstance(choice, bool):
             raise self.error('XPTY0004', f'{func} must return xs:boolean values')
@@ -549,7 +580,8 @@ def evaluate_array_filter_function(self, context=None):
 @method(function('fold-right', prefix='array', nargs=3,
                  sequence_types=('array(*)', 'item()*',
                                  'function(item()*, item()) as item()*', 'item()*')))
-def select_array_fold_left_right_functions(self, context=None):
+def select_array_fold_left_right_functions(self: XPathFunction, context: ContextType = None) \
+        -> Iterator[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -559,7 +591,8 @@ def select_array_fold_left_right_functions(self, context=None):
     if func.arity != 2:
         raise self.error('XPTY0004', "function arity must be 2")
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    assert isinstance(func, XPathFunction)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
     zero = self.get_argument(context, index=1)
 
     result = zero
@@ -580,7 +613,8 @@ def select_array_fold_left_right_functions(self, context=None):
 @method(function('sort', nargs=(1, 3),
                  sequence_types=('item()*', 'xs:string?',
                                  'function(item()) as xs:anyAtomicType*', 'item()*')))
-def evaluate_sort_function(self, context=None):
+def evaluate_sort_function(self: XPathFunction, context: ContextType = None) \
+        -> Listable[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -612,11 +646,12 @@ def evaluate_sort_function(self, context=None):
 @method(function('sort', prefix='array', nargs=(1, 3),
                  sequence_types=('array(*)', 'xs:string?',
                                  'function(item()*) as xs:anyAtomicType*', 'array(*)')))
-def evaluate_array_sort_function(self, context=None):
+def evaluate_array_sort_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathArray:
     if self.context is not None:
         context = self.context
 
-    array_ = self.get_argument(context, required=True, cls=XPathArray)
+    array_: XPathArray = self.get_argument(context, required=True, cls=XPathArray)
 
     if len(self) < 2:
         collation = self.parser.default_collation
@@ -626,6 +661,7 @@ def evaluate_array_sort_function(self, context=None):
             collation = self.parser.default_collation
 
     if len(self) == 3:
+        func: XPathFunction
         func = self.get_argument(context, index=2, required=True, cls=XPathFunction)
         key_function = get_key_function(
             collation, key_func=lambda x: func(x, context=context), token=self
@@ -649,7 +685,8 @@ def evaluate_array_sort_function(self, context=None):
                  sequence_types=('xs:string?', 'map(*)', 'item()?')))
 @method(function('parse-json', nargs=(1, 2),
                  sequence_types=('xs:string?', 'map(*)', 'item()?')))
-def evaluate_parse_json_functions(self, context=None):
+def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = None) \
+        -> Emptiable[ItemType]:
     if self.symbol == 'json-doc':
         href = self.get_argument(context, cls=str)
         if href is None:
@@ -671,13 +708,13 @@ def evaluate_parse_json_functions(self, context=None):
         if json_text is None:
             return []
 
-    def _fallback(*_args, **_kwargs):
+    def _fallback(*args: Any, context: ContextType = None) -> str:
         return '\uFFFD'
 
     liberal = False
     duplicates = 'use-first'
     escape = None
-    fallback = _fallback
+    fallback: Callable[..., str] = _fallback
 
     if len(self) > 1:
         map_ = self.get_argument(context, index=1, required=True, cls=XPathMap)
@@ -707,10 +744,10 @@ def evaluate_parse_json_functions(self, context=None):
                     msg = "cannot provide both 'fallback' and 'escape' parameters"
                     raise self.error('FOJS0005', msg)
 
-                fallback = v
+                fallback = cast(Callable[..., str], v)
                 escape = False
 
-    def decode_value(value):
+    def decode_value(value: Listable[ItemType]) -> ItemType:
         if value is None:
             return []
         elif isinstance(value, list):
@@ -725,29 +762,29 @@ def evaluate_parse_json_functions(self, context=None):
             for x in value
         )
 
-    def json_object_pairs_to_map(obj):
+    def json_object_pairs_to_map(obj: Iterable[Tuple[str, Listable[ItemType]]]) -> XPathMap:
         items = {}
-        for k_, v_ in obj:
-            k_, v_ = decode_value(k_), decode_value(v_)
-            if k_ in items:
+        for item in obj:
+            key, value = decode_value(item[0]), decode_value(item[1])
+            if key in items:
                 if duplicates == 'use-first':
                     continue
                 elif duplicates == 'reject':
                     raise self.error('FOJS0003')
 
-            if isinstance(v_, list):
-                values = [decode_value(x) for x in v_]
-                items[k_] = XPathArray(self.parser, values) if values else values
+            if isinstance(value, list):
+                values = [decode_value(x) for x in value]
+                items[key] = XPathArray(self.parser, values) if values else values
             else:
-                items[k_] = v_
+                items[key] = value
 
         return XPathMap(self.parser, items)
 
-    kwargs = {'object_pairs_hook': json_object_pairs_to_map}
+    kwargs: Dict[str, Any] = {'object_pairs_hook': json_object_pairs_to_map}
     if liberal or escape:
         kwargs['strict'] = False
     if liberal:
-        def parse_constant(s):
+        def parse_constant(s: str) -> None:
             raise self.error('FOJS0001')
 
         kwargs['parse_constant'] = parse_constant
@@ -764,7 +801,8 @@ def evaluate_parse_json_functions(self, context=None):
 
 @method(function('load-xquery-module', nargs=(1, 2),
                  sequence_types=('xs:string', 'map(*)', 'map(*)')))
-def evaluate_load_xquery_module_function(self, context=None):
+def evaluate_load_xquery_module_function(self: XPathFunction, context: ContextType = None) \
+        -> XPathMap:
     if self.context is not None:
         context = self.context
 
@@ -800,7 +838,7 @@ def evaluate_load_xquery_module_function(self, context=None):
 
 
 @method(function('transform', nargs=1, sequence_types=('map(*)', 'map(*)')))
-def evaluate_transform_function(self, context=None):
+def evaluate_transform_function(self: XPathFunction, context: ContextType = None) -> XPathMap:
     if self.context is not None:
         context = self.context
 
@@ -817,7 +855,8 @@ def evaluate_transform_function(self, context=None):
 
 @method(function('random-number-generator', nargs=(0, 1),
                  sequence_types=('xs:anyAtomicType?', 'map(xs:string, item())')))
-def evaluate_random_number_generator_function(self, context=None):
+def evaluate_random_number_generator_function(self: XPathFunction, context: ContextType = None) \
+        -> ItemType:
     if self.context is not None:
         context = self.context
 
@@ -830,7 +869,7 @@ def evaluate_random_number_generator_function(self, context=None):
         nargs = 1
         sequence_types = ('item()*', 'item()*')
 
-        def __call__(self, *args, **kwargs):
+        def __call__(self, *args: Any, **kwargs: Any) -> List[ItemType]:
             if not args:
                 return []
 
@@ -846,7 +885,7 @@ def evaluate_random_number_generator_function(self, context=None):
         nargs = 0
         sequence_types = ('map(xs:string, item())',)
 
-        def __call__(self, *args, **kwargs):
+        def __call__(self, *args: Any, **kwargs: Any) -> XPathMap:
             items = {
                 'number': random.random(),
                 'next': NextRandom(self.parser),
@@ -859,7 +898,8 @@ def evaluate_random_number_generator_function(self, context=None):
 
 @method(function('apply', nargs=2,
                  sequence_types=('function(*)', 'array(*)', 'item()*')))
-def evaluate_apply_function(self, context=None):
+def evaluate_apply_function(self: XPathFunction, context: ContextType = None) \
+        -> Listable[ItemType]:
     if self.context is not None:
         context = self.context
 
@@ -873,14 +913,15 @@ def evaluate_apply_function(self, context=None):
     try:
         return func(*array_.items(context), context=context)
     except ElementPathTypeError as err:
-        if not err.code.endswith(('XPST0017', 'XPTY0004')):
+        if err.code is None or not err.code.endswith(('XPST0017', 'XPTY0004')):
             raise
         raise self.error('FOAP0001') from None
 
 
 @method(function('parse-ietf-date', nargs=1,
                  sequence_types=('xs:string?', 'xs:dateTime?')))
-def evaluate_parse_ietf_date_function(self, context=None):
+def evaluate_parse_ietf_date_function(self: XPathFunction, context: ContextType = None) \
+        -> Emptiable[DateTime]:
     if self.context is not None:
         context = self.context
 
@@ -984,7 +1025,7 @@ def evaluate_parse_ietf_date_function(self, context=None):
 
             if dt.tzinfo is not None:
                 offset = dt.tzinfo.utcoffset(None)
-                seconds = offset.days * 86400 + offset.seconds
+                seconds = offset.days * 86400 + offset.seconds if offset else 0
                 if abs(seconds) > 14 * 3600:
                     raise self.error('FORG0010')
             if day_offset:
@@ -997,7 +1038,7 @@ def evaluate_parse_ietf_date_function(self, context=None):
 
 @method(function('contains-token', nargs=(2, 3),
                  sequence_types=('xs:string*', 'xs:string', 'xs:string', 'xs:boolean')))
-def evaluate_contains_token_function(self, context=None):
+def evaluate_contains_token_function(self: XPathFunction, context: ContextType = None) -> bool:
     if self.context is not None:
         context = self.context
 
@@ -1022,7 +1063,8 @@ def evaluate_contains_token_function(self, context=None):
 
 @method(function('collation-key', nargs=(1, 2),
                  sequence_types=('xs:string', 'xs:string', 'xs:base64Binary')))
-def evaluate_collation_key_function(self, context=None):
+def evaluate_collation_key_function(self: XPathFunction, context: ContextType = None) \
+        -> Base64Binary:
     if self.context is not None:
         context = self.context
 
@@ -1041,7 +1083,8 @@ def evaluate_collation_key_function(self, context=None):
 
 
 @method(function('default-language', nargs=0, sequence_types=('xs:language',)))
-def evaluate_default_language_function(self, context=None):
+def evaluate_default_language_function(self: XPathFunction, context: ContextType = None) \
+        -> Language:
     if self.context is not None:
         context = self.context
     elif context is None:
@@ -1049,7 +1092,8 @@ def evaluate_default_language_function(self, context=None):
 
     if context.default_language is not None:
         return context.default_language
-    return Language(locale.getlocale()[0].replace('_', '-'))
+    lang = locale.getlocale()[0]
+    return Language(lang.replace('_', '-') if lang else lang)
 
 
 NULL_TAG = f'{{{XPATH_FUNCTIONS_NAMESPACE}}}null'
@@ -1063,7 +1107,8 @@ BOOLEAN_VALUES = {'true', 'false', '1', '0'}
 
 @method(function('xml-to-json', nargs=(1, 2),
                  sequence_types=('node()?', 'map(*)', 'xs:string?')))
-def evaluate_xml_to_json_function(self, context=None):
+def evaluate_xml_to_json_function(self: XPathFunction, context: ContextType = None) \
+        -> Emptiable[str]:
     if self.context is not None:
         context = self.context
 
@@ -1077,19 +1122,19 @@ def evaluate_xml_to_json_function(self, context=None):
         if indent is not None and isinstance(indent, bool):
             raise self.error('FOJS0005')
 
-    def elem_to_json(elements):
+    def elem_to_json(elements: Iterable[ElementProtocol]) -> str:
         chunks = []
 
-        def check_attributes(*exclude):
+        def check_attributes(*exclude: str) -> None:
             for name in child.attrib:
-                if name in exclude:
+                if name is None or name in exclude:
                     continue
                 elif name.startswith('{') and \
                         not name.startswith(f'{{{XPATH_FUNCTIONS_NAMESPACE}}}'):
                     continue
                 raise self.error('FOJS0006', f"{child} has an invalid attribute {name!r}")
 
-        def check_escapes(s):
+        def check_escapes(s: str) -> None:
             if re.search(r'(?<!\\)\\(?![urtnfb/"\\])', s):
                 raise self.error('FOJS0007', f"invalid escape sequence in {s!r}")
 
@@ -1121,9 +1166,9 @@ def evaluate_xml_to_json_function(self, context=None):
                 value = ''.join(etree_iter_strings(child))
                 try:
                     if self.parser.xsd_version == '1.0':
-                        number = DoubleProxy10(value)
+                        number = cast(float, DoubleProxy10(value))
                     else:
-                        number = DoubleProxy(value)
+                        number = cast(float, DoubleProxy(value))
                 except ValueError:
                     chunks.append('nan')
                 else:
@@ -1192,7 +1237,8 @@ def evaluate_xml_to_json_function(self, context=None):
         return ','.join(chunks)
 
     if isinstance(input_node, DocumentNode):
-        return elem_to_json(child.value for child in input_node)
+        return elem_to_json(child.value for child in input_node
+                            if isinstance(child, ElementNode))
     elif isinstance(input_node, ElementNode):
         return elem_to_json((input_node.value,))
     else:
@@ -1201,7 +1247,8 @@ def evaluate_xml_to_json_function(self, context=None):
 
 @method(function('json-to-xml', nargs=(1, 2),
                  sequence_types=('xs:string?', 'map(*)', 'document-node()?')))
-def evaluate_json_to_xml_function(self, context=None):
+def evaluate_json_to_xml_function(self: XPathFunction, context: ContextType = None) \
+        -> Emptiable[DocumentNode]:
     if self.context is not None:
         context = self.context
 
@@ -1213,14 +1260,14 @@ def evaluate_json_to_xml_function(self, context=None):
     else:
         raise self.missing_context()
 
-    def _fallback(*_args, **_kwargs):
+    def _fallback(*args: Any, context: ContextType = None) -> str:
         return '&#xFFFD;'
 
     liberal = False
     validate = False
     duplicates = None
     escape = False
-    fallback = _fallback
+    fallback: Callable[..., str] = _fallback
 
     if len(self) > 1:
         options = self.get_argument(context, index=1, required=True, cls=XPathMap)
@@ -1254,7 +1301,7 @@ def evaluate_json_to_xml_function(self, context=None):
                     raise self.error('FOJS0005', msg)
                 if not isinstance(value, XPathFunction):
                     raise self.error('XPTY0004')
-                fallback = value
+                fallback = cast(Callable[..., str], value)
 
             else:
                 raise self.error('FOJS0005')
@@ -1264,7 +1311,7 @@ def evaluate_json_to_xml_function(self, context=None):
         elif validate and duplicates == 'retain':
             raise self.error('FOJS0005')
 
-    def escape_string(s):
+    def escape_string(s: str) -> str:
         s = re.sub(r'\\(?!/)', r'\\\\', s)
         s = s.replace('\b', r'\b'). \
             replace('\r', r'\r'). \
@@ -1276,7 +1323,7 @@ def evaluate_json_to_xml_function(self, context=None):
             x if is_xml_codepoint(ord(x)) else rf'\u{ord(x):04X}' for x in s
         )
 
-    def value_to_etree(v, **attrib):
+    def value_to_etree(v: Optional[ItemType], **attrib: str) -> ElementProtocol:
         if v is None:
             elem = etree.Element(NULL_TAG, **attrib)
         elif isinstance(v, list):
@@ -1304,14 +1351,15 @@ def evaluate_json_to_xml_function(self, context=None):
             elem.text = v
 
         elif is_etree_element(v):
-            v.attrib.update(attrib)
-            return v
+            e = cast(EtreeElementProtocol, v)
+            e.attrib.update(attrib)
+            return e
         else:
             raise ElementPathTypeError(f'unexpected type {type(v)}')
 
-        return elem
+        return cast(ElementProtocol, elem)
 
-    def json_object_to_etree(obj):
+    def json_object_to_etree(obj: Iterable[Tuple[str, Optional[ItemType]]]) -> ElementProtocol:
         keys = set()
         items = []
         for k, v in obj:
@@ -1339,13 +1387,13 @@ def evaluate_json_to_xml_function(self, context=None):
         elem = etree.Element(MAP_TAG)
         for item in items:
             elem.append(item)
-        return elem
+        return cast(ElementProtocol, elem)
 
-    kwargs = {'object_pairs_hook': json_object_to_etree}
+    kwargs: Dict[str, Any] = {'object_pairs_hook': json_object_to_etree}
     if liberal or escape:
         kwargs['strict'] = False
     if liberal:
-        def parse_constant(s):
+        def parse_constant(s: Any) -> None:
             raise self.error('FOJS0001')
 
         kwargs['parse_constant'] = parse_constant
@@ -1372,11 +1420,13 @@ def evaluate_json_to_xml_function(self, context=None):
     if validate:
         validate_json_to_xml(document.getroot())
 
-    return get_node_tree(document, namespaces={'j': XPATH_FUNCTIONS_NAMESPACE})
+    namespaces = {'j': XPATH_FUNCTIONS_NAMESPACE}
+    return cast(DocumentNode, get_node_tree(document, namespaces))
 
 
 @method(function('trace', nargs=(1, 2), sequence_types=('item()*', 'xs:string', 'item()*')))
-def select_trace_function(self, context=None):
+def select_trace_function(self: XPathFunction, context: ContextType = None) \
+        -> Iterator[ItemType]:
     if self.context is not None:
         context = self.context
 

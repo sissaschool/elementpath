@@ -1528,7 +1528,7 @@ class XPathFunction(XPathToken):
         """
         Wraps the XPath function instance into a standard function.
         """
-        def wrapper(*args: FunctionArgType, context: ContextType = None) -> Any:
+        def wrapper(*args: FunctionArgType, context: ContextType = None) -> Listable[ItemType]:
             return self.__call__(*args, context=context)
 
         qname = self.name
@@ -1694,12 +1694,12 @@ class XPathMap(XPathFunction):
         return cast(Dict[AnyAtomicType, Any], _map)
 
     def __call__(self, *args: FunctionArgType,
-                 context: ContextType = None) -> Any:
+                 context: ContextType = None) -> Listable[ItemType]:
         if len(args) == 1 and isinstance(args[0], list) and len(args[0]) == 1:
             args = args[0][0],
         if len(args) != 1 or not isinstance(args[0], AnyAtomicType):
             if isinstance(context, XPathSchemaContext):
-                return None
+                return []
             raise self.error('XPST0003', 'exactly one atomic argument is expected')
 
         map_dict: Dict[Any, Any]
@@ -1717,19 +1717,19 @@ class XPathMap(XPathFunction):
         except KeyError:
             return []
 
-    def keys(self, context: ContextType = None) -> List[AnyAtomicType]:
+    def keys(self, context: ContextType = None) -> List[AtomicType]:
         if self._map is not None:
             keys = [self._nan_key if k is None else k for k in self._map.keys()]
         else:
             keys = [self._nan_key if k is None else k for k in self._evaluate(context).keys()]
-        return cast(List[AnyAtomicType], keys)
+        return cast(List[AtomicType], keys)
 
     def values(self, context: ContextType = None) -> List[Any]:
         if self._map is not None:
             return [v for v in self._map.values()]
         return [v for v in self._evaluate(context).values()]
 
-    def items(self, context: ContextType = None) -> List[Tuple[AnyAtomicType, Any]]:
+    def items(self, context: ContextType = None) -> List[Tuple[AtomicType, Any]]:
         _map: Dict[Any, Any]
         if self._map is not None:
             _map = self._map
@@ -1843,7 +1843,7 @@ class XPathArray(XPathFunction):
             return [tk.evaluate(context) for tk in self._items]
 
     def __call__(self, *args: FunctionArgType,
-                 context: ContextType = None) -> Any:
+                 context: ContextType = None) -> Listable[ItemType]:
         if len(args) != 1 or not isinstance(args[0], int):
             raise self.error('XPTY0004', 'exactly one xs:integer argument is expected')
 
