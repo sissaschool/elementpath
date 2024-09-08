@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v4.4.1`_ (2024-03-xx)
+`v4.5.0`_ (2024-09-09)
 ======================
 * Fix and clean node trees iteration methods (issue #72)
+* Fix missing raw string for '[^\r\n]' (pull request #76)
+* Full and more specific type annotations
 
 `v4.4.0`_ (2024-03-11)
 ======================
@@ -467,4 +469,4 @@ CHANGELOG
 .. _v4.2.1: https://github.com/sissaschool/elementpath/compare/v4.2.0...v4.2.1
 .. _v4.3.0: https://github.com/sissaschool/elementpath/compare/v4.2.1...v4.3.0
 .. _v4.4.0: https://github.com/sissaschool/elementpath/compare/v4.3.0...v4.4.0
-.. _v4.4.1: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.4.1
+.. _v4.4.1: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.5.0

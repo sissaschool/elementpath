@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='4.4.1',
+    version='4.5.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     package_data={
         'elementpath': ['py.typed'],
@@ -31,7 +31,7 @@ setup(
     long_description=long_description,
     python_requires='>=3.8',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=2.0.0', 'Sphinx',
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=2.2.3', 'Sphinx',
                 'memory-profiler', 'memray', 'flake8', 'mypy', 'lxml-stubs']
     },
     classifiers=[
