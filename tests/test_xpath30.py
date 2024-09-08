@@ -159,6 +159,27 @@ class XPath30ParserTest(test_xpath2_parser.XPath2ParserTest):
         self.assertAlmostEqual(token.evaluate(), math.pi)
         self.assertEqual(token.source, expression)
 
+        expression = 'Q{}foo'
+        token = self.parser.parse(expression)
+        self.assertEqual(token.value, 'foo')
+
+        expression = 'Q{   }foo'
+        token = self.parser.parse(expression)
+        self.assertEqual(token.value, 'foo')
+
+        expression = 'Q{ bar  }foo'
+        token = self.parser.parse(expression)
+        self.assertEqual(token.value, '{bar}foo')
+
+        with self.assertRaises(SyntaxError):
+            self.parser.parse('Q{   }')
+
+        with self.assertRaises(SyntaxError):
+            self.parser.parse('Q{   }  ')
+
+        with self.assertRaises(SyntaxError):
+            self.parser.parse('Q{bar}  ')
+
         # '{' is unusable for non-standard braced URI literals
         # because is used for inline functions body
         with self.assertRaises(SyntaxError):

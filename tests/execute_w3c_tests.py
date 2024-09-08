@@ -796,7 +796,10 @@ class TestCase(object):
                 namespaces=test_namespaces,
                 timezone='Z',
                 default_language=self.default_language,
-                default_calendar=self.calendar
+                default_calendar=self.calendar,
+                resource_collections={
+                    os.path.abspath(self.test_set_file): [self.test_set_file]
+                }
             )
         else:
             kwargs = {'timezone': 'Z'}
