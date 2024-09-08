@@ -345,6 +345,8 @@ class XPathContext:
         :param selectors: a sequence of selector generator functions.
         :param varnames: a sequence of variables for storing the generated values.
         """
+        if varnames is None:
+            varnames = []
         iterators = [x(self) for x in selectors]
         dimension = len(iterators)
         prod = [None] * dimension
@@ -352,25 +354,23 @@ class XPathContext:
 
         k = 0
         while True:
-            try:
-                value = next(iterators[k])
-            except StopIteration:
-                if not k:
-                    return
-                iterators[k] = selectors[k](self)
-                k -= 1
-            else:
-                if varnames is not None:
-                    try:
-                        self.variables[varnames[k]] = value
-                    except (TypeError, IndexError):
-                        pass
+            for value in iterators[k]:
+                try:
+                    self.variables[varnames[k]] = value
+                except IndexError:
+                    pass
 
                 prod[k] = value
                 if k == max_index:
                     yield tuple(prod)
                 else:
                     k += 1
+                break
+            else:
+                if not k:
+                    return
+                iterators[k] = selectors[k](self)
+                k -= 1
 
     ##
     # Context item iterators for axis
