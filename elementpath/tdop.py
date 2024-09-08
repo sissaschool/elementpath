@@ -18,7 +18,7 @@ from decimal import Decimal, DecimalException
 from typing import Any, cast, overload, Callable, Generic, List, \
     Optional, Union, Tuple, Type, Pattern, Match, Iterator, TypeVar
 
-from elementpath.aliases import MutableMapping, MutableSequence, Dict
+from elementpath._typing import MutableMapping, MutableSequence, Dict
 #
 # Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #

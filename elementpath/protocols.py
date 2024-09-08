@@ -13,7 +13,8 @@ Define type hints protocols for XPath related objects.
 from typing import overload, Any, Iterator, Iterable, Optional, Sequence, ItemsView, \
     Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
 
-from elementpath.aliases import MutableMapping, Dict, NamespacesType, NsmapType
+from elementpath._typing import MutableMapping, Dict
+from elementpath.aliases import NamespacesType, NsmapType
 
 _T = TypeVar("_T")
 _AnyStr = Union[str, bytes]

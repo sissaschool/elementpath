@@ -10,7 +10,7 @@
 """
 XPath 1.0 implementation - part 4 (axes)
 """
-from typing import cast, Iterator
+from elementpath._typing import cast, Iterator
 
 from elementpath.xpath_nodes import ChildNodeType, AttributeNode, ElementNode, \
     NamespaceNode, XPathNode, ParentNodeType

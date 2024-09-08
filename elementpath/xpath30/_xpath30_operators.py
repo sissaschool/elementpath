@@ -11,9 +11,9 @@
 XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 """
 from copy import copy
-from typing import Any, cast, Iterator, Type, Union
+from typing import Any, cast, Iterator, List, Type, Union
 
-from elementpath.aliases import List, InputData
+from elementpath.aliases import InputType
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, ElementNode
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
@@ -115,7 +115,7 @@ def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = N
                 func.to_partial_function()
                 return func
 
-            arguments: List[InputData[ItemType]]
+            arguments: List[InputType[ItemType]]
             arguments = [tk.evaluate(context) for tk in tokens]
 
             if func.label == 'partial function' and func[0].symbol == '?' and len(func[0]):

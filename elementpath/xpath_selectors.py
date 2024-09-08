@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Union, Type
+from elementpath._typing import TYPE_CHECKING, Any, Dict, Optional, Iterator
 
 from elementpath.aliases import NamespacesType
 from elementpath.tree_builders import RootArgType
@@ -15,18 +15,13 @@ from elementpath.xpath_context import XPathContext
 from elementpath.xpath2 import XPath2Parser
 
 if TYPE_CHECKING:
-    from .xpath1 import XPath1Parser
-    from .xpath30 import XPath30Parser
-
-    ParserType = Union[Type[XPath1Parser], Type[XPath2Parser], Type[XPath30Parser]]
-else:
-    ParserType = XPath2Parser
+    from elementpath.xpath_tokens import ParserClassType
 
 
 def select(root: Optional[RootArgType],
            path: str,
            namespaces: Optional[NamespacesType] = None,
-           parser: Optional[ParserType] = None,
+           parser: Optional['ParserClassType'] = None,
            **kwargs: Any) -> Any:
     """
     XPath selector function that apply a *path* expression on *root* Element.
@@ -62,7 +57,7 @@ def select(root: Optional[RootArgType],
 def iter_select(root: Optional[RootArgType],
                 path: str,
                 namespaces: Optional[NamespacesType] = None,
-                parser: Optional[ParserType] = None,
+                parser: Optional['ParserClassType'] = None,
                 **kwargs: Any) -> Iterator[Any]:
     """
     A function that creates an XPath selector generator for apply a *path* expression
@@ -114,7 +109,7 @@ class Selector(object):
     """
     def __init__(self, path: str,
                  namespaces: Optional[NamespacesType] = None,
-                 parser: Optional[ParserType] = None,
+                 parser: Optional['ParserClassType'] = None,
                  **kwargs: Any) -> None:
 
         self._variables = kwargs.pop('variables', None)  # For backward compatibility

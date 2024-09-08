@@ -11,14 +11,14 @@ import datetime
 import importlib
 from copy import copy
 from types import ModuleType
-from typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
+from ._typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
     Optional, Sequence, Union, Callable, Set
 
+from elementpath.aliases import NamespacesType, SequenceType, InputType
+from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.tdop import Token
-from elementpath.aliases import NamespacesType, Listable, InputData
 from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
-from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.etree import is_etree_element, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, SchemaElementNode
@@ -34,12 +34,12 @@ __all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
 # Type annotations aliases for context and tokens classes
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]
 ItemType = Union[XPathNode, AtomicType, 'XPathFunction']
-ValueType = Listable[ItemType]
+ValueType = SequenceType[ItemType]
 ItemArgType = Union[ItemType, ElementProtocol, DocumentProtocol]
-FunctionArgType = Union[InputData[ItemArgType], ValueType]
+FunctionArgType = Union[InputType[ItemArgType], ValueType]
 
 NodeArgType = Union[XPathNode, ElementProtocol, DocumentProtocol]
-CollectionArgType = Optional[InputData[NodeArgType]]
+CollectionArgType = Optional[InputType[NodeArgType]]
 
 
 class XPathContext:
@@ -109,7 +109,7 @@ class XPathContext:
                  position: int = 1,
                  size: int = 1,
                  axis: Optional[str] = None,
-                 variables: Optional[Dict[str, InputData[ItemArgType]]] = None,
+                 variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
                  documents: Optional[Dict[str, RootArgType]] = None,

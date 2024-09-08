@@ -17,10 +17,13 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
-from typing import TYPE_CHECKING, Any, Callable, cast, Iterable, Iterator, \
-    List, Optional, SupportsFloat, Tuple, Type, Union
 import urllib.parse
 
+from elementpath._typing import TYPE_CHECKING, Any, Callable, cast, Dict, Iterable, \
+    Iterator, List, Optional, SupportsFloat, Tuple, Type, Union
+from elementpath.aliases import NargsType, ClassCheckType, AnyNsmapType, Emptiable
+from elementpath.protocols import ElementProtocol, DocumentProtocol, \
+    XsdAttributeProtocol, XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from elementpath.exceptions import ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError, xpath_error
 from elementpath.helpers import ordinal, get_double, split_function_test
@@ -31,12 +34,9 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
-from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
-from elementpath.protocols import ElementProtocol, DocumentProtocol, \
-    XsdAttributeProtocol, XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.tdop import Token, MultiLabel
@@ -51,6 +51,10 @@ if TYPE_CHECKING:
     from .xpath31 import XPath31Parser  # noqa: F401
 
 XPathParserType = Union['XPath1Parser', 'XPath2Parser', 'XPath30Parser', 'XPath31Parser']
+XPath2ParserType = Union['XPath2Parser', 'XPath30Parser', 'XPath31Parser']
+ParserClassType = Union[
+    Type['XPath1Parser'], Type['XPath2Parser'], Type['XPath30Parser'], Type['XPath31Parser']
+]
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 

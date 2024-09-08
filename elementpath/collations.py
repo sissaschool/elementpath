@@ -11,10 +11,10 @@ import locale
 import threading
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Type, Union
 from urllib.parse import urljoin, urlsplit
 
-from .exceptions import xpath_error
+from elementpath._typing import TYPE_CHECKING, Any, Optional, Tuple, Type, Union
+from elementpath.exceptions import xpath_error
 
 if TYPE_CHECKING:
     from .xpath_tokens import XPathToken

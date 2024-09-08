@@ -7,15 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Iterator, List, Optional, Union
-
+from elementpath._typing import cast, Any, Iterator, List, Optional, Union
 from elementpath.aliases import NamespacesType
-from .exceptions import ElementPathTypeError
-from .protocols import ElementProtocol, LxmlElementProtocol, \
+from elementpath.exceptions import ElementPathTypeError
+from elementpath.protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, LxmlDocumentProtocol, XsdElementProtocol
-from .etree import is_etree_document, is_etree_element
-from .xpath_nodes import SchemaElemType, ChildNodeType, ElementMapType, \
-    TextNode, CommentNode, ProcessingInstructionNode, \
+from elementpath.etree import is_etree_document, is_etree_element
+from elementpath.xpath_nodes import SchemaElemType, ChildNodeType, \
+    ElementMapType, TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
 __all__ = ['RootArgType', 'get_node_tree', 'build_node_tree',

@@ -8,24 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Imports for subscriptable types and common type hints aliases.
+Common type hints aliases for elementpath.
 """
-import sys
-from typing import Any, Optional, NoReturn, Tuple, Type, TypeVar, Union
+from ._typing import Any, List, MutableMapping, Never, Optional, Tuple, Type, \
+    TYPE_CHECKING, TypeVar, Union
 
-if sys.version_info < (3, 9):
-    from typing import Deque, Dict, List, Mapping, MutableMapping, MutableSequence, Sequence, Set
-else:
-    from collections import deque
-    from collections.abc import Mapping, MutableMapping, MutableSequence, Sequence
-
-    Deque = deque
-    Dict = dict
-    List = list
-    Set = set
-
-Never = NoReturn
-
+##
+# Type aliases
 NamespacesType = MutableMapping[str, str]
 NsmapType = MutableMapping[Optional[str], str]  # compatible with the nsmap of lxml Element
 AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and function arguments
@@ -35,9 +24,19 @@ ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 
 T = TypeVar('T')
 Emptiable = Union[T, List[Never]]
-Listable = Union[T, List[T]]
-InputData = Union[None, T, List[T], Tuple[T, ...]]
+SequenceType = Union[T, List[T]]
+InputType = Union[None, T, List[T], Tuple[T, ...]]
 
-__all__ = ['Mapping', 'MutableMapping', 'MutableSequence', 'Sequence', 'Dict', 'List',
-           'Set', 'Never', 'NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType',
-           'ClassCheckType', 'Emptiable', 'Listable', 'InputData', 'Deque']
+if TYPE_CHECKING:
+    from elementpath.datatypes import AtomicType, ArithmeticType, NumericType
+    from elementpath.xpath_nodes import ChildNodeType, ParentNodeType
+    from elementpath.tree_builders import RootArgType
+    from elementpath.xpath_context import ContextType, FunctionArgType, ItemType, \
+        ItemArgType, ValueType
+    from elementpath.xpath_tokens import XPathParserType, XPathTokenType
+
+__all__ = ['NamespacesType', 'NsmapType', 'AnyNsmapType', 'NargsType',
+           'ClassCheckType', 'Emptiable', 'SequenceType', 'InputType',
+           'AtomicType', 'ArithmeticType', 'NumericType', 'ChildNodeType',
+           'ParentNodeType', 'RootArgType', 'ContextType', 'FunctionArgType',
+           'ItemType', 'ItemArgType', 'ValueType', 'XPathParserType', 'XPathTokenType']

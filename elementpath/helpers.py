@@ -13,7 +13,8 @@ from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
 from urllib.parse import urlsplit
-from typing import Any, Iterator, List, Match, Optional, Union, SupportsFloat
+
+from elementpath._typing import Any, Iterator, List, Match, Optional, Union, SupportsFloat
 
 ###
 # Common sets constants

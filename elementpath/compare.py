@@ -11,15 +11,15 @@ import math
 from decimal import Decimal
 from functools import cmp_to_key
 from itertools import zip_longest
-from typing import Any, Callable, Optional, Iterable, Iterator
 
-from .protocols import ElementProtocol
-from .exceptions import xpath_error
-from .datatypes import UntypedAtomic, AnyURI, AbstractQName
-from .collations import UNICODE_CODEPOINT_COLLATION, CollationManager
-from .xpath_nodes import XPathNode, ElementNode, AttributeNode, NamespaceNode, \
-    TextNode, CommentNode, ProcessingInstructionNode, DocumentNode
-from .xpath_tokens import XPathToken, XPathFunction, XPathMap, XPathArray
+from elementpath._typing import Any, Callable, Optional, Iterable, Iterator
+from elementpath.protocols import ElementProtocol
+from elementpath.exceptions import xpath_error
+from elementpath.datatypes import UntypedAtomic, AnyURI, AbstractQName
+from elementpath.collations import UNICODE_CODEPOINT_COLLATION, CollationManager
+from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
+    NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, DocumentNode
+from elementpath.xpath_tokens import XPathToken, XPathFunction, XPathMap, XPathArray
 
 
 def deep_equal(seq1: Iterable[Any],

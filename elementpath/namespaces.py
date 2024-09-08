@@ -8,8 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from typing import cast, Tuple, Union
 
+from elementpath._typing import cast, Tuple, Union
 from elementpath.aliases import NamespacesType, NsmapType
 
 # Regex patterns related to names and namespaces

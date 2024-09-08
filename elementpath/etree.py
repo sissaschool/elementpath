@@ -14,9 +14,10 @@ import sys
 import re
 import io
 import importlib
-from typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
+
+from elementpath._typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
     Tuple, Union
-from .protocols import ElementProtocol, DocumentProtocol
+from elementpath.protocols import ElementProtocol, DocumentProtocol
 
 ###
 # Programmatic import of the pure Python ElementTree module.

@@ -10,17 +10,17 @@
 import json
 from decimal import Decimal, ROUND_UP
 from types import ModuleType
-from typing import cast, Any, Dict, Iterator, Iterable, Optional, Set, Union, Tuple
 from xml.etree import ElementTree
 
-from .exceptions import ElementPathError, xpath_error
-from .namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from .datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
+from elementpath._typing import cast, Any, Dict, Iterator, Iterable, Optional, Set, Union, Tuple
+from elementpath.exceptions import ElementPathError, xpath_error
+from elementpath.namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
+from elementpath.datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
     AbstractBinary, UntypedAtomic, QName
-from .xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
+from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
-from .xpath_tokens import XPathToken, XPathMap, XPathArray
-from .protocols import EtreeElementProtocol, LxmlElementProtocol
+from elementpath.xpath_tokens import XPathToken, XPathMap, XPathArray
+from elementpath.protocols import EtreeElementProtocol, LxmlElementProtocol
 
 # XSLT and XQuery Serialization parameters
 SERIALIZATION_PARAMS = '{%s}serialization-parameters' % XSLT_XQUERY_SERIALIZATION_NAMESPACE
