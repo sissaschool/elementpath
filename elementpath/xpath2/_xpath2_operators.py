@@ -23,8 +23,9 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_no
     node_position, get_double
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
-from elementpath.datatypes import get_atomic_value, UntypedAtomic, QName, AnyURI, \
+from elementpath.datatypes import UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10, AnyAtomicType, AtomicType, NumericType
+from elementpath.decoder import get_atomic_value
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
@@ -940,16 +941,18 @@ def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = 
                 if attribute.xsd_type is None:
                     attribute.xsd_type = self.get_xsd_type(attribute)
 
-                if not type_name:
-                    yield attribute.typed_value
-                else:
-                    if attribute.xsd_type is None:
-                        if type_name == XSD_UNTYPED and name != '*':
-                            yield attribute.value
-                    elif attribute.xsd_type.name == type_name:
-                        yield attribute.typed_value
-                    elif is_instance(attribute.typed_value, type_name, self.parser):
-                        yield attribute.typed_value
+                if type_name and attribute.xsd_type is None:
+                    if type_name == XSD_UNTYPED and name != '*':
+                        yield attribute.value
+                elif not type_name or attribute.xsd_type is not None and \
+                        attribute.xsd_type.name == type_name or \
+                        is_instance(attribute.typed_value, type_name, self.parser):
+                    typed_value = attribute.typed_value
+                    if typed_value is not None:
+                        if isinstance(typed_value, list):
+                            yield from typed_value
+                        else:
+                            yield typed_value
 
 
 # XPath 2.0 definitions continue into module xpath2_functions

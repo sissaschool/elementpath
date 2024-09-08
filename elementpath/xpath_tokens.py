@@ -34,8 +34,7 @@ from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
 from elementpath.aliases import Dict, NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
-    Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType, \
-    get_atomic_value
+    Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
 from elementpath.protocols import ElementProtocol, DocumentProtocol, \
     XsdAttributeProtocol, XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
@@ -43,6 +42,7 @@ from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.tdop import Token, MultiLabel
 from elementpath.xpath_context import ContextType, ItemType, ValueType, ItemArgType, \
     FunctionArgType, XPathSchemaContext
+from elementpath.decoder import get_atomic_value
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser  # noqa: F401
@@ -1030,7 +1030,7 @@ class XPathToken(Token[XPathTokenType]):
             return None
         elif isinstance(obj, XPathNode):
             try:
-                return obj.typed_value
+                return cast(AtomicType, obj.typed_value)
             except (TypeError, ValueError) as err:
                 raise self.error('XPDY0050', str(err))
         elif isinstance(obj, XPathFunction):

@@ -182,6 +182,18 @@ class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         """
         ...
 
+    def is_atomic(self) -> bool:
+        """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""
+        ...
+
+    def is_list(self) -> bool:
+        """Returns `True` if the instance is a list simpleType, `False` otherwise."""
+        ...
+
+    def is_union(self) -> bool:
+        """Returns `True` if the instance is a union simpleType, `False` otherwise."""
+        ...
+
     def is_key(self) -> bool:
         """Returns `True` if it's a simpleType derived from xs:ID, `False` otherwise."""
         ...

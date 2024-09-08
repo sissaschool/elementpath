@@ -8,13 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import locale
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 if TYPE_CHECKING:
-    from .tdop import Token
+    from elementpath.tdop import Token
 
-from .namespaces import XQT_ERRORS_NAMESPACE
-from .datatypes import QName
+from elementpath.aliases import AnyNsmapType
+from elementpath.namespaces import XQT_ERRORS_NAMESPACE
+from elementpath import datatypes
 
 
 class ElementPathError(Exception):
@@ -227,10 +228,10 @@ XPATH_ERROR_CODES = {
 }
 
 
-def xpath_error(code: Union[str, QName],
+def xpath_error(code: Union[str, 'datatypes.QName'],
                 message_or_error:  Union[None, str, Exception] = None,
                 token: Optional['Token[Any]'] = None,
-                namespaces: Optional[Dict[str, str]] = None) -> ElementPathError:
+                namespaces: AnyNsmapType = None) -> ElementPathError:
     """
     Returns an XPath error instance related with a code. An XPath/XQuery/XSLT error code
     (ref: http://www.w3.org/2005/xqt-errors) is an alphanumeric token starting with four
@@ -243,7 +244,7 @@ def xpath_error(code: Union[str, QName],
     related with the namespace 'http://www.w3.org/2005/xqt-errors'.
     For default the prefix 'err' is used.
     """
-    if isinstance(code, QName):
+    if isinstance(code, datatypes.QName):
         namespace = code.uri
         if namespace:
             pcode, code = code.qname, code.local_name
@@ -251,6 +252,7 @@ def xpath_error(code: Union[str, QName],
             pcode, code = code.braced_uri_name, code.local_name
     else:
         namespace = XQT_ERRORS_NAMESPACE
+        prefix: Optional[str]
         if not namespaces or namespaces.get('err') == XQT_ERRORS_NAMESPACE:
             prefix = 'err'
         else:

@@ -77,6 +77,8 @@ def cast_numeric_types(self: XPathConstructor, value: AtomicType) -> NumericType
         if isinstance(value, (str, UntypedAtomic)):
             raise self.error('FORG0001', err)
         raise self.error('FOCA0002', err)
+    except ArithmeticError as err:
+        raise self.error('FOCA0002', err) from None
     else:
         assert isinstance(result, (int, float, decimal.Decimal))
         return result
@@ -103,7 +105,7 @@ def cast_integer_types(self: XPathConstructor, value: AtomicType) -> int:
         if isinstance(value, (str, bytes, int, UntypedAtomic)):
             raise self.error('FORG0001', msg) from None
         raise self.error('FOCA0002', msg) from None
-    except OverflowError as err:
+    except ArithmeticError as err:
         raise self.error('FOCA0002', err) from None
     else:
         assert isinstance(result, int)

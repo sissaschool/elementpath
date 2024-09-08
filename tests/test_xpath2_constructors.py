@@ -434,6 +434,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:date(@a)', Date10(2017, 1, 19), context=context)
 
         class DummyXsdDateType(xpath_test_class.DummyXsdType):
+            def is_list(self): pass
+            def is_union(self): pass
+
             def is_simple(self):
                 return True
 
@@ -441,11 +444,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
                 return Date10.fromstring(obj)
 
             def validate(self, obj, *args, **kwargs):
-                if not isinstance(obj, Date10):
-                    raise TypeError()
+                Date10.validate(obj)
 
         context.item = AttributeNode('a', 'true', xsd_type=DummyXsdDateType())
-        self.check_value('xs:date(.)', ValueError, context=context)
+        self.check_value('xs:date(.)', TypeError, context=context)
 
         context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)

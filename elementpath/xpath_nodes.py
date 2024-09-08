@@ -13,14 +13,16 @@ from urllib.parse import urljoin
 from types import ModuleType
 from typing import cast, Any, Dict, Iterator, List, MutableMapping, Optional, Tuple, Union
 
-from .datatypes import UntypedAtomic, get_atomic_value, AtomicType
-from .namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
+from elementpath.aliases import Deque, Listable
+from elementpath.datatypes import UntypedAtomic, AtomicType
+from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS
-from .protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
+from elementpath.protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol
-from .helpers import match_wildcard, is_absolute_uri
-from .etree import etree_iter_strings, is_etree_element, is_etree_document
+from elementpath.helpers import match_wildcard, is_absolute_uri
+from elementpath.decoder import get_atomic_value
+from elementpath.etree import etree_iter_strings, is_etree_element, is_etree_document
 
 __all__ = ['is_xpath_node', 'SchemaElemType', 'TypedNodeType', 'ParentNodeType',
            'ChildNodeType', 'ElementMapType', 'XPathNode', 'AttributeNode',
@@ -96,7 +98,7 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> Optional[AtomicType]:
+    def typed_value(self) -> Optional[Listable[AtomicType]]:
         raise NotImplementedError()
 
     # Other common attributes, properties and methods
@@ -188,14 +190,16 @@ class AttributeNode(XPathNode):
         return str(get_atomic_value(self.value.type))
 
     @property
-    def typed_value(self) -> AtomicType:
+    def typed_value(self) -> Optional[Listable[AtomicType]]:
         if not isinstance(self.value, str):
             return get_atomic_value(self.value.type)
         elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.value)
-        elif self.parent is None:
-            return get_atomic_value(self.xsd_type, self.value)
-        return get_atomic_value(self.xsd_type, self.value, self.parent.nsmap)
+
+        nsmap = None if self.parent is None else self.parent.nsmap
+        if self.xsd_type.is_list() and self.xsd_type.is_valid(self.value, namespaces=nsmap):
+            return [get_atomic_value(self.xsd_type, x, nsmap) for x in self.value.split()]
+        return get_atomic_value(self.xsd_type, self.value, nsmap)
 
     def as_item(self) -> Tuple[Optional[str], Union[str, XsdAttributeProtocol]]:
         return self._name, self.value
@@ -540,7 +544,7 @@ class ElementNode(XPathNode):
         return ''.join(etree_iter_strings(self.elem))
 
     @property
-    def typed_value(self) -> Optional[AtomicType]:
+    def typed_value(self) -> Optional[Listable[AtomicType]]:
         if self.xsd_type is None or \
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
@@ -550,6 +554,10 @@ class ElementNode(XPathNode):
         elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
             return None
         elif self.elem.text is not None:
+            if self.xsd_type.is_list() and \
+                    self.xsd_type.is_valid(self.value, namespaces=self.nsmap):
+                return [get_atomic_value(self.xsd_type, x, self.nsmap)
+                        for x in self.elem.text.split()]
             return get_atomic_value(self.xsd_type, self.elem.text, self.nsmap)
         elif self.elem.get(XSI_NIL) in ('1', 'true'):
             return ''
@@ -648,7 +656,7 @@ class ElementNode(XPathNode):
         """Iterates the tree not including the not built lazy components."""
         yield self
 
-        iterators: deque[Any] = deque()  # slightly faster than list()
+        iterators: Deque[Any] = deque()  # slightly faster than list()
         children: Iterator[Any] = iter(self.children)
 
         if self._namespace_nodes:
@@ -961,7 +969,7 @@ class SchemaElementNode(ElementNode):
         return str(get_atomic_value(schema_node.type))
 
     @property
-    def typed_value(self) -> Optional[AtomicType]:
+    def typed_value(self) -> Listable[AtomicType]:
         if not hasattr(self.elem, 'type'):
             return UntypedAtomic('')
         schema_node = cast(XsdElementProtocol, self.elem)

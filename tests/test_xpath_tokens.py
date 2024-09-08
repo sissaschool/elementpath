@@ -24,7 +24,7 @@ else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath.exceptions import MissingContextError
-from elementpath.datatypes import UntypedAtomic
+from elementpath.datatypes import UntypedAtomic, Int
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import ElementNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, TextNode, DocumentNode
@@ -45,10 +45,15 @@ class DummyXsdType:
     def has_simple_content(self): pass
     def has_mixed_content(self): pass
     def is_element_only(self): pass
+    def is_list(self): pass
+    def is_union(self): pass
     def is_key(self): pass
     def is_qname(self): pass
     def is_notation(self): pass
-    def validate(self, obj, *args, **kwargs): pass
+
+    @staticmethod
+    def validate(obj, *args, **kwargs):
+        Int.validate(obj)
 
     @staticmethod
     def decode(obj, *args, **kwargs):

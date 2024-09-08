@@ -10,6 +10,7 @@
 """
 XPath 3.0 implementation - part 3 (functions)
 """
+import sys
 import decimal
 import os
 import re
@@ -17,7 +18,6 @@ import codecs
 import math
 from copy import copy
 from itertools import zip_longest
-from types import ModuleType
 from typing import cast, Any, Dict, Optional, Tuple, Union, Iterator, Set, Type
 from urllib.parse import urlsplit
 from urllib.request import urlopen
@@ -52,11 +52,10 @@ from .xpath30_helpers import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     format_digits, int_to_words, parse_datetime_picture, parse_datetime_marker, \
     ordinal_suffix
 
-zoneinfo: Optional[ModuleType]
-try:
+if sys.version_info < (3, 9):
+    zoneinfo = None
+else:
     import zoneinfo
-except ImportError:
-    zoneinfo = None  # Python < 3.9
 
 FORMAT_INTEGER_TOKENS = {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}
 
