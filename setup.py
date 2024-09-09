@@ -31,7 +31,7 @@ setup(
     long_description=long_description,
     python_requires='>=3.8',
     extras_require={
-        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=2.2.3', 'Sphinx',
+        'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=3.3.2', 'Sphinx',
                 'memory-profiler', 'memray', 'flake8', 'mypy', 'lxml-stubs']
     },
     classifiers=[
