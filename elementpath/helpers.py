@@ -12,9 +12,10 @@ import math
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
+from typing import Any, List, Optional, Union, SupportsFloat
 from urllib.parse import urlsplit
 
-from elementpath._typing import Any, Iterator, List, Match, Optional, Union, SupportsFloat
+from elementpath._typing import Iterator, Match
 
 ###
 # Common sets constants

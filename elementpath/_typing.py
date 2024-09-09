@@ -8,31 +8,20 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Version related imports for subscriptable types for type annotations.
+Version related imports for subscriptable types for type annotations (no builtins).
 """
 import sys
-from typing import Any, cast, ClassVar, Generic, Hashable, ItemsView, Optional, \
-    NoReturn, Protocol, Sized, SupportsFloat, TYPE_CHECKING, Tuple, Type, \
-    TypeVar, Union
 
 if sys.version_info < (3, 9):
-    from typing import Callable, Counter, Deque, Dict, List, Iterable, Iterator, \
-        Mapping, Match, MutableMapping, MutableSequence, Pattern, Sequence, Set
+    from typing import Callable, Counter, Deque, Iterable, Iterator, \
+        Mapping, Match, MutableMapping, MutableSequence, MutableSet, Pattern, Sequence
 else:
-    from collections import deque, Counter
+    from collections import deque as Deque, Counter  # noqa
     from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping, \
-        MutableSequence, Sequence
+        MutableSequence, MutableSet, Sequence
     from re import Match, Pattern
 
-    Deque = deque
-    Dict = dict
-    List = list
-    Set = set
 
-Never = NoReturn
-
-__all__ = ['Any', 'Callable', 'cast', 'ClassVar', 'Counter', 'Deque', 'Dict', 'Generic',
-           'Hashable', 'Iterable', 'ItemsView', 'Iterator', 'List', 'Match',
-           'Mapping', 'MutableMapping', 'MutableSequence', 'Never', 'Optional',
-           'Pattern', 'Protocol', 'Sequence', 'Set', 'Sized', 'SupportsFloat',
-           'Union', 'Tuple', 'Type', 'TYPE_CHECKING', 'TypeVar']
+__all__ = ['Callable', 'Counter', 'Deque', 'Iterable', 'Iterator', 'Match',
+           'Mapping', 'MutableMapping', 'MutableSequence', 'MutableSet',
+           'Pattern', 'Sequence']

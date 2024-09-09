@@ -19,10 +19,11 @@ import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import product
-from typing import Any, Callable, cast, Iterable, Iterator, Optional, Dict, List, Tuple
+from typing import Any, cast, Dict, List, Optional, Tuple
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
+from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.aliases import SequenceType, Emptiable
 from elementpath.protocols import ElementProtocol, EtreeElementProtocol
 from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \

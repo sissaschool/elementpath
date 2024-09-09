@@ -14,8 +14,9 @@ import re
 import datetime
 from calendar import isleap
 from decimal import Decimal, Context
-from typing import cast, Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import cast, Any, Dict, Optional, Tuple, Type, TypeVar, Union
 
+from elementpath._typing import Callable
 from elementpath.helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
     normalized_seconds, months2days, round_number

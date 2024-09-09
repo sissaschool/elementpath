@@ -18,11 +18,12 @@ import codecs
 import math
 from copy import copy
 from itertools import zip_longest
+from typing import cast, Any, Dict, List, Optional, Tuple, Union, Type, Set
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 from urllib.error import URLError
 
-from elementpath._typing import cast, Any, Dict, List, Optional, Tuple, Union, Iterator, Set, Type
+from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable
 from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import ElementPathError

@@ -12,7 +12,7 @@ from typing import Any, Callable, Union
 import re
 import codecs
 
-from ..helpers import collapse_white_spaces
+from elementpath.helpers import collapse_white_spaces
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 

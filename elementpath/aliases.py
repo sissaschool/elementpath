@@ -10,8 +10,9 @@
 """
 Common type hints aliases for elementpath.
 """
-from ._typing import Any, List, MutableMapping, Never, Optional, Tuple, Type, \
-    TYPE_CHECKING, TypeVar, Union
+from typing import Any, List, Optional, NoReturn, Tuple, Type, TYPE_CHECKING, TypeVar, Union
+
+from elementpath._typing import MutableMapping
 
 ##
 # Type aliases
@@ -23,7 +24,7 @@ NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
 ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
 
 T = TypeVar('T')
-Emptiable = Union[T, List[Never]]
+Emptiable = Union[T, List[NoReturn]]
 SequenceType = Union[T, List[T]]
 InputType = Union[None, T, List[T], Tuple[T, ...]]
 

@@ -13,7 +13,7 @@ Parse and translate XML Schema regular expressions to Python regex syntax.
 import re
 from sys import maxunicode
 
-from ..helpers import OCCURRENCE_INDICATORS
+from elementpath.helpers import OCCURRENCE_INDICATORS
 from .unicode_subsets import RegexError, UnicodeSubset, unicode_subset
 from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
 

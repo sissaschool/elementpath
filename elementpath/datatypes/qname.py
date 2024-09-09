@@ -9,7 +9,7 @@
 #
 from typing import Any, Optional
 
-from ..helpers import QNAME_PATTERN
+from elementpath.helpers import QNAME_PATTERN
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 

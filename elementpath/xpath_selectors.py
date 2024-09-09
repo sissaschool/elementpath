@@ -7,8 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from elementpath._typing import TYPE_CHECKING, Any, Dict, Optional, Iterator
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
+from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType
 from elementpath.tree_builders import RootArgType
 from elementpath.xpath_context import XPathContext

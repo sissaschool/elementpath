@@ -10,9 +10,10 @@
 import json
 from decimal import Decimal, ROUND_UP
 from types import ModuleType
+from typing import cast, Any, Dict, Optional, Set, Union, Tuple
 from xml.etree import ElementTree
 
-from elementpath._typing import cast, Any, Dict, Iterator, Iterable, Optional, Set, Union, Tuple
+from elementpath._typing import Iterator, Iterable
 from elementpath.exceptions import ElementPathError, xpath_error
 from elementpath.namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from elementpath.datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \

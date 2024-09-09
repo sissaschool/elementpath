@@ -14,8 +14,9 @@ import math
 import operator
 from copy import copy
 from decimal import Decimal, DivisionByZero
+from typing import cast, List, Type, Union
 
-from elementpath._typing import cast, Iterator, List, Type, Union
+from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError

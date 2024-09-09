@@ -11,8 +11,9 @@
 XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 """
 from copy import copy
-from typing import Any, cast, Iterator, List, Type, Union
+from typing import Any, cast, List, Type, Union
 
+from elementpath._typing import Iterator
 from elementpath.aliases import InputType
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_nodes import AttributeNode, ElementNode

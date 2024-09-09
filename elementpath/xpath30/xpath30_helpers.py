@@ -11,11 +11,12 @@ import calendar
 import datetime
 import decimal
 import re
-from typing import Any, Iterator, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 from unicodedata import category
 
-from ..exceptions import xpath_error
-from ..regex import translate_pattern
+from elementpath._typing import Iterator
+from elementpath.exceptions import xpath_error
+from elementpath.regex import translate_pattern
 
 from ._translation_maps import ALPHABET_CHARACTERS, OTHER_NUMBERS, ROMAN_NUMERALS_MAP, \
     NUM_TO_MONTH_MAPS, NUM_TO_WEEKDAY_MAPS, NUM_TO_WORD_MAPS, MILITARY_TIME_ZONES

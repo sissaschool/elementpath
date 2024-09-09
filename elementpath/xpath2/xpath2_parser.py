@@ -14,9 +14,9 @@ from abc import ABCMeta
 import locale
 from collections.abc import MutableSequence
 from urllib.parse import urlparse
-from typing import cast, Any, Callable, ClassVar, List, Optional, Tuple, Type, \
-    MutableMapping, Dict, Union
+from typing import cast, Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
+from elementpath._typing import Callable, MutableMapping
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.helpers import upper_camel_case, is_ncname, ordinal
 from elementpath.exceptions import ElementPathError, ElementPathTypeError, \

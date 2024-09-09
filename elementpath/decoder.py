@@ -14,9 +14,9 @@ exceptions in order to be reusable in other packages.
 """
 from collections import namedtuple
 from decimal import Decimal
+from typing import Any, Optional, Type, TYPE_CHECKING
 
-from ._typing import Any, MutableMapping, Optional, Type, TYPE_CHECKING
-
+from elementpath._typing import MutableMapping
 from elementpath.aliases import AnyNsmapType
 from elementpath.protocols import XsdTypeProtocol
 from elementpath.exceptions import xpath_error

@@ -15,10 +15,11 @@ import re
 from abc import ABCMeta
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
-from typing import Any, cast, overload, Callable, Generic, List, \
-    Optional, Union, Tuple, Type, Pattern, Match, Iterator, TypeVar
+from typing import Any, cast,  Dict, List, overload, Generic, Optional, Union, \
+    Tuple, Type, Iterator, TypeVar
 
-from elementpath._typing import MutableMapping, MutableSequence, Dict
+from elementpath._typing import Callable, Match, MutableMapping, \
+    MutableSequence, Pattern
 #
 # Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #

@@ -11,7 +11,9 @@
 This module defines Unicode code points helper functions.
 """
 from sys import maxunicode
-from typing import Iterable, Iterator, Optional, Set, Tuple, Union
+from typing import Optional, Set, Tuple, Union
+
+from elementpath._typing import Iterable, Iterator
 
 CHARACTER_CLASS_ESCAPED: Set[int] = {ord(c) for c in r'-|.^?*+{}()[]\\'}
 """Code Points of escaped chars in a character class."""

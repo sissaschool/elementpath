@@ -11,8 +11,9 @@ import re
 from itertools import chain
 from sys import maxunicode
 from collections import Counter
-from typing import AbstractSet, Any, Iterator, MutableSet, Optional, Union
+from typing import AbstractSet, Any, Optional, Union
 
+from elementpath._typing import Iterator, MutableSet
 from .unicode_subsets import RegexError, UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
 
 

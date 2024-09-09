@@ -11,9 +11,9 @@ import datetime
 import importlib
 from copy import copy
 from types import ModuleType
-from ._typing import TYPE_CHECKING, cast, Dict, Any, List, Iterator, \
-    Optional, Sequence, Union, Callable, Set
+from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Set, Union
 
+from elementpath._typing import Iterator, Sequence, Callable
 from elementpath.aliases import NamespacesType, SequenceType, InputType
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError

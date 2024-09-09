@@ -11,7 +11,7 @@ import operator
 from decimal import Decimal
 from typing import Any, Optional, Tuple, Union
 
-from ..helpers import BOOLEAN_VALUES, get_double
+from elementpath.helpers import BOOLEAN_VALUES, get_double
 from .atomic_types import AnyAtomicType
 
 

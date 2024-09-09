@@ -11,17 +11,17 @@ import re
 from itertools import zip_longest
 from typing import TYPE_CHECKING, cast, Any, Optional
 
-from .exceptions import ElementPathKeyError, xpath_error
-from .helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, WHITESPACES_PATTERN
-from .namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
+from elementpath.exceptions import ElementPathKeyError, xpath_error
+from elementpath.helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, WHITESPACES_PATTERN
+from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
     get_expanded_name
-from .datatypes import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType, \
+from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType, \
     QName, NumericProxy
-from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
-from . import xpath_tokens
+from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
+from elementpath import xpath_tokens
 
 if TYPE_CHECKING:
-    from .xpath1 import XPath1Parser
+    from elementpath.xpath_tokens import XPathParserType
 
 XSD_EXTENDED_PREFIX = f'{{{XSD_NAMESPACE}}}'
 
@@ -133,7 +133,7 @@ def is_sequence_type_restriction(st1: str, st2: str) -> bool:
         return True
 
 
-def is_instance(obj: Any, type_qname: str, parser: Optional['XPath1Parser'] = None) -> bool:
+def is_instance(obj: Any, type_qname: str, parser: Optional['XPathParserType'] = None) -> bool:
     """Checks an instance against an XSD type."""
     xsd_version = getattr(parser, 'xsd_version', '1.0')
     if not type_qname.startswith('{'):
@@ -168,7 +168,7 @@ def is_instance(obj: Any, type_qname: str, parser: Optional['XPath1Parser'] = No
     raise ElementPathKeyError("unknown type %r" % type_qname)
 
 
-def is_sequence_type(value: Any, parser: Optional['XPath1Parser'] = None) -> bool:
+def is_sequence_type(value: Any, parser: Optional['XPathParserType'] = None) -> bool:
     """Checks if a string is a sequence type specification."""
 
     def is_st(st: str) -> bool:
@@ -268,7 +268,7 @@ def is_sequence_type(value: Any, parser: Optional['XPath1Parser'] = None) -> boo
 
 def match_sequence_type(value: Any,
                         sequence_type: str,
-                        parser: Optional['XPath1Parser'] = None,
+                        parser: Optional['XPathParserType'] = None,
                         strict: bool = True) -> bool:
     """
     Checks a value instance against a sequence type.

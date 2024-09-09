@@ -11,8 +11,9 @@ import math
 from decimal import Decimal
 from functools import cmp_to_key
 from itertools import zip_longest
+from typing import Any, Optional
 
-from elementpath._typing import Any, Callable, Optional, Iterable, Iterator
+from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import xpath_error
 from elementpath.datatypes import UntypedAtomic, AnyURI, AbstractQName

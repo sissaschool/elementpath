@@ -14,7 +14,7 @@ import pathlib
 from xml.etree.ElementTree import Element
 from typing import Optional
 
-from ..exceptions import ElementPathRuntimeError
+from elementpath.exceptions import ElementPathRuntimeError
 
 try:
     import xmlschema

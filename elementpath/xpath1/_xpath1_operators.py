@@ -14,9 +14,9 @@ import math
 import decimal
 import operator
 from copy import copy
+from typing import Any, cast, List, NoReturn, Optional, Set, Type, Union
 
-from elementpath._typing import Any, cast, Iterator, List, Never, Optional, Sequence, \
-    Set, Type, Union
+from elementpath._typing import Iterator, Sequence
 from elementpath.exceptions import ElementPathKeyError, ElementPathTypeError
 from elementpath.helpers import collapse_white_spaces, node_position
 from elementpath.datatypes import AbstractDateTime, AnyURI, Duration, DayTimeDuration, \
@@ -474,7 +474,7 @@ def evaluate_comparison_operators(self: XPathToken, context: ContextType = None)
 # Numerical operators
 @method(infix('+', bp=40))
 def evaluate_plus_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[List[Never], ArithmeticType]:
+        -> Union[List[NoReturn], ArithmeticType]:
     if len(self) == 1:
         arg: NumericType = self.get_argument(context, cls=NumericProxy)
         return [] if arg is None else +arg
@@ -502,7 +502,7 @@ def evaluate_plus_operator(self: XPathToken, context: ContextType = None) \
 
 @method(infix('-', bp=40))
 def evaluate_minus_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[List[Never], ArithmeticType]:
+        -> Union[List[NoReturn], ArithmeticType]:
     if len(self) == 1:
         arg: NumericType = self.get_argument(context, cls=NumericProxy)
         return [] if arg is None else -arg
@@ -623,7 +623,7 @@ def evaluate_div_operator(self: XPathToken, context: ContextType = None) \
 
 @method(infix('mod', bp=45))
 def evaluate_mod_operator(self: XPathToken, context: ContextType = None) \
-        -> Union[List[Never], ArithmeticType]:
+        -> Union[List[NoReturn], ArithmeticType]:
     op1: Optional[NumericType]
     op2: Optional[NumericType]
     op1, op2 = self.get_operands(context, cls=NumericProxy)

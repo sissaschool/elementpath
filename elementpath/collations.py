@@ -11,9 +11,9 @@ import locale
 import threading
 from contextlib import AbstractContextManager
 from types import TracebackType
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Type, Union
 from urllib.parse import urljoin, urlsplit
 
-from elementpath._typing import TYPE_CHECKING, Any, Optional, Tuple, Type, Union
 from elementpath.exceptions import xpath_error
 
 if TYPE_CHECKING:

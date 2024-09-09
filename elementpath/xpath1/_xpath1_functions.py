@@ -12,8 +12,9 @@ XPath 1.0 implementation - part 3 (functions)
 """
 import math
 import decimal
-from elementpath._typing import Any, Iterator, List, Union
+from typing import Any, List, Union
 
+from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable
 from elementpath.helpers import get_double
 from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, \

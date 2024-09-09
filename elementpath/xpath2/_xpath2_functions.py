@@ -19,9 +19,10 @@ import unicodedata
 from copy import copy
 from decimal import Decimal, DecimalException
 from string import ascii_letters
+from typing import cast, List, Optional, Type, Union
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from elementpath._typing import cast, Iterator, List, Optional, Type, Union
+from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable, AnyNsmapType
 from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import QNAME_PATTERN, is_idrefs, is_xml_codepoint, round_number

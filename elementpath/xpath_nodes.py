@@ -11,10 +11,9 @@ from collections import deque
 from importlib import import_module
 from urllib.parse import urljoin
 from types import ModuleType
+from typing import cast, Any, Dict, List, Optional, Tuple, Union
 
-from elementpath._typing import cast, Any, Deque, Dict, Iterator, List, MutableMapping, \
-    Optional, Tuple, Union
-
+from elementpath._typing import Deque, Iterator, MutableMapping
 from elementpath.aliases import SequenceType
 from elementpath.datatypes import UntypedAtomic, AtomicType
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \

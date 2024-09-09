@@ -14,9 +14,9 @@ import sys
 import re
 import io
 import importlib
+from typing import cast, Any, Optional, Tuple, Union
 
-from elementpath._typing import cast, Any, Counter, Iterator, Optional, MutableMapping, \
-    Tuple, Union
+from elementpath._typing import Counter, Iterator, MutableMapping
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 
 ###

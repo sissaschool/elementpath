@@ -7,7 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from elementpath._typing import cast, Any, Iterator, List, Optional, Union
+from typing import cast, Any, List, Optional, Union
+
+from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import ElementProtocol, LxmlElementProtocol, \

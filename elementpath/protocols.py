@@ -10,10 +10,10 @@
 """
 Define type hints protocols for XPath related objects.
 """
-from typing import overload, Any, Iterator, Iterable, Optional, Sequence, ItemsView, \
+from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, ItemsView, \
     Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
 
-from elementpath._typing import MutableMapping, Dict
+from elementpath._typing import MutableMapping
 from elementpath.aliases import NamespacesType, NsmapType
 
 _T = TypeVar("_T")
@@ -236,6 +236,14 @@ class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         Validates an XML object node using the XSD type. The argument *obj* is an element
         for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
         compatible exception (a `ValueError` or a subclass of it) if the argument is not valid.
+        """
+        ...
+
+    def decode(self, obj: Any, *args: Any, **kwargs: Any) -> Any:
+        """
+        Decodes an XML object node using the XSD type. The argument *obj* is an element
+        for complex type nodes or a text value for simple type nodes. Raises a `ValueError`
+        or a `TypeError` compatible exception if the argument it's not valid.
         """
         ...
 

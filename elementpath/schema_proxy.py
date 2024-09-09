@@ -8,8 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
 
-from elementpath._typing import TYPE_CHECKING, Any, Dict, Optional, Iterator, Set, Union
+from elementpath._typing import Iterator
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol

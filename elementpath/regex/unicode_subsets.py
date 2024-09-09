@@ -11,8 +11,9 @@
 This module defines Unicode character categories and blocks.
 """
 from sys import maxunicode
-from typing import cast, Iterable, Iterator, List, MutableSet, Union, Optional
+from typing import cast, List, Union, Optional
 
+from elementpath._typing import Iterable, Iterator, MutableSet
 from .unicode_categories import RAW_UNICODE_CATEGORIES
 from .codepoints import CodePoint, code_point_order, code_point_repr, \
     iter_code_points, get_code_point_range

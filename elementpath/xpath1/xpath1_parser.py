@@ -12,9 +12,9 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
 from abc import ABCMeta
+from typing import cast, Any, ClassVar, Dict, Optional, Set, Tuple, Type
 
-from elementpath._typing import cast, Any, ClassVar, Dict, MutableMapping, Optional, \
-    Tuple, Type, Set, Sequence
+from elementpath._typing import MutableMapping, Sequence
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.exceptions import MissingContextError, ElementPathValueError, \
     ElementPathNameError, ElementPathKeyError, xpath_error

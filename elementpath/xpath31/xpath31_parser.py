@@ -12,10 +12,10 @@ XPath 3.1 implementation
 """
 from typing import ClassVar, Dict, Tuple
 
-from ..namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
+from elementpath.namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
     XPATH_ARRAY_FUNCTIONS_NAMESPACE  # , XSLT_XQUERY_SERIALIZATION_NAMESPACE
-from ..datatypes import QName
-from ..xpath30 import XPath30Parser
+from elementpath.datatypes import QName
+from elementpath.xpath30 import XPath30Parser
 
 
 class XPath31Parser(XPath30Parser):

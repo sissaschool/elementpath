@@ -17,10 +17,11 @@ import math
 from copy import copy
 from decimal import Decimal
 from itertools import product
+from typing import TYPE_CHECKING, Any, cast, Dict, List, Optional, SupportsFloat, \
+    Tuple, Type, Union
 import urllib.parse
 
-from elementpath._typing import TYPE_CHECKING, Any, Callable, cast, Dict, Iterable, \
-    Iterator, List, Optional, SupportsFloat, Tuple, Type, Union
+from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.aliases import NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.protocols import ElementProtocol, DocumentProtocol, \
     XsdAttributeProtocol, XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol

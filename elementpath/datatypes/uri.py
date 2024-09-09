@@ -11,7 +11,7 @@ from decimal import Decimal
 from urllib.parse import urlparse
 from typing import Union
 
-from ..helpers import collapse_white_spaces, WRONG_ESCAPE_PATTERN
+from elementpath.helpers import collapse_white_spaces, WRONG_ESCAPE_PATTERN
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Integer

@@ -8,8 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional, Pattern, Tuple, Type
+from typing import Any, Dict, Optional, Tuple, Type
 import re
+
+from elementpath._typing import Pattern
 
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 
