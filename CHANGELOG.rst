@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v4.5.1`_ (2024-09-16)
+======================
+* Fix XsdAttributeGroupProtocol
+
 `v4.5.0`_ (2024-09-09)
 ======================
 * Fix and clean node trees iteration methods (issue #72)
@@ -469,4 +473,5 @@ CHANGELOG
 .. _v4.2.1: https://github.com/sissaschool/elementpath/compare/v4.2.0...v4.2.1
 .. _v4.3.0: https://github.com/sissaschool/elementpath/compare/v4.2.1...v4.3.0
 .. _v4.4.0: https://github.com/sissaschool/elementpath/compare/v4.3.0...v4.4.0
-.. _v4.4.1: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.5.0
+.. _v4.5.0: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.5.0
+.. _v4.5.1: https://github.com/sissaschool/elementpath/compare/v4.5.0...v4.5.1
