@@ -15,6 +15,7 @@ from typing import cast, List, Union, Optional
 
 from elementpath._typing import Iterable, Iterator, MutableSet
 from .unicode_categories import RAW_UNICODE_CATEGORIES
+from .unicode_blocks import RAW_UNICODE_BLOCKS
 from .codepoints import CodePoint, code_point_order, code_point_repr, \
     iter_code_points, get_code_point_range
 
@@ -401,119 +402,18 @@ class UnicodeSubset(MutableSet[CodePoint]):
 UNICODE_CATEGORIES = {k: UnicodeSubset(cast(List[CodePoint], v))
                       for k, v in RAW_UNICODE_CATEGORIES.items()}
 
-
-# See http://www.unicode.org/Public/UNIDATA/Blocks.txt
-UNICODE_BLOCKS = {
-    'IsBasicLatin': UnicodeSubset('\u0000-\u007F'),
-    'IsLatin-1Supplement': UnicodeSubset('\u0080-\u00FF'),
-    'IsLatinExtended-A': UnicodeSubset('\u0100-\u017F'),
-    'IsLatinExtended-B': UnicodeSubset('\u0180-\u024F'),
-    'IsIPAExtensions': UnicodeSubset('\u0250-\u02AF'),
-    'IsSpacingModifierLetters': UnicodeSubset('\u02B0-\u02FF'),
-    'IsCombiningDiacriticalMarks': UnicodeSubset('\u0300-\u036F'),
-    'IsGreek': UnicodeSubset('\u0370-\u03FF'),
-    'IsCyrillic': UnicodeSubset('\u0400-\u04FF'),
-    'IsArmenian': UnicodeSubset('\u0530-\u058F'),
-    'IsHebrew': UnicodeSubset('\u0590-\u05FF'),
-    'IsArabic': UnicodeSubset('\u0600-\u06FF'),
-    'IsSyriac': UnicodeSubset('\u0700-\u074F'),
-    'IsThaana': UnicodeSubset('\u0780-\u07BF'),
-    'IsDevanagari': UnicodeSubset('\u0900-\u097F'),
-    'IsBengali': UnicodeSubset('\u0980-\u09FF'),
-    'IsGurmukhi': UnicodeSubset('\u0A00-\u0A7F'),
-    'IsGujarati': UnicodeSubset('\u0A80-\u0AFF'),
-    'IsOriya': UnicodeSubset('\u0B00-\u0B7F'),
-    'IsTamil': UnicodeSubset('\u0B80-\u0BFF'),
-    'IsTelugu': UnicodeSubset('\u0C00-\u0C7F'),
-    'IsKannada': UnicodeSubset('\u0C80-\u0CFF'),
-    'IsMalayalam': UnicodeSubset('\u0D00-\u0D7F'),
-    'IsSinhala': UnicodeSubset('\u0D80-\u0DFF'),
-    'IsThai': UnicodeSubset('\u0E00-\u0E7F'),
-    'IsLao': UnicodeSubset('\u0E80-\u0EFF'),
-    'IsTibetan': UnicodeSubset('\u0F00-\u0FFF'),
-    'IsMyanmar': UnicodeSubset('\u1000-\u109F'),
-    'IsGeorgian': UnicodeSubset('\u10A0-\u10FF'),
-    'IsHangulJamo': UnicodeSubset('\u1100-\u11FF'),
-    'IsEthiopic': UnicodeSubset('\u1200-\u137F'),
-    'IsCherokee': UnicodeSubset('\u13A0-\u13FF'),
-    'IsUnifiedCanadianAboriginalSyllabics': UnicodeSubset('\u1400-\u167F'),
-    'IsOgham': UnicodeSubset('\u1680-\u169F'),
-    'IsRunic': UnicodeSubset('\u16A0-\u16FF'),
-    'IsKhmer': UnicodeSubset('\u1780-\u17FF'),
-    'IsMongolian': UnicodeSubset('\u1800-\u18AF'),
-    'IsLatinExtendedAdditional': UnicodeSubset('\u1E00-\u1EFF'),
-    'IsGreekExtended': UnicodeSubset('\u1F00-\u1FFF'),
-    'IsGeneralPunctuation': UnicodeSubset('\u2000-\u206F'),
-    'IsSuperscriptsandSubscripts': UnicodeSubset('\u2070-\u209F'),
-    'IsCurrencySymbols': UnicodeSubset('\u20A0-\u20CF'),
-    'IsCombiningMarksforSymbols': UnicodeSubset('\u20D0-\u20FF'),
-    'IsLetterlikeSymbols': UnicodeSubset('\u2100-\u214F'),
-    'IsNumberForms': UnicodeSubset('\u2150-\u218F'),
-    'IsArrows': UnicodeSubset('\u2190-\u21FF'),
-    'IsMathematicalOperators': UnicodeSubset('\u2200-\u22FF'),
-    'IsMiscellaneousTechnical': UnicodeSubset('\u2300-\u23FF'),
-    'IsControlPictures': UnicodeSubset('\u2400-\u243F'),
-    'IsOpticalCharacterRecognition': UnicodeSubset('\u2440-\u245F'),
-    'IsEnclosedAlphanumerics': UnicodeSubset('\u2460-\u24FF'),
-    'IsBoxDrawing': UnicodeSubset('\u2500-\u257F'),
-    'IsBlockElements': UnicodeSubset('\u2580-\u259F'),
-    'IsGeometricShapes': UnicodeSubset('\u25A0-\u25FF'),
-    'IsMiscellaneousSymbols': UnicodeSubset('\u2600-\u26FF'),
-    'IsDingbats': UnicodeSubset('\u2700-\u27BF'),
-    'IsBraillePatterns': UnicodeSubset('\u2800-\u28FF'),
-    'IsCJKRadicalsSupplement': UnicodeSubset('\u2E80-\u2EFF'),
-    'IsKangxiRadicals': UnicodeSubset('\u2F00-\u2FDF'),
-    'IsIdeographicDescriptionCharacters': UnicodeSubset('\u2FF0-\u2FFF'),
-    'IsCJKSymbolsandPunctuation': UnicodeSubset('\u3000-\u303F'),
-    'IsHiragana': UnicodeSubset('\u3040-\u309F'),
-    'IsKatakana': UnicodeSubset('\u30A0-\u30FF'),
-    'IsBopomofo': UnicodeSubset('\u3100-\u312F'),
-    'IsHangulCompatibilityJamo': UnicodeSubset('\u3130-\u318F'),
-    'IsKanbun': UnicodeSubset('\u3190-\u319F'),
-    'IsBopomofoExtended': UnicodeSubset('\u31A0-\u31BF'),
-    'IsEnclosedCJKLettersandMonths': UnicodeSubset('\u3200-\u32FF'),
-    'IsCJKCompatibility': UnicodeSubset('\u3300-\u33FF'),
-    'IsCJKUnifiedIdeographsExtensionA': UnicodeSubset('\u3400-\u4DB5'),
-    'IsCJKUnifiedIdeographs': UnicodeSubset('\u4E00-\u9FFF'),
-    'IsYiSyllables': UnicodeSubset('\uA000-\uA48F'),
-    'IsYiRadicals': UnicodeSubset('\uA490-\uA4CF'),
-    'IsHangulSyllables': UnicodeSubset('\uAC00-\uD7A3'),
-    'IsHighSurrogates': UnicodeSubset('\uD800-\uDB7F'),
-    'IsHighPrivateUseSurrogates': UnicodeSubset('\uDB80-\uDBFF'),
-    'IsLowSurrogates': UnicodeSubset('\uDC00-\uDFFF'),
-    'IsPrivateUse': UnicodeSubset('\uE000-\uF8FF\U000F0000-\U000FFFFF\U00100000-\U0010FFFF'),
-    'IsCJKCompatibilityIdeographs': UnicodeSubset('\uF900-\uFAFF'),
-    'IsAlphabeticPresentationForms': UnicodeSubset('\uFB00-\uFB4F'),
-    'IsArabicPresentationForms-A': UnicodeSubset('\uFB50-\uFDFF'),
-    'IsCombiningHalfMarks': UnicodeSubset('\uFE20-\uFE2F'),
-    'IsCJKCompatibilityForms': UnicodeSubset('\uFE30-\uFE4F'),
-    'IsSmallFormVariants': UnicodeSubset('\uFE50-\uFE6F'),
-    'IsArabicPresentationForms-B': UnicodeSubset('\uFE70-\uFEFE'),
-    'IsSpecials': UnicodeSubset('\uFEFF\uFFF0-\uFFFD'),
-    'IsHalfwidthandFullwidthForms': UnicodeSubset('\uFF00-\uFFEF'),
-    'IsOldItalic': UnicodeSubset('\U00010300-\U0001032F'),
-    'IsGothic': UnicodeSubset('\U00010330-\U0001034F'),
-    'IsDeseret': UnicodeSubset('\U00010400-\U0001044F'),
-    'IsByzantineMusicalSymbols': UnicodeSubset('\U0001D000-\U0001D0FF'),
-    'IsMusicalSymbols': UnicodeSubset('\U0001D100-\U0001D1FF'),
-    'IsMathematicalAlphanumericSymbols': UnicodeSubset('\U0001D400-\U0001D7FF'),
-    'IsEmoticons': UnicodeSubset('\U0001F600-\U0001F64F'),
-    'IsCJKUnifiedIdeographsExtensionB': UnicodeSubset('\U00020000-\U0002A6D6'),
-    'IsCJKCompatibilityIdeographsSupplement': UnicodeSubset('\U0002F800-\U0002FA1F'),
-    'IsTags': UnicodeSubset('\U000E0000-\U000E007F'),
-}
-
-UNICODE_BLOCKS['IsPrivateUse'].update('\U000F0000-\U0010FFFD')
+UNICODE_BLOCKS = {k: UnicodeSubset(v) for k, v in RAW_UNICODE_BLOCKS.items()}
 
 
 def unicode_subset(name: str) -> UnicodeSubset:
     if name.startswith('Is'):
+        key = name[2:].upper().replace(' ', '').replace('_', '').replace('-', '')
         try:
-            return UNICODE_BLOCKS[name]
+            return UNICODE_BLOCKS[key]
         except KeyError:
-            raise RegexError("%r doesn't match to any Unicode block." % name)
+            raise RegexError(f"{name!r} doesn't match any Unicode block")
     else:
         try:
             return UNICODE_CATEGORIES[name]
         except KeyError:
-            raise RegexError("%r doesn't match to any Unicode category." % name)
+            raise RegexError(f"{name!r} doesn't match any Unicode category")

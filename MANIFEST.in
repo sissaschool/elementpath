@@ -11,6 +11,7 @@ include mypy.ini
 include doc/*
 
 recursive-include elementpath *
+recursive-include scripts *
 recursive-include tests *
 recursive-exclude tests/.mypy_cache *
 
