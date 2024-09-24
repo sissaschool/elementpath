@@ -12,12 +12,12 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
 from abc import ABCMeta
-from typing import cast, Any, ClassVar, Dict, Optional, Set, Tuple, Type
+from typing import cast, Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union
 
-from elementpath._typing import MutableMapping, Sequence
+from elementpath._typing import Callable, MutableMapping, Sequence
 from elementpath.aliases import NamespacesType, NargsType
-from elementpath.exceptions import MissingContextError, ElementPathValueError, \
-    ElementPathNameError, ElementPathKeyError, xpath_error
+from elementpath.exceptions import MissingContextError, UnsupportedFeatureError, \
+    ElementPathValueError, ElementPathNameError, ElementPathKeyError, xpath_error
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
 from elementpath.tdop import Parser
@@ -114,6 +114,9 @@ class XPath1Parser(Parser[XPathTokenType]):
     @property
     def xsd_version(self) -> str:
         return '1.0'  # Use XSD 1.0 datatypes for default
+
+    def is_schema_bound(self) -> bool:
+        return False
 
     def xsd_qname(self, local_name: str) -> str:
         """Returns a prefixed QName string for XSD namespace."""
@@ -310,6 +313,37 @@ class XPath1Parser(Parser[XPathTokenType]):
             if context is not None:
                 func.context = context
             return func
+
+    ###
+    # Unsupported methods in XPath 1.0
+    @classmethod
+    def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,
+                    sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
+                    label: Union[str, Tuple[str, ...]] = 'constructor function') \
+            -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """
+        Statically creates a constructor token class, that is registered in the globals
+        of the module where the method is called.
+        """
+        raise UnsupportedFeatureError("Static definition of schema constructors token "
+                                      "classes requires an XPath 2.0+ parser")
+
+    def schema_constructor(self, atomic_type_name: str, bp: int = 90) \
+            -> Type[XPathFunction]:
+        """Dynamically registers a token class for a schema atomic type constructor function."""
+        raise UnsupportedFeatureError("Dynamic definition of schema constructors token "
+                                      "classes requires an XPath 2.0+ parser")
+
+    def external_function(self,
+                          callback: Callable[..., Any],
+                          name: Optional[str] = None,
+                          prefix: Optional[str] = None,
+                          sequence_types: Tuple[str, ...] = (),
+                          bp: int = 90) -> Type[XPathFunction]:
+        """Registers a token class for an external function."""
+        raise UnsupportedFeatureError(
+            "Registration of external functions requires an XPath 2.0+ parser"
+        )
 
 
 ###

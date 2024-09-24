@@ -154,6 +154,7 @@ Exception classes
 
 .. autoexception:: elementpath.ElementPathError
 .. autoexception:: elementpath.MissingContextError
+.. autoexception:: elementpath.UnsupportedFeatureError
 .. autoexception:: elementpath.RegexError
 .. autoexception:: elementpath.ElementPathLocaleError
 

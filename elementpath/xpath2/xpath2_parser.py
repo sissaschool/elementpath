@@ -245,7 +245,10 @@ class XPath2Parser(XPath1Parser):
                     sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
                     label: Union[str, Tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Creates a constructor token class."""
+        """
+        Statically creates a constructor token class, that is registered in the globals
+        of the module where the method is called.
+        """
         def nud_(self: XPathConstructor) -> XPathConstructor:
             try:
                 self.parser.advance('(')
@@ -301,7 +304,7 @@ class XPath2Parser(XPath1Parser):
 
     def schema_constructor(self, atomic_type_name: str, bp: int = 90) \
             -> Type[XPathFunction]:
-        """Registers a token class for a schema atomic type constructor function."""
+        """Dynamically registers a token class for a schema atomic type constructor function."""
         if atomic_type_name in (XSD_ANY_ATOMIC_TYPE, XSD_NOTATION):
             raise xpath_error('XPST0080')
 

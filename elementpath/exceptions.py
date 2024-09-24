@@ -52,6 +52,10 @@ class MissingContextError(ElementPathError):
     """Raised when the dynamic context is required for evaluate the XPath expression."""
 
 
+class UnsupportedFeatureError(ElementPathError, NotImplementedError):
+    """Raised when an XPath feature is not supported in the current context."""
+
+
 class ElementPathKeyError(ElementPathError, KeyError):
     pass
 

@@ -23,7 +23,7 @@ from . import protocols  # Protocols for type annotations
 from .exceptions import ElementPathError, MissingContextError, ElementPathKeyError, \
     ElementPathZeroDivisionError, ElementPathNameError, ElementPathOverflowError, \
     ElementPathRuntimeError, ElementPathSyntaxError, ElementPathTypeError, \
-    ElementPathValueError, ElementPathLocaleError
+    ElementPathValueError, ElementPathLocaleError, UnsupportedFeatureError
 
 from .xpath_context import XPathContext, XPathSchemaContext
 from .xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode, \
@@ -39,7 +39,8 @@ from .schema_proxy import AbstractSchemaProxy
 from .regex import RegexError, translate_pattern
 
 __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContextError',
-           'ElementPathKeyError', 'ElementPathZeroDivisionError', 'ElementPathNameError',
+           'UnsupportedFeatureError', 'ElementPathKeyError',
+           'ElementPathZeroDivisionError', 'ElementPathNameError',
            'ElementPathOverflowError', 'ElementPathRuntimeError', 'ElementPathSyntaxError',
            'ElementPathTypeError', 'ElementPathValueError', 'ElementPathLocaleError',
            'XPathContext', 'XPathSchemaContext', 'XPathNode', 'DocumentNode',
