@@ -21,8 +21,14 @@ MODULE_TEMPLATE = """#
 #
 # --- Auto-generated code: don't edit this file ---
 #
-# Unicode data version {version}
-#
+# {unicode_version_info}
+# 
+{dict_name} = {{
+    {indented_items}
+}}
+"""
+
+DIFF_DICT_TEMPLATE = """
 {dict_name} = {{
     {indented_items}
 }}
@@ -45,6 +51,8 @@ UNICODE_CATEGORIES = (
         'Z', 'Zs', 'Zl', 'Zp'
     )
 
+DEFAULT_UNICODE_VERSIONS = ('12.1.0', '13.0.0', '14.0.0', '15.0.0', '15.1.0', '16.0.0')
+
 
 def version_number(value):
     numbers = value.strip().split('.')
@@ -54,15 +62,20 @@ def version_number(value):
     return value.strip()
 
 
+def unicode_version_info(versions):
+    assert isinstance(versions, (tuple, list))
+    if len(versions) == 1:
+        return f"Unicode data version {versions[0]}"
+    return f"Unicode data for versions {', '.join(versions)}."
+
+
 def iter_codepoints_with_category(version):
     if version == unidata_version:
         # If requested version matches use Python unicodedata library API
-        print('Version matches, use unicodedata API ...')
         for cp in range(maxunicode + 1):
             yield cp, category(chr(cp))
         return
 
-    print('Version is different, use normative UnicodeData.txt ...')
     with urlopen(UNICODE_DATA_URL.format(version)) as res:
         prev_cp = -1
 
@@ -154,8 +167,7 @@ def get_unicodedata_blocks(version):
 
             block_range, block_name = line.decode('utf-8').split('; ')
 
-            block_name = block_name.strip().upper()
-            block_name = block_name.replace(' ', '').replace('-', '').replace('_', '')
+            block_name = block_name.strip()
 
             block_start, block_end = block_range.split('..')
             if len(block_start) <= 4:
@@ -176,6 +188,76 @@ def get_unicodedata_blocks(version):
         return blocks
 
 
+def generate_unicode_categories_module(module_path, versions):
+    print(f"\nSaving raw Unicode categories to {str(module_path)}")
+
+    with module_path.open('w') as fp:
+        print("Write module header and generate raw categories map ...")
+        categories = get_unicodedata_categories(versions[0])
+        categories_repr = pprint.pformat(categories, compact=True)
+
+        fp.write(MODULE_TEMPLATE.format_map({
+            'year': datetime.datetime.now().year,
+            'unicode_version_info': unicode_version_info(versions),
+            'dict_name': 'RAW_UNICODE_CATEGORIES',
+            'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
+        }))
+
+        for ver in versions[1:]:
+            print(f"  - Generate additional category map for version {ver} ...")
+            base_categories = categories
+            categories = get_unicodedata_categories(ver)
+
+            categories_diff = {}
+            for k, cps in categories.items():
+                cps_base = base_categories[k]
+                if cps != cps_base:
+                    exclude_cps = [x for x in cps_base if x not in cps]
+                    insert_cps = [x for x in cps if x not in cps_base]
+                    categories_diff[k] = exclude_cps, insert_cps
+
+            categories_repr = pprint.pformat(categories_diff, compact=True)
+
+            fp.write(DIFF_DICT_TEMPLATE.format_map({
+                'dict_name':  f"DIFF_CATEGORIES_VER_{ver.replace('.', '_')}",
+                'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
+            }))
+
+
+def generate_unicode_blocks_module(module_path, versions):
+    print(f"\nSaving raw Unicode blocks to {str(module_path)}")
+
+    with module_path.open('w') as fp:
+        print("Write module header and generate raw blocks map ...")
+        blocks = get_unicodedata_blocks(versions[0])
+        blocks_repr = pprint.pformat(blocks, compact=True, sort_dicts=False)
+
+        fp.write(MODULE_TEMPLATE.format_map({
+            'year': datetime.datetime.now().year,
+            'unicode_version_info': unicode_version_info(versions),
+            'dict_name': 'RAW_UNICODE_BLOCKS',
+            'indented_items': '\n   '.join(
+                blocks_repr[1:-1].replace('\\\\', '\\').split('\n')
+            )
+        }))
+
+        for ver in versions[1:]:
+            print(f"  - Generate additional blocks map for version {ver} ...")
+            base_blocks = blocks
+            blocks = get_unicodedata_blocks(ver)
+
+            blocks_diff = {k: v for k, v in blocks.items()
+                           if k not in base_blocks or base_blocks[k] != v}
+            blocks_repr = pprint.pformat(blocks_diff, compact=True, sort_dicts=False)
+
+            fp.write(DIFF_DICT_TEMPLATE.format_map({
+                'dict_name': f"DIFF_BLOCKS_VER_{ver.replace('.', '_')}",
+                'indented_items': '\n   '.join(
+                    blocks_repr[1:-1].replace('\\\\', '\\').split('\n')
+                )
+            }))
+
+
 if __name__ == '__main__':
     import argparse
     import datetime
@@ -186,27 +268,31 @@ if __name__ == '__main__':
     from urllib.request import urlopen
 
     description = (
-        "Generate Unicode codepoints modules. The modules contain each a "
-        "dictionary with a compressed representations of the Unicode codepoints, "
-        "suitable to be loaded by the elementpath library using UnicodeSubset "
-        "class. The installed generated modules have to be compatible with the "
-        "Unicode codepoints library used by the Python interpreter (e.g. if you "
-        "need to be compatible with Python 3.8 you can generate Unicode codepoints "
-        "up to version 12.1.0)."
+        "Generate Unicode codepoints modules. Both modules contain dictionaries "
+        "with a compressed representation of the Unicode codepoints, suitable to "
+        "be loaded by the elementpath library using UnicodeSubset class. Multiple "
+        "versions of Unicode database are represented by additional codepoints in "
+        "further dictionaries."
     )
 
     parser = argparse.ArgumentParser(
         description=description, usage="%(prog)s [options] dirpath"
     )
-    parser.add_argument('--version', type=version_number, default=unidata_version,
-                        help="generate codepoints for a specific Unicode version, for default uses "
-                             "the version supported by the Python interpreter.")
+    parser.add_argument('-v', '--version', dest='versions', type=version_number,
+                        default=[], action='append',
+                        help="generates codepoints for specific Unicode versions, for default "
+                             "are the ones available with supported Python versions.")
     parser.add_argument('dirpath', type=str, help="directory path for generated modules")
     args = parser.parse_args()
 
+    if not args.versions:
+        args.versions.extend(DEFAULT_UNICODE_VERSIONS)
+    else:
+        args.versions[:] = sorted(set(args.versions), reverse=False)
+
     print("+++ Generate Unicode categories module +++\n")
-    print("Python Unicode data version {}".format(unidata_version))
-    print("Generate Unicode data version {}\n".format(args.version))
+    print("Python Unicode data version: {}".format(unidata_version))
+    print(f"Generate {unicode_version_info(args.versions)}\n")
 
     ###
     # Generate Unicode categories module
@@ -219,41 +305,17 @@ if __name__ == '__main__':
     if confirm.strip().upper() not in ('Y', 'YES'):
         print("\nSkip generation of Unicode categories module ...\n")
     else:
-        print("\nGenerating Unicode categories module ...")
-
-        categories_map = get_unicodedata_categories(args.version)
-        print("Saving Unicode categories codepoints to %s\n" % str(filename))
-
-        with open(filename, 'w') as fp:
-            categories_repr = pprint.pformat(categories_map, compact=True)
-            fp.write(MODULE_TEMPLATE.format_map({
-                'year': datetime.datetime.now().year,
-                'version': args.version,
-                'dict_name': 'RAW_UNICODE_CATEGORIES',
-                'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
-            }))
+        generate_unicode_categories_module(filename, args.versions)
 
     ###
     # Generate Unicode blocks module
     filename = pathlib.Path(args.dirpath).joinpath('unicode_blocks.py')
     if filename.is_file():
-        confirm = input("Overwrite existing module %r? [Y/Yes to confirm] " % str(filename))
+        confirm = input("\nOverwrite existing module %r? [Y/Yes to confirm] " % str(filename))
     else:
         confirm = 'Yes'
 
     if confirm.strip().upper() not in ('Y', 'YES'):
         print("\nSkip generation of Unicode blocks module ...")
     else:
-        print("\nGenerating Unicode blocks module ...")
-
-        blocks_map = get_unicodedata_blocks(args.version)
-        print("Saving Unicode categories blocks to %s" % str(filename))
-
-        with open(filename, 'w') as fp:
-            blocks_repr = pprint.pformat(blocks_map, compact=True, sort_dicts=False)
-            fp.write(MODULE_TEMPLATE.format_map({
-                'year': datetime.datetime.now().year,
-                'version': args.version,
-                'dict_name': 'RAW_UNICODE_BLOCKS',
-                'indented_items': '\n   '.join(blocks_repr[1:-1].replace('\\\\', '\\').split('\n'))
-            }))
+        generate_unicode_blocks_module(filename, args.versions)
