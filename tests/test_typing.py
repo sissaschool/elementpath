@@ -50,6 +50,13 @@ class TestTyping(unittest.TestCase):
         ])
         self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
+    def test_advanced(self):
+        result = mypy_api.run([
+            '--strict',
+            '--config-file', str(self.config_file),
+            str(self.cases_dir.joinpath('advanced.py'))
+        ])
+        self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
 if __name__ == '__main__':
     unittest.main()
