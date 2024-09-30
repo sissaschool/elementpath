@@ -15,15 +15,17 @@ import unittest
 import sys
 import re
 import string
+from collections import Counter
 from copy import copy
 from itertools import chain
-from unicodedata import category
+from unicodedata import category, unidata_version
 
+from elementpath.helpers import unicode_block_key
 from elementpath.regex import RegexError, CharacterClass, translate_pattern
 from elementpath.regex.codepoints import get_code_point_range
 from elementpath.regex.unicode_subsets import code_point_repr, \
     iterparse_character_subset, iter_code_points, UnicodeSubset, \
-    UNICODE_CATEGORIES
+    UNICODE_CATEGORIES, UNICODE_BLOCKS
 
 
 class TestCodePoints(unittest.TestCase):
@@ -513,7 +515,10 @@ class TestCharacterClass(unittest.TestCase):
         self.assertListEqual(char_class.positive.codepoints, [48])
 
         char_class.add(r'\p{Nd}')
-        self.assertEqual(len(char_class), 630)
+        if unidata_version == '12.1.0':
+            self.assertEqual(len(char_class), 630)
+        elif unidata_version == '15.0.0':
+            self.assertEqual(len(char_class), 680)
 
         with self.assertRaises(RegexError):
             char_class.add(r'\p{}')
@@ -539,7 +544,10 @@ class TestCharacterClass(unittest.TestCase):
         self.assertListEqual(char_class.positive.codepoints, [(48, 54), (55, 58)])
 
         char_class.add(r'\p{Nd}')
-        self.assertEqual(len(char_class), 630)
+        if unidata_version == '12.1.0':
+            self.assertEqual(len(char_class), 630)
+        elif unidata_version == '15.0.0':
+            self.assertEqual(len(char_class), 680)
 
         char_class.discard(r'\p{Nd}')
         self.assertEqual(len(char_class), 0)
@@ -551,7 +559,10 @@ class TestCharacterClass(unittest.TestCase):
             char_class.discard(r'\p{XYZ}')
 
         char_class.add(r'\P{Nd}')
-        self.assertEqual(len(char_class), sys.maxunicode + 1 - 630)
+        if unidata_version == '12.1.0':
+            self.assertEqual(len(char_class), sys.maxunicode + 1 - 630)
+        elif unidata_version == '15.0.0':
+            self.assertEqual(len(char_class), sys.maxunicode + 1 - 680)
 
         char_class.discard(r'\P{Nd}')
         self.assertEqual(len(char_class), 0)
@@ -589,14 +600,19 @@ class TestCharacterClass(unittest.TestCase):
 
 
 class TestUnicodeCategories(unittest.TestCase):
-    """
-    Test the subsets of Unicode categories, mainly to check the loaded JSON file.
-    """
+    """Test the subsets of Unicode categories."""
     def test_unicode_categories(self):
-        self.assertEqual(sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1),
-                         sys.maxunicode + 1)
+        cps_of_categories = Counter(
+            {k: len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1}
+        )
+        expected_cps = Counter(category(chr(cp)) for cp in range(sys.maxunicode + 1))
+
+        self.assertEqual(cps_of_categories, expected_cps)
+        self.assertEqual(cps_of_categories.total(), sys.maxunicode + 1)
+
         self.assertEqual(min([min(s) for s in UNICODE_CATEGORIES.values()]), 0)
         self.assertEqual(max([max(s) for s in UNICODE_CATEGORIES.values()]), sys.maxunicode)
+
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
         self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
@@ -610,6 +626,73 @@ class TestUnicodeCategories(unittest.TestCase):
                 self.assertTrue(
                     False, "Wrong category %r for code point %d (should be %r)." % (uc, cp, key)
                 )
+
+
+class TestUnicodeBlocks(unittest.TestCase):
+    """Test the subsets of Unicode blocks"""
+
+    @staticmethod
+    def to_key(k):
+        return unicode_block_key(k)
+
+    def test_unicode_block_key(self):
+        self.assertEqual(unicode_block_key('Latin-1 Supplement'), 'LATIN1SUPPLEMENT')
+        self.assertEqual(unicode_block_key('Latin Extended-B'), 'LATINEXTENDEDB')
+
+    def test_basic_latin_unicode_block(self):
+        subset = UNICODE_BLOCKS[self.to_key('Basic Latin')]
+
+        self.assertEqual(len(subset), 128)
+        for cp in range(0, 0x80):
+            self.assertIn(cp, subset)
+
+        self.assertNotIn(-1, subset)
+        self.assertNotIn(128, subset)
+        self.assertSetEqual(subset, {x for x in range(0, 0x80)})
+
+    def test_latin1_supplement_unicode_block(self):
+        subset = UNICODE_BLOCKS[self.to_key('Latin-1 Supplement')]
+
+        self.assertEqual(len(subset), 128)
+        for cp in range(0x80, 0x100):
+            self.assertIn(cp, subset)
+
+        self.assertNotIn(0x7F, subset)
+        self.assertNotIn(0x100, subset)
+        self.assertSetEqual(subset, {x for x in range(0x80, 0x100)})
+
+    def test_latin_extended_a_unicode_block(self):
+        subset = UNICODE_BLOCKS[self.to_key('Latin Extended-A')]
+
+        self.assertEqual(len(subset), 128)
+        for cp in range(0x100, 0x180):
+            self.assertIn(cp, subset)
+
+        self.assertNotIn(0xFF, subset)
+        self.assertNotIn(0x180, subset)
+        self.assertSetEqual(subset, {x for x in range(0x100, 0x180)})
+
+    def test_latin_extended_b_unicode_block(self):
+        subset = UNICODE_BLOCKS[self.to_key('Latin Extended-B')]
+
+        self.assertEqual(len(subset), 208)
+        for cp in range(0x180, 0x250):
+            self.assertIn(cp, subset)
+
+        self.assertNotIn(0x17F, subset)
+        self.assertNotIn(0x250, subset)
+        self.assertSetEqual(subset, {x for x in range(0x180, 0x250)})
+
+    def test_others_unicode_blocks(self):
+        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('IPA Extensions')]), 96)
+        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Spacing Modifier Letters')]), 80)
+        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Combining Diacritical Marks')]), 112)
+        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Greek and Coptic')]), 144)
+        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Cyrillic')]), 256)
+
+        # A block can have unassigned codepoints
+        ncp = len(UNICODE_BLOCKS[self.to_key('Greek and Coptic')] - UNICODE_CATEGORIES['Cn'])
+        self.assertEqual(ncp, 135)
 
 
 class TestPatterns(unittest.TestCase):
@@ -1003,14 +1086,14 @@ class TestPatterns(unittest.TestCase):
 
         with self.assertRaises(RegexError) as ctx:
             translate_pattern('\\p{Unknown}')
-        self.assertIn("'Unknown' doesn't match to any Unicode category", str(ctx.exception))
+        self.assertIn("'Unknown' doesn't match any Unicode category", str(ctx.exception))
 
         regex = translate_pattern('\\p{IsUnknown}', xsd_version='1.1')
         self.assertEqual(regex, '[\x00-\U0010fffe]')
 
         with self.assertRaises(RegexError) as ctx:
             translate_pattern('\\p{IsUnknown}')
-        self.assertIn("'IsUnknown' doesn't match to any Unicode block", str(ctx.exception))
+        self.assertIn("'IsUnknown' doesn't match any Unicode block", str(ctx.exception))
 
     def test_ending_newline_match(self):
         # Related with xmlschema's issue #223

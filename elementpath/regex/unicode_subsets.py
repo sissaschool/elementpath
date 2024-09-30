@@ -10,16 +10,19 @@
 """
 This module defines Unicode character categories and blocks.
 """
+import importlib
 from sys import maxunicode
-from typing import cast, List, Union, Optional
+from typing import cast, Dict, List, Union, Optional
+from unicodedata import unidata_version
 
 from elementpath._typing import Iterable, Iterator, MutableSet
-from .unicode_categories import RAW_UNICODE_CATEGORIES
-from .unicode_blocks import RAW_UNICODE_BLOCKS
+from elementpath.helpers import unicode_block_key
 from .codepoints import CodePoint, code_point_order, code_point_repr, \
     iter_code_points, get_code_point_range
 
 CodePointsArgType = Union[str, 'UnicodeSubset', List[CodePoint], Iterable[CodePoint]]
+
+UNICODE_VERSION_INFO = tuple(int(x) for x in unidata_version.split('.'))
 
 
 class RegexError(Exception):
@@ -34,7 +37,7 @@ def iterparse_character_subset(s: str, expand_ranges: bool = False) -> Iterator[
     """
     Parses a regex character subset, generating a sequence of code points
     and code points ranges. An unescaped hyphen (-) that is not at the
-    start or at the and is interpreted as range specifier.
+    start or at the end is interpreted as range specifier.
 
     :param s: a string representing the character subset.
     :param expand_ranges: if set to `True` then expands character ranges.
@@ -141,6 +144,12 @@ class UnicodeSubset(MutableSet[CodePoint]):
             self._codepoints = list()
             self.update(codepoints)
 
+    @classmethod
+    def from_raw(cls, raw_data: List[CodePoint]) -> 'UnicodeSubset':
+        subset = cls()
+        subset._codepoints = raw_data.copy()
+        return subset
+
     @property
     def codepoints(self) -> List[CodePoint]:
         return self._codepoints
@@ -155,7 +164,9 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return self.__copy__()
 
     def __copy__(self) -> 'UnicodeSubset':
-        return UnicodeSubset(self._codepoints)
+        subset = self.__class__()
+        subset._codepoints = self._codepoints.copy()
+        return subset
 
     def __reversed__(self) -> Iterator[int]:
         for item in reversed(self._codepoints):
@@ -269,6 +280,11 @@ class UnicodeSubset(MutableSet[CodePoint]):
         else:
             self._codepoints.append(value)
 
+    def difference(self, other: 'UnicodeSubset') -> 'UnicodeSubset':
+        subset = self.__copy__()
+        subset.difference_update(other)
+        return subset
+
     def difference_update(self, *others: Union[str, Iterable[CodePoint]]) -> None:
         for value in others:
             if isinstance(value, str):
@@ -343,7 +359,7 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return self
 
     def __or__(self, other: object) -> 'UnicodeSubset':
-        obj = self.copy()
+        obj = self.__copy__()
         return obj.__ior__(other)
 
     def __isub__(self, other: object) -> 'UnicodeSubset':
@@ -361,7 +377,7 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return self
 
     def __sub__(self, other: object) -> 'UnicodeSubset':
-        obj = self.copy()
+        obj = self.__copy__()
         return obj.__isub__(other)
 
     __rsub__ = __sub__
@@ -375,7 +391,7 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return self
 
     def __and__(self, other: object) -> 'UnicodeSubset':
-        obj = self.copy()
+        obj = self.__copy__()
         return obj.__iand__(other)
 
     def __ixor__(self, other: object) -> 'UnicodeSubset':
@@ -395,21 +411,90 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return self
 
     def __xor__(self, other: object) -> 'UnicodeSubset':
-        obj = self.copy()
+        obj = self.__copy__()
         return obj.__ixor__(other)
 
 
-UNICODE_CATEGORIES = {k: UnicodeSubset(cast(List[CodePoint], v))
-                      for k, v in RAW_UNICODE_CATEGORIES.items()}
+###
+# Build Unicode data structures from raw data modules
+#
+UNICODE_CATEGORIES: Dict[str, UnicodeSubset]
+UNICODE_BLOCKS: Dict[str, UnicodeSubset]
 
-UNICODE_BLOCKS = {k: UnicodeSubset(v) for k, v in RAW_UNICODE_BLOCKS.items()}
+
+def install_unicode_categories(module_name: str) -> None:
+    module = importlib.import_module(module_name)
+    raw_categories = module.RAW_UNICODE_CATEGORIES.copy()
+
+    for name, diff_categories in filter(lambda x: x[0].startswith('DIFF_CATEGORIES_VER_'),
+                                        module.__dict__.items()):
+        diff_version_info = tuple(int(x) for x in name[20:].split('_'))
+        if len(diff_version_info) != 3 or UNICODE_VERSION_INFO < diff_version_info:
+            break
+
+        for k, (exclude_cps, insert_cps) in diff_categories.items():
+            values = []
+            additional = iter(insert_cps)
+            cpa = next(additional, None)
+            cpa_int = cpa[0] if isinstance(cpa, tuple) else cpa
+
+            for cp in raw_categories[k]:
+                if cp in exclude_cps:
+                    continue
+
+                cp_int = cp[0] if isinstance(cp, tuple) else cp
+                while cpa_int is not None and cpa_int <= cp_int:
+                    values.append(cpa)
+                    cpa = next(additional, None)
+                    cpa_int = cpa[0] if isinstance(cpa, tuple) else cpa
+                else:
+                    values.append(cp)
+            else:
+                if cpa is not None:
+                    values.append(cpa)
+                    values.extend(additional)
+
+            raw_categories[k] = values
+
+    global UNICODE_CATEGORIES
+    UNICODE_CATEGORIES = {
+        k: UnicodeSubset.from_raw(cast(List[CodePoint], v)) for k, v in raw_categories.items()
+    }
+
+
+def install_unicode_blocks(module_name: str) -> None:
+    module = importlib.import_module(module_name)
+    raw_blocks = module.RAW_UNICODE_BLOCKS.copy()
+
+    for name, diff_blocks in filter(lambda x: x[0].startswith('DIFF_BLOCKS_VER_'),
+                                    module.__dict__.items()):
+        diff_version_info = tuple(int(x) for x in name[16:].split('_'))
+        if len(diff_version_info) != 3 or UNICODE_VERSION_INFO < diff_version_info:
+            break
+
+        raw_blocks.update(diff_blocks)
+
+    global UNICODE_BLOCKS
+    UNICODE_BLOCKS = {
+        unicode_block_key(k): UnicodeSubset(v) for k, v in raw_blocks.items()
+    }
+
+    # Define the special block "No_Block", that contains all the other codepoints not
+    # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
+    no_block = UnicodeSubset([(0, maxunicode + 1)])
+    for v in UNICODE_BLOCKS.values():
+        no_block -= v
+    UNICODE_BLOCKS['NOBLOCK'] = no_block
+
+
+install_unicode_categories('elementpath.regex.unicode_categories')
+install_unicode_blocks('elementpath.regex.unicode_blocks')
 
 
 def unicode_subset(name: str) -> UnicodeSubset:
     if name.startswith('Is'):
-        key = name[2:].upper().replace(' ', '').replace('_', '').replace('-', '')
         try:
-            return UNICODE_BLOCKS[key]
+            return UNICODE_BLOCKS[unicode_block_key(name[2:])]
         except KeyError:
             raise RegexError(f"{name!r} doesn't match any Unicode block")
     else:
