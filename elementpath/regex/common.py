@@ -10,8 +10,7 @@
 """
 This module defines common definitions and helper functions for regex subpackage.
 """
-from sys import maxunicode
-from typing import Optional, Set, Tuple, Union
+from typing import Set, Tuple, Union
 
 from elementpath._typing import Iterable, Iterator
 
@@ -70,54 +69,38 @@ def iter_code_points(codepoints: Iterable[CodePoint], reverse: bool = False) \
 
     for cp in codepoints:
         if isinstance(cp, int):
-            cp = cp, cp + 1
+            cp0 = cp
+            cp1 = cp + 1
+        else:
+            cp0, cp1 = cp
 
         if not end_cp:
-            start_cp, end_cp = cp
+            start_cp = cp0
+            end_cp = cp1
             continue
         elif reverse:
-            if start_cp <= cp[1]:
-                if start_cp > cp[0]:
-                    start_cp = cp[0]
+            if start_cp <= cp1:
+                if start_cp > cp0:
+                    start_cp = cp0
                 continue
-        elif end_cp >= cp[0]:
-            if end_cp < cp[1]:
-                end_cp = cp[1]
+        elif end_cp >= cp0:
+            if end_cp < cp1:
+                end_cp = cp1
             continue
 
         if end_cp > start_cp + 1:
             yield start_cp, end_cp
         else:
             yield start_cp
-        start_cp, end_cp = cp
+
+        start_cp = cp0
+        end_cp = cp1
     else:
         if end_cp:
             if end_cp > start_cp + 1:
                 yield start_cp, end_cp
             else:
                 yield start_cp
-
-
-def get_code_point_range(cp: CodePoint) -> Optional[CodePoint]:
-    """
-    Returns a code point range.
-
-    :param cp: a single code point or a code point range.
-    :return: a code point range or `None` if the argument is not a \
-    code point or a code point range.
-    """
-    if isinstance(cp, int):
-        if 0 <= cp <= maxunicode:
-            return cp, cp + 1
-    else:
-        try:
-            if isinstance(cp[0], int) and isinstance(cp[1], int):
-                if 0 <= cp[0] < cp[1] <= maxunicode + 1:
-                    return cp
-        except (IndexError, TypeError):
-            pass
-
-    return None
 
 
 def code_point_repr(cp: CodePoint) -> str:

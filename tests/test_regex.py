@@ -22,7 +22,6 @@ from unicodedata import category, unidata_version
 
 from elementpath.helpers import unicode_block_key
 from elementpath.regex import RegexError, CharacterClass, translate_pattern
-from elementpath.regex.common import get_code_point_range
 from elementpath.regex.unicode_subsets import code_point_repr, \
     iterparse_character_subset, iter_code_points, UnicodeSubset, \
     unicode_category, unicode_block
@@ -58,18 +57,6 @@ class TestCodePoints(unittest.TestCase):
                                   reverse=True)),
             [25, (8, 23), 0]
         )
-
-    def test_get_code_point_range(self):
-        self.assertEqual(get_code_point_range(97), (97, 98))
-        self.assertEqual(get_code_point_range((97, 100)), (97, 100))
-        self.assertEqual(get_code_point_range([97, 100]), [97, 100])
-
-        self.assertIsNone(get_code_point_range(-1))
-        self.assertIsNone(get_code_point_range(sys.maxunicode + 1))
-        self.assertIsNone(get_code_point_range((-1, 100)))
-        self.assertIsNone(get_code_point_range((97, sys.maxunicode + 2)))
-        self.assertIsNone(get_code_point_range(97.0))
-        self.assertIsNone(get_code_point_range((97.0, 100)))
 
 
 class TestParseCharacterSubset(unittest.TestCase):
@@ -202,7 +189,7 @@ class TestUnicodeSubset(unittest.TestCase):
         subset.discard((0, 200))
         self.assertEqual(subset, [])
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             subset.discard(None)
         with self.assertRaises(ValueError):
             subset.discard((10, 11, 12))
