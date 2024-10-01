@@ -10,7 +10,9 @@
 # --- Auto-generated code: don't edit this file ---
 #
 # Unicode data for versions 12.1.0, 13.0.0, 14.0.0, 15.0.0, 15.1.0, 16.0.0.
-# 
+#
+MIN_UNICODE_VERSION = '12.1.0'
+
 RAW_UNICODE_CATEGORIES = {
     'C': [(0, 32), (127, 160), 173, (888, 890), (896, 900), 907, 909, 930, 1328,
           (1367, 1369), (1419, 1421), 1424, (1480, 1488), (1515, 1519),

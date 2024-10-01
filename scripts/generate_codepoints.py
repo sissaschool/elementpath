@@ -22,7 +22,9 @@ MODULE_TEMPLATE = """#
 # --- Auto-generated code: don't edit this file ---
 #
 # {unicode_version_info}
-# 
+#
+MIN_UNICODE_VERSION = {dict_unicode_version!r}
+
 {dict_name} = {{
     {indented_items}
 }}
@@ -199,6 +201,7 @@ def generate_unicode_categories_module(module_path, versions):
         fp.write(MODULE_TEMPLATE.format_map({
             'year': datetime.datetime.now().year,
             'unicode_version_info': unicode_version_info(versions),
+            'dict_unicode_version': versions[0],
             'dict_name': 'RAW_UNICODE_CATEGORIES',
             'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
         }))
@@ -235,6 +238,7 @@ def generate_unicode_blocks_module(module_path, versions):
         fp.write(MODULE_TEMPLATE.format_map({
             'year': datetime.datetime.now().year,
             'unicode_version_info': unicode_version_info(versions),
+            'dict_unicode_version': versions[0],
             'dict_name': 'RAW_UNICODE_BLOCKS',
             'indented_items': '\n   '.join(
                 blocks_repr[1:-1].replace('\\\\', '\\').split('\n')

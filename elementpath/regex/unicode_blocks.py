@@ -10,7 +10,9 @@
 # --- Auto-generated code: don't edit this file ---
 #
 # Unicode data for versions 12.1.0, 13.0.0, 14.0.0, 15.0.0, 15.1.0, 16.0.0.
-# 
+#
+MIN_UNICODE_VERSION = '12.1.0'
+
 RAW_UNICODE_BLOCKS = {
     'Basic Latin': '\u0000-\u007F',
     'Latin-1 Supplement': '\u0080-\u00FF',
