@@ -58,5 +58,6 @@ class TestTyping(unittest.TestCase):
         ])
         self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
+
 if __name__ == '__main__':
     unittest.main()

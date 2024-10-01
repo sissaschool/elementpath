@@ -13,10 +13,9 @@ Parse and translate XML Schema regular expressions to Python regex syntax.
 import re
 from sys import maxunicode
 
-from elementpath.helpers import OCCURRENCE_INDICATORS
-from .common import RegexError
+from .common import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, RegexError
 from .unicode_subsets import UnicodeSubset, get_unicode_subset
-from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
+from .character_classes import CharacterClass
 
 HYPHENS_PATTERN = re.compile(r'(?<!\\)--')
 INVALID_HYPHEN_PATTERN = re.compile(r'[^\\]-[^\\]-[^\\]')
@@ -188,7 +187,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
             nested_groups -= 1
             regex.append(ch)
 
-        elif ch in OCCURRENCE_INDICATORS:
+        elif ch in ('?', '*', '+'):
             if pos == 0:
                 msg = "unexpected quantifier {!r} at position {}: {!r}"
                 raise RegexError(msg.format(ch, pos, pattern))

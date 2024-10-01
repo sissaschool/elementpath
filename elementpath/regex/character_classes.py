@@ -8,37 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from itertools import chain
 from sys import maxunicode
 from collections import Counter
 from typing import AbstractSet, Any, Optional, Union
 
 from elementpath._typing import Iterator, MutableSet
 from .common import RegexError
-from .unicode_subsets import UnicodeSubset, get_unicode_subset, unicode_category
-
-
-I_SHORTCUT_REPLACE = (
-    ":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-    "\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-)
-
-C_SHORTCUT_REPLACE = (
-    "-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
-    "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-)
-
-S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
-D_SHORTCUT_SET = UnicodeSubset()
-D_SHORTCUT_SET._codepoints = unicode_category('Nd').codepoints
-I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
-C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
-W_SHORTCUT_SET = UnicodeSubset(chain(
-    unicode_category('L').codepoints,
-    unicode_category('M').codepoints,
-    unicode_category('N').codepoints,
-    unicode_category('S').codepoints
-))
+from .unicode_subsets import UnicodeSubset, get_unicode_subset, S_SHORTCUT_SET, \
+    D_SHORTCUT_SET, I_SHORTCUT_SET, C_SHORTCUT_SET, W_SHORTCUT_SET
 
 # Single and Multi character escapes
 CHARACTER_ESCAPES = {
