@@ -10,27 +10,16 @@
 """
 This module defines Unicode character categories and blocks.
 """
-import importlib
+from importlib import import_module
 from sys import maxunicode
 from typing import cast, Dict, List, Union, Optional
 from unicodedata import unidata_version
 
 from elementpath._typing import Iterable, Iterator, MutableSet
-from elementpath.helpers import unicode_block_key
-from .codepoints import CodePoint, code_point_order, code_point_repr, \
-    iter_code_points, get_code_point_range
+from .common import CodePoint, RegexError, unicode_block_key, code_point_order, \
+    code_point_repr, iter_code_points, get_code_point_range
 
 CodePointsArgType = Union[str, 'UnicodeSubset', List[CodePoint], Iterable[CodePoint]]
-
-UNICODE_VERSION_INFO = tuple(int(x) for x in unidata_version.split('.'))
-
-
-class RegexError(Exception):
-    """
-    Error in a regular expression or in a character class specification.
-    This exception is derived from `Exception` base class and is raised
-    only by the regex subpackage.
-    """
 
 
 def iterparse_character_subset(s: str, expand_ranges: bool = False) -> Iterator[CodePoint]:
@@ -410,23 +399,52 @@ class UnicodeSubset(MutableSet[CodePoint]):
 
 
 ###
+#  Unicode data version info
+_unicode_categories_version = unidata_version
+_unicode_blocks_version = unidata_version
+
+
+def unicode_categories_version() -> str:
+    """Returns the Unicode data version of the installed categories."""
+    return _unicode_categories_version
+
+
+def unicode_blocks_version() -> str:
+    """Returns the Unicode data version of the installed blocks."""
+    return _unicode_blocks_version
+
+
+###
 # API for installing and accessing Unicode data categories and blocks.
 # Installed blocks and categories are built lazily when requested.
 #
-_UNICODE_CATEGORIES: Dict[str, Union[List[CodePoint], UnicodeSubset]] = {}
-_UNICODE_BLOCKS: Dict[str, Union[str, UnicodeSubset]] = {}
+_unicode_categories: Dict[str, Union[List[CodePoint], UnicodeSubset]]
+_unicode_blocks: Dict[str, Union[str, UnicodeSubset]]
 
 
 def install_unicode_categories(module_name: str) -> None:
     """Install the Unicode categories taking data from the raw categories module provided."""
-    module = importlib.import_module(module_name)
+    global _unicode_categories_version
+    global _unicode_categories
+
+    module = import_module(module_name)
     raw_categories = module.RAW_UNICODE_CATEGORIES.copy()
+    _unicode_categories_version = module.MIN_UNICODE_VERSION
+
+    python_max_version = tuple(int(x) for x in unidata_version.split('.'))
+    module_min_version = tuple(int(x) for x in module.MIN_UNICODE_VERSION.split('.'))
+    if python_max_version < module_min_version:
+        raise ValueError("Can't install Unicode categories because the minimum version "
+                         "provided by the module is too high for this Python release")
 
     for name, diff_categories in filter(lambda x: x[0].startswith('DIFF_CATEGORIES_VER_'),
                                         module.__dict__.items()):
-        diff_version_info = tuple(int(x) for x in name[20:].split('_'))
-        if len(diff_version_info) != 3 or UNICODE_VERSION_INFO < diff_version_info:
+
+        diff_version = name[20:].replace('_', '.')
+        if python_max_version < tuple(int(x) for x in diff_version.split('.')):
             break
+
+        _unicode_categories_version = name[20:].replace('_', '.')
 
         for k, (exclude_cps, insert_cps) in diff_categories.items():
             values = []
@@ -452,25 +470,35 @@ def install_unicode_categories(module_name: str) -> None:
 
             raw_categories[k] = values
 
-    global _UNICODE_CATEGORIES
-    _UNICODE_CATEGORIES = raw_categories
+    _unicode_categories = raw_categories
 
 
 def install_unicode_blocks(module_name: str) -> None:
     """Install the Unicode blocks taking data from the raw blocks module provided."""
-    module = importlib.import_module(module_name)
+    global _unicode_blocks_version
+    global _unicode_blocks
+
+    module = import_module(module_name)
     raw_blocks = module.RAW_UNICODE_BLOCKS.copy()
+    _unicode_blocks_version = module.MIN_UNICODE_VERSION
+
+    python_max_version = tuple(int(x) for x in unidata_version.split('.'))
+    module_min_version = tuple(int(x) for x in module.MIN_UNICODE_VERSION.split('.'))
+    if python_max_version < module_min_version:
+        raise ValueError("Can't install Unicode blocks because the minimum version "
+                         "provided by the module is too high for this Python release")
 
     for name, diff_blocks in filter(lambda x: x[0].startswith('DIFF_BLOCKS_VER_'),
                                     module.__dict__.items()):
-        diff_version_info = tuple(int(x) for x in name[16:].split('_'))
-        if len(diff_version_info) != 3 or UNICODE_VERSION_INFO < diff_version_info:
+
+        diff_version = name[16:].replace('_', '.')
+        if python_max_version < tuple(int(x) for x in diff_version.split('.')):
             break
 
         raw_blocks.update(diff_blocks)
+        _unicode_blocks_version = diff_version
 
-    global _UNICODE_BLOCKS
-    _UNICODE_BLOCKS = {unicode_block_key(k): v for k, v in raw_blocks.items()}
+    _unicode_blocks = {unicode_block_key(k): v for k, v in raw_blocks.items()}
 
 
 def get_unicode_subset(name: str) -> UnicodeSubset:
@@ -492,9 +520,9 @@ def unicode_category(name: str) -> UnicodeSubset:
     Returns the Unicode category subset addressed by the provided name, raising a
     KeyError if it's not found.
     """
-    subset = _UNICODE_CATEGORIES[name]
+    subset = _unicode_categories[name]
     if not isinstance(subset, UnicodeSubset):
-        subset = _UNICODE_CATEGORIES[name] = UnicodeSubset(subset)
+        subset = _unicode_categories[name] = UnicodeSubset(subset)
     return subset
 
 
@@ -506,7 +534,7 @@ def unicode_block(name: str) -> UnicodeSubset:
     """
     key = unicode_block_key(name)
     try:
-        subset = _UNICODE_BLOCKS[key]
+        subset = _unicode_blocks[key]
     except KeyError:
         if key != 'NOBLOCK':
             raise
@@ -514,14 +542,14 @@ def unicode_block(name: str) -> UnicodeSubset:
         # Define the special block "No_Block", that contains all the other codepoints not
         # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
         no_block = UnicodeSubset([(0, maxunicode + 1)])
-        for v in _UNICODE_BLOCKS.values():
+        for v in _unicode_blocks.values():
             no_block -= v
-        _UNICODE_BLOCKS['NOBLOCK'] = no_block
+        _unicode_blocks['NOBLOCK'] = no_block
         return no_block
 
     else:
         if not isinstance(subset, UnicodeSubset):
-            subset = _UNICODE_BLOCKS[key] = UnicodeSubset(subset)
+            subset = _unicode_blocks[key] = UnicodeSubset(subset)
         return subset
 
 

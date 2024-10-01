@@ -22,12 +22,12 @@ from unicodedata import category, unidata_version
 
 from elementpath.helpers import unicode_block_key
 from elementpath.regex import RegexError, CharacterClass, translate_pattern
-from elementpath.regex.codepoints import get_code_point_range
+from elementpath.regex.common import get_code_point_range
 from elementpath.regex.unicode_subsets import code_point_repr, \
     iterparse_character_subset, iter_code_points, UnicodeSubset, \
     unicode_category, unicode_block
 
-_UNICODE_CATEGORIES = (
+_unicode_categories = (
     'C', 'Cc', 'Cf', 'Cs', 'Co', 'Cn',
     'L', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo',
     'M', 'Mn', 'Mc', 'Me',
@@ -613,23 +613,23 @@ class TestUnicodeCategories(unittest.TestCase):
     """Test the subsets of Unicode categories."""
     def test_unicode_categories(self):
         cps_of_categories = Counter(
-            {k: len(unicode_category(k)) for k in _UNICODE_CATEGORIES if len(k) > 1}
+            {k: len(unicode_category(k)) for k in _unicode_categories if len(k) > 1}
         )
         expected_cps = Counter(category(chr(cp)) for cp in range(sys.maxunicode + 1))
 
         self.assertEqual(cps_of_categories, expected_cps)
         self.assertEqual(cps_of_categories.total(), sys.maxunicode + 1)
 
-        self.assertEqual(min([min(unicode_category(k)) for k in _UNICODE_CATEGORIES]), 0)
+        self.assertEqual(min([min(unicode_category(k)) for k in _unicode_categories]), 0)
         self.assertEqual(
-            max([max(unicode_category(k)) for k in _UNICODE_CATEGORIES]), sys.maxunicode
+            max([max(unicode_category(k)) for k in _unicode_categories]), sys.maxunicode
         )
 
-        base_sets = [set(unicode_category(k)) for k in _UNICODE_CATEGORIES if len(k) > 1]
+        base_sets = [set(unicode_category(k)) for k in _unicode_categories if len(k) > 1]
         self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
     def test_unicodedata_category(self):
-        for key in _UNICODE_CATEGORIES:
+        for key in _unicode_categories:
             for cp in unicode_category(key):
                 uc = category(chr(cp))
                 if key == uc or len(key) == 1 and key == uc[0]:

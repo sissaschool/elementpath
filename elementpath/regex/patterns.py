@@ -14,7 +14,8 @@ import re
 from sys import maxunicode
 
 from elementpath.helpers import OCCURRENCE_INDICATORS
-from .unicode_subsets import RegexError, UnicodeSubset, get_unicode_subset
+from .common import RegexError
+from .unicode_subsets import UnicodeSubset, get_unicode_subset
 from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
 
 HYPHENS_PATTERN = re.compile(r'(?<!\\)--')

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,229 +7,133 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from importlib import import_module
-from itertools import chain
+"""
+This module defines common definitions and helper functions for regex subpackage.
+"""
 from sys import maxunicode
-from typing import Dict, List, Union
+from typing import Optional, Set, Tuple, Union
 
-from unicodedata import unidata_version
+from elementpath._typing import Iterable, Iterator
 
-from elementpath.helpers import unicode_block_key
-from .codepoints import CodePoint
-from .unicode_subsets import RegexError, UnicodeSubset
+CHARACTER_CLASS_ESCAPED: Set[int] = {ord(c) for c in r'-|.^?*+{}()[]\\'}
+"""Code Points of escaped chars in a character class."""
 
-###
-#  Unicode data version info
-_unicode_categories_version = unidata_version
-_unicode_blocks_version = unidata_version
+CodePoint = Union[int, Tuple[int, int]]
 
 
-def unicode_categories_version() -> str:
-    """Returns the Unicode data version of the installed categories."""
-    return _unicode_categories_version
+class RegexError(Exception):
+    """
+    Error in a regular expression or in a character class specification.
+    This exception is derived from `Exception` base class and is raised
+    only by the regex subpackage.
+    """
 
 
-def unicode_blocks_version() -> str:
-    """Returns the Unicode data version of the installed blocks."""
-    return _unicode_blocks_version
+def unicode_block_key(name: str) -> str:
+    return name.upper().replace(' ', '').replace('_', '').replace('-', '')
 
 
-###
-# API for installing and accessing Unicode data categories and blocks.
-# Installed blocks and categories are built lazily when requested.
-#
-_unicode_categories: Dict[str, Union[List[CodePoint], UnicodeSubset]]
-_unicode_blocks: Dict[str, Union[str, UnicodeSubset]]
+def code_point_order(cp: CodePoint) -> int:
+    """Ordering function for code points."""
+    return cp if isinstance(cp, int) else cp[0]
 
 
-def install_unicode_categories(module_name: str) -> None:
-    """Install the Unicode categories taking data from the raw categories module provided."""
-    global _unicode_categories_version
-    global _unicode_categories
+def code_point_reverse_order(cp: CodePoint) -> int:
+    """Reverse ordering function for code points."""
+    return cp if isinstance(cp, int) else cp[1] - 1
 
-    module = import_module(module_name)
-    raw_categories = module.RAW_UNICODE_CATEGORIES.copy()
-    _unicode_categories_version = module.MIN_UNICODE_VERSION
 
-    max_version = tuple(int(x) for x in unidata_version.split('.'))
-    module_min_version = tuple(int(x) for x in module.MIN_UNICODE_VERSION.split('.'))
-    if max_version < module_min_version:
-        raise ValueError("Can't install Unicode categories because the minimum version "
-                         "provided by the module is too high for this Python release")
+def iter_code_points(codepoints: Iterable[CodePoint], reverse: bool = False) \
+        -> Iterator[CodePoint]:
+    """
+    Iterates a code points sequence. Three or more consecutive code points are merged in a range.
 
-    for name, diff_categories in filter(lambda x: x[0].startswith('DIFF_CATEGORIES_VER_'),
-                                        module.__dict__.items()):
+    :param codepoints: an iterable with code points and code point ranges.
+    :param reverse: if `True` reverses the order of the sequence.
+    :return: yields code points or code point ranges.
+    """
+    start_cp = end_cp = 0
+    if reverse:
+        codepoints = sorted(codepoints, key=code_point_reverse_order, reverse=True)
+    else:
+        codepoints = sorted(codepoints, key=code_point_order)
 
-        diff_version = tuple(int(x) for x in name[20:].split('_'))
-        if len(diff_version) != 3 or max_version < diff_version:
-            break
+    for cp in codepoints:
+        if isinstance(cp, int):
+            cp = cp, cp + 1
 
-        _unicode_categories_version = diff_version
+        if not end_cp:
+            start_cp, end_cp = cp
+            continue
+        elif reverse:
+            if start_cp <= cp[1]:
+                if start_cp > cp[0]:
+                    start_cp = cp[0]
+                continue
+        elif end_cp >= cp[0]:
+            if end_cp < cp[1]:
+                end_cp = cp[1]
+            continue
 
-        for k, (exclude_cps, insert_cps) in diff_categories.items():
-            values = []
-            additional = iter(insert_cps)
-            cpa = next(additional, None)
-            cpa_int = cpa[0] if isinstance(cpa, tuple) else cpa
-
-            for cp in raw_categories[k]:
-                if cp in exclude_cps:
-                    continue
-
-                cp_int = cp[0] if isinstance(cp, tuple) else cp
-                while cpa_int is not None and cpa_int <= cp_int:
-                    values.append(cpa)
-                    cpa = next(additional, None)
-                    cpa_int = cpa[0] if isinstance(cpa, tuple) else cpa
-                else:
-                    values.append(cp)
+        if end_cp > start_cp + 1:
+            yield start_cp, end_cp
+        else:
+            yield start_cp
+        start_cp, end_cp = cp
+    else:
+        if end_cp:
+            if end_cp > start_cp + 1:
+                yield start_cp, end_cp
             else:
-                if cpa is not None:
-                    values.append(cpa)
-                    values.extend(additional)
-
-            raw_categories[k] = values
-
-    _unicode_categories = raw_categories
+                yield start_cp
 
 
-def install_unicode_blocks(module_name: str) -> None:
-    """Install the Unicode blocks taking data from the raw blocks module provided."""
-    global _unicode_blocks_version
-    global _unicode_blocks
+def get_code_point_range(cp: CodePoint) -> Optional[CodePoint]:
+    """
+    Returns a code point range.
 
-    module = import_module(module_name)
-    raw_blocks = module.RAW_UNICODE_BLOCKS.copy()
-    _unicode_blocks_version = module.MIN_UNICODE_VERSION
-
-    max_version = tuple(int(x) for x in unidata_version.split('.'))
-    module_min_version = tuple(int(x) for x in module.MIN_UNICODE_VERSION.split('.'))
-    if max_version < module_min_version:
-        raise ValueError("Can't install Unicode blocks because the minimum version "
-                         "provided by the module is too high for this Python release")
-
-    for name, diff_blocks in filter(lambda x: x[0].startswith('DIFF_BLOCKS_VER_'),
-                                    module.__dict__.items()):
-
-        diff_version = tuple(int(x) for x in name[16:].split('_'))
-        if len(diff_version) != 3 or max_version < diff_version:
-            break
-
-        raw_blocks.update(diff_blocks)
-        _unicode_blocks_version = diff_version
-
-    _unicode_blocks = {unicode_block_key(k): v for k, v in raw_blocks.items()}
-
-
-def get_unicode_subset(name: str) -> UnicodeSubset:
-    """Retrieve a Unicode subset by name, raising a RegexError if it cannot be retrieved."""
-    if name[:2] == 'Is':
-        try:
-            return unicode_block(name[2:])
-        except KeyError:
-            raise RegexError(f"{name!r} doesn't match any Unicode block")
+    :param cp: a single code point or a code point range.
+    :return: a code point range or `None` if the argument is not a \
+    code point or a code point range.
+    """
+    if isinstance(cp, int):
+        if 0 <= cp <= maxunicode:
+            return cp, cp + 1
     else:
         try:
-            return unicode_category(name)
-        except KeyError:
-            raise RegexError(f"{name!r} doesn't match any Unicode category")
+            if isinstance(cp[0], int) and isinstance(cp[1], int):
+                if 0 <= cp[0] < cp[1] <= maxunicode + 1:
+                    return cp
+        except (IndexError, TypeError):
+            pass
+
+    return None
 
 
-def unicode_category(name: str) -> UnicodeSubset:
+def code_point_repr(cp: CodePoint) -> str:
     """
-    Returns the Unicode category subset addressed by the provided name, raising a
-    KeyError if it's not found.
+    Returns the string representation of a code point.
+
+    :param cp: an integer or a tuple with at least two integers. \
+    Values must be in interval [0, sys.maxunicode].
     """
-    subset = _unicode_categories[name]
-    if not isinstance(subset, UnicodeSubset):
-        subset = _unicode_categories[name] = UnicodeSubset(subset)
-    return subset
+    if isinstance(cp, int):
+        if cp in CHARACTER_CLASS_ESCAPED:
+            return r'\%s' % chr(cp)
+        return chr(cp)
 
-
-def unicode_block(name: str) -> UnicodeSubset:
-    """
-    Returns the Unicode block subset addressed by the provided name, raising a
-    KeyError if it's not found. The lookup is done without considering the
-    casing, spaces, hyphens and underscores.
-    """
-    key = unicode_block_key(name)
-    try:
-        subset = _unicode_blocks[key]
-    except KeyError:
-        if key != 'NOBLOCK':
-            raise
-
-        # Define the special block "No_Block", that contains all the other codepoints not
-        # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
-        no_block = UnicodeSubset([(0, maxunicode + 1)])
-        for v in _unicode_blocks.values():
-            no_block -= v
-        _unicode_blocks['NOBLOCK'] = no_block
-        return no_block
-
+    if cp[0] in CHARACTER_CLASS_ESCAPED:
+        start_char = r'\%s' % chr(cp[0])
     else:
-        if not isinstance(subset, UnicodeSubset):
-            subset = _unicode_blocks[key] = UnicodeSubset(subset)
-        return subset
+        start_char = chr(cp[0])
 
+    end_cp = cp[1] - 1  # Character ranges include the right bound
+    if end_cp in CHARACTER_CLASS_ESCAPED:
+        end_char = r'\%s' % chr(end_cp)
+    else:
+        end_char = chr(end_cp)
 
-# Install Unicode categories and blocks from predefined modules
-install_unicode_categories('elementpath.regex.unicode_categories')
-install_unicode_blocks('elementpath.regex.unicode_blocks')
-
-
-I_SHORTCUT_REPLACE = (
-    ":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-    "\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-)
-
-C_SHORTCUT_REPLACE = (
-    "-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
-    "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-)
-
-S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
-D_SHORTCUT_SET = UnicodeSubset()
-D_SHORTCUT_SET._codepoints = unicode_category('Nd').codepoints
-I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
-C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
-W_SHORTCUT_SET = UnicodeSubset(chain(
-    unicode_category('L').codepoints,
-    unicode_category('M').codepoints,
-    unicode_category('N').codepoints,
-    unicode_category('S').codepoints
-))
-
-# Single and Multi character escapes
-CHARACTER_ESCAPES = {
-    # Single-character escapes
-    '\\n': '\n',
-    '\\r': '\r',
-    '\\t': '\t',
-    '\\|': '|',
-    '\\.': '.',
-    '\\-': '-',
-    '\\^': '^',
-    '\\?': '?',
-    '\\*': '*',
-    '\\+': '+',
-    '\\{': '{',
-    '\\}': '}',
-    '\\(': '(',
-    '\\)': ')',
-    '\\[': '[',
-    '\\]': ']',
-    '\\\\': '\\',
-
-    # Multi-character escapes
-    '\\s': S_SHORTCUT_SET,
-    '\\S': S_SHORTCUT_SET,
-    '\\d': D_SHORTCUT_SET,
-    '\\D': D_SHORTCUT_SET,
-    '\\i': I_SHORTCUT_SET,
-    '\\I': I_SHORTCUT_SET,
-    '\\c': C_SHORTCUT_SET,
-    '\\C': C_SHORTCUT_SET,
-    '\\w': W_SHORTCUT_SET,
-    '\\W': W_SHORTCUT_SET,
-}
+    if end_cp > cp[0] + 1:
+        return '%s-%s' % (start_char, end_char)
+    else:
+        return start_char + end_char

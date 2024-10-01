@@ -14,7 +14,8 @@ from collections import Counter
 from typing import AbstractSet, Any, Optional, Union
 
 from elementpath._typing import Iterator, MutableSet
-from .unicode_subsets import RegexError, UnicodeSubset, get_unicode_subset, unicode_category
+from .common import RegexError
+from .unicode_subsets import UnicodeSubset, get_unicode_subset, unicode_category
 
 
 I_SHORTCUT_REPLACE = (
@@ -83,7 +84,7 @@ class CharacterClass(MutableSet[int]):
     TODO: implement __ior__, __iand__, __ixor__ operators for a full mutable set class.
     """
     _re_char_set = re.compile(r'(?<!.-)(\\[nrt|.\-^?*+{}()\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
-    _re_unicode_ref = re.compile(r'\\([pP]){([\w\d-]+)}')
+    _re_unicode_ref = re.compile(r'\\([pP]){([\w-]+)}')
 
     __slots__ = 'xsd_version', 'positive', 'negative'
 
@@ -138,17 +139,17 @@ class CharacterClass(MutableSet[int]):
         return len(self.positive)
 
     def __isub__(self, other: AbstractSet[Any]) -> 'CharacterClass':
-        if not isinstance(other, CharacterClass):
-            return NotImplemented
-        elif self.negative:
-            if other.negative:
-                self.positive |= (other.negative - self.negative)
-                self.negative.clear()
-            self.negative |= other.positive
-        elif other.negative:
-            self.positive &= other.negative
-        self.positive -= other.positive
-        return self
+        if isinstance(other, CharacterClass):
+            if self.negative:
+                if other.negative:
+                    self.positive |= (other.negative - self.negative)
+                    self.negative.clear()
+                self.negative |= other.positive
+            elif other.negative:
+                self.positive &= other.negative
+            self.positive -= other.positive
+            return self
+        return NotImplemented
 
     def __sub__(self, other: AbstractSet[Any]) -> 'CharacterClass':
         obj = self.__copy__()
