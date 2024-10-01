@@ -144,12 +144,6 @@ class UnicodeSubset(MutableSet[CodePoint]):
             self._codepoints = list()
             self.update(codepoints)
 
-    @classmethod
-    def from_raw(cls, raw_data: List[CodePoint]) -> 'UnicodeSubset':
-        subset = cls()
-        subset._codepoints = raw_data.copy()
-        return subset
-
     @property
     def codepoints(self) -> List[CodePoint]:
         return self._codepoints
@@ -300,9 +294,9 @@ class UnicodeSubset(MutableSet[CodePoint]):
         except TypeError:
             raise ValueError("{!r} is not a Unicode code point value/range".format(value))
 
-        code_points = self._codepoints
-        for k in reversed(range(len(code_points))):
-            cp = code_points[k]
+        codepoints = self._codepoints
+        for k in reversed(range(len(codepoints))):
+            cp = codepoints[k]
             if isinstance(cp, int):
                 cp = cp, cp + 1
 
@@ -310,26 +304,26 @@ class UnicodeSubset(MutableSet[CodePoint]):
                 break
             elif end_cp >= cp[1]:
                 if start_cp <= cp[0]:
-                    del code_points[k]
+                    del codepoints[k]
                 elif start_cp - cp[0] > 1:
-                    code_points[k] = cp[0], start_cp
+                    codepoints[k] = cp[0], start_cp
                 else:
-                    code_points[k] = cp[0]
+                    codepoints[k] = cp[0]
             elif end_cp > cp[0]:
                 if start_cp <= cp[0]:
                     if cp[1] - end_cp > 1:
-                        code_points[k] = end_cp, cp[1]
+                        codepoints[k] = end_cp, cp[1]
                     else:
-                        code_points[k] = cp[1] - 1
+                        codepoints[k] = cp[1] - 1
                 else:
                     if cp[1] - end_cp > 1:
-                        code_points.insert(k + 1, (end_cp, cp[1]))
+                        codepoints.insert(k + 1, (end_cp, cp[1]))
                     else:
-                        code_points.insert(k + 1, cp[1] - 1)
+                        codepoints.insert(k + 1, cp[1] - 1)
                     if start_cp - cp[0] > 1:
-                        code_points[k] = cp[0], start_cp
+                        codepoints[k] = cp[0], start_cp
                     else:
-                        code_points[k] = cp[0]
+                        codepoints[k] = cp[0]
 
     #
     # MutableSet's mixin methods override
@@ -416,13 +410,15 @@ class UnicodeSubset(MutableSet[CodePoint]):
 
 
 ###
-# Build Unicode data structures from raw data modules
+# API for installing and accessing Unicode data categories and blocks.
+# Installed blocks and categories are built lazily when requested.
 #
-UNICODE_CATEGORIES: Dict[str, UnicodeSubset]
-UNICODE_BLOCKS: Dict[str, UnicodeSubset]
+_UNICODE_CATEGORIES: Dict[str, Union[List[CodePoint], UnicodeSubset]] = {}
+_UNICODE_BLOCKS: Dict[str, Union[str, UnicodeSubset]] = {}
 
 
 def install_unicode_categories(module_name: str) -> None:
+    """Install the Unicode categories taking data from the raw categories module provided."""
     module = importlib.import_module(module_name)
     raw_categories = module.RAW_UNICODE_CATEGORIES.copy()
 
@@ -456,13 +452,12 @@ def install_unicode_categories(module_name: str) -> None:
 
             raw_categories[k] = values
 
-    global UNICODE_CATEGORIES
-    UNICODE_CATEGORIES = {
-        k: UnicodeSubset.from_raw(cast(List[CodePoint], v)) for k, v in raw_categories.items()
-    }
+    global _UNICODE_CATEGORIES
+    _UNICODE_CATEGORIES = raw_categories
 
 
 def install_unicode_blocks(module_name: str) -> None:
+    """Install the Unicode blocks taking data from the raw blocks module provided."""
     module = importlib.import_module(module_name)
     raw_blocks = module.RAW_UNICODE_BLOCKS.copy()
 
@@ -474,31 +469,62 @@ def install_unicode_blocks(module_name: str) -> None:
 
         raw_blocks.update(diff_blocks)
 
-    global UNICODE_BLOCKS
-    UNICODE_BLOCKS = {
-        unicode_block_key(k): UnicodeSubset(v) for k, v in raw_blocks.items()
-    }
-
-    # Define the special block "No_Block", that contains all the other codepoints not
-    # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
-    no_block = UnicodeSubset([(0, maxunicode + 1)])
-    for v in UNICODE_BLOCKS.values():
-        no_block -= v
-    UNICODE_BLOCKS['NOBLOCK'] = no_block
+    global _UNICODE_BLOCKS
+    _UNICODE_BLOCKS = {unicode_block_key(k): v for k, v in raw_blocks.items()}
 
 
-install_unicode_categories('elementpath.regex.unicode_categories')
-install_unicode_blocks('elementpath.regex.unicode_blocks')
-
-
-def unicode_subset(name: str) -> UnicodeSubset:
-    if name.startswith('Is'):
+def get_unicode_subset(name: str) -> UnicodeSubset:
+    """Retrieve a Unicode subset by name, raising a RegexError if it cannot be retrieved."""
+    if name[:2] == 'Is':
         try:
-            return UNICODE_BLOCKS[unicode_block_key(name[2:])]
+            return unicode_block(name[2:])
         except KeyError:
             raise RegexError(f"{name!r} doesn't match any Unicode block")
     else:
         try:
-            return UNICODE_CATEGORIES[name]
+            return unicode_category(name)
         except KeyError:
             raise RegexError(f"{name!r} doesn't match any Unicode category")
+
+
+def unicode_category(name: str) -> UnicodeSubset:
+    """
+    Returns the Unicode category subset addressed by the provided name, raising a
+    KeyError if it's not found.
+    """
+    subset = _UNICODE_CATEGORIES[name]
+    if not isinstance(subset, UnicodeSubset):
+        subset = _UNICODE_CATEGORIES[name] = UnicodeSubset(subset)
+    return subset
+
+
+def unicode_block(name: str) -> UnicodeSubset:
+    """
+    Returns the Unicode block subset addressed by the provided name, raising a
+    KeyError if it's not found. The lookup is done without considering the
+    casing, spaces, hyphens and underscores.
+    """
+    key = unicode_block_key(name)
+    try:
+        subset = _UNICODE_BLOCKS[key]
+    except KeyError:
+        if key != 'NOBLOCK':
+            raise
+
+        # Define the special block "No_Block", that contains all the other codepoints not
+        # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
+        no_block = UnicodeSubset([(0, maxunicode + 1)])
+        for v in _UNICODE_BLOCKS.values():
+            no_block -= v
+        _UNICODE_BLOCKS['NOBLOCK'] = no_block
+        return no_block
+
+    else:
+        if not isinstance(subset, UnicodeSubset):
+            subset = _UNICODE_BLOCKS[key] = UnicodeSubset(subset)
+        return subset
+
+
+# Install Unicode categories and blocks from predefined modules
+install_unicode_categories('elementpath.regex.unicode_categories')
+install_unicode_blocks('elementpath.regex.unicode_blocks')

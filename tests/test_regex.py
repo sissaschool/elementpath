@@ -25,7 +25,17 @@ from elementpath.regex import RegexError, CharacterClass, translate_pattern
 from elementpath.regex.codepoints import get_code_point_range
 from elementpath.regex.unicode_subsets import code_point_repr, \
     iterparse_character_subset, iter_code_points, UnicodeSubset, \
-    UNICODE_CATEGORIES, UNICODE_BLOCKS
+    unicode_category, unicode_block
+
+_UNICODE_CATEGORIES = (
+    'C', 'Cc', 'Cf', 'Cs', 'Co', 'Cn',
+    'L', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo',
+    'M', 'Mn', 'Mc', 'Me',
+    'N', 'Nd', 'Nl', 'No',
+    'P', 'Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po',
+    'S', 'Sm', 'Sc', 'Sk', 'So',
+    'Z', 'Zs', 'Zl', 'Zp'
+)
 
 
 class TestCodePoints(unittest.TestCase):
@@ -268,15 +278,15 @@ class TestUnicodeSubset(unittest.TestCase):
         self.assertEqual(list(subset.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
 
         s1 = UnicodeSubset(chain(
-            UNICODE_CATEGORIES['L'].codepoints,
-            UNICODE_CATEGORIES['M'].codepoints,
-            UNICODE_CATEGORIES['N'].codepoints,
-            UNICODE_CATEGORIES['S'].codepoints
+            unicode_category('L').codepoints,
+            unicode_category('M').codepoints,
+            unicode_category('N').codepoints,
+            unicode_category('S').codepoints
         ))
         s2 = UnicodeSubset(chain(
-            UNICODE_CATEGORIES['C'].codepoints,
-            UNICODE_CATEGORIES['P'].codepoints,
-            UNICODE_CATEGORIES['Z'].codepoints
+            unicode_category('C').codepoints,
+            unicode_category('P').codepoints,
+            unicode_category('Z').codepoints
         ))
         self.assertEqual(s1.codepoints, UnicodeSubset(s2.complement()).codepoints)
 
@@ -603,23 +613,24 @@ class TestUnicodeCategories(unittest.TestCase):
     """Test the subsets of Unicode categories."""
     def test_unicode_categories(self):
         cps_of_categories = Counter(
-            {k: len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1}
+            {k: len(unicode_category(k)) for k in _UNICODE_CATEGORIES if len(k) > 1}
         )
         expected_cps = Counter(category(chr(cp)) for cp in range(sys.maxunicode + 1))
 
         self.assertEqual(cps_of_categories, expected_cps)
         self.assertEqual(cps_of_categories.total(), sys.maxunicode + 1)
 
-        self.assertEqual(min([min(s) for s in UNICODE_CATEGORIES.values()]), 0)
-        self.assertEqual(max([max(s) for s in UNICODE_CATEGORIES.values()]), sys.maxunicode)
+        self.assertEqual(min([min(unicode_category(k)) for k in _UNICODE_CATEGORIES]), 0)
+        self.assertEqual(
+            max([max(unicode_category(k)) for k in _UNICODE_CATEGORIES]), sys.maxunicode
+        )
 
-        base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
+        base_sets = [set(unicode_category(k)) for k in _UNICODE_CATEGORIES if len(k) > 1]
         self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
-    @unittest.skipIf(not ((3, 8) <= sys.version_info < (3, 9)), "Test only for Python 3.8")
     def test_unicodedata_category(self):
-        for key in UNICODE_CATEGORIES:
-            for cp in UNICODE_CATEGORIES[key]:
+        for key in _UNICODE_CATEGORIES:
+            for cp in unicode_category(key):
                 uc = category(chr(cp))
                 if key == uc or len(key) == 1 and key == uc[0]:
                     continue
@@ -640,7 +651,7 @@ class TestUnicodeBlocks(unittest.TestCase):
         self.assertEqual(unicode_block_key('Latin Extended-B'), 'LATINEXTENDEDB')
 
     def test_basic_latin_unicode_block(self):
-        subset = UNICODE_BLOCKS[self.to_key('Basic Latin')]
+        subset = unicode_block('Basic Latin')
 
         self.assertEqual(len(subset), 128)
         for cp in range(0, 0x80):
@@ -651,7 +662,7 @@ class TestUnicodeBlocks(unittest.TestCase):
         self.assertSetEqual(subset, {x for x in range(0, 0x80)})
 
     def test_latin1_supplement_unicode_block(self):
-        subset = UNICODE_BLOCKS[self.to_key('Latin-1 Supplement')]
+        subset = unicode_block('Latin-1 Supplement')
 
         self.assertEqual(len(subset), 128)
         for cp in range(0x80, 0x100):
@@ -662,7 +673,7 @@ class TestUnicodeBlocks(unittest.TestCase):
         self.assertSetEqual(subset, {x for x in range(0x80, 0x100)})
 
     def test_latin_extended_a_unicode_block(self):
-        subset = UNICODE_BLOCKS[self.to_key('Latin Extended-A')]
+        subset = unicode_block('Latin Extended-A')
 
         self.assertEqual(len(subset), 128)
         for cp in range(0x100, 0x180):
@@ -673,7 +684,7 @@ class TestUnicodeBlocks(unittest.TestCase):
         self.assertSetEqual(subset, {x for x in range(0x100, 0x180)})
 
     def test_latin_extended_b_unicode_block(self):
-        subset = UNICODE_BLOCKS[self.to_key('Latin Extended-B')]
+        subset = unicode_block('Latin Extended-B')
 
         self.assertEqual(len(subset), 208)
         for cp in range(0x180, 0x250):
@@ -684,14 +695,14 @@ class TestUnicodeBlocks(unittest.TestCase):
         self.assertSetEqual(subset, {x for x in range(0x180, 0x250)})
 
     def test_others_unicode_blocks(self):
-        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('IPA Extensions')]), 96)
-        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Spacing Modifier Letters')]), 80)
-        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Combining Diacritical Marks')]), 112)
-        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Greek and Coptic')]), 144)
-        self.assertEqual(len(UNICODE_BLOCKS[self.to_key('Cyrillic')]), 256)
+        self.assertEqual(len(unicode_block('IPA Extensions')), 96)
+        self.assertEqual(len(unicode_block('Spacing Modifier Letters')), 80)
+        self.assertEqual(len(unicode_block('Combining Diacritical Marks')), 112)
+        self.assertEqual(len(unicode_block('Greek and Coptic')), 144)
+        self.assertEqual(len(unicode_block('Cyrillic')), 256)
 
         # A block can have unassigned codepoints
-        ncp = len(UNICODE_BLOCKS[self.to_key('Greek and Coptic')] - UNICODE_CATEGORIES['Cn'])
+        ncp = len(unicode_block('Greek and Coptic') - unicode_category('Cn'))
         self.assertEqual(ncp, 135)
 
 

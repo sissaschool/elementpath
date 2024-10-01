@@ -14,7 +14,7 @@ from collections import Counter
 from typing import AbstractSet, Any, Optional, Union
 
 from elementpath._typing import Iterator, MutableSet
-from .unicode_subsets import RegexError, UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
+from .unicode_subsets import RegexError, UnicodeSubset, get_unicode_subset, unicode_category
 
 
 I_SHORTCUT_REPLACE = (
@@ -29,14 +29,14 @@ C_SHORTCUT_REPLACE = (
 
 S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
 D_SHORTCUT_SET = UnicodeSubset()
-D_SHORTCUT_SET._codepoints = UNICODE_CATEGORIES['Nd'].codepoints
+D_SHORTCUT_SET._codepoints = unicode_category('Nd').codepoints
 I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
 C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
 W_SHORTCUT_SET = UnicodeSubset(chain(
-    UNICODE_CATEGORIES['L'].codepoints,
-    UNICODE_CATEGORIES['M'].codepoints,
-    UNICODE_CATEGORIES['N'].codepoints,
-    UNICODE_CATEGORIES['S'].codepoints
+    unicode_category('L').codepoints,
+    unicode_category('M').codepoints,
+    unicode_category('N').codepoints,
+    unicode_category('S').codepoints
 ))
 
 # Single and Multi character escapes
@@ -172,7 +172,7 @@ class CharacterClass(MutableSet[int]):
                     raise RegexError("wrong Unicode block specification %r" % part)
 
                 try:
-                    subset = unicode_subset(part[3:-1])
+                    subset = get_unicode_subset(part[3:-1])
                 except RegexError:
                     # XSD 1.1 supports Is prefix to match Unicode blocks
                     if not self.xsd_version or not part[3:].startswith('Is'):
@@ -210,7 +210,7 @@ class CharacterClass(MutableSet[int]):
                     raise RegexError("wrong Unicode block specification %r" % part)
 
                 try:
-                    subset = unicode_subset(part[3:-1])
+                    subset = get_unicode_subset(part[3:-1])
                 except RegexError:
                     # XSD 1.1 supports Is prefix to match Unicode blocks
                     if not self.xsd_version or not part[3:].startswith('Is'):

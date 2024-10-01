@@ -14,7 +14,7 @@ import re
 from sys import maxunicode
 
 from elementpath.helpers import OCCURRENCE_INDICATORS
-from .unicode_subsets import RegexError, UnicodeSubset, unicode_subset
+from .unicode_subsets import RegexError, UnicodeSubset, get_unicode_subset
 from .character_classes import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CharacterClass
 
 HYPHENS_PATTERN = re.compile(r'(?<!\\)--')
@@ -155,7 +155,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
 
             if regex and regex[-1] in ('^', r'(?<!\n\Z)^', '$', r'$(?!\n\Z)'):
                 # ^{n} or ${n} allowed but useless. Invalid in Python re
-                # so incapsulate '^'/'$' inside a non-capturing group.
+                # so encapsulate '^'/'$' inside a non-capturing group.
                 regex[-1] = f'(?:{regex[-1]})'
 
             regex.append(match.group())
@@ -198,7 +198,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
 
             if regex and regex[-1] in ('^', r'(?<!\n\Z)^', '$', r'$(?!\n\Z)'):
                 # ^*/^+/^? or $*/$+/$? allowed but useless. Invalid in Python re
-                # so incapsulate '^'/'$' inside a non-capturing group.
+                # so encapsulate '^'/'$' inside a non-capturing group.
                 regex[-1] = f'(?:{regex[-1]})'
 
             regex.append(ch)
@@ -248,7 +248,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
                     block_name = block_name.replace(' ', '')
 
                 try:
-                    p_shortcut_set = unicode_subset(block_name)
+                    p_shortcut_set = get_unicode_subset(block_name)
                 except RegexError:
                     # XSD 1.1 supports Is prefix to match Unicode blocks
                     if xsd_version == '1.0' or not block_name.startswith('Is'):
