@@ -21,9 +21,7 @@ MODULE_TEMPLATE = """#
 #
 # --- Auto-generated code: don't edit this file ---
 #
-# {unicode_version_info}
-#
-MIN_UNICODE_VERSION = {dict_unicode_version!r}
+UNICODE_VERSIONS = {unicode_versions}
 
 {dict_name} = {{
     {indented_items}
@@ -37,23 +35,57 @@ DIFF_DICT_TEMPLATE = """
 """
 
 ###
-# URLs to Unicode reference web pages
-UNICODE_ENUMERATED_VERSIONS_URL = "https://www.unicode.org/versions/enumeratedversions.html"
+# Unicode versions index: https://www.unicode.org/versions/enumeratedversions.html
 
-UNICODE_DATA_URL = "https://www.unicode.org/Public/{}/ucd/UnicodeData.txt"
-BLOCKS_DATA_URL = "https://www.unicode.org/Public/{}/ucd/Blocks.txt"
+UNICODE_DATA_BASE_URL = "https://www.unicode.org/Public/"
+
+UNICODE_VERSIONS = {
+    '16.0.0': ('16.0.0/ucd/UnicodeData.txt', '16.0.0/ucd/Blocks.txt'),
+    '15.1.0': ('15.1.0/ucd/UnicodeData.txt', '15.1.0/ucd/Blocks.txt'),
+    '15.0.0': ('15.0.0/ucd/UnicodeData.txt', '15.0.0/ucd/Blocks.txt'),
+    '14.0.0': ('14.0.0/ucd/UnicodeData.txt', '14.0.0/ucd/Blocks.txt'),
+    '13.0.0': ('13.0.0/ucd/UnicodeData.txt', '13.0.0/ucd/Blocks.txt'),
+    '12.1.0': ('12.1.0/ucd/UnicodeData.txt', '12.1.0/ucd/Blocks.txt'),
+    '12.0.0': ('12.0.0/ucd/UnicodeData.txt', '12.0.0/ucd/Blocks.txt'),
+    '11.0.0': ('11.0.0/ucd/UnicodeData.txt', '11.0.0/ucd/Blocks.txt'),
+    '10.0.0': ('10.0.0/ucd/UnicodeData.txt', '10.0.0/ucd/Blocks.txt'),
+    '9.0.0': ('9.0.0/ucd/UnicodeData.txt', '9.0.0/ucd/Blocks.txt'),
+    '8.0.0': ('8.0.0/ucd/UnicodeData.txt', '8.0.0/ucd/Blocks.txt'),
+    '7.0.0': ('7.0.0/ucd/UnicodeData.txt', '7.0.0/ucd/Blocks.txt'),
+    '6.3.0': ('6.3.0/ucd/UnicodeData.txt', '6.3.0/ucd/Blocks.txt'),
+    '6.2.0': ('6.2.0.0/ucd/UnicodeData.txt', '6.2.0/ucd/Blocks.txt'),
+    '6.1.0': ('6.1.0/ucd/UnicodeData.txt', '6.1.0/ucd/Blocks.txt'),
+    '6.0.0': ('6.0.0/ucd/UnicodeData.txt', '6.0.0/ucd/Blocks.txt'),
+    '5.2.0': ('5.2.0/ucd/UnicodeData.txt', '5.2.0/ucd/Blocks.txt'),
+    '5.1.0': ('5.1.0/ucd/UnicodeData.txt', '5.1.0/ucd/Blocks.txt'),
+    '5.0.0': ('5.0.0/ucd/UnicodeData.txt', '5.0.0/ucd/Blocks.txt'),
+    '4.1.0': ('4.1.0/ucd/UnicodeData.txt', '4.1.0/ucd/Blocks.txt'),
+    '4.0.1': ('4.0-Update1/UnicodeData-4.0.1.txt', '4.0-Update1/Blocks-4.0.1.txt'),
+    '4.0.0': ('4.0-Update/UnicodeData-4.0.0.txt', '4.0-Update/Blocks-4.0.0.txt'),
+    '3.2.0': ('3.2-Update/UnicodeData-3.2.0.txt', '3.2-Update/Blocks-3.2.0.txt'),
+    '3.1.1': ('3.2-Update/UnicodeData-3.2.0.txt', '3.2-Update/Blocks-3.2.0.txt'),
+    '3.1.0': ('3.1-Update/UnicodeData-3.1.0.txt', '3.1-Update/Blocks-4.txt'),
+    '3.0.1': ('3.0-Update1/UnicodeData-3.0.1.txt', '3.0-Update/Blocks-3.txt'),
+    '3.0.0': ('3.0-Update/UnicodeData-3.0.0.txt', '3.0-Update/Blocks-3.txt'),
+    '2.1.9': ('2.1-Update4/UnicodeData-2.1.9.txt', '2.1-Update4/Blocks-2.txt'),
+    '2.1.8': ('2.1-Update3/UnicodeData-2.1.8.txt', '2.0-Update/Blocks-1.txt'),
+    '2.1.5': ('2.1-Update2/UnicodeData-2.1.5.txt', '2.0-Update/Blocks-1.txt'),
+    '2.1.2': ('2.1-Update/UnicodeData-2.1.2.txt', '2.0-Update/Blocks-1.txt'),
+    '2.0.0': ('2.0-Update/UnicodeData-2.0.14.txt', '2.0-Update/Blocks-1.txt')
+}
 
 UNICODE_CATEGORIES = (
-        'C', 'Cc', 'Cf', 'Cs', 'Co', 'Cn',
-        'L', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo',
-        'M', 'Mn', 'Mc', 'Me',
-        'N', 'Nd', 'Nl', 'No',
-        'P', 'Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po',
-        'S', 'Sm', 'Sc', 'Sk', 'So',
-        'Z', 'Zs', 'Zl', 'Zp'
-    )
+    'C', 'Cc', 'Cf', 'Cs', 'Co', 'Cn',
+    'L', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo',
+    'M', 'Mn', 'Mc', 'Me',
+    'N', 'Nd', 'Nl', 'No',
+    'P', 'Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po',
+    'S', 'Sm', 'Sc', 'Sk', 'So',
+    'Z', 'Zs', 'Zl', 'Zp'
+)
 
-DEFAULT_UNICODE_VERSIONS = ('12.1.0', '13.0.0', '14.0.0', '15.0.0', '15.1.0', '16.0.0')
+
+DEFAULT_CATEGORIES_VERSIONS = ('12.1.0', '13.0.0', '14.0.0', '15.0.0', '15.1.0', '16.0.0')
 
 
 def version_number(value):
@@ -67,8 +99,24 @@ def version_number(value):
 def unicode_version_info(versions):
     assert isinstance(versions, (tuple, list))
     if len(versions) == 1:
-        return f"Unicode data version {versions[0]}"
-    return f"Unicode data for versions {', '.join(versions)}."
+        return f"version {versions[0]}"
+    return f"versions {', '.join(versions)}."
+
+
+def get_unicode_data_url(version):
+    try:
+        url = UNICODE_VERSIONS[version][0]
+    except KeyError:
+        url = f'{version}/ucd/UnicodeData.txt'
+    return urljoin(UNICODE_DATA_BASE_URL, url)
+
+
+def get_blocks_url(version):
+    try:
+        url = UNICODE_VERSIONS[version][1]
+    except KeyError:
+        url = f'{version}/ucd/Blocks.txt'
+    return urljoin(UNICODE_DATA_BASE_URL, url)
 
 
 def iter_codepoints_with_category(version):
@@ -78,7 +126,7 @@ def iter_codepoints_with_category(version):
             yield cp, category(chr(cp))
         return
 
-    with urlopen(UNICODE_DATA_URL.format(version)) as res:
+    with urlopen(get_unicode_data_url(version)) as res:
         prev_cp = -1
 
         for line in res.readlines():
@@ -162,16 +210,22 @@ def get_unicodedata_blocks(version):
     :return: a dictionary with block names as keys and strings as values.
     """
     blocks = {}
-    with urlopen(BLOCKS_DATA_URL.format(version)) as res:
+
+    with urlopen(get_blocks_url(version)) as res:
         for line in res.readlines():
-            if line.startswith((b'#', b'\n')):
+            if line.startswith((b'#', b'\n', b'\t')):
                 continue
 
-            block_range, block_name = line.decode('utf-8').split('; ')
+            try:
+                block_range, block_name = line.decode('utf-8').split('; ')
+            except ValueError:
+                # old 2.0 format
+                block_start, block_end, block_name = line.decode('utf-8').split('; ')
+            else:
+                block_start, block_end = block_range.split('..')
 
             block_name = block_name.strip()
 
-            block_start, block_end = block_range.split('..')
             if len(block_start) <= 4:
                 block_start = rf"\u{block_start.rjust(4, '0')}"
             else:
@@ -200,14 +254,13 @@ def generate_unicode_categories_module(module_path, versions):
 
         fp.write(MODULE_TEMPLATE.format_map({
             'year': datetime.datetime.now().year,
-            'unicode_version_info': unicode_version_info(versions),
-            'dict_unicode_version': versions[0],
+            'unicode_versions': versions,
             'dict_name': 'RAW_UNICODE_CATEGORIES',
             'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
         }))
 
         for ver in versions[1:]:
-            print(f"  - Generate additional category map for version {ver} ...")
+            print(f"  - Generate diff category map for version {ver} ...")
             base_categories = categories
             categories = get_unicodedata_categories(ver)
 
@@ -237,8 +290,7 @@ def generate_unicode_blocks_module(module_path, versions):
 
         fp.write(MODULE_TEMPLATE.format_map({
             'year': datetime.datetime.now().year,
-            'unicode_version_info': unicode_version_info(versions),
-            'dict_unicode_version': versions[0],
+            'unicode_versions': pprint.pformat(versions, compact=True),
             'dict_name': 'RAW_UNICODE_BLOCKS',
             'indented_items': '\n   '.join(
                 blocks_repr[1:-1].replace('\\\\', '\\').split('\n')
@@ -246,12 +298,15 @@ def generate_unicode_blocks_module(module_path, versions):
         }))
 
         for ver in versions[1:]:
-            print(f"  - Generate additional blocks map for version {ver} ...")
+            print(f"  - Generate diff blocks map for version {ver} ...")
             base_blocks = blocks
             blocks = get_unicodedata_blocks(ver)
 
             blocks_diff = {k: v for k, v in blocks.items()
                            if k not in base_blocks or base_blocks[k] != v}
+            if not blocks_diff:
+                continue
+
             blocks_repr = pprint.pformat(blocks_diff, compact=True, sort_dicts=False)
 
             fp.write(DIFF_DICT_TEMPLATE.format_map({
@@ -270,13 +325,16 @@ if __name__ == '__main__':
     from sys import maxunicode
     from unicodedata import category, unidata_version
     from urllib.request import urlopen
+    from urllib.parse import urljoin
 
     description = (
         "Generate Unicode codepoints modules. Both modules contain dictionaries "
         "with a compressed representation of the Unicode codepoints, suitable to "
         "be loaded by the elementpath library using UnicodeSubset class. Multiple "
         "versions of Unicode database are represented by additional codepoints in "
-        "further dictionaries."
+        "further dictionaries. For default the generated categories module contains "
+        "the data for supported Python releases and pre-releases. For default the "
+        "generated blocks module includes all Unicode versions (2.0.0+)."
     )
 
     parser = argparse.ArgumentParser(
@@ -284,22 +342,23 @@ if __name__ == '__main__':
     )
     parser.add_argument('-v', '--version', dest='versions', type=version_number,
                         default=[], action='append',
-                        help="generates codepoints for specific Unicode versions, for default "
-                             "are the ones available with supported Python versions.")
+                        help="generates codepoints for specific Unicode version")
     parser.add_argument('dirpath', type=str, help="directory path for generated modules")
     args = parser.parse_args()
 
     if not args.versions:
-        args.versions.extend(DEFAULT_UNICODE_VERSIONS)
+        categories_versions = DEFAULT_CATEGORIES_VERSIONS
+        blocks_versions = list(reversed(UNICODE_VERSIONS))
     else:
-        args.versions[:] = sorted(set(args.versions), reverse=False)
+        categories_versions = blocks_versions = sorted(set(args.versions), reverse=False)
 
-    print("+++ Generate Unicode categories module +++\n")
+    print("+++ Generate Unicode categories and blocks modules +++\n")
     print("Python Unicode data version: {}".format(unidata_version))
-    print(f"Generate {unicode_version_info(args.versions)}\n")
 
     ###
     # Generate Unicode categories module
+    print(f"\nGenerate Unicode Categories for {unicode_version_info(categories_versions)}")
+
     filename = pathlib.Path(args.dirpath).joinpath('unicode_categories.py')
     if filename.is_file():
         confirm = input("Overwrite existing module %r? [Y/Yes to confirm] " % str(filename))
@@ -307,19 +366,21 @@ if __name__ == '__main__':
         confirm = 'Yes'
 
     if confirm.strip().upper() not in ('Y', 'YES'):
-        print("\nSkip generation of Unicode categories module ...\n")
+        print("\nSkip generation of Unicode categories module ...")
     else:
-        generate_unicode_categories_module(filename, args.versions)
+        generate_unicode_categories_module(filename, categories_versions)
 
     ###
     # Generate Unicode blocks module
+    print(f"\nGenerate Unicode Blocks for {unicode_version_info(blocks_versions)}")
+
     filename = pathlib.Path(args.dirpath).joinpath('unicode_blocks.py')
     if filename.is_file():
-        confirm = input("\nOverwrite existing module %r? [Y/Yes to confirm] " % str(filename))
+        confirm = input("Overwrite existing module %r? [Y/Yes to confirm] " % str(filename))
     else:
         confirm = 'Yes'
 
     if confirm.strip().upper() not in ('Y', 'YES'):
         print("\nSkip generation of Unicode blocks module ...")
     else:
-        generate_unicode_blocks_module(filename, args.versions)
+        generate_unicode_blocks_module(filename, blocks_versions)
