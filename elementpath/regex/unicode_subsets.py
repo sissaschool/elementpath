@@ -8,107 +8,33 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module defines Unicode character categories and blocks.
+This module defines a class for handling Unicode subsets with less usage of memory.
 """
-from importlib import import_module
-from itertools import chain
+from collections import defaultdict
+from functools import wraps
 from sys import maxunicode
-from typing import cast, Dict, List, Union
+from types import ModuleType
+from typing import cast, Callable, Dict, List, Optional, Tuple, Union
 from unicodedata import unidata_version
 
 from elementpath._typing import Iterable, Iterator, MutableSet
-from .common import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, CodePoint, RegexError, \
-    unicode_block_key, code_point_order, code_point_repr, iter_code_points
+from .codepoints import RegexError, CodePoint, code_point_order, \
+    code_point_repr, iter_code_points, iterparse_character_subset
+from . import unicode_blocks
+from . import unicode_categories
+
+__all__ = ['UnicodeSubset', 'UnicodeData', 'install_unicode_data', 'lazy_subset',
+           'unicode_subset', 'unicode_category', 'unicode_block']
+
+UNICODE_VERSIONS = (
+    '16.0.0', '15.1.0', '15.0.0', '14.0.0', '13.0.0', '12.1.0', '12.0.0', '11.0.0',
+    '10.0.0', '9.0.0', '8.0.0', '7.0.0', '6.3.0', '6.2.0', '6.1.0', '6.0.0',
+    '5.2.0', '5.1.0', '5.0.0', '4.1.0', '4.0.1', '4.0.0', '3.2.0', '3.1.1',
+    '3.1.0', '3.0.1', '3.0.0', '2.1.9', '2.1.8', '2.1.5', '2.1.2', '2.0.0'
+)
+
 
 CodePointsArgType = Union[None, str, 'UnicodeSubset', List[CodePoint], Iterable[CodePoint]]
-
-
-def iterparse_character_subset(s: str, expand_ranges: bool = False) -> Iterator[CodePoint]:
-    """
-    Parses a regex character subset, generating a sequence of code points
-    and code points ranges. An unescaped hyphen (-) that is not at the
-    start or at the end is interpreted as range specifier.
-
-    :param s: a string representing the character subset.
-    :param expand_ranges: if set to `True` then expands character ranges.
-    :return: yields integers or couples of integers.
-    """
-    escaped = False
-    on_range = False
-    char = ''
-    length = len(s)
-    subset_index_iterator = iter(range(len(s)))
-    for k in subset_index_iterator:
-        if k == 0:
-            char = s[0]
-            if char == '\\':
-                escaped = True
-            elif char in r'[]' and length > 1:
-                raise RegexError("bad character %r at position 0" % char)
-            elif expand_ranges:
-                yield ord(char)
-            elif length <= 2 or s[1] != '-':
-                yield ord(char)
-        elif s[k] == '-':
-            if escaped or (k == length - 1):
-                char = s[k]
-                yield ord(char)
-                escaped = False
-            elif on_range:
-                char = s[k]
-                yield ord(char)
-                on_range = False
-            else:
-                # Parse character range
-                on_range = True
-                k = next(subset_index_iterator)
-                end_char = s[k]
-                if end_char == '\\' and (k < length - 1):
-                    if s[k + 1] in r'-|.^?*+{}()[]':
-                        k = next(subset_index_iterator)
-                        end_char = s[k]
-                    elif s[k + 1] in r'sSdDiIcCwWpP':
-                        msg = "bad character range '%s-\\%s' at position %d: %r"
-                        raise RegexError(msg % (char, s[k + 1], k - 2, s))
-
-                if ord(char) > ord(end_char):
-                    msg = "bad character range '%s-%s' at position %d: %r"
-                    raise RegexError(msg % (char, end_char, k - 2, s))
-                elif expand_ranges:
-                    yield from range(ord(char) + 1, ord(end_char) + 1)
-                else:
-                    yield ord(char), ord(end_char) + 1
-
-        elif s[k] in r'|.^?*+{}()':
-            if escaped:
-                escaped = False
-            on_range = False
-            char = s[k]
-            yield ord(char)
-        elif s[k] in r'[]':
-            if not escaped and length > 1:
-                raise RegexError("bad character %r at position %d" % (s[k], k))
-            escaped = on_range = False
-            char = s[k]
-            if k >= length - 2 or s[k + 1] != '-':
-                yield ord(char)
-        elif s[k] == '\\':
-            if escaped:
-                escaped = on_range = False
-                char = '\\'
-                yield ord(char)
-            else:
-                escaped = True
-        else:
-            if escaped:
-                escaped = False
-                yield ord('\\')
-            on_range = False
-            char = s[k]
-            if k >= length - 2 or s[k + 1] != '-':
-                yield ord(char)
-    if escaped:
-        yield ord('\\')
 
 
 class UnicodeSubset(MutableSet[CodePoint]):
@@ -139,7 +65,7 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return self._codepoints
 
     @codepoints.setter
-    def codepoints(self, codepoints: List[CodePoint]) -> None:
+    def codepoints(self, codepoints: Iterable[CodePoint]) -> None:
         self._codepoints = sorted(codepoints, key=code_point_order)
 
     def __repr__(self) -> str:
@@ -426,52 +352,96 @@ class UnicodeSubset(MutableSet[CodePoint]):
         return obj.__ixor__(other)
 
 
-###
-# Define subset instances for character class shortcuts, two are created empty
-# and are initialized by the installer function of the categories.
-S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
-D_SHORTCUT_SET = UnicodeSubset()  # 'Nd' category
-I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
-C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
-W_SHORTCUT_SET = UnicodeSubset()  # 'L' | 'M' | 'N' | 'S'
+def iterparse_unicode_data(url: str) -> Iterator[Tuple[int, str]]:
+    """Iterate UnicodeData.txt source giving back codepoints and categories."""
+    from urllib.request import urlopen
 
-###
-#  Unicode Categories
-_unicode_categories: Dict[str, UnicodeSubset] = {}
+    with urlopen(url) as res:
+        prev_cp = -1
+
+        for line in res.readlines():
+            fields = line.split(b';')
+            cp = int(fields[0], 16)
+            cat = fields[2].decode('utf-8')
+
+            if cp - prev_cp > 1:
+                if fields[1].endswith(b', Last>'):
+                    # Ranges of codepoints expressed with First and then Last
+                    for x in range(prev_cp + 1, cp):
+                        yield x, cat
+                else:
+                    # For default is 'Cn' that means 'Other, not assigned'
+                    for x in range(prev_cp + 1, cp):
+                        yield x, 'Cn'
+
+            prev_cp = cp
+            yield cp, cat
+
+    while cp < maxunicode:
+        cp += 1
+        yield cp, 'Cn'
 
 
-def unicode_category(name: str) -> UnicodeSubset:
-    """Returns the Unicode category subset, raising a KeyError if it's not found."""
-    return _unicode_categories[name]
+def get_categories_from_url(url: str) -> Dict[str, UnicodeSubset]:
+    categories: Dict[str, List[CodePoint]] = defaultdict(list)
+
+    major_category = 'C'
+    major_start_cp, major_next_cp = 0, 1
+
+    minor_category = 'Cc'
+    minor_start_cp, minor_next_cp = 0, 1
+
+    for cp, cat in iterparse_unicode_data(url):
+
+        if cat[0] != major_category:
+            if cp > major_next_cp:
+                categories[major_category].append((major_start_cp, cp))
+            else:
+                categories[major_category].append(major_start_cp)
+
+            major_category = cat[0]
+            major_start_cp, major_next_cp = cp, cp + 1
+
+        if cat != minor_category:
+            if cp > minor_next_cp:
+                categories[minor_category].append((minor_start_cp, cp))
+            else:
+                categories[minor_category].append(minor_start_cp)
+
+            minor_category = cat
+            minor_start_cp, minor_next_cp = cp, cp + 1
+
+    else:
+        if major_next_cp == maxunicode + 1:
+            categories[major_category].append(major_start_cp)
+        else:
+            categories[major_category].append((major_start_cp, maxunicode + 1))
+
+        if minor_next_cp == maxunicode + 1:
+            categories[minor_category].append(minor_start_cp)
+        else:
+            categories[minor_category].append((minor_start_cp, maxunicode + 1))
+
+    return {k: UnicodeSubset(v) for k, v in categories.items()}
 
 
-def install_unicode_categories(module_name: str) -> None:
-    """Install the Unicode categories taking data from the raw categories module provided."""
-    global _unicode_categories
-
-    module = import_module(module_name)
-    raw_categories = module.RAW_UNICODE_CATEGORIES.copy()
-
-    python_max_version = tuple(int(x) for x in unidata_version.split('.'))
-    module_min_version = tuple(int(x) for x in module.MIN_UNICODE_VERSION.split('.'))
-    if python_max_version < module_min_version:
-        raise ValueError("Can't install Unicode categories because the minimum version "
-                         "provided by the module is too high for this Python release")
-
-    for name, diff_categories in filter(lambda x: x[0].startswith('DIFF_CATEGORIES_VER_'),
-                                        module.__dict__.items()):
+def get_categories(version_info: Tuple[int, ...], module: ModuleType) -> Dict[str, UnicodeSubset]:
+    categories = {k: v.copy() for k, v in module.UNICODE_CATEGORIES.items()}
+    for name in module.__dict__:
+        if not name.startswith('DIFF_CATEGORIES_VER_'):
+            continue
 
         diff_version = name[20:].replace('_', '.')
-        if python_max_version < tuple(int(x) for x in diff_version.split('.')):
+        if version_info < tuple(int(x) for x in diff_version.split('.')):
             break
 
-        for k, (exclude_cps, insert_cps) in diff_categories.items():
+        for k, (exclude_cps, insert_cps) in getattr(unicode_categories, name).items():
             values = []
             additional = iter(insert_cps)
             cpa = next(additional, None)
             cpa_int = cpa[0] if isinstance(cpa, tuple) else cpa
 
-            for cp in raw_categories[k]:
+            for cp in categories[k]:
                 if cp in exclude_cps:
                     continue
 
@@ -487,98 +457,174 @@ def install_unicode_categories(module_name: str) -> None:
                     values.append(cpa)
                     values.extend(additional)
 
-            raw_categories[k] = values
+            categories[k] = values
 
-    _unicode_categories.clear()
-    for k, v in raw_categories.items():
-        _unicode_categories[k] = UnicodeSubset(v)
-
-    D_SHORTCUT_SET.codepoints = unicode_category('Nd').codepoints
-    W_SHORTCUT_SET.codepoints = [cp for cp in chain(
-        unicode_category('L').codepoints,
-        unicode_category('M').codepoints,
-        unicode_category('N').codepoints,
-        unicode_category('S').codepoints
-    )]
+    return {k: UnicodeSubset(v) for k, v in categories.items()}
 
 
-install_unicode_categories('elementpath.regex.unicode_categories')
+class UnicodeData:
+
+    _blocks: Dict[str, Union[str, UnicodeSubset]]
+
+    @staticmethod
+    def _unicode_block_key(name: str) -> str:
+        return name.upper().replace(' ', '').replace('_', '').replace('-', '')
+
+    def __init__(self, version: Optional[str] = None,
+                 categories: Optional[Dict[str, UnicodeSubset]] = None) -> None:
+        if version is None:
+            version = unidata_version
+        elif version not in UNICODE_VERSIONS:
+            raise ValueError("argument is not a valid Unicode version")
+
+        self.version = version
+        version_info = tuple(int(x) for x in version.split('.'))
+        if categories is not None:
+            self._categories = categories
+        elif self.version in unicode_categories.UNICODE_VERSIONS:
+            self._categories = get_categories(version_info, unicode_categories)
+        else:
+            raise TypeError(f"can't get version {version} from module")
+
+        # Build blocks dict for version
+        superseded_blocks = []
+        blocks = unicode_blocks.UNICODE_BLOCKS_VER_2_0_0.copy()
+
+        for name in unicode_blocks.__dict__:  # noqa
+            if name.startswith('UPDATE_BLOCKS_VER_'):
+                diff_version = name[18:].replace('_', '.')
+                if version_info < tuple(int(x) for x in diff_version.split('.')):
+                    break
+                blocks.update(getattr(unicode_blocks, name))
+
+            elif name.startswith('REMOVED_BLOCKS_VER_'):
+                diff_version = name[19:].replace('_', '.')
+                if version_info < tuple(int(x) for x in diff_version.split('.')):
+                    break
+                superseded_blocks.extend(getattr(unicode_blocks, name))
+
+        # Following naming rules: https://www.w3.org/TR/xmlschema11-2/#cces-blockesc
+        self._blocks = {k.replace(' ', '').replace('_', ''): v for k, v in blocks.items()}
+
+        # Additional map for lookup using normalization for Unicode naming rules,
+        # doesn't include superseded blocks.
+        self._unicode_blocks = {
+            k.upper().replace(' ', '').replace('_', '').replace('-', ''): k
+            for k in blocks if k not in superseded_blocks
+        }
+
+    def category(self, name: str) -> UnicodeSubset:
+        return self._categories[name]
+
+    def block(self, name: str, normalize: bool = False) -> UnicodeSubset:
+        if normalize:
+            key = name.upper().replace(' ', '').replace('_', '').replace('-', '')
+            try:
+                name = self._unicode_blocks[key]
+            except KeyError:
+                if key != 'NOBLOCK':
+                    raise
+                name = key
+
+        try:
+            subset = self._blocks[name]
+        except KeyError:
+            if name != 'NoBlock':
+                raise
+
+            # Define the special block "No_Block", that contains all the other codepoints not
+            # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
+            no_block = UnicodeSubset([(0, maxunicode + 1)])
+            for v in self._blocks.values():
+                no_block -= v
+            self._blocks['NoBlock'] = no_block
+            self._unicode_blocks['NOBLOCK'] = 'NoBlock'
+            return no_block
+
+        else:
+            if not isinstance(subset, UnicodeSubset):
+                subset = self._blocks[name] = UnicodeSubset(subset)
+            return subset
 
 
 ###
-# Unicode Blocks
-_unicode_blocks: Dict[str, Union[str, UnicodeSubset]] = {}
+# Installed Unicode Data instance and accessors
+__unicode_data = UnicodeData()
+
+# Simple cache for Unicode subsets defined using callables with no-arguments, that
+# can include subsets defined on versioned Unicode data or fixed codepoints. This
+# cache is cleared if Unicode data is reinstalled.
+__subsets_cache: Dict[Callable[[], UnicodeSubset], UnicodeSubset] = {}
 
 
-def unicode_block(name: str) -> UnicodeSubset:
+def install_unicode_data(version: str, name_or_url: Optional[str] = None) -> None:
     """
-    Returns the Unicode block subset addressed by the provided name, raising a
-    KeyError if it's not found. The lookup is done without considering the
-    casing, spaces, hyphens and underscores.
+    Install a different version of UnicodeData. Call without parameters to restore the
+    default version.
+
+    :param version: Unicode version to install.
+    :param name_or_url: Import name of an additional module or a URL to raw UnicodeData.txt.
     """
-    key = unicode_block_key(name)
-    try:
-        subset = _unicode_blocks[key]
-    except KeyError:
-        if key != 'NOBLOCK':
-            raise
+    global __unicode_data
 
-        # Define the special block "No_Block", that contains all the other codepoints not
-        # belonging to a defined block (https://www.unicode.org/Public/UNIDATA/Blocks.txt)
-        no_block = UnicodeSubset([(0, maxunicode + 1)])
-        for v in _unicode_blocks.values():
-            no_block -= v
-        _unicode_blocks['NOBLOCK'] = no_block
-        return no_block
-
+    if name_or_url is None:
+        __unicode_data = UnicodeData(version)
+    elif name_or_url.endswith('unicode_categories'):
+        import importlib
+        module = importlib.import_module(name_or_url)
+        version_info = tuple(int(x) for x in version.split('.'))
+        categories = get_categories(version_info, module)
+        __unicode_data = UnicodeData(version, categories)
     else:
-        if not isinstance(subset, UnicodeSubset):
-            subset = _unicode_blocks[key] = UnicodeSubset(subset)
-        return subset
+        categories = get_categories_from_url(name_or_url)
+        __unicode_data = UnicodeData(version, categories)
+
+    __subsets_cache.clear()
 
 
-def install_unicode_blocks(module_name: str) -> None:
+def lazy_subset(func: Callable[[], UnicodeSubset]) -> Callable[[], UnicodeSubset]:
     """
-    Install Unicode blocks taking data from the raw blocks module provided.
-    Installed blocks are built lazily when requested.
+    Defines a lazy UnicodeSubset wrapping its definition in a callable with no arguments.
     """
-    global _unicode_blocks
+    @wraps(func)
+    def wrapper() -> UnicodeSubset:
+        try:
+            return __subsets_cache[func]
+        except KeyError:
+            __subsets_cache[func] = func()
+            return __subsets_cache[func]
 
-    module = import_module(module_name)
-    raw_blocks = module.RAW_UNICODE_BLOCKS.copy()
-
-    python_max_version = tuple(int(x) for x in unidata_version.split('.'))
-    module_min_version = tuple(int(x) for x in module.MIN_UNICODE_VERSION.split('.'))
-    if python_max_version < module_min_version:
-        raise ValueError("Can't install Unicode blocks because the minimum version "
-                         "provided by the module is too high for this Python release")
-
-    for name, diff_blocks in filter(lambda x: x[0].startswith('DIFF_BLOCKS_VER_'),
-                                    module.__dict__.items()):
-
-        diff_version = name[16:].replace('_', '.')
-        if python_max_version < tuple(int(x) for x in diff_version.split('.')):
-            break
-
-        raw_blocks.update(diff_blocks)
-
-    _unicode_blocks.clear()
-    for k, v in raw_blocks.items():
-        _unicode_blocks[unicode_block_key(k)] = v
+    return wrapper
 
 
-install_unicode_blocks('elementpath.regex.unicode_blocks')
-
-
-def get_unicode_subset(name: str) -> UnicodeSubset:
+def unicode_subset(name: str) -> UnicodeSubset:
     """Retrieve a Unicode subset by name, raising a RegexError if it cannot be retrieved."""
     if name[:2] == 'Is':
         try:
-            return unicode_block(name[2:])
+            return __unicode_data.block(name[2:])
         except KeyError:
             raise RegexError(f"{name!r} doesn't match any Unicode block")
     else:
         try:
-            return unicode_category(name)
+            return __unicode_data.category(name)
         except KeyError:
             raise RegexError(f"{name!r} doesn't match any Unicode category")
+
+
+def unicode_category(name: str) -> UnicodeSubset:
+    """
+    Returns the Unicode Character Category subset addressed by the provided name, raising a
+    KeyError if it's not found.
+    """
+    return __unicode_data.category(name)
+
+
+def unicode_block(name: str, normalize: bool = False) -> UnicodeSubset:
+    """
+    Returns the Unicode block subset addressed by the provided name, raising a KeyError
+    if it's not found. For default the lookup is done following the XSD naming rules for
+    blocks and keeping superseded blocks (e.g. Greek), otherwise the name is normalized
+    following the Unicode standard rules, without considering the casing, spaces, hyphens
+    and underscores and the lookup is restricted to blocks defined on installed version.
+    """
+    return __unicode_data.block(name, normalize)

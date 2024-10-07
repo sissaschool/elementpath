@@ -10,15 +10,51 @@
 import re
 from sys import maxunicode
 from collections import Counter
-from typing import AbstractSet, Any, Optional, Union
+from itertools import chain
+from typing import AbstractSet, Any, Callable, Dict, Optional, Union
 
 from elementpath._typing import Iterator, MutableSet
-from .common import RegexError
-from .unicode_subsets import UnicodeSubset, get_unicode_subset, S_SHORTCUT_SET, \
-    D_SHORTCUT_SET, I_SHORTCUT_SET, C_SHORTCUT_SET, W_SHORTCUT_SET
+from .codepoints import RegexError
+from .unicode_subsets import UnicodeSubset, lazy_subset, unicode_subset, unicode_category
+
+I_SHORTCUT_REPLACE = (
+    ":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
+    "\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+)
+
+C_SHORTCUT_REPLACE = (
+    "-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
+    "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+)
+
+
+@lazy_subset
+def c_shortcut() -> UnicodeSubset:
+    return UnicodeSubset(C_SHORTCUT_REPLACE)
+
+
+@lazy_subset
+def i_shortcut() -> UnicodeSubset:
+    return UnicodeSubset(I_SHORTCUT_REPLACE)
+
+
+@lazy_subset
+def s_shortcut() -> UnicodeSubset:
+    return UnicodeSubset(' \t\n\r')
+
+
+@lazy_subset
+def d_shortcut() -> UnicodeSubset:
+    return unicode_category('Nd')
+
+
+@lazy_subset
+def w_shortcut() -> UnicodeSubset:
+    return UnicodeSubset(chain.from_iterable(unicode_category(x) for x in 'LMNS'))
+
 
 # Single and Multi character escapes
-CHARACTER_ESCAPES = {
+CHARACTER_ESCAPES: Dict[str, Union[str, Callable[[], UnicodeSubset]]] = {
     # Single-character escapes
     '\\n': '\n',
     '\\r': '\r',
@@ -39,16 +75,16 @@ CHARACTER_ESCAPES = {
     '\\\\': '\\',
 
     # Multi-character escapes
-    '\\s': S_SHORTCUT_SET,
-    '\\S': S_SHORTCUT_SET,
-    '\\d': D_SHORTCUT_SET,
-    '\\D': D_SHORTCUT_SET,
-    '\\i': I_SHORTCUT_SET,
-    '\\I': I_SHORTCUT_SET,
-    '\\c': C_SHORTCUT_SET,
-    '\\C': C_SHORTCUT_SET,
-    '\\w': W_SHORTCUT_SET,
-    '\\W': W_SHORTCUT_SET,
+    '\\s': s_shortcut,
+    '\\S': s_shortcut,
+    '\\d': d_shortcut,
+    '\\D': d_shortcut,
+    '\\i': i_shortcut,
+    '\\I': i_shortcut,
+    '\\c': c_shortcut,
+    '\\C': c_shortcut,
+    '\\w': w_shortcut,
+    '\\W': w_shortcut,
 }
 
 
@@ -142,15 +178,15 @@ class CharacterClass(MutableSet[int]):
                 if isinstance(value, str):
                     self.positive.update(value)
                 elif part[-1].islower():
-                    self.positive |= value
+                    self.positive |= value()
                 else:
-                    self.negative |= value
+                    self.negative |= value()
             elif part.startswith('\\p') or part.startswith('\\P'):
                 if self._re_unicode_ref.search(part) is None:
                     raise RegexError("wrong Unicode block specification %r" % part)
 
                 try:
-                    subset = get_unicode_subset(part[3:-1])
+                    subset = unicode_subset(part[3:-1])
                 except RegexError:
                     # XSD 1.1 supports Is prefix to match Unicode blocks
                     if not self.xsd_version or not part[3:].startswith('Is'):
@@ -176,11 +212,11 @@ class CharacterClass(MutableSet[int]):
                     if self.negative:
                         self.negative.update(value)
                 elif part[-1].islower():
-                    self.positive -= value
+                    self.positive -= value()
                     if self.negative:
-                        self.negative |= value
+                        self.negative |= value()
                 else:
-                    self.positive &= value
+                    self.positive &= value()
                     self.negative.clear()
 
             elif part.startswith('\\p') or part.startswith('\\P'):
@@ -188,7 +224,7 @@ class CharacterClass(MutableSet[int]):
                     raise RegexError("wrong Unicode block specification %r" % part)
 
                 try:
-                    subset = get_unicode_subset(part[3:-1])
+                    subset = unicode_subset(part[3:-1])
                 except RegexError:
                     # XSD 1.1 supports Is prefix to match Unicode blocks
                     if not self.xsd_version or not part[3:].startswith('Is'):
@@ -210,4 +246,4 @@ class CharacterClass(MutableSet[int]):
         if self.positive or self.negative:
             self.positive, self.negative = self.negative, self.positive
         else:
-            self.positive.codepoints.append((0, maxunicode + 1))
+            self.positive.codepoints = [(0, maxunicode + 1)]

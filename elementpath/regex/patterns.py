@@ -13,9 +13,9 @@ Parse and translate XML Schema regular expressions to Python regex syntax.
 import re
 from sys import maxunicode
 
-from .common import I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE, RegexError
-from .unicode_subsets import UnicodeSubset, get_unicode_subset
-from .character_classes import CharacterClass
+from .codepoints import RegexError
+from .unicode_subsets import UnicodeSubset, unicode_subset
+from .character_classes import CharacterClass, I_SHORTCUT_REPLACE, C_SHORTCUT_REPLACE
 
 HYPHENS_PATTERN = re.compile(r'(?<!\\)--')
 INVALID_HYPHEN_PATTERN = re.compile(r'[^\\]-[^\\]-[^\\]')
@@ -248,7 +248,7 @@ def translate_pattern(pattern: str, flags: int = 0, xsd_version: str = '1.0',
                     block_name = block_name.replace(' ', '')
 
                 try:
-                    p_shortcut_set = get_unicode_subset(block_name)
+                    p_shortcut_set = unicode_subset(block_name)
                 except RegexError:
                     # XSD 1.1 supports Is prefix to match Unicode blocks
                     if xsd_version == '1.0' or not block_name.startswith('Is'):
