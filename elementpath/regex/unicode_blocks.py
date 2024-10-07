@@ -9,13 +9,7 @@
 #
 # --- Auto-generated code: don't edit this file ---
 #
-UNICODE_VERSIONS = ['2.0.0', '2.1.2', '2.1.5', '2.1.8', '2.1.9', '3.0.0', '3.0.1', '3.1.0',
- '3.1.1', '3.2.0', '4.0.0', '4.0.1', '4.1.0', '5.0.0', '5.1.0', '5.2.0',
- '6.0.0', '6.1.0', '6.2.0', '6.3.0', '7.0.0', '8.0.0', '9.0.0', '10.0.0',
- '11.0.0', '12.0.0', '12.1.0', '13.0.0', '14.0.0', '15.0.0', '15.1.0',
- '16.0.0']
-
-RAW_UNICODE_BLOCKS = {
+UNICODE_BLOCKS_VER_2_0_0 = {
     'Basic Latin': '\u0000-\u007F',
     'Latin-1 Supplement': '\u0080-\u00FF',
     'Latin Extended-A': '\u0100-\u017F',
@@ -86,12 +80,12 @@ RAW_UNICODE_BLOCKS = {
     'Specials': '\uFEFF-\uFEFF\uFFF0-\uFFFF'
 }
 
-DIFF_BLOCKS_VER_2_1_9 = {
+UPDATE_BLOCKS_VER_2_1_9 = {
     'Arabic Presentation Forms-B': '\uFE70-\uFEFE',
     'Specials': '\uFEFF-\uFEFF\uFFF0-\uFFFD'
 }
 
-DIFF_BLOCKS_VER_3_0_0 = {
+UPDATE_BLOCKS_VER_3_0_0 = {
     'Syriac': '\u0700-\u074F',
     'Thaana': '\u0780-\u07BF',
     'Sinhala': '\u0D80-\u0DFF',
@@ -114,7 +108,7 @@ DIFF_BLOCKS_VER_3_0_0 = {
     'Yi Radicals': '\uA490-\uA4CF'
 }
 
-DIFF_BLOCKS_VER_3_1_0 = {
+UPDATE_BLOCKS_VER_3_1_0 = {
     'Private Use': '\uE000-\uF8FF\U000F0000-\U000FFFFD\U00100000-\U0010FFFD',
     'Old Italic': '\U00010300-\U0001032F',
     'Gothic': '\U00010330-\U0001034F',
@@ -127,7 +121,11 @@ DIFF_BLOCKS_VER_3_1_0 = {
     'Tags': '\U000E0000-\U000E007F'
 }
 
-DIFF_BLOCKS_VER_3_1_1 = {
+REMOVED_BLOCKS_VER_3_1_1 = [
+    'Greek', 'Combining Marks for Symbols', 'Private Use'
+]
+
+UPDATE_BLOCKS_VER_3_1_1 = {
     'Greek and Coptic': '\u0370-\u03FF',
     'Cyrillic Supplementary': '\u0500-\u052F',
     'Tagalog': '\u1700-\u171F',
@@ -152,7 +150,7 @@ DIFF_BLOCKS_VER_3_1_1 = {
     'Supplementary Private Use Area-B': '\U00100000-\U0010FFFF'
 }
 
-DIFF_BLOCKS_VER_4_0_0 = {
+UPDATE_BLOCKS_VER_4_0_0 = {
     'Limbu': '\u1900-\u194F',
     'Tai Le': '\u1950-\u197F',
     'Khmer Symbols': '\u19E0-\u19FF',
@@ -170,11 +168,15 @@ DIFF_BLOCKS_VER_4_0_0 = {
     'Variation Selectors Supplement': '\U000E0100-\U000E01EF'
 }
 
-DIFF_BLOCKS_VER_4_0_1 = {
+REMOVED_BLOCKS_VER_4_0_1 = [
+    'Cyrillic Supplementary'
+]
+
+UPDATE_BLOCKS_VER_4_0_1 = {
     'Cyrillic Supplement': '\u0500-\u052F'
 }
 
-DIFF_BLOCKS_VER_4_1_0 = {
+UPDATE_BLOCKS_VER_4_1_0 = {
     'Arabic Supplement': '\u0750-\u077F',
     'Ethiopic Supplement': '\u1380-\u139F',
     'New Tai Lue': '\u1980-\u19DF',
@@ -197,7 +199,7 @@ DIFF_BLOCKS_VER_4_1_0 = {
     'Ancient Greek Musical Notation': '\U0001D200-\U0001D24F'
 }
 
-DIFF_BLOCKS_VER_5_0_0 = {
+UPDATE_BLOCKS_VER_5_0_0 = {
     'NKo': '\u07C0-\u07FF',
     'Balinese': '\u1B00-\u1B7F',
     'Latin Extended-C': '\u2C60-\u2C7F',
@@ -209,7 +211,7 @@ DIFF_BLOCKS_VER_5_0_0 = {
     'Counting Rod Numerals': '\U0001D360-\U0001D37F'
 }
 
-DIFF_BLOCKS_VER_5_1_0 = {
+UPDATE_BLOCKS_VER_5_1_0 = {
     'Sundanese': '\u1B80-\u1BBF',
     'Lepcha': '\u1C00-\u1C4F',
     'Ol Chiki': '\u1C50-\u1C7F',
@@ -229,7 +231,7 @@ DIFF_BLOCKS_VER_5_1_0 = {
     'Domino Tiles': '\U0001F030-\U0001F09F'
 }
 
-DIFF_BLOCKS_VER_5_2_0 = {
+UPDATE_BLOCKS_VER_5_2_0 = {
     'Samaritan': '\u0800-\u083F',
     'Unified Canadian Aboriginal Syllabics Extended': '\u18B0-\u18FF',
     'Tai Tham': '\u1A20-\u1AAF',
@@ -258,7 +260,7 @@ DIFF_BLOCKS_VER_5_2_0 = {
     'CJK Unified Ideographs Extension C': '\U0002A700-\U0002B73F'
 }
 
-DIFF_BLOCKS_VER_6_0_0 = {
+UPDATE_BLOCKS_VER_6_0_0 = {
     'Mandaic': '\u0840-\u085F',
     'Batak': '\u1BC0-\u1BFF',
     'Ethiopic Extended-A': '\uAB00-\uAB2F',
@@ -273,7 +275,7 @@ DIFF_BLOCKS_VER_6_0_0 = {
     'CJK Unified Ideographs Extension D': '\U0002B740-\U0002B81F'
 }
 
-DIFF_BLOCKS_VER_6_1_0 = {
+UPDATE_BLOCKS_VER_6_1_0 = {
     'Arabic Extended-A': '\u08A0-\u08FF',
     'Sundanese Supplement': '\u1CC0-\u1CCF',
     'Meetei Mayek Extensions': '\uAAE0-\uAAFF',
@@ -287,7 +289,11 @@ DIFF_BLOCKS_VER_6_1_0 = {
     'Arabic Mathematical Alphabetic Symbols': '\U0001EE00-\U0001EEFF'
 }
 
-DIFF_BLOCKS_VER_7_0_0 = {
+REMOVED_BLOCKS_VER_7_0_0 = [
+    'Miscellaneous Symbols And Pictographs', 'Transport And Map Symbols'
+]
+
+UPDATE_BLOCKS_VER_7_0_0 = {
     'Combining Diacritical Marks Extended': '\u1AB0-\u1AFF',
     'Myanmar Extended-B': '\uA9E0-\uA9FF',
     'Latin Extended-E': '\uAB30-\uAB6F',
@@ -324,7 +330,7 @@ DIFF_BLOCKS_VER_7_0_0 = {
     'Supplemental Arrows-C': '\U0001F800-\U0001F8FF'
 }
 
-DIFF_BLOCKS_VER_8_0_0 = {
+UPDATE_BLOCKS_VER_8_0_0 = {
     'Cherokee Supplement': '\uAB70-\uABBF',
     'Hatran': '\U000108E0-\U000108FF',
     'Old Hungarian': '\U00010C80-\U00010CFF',
@@ -337,7 +343,7 @@ DIFF_BLOCKS_VER_8_0_0 = {
     'CJK Unified Ideographs Extension E': '\U0002B820-\U0002CEAF'
 }
 
-DIFF_BLOCKS_VER_9_0_0 = {
+UPDATE_BLOCKS_VER_9_0_0 = {
     'Cyrillic Extended-C': '\u1C80-\u1C8F',
     'Osage': '\U000104B0-\U000104FF',
     'Newa': '\U00011400-\U0001147F',
@@ -351,7 +357,7 @@ DIFF_BLOCKS_VER_9_0_0 = {
     'Adlam': '\U0001E900-\U0001E95F'
 }
 
-DIFF_BLOCKS_VER_10_0_0 = {
+UPDATE_BLOCKS_VER_10_0_0 = {
     'Syriac Supplement': '\u0860-\u086F',
     'Zanabazar Square': '\U00011A00-\U00011A4F',
     'Soyombo': '\U00011A50-\U00011AAF',
@@ -361,7 +367,7 @@ DIFF_BLOCKS_VER_10_0_0 = {
     'CJK Unified Ideographs Extension F': '\U0002CEB0-\U0002EBEF'
 }
 
-DIFF_BLOCKS_VER_11_0_0 = {
+UPDATE_BLOCKS_VER_11_0_0 = {
     'Georgian Extended': '\u1C90-\u1CBF',
     'Hanifi Rohingya': '\U00010D00-\U00010D3F',
     'Old Sogdian': '\U00010F00-\U00010F2F',
@@ -375,7 +381,7 @@ DIFF_BLOCKS_VER_11_0_0 = {
     'Chess Symbols': '\U0001FA00-\U0001FA6F'
 }
 
-DIFF_BLOCKS_VER_12_0_0 = {
+UPDATE_BLOCKS_VER_12_0_0 = {
     'Elymaic': '\U00010FE0-\U00010FFF',
     'Nandinagari': '\U000119A0-\U000119FF',
     'Tamil Supplement': '\U00011FC0-\U00011FFF',
@@ -387,7 +393,7 @@ DIFF_BLOCKS_VER_12_0_0 = {
     'Symbols and Pictographs Extended-A': '\U0001FA70-\U0001FAFF'
 }
 
-DIFF_BLOCKS_VER_13_0_0 = {
+UPDATE_BLOCKS_VER_13_0_0 = {
     'Yezidi': '\U00010E80-\U00010EBF',
     'Chorasmian': '\U00010FB0-\U00010FDF',
     'Dives Akuru': '\U00011900-\U0001195F',
@@ -398,7 +404,7 @@ DIFF_BLOCKS_VER_13_0_0 = {
     'CJK Unified Ideographs Extension G': '\U00030000-\U0003134F'
 }
 
-DIFF_BLOCKS_VER_14_0_0 = {
+UPDATE_BLOCKS_VER_14_0_0 = {
     'Arabic Extended-B': '\u0870-\u089F',
     'Vithkuqi': '\U00010570-\U000105BF',
     'Latin Extended-F': '\U00010780-\U000107BF',
@@ -415,7 +421,7 @@ DIFF_BLOCKS_VER_14_0_0 = {
     'Ethiopic Extended-B': '\U0001E7E0-\U0001E7FF'
 }
 
-DIFF_BLOCKS_VER_15_0_0 = {
+UPDATE_BLOCKS_VER_15_0_0 = {
     'Arabic Extended-C': '\U00010EC0-\U00010EFF',
     'Devanagari Extended-A': '\U00011B00-\U00011B5F',
     'Kawi': '\U00011F00-\U00011F5F',
@@ -426,11 +432,11 @@ DIFF_BLOCKS_VER_15_0_0 = {
     'CJK Unified Ideographs Extension H': '\U00031350-\U000323AF'
 }
 
-DIFF_BLOCKS_VER_15_1_0 = {
+UPDATE_BLOCKS_VER_15_1_0 = {
     'CJK Unified Ideographs Extension I': '\U0002EBF0-\U0002EE5F'
 }
 
-DIFF_BLOCKS_VER_16_0_0 = {
+UPDATE_BLOCKS_VER_16_0_0 = {
     'Todhri': '\U000105C0-\U000105FF',
     'Garay': '\U00010D40-\U00010D8F',
     'Tulu-Tigalari': '\U00011380-\U000113FF',

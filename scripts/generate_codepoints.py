@@ -10,7 +10,7 @@
 #
 """Codepoints modules generator utility."""
 
-MODULE_TEMPLATE = """#
+MODULE_HEADER_TEMPLATE = """#
 # Copyright (c), 2018-{year}, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
@@ -20,15 +20,15 @@ MODULE_TEMPLATE = """#
 # @author Davide Brunato <brunato@sissa.it>
 #
 # --- Auto-generated code: don't edit this file ---
-#
-UNICODE_VERSIONS = {unicode_versions}
+#"""
 
-{dict_name} = {{
+LIST_TEMPLATE = """
+{list_name} = [
     {indented_items}
-}}
+]
 """
 
-DIFF_DICT_TEMPLATE = """
+DICT_TEMPLATE = """
 {dict_name} = {{
     {indented_items}
 }}
@@ -53,7 +53,7 @@ UNICODE_VERSIONS = {
     '8.0.0': ('8.0.0/ucd/UnicodeData.txt', '8.0.0/ucd/Blocks.txt'),
     '7.0.0': ('7.0.0/ucd/UnicodeData.txt', '7.0.0/ucd/Blocks.txt'),
     '6.3.0': ('6.3.0/ucd/UnicodeData.txt', '6.3.0/ucd/Blocks.txt'),
-    '6.2.0': ('6.2.0.0/ucd/UnicodeData.txt', '6.2.0/ucd/Blocks.txt'),
+    '6.2.0': ('6.2.0/ucd/UnicodeData.txt', '6.2.0/ucd/Blocks.txt'),
     '6.1.0': ('6.1.0/ucd/UnicodeData.txt', '6.1.0/ucd/Blocks.txt'),
     '6.0.0': ('6.0.0/ucd/UnicodeData.txt', '6.0.0/ucd/Blocks.txt'),
     '5.2.0': ('5.2.0/ucd/UnicodeData.txt', '5.2.0/ucd/Blocks.txt'),
@@ -85,7 +85,7 @@ UNICODE_CATEGORIES = (
 )
 
 
-DEFAULT_CATEGORIES_VERSIONS = ('12.1.0', '13.0.0', '14.0.0', '15.0.0', '15.1.0', '16.0.0')
+DEFAULT_CATEGORIES_VERSIONS = ['12.1.0', '13.0.0', '14.0.0', '15.0.0', '15.1.0', '16.0.0']
 
 
 def version_number(value):
@@ -96,8 +96,10 @@ def version_number(value):
     return value.strip()
 
 
-def unicode_version_info(versions):
+def version_info(versions):
     assert isinstance(versions, (tuple, list))
+    if not versions:
+        return "all versions."
     if len(versions) == 1:
         return f"version {versions[0]}"
     return f"versions {', '.join(versions)}."
@@ -248,14 +250,22 @@ def generate_unicode_categories_module(module_path, versions):
     print(f"\nSaving raw Unicode categories to {str(module_path)}")
 
     with module_path.open('w') as fp:
-        print("Write module header and generate raw categories map ...")
+        print(f"Write module header and generate categories map for version {versions[0]} ...")
+
+        fp.write(MODULE_HEADER_TEMPLATE.format_map({
+            'year': datetime.datetime.now().year,
+        }))
+
         categories = get_unicodedata_categories(versions[0])
         categories_repr = pprint.pformat(categories, compact=True)
 
-        fp.write(MODULE_TEMPLATE.format_map({
-            'year': datetime.datetime.now().year,
-            'unicode_versions': versions,
-            'dict_name': 'RAW_UNICODE_CATEGORIES',
+        fp.write(LIST_TEMPLATE.format_map({
+            'list_name': 'UNICODE_VERSIONS',
+            'indented_items': '\n   '.join(repr(versions)[1:-1].split('\n'))
+        }))
+
+        fp.write(DICT_TEMPLATE.format_map({
+            'dict_name': 'UNICODE_CATEGORIES',
             'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
         }))
 
@@ -274,7 +284,7 @@ def generate_unicode_categories_module(module_path, versions):
 
             categories_repr = pprint.pformat(categories_diff, compact=True)
 
-            fp.write(DIFF_DICT_TEMPLATE.format_map({
+            fp.write(DICT_TEMPLATE.format_map({
                 'dict_name':  f"DIFF_CATEGORIES_VER_{ver.replace('.', '_')}",
                 'indented_items': '\n   '.join(categories_repr[1:-1].split('\n'))
             }))
@@ -284,14 +294,17 @@ def generate_unicode_blocks_module(module_path, versions):
     print(f"\nSaving raw Unicode blocks to {str(module_path)}")
 
     with module_path.open('w') as fp:
-        print("Write module header and generate raw blocks map ...")
+        print(f"Write module header and generate blocks map for version {versions[0]} ...")
+
+        fp.write(MODULE_HEADER_TEMPLATE.format_map({
+            'year': datetime.datetime.now().year,
+        }))
+
         blocks = get_unicodedata_blocks(versions[0])
         blocks_repr = pprint.pformat(blocks, compact=True, sort_dicts=False)
 
-        fp.write(MODULE_TEMPLATE.format_map({
-            'year': datetime.datetime.now().year,
-            'unicode_versions': pprint.pformat(versions, compact=True),
-            'dict_name': 'RAW_UNICODE_BLOCKS',
+        fp.write(DICT_TEMPLATE.format_map({
+            'dict_name': 'UNICODE_BLOCKS_VER_2_0_0',
             'indented_items': '\n   '.join(
                 blocks_repr[1:-1].replace('\\\\', '\\').split('\n')
             )
@@ -302,19 +315,25 @@ def generate_unicode_blocks_module(module_path, versions):
             base_blocks = blocks
             blocks = get_unicodedata_blocks(ver)
 
-            blocks_diff = {k: v for k, v in blocks.items()
-                           if k not in base_blocks or base_blocks[k] != v}
-            if not blocks_diff:
-                continue
+            blocks_removed = [k for k in base_blocks if k not in blocks]
+            blocks_update = {k: v for k, v in blocks.items()
+                             if k not in base_blocks or base_blocks[k] != v}
 
-            blocks_repr = pprint.pformat(blocks_diff, compact=True, sort_dicts=False)
+            if blocks_removed:
+                removed_repr = pprint.pformat(blocks_removed, compact=True)
+                fp.write(LIST_TEMPLATE.format_map({
+                    'list_name': f"REMOVED_BLOCKS_VER_{ver.replace('.', '_')}",
+                    'indented_items': '\n   '.join(removed_repr[1:-1].split('\n'))
+                }))
 
-            fp.write(DIFF_DICT_TEMPLATE.format_map({
-                'dict_name': f"DIFF_BLOCKS_VER_{ver.replace('.', '_')}",
-                'indented_items': '\n   '.join(
-                    blocks_repr[1:-1].replace('\\\\', '\\').split('\n')
-                )
-            }))
+            if blocks_update:
+                update_repr = pprint.pformat(blocks_update, compact=True, sort_dicts=False)
+                fp.write(DICT_TEMPLATE.format_map({
+                    'dict_name': f"UPDATE_BLOCKS_VER_{ver.replace('.', '_')}",
+                    'indented_items': '\n   '.join(
+                        update_repr[1:-1].replace('\\\\', '\\').split('\n')
+                    )
+                }))
 
 
 if __name__ == '__main__':
@@ -350,14 +369,15 @@ if __name__ == '__main__':
         categories_versions = DEFAULT_CATEGORIES_VERSIONS
         blocks_versions = list(reversed(UNICODE_VERSIONS))
     else:
-        categories_versions = blocks_versions = sorted(set(args.versions), reverse=False)
+        categories_versions = args.versions = sorted(set(args.versions), reverse=False)
+        blocks_versions = list(reversed(args.versions))
 
     print("+++ Generate Unicode categories and blocks modules +++\n")
     print("Python Unicode data version: {}".format(unidata_version))
 
     ###
     # Generate Unicode categories module
-    print(f"\nGenerate Unicode Categories for {unicode_version_info(categories_versions)}")
+    print(f"\nGenerate Unicode Categories for {version_info(args.versions)}")
 
     filename = pathlib.Path(args.dirpath).joinpath('unicode_categories.py')
     if filename.is_file():
@@ -372,7 +392,7 @@ if __name__ == '__main__':
 
     ###
     # Generate Unicode blocks module
-    print(f"\nGenerate Unicode Blocks for {unicode_version_info(blocks_versions)}")
+    print(f"\nGenerate Unicode Blocks for {version_info(args.versions)}")
 
     filename = pathlib.Path(args.dirpath).joinpath('unicode_blocks.py')
     if filename.is_file():
