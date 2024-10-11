@@ -7,12 +7,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 from itertools import zip_longest
 from typing import TYPE_CHECKING, cast, Any, Optional
 
 from elementpath.exceptions import ElementPathKeyError, xpath_error
-from elementpath.helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, WHITESPACES_PATTERN
+from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Patterns
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
     get_expanded_name
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType, \
@@ -42,14 +41,13 @@ COMMON_SEQUENCE_TYPES = {
     'processing-instruction()', 'item()', 'node()', 'numeric'
 }
 
+
 ###
 # Sequence type checking
-SEQUENCE_TYPE_PATTERN = re.compile(r'\s?([()?*+,])\s?')
-
 
 def normalize_sequence_type(sequence_type: str) -> str:
-    sequence_type = WHITESPACES_PATTERN.sub(' ', sequence_type).strip()
-    sequence_type = SEQUENCE_TYPE_PATTERN.sub(r'\1', sequence_type)
+    sequence_type = collapse_white_spaces(sequence_type)
+    sequence_type = Patterns.sequence_type.sub(r'\1', sequence_type)
     return sequence_type.replace(',', ', ').replace(')as', ') as')
 
 
@@ -200,15 +198,15 @@ def is_sequence_type(value: Any, parser: Optional['XPathParserType'] = None) -> 
 
         elif st.startswith('element(') and st.endswith(')'):
             if ',' not in st:
-                return EQNAME_PATTERN.match(st[8:-1]) is not None
+                return Patterns.extended_qname.match(st[8:-1]) is not None
 
             try:
                 arg1, arg2 = st[8:-1].split(', ')
             except ValueError:
                 return False
             else:
-                return (arg1 == '*' or EQNAME_PATTERN.match(arg1) is not None) \
-                       and EQNAME_PATTERN.match(arg2) is not None
+                return (arg1 == '*' or Patterns.extended_qname.match(arg1) is not None) \
+                       and Patterns.extended_qname.match(arg2) is not None
 
         elif st.startswith('document-node(') and st.endswith(')'):
             if not st.startswith('document-node(element('):

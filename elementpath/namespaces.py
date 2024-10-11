@@ -7,17 +7,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 from typing import cast, Tuple, Union
 
 from elementpath.aliases import NamespacesType, NsmapType
-
-# Regex patterns related to names and namespaces
-NAMESPACE_URI_PATTERN = re.compile(r'{([^}]+)}')
-EXPANDED_NAME_PATTERN = re.compile(
-    r'^(?:{(?P<namespace>[^}]+)})?'
-    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
-)
+from elementpath.helpers import Patterns
 
 # Namespaces
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
@@ -70,13 +63,13 @@ XSD_NUMERIC = '{%s}numeric' % XSD_NAMESPACE
 
 def get_namespace(name: str) -> str:
     try:
-        return NAMESPACE_URI_PATTERN.match(name).group(1)  # type: ignore[union-attr]
+        return Patterns.namespace_uri.match(name).group(1)  # type: ignore[union-attr]
     except AttributeError:
         return ''
 
 
 def split_expanded_name(name: str) -> Tuple[str, str]:
-    match = EXPANDED_NAME_PATTERN.match(name)
+    match = Patterns.expanded_name.match(name)
     if match is None:
         raise ValueError(f"{name!r} is not an expanded QName")
     namespace, local_name = match.groups()

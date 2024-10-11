@@ -12,7 +12,7 @@ import math
 from calendar import isleap, leapdays
 from decimal import Decimal
 from operator import attrgetter
-from typing import Any, List, Optional, Union, SupportsFloat
+from typing import Any, List, Optional, overload, SupportsFloat, Type, Union
 from urllib.parse import urlsplit
 
 from elementpath._typing import Iterator, Match
@@ -26,23 +26,64 @@ INVALID_NUMERIC = frozenset(
     ('inf', '+inf', '-inf', 'nan', 'infinity', '+infinity', '-infinity')
 )
 
-###
-# Data validation helpers
 
-NORMALIZE_PATTERN = re.compile(r'[^\S\xa0]')
-WHITESPACES_PATTERN = re.compile(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
-NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
-QNAME_PATTERN = re.compile(
-    r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
-    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
-)
-EQNAME_PATTERN = re.compile(
-    r'^(?:Q{(?P<namespace>[^}]+)}|'
-    r'(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
-    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
-)
-WRONG_ESCAPE_PATTERN = re.compile(r'%(?![a-fA-F\d]{2})')
-XML_NEWLINES_PATTERN = re.compile('\r\n|\r|\n')
+###
+# Data validation patterns
+
+class LazyPattern:
+    """
+    A descriptor for creating lazy regexp patterns. The compiled pattern is built
+    only when the descriptor attribute is accessed (e.g. a hasattr() call).
+    """
+    _compiled: re.Pattern[str]
+
+    def __init__(self, pattern: str, flags: Union[int, re.RegexFlag] = 0) -> None:
+        self._pattern = pattern
+        self._flags = flags
+
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
+        self._name = name
+
+    @overload
+    def __get__(self, instance: None, owner: Type[Any]) -> re.Pattern[str]: ...
+
+    @overload
+    def __get__(self, instance: Any, owner: Type[Any]) -> re.Pattern[str]: ...
+
+    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> re.Pattern[str]:
+        try:
+            return self._compiled
+        except AttributeError:
+            self._compiled = re.compile(self._pattern, self._flags)
+            return self._compiled
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        raise AttributeError("Can't set attribute {}".format(self._name))
+
+    def __delete__(self, instance: Any) -> None:
+        raise AttributeError("Can't delete attribute {}".format(self._name))
+
+
+class Patterns:
+    whitespaces = LazyPattern(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
+    normalize = LazyPattern(r'[^\S\xa0]')
+    ncname = LazyPattern(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
+    extended_qname = LazyPattern(
+        r'^(?:Q{(?P<namespace>[^}]+)}|'
+        r'(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
+        r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
+    )
+    replacement = LazyPattern(r'^([^\\$]|\\{2}|\\\$|\$\d+)*$')
+    sequence_type = LazyPattern(r'\s?([()?*+,])\s?')
+    wrong_escape = LazyPattern(r'%(?![a-fA-F\d]{2})')
+    xml_newlines = LazyPattern('\r\n|\r|\n')
+
+    # Regex patterns related to names and namespaces
+    namespace_uri = LazyPattern(r'{([^}]+)}')
+    expanded_name = LazyPattern(
+        r'^(?:{(?P<namespace>[^}]+)})?'
+        r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
+    )
 
 
 def upper_camel_case(s: str) -> str:
@@ -50,16 +91,16 @@ def upper_camel_case(s: str) -> str:
 
 
 def collapse_white_spaces(s: str) -> str:
-    return WHITESPACES_PATTERN.sub(' ', s).strip(' ')
+    return Patterns.whitespaces.sub(' ', s).strip(' ')
 
 
 def is_ncname(s: str) -> bool:
-    return re.match(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$', s) is not None
+    return Patterns.ncname.match(s) is not None
 
 
 def is_idrefs(value: Optional[str]) -> bool:
     return isinstance(value, str) and \
-        all(NCNAME_PATTERN.match(x) is not None for x in value.split())
+        all(Patterns.ncname.match(x) is not None for x in value.split())
 
 
 node_position = attrgetter('position')

@@ -28,8 +28,8 @@ from elementpath.aliases import Emptiable
 from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.tdop import MultiLabel
-from elementpath.helpers import OCCURRENCE_INDICATORS, EQNAME_PATTERN, \
-    XML_NEWLINES_PATTERN, is_xml_codepoint, node_position
+from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
+    is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
@@ -901,7 +901,7 @@ def evaluate_format_date_time_functions(self: XPathFunction, context: ContextTyp
                     except (KeyError, ValueError) as err:
                         raise self.error('FOFD1340', str(err)) from None
 
-                elif EQNAME_PATTERN.search(calendar) is None:
+                elif Patterns.extended_qname.search(calendar) is None:
                     raise self.error('FOFD1340', f'Invalid calendar argument {calendar!r}')
             else:
                 result.append('[' if not result else ', ')
@@ -1335,7 +1335,7 @@ def evaluate_unparsed_text_functions(self: XPathFunction, context: ContextType =
     text = text.lstrip('\ufeff')
 
     if self.symbol == 'unparsed-text-lines':
-        lines = XML_NEWLINES_PATTERN.split(text)
+        lines = Patterns.xml_newlines.split(text)
         return lines[:-1] if lines[-1] == '' else lines
 
     return text
@@ -1788,11 +1788,11 @@ def evaluate_nilled_function(self: XPathFunction, context: ContextType = None) \
     arg: Optional[NumericType] = self.get_argument(self.context or context, default_to_context=True)
     if arg is None:
         return []
-    elif not isinstance(arg, XPathNode):
+    elif isinstance(arg, XPathNode):
+        result = arg.nilled
+        return result if result is not None else []
+    else:
         raise self.error('XPTY0004', 'an XPath node required')
-
-    result = arg.nilled
-    return result if result is not None else []
 
 
 @method(function('node-name', nargs=(0, 1), sequence_types=('node()?', 'xs:QName?')))
@@ -1802,24 +1802,24 @@ def evaluate_node_name_function(self: XPathFunction, context: ContextType = None
     arg = self.get_argument(self.context or context, default_to_context=True)
     if arg is None:
         return []
-    elif not isinstance(arg, XPathNode):
-        raise self.error('XPTY0004', 'an XPath node required')
-
-    name = arg.name
-    if name is None:
-        return []
-    elif name.startswith('{'):
-        # name is a QName in extended format
-        namespace, local_name = split_expanded_name(name)
-        for pfx, uri in self.parser.namespaces.items():
-            if uri == namespace:
-                if not pfx:
-                    return QName(uri, local_name)
-                return QName(uri, '{}:{}'.format(pfx, local_name))
-        raise self.error('FONS0004', 'no prefix found for namespace {}'.format(namespace))
+    elif isinstance(arg, XPathNode):
+        name = arg.name
+        if name is None:
+            return []
+        elif name.startswith('{'):
+            # name is a QName in extended format
+            namespace, local_name = split_expanded_name(name)
+            for pfx, uri in self.parser.namespaces.items():
+                if uri == namespace:
+                    if not pfx:
+                        return QName(uri, local_name)
+                    return QName(uri, '{}:{}'.format(pfx, local_name))
+            raise self.error('FONS0004', 'no prefix found for namespace {}'.format(namespace))
+        else:
+            # name is a local name
+            return QName(self.parser.namespaces.get('', ''), name)
     else:
-        # name is a local name
-        return QName(self.parser.namespaces.get('', ''), name)
+        raise self.error('XPTY0004', 'an XPath node required')
 
 
 @method(function('string-join', nargs=(1, 2),

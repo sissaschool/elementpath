@@ -10,7 +10,7 @@
 import re
 from typing import Any
 
-from elementpath.helpers import NORMALIZE_PATTERN, collapse_white_spaces
+from elementpath.helpers import collapse_white_spaces, Patterns
 from .atomic_types import AnyAtomicType
 
 
@@ -20,7 +20,7 @@ class NormalizedString(str, AnyAtomicType):
 
     def __new__(cls, obj: Any) -> 'NormalizedString':
         try:
-            return super().__new__(cls, NORMALIZE_PATTERN.sub(' ', obj))
+            return super().__new__(cls, Patterns.normalize.sub(' ', obj))
         except TypeError:
             return super().__new__(cls, obj)
 
@@ -41,7 +41,7 @@ class XsdToken(NormalizedString):
         match = cls.pattern.match(value)
         if match is None:
             raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
-        return super(NormalizedString, cls).__new__(cls, value)
+        return super(NormalizedString, cls).__new__(cls, value)  # noqa
 
 
 class Language(XsdToken):
@@ -59,7 +59,7 @@ class Language(XsdToken):
         match = cls.pattern.match(value)
         if match is None:
             raise ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
-        return super(NormalizedString, cls).__new__(cls, value)
+        return super(NormalizedString, cls).__new__(cls, value)  # noqa
 
 
 class Name(XsdToken):

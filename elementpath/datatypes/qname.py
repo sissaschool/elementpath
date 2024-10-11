@@ -7,9 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import re
 from typing import Any, Optional
 
-from elementpath.helpers import QNAME_PATTERN
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 
@@ -22,7 +22,10 @@ class AbstractQName(AnyAtomicType):
     URI if a prefixed name is provided for the 2nd argument.
     :param qname: the prefixed name or a local name.
     """
-    pattern = QNAME_PATTERN
+    pattern = re.compile(
+        r'^(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
+        r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
+    )
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'AbstractQName':
         if cls.__name__ == 'Notation':

@@ -7,9 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import re
 from abc import abstractmethod
 from typing import Any, Callable, Union
-import re
 import codecs
 
 from elementpath.helpers import collapse_white_spaces

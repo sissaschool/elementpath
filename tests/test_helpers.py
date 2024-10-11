@@ -8,16 +8,28 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import re
 import unittest
 import math
 from xml.etree import ElementTree
-from elementpath.helpers import days_from_common_era, months2days, \
-    round_number, is_idrefs, collapse_white_spaces, escape_json_string, \
+from elementpath.helpers import LazyPattern, days_from_common_era, \
+    months2days, round_number, is_idrefs, collapse_white_spaces, escape_json_string, \
     get_double, numeric_equal, numeric_not_equal, equal, not_equal, \
     match_wildcard, unescape_json_string, iter_sequence, split_function_test
 
 
 class HelperFunctionsTest(unittest.TestCase):
+
+    def test_lazy_pattern(self):
+        pattern = LazyPattern(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
+        self.assertIsInstance(pattern, LazyPattern)
+
+        class TestPatterns:
+            pattern = LazyPattern(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
+
+        self.assertIsInstance(TestPatterns.pattern, re.Pattern)
+        self.assertIsNotNone(TestPatterns.pattern.match('foo'))
+        self.assertIsNone(TestPatterns.pattern.match('foo:bar'))
 
     def test_node_is_idref_function(self):
         self.assertTrue(is_idrefs(ElementTree.XML('<A>xyz</A>').text))

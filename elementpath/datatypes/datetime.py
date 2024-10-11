@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
+import re
 import math
 import operator
-import re
 import datetime
 from calendar import isleap
 from decimal import Decimal, Context

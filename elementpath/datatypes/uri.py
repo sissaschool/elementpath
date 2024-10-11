@@ -11,7 +11,7 @@ from decimal import Decimal
 from urllib.parse import urlparse
 from typing import Union
 
-from elementpath.helpers import collapse_white_spaces, WRONG_ESCAPE_PATTERN
+from elementpath.helpers import collapse_white_spaces, Patterns
 from .atomic_types import AnyAtomicType
 from .untyped import UntypedAtomic
 from .numeric import Integer
@@ -110,6 +110,6 @@ class AnyURI(AnyAtomicType):
             elif value.count('#') > 1:
                 msg = 'invalid value {!r} for xs:{} (too many # characters)'
                 raise ValueError(msg.format(value, cls.name))
-            elif WRONG_ESCAPE_PATTERN.search(value) is not None:
+            elif Patterns.wrong_escape.search(value) is not None:
                 msg = 'invalid value {!r} for xs:{} (wrong escaping)'
                 raise ValueError(msg.format(value, cls.name))

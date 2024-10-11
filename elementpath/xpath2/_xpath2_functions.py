@@ -25,7 +25,7 @@ from urllib.parse import urlsplit, quote as urllib_quote
 from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable, AnyNsmapType
 from elementpath.exceptions import ElementPathValueError
-from elementpath.helpers import QNAME_PATTERN, is_idrefs, is_xml_codepoint, round_number
+from elementpath.helpers import Patterns, is_idrefs, is_xml_codepoint, round_number
 from elementpath.datatypes import AtomicType, DateTime10, DateTime, Date10, Date, \
     Float10, DoubleProxy, Time, Duration, DayTimeDuration, YearMonthDuration, \
     UntypedAtomic, AnyURI, QName, NCName, Id, ArithmeticProxy, NumericProxy, NumericType
@@ -222,7 +222,7 @@ def evaluate_resolve_qname_function(self: XPathFunction, context: ContextType = 
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
 
     qname = qname.strip()
-    match = QNAME_PATTERN.match(qname)
+    match = QName.pattern.match(qname)
     if match is None:
         raise self.error('FOCA0002', '1st argument must be an xs:QName')
 
@@ -798,9 +798,6 @@ def evaluate_matches_function(self: XPathFunction, context: ContextType = None) 
         raise self.error('FORX0002', err) from None
 
 
-REPLACEMENT_PATTERN = re.compile(r'^([^\\$]|\\{2}|\\\$|\$\d+)*$')
-
-
 @method(function('replace', nargs=(3, 4), sequence_types=(
         'xs:string?', 'xs:string', 'xs:string', 'xs:string', 'xs:string')))
 def evaluate_replace_function(self: XPathFunction, context: ContextType = None) -> str:
@@ -840,7 +837,7 @@ def evaluate_replace_function(self: XPathFunction, context: ContextType = None) 
             input_string = input_string.replace('\\', '\\\\')
             return re_pattern.sub(replacement, input_string).replace('\\\\', '\\')
 
-        elif REPLACEMENT_PATTERN.search(replacement) is None:
+        elif Patterns.replacement.search(replacement) is None:
             raise self.error('FORX0004', f"Invalid replacement string {replacement!r}")
         else:
             for g in range(re_pattern.groups, -1, -1):

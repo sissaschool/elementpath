@@ -7,8 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 import math
+import re
 from typing import Any, Optional, SupportsFloat, SupportsInt, Union, Type
 
 from elementpath.helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, collapse_white_spaces

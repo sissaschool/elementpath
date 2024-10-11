@@ -30,7 +30,7 @@ from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTim
     DateTime, Timezone, Duration, BooleanProxy, DoubleProxy, DoubleProxy10, \
     NumericProxy, UntypedAtomic, Base64Binary, Language, AtomicType, NumericType
 from elementpath.exceptions import ElementPathTypeError
-from elementpath.helpers import WHITESPACES_PATTERN, is_xml_codepoint, \
+from elementpath.helpers import collapse_white_spaces, is_xml_codepoint, \
     escape_json_string, unescape_json_string, not_equal
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XML_BASE
 from elementpath.etree import etree_iter_strings, is_etree_element
@@ -931,7 +931,7 @@ def evaluate_parse_ietf_date_function(self: XPathFunction, context: ContextType 
         return []
 
     # Normalize the input
-    value = WHITESPACES_PATTERN.sub(' ', value).strip()
+    value = collapse_white_spaces(value)
     value = value.replace(' -', '-').replace('- ', '-').replace(' +', '+')
     value = value.replace(' (', '(').replace('( ', '(').replace(' )', ')')
 
