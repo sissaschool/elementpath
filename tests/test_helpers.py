@@ -215,6 +215,7 @@ class HelperFunctionsTest(unittest.TestCase):
         self.assertEqual(unescape_json_string('\\"'), '"')
         self.assertEqual(unescape_json_string('\\\\'), '\\')
         self.assertEqual(unescape_json_string('\\u000a'), '\n')
+        self.assertEqual(unescape_json_string('\\U0000000a'), '\n')
         self.assertEqual(unescape_json_string('-\\r-'), '-\r-')
         self.assertEqual(unescape_json_string("-\\t-"), '-\t-')
 

@@ -65,7 +65,10 @@ class LazyPattern:
 
 
 class Patterns:
-    whitespaces = LazyPattern(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
+    """
+    Helper patterns, the ones that aren't used at import time are defined lazy.
+    """
+    whitespaces = re.compile(r'[^\S\xa0]+')  # include ASCII 160 (non-breaking space)
     normalize = LazyPattern(r'[^\S\xa0]')
     ncname = LazyPattern(r'^[^\d\W][\w.\-\u00B7\u0300-\u036F\u203F\u2040]*$')
     extended_qname = LazyPattern(
@@ -75,6 +78,7 @@ class Patterns:
     )
     replacement = LazyPattern(r'^([^\\$]|\\{2}|\\\$|\$\d+)*$')
     sequence_type = LazyPattern(r'\s?([()?*+,])\s?')
+    unicode_escape = LazyPattern(r'(?:\\u([0-9A-Fa-f]{4})|\\U([0-9A-Fa-f]{8}))')
     wrong_escape = LazyPattern(r'%(?![a-fA-F\d]{2})')
     xml_newlines = LazyPattern('\r\n|\r|\n')
 
@@ -288,7 +292,8 @@ def escape_json_string(s: str, escaped: bool = False) -> str:
 def unescape_json_string(s: str) -> str:
 
     def unicode_escape_callback(match: Match[str]) -> str:
-        return chr(int(match.group(1).upper(), 16))
+        group = match.group(1) or match.group(2)
+        return chr(int(group.upper(), 16))
 
     s = s.replace('\\"', '\"').\
         replace(r'\b', '\b').\
@@ -299,7 +304,7 @@ def unescape_json_string(s: str) -> str:
         replace(r'\/', '/').\
         replace('\\\\', '\\')
 
-    return re.sub(r'\\u([0-9A-Fa-f]{4})', unicode_escape_callback, s)
+    return Patterns.unicode_escape.sub(unicode_escape_callback, s)
 
 
 def iter_sequence(obj: Any) -> Iterator[Any]:
