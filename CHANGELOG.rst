@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v4.5.1`_ (2024-09-16)
+`v4.6.0`_ (2024-10-12)
 ======================
 * Fix XsdAttributeGroupProtocol
+* Improve Unicode support with installable UnicodeData.txt versions
 
 `v4.5.0`_ (2024-09-09)
 ======================
@@ -474,4 +475,4 @@ CHANGELOG
 .. _v4.3.0: https://github.com/sissaschool/elementpath/compare/v4.2.1...v4.3.0
 .. _v4.4.0: https://github.com/sissaschool/elementpath/compare/v4.3.0...v4.4.0
 .. _v4.5.0: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.5.0
-.. _v4.5.1: https://github.com/sissaschool/elementpath/compare/v4.5.0...v4.5.1
+.. _v4.6.0: https://github.com/sissaschool/elementpath/compare/v4.5.0...v4.6.0

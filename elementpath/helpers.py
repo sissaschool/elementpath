@@ -15,7 +15,7 @@ from operator import attrgetter
 from typing import Any, List, Optional, overload, SupportsFloat, Type, Union
 from urllib.parse import urlsplit
 
-from elementpath._typing import Iterator, Match
+from elementpath._typing import Iterator, Match, Pattern
 
 ###
 # Common sets constants
@@ -35,7 +35,7 @@ class LazyPattern:
     A descriptor for creating lazy regexp patterns. The compiled pattern is built
     only when the descriptor attribute is accessed (e.g. a hasattr() call).
     """
-    _compiled: re.Pattern[str]
+    _compiled: Pattern[str]
 
     def __init__(self, pattern: str, flags: Union[int, re.RegexFlag] = 0) -> None:
         self._pattern = pattern
@@ -45,12 +45,12 @@ class LazyPattern:
         self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: Type[Any]) -> re.Pattern[str]: ...
+    def __get__(self, instance: None, owner: Type[Any]) -> Pattern[str]: ...
 
     @overload
-    def __get__(self, instance: Any, owner: Type[Any]) -> re.Pattern[str]: ...
+    def __get__(self, instance: Any, owner: Type[Any]) -> Pattern[str]: ...
 
-    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> re.Pattern[str]:
+    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> Pattern[str]:
         try:
             return self._compiled
         except AttributeError:
