@@ -12,6 +12,7 @@
 This module runs tests on XML Schema regular expressions.
 """
 import unittest
+import os
 import sys
 import re
 import string
@@ -20,12 +21,11 @@ from copy import copy
 from itertools import chain
 from unicodedata import category, unidata_version
 
-from elementpath.helpers import unicode_block_key
-from elementpath.regex import RegexError, CharacterClass, translate_pattern
+from elementpath.regex import RegexError, CharacterClass, translate_pattern, \
+    UnicodeSubset, unicode_category, unicode_block, install_unicode_data, \
+    unicode_version, UnicodeData
 from elementpath.regex.codepoints import code_point_repr, iter_code_points, \
     iterparse_character_subset
-from elementpath.regex.unicode_subsets import UnicodeSubset, unicode_category, \
-    unicode_block
 
 CATEGORIES = (
     'C', 'Cc', 'Cf', 'Cs', 'Co', 'Cn',
@@ -597,8 +597,9 @@ class TestCharacterClass(unittest.TestCase):
         self.assertEqual(len(char_class), sys.maxunicode - 1)
 
 
-class TestUnicodeCategories(unittest.TestCase):
-    """Test the subsets of Unicode categories."""
+class TestUnicodeData(unittest.TestCase):
+    """Test the UnicodeData installation and its subsets."""
+
     def test_unicode_categories(self):
         cps_of_categories = Counter(
             {k: len(unicode_category(k)) for k in CATEGORIES if len(k) > 1}
@@ -629,17 +630,12 @@ class TestUnicodeCategories(unittest.TestCase):
                     False, "Wrong category %r for code point %d (should be %r)." % (uc, cp, key)
                 )
 
-
-class TestUnicodeBlocks(unittest.TestCase):
-    """Test the subsets of Unicode blocks"""
-
-    @staticmethod
-    def to_key(k):
-        return unicode_block_key(k)
-
     def test_unicode_block_key(self):
-        self.assertEqual(unicode_block_key('Latin-1 Supplement'), 'LATIN1SUPPLEMENT')
-        self.assertEqual(unicode_block_key('Latin Extended-B'), 'LATINEXTENDEDB')
+        self.assertEqual(
+            UnicodeData._unicode_block_key('Latin-1 Supplement'), 'LATIN1SUPPLEMENT')
+        self.assertEqual(
+            UnicodeData._unicode_block_key('Latin Extended-B'), 'LATINEXTENDEDB'
+        )
 
     def test_basic_latin_unicode_block(self):
         with self.assertRaises(KeyError):
@@ -707,6 +703,56 @@ class TestUnicodeBlocks(unittest.TestCase):
         # A block can have unassigned codepoints
         ncp = len(unicode_block('GreekandCoptic') - unicode_category('Cn'))
         self.assertEqual(ncp, 135)
+
+    def test_install_unicode_data(self):
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertNotIn(42971, unicode_category('Ll'))
+
+        install_unicode_data('16.0.0')
+        self.assertEqual('16.0.0', unicode_version())
+        self.assertIn(42971, unicode_category('Ll'))
+
+        install_unicode_data()
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertNotIn(42971, unicode_category('Ll'))
+
+        install_unicode_data('16.0.0', 'elementpath.regex.unicode_categories')
+        self.assertEqual('16.0.0', unicode_version())
+        self.assertIn(42971, unicode_category('Ll'))
+
+        install_unicode_data()
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertNotIn(42971, unicode_category('Ll'))
+
+        with self.assertRaises(ValueError) as ctx:
+            install_unicode_data('14.1.0')
+        self.assertEqual(str(ctx.exception), "argument is not a valid Unicode version")
+
+        with self.assertRaises(TypeError) as ctx:
+            install_unicode_data(name_or_url='elementpath.regex.unicode_categories')
+        self.assertEqual(str(ctx.exception), "you must specify a version to install")
+
+        self.assertEqual(unidata_version, unicode_version())
+
+    @unittest.skipUnless('TEST_UNICODE_INSTALLATION' in os.environ,
+                         "Skip UnicodeData.txt installation")
+    def test_unicode_data_installation_from_source(self):
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertIn(42998, unicode_category('Ll'))
+
+        version = os.environ.get('TEST_UNICODE_INSTALLATION')
+        version_info = tuple(map(int, version.split('.')))
+
+        self.assertLess(version_info, (13, 0, 0))
+        install_unicode_data(
+            version, f'https://www.unicode.org/Public/{version}/ucd/UnicodeData.txt'
+        )
+        self.assertEqual(version, unicode_version())
+        self.assertNotIn(42998, unicode_category('Ll'))
+
+        install_unicode_data()
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertIn(42998, unicode_category('Ll'))
 
 
 class TestPatterns(unittest.TestCase):

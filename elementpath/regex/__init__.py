@@ -16,10 +16,10 @@ API options. Default options process XPath/XQuery patterns.
 """
 from .codepoints import RegexError, iter_code_points
 from .unicode_subsets import UnicodeSubset, UnicodeData, install_unicode_data, \
-    unicode_subset, lazy_subset, unicode_category, unicode_block
+    unicode_version, unicode_subset, lazy_subset, unicode_category, unicode_block
 from .character_classes import CharacterClass
 from .patterns import translate_pattern
 
 __all__ = ['translate_pattern', 'RegexError', 'UnicodeSubset', 'UnicodeData',
-           'install_unicode_data', 'unicode_subset', 'lazy_subset',
+           'install_unicode_data', 'unicode_version', 'unicode_subset', 'lazy_subset',
            'unicode_category', 'unicode_block', 'CharacterClass', 'iter_code_points']

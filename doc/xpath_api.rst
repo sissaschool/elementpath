@@ -147,6 +147,8 @@ XPath regular expressions
 =========================
 
 .. autofunction:: elementpath.translate_pattern
+.. autofunction:: elementpath.install_unicode_data
+.. autofunction:: elementpath.unicode_version
 
 
 Exception classes

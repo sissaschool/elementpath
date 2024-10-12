@@ -192,10 +192,6 @@ def normalized_seconds(seconds: Union[int, Decimal]) -> str:
     return '{:.6f}'.format(seconds).rstrip('0').rstrip('.')
 
 
-def unicode_block_key(name: str) -> str:
-    return name.upper().replace(' ', '').replace('_', '').replace('-', '')
-
-
 def is_xml_codepoint(cp: int) -> bool:
     return cp in (0x9, 0xA, 0xD) or \
         0x20 <= cp <= 0xD7FF or \

@@ -36,7 +36,7 @@ from .xpath1 import XPath1Parser
 from .xpath2 import XPath2Parser
 from .xpath_selectors import select, iter_select, Selector
 from .schema_proxy import AbstractSchemaProxy
-from .regex import RegexError, translate_pattern
+from .regex import RegexError, translate_pattern, install_unicode_data, unicode_version
 
 __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContextError',
            'UnsupportedFeatureError', 'ElementPathKeyError',
@@ -49,4 +49,5 @@ __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContex
            'SchemaElementNode', 'get_node_tree', 'build_node_tree',
            'build_lxml_node_tree', 'build_schema_node_tree', 'XPathToken',
            'XPathFunction', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select',
-           'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern']
+           'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern',
+           'install_unicode_data', 'unicode_version']

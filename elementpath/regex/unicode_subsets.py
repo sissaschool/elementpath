@@ -23,8 +23,8 @@ from .codepoints import RegexError, CodePoint, code_point_order, \
 from . import unicode_blocks
 from . import unicode_categories
 
-__all__ = ['UnicodeSubset', 'UnicodeData', 'install_unicode_data', 'lazy_subset',
-           'unicode_subset', 'unicode_category', 'unicode_block']
+__all__ = ['UnicodeSubset', 'UnicodeData', 'install_unicode_data', 'unicode_version',
+           'lazy_subset', 'unicode_subset', 'unicode_category', 'unicode_block']
 
 UNICODE_VERSIONS = (
     '16.0.0', '15.1.0', '15.0.0', '14.0.0', '13.0.0', '12.1.0', '12.0.0', '11.0.0',
@@ -557,18 +557,22 @@ __unicode_data = UnicodeData()
 __subsets_cache: Dict[Callable[[], UnicodeSubset], UnicodeSubset] = {}
 
 
-def install_unicode_data(version: str, name_or_url: Optional[str] = None) -> None:
+def install_unicode_data(version: Optional[str] = None,
+                         name_or_url: Optional[str] = None) -> None:
     """
-    Install a different version of UnicodeData. Call without parameters to restore the
+    Install a different version of UnicodeData. For default the package installs the version
+    that matches `unicodedata.unidata_version`. Call without parameters to restore the
     default version.
 
-    :param version: Unicode version to install.
+    :param version: Unicode version to install. It's required if a *name_or_url* is provided.
     :param name_or_url: Import name of an additional module or a URL to raw UnicodeData.txt.
     """
     global __unicode_data
 
     if name_or_url is None:
         __unicode_data = UnicodeData(version)
+    elif version is None:
+        raise TypeError("you must specify a version to install")
     elif name_or_url.endswith('unicode_categories'):
         import importlib
         module = importlib.import_module(name_or_url)
@@ -580,6 +584,11 @@ def install_unicode_data(version: str, name_or_url: Optional[str] = None) -> Non
         __unicode_data = UnicodeData(version, categories)
 
     __subsets_cache.clear()
+
+
+def unicode_version() -> str:
+    """Returns the installed UnicodeData version."""
+    return __unicode_data.version
 
 
 def lazy_subset(func: Callable[[], UnicodeSubset]) -> Callable[[], UnicodeSubset]:
