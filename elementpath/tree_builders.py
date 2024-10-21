@@ -100,14 +100,10 @@ def build_node_tree(root: ElementTreeRootType,
     root_node: Union[DocumentNode, ElementNode]
     parent: Any
     elements: Any
-    child: ChildNodeType
-    children: Iterator[Any]
-
     position = 1
 
-    def build_element_node() -> ElementNode:
+    def build_element_node(elem, parent):
         nonlocal position
-
         node = ElementNode(elem, parent, position, namespaces)
         position += 1
         elements[elem] = node
@@ -119,12 +115,19 @@ def build_node_tree(root: ElementTreeRootType,
             node.children.append(TextNode(elem.text, node, position))
             position += 1
 
+        for child_elem in elem:
+            child_node = build_element_node(child_elem, node)
+            node.children.append(child_node)
+
+            if child_elem.tail is not None:
+                node.children.append(TextNode(child_elem.tail, node, position))
+                position += 1
+
         return node
 
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
-        parent = DocumentNode(document, uri, position)
-        root_node = parent
+        root_node = DocumentNode(document, uri, position)
         position += 1
         elements = root_node.elements
 
@@ -132,49 +135,18 @@ def build_node_tree(root: ElementTreeRootType,
         if root_elem is None:
             return root_node
 
-        elem = root_elem
-        child = build_element_node()
-        parent.children.append(child)
-        parent = child
+        root_element_node = build_element_node(root_elem, root_node)
+        root_node.children.append(root_element_node)
+        return root_node
+
     else:
         elem = root
-        parent = None
         elements = {}
-        root_node = parent = build_element_node()
+        root_node = build_element_node(elem, None)
         root_node.elements = elements
         if uri is not None:
             root_node.uri = uri
-
-    children = iter(elem)
-    iterators: List[Any] = []
-    ancestors: List[Any] = []
-
-    while True:
-        for elem in children:
-            if not callable(elem.tag):
-                child = build_element_node()
-            elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-                child = CommentNode(elem, parent, position)
-                position += 1
-            else:
-                child = ProcessingInstructionNode(elem, parent, position)
-
-            parent.children.append(child)
-            if elem.tail is not None:
-                parent.children.append(TextNode(elem.tail, parent, position))
-                position += 1
-
-            if len(elem):
-                ancestors.append(parent)
-                parent = child
-                iterators.append(children)
-                children = iter(elem)
-                break
-        else:
-            try:
-                children, parent = iterators.pop(), ancestors.pop()
-            except IndexError:
-                return root_node
+        return root_node
 
 
 def build_lxml_node_tree(root: LxmlRootType,
