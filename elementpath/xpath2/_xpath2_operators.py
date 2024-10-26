@@ -44,10 +44,15 @@ method = XPath2Parser.method
 function = XPath2Parser.function
 
 
+@method('then')
 @method('as')
 @method('of')
-def nud_as_and_of_symbols(self: XPathToken) -> XPathToken:
-    raise self.error('XPDY0002')  # Dynamic context required
+@method('else')
+@method('in')
+@method('return')
+@method('satisfies')
+def nud_auxiliary_symbols(self: XPathToken) -> XPathToken:
+    return self.as_name()
 
 
 ###

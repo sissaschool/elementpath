@@ -12,7 +12,6 @@ XPath 2.0 implementation - part 1 (parser class and symbols)
 """
 from abc import ABCMeta
 import locale
-from collections.abc import MutableSequence
 from urllib.parse import urlparse
 from typing import cast, Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
@@ -556,11 +555,6 @@ XPath2Parser.unregister('starts-with')
 
 ###
 # Symbols
-XPath2Parser.register('then')
-XPath2Parser.register('else')
-XPath2Parser.register('in')
-XPath2Parser.register('return')
-XPath2Parser.register('satisfies')
 XPath2Parser.register('?')
 XPath2Parser.register('(:')
 XPath2Parser.register(':)')

@@ -1170,12 +1170,13 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('for', [context.root.getroot()], context)
 
     def test_auxiliary_tokens(self):
+        # Tokens are parsed as names, so raise at evaluation if the contest is None
         self.check_raise('as', MissingContextError)
         self.check_raise('of', MissingContextError)
 
         context = XPathContext(self.etree.XML('<root/>'))
-        self.check_raise('as', MissingContextError, context=context)
-        self.check_raise('of', MissingContextError, context=context)
+        self.check_value('as', expected=None, context=context)
+        self.check_value('of', expected=None, context=context)
 
     def test_function_namespace(self):
         function_namespace = "http://xpath.test/fn/xpath-functions"

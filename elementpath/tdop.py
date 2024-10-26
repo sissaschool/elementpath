@@ -530,13 +530,14 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
 
         literal, symbol, name, unknown = self.next_match.groups()
         if symbol is not None:
-            try:
+            if symbol in self.symbol_table:
                 self.next_token = self.symbol_table[symbol](self)
-            except KeyError:
-                if self.name_pattern.match(symbol) is None:
-                    self.next_token = self.symbol_table['(unknown)'](self, symbol)
-                    raise self.next_token.wrong_syntax()
+            elif self.name_pattern.match(symbol) is not None:
                 self.next_token = self.symbol_table['(name)'](self, symbol)
+            else:
+                self.next_token = self.symbol_table['(unknown)'](self, symbol)
+                raise self.next_token.wrong_syntax()
+
         elif literal is not None:
             if literal[0] in '\'"':
                 value = self.unescape(literal)
@@ -559,6 +560,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                     self.next_token = self.symbol_table['(decimal)'](self, value)
             else:
                 self.next_token = self.symbol_table['(integer)'](self, int(literal))
+
         elif name is not None:
             self.next_token = self.symbol_table['(name)'](self, name)
         elif unknown is not None:

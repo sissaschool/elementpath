@@ -32,6 +32,7 @@ from elementpath.helpers import ordinal
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.xpath1 import XPath1Parser
 from elementpath.xpath2 import XPath2Parser
+from elementpath.xpath3 import XPath30Parser, XPath31Parser
 
 
 class DummyXsdType:
@@ -395,6 +396,22 @@ class XPath1TokenTest(unittest.TestCase):
         with self.assertRaises(MissingContextError) as ctx:
             raise token.missing_context()
         self.assertIn('XPDY0002', str(ctx.exception))
+
+    def test_names_disambiguation(self):
+        ambiguous_names = [
+            symbol for symbol, tk_cls in self.parser.symbol_table.items()
+            if self.parser.name_pattern.match(tk_cls.symbol) and '{' not in symbol
+        ]
+
+        path = '/'.join(ambiguous_names)
+        root_token = self.parser.parse(path)
+        for tk in root_token.iter():
+            self.assertIn(tk.symbol, ('/', '(name)'), msg=tk.symbol)
+
+        for path in ambiguous_names:
+            root_token = self.parser.parse(path)
+            for tk in root_token.iter():
+                self.assertEqual(tk.symbol, '(name)', msg=tk.symbol)
 
 
 class XPath2TokenTest(XPath1TokenTest):
@@ -781,6 +798,20 @@ class XPath2TokenTest(XPath1TokenTest):
                 self.assertEqual(value, '1')
             finally:
                 self.parser.schema = None
+
+
+class XPath30TokenTest(XPath2TokenTest):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath30Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
+
+
+class XPath31TokenTest(XPath30TokenTest):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = XPath31Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
 
 
 if __name__ == '__main__':
