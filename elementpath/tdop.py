@@ -691,7 +691,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                 if 'class_name' in kwargs:
                     token_class_name = kwargs.pop('class_name')
                 else:
-                    token_class_name = "_{}{}".format(
+                    token_class_name = "_%s%s" % (
                         _symbol_to_classname(symbol),
                         str(label).title().replace(' ', '')
                     )
@@ -706,7 +706,6 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                     Type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs)
                 )
                 cls.symbol_table[lookup_name] = token_class
-                MutableSequence.register(token_class)
                 setattr(sys.modules[cls.__module__], token_class_name, token_class)
 
         elif not isinstance(symbol, type) or not issubclass(symbol, Token):

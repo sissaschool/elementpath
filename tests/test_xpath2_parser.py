@@ -1467,6 +1467,45 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         assert len(result) == 1
         assert result[-1] == Date10(2018, 1, 23)
 
+    def test_proxy_token_disambiguation__issue_078(self):
+        root = self.etree.XML(dedent('''\
+            <table frame="all" rowsep="1" colsep="1" id="flowers_table">
+                <title>Flowers</title>
+                <tgroup cols="3">
+                  <colspec colname="c1" colnum="1" colwidth="1.0*"/>
+                  <colspec colname="c2" colnum="2" colwidth="1.0*"/>
+                  <colspec colname="c3" colnum="3" colwidth="1.0*"/>
+                  <thead>
+                    <row>
+                      <entry>Flower</entry>
+                      <entry>Type</entry>
+                    </row>
+                  </thead>
+                  <tbody>
+                    <row>
+                      <entry>Chrysanthemum</entry>
+                      <entry>perennial</entry>
+                      <entry>well drained</entry>
+                    </row>
+                    <row>
+                      <entry>Gardenia</entry>
+                      <entry>perennial</entry>
+                    </row>
+                    <row>
+                      <entry>Gerbera</entry>
+                      <entry>annual</entry>
+                      <entry>sandy, well-drained</entry>
+                    </row>
+                    <row>
+                      <entry>Iris</entry>
+                    </row>
+                  </tbody>
+                </tgroup>
+              </table>'''))
+
+        results = select(root, 'min(.//row/count(entry))', parser=self.parser.__class__)
+        self.assertEqual(results, 1)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):

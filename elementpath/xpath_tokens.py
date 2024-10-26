@@ -1183,16 +1183,15 @@ class ValueToken(XPathToken):
 
 class ProxyToken(XPathToken):
     """
-    A proxy token for resolving or calling namespace related functions.
-
-    It cannot handle symbols associated with tokens that are not related
-    to namespaces, like operators, type tests or axes. Those tokens can
-    have also different binding powers, so handling disambiguation could
-    be impracticable.
+    A token class for resolving collisions between other tokens that have
+    the same symbol but are in different namespaces. It also resolves
+    collisions of functions with names.
     """
-    label = 'proxy function'
-
     def nud(self) -> XPathToken:
+        if self.parser.next_token.symbol not in ('(', '#'):
+            # Not a function call or reference, returns a name.
+            return self.as_name()
+
         lookup_name = f'{{{self.namespace or XPATH_FUNCTIONS_NAMESPACE}}}{self.value}'
         try:
             token = self.parser.symbol_table[lookup_name](self.parser)
@@ -1204,9 +1203,7 @@ class ProxyToken(XPathToken):
             raise self.error('XPST0017', msg) from None
         else:
             if self.parser.next_token.symbol == '#':
-                if self.parser.version >= '2.0':
-                    return token
-
+                return token
             return token.nud()
 
 

@@ -18,6 +18,7 @@ from elementpath._typing import Callable, MutableMapping, Sequence
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.exceptions import MissingContextError, UnsupportedFeatureError, \
     ElementPathValueError, ElementPathNameError, ElementPathKeyError, xpath_error
+from elementpath.helpers import upper_camel_case
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
 from elementpath.tdop import Parser
@@ -149,20 +150,30 @@ class XPath1Parser(Parser[XPathTokenType]):
 
     @classmethod
     def proxy(cls, symbol: str, label: str = 'proxy', bp: int = 90) -> Type[ProxyToken]:
-        """Register a proxy token for a symbol."""
+        """Register a proxy token class for a symbol."""
         if symbol in cls.symbol_table and not issubclass(cls.symbol_table[symbol], ProxyToken):
             # Move the token class before register the proxy token
             token_cls = cls.symbol_table.pop(symbol)
             cls.symbol_table[f'{{{token_cls.namespace}}}{symbol}'] = token_cls
 
-        proxy_class = cls.register(symbol, bases=(ProxyToken,), label=label, lbp=bp, rbp=bp)
-        assert issubclass(proxy_class, ProxyToken)
-        return proxy_class
+        token_class_name = "_%s%sProxy" % (
+            upper_camel_case(symbol), str(label).title().replace(' ', '')
+        )
+        token_class = cls.register(
+            symbol,
+            label='function',
+            class_name=token_class_name,
+            bases=(ProxyToken,),
+            lbp=bp,
+            rbp=bp
+        )
+        assert issubclass(token_class, ProxyToken)
+        return token_class
 
     @classmethod
     def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> Type[XPathAxis]:
-        """Register a token for a symbol that represents an XPath *axis*."""
-        token_class = cls.register(symbol, label='axis', bases=(XPathAxis,),
+        """Register a token class for a symbol that represents an XPath *axis*."""
+        token_class = cls.register(symbol, bases=(XPathAxis,),
                                    reverse_axis=reverse_axis, lbp=bp, rbp=bp)
         assert issubclass(token_class, XPathAxis)
         return token_class
@@ -200,7 +211,7 @@ class XPath1Parser(Parser[XPathTokenType]):
                 str(label).title().replace(' ', '')
             )
             kwargs['namespace'] = namespace
-            cls.proxy(symbol, label='proxy function', bp=bp)
+            cls.proxy(symbol, label='function', bp=bp)
         else:
             qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % symbol)
             kwargs['namespace'] = XPATH_FUNCTIONS_NAMESPACE
