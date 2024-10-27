@@ -583,7 +583,7 @@ class ElementNode(XPathNode):
     @property
     def attributes(self) -> List['AttributeNode']:
         if self._attributes is None:
-            position = self.position + len(self.nsmap) + int('xml' not in self.nsmap)
+            position = self.position + len(self.nsmap) + int('xml' not in self.nsmap) + 1
             self._attributes = [
                 AttributeNode(name, cast(str, value), self, pos)
                 for pos, (name, value) in enumerate(self.elem.attrib.items(), position)

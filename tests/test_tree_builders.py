@@ -218,6 +218,21 @@ class TreeBuildersTest(unittest.TestCase):
         root_node = build_schema_node_tree(schema.elements['root'])
         self.assertIs(root_node.elem, schema.elements['root'])
 
+    def test_document_order__issue_079(self):
+        xml_source = '<A>10<B a="2" b="3">11</B>12<B a="2"/>13<B>14</B></A>'
+        root = ElementTree.XML(xml_source)
+        root_node = build_node_tree(root)
+
+        for k, node in enumerate(root_node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
+
+        xml_source = '<A>10<B a="2" b="3"><C>11</C></B>12<B a="2"/>13<B>14</B></A>'
+        root = ElementTree.XML(xml_source)
+        root_node = build_node_tree(root)
+
+        for k, node in enumerate(root_node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
+
 
 if __name__ == '__main__':
     unittest.main()
