@@ -219,7 +219,7 @@ def build_lxml_node_tree(root: LxmlRootType,
         document = None
 
     if document is not None:
-        document_node = DocumentNode(document, position=position)
+        document_node = DocumentNode(document, uri, position)
         elements = document_node.elements
         position += 1
 
@@ -274,9 +274,6 @@ def build_lxml_node_tree(root: LxmlRootType,
     iterators: List[Any] = []
     ancestors: List[Any] = []
     parent = root_node
-
-    if uri is not None:
-        root_node.uri = uri
 
     while True:
         for elem in children:
@@ -359,22 +356,16 @@ def build_schema_node_tree(root: SchemaElemType,
     position = 1
     _elements = {} if elements is None else elements
 
-    def build_schema_element_node() -> SchemaElementNode:
-        nonlocal position
+    namespaces: Optional[NamespacesType] = getattr(root, 'namespaces', None)
+    if namespaces:
+        elem_pos_offset = len(namespaces) + int('xml' not in namespaces) + 1
+    else:
+        elem_pos_offset = 2
 
-        node = SchemaElementNode(elem, parent, position, elem.namespaces)
-        position += 1
-        _elements[elem] = node
+    root_node = SchemaElementNode(root, None, position, namespaces)
+    _elements[root] = root_node
+    position += elem_pos_offset + len(root.attrib)
 
-        # Do not generate namespace and attribute nodes, only reserve positions.
-        position += len(elem.namespaces) + int('xml' not in elem.namespaces) + len(elem.attrib)
-
-        return node
-
-    children = iter(root)
-    elem = root
-    parent = None
-    root_node = parent = build_schema_element_node()
     root_node.elements = _elements
     if uri is not None:
         root_node.uri = uri
@@ -389,13 +380,19 @@ def build_schema_node_tree(root: SchemaElemType,
 
     local_nodes = {root: root_node}  # Irrelevant even if it's the schema
     ref_nodes: List[SchemaElementNode] = []
+
+    children = iter(root)
     iterators: List[Any] = []
     ancestors: List[Any] = []
+    parent = root_node
 
     while True:
         for elem in children:
-            child = build_schema_element_node()
+            child = SchemaElementNode(elem, parent, position, elem.namespaces)
             child.xsd_type = elem.type
+            position += elem_pos_offset + len(elem.attrib)
+
+            _elements[elem] = child
             parent.children.append(child)
 
             if elem in local_nodes:
