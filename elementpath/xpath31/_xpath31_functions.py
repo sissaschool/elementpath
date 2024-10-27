@@ -764,7 +764,8 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
         )
 
     def json_object_pairs_to_map(obj: Iterable[Tuple[str, SequenceType[ItemType]]]) -> XPathMap:
-        items = {}
+        items: Dict[ItemType, SequenceType[ItemType]] = {}
+
         for item in obj:
             key, value = decode_value(item[0]), decode_value(item[1])
             if key in items:

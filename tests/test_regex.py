@@ -704,6 +704,7 @@ class TestUnicodeData(unittest.TestCase):
         ncp = len(unicode_block('GreekandCoptic') - unicode_category('Cn'))
         self.assertEqual(ncp, 135)
 
+    @unittest.skipIf(unidata_version[:2] >= '16', f"Unicode {unidata_version} is installed")
     def test_install_unicode_data(self):
         self.assertEqual(unidata_version, unicode_version())
         self.assertNotIn(42971, unicode_category('Ll'))
@@ -723,6 +724,37 @@ class TestUnicodeData(unittest.TestCase):
         install_unicode_data()
         self.assertEqual(unidata_version, unicode_version())
         self.assertNotIn(42971, unicode_category('Ll'))
+
+        with self.assertRaises(ValueError) as ctx:
+            install_unicode_data('14.1.0')
+        self.assertEqual(str(ctx.exception), "argument is not a valid Unicode version")
+
+        with self.assertRaises(TypeError) as ctx:
+            install_unicode_data(name_or_url='elementpath.regex.unicode_categories')
+        self.assertEqual(str(ctx.exception), "you must specify a version to install")
+
+        self.assertEqual(unidata_version, unicode_version())
+
+    @unittest.skipIf(unidata_version[:2] < '16', f"Unicode {unidata_version} is installed")
+    def test_install_previous_unicode_data(self):
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertIn(42971, unicode_category('Ll'))
+
+        install_unicode_data('15.0.0')
+        self.assertEqual('15.0.0', unicode_version())
+        self.assertNotIn(42971, unicode_category('Ll'))
+
+        install_unicode_data()
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertIn(42971, unicode_category('Ll'))
+
+        install_unicode_data('15.0.0', 'elementpath.regex.unicode_categories')
+        self.assertEqual('15.0.0', unicode_version())
+        self.assertNotIn(42971, unicode_category('Ll'))
+
+        install_unicode_data()
+        self.assertEqual(unidata_version, unicode_version())
+        self.assertIn(42971, unicode_category('Ll'))
 
         with self.assertRaises(ValueError) as ctx:
             install_unicode_data('14.1.0')
