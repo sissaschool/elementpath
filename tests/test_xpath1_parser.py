@@ -1235,19 +1235,19 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         self.check_value('/A', [context.root], context=context)
 
     def test_path_step_operator_with_duplicates(self):
-        root = self.etree.XML('<A>10<B a="2">11</B>10<B a="2"/>10<B>11</B></A>')
+        root = self.etree.XML('<A>10<B a="2">11</B>12<B a="2"/>13<B>14</B></A>')
         self.check_selector('/A/node()', root,
-                            ['10', root[0], '10', root[1], '10', root[2]])
+                            ['10', root[0], '12', root[1], '13', root[2]])
         self.check_selector('/A/node() | /A/node()', root,
-                            ['10', root[0], '10', root[1], '10', root[2]])
+                            ['10', root[0], '12', root[1], '13', root[2]])
         self.check_selector('/A/node() | /A/B/text()', root,
-                            ['10', root[0], '11', '10', root[1], '10', root[2], '11'])
+                            ['10', root[0], '11', '12', root[1], '13', root[2], '14'])
 
-        root = self.etree.XML('<A a="2"><B1 a="2"/><B1 a="2"/><B1 a="3"/><B2 a="2"/></A>')
-        self.check_selector('/A/B1/@a', root, ['2', '2', '3'])
-        self.check_selector('/A/B1/@a | /A/B1/@a', root, ['2', '2', '3'])
-        self.check_selector('/A/B1/@a | /A/@a', root, ['2', '2', '2', '3'])
-        self.check_selector('/A/B1/@a | /A/B2/@a', root, ['2', '2', '3', '2'])
+        root = self.etree.XML('<A a="1"><B1 a="2"/><B1 a="3"/><B1 a="4"/><B2 a="5"/></A>')
+        self.check_selector('/A/B1/@a', root, ['2', '3', '4'])
+        self.check_selector('/A/B1/@a | /A/B1/@a', root, ['2', '3', '4'])
+        self.check_selector('/A/B1/@a | /A/@a', root, ['1', '2', '3', '4'])
+        self.check_selector('/A/B1/@a | /A/B2/@a', root, ['2', '3', '4', '5'])
 
     def test_context_item_expression(self):
         root = self.etree.XML('<A><B1><C/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -1645,6 +1645,19 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         """))
 
         self.check_selector("//target[name=//var/name]", root, expected=[root[0]])
+
+    def test_order_with_descendants__issue_079(self):
+        xml_data = ("<span><span><span>Achille Compagnoni </span></span> and <span>"
+                    "<span><span>Lino Lacedelli</span></span></span></span>")
+        root = self.etree.fromstring(xml_data)
+
+        xpath_expr = '//descendant-or-self::text()'
+        chunks = select(root, xpath_expr)
+        self.assertListEqual(chunks, ['Achille Compagnoni ', ' and ', 'Lino Lacedelli'])
+
+        xpath_expr = '//text()'
+        chunks = select(root, xpath_expr)
+        self.assertListEqual(chunks, ['Achille Compagnoni ', ' and ', 'Lino Lacedelli'])
 
     def test_get_function(self):
         func = self.parser.get_function('fn:true', 0)

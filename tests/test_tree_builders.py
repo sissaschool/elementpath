@@ -230,14 +230,28 @@ class TreeBuildersTest(unittest.TestCase):
 
         root_node = build_schema_node_tree(schema)
         self.assertIs(root_node.elem, schema)
+        self.assertIsInstance(root_node.elements, dict)
+
+        for node in root_node.elements.values():
+            self.assertIs(node.elements, root_node.elements)
+        self.assertEqual(len(root_node.elements), 7)
 
         global_elements = []
         root_node = build_schema_node_tree(schema, global_elements=global_elements)
         self.assertIs(root_node.elem, schema)
         self.assertIn(root_node, global_elements)
 
+        for node in root_node.elements.values():
+            self.assertIs(node.elements, root_node.elements)
+        self.assertEqual(len(root_node.elements), 7)
+
         root_node = build_schema_node_tree(schema.elements['root'])
         self.assertIs(root_node.elem, schema.elements['root'])
+
+        self.assertIsInstance(root_node.elements, dict)
+        for node in root_node.elements.values():
+            self.assertIs(node.elements, root_node.elements)
+        self.assertEqual(len(root_node.elements), 6)
 
     def test_document_order__issue_079(self):
         xml_source = '<A>10<B a="2" b="3">11</B>12<B a="2"/>13<B>14</B></A>'

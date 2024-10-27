@@ -339,7 +339,9 @@ def build_schema_node_tree(root: SchemaElemType,
                            global_elements: Optional[List[ChildNodeType]] = None) \
         -> SchemaElementNode:
     """
-    Returns a tree of XPath nodes that wrap the provided XSD schema structure.
+    Returns a graph of XPath nodes that wrap the provided XSD schema structure.
+    The elements dictionary is shared between all nodes to keep all of them,
+    globals and local, linked in a single structure.
 
     :param root: a schema or a schema element.
     :param uri: an optional URI associated with the root element.
@@ -364,9 +366,8 @@ def build_schema_node_tree(root: SchemaElemType,
 
     root_node = SchemaElementNode(root, None, position, namespaces)
     _elements[root] = root_node
-    position += elem_pos_offset + len(root.attrib)
-
     root_node.elements = _elements
+    position += elem_pos_offset + len(root.attrib)
     if uri is not None:
         root_node.uri = uri
 
@@ -393,6 +394,7 @@ def build_schema_node_tree(root: SchemaElemType,
             position += elem_pos_offset + len(elem.attrib)
 
             _elements[elem] = child
+            child.elements = _elements
             parent.children.append(child)
 
             if elem in local_nodes:
