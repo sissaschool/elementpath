@@ -41,7 +41,7 @@ XML_DATA = """\
     <child1>
         child1 text1
         <!-- Child 1 comment -->
-        <elem1 a1="value1"/>
+        <elem1 xmlns:xml="http://www.w3.org/XML/1998/namespace" a1="value1"/>
         <elem2 a2="value2"/>
         child1 text2
     </child1>
@@ -71,6 +71,9 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node.children[5], ElementNode)
         self.assertIsInstance(node.children[6], TextNode)
 
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
+
     def test_build_node_tree_with_element_tree(self):
         root = ElementTree.parse(io.StringIO(XML_DATA))
         node = build_node_tree(root, self.namespaces)
@@ -89,6 +92,9 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node[0].children[4], TextNode)
         self.assertIsInstance(node[0].children[5], ElementNode)
         self.assertIsInstance(node[0].children[6], TextNode)
+
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
 
     @unittest.skipIf(sys.version_info <= (3, 8),
                      "Comments not available in ElementTree")
@@ -115,13 +121,16 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node.children[9], ProcessingInstructionNode)
         self.assertIsInstance(node.children[10], TextNode)
 
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
+
     @unittest.skipIf(lxml_etree is None, "lxml library is not installed")
     def test_build_lxml_node_tree_with_element(self):
         root = lxml_etree.XML(XML_DATA.encode('utf-8'))
         node = build_lxml_node_tree(root)
 
         self.assertIsInstance(node, DocumentNode)
-        self.assertEqual(node.position, 0)
+        self.assertEqual(node.position, 1)
         self.assertIsNotNone(node.document)
         self.assertEqual(len(node.children), 5)
         self.assertIsInstance(node.children[0], ProcessingInstructionNode)
@@ -131,7 +140,7 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node.children[4], CommentNode)
 
         self.assertIsInstance(node[2], ElementNode)
-        self.assertEqual(node[2].position, 3)
+        self.assertEqual(node[2].position, 4)
         self.assertEqual(len(node[2].children), 11)
         self.assertIsInstance(node[2].children[0], TextNode)
         self.assertIsInstance(node[2].children[1], CommentNode)
@@ -143,6 +152,9 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node[2].children[5], ElementNode)
         self.assertIsInstance(node[2].children[6], TextNode)
 
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
+
         node = build_lxml_node_tree(root[1])
         self.assertIsInstance(node, ElementNode)
         self.assertEqual(len(node.children), 7)
@@ -153,6 +165,9 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node.children[4], TextNode)
         self.assertIsInstance(node.children[5], ElementNode)
         self.assertIsInstance(node.children[6], TextNode)
+
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
 
     @unittest.skipIf(lxml_etree is None, "lxml library is not installed")
     def test_build_lxml_node_tree_with_element_tree(self):
@@ -182,6 +197,9 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertIsInstance(node[2].children[5], ElementNode)
         self.assertIsInstance(node[2].children[6], TextNode)
 
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
+
         root = lxml_etree.ElementTree()
         self.assertIsNone(root.getroot())
         node = build_lxml_node_tree(root)
@@ -190,6 +208,9 @@ class TreeBuildersTest(unittest.TestCase):
         self.assertEqual(node.position, 1)
         self.assertIs(node.document, root)
         self.assertEqual(len(node.children), 0)
+
+        for k, node in enumerate(node.iter(), start=1):
+            self.assertEqual(k, node.position, msg=node)
 
     @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
     def test_build_schema_node_tree(self):
@@ -226,12 +247,26 @@ class TreeBuildersTest(unittest.TestCase):
         for k, node in enumerate(root_node.iter(), start=1):
             self.assertEqual(k, node.position, msg=node)
 
+        if lxml_etree is not None:
+            root = lxml_etree.XML(xml_source)
+            root_node = build_lxml_node_tree(root)
+
+            for k, node in enumerate(root_node.iter(), start=1):
+                self.assertEqual(k, node.position, msg=node)
+
         xml_source = '<A>10<B a="2" b="3"><C>11</C></B>12<B a="2"/>13<B>14</B></A>'
         root = ElementTree.XML(xml_source)
         root_node = build_node_tree(root)
 
         for k, node in enumerate(root_node.iter(), start=1):
             self.assertEqual(k, node.position, msg=node)
+
+        if lxml_etree is not None:
+            root = lxml_etree.XML(xml_source)
+            root_node = build_lxml_node_tree(root)
+
+            for k, node in enumerate(root_node.iter(), start=1):
+                self.assertEqual(k, node.position, msg=node)
 
 
 if __name__ == '__main__':

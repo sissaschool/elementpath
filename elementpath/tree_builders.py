@@ -146,7 +146,6 @@ def build_node_tree(root: ElementTreeRootType,
         for elem in children:
             if not callable(elem.tag):
                 child = ElementNode(elem, parent, position, namespaces)
-                elements[elem] = child
                 position += elem_pos_offset + len(elem.attrib)
 
                 if elem.text is not None:
@@ -160,7 +159,9 @@ def build_node_tree(root: ElementTreeRootType,
                 child = ProcessingInstructionNode(elem, parent, position)
                 position += 1
 
+            elements[elem] = child
             parent.children.append(child)
+
             if len(elem):
                 ancestors.append(parent)
                 parent = child
@@ -202,101 +203,77 @@ def build_lxml_node_tree(root: LxmlRootType,
 
     position = 1
 
-    def build_lxml_element_node() -> ElementNode:
-        nonlocal position
-
-        node = ElementNode(elem, parent, position, elem.nsmap)
-        position += 1
-        elements[elem] = node
-
-        # Do not generate namespace and attribute nodes, only reserve positions.
-        position += len(elem.nsmap) + int('xml' not in elem.nsmap) + len(elem.attrib)
-
-        if elem.text is not None:
-            node.children.append(TextNode(elem.text, node, position))
-            position += 1
-
-        return node
-
-    def build_document_node() -> ElementNode:
-        nonlocal position
-        nonlocal child
-
-        # Add root siblings (comments and processing instructions)
-        for e in reversed([x for x in elem.itersiblings(preceding=True)]):
-            if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-                parent.children.append(CommentNode(e, parent, position))
-            else:
-                parent.children.append(ProcessingInstructionNode(e, parent, position))
-            position += 1
-
-        node = build_lxml_element_node()
-        parent.children.append(node)
-
-        for e in elem.itersiblings():
-            if e.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-                parent.children.append(CommentNode(e, parent, position))
-            else:
-                parent.children.append(ProcessingInstructionNode(e, parent, position))
-            position += 1
-
-        return node
-
     if fragment:
-        if hasattr(root, 'parse'):
-            root_elem = cast(LxmlDocumentProtocol, root).getroot()
-            if root_elem is None:
-                msg = "requested a fragment of an empty ElementTree document"
-                raise ElementPathTypeError(msg)
-            elem = root_elem
-        else:
-            elem = root
-
-        parent = None
-        elements = {}
-        root_node = parent = build_lxml_element_node()
-        root_node.elements = elements
-
+        # Explicitly requested a fragment: don't create a document node.
+        document = None
     elif hasattr(root, 'parse'):
+        # A document (ElementTree instance)
         document = cast(LxmlDocumentProtocol, root)
-        root_node = parent = DocumentNode(document, position=position)
+    elif root.getparent() is None and (
+            any(True for _sibling in root.itersiblings(preceding=True)) or
+            any(True for _sibling in root.itersiblings())):
+        # A root element with siblings, create a document for them.
+        document = root.getroottree()
+    else:
+        # Explicitly provided a non-root element: do not parse root's siblings.
+        document = None
+
+    if document is not None:
+        document_node = DocumentNode(document, position=position)
+        elements = document_node.elements
         position += 1
 
         root_elem = document.getroot()
         if root_elem is None:
-            return root_node
+            return document_node
 
-        elem = root_elem
-        elements = root_node.elements
-        parent = build_document_node()
+        # Add root siblings (comments and processing instructions)
+        for elem in reversed([x for x in root_elem.itersiblings(preceding=True)]):
+            if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                child = CommentNode(elem, document_node, position)
+            else:
+                child = ProcessingInstructionNode(elem, document_node, position)
 
-    elif root.getparent() is None:
-        # Creates a root document node for parsing root's siblings.
-        document = root.getroottree()
-        root_node = parent = DocumentNode(document, position=0)
+            elements[elem] = child
+            document_node.children.append(child)
+            position += 1
 
-        root_elem = document.getroot()
-        assert root_elem is not None
-
-        elem = root_elem
-        elements = root_node.elements
-        parent = build_document_node()
-
-        if len(root_node.children) == 1:
-            # Remove the document node if root element has no siblings
-            parent.elements = root_node.elements
-            parent.parent = None
-            root_node = parent
+        root_node = ElementNode(root_elem, document_node, position, root_elem.nsmap)
+        document_node.children.append(root_node)
     else:
-        elem = root
-        parent = None
-        elements = {}
-        root_node = parent = build_lxml_element_node()
-        root_node.elements = elements
+        if hasattr(root, 'parse'):
+            root_elem = cast(LxmlDocumentProtocol, root).getroot()
+        else:
+            root_elem = root
 
-    children = iter(elem)
+        if root_elem is None:
+            if fragment:
+                msg = "requested a fragment of an empty ElementTree document"
+            else:
+                msg = "root argument is neither an lxml ElementTree nor a lxml Element"
+            raise ElementPathTypeError(msg)
+
+        document_node = None
+        root_node = ElementNode(root_elem, None, position, root_elem.nsmap)
+        root_node.elements = elements = {}
+        if uri is not None:
+            root_node.uri = uri
+
+    # Complete the root element node build
+    elements[root_elem] = root_node
+    if 'xml' in root_elem.nsmap:
+        position += len(root_elem.nsmap) + len(root_elem.attrib) + 1
+    else:
+        position += len(root_elem.nsmap) + len(root_elem.attrib) + 2
+
+    if root_elem.text is not None:
+        root_node.children.append(TextNode(root_elem.text, root_node, position))
+        position += 1
+
+    children = iter(root_elem)
     iterators: List[Any] = []
     ancestors: List[Any] = []
+    parent = root_node
 
     if uri is not None:
         root_node.uri = uri
@@ -304,17 +281,25 @@ def build_lxml_node_tree(root: LxmlRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = build_lxml_element_node()
+                child = ElementNode(elem, parent, position, elem.nsmap)
+                if 'xml' in elem.nsmap:
+                    position += len(elem.nsmap) + len(elem.attrib) + 1
+                else:
+                    position += len(elem.nsmap) + len(elem.attrib) + 2
+
+                if elem.text is not None:
+                    child.children.append(TextNode(elem.text, child, position))
+                    position += 1
+
             elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
                 child = CommentNode(elem, parent, position)
                 position += 1
             else:
                 child = ProcessingInstructionNode(elem, parent, position)
-
-            parent.children.append(child)
-            if elem.tail is not None:
-                parent.children.append(TextNode(elem.tail, parent, -1))
                 position += 1
+
+            elements[elem] = child
+            parent.children.append(child)
 
             if len(elem):
                 ancestors.append(parent)
@@ -322,11 +307,33 @@ def build_lxml_node_tree(root: LxmlRootType,
                 iterators.append(children)
                 children = iter(elem)
                 break
+
+            if elem.tail is not None:
+                parent.children.append(TextNode(elem.tail, parent, position))
+                position += 1
         else:
             try:
                 children, parent = iterators.pop(), ancestors.pop()
             except IndexError:
-                return root_node
+                if document_node is None:
+                    return root_node
+
+                # Add root following siblings (comments and processing instructions)
+                for elem in root_elem.itersiblings():
+                    if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                        child = CommentNode(elem, document_node, position)
+                    else:
+                        child = ProcessingInstructionNode(elem, document_node, position)
+
+                    elements[elem] = child
+                    document_node.children.append(child)
+                    position += 1
+
+                return document_node
+            else:
+                if (tail := parent.children[-1].elem.tail) is not None:
+                    parent.children.append(TextNode(tail, parent, position))
+                    position += 1
 
 
 def build_schema_node_tree(root: SchemaElemType,
