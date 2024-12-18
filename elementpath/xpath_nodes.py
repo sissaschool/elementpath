@@ -8,9 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections import deque
-from importlib import import_module
 from urllib.parse import urljoin
-from types import ModuleType
 from typing import cast, Any, Dict, List, Optional, Tuple, Union
 
 from elementpath._typing import Deque, Iterator, MutableMapping
@@ -21,9 +19,11 @@ from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XML_ID, XSD_IDREF, XSD_IDREFS
 from elementpath.protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol
+from elementpath.exceptions import ElementPathTypeError
 from elementpath.helpers import match_wildcard, is_absolute_uri
 from elementpath.decoder import get_atomic_value
-from elementpath.etree import etree_iter_strings, is_etree_element, is_etree_document
+from elementpath.etree import get_etree_module, etree_iter_strings, is_etree_element, \
+    is_etree_document
 
 __all__ = ['is_xpath_node', 'SchemaElemType', 'TypedNodeType', 'ParentNodeType',
            'ChildNodeType', 'ElementMapType', 'XPathNode', 'AttributeNode',
@@ -639,6 +639,44 @@ class ElementNode(XPathNode):
         else:
             return None
 
+    def get_document_node(self, replace: bool = True) -> 'DocumentNode':
+        root_node: ParentNodeType = self
+        while root_node.parent is not None:
+            root_node = root_node.parent
+
+        if isinstance(root_node, DocumentNode):
+            return root_node
+
+        etree = get_etree_module(root_node.elem)
+
+        if replace:
+            document = etree.ElementTree()
+            if sum(isinstance(x, ElementNode) for x in root_node.children) == 1:
+                for child in root_node.children:
+                    if isinstance(child, ElementNode):
+                        document = etree.ElementTree(child.elem)
+                        break
+
+            document_node = DocumentNode(document, root_node.uri, root_node.position)
+            for child in root_node.children:
+                document_node.children.append(child)
+                child.parent = document_node
+
+            if root_node.elements is not None:
+                root_node.elements.pop(root_node, None)  # type: ignore[call-overload]
+                document_node.elements = root_node.elements
+            del root_node
+
+        else:
+            document = etree.ElementTree(root_node.elem)
+            document_node = DocumentNode(document, root_node.uri, root_node.position - 1)
+            document_node.children.append(root_node)
+            # root_node.parent = document_node
+            if root_node.elements is not None:
+                document_node.elements = root_node.elements
+
+        return document_node
+
     def iter(self) -> Iterator[XPathNode]:
         """Iterates the tree building lazy components."""
         yield self
@@ -849,39 +887,9 @@ class DocumentNode(XPathNode):
         :param replace: if `True` the root element is replaced by a document node. \
         This is usually useful for extended data models (more element children, text nodes).
         """
-        etree_module_name = root_node.elem.__class__.__module__
-        etree: ModuleType = import_module(etree_module_name)
-
         assert root_node.elements is not None, "Not a root element node"
         assert all(not isinstance(x, SchemaElementNode) for x in root_node.elements)
-        elements = cast(Dict[ElementProtocol, ElementNode], root_node.elements)
-
-        if replace:
-            document = etree.ElementTree()
-            if sum(isinstance(x, ElementNode) for x in root_node.children) == 1:
-                for child in root_node.children:
-                    if isinstance(child, ElementNode):
-                        document = etree.ElementTree(child.elem)
-                        break
-
-            document_node = cls(document, root_node.uri, root_node.position)
-            for child in root_node.children:
-                document_node.children.append(child)
-                child.parent = document_node
-
-            elements.pop(root_node, None)  # type: ignore[call-overload]
-            document_node.elements = elements
-            del root_node
-            return document_node
-
-        else:
-            document = etree.ElementTree(root_node.elem)
-            document_node = cls(document, root_node.uri, root_node.position - 1)
-            document_node.children.append(root_node)
-            root_node.parent = document_node
-            document_node.elements = elements
-
-        return document_node
+        return root_node.get_document_node(replace=replace)
 
 
 ###
@@ -975,6 +983,9 @@ class SchemaElementNode(ElementNode):
             return UntypedAtomic('')
         schema_node = cast(XsdElementProtocol, self.elem)
         return get_atomic_value(schema_node.type)
+
+    def get_document_node(self, replace: bool = True) -> 'DocumentNode':
+        raise ElementPathTypeError("a {!r} can't have a document root")
 
     def iter(self) -> Iterator[XPathNode]:
         yield self

@@ -63,7 +63,11 @@ class XPathContext:
     :param fragment: if `True` a root element is considered a fragment, if `False` \
     a root element is considered the root of an XML document, and a dummy document \
     is created for selection. In this case the dummy document value is not included \
-    in the results. If `None` is provided, the root node kind is preserved.
+    in the results. For default the root node kind is preserved.
+    :param fragment: if `True` is provided the root is considered a fragment. In this \
+    case if `root` is an ElementTree instance skips it and use the root Element. If \
+    `False` is provided creates a dummy document when the root is an Element instance. \
+    For default the root node kind is preserved.
     :param item: the context item. A `None` value means that the context is positioned on \
     the document node.
     :param position: the current position of the node within the input sequence.
@@ -104,7 +108,7 @@ class XPathContext:
                  root: Optional[RootArgType] = None,
                  namespaces: Optional[NamespacesType] = None,
                  uri: Optional[str] = None,
-                 fragment: Optional[bool] = False,
+                 fragment: Optional[bool] = None,
                  item: Optional[ItemArgType] = None,
                  position: int = 1,
                  size: int = 1,
@@ -146,11 +150,7 @@ class XPathContext:
             pass
         elif isinstance(self.root, ElementNode):
             # Creates a dummy document
-            document = cast(DocumentProtocol, self.etree.ElementTree(self.root.elem))
-            self.document = DocumentNode(document, self.root.uri, position=0)
-            self.document.children.append(self.root)
-            self.document.elements = cast(Dict[ElementProtocol, ElementNode], self.root.elements)
-            # self.root.parent = self.document  TODO for v5? It's necessary?
+            self.document = self.root.get_document_node(replace=False)
 
         self.position = position
         self.size = size
@@ -255,7 +255,7 @@ class XPathContext:
     def get_context_item(self, item: ItemArgType,
                          namespaces: Optional[NamespacesType] = None,
                          uri: Optional[str] = None,
-                         fragment: Optional[bool] = False) -> ItemType:
+                         fragment: Optional[bool] = None) -> ItemType:
         """
         Checks the item and returns an item suitable for XPath processing.
         For XML trees and elements try a match with an existing node in the

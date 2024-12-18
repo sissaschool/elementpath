@@ -40,7 +40,7 @@ def select(root: Optional[RootArgType],
     """
     context_kwargs = {
         'uri': kwargs.pop('uri', None),
-        'fragment': kwargs.pop('fragment', False),
+        'fragment': kwargs.pop('fragment', None),
         'item': kwargs.pop('item', None),
         'position': kwargs.pop('position', 1),
         'size': kwargs.pop('size', 1),
@@ -76,7 +76,7 @@ def iter_select(root: Optional[RootArgType],
     """
     context_kwargs = {
         'uri': kwargs.pop('uri', None),
-        'fragment': kwargs.pop('fragment', False),
+        'fragment': kwargs.pop('fragment', None),
         'item': kwargs.pop('item', None),
         'position': kwargs.pop('position', 1),
         'size': kwargs.pop('size', 1),

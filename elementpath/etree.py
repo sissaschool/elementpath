@@ -14,6 +14,7 @@ import sys
 import re
 import io
 import importlib
+from types import ModuleType
 from typing import cast, Any, Optional, Tuple, Union
 
 from elementpath._typing import Counter, Iterator, MutableMapping
@@ -42,6 +43,14 @@ if _cmod is not None:  # pragma: no cover
     sys.modules['_elementtree'] = _cmod
 xml.etree.ElementTree = ElementTree
 sys.modules['xml.etree.ElementTree'] = ElementTree
+
+
+def get_etree_module(elem: ElementProtocol) -> ModuleType:
+    """Returns the ElementTree module of the element."""
+    etree_module_name = elem.__class__.__module__
+    if etree_module_name == 'lxml.html':
+        etree_module_name = 'lxml.etree'
+    return importlib.import_module(etree_module_name)
 
 
 class SafeXMLParser(PyElementTree.XMLParser):
@@ -310,4 +319,4 @@ def etree_tostring(elem: ElementProtocol,
 __all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'defuse_xml',
            'is_etree_element', 'is_lxml_etree_element', 'is_etree_document',
            'is_lxml_etree_document', 'etree_iter_strings', 'etree_deep_equal',
-           'etree_iter_paths', 'etree_tostring']
+           'etree_iter_paths', 'etree_tostring', 'get_etree_module']

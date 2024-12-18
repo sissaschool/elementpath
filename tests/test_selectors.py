@@ -116,6 +116,38 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
         result = select(root, "/root/trunk")
         self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
 
+    def test_issue_081(self):
+        # xml1 contains the xml-stylesheet tag
+        xml1 = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type='text/xsl' href='test.xsl'?>
+        <root>
+            <first>
+                <second>
+                    value
+                </second>
+            </first>
+        </root>
+        """
+
+        # the same as xml1, but without the xml-stylesheet tag
+        xml2 = b"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <root>
+            <first>
+                <second>
+                    value
+                </second>
+            </first>
+        </root>
+        """
+
+        root1 = self.etree.XML(xml1)
+        root2 = self.etree.XML(xml2)
+        query = "first/second"
+
+        self.assertEqual(select(root1, query), [])
+        self.assertEqual(select(root1, query, fragment=True), root1[0][:])
+        self.assertEqual(select(root2, query), root2[0][:])
+
 
 if __name__ == '__main__':
     unittest.main()
