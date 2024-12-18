@@ -363,6 +363,8 @@ def evaluate_datetime_stamp_type(self: XPathConstructor, context: ContextType = 
 def nud_datetime_stamp_type(self: XPathConstructor) -> XPathConstructor:
     if self.parser.xsd_version == '1.0':
         raise self.wrong_syntax("xs:dateTimeStamp is not recognized unless XSD 1.1 is enabled")
+    if not self.parser.parse_arguments:
+        return self
 
     try:
         self.parser.advance('(')
@@ -422,6 +424,9 @@ def cast_notation_type(self: XPathConstructor, value: AtomicType) -> Notation:
 
 @method('NOTATION')
 def nud_notation_type(self: XPathConstructor) -> None:
+    if not self.parser.parse_arguments:
+        return
+
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
         raise self.error('XPST0017', 'expected exactly one argument')
@@ -454,6 +459,9 @@ def cast_boolean_type(self: XPathConstructor, value: AtomicType) -> bool:
 
 @method('boolean')
 def nud_boolean_type_and_function(self: XPathConstructor) -> XPathConstructor:
+    if not self.parser.parse_arguments:
+        return self
+
     self.parser.advance('(')
     if self.parser.next_token.symbol == ')':
         msg = 'Too few arguments: expected at least 1 argument'
@@ -502,6 +510,9 @@ def cast_string_type(self: XPathConstructor, value: AtomicType) -> str:
 
 @method('string')
 def nud_string_type_and_function(self: XPathConstructor) -> XPathConstructor:
+    if not self.parser.parse_arguments:
+        return self
+
     try:
         self.parser.advance('(')
         if self.label != 'function' or self.parser.next_token.symbol != ')':
@@ -576,6 +587,9 @@ def cast_datetime_type(self: XPathConstructor, value: AtomicType) \
 @method('QName')
 @method('dateTime')
 def nud_qname_and_datetime(self: XPathConstructor) -> XPathConstructor:
+    if not self.parser.parse_arguments:
+        return self
+
     try:
         self.parser.advance('(')
         self[0:] = self.parser.expression(5),

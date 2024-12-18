@@ -249,6 +249,9 @@ class XPath2Parser(XPath1Parser):
         of the module where the method is called.
         """
         def nud_(self: XPathConstructor) -> XPathConstructor:
+            if not self.parser.parse_arguments:
+                return self
+
             try:
                 self.parser.advance('(')
                 self[0:] = self.parser.expression(5),

@@ -1047,6 +1047,30 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         )
         self.assertListEqual(result, [97, 97, 97])
 
+    def test_issue_083(self):
+        root = self.etree.XML('<root><term>12.</term></root>')
+        result = select(
+            root=root,
+            path="term",
+            parser=self.parser.__class__
+        )
+        self.assertListEqual(result, root[:])
+
+        result = select(
+            root=root,
+            path="term => substring-before('.') => xs:integer()",
+            parser=self.parser.__class__
+        )
+        self.assertEqual(result, 12)
+
+        with self.assertRaises(SyntaxError) as ctx:
+            select(
+                root=root,
+                path="term => substring-before('.') => element()",
+                parser=self.parser.__class__
+            )
+        self.assertIn("unexpected 'element' kind test", str(ctx.exception))
+
     def test_xml_to_json_function(self):
         root = self.etree.XML('<array xmlns="http://www.w3.org/2005/xpath-functions">'
                               '<number>1</number><string>is</string><boolean>1</boolean>'

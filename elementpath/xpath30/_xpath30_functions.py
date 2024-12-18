@@ -1955,6 +1955,9 @@ def cast_error_type(self: XPathConstructor, value: AtomicType) -> Emptiable[None
 @method('error')
 def nud_error_type_and_function(self: XPathConstructor) -> XPathConstructor:
     self.clear()
+    if not self.parser.parse_arguments:
+        return self
+
     try:
         self.parser.advance('(')
         if self.namespace == XSD_NAMESPACE:

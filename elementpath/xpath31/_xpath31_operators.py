@@ -235,6 +235,8 @@ def led_arrow_operator(self: XPathToken, left: XPathToken) -> XPathToken:
         self.parser.advance()
     elif isinstance(next_token, XPathFunction):
         self[:] = left, next_token
+        if next_token.label == 'kind test':
+            raise next_token.wrong_syntax()
         self.parser.advance()  # Skip static evaluation of function arguments
     else:
         next_token.expected('(name)', ':', 'Q{', '(')
