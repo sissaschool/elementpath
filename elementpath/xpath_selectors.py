@@ -34,7 +34,11 @@ def select(root: Optional[RootArgType],
     :param path: the XPath expression.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
     :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: other optional parameters for the parser instance or the dynamic context.
+    :param kwargs: other optional parameters for the parser instance or the dynamic \
+    context. For the parser instance all the optional arguments accepted by the parser \
+    version can be provided, for the dynamic context the arguments that can be provided \
+    are: 'uri', 'fragment', 'item', 'position', 'size', 'axis', 'variables', \
+    'current_dt', 'timezone'.
     :return: a list with XPath nodes or a basic type for expressions based \
     on a function or literal.
     """
@@ -71,7 +75,11 @@ def iter_select(root: Optional[RootArgType],
     :param path: the XPath expression.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
     :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: other optional parameters for the parser instance or the dynamic context.
+    :param kwargs: other optional parameters for the parser instance or the dynamic \
+    context. For the parser instance all the optional arguments accepted by the parser \
+    version can be provided, for the dynamic context the arguments that can be provided \
+    are: 'uri', 'fragment', 'item', 'position', 'size', 'axis', 'variables', \
+    'current_dt', 'timezone'.
     :return: a generator of the XPath expression results.
     """
     context_kwargs = {

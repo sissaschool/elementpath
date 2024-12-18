@@ -60,14 +60,11 @@ class XPathContext:
     This can be useful when the dynamic context has additional namespaces and root \
     is an Element or an ElementTree instance of the standard library.
     :param uri: an optional URI associated with the root element or the document.
-    :param fragment: if `True` a root element is considered a fragment, if `False` \
-    a root element is considered the root of an XML document, and a dummy document \
-    is created for selection. In this case the dummy document value is not included \
-    in the results. For default the root node kind is preserved.
     :param fragment: if `True` is provided the root is considered a fragment. In this \
     case if `root` is an ElementTree instance skips it and use the root Element. If \
     `False` is provided creates a dummy document when the root is an Element instance. \
-    For default the root node kind is preserved.
+    In this case the dummy document value is not included in results. For default the \
+    root node kind is preserved.
     :param item: the context item. A `None` value means that the context is positioned on \
     the document node.
     :param position: the current position of the node within the input sequence.

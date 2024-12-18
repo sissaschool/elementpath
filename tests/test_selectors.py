@@ -68,6 +68,50 @@ class XPathSelectorsTest(unittest.TestCase):
         root = self.etree.XML('<root><sup>1</sup>b<sup>2</sup>c<sup>3</sup>d</root>')
         self.assertListEqual(selector1.select(root), selector2.select(root))
 
+    def test_fragment_argument__issue_081(self):
+        # xml1 contains the xml-stylesheet tag
+        xml1 = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet type='text/xsl' href='test.xsl'?>
+        <root>
+            <first>
+                <second>
+                    value
+                </second>
+            </first>
+        </root>
+        """
+
+        # the same as xml1, but without the xml-stylesheet tag
+        xml2 = b"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <root>
+            <first>
+                <second>
+                    value
+                </second>
+            </first>
+        </root>
+        """
+
+        root1 = self.etree.XML(xml1)
+        root2 = self.etree.XML(xml2)
+        query = "first/second"
+
+        if hasattr(root1, 'xpath'):
+            self.assertEqual(select(root1, query), [])
+        else:
+            self.assertEqual(select(root1, query), root1[0][:])
+
+        self.assertEqual(select(root1, query, fragment=True), root1[0][:])
+        self.assertEqual(select(root2, query), root2[0][:])
+
+        self.assertEqual(select(root1, query, fragment=False), [])
+        self.assertEqual(select(root2, query, fragment=False), [])
+
+        query = "root/first/second"
+
+        self.assertEqual(select(root1, query, fragment=False), root1[0][:])
+        self.assertEqual(select(root2, query, fragment=False), root2[0][:])
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPathSelectorsTest(XPathSelectorsTest):
@@ -115,38 +159,6 @@ class LxmlXPathSelectorsTest(XPathSelectorsTest):
 
         result = select(root, "/root/trunk")
         self.assertListEqual(result, [root[0]])  # [<Element trunk at 0x...>]
-
-    def test_issue_081(self):
-        # xml1 contains the xml-stylesheet tag
-        xml1 = b"""<?xml version="1.0" encoding="UTF-8"?>
-        <?xml-stylesheet type='text/xsl' href='test.xsl'?>
-        <root>
-            <first>
-                <second>
-                    value
-                </second>
-            </first>
-        </root>
-        """
-
-        # the same as xml1, but without the xml-stylesheet tag
-        xml2 = b"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-        <root>
-            <first>
-                <second>
-                    value
-                </second>
-            </first>
-        </root>
-        """
-
-        root1 = self.etree.XML(xml1)
-        root2 = self.etree.XML(xml2)
-        query = "first/second"
-
-        self.assertEqual(select(root1, query), [])
-        self.assertEqual(select(root1, query, fragment=True), root1[0][:])
-        self.assertEqual(select(root2, query), root2[0][:])
 
 
 if __name__ == '__main__':

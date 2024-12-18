@@ -53,11 +53,15 @@ def get_node_tree(root: RootArgType,
         if uri is not None and root.uri is None:
             root.uri = uri
 
-        if fragment and isinstance(root, DocumentNode):
-            root_node = root.getroot()
-            if root_node.uri is None:
-                root_node.uri = root.uri
-            return root_node
+        if fragment:
+            if isinstance(root, DocumentNode):
+                root_node = root.getroot()
+                if root_node.uri is None:
+                    root_node.uri = root.uri
+                return root_node
+        elif fragment is False and not isinstance(root, SchemaElementNode):
+            if isinstance(root, ElementNode):
+                return root.get_document_node(replace=False)
 
         return root
 
@@ -185,7 +189,12 @@ def build_node_tree(root: ElementTreeRootType,
             try:
                 children, parent = iterators.pop(), ancestors.pop()
             except IndexError:
-                return root_node if document_node is None else document_node
+                if document_node is not None:
+                    return document_node
+                elif fragment is False:
+                    return root_node.get_document_node(replace=False)
+                else:
+                    return root_node
             else:
                 if (tail := parent.children[-1].elem.tail) is not None:
                     parent.children.append(TextNode(tail, parent, position))
@@ -218,7 +227,7 @@ def build_lxml_node_tree(root: LxmlRootType,
         document = None  # Explicitly requested a fragment: don't create a document node
     elif hasattr(root, 'parse'):
         document = cast(LxmlDocumentProtocol, root)
-    elif root.getparent() is None and (
+    elif fragment is False or root.getparent() is None and (
             any(True for _sibling in root.itersiblings(preceding=True)) or
             any(True for _sibling in root.itersiblings())):
         # Despite a document is not explicitly requested create a dummy document
