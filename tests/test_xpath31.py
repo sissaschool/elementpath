@@ -1038,6 +1038,15 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value(expression, 'FOO')
         self.check_source(expression, expression.replace('"', "'"))
 
+    def test_issue_082(self):
+        root = self.etree.XML('<dummy/>')
+        result = select(
+            root=root,
+            path="'aaa)' => substring-before(')') => string-to-codepoints()",
+            parser=self.parser.__class__
+        )
+        self.assertListEqual(result, [97, 97, 97])
+
     def test_xml_to_json_function(self):
         root = self.etree.XML('<array xmlns="http://www.w3.org/2005/xpath-functions">'
                               '<number>1</number><string>is</string><boolean>1</boolean>'
