@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.7.0`_ (2024-12-20)
+======================
+* Fix *fragment* argument usage (issue #81)
+* Fix constructors nud() to skip argument check with XP31+ arrow operator (issue #83)
+
 `v4.6.0`_ (2024-10-27)
 ======================
 * Fix XsdAttributeGroupProtocol
@@ -478,3 +483,4 @@ CHANGELOG
 .. _v4.4.0: https://github.com/sissaschool/elementpath/compare/v4.3.0...v4.4.0
 .. _v4.5.0: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.5.0
 .. _v4.6.0: https://github.com/sissaschool/elementpath/compare/v4.5.0...v4.6.0
+.. _v4.7.0: https://github.com/sissaschool/elementpath/compare/v4.6.0...v4.7.0
