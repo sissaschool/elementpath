@@ -7,13 +7,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import TYPE_CHECKING, Any, Dict, Optional
+import datetime
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from elementpath._typing import Iterator
-from elementpath.aliases import NamespacesType
+from elementpath.aliases import NamespacesType, InputType
 from elementpath.tree_builders import RootArgType
-from elementpath.xpath_context import XPathContext
+from elementpath.xpath_context import ItemArgType, XPathContext
 from elementpath.xpath2 import XPath2Parser
+from elementpath.datatypes import Timezone
 
 if TYPE_CHECKING:
     from elementpath.xpath_tokens import ParserClassType
@@ -23,6 +25,15 @@ def select(root: Optional[RootArgType],
            path: str,
            namespaces: Optional[NamespacesType] = None,
            parser: Optional['ParserClassType'] = None,
+           uri: Optional[str] = None,
+           fragment: Optional[bool] = None,
+           item: Optional[ItemArgType] = None,
+           position: int = 1,
+           size: int = 1,
+           axis: Optional[str] = None,
+           variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
+           current_dt: Optional[datetime.datetime] = None,
+           timezone: Optional[Union[str, Timezone]] = None,
            **kwargs: Any) -> Any:
     """
     XPath selector function that apply a *path* expression on *root* Element.
@@ -34,28 +45,29 @@ def select(root: Optional[RootArgType],
     :param path: the XPath expression.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
     :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: other optional parameters for the parser instance or the dynamic \
-    context. For the parser instance all the optional arguments accepted by the parser \
-    version can be provided, for the dynamic context the arguments that can be provided \
-    are: 'uri', 'fragment', 'item', 'position', 'size', 'axis', 'variables', \
-    'current_dt', 'timezone'.
+    :param uri: an optional URI associated with the root element or the document.
+    :param fragment: if `True` is provided the root is considered a fragment. In this \
+    case if `root` is an ElementTree instance skips it and use the root Element. If \
+    `False` is provided creates a dummy document when the root is an Element instance. \
+    In this case the dummy document value is not included in results. For default the \
+    root node kind is preserved.
+    :param item: the context item. A `None` value means that the context is positioned on \
+    the document node.
+    :param position: the current position of the node within the input sequence.
+    :param size: the number of items in the input sequence.
+    :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
+    :param variables: dictionary of context variables that maps a QName to a value.
+    :param current_dt: current dateTime of the implementation, including explicit timezone.
+    :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
+    not have a timezone.
+    :param kwargs: other optional parameters for the parser instance.
     :return: a list with XPath nodes or a basic type for expressions based \
     on a function or literal.
     """
-    context_kwargs = {
-        'uri': kwargs.pop('uri', None),
-        'fragment': kwargs.pop('fragment', None),
-        'item': kwargs.pop('item', None),
-        'position': kwargs.pop('position', 1),
-        'size': kwargs.pop('size', 1),
-        'axis': kwargs.pop('axis', None),
-        'variables': kwargs.pop('variables', None),
-        'current_dt': kwargs.pop('current_dt', None),
-        'timezone': kwargs.pop('timezone', None),
-    }
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
-    context = XPathContext(root, namespaces, **context_kwargs)
+    context = XPathContext(root, namespaces, uri, fragment, item, position, size,
+                           axis, variables, current_dt, timezone)
     return root_token.get_results(context)
 
 
@@ -63,6 +75,15 @@ def iter_select(root: Optional[RootArgType],
                 path: str,
                 namespaces: Optional[NamespacesType] = None,
                 parser: Optional['ParserClassType'] = None,
+                uri: Optional[str] = None,
+                fragment: Optional[bool] = None,
+                item: Optional[ItemArgType] = None,
+                position: int = 1,
+                size: int = 1,
+                axis: Optional[str] = None,
+                variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
+                current_dt: Optional[datetime.datetime] = None,
+                timezone: Optional[Union[str, Timezone]] = None,
                 **kwargs: Any) -> Iterator[Any]:
     """
     A function that creates an XPath selector generator for apply a *path* expression
@@ -75,27 +96,28 @@ def iter_select(root: Optional[RootArgType],
     :param path: the XPath expression.
     :param namespaces: a dictionary with mapping from namespace prefixes into URIs.
     :param parser: the parser class to use, that is :class:`XPath2Parser` for default.
-    :param kwargs: other optional parameters for the parser instance or the dynamic \
-    context. For the parser instance all the optional arguments accepted by the parser \
-    version can be provided, for the dynamic context the arguments that can be provided \
-    are: 'uri', 'fragment', 'item', 'position', 'size', 'axis', 'variables', \
-    'current_dt', 'timezone'.
+    :param uri: an optional URI associated with the root element or the document.
+    :param fragment: if `True` is provided the root is considered a fragment. In this \
+    case if `root` is an ElementTree instance skips it and use the root Element. If \
+    `False` is provided creates a dummy document when the root is an Element instance. \
+    In this case the dummy document value is not included in results. For default the \
+    root node kind is preserved.
+    :param item: the context item. A `None` value means that the context is positioned on \
+    the document node.
+    :param position: the current position of the node within the input sequence.
+    :param size: the number of items in the input sequence.
+    :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
+    :param variables: dictionary of context variables that maps a QName to a value.
+    :param current_dt: current dateTime of the implementation, including explicit timezone.
+    :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
+    not have a timezone.
+    :param kwargs: other optional parameters for the parser instance.
     :return: a generator of the XPath expression results.
     """
-    context_kwargs = {
-        'uri': kwargs.pop('uri', None),
-        'fragment': kwargs.pop('fragment', None),
-        'item': kwargs.pop('item', None),
-        'position': kwargs.pop('position', 1),
-        'size': kwargs.pop('size', 1),
-        'axis': kwargs.pop('axis', None),
-        'variables': kwargs.pop('variables', None),
-        'current_dt': kwargs.pop('current_dt', None),
-        'timezone': kwargs.pop('timezone', None),
-    }
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
-    context = XPathContext(root, namespaces, **context_kwargs)
+    context = XPathContext(root, namespaces, uri, fragment, item, position, size,
+                           axis, variables, current_dt, timezone)
     return root_token.select_results(context)
 
 
