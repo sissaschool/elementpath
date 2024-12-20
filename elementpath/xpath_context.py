@@ -19,9 +19,9 @@ from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.tdop import Token
 from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
-from elementpath.etree import is_etree_element, is_etree_document
+from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, SchemaElementNode
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
 from elementpath.tree_builders import RootArgType, get_node_tree
 
 if TYPE_CHECKING:
@@ -143,11 +143,11 @@ class XPathContext:
 
         if isinstance(self.root, DocumentNode):
             self.document = self.root
-        elif fragment or isinstance(self.root, SchemaElementNode):
-            pass
-        elif isinstance(self.root, ElementNode):
-            # Creates a dummy document
-            self.document = self.root.get_document_node(replace=False)
+        elif fragment is None and \
+                isinstance(self.root, ElementNode) and \
+                is_etree_element_instance(self.root.elem):
+            # Creates a dummy document that will be not included in results
+            self.document = self.root.get_document_node(replace=False, as_parent=False)
 
         self.position = position
         self.size = size
@@ -211,12 +211,10 @@ class XPathContext:
             else:
                 module_name = 'xml.etree.ElementTree'
 
-            if not isinstance(module_name, str) or not module_name.startswith('lxml.'):
-                etree_module_name = 'xml.etree.ElementTree'
+            if module_name in ('lxml.etree', 'lxml.html'):
+                self._etree: ModuleType = importlib.import_module('lxml.etree')
             else:
-                etree_module_name = 'lxml.etree'
-
-            self._etree: ModuleType = importlib.import_module(etree_module_name)
+                self._etree = importlib.import_module('xml.etree.ElementTree')
 
         return self._etree
 

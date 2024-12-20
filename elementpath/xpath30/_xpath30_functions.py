@@ -1492,7 +1492,7 @@ def evaluate_parse_xml_fragment_function(self: XPathFunction, context: ContextTy
         else:
             root = etree.XML(arg)
     except etree.ParseError as err:
-        # A not parsable fragment try to parse including XML data in a dummy element.
+        # A not parsable fragment: try to parse including XML data in a dummy element.
         try:
             dummy_element_node = get_node_tree(
                 root=etree.XML(f'<document>{arg}</document>'),
@@ -1502,7 +1502,7 @@ def evaluate_parse_xml_fragment_function(self: XPathFunction, context: ContextTy
             raise self.error('FODC0006', str(err)) from None
         else:
             assert isinstance(dummy_element_node, ElementNode)
-            return DocumentNode.from_element_node(dummy_element_node)
+            return dummy_element_node.get_document_node(replace=True)
     else:
         return cast(DocumentNode, get_node_tree(
             root=etree.ElementTree(root),

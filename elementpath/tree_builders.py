@@ -14,7 +14,7 @@ from elementpath.aliases import NamespacesType
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import ElementProtocol, LxmlElementProtocol, \
     DocumentProtocol, LxmlDocumentProtocol, XsdElementProtocol
-from elementpath.etree import is_etree_document, is_etree_element
+from elementpath.etree import is_etree_document, is_etree_element, is_etree_element_instance
 from elementpath.xpath_nodes import SchemaElemType, ChildNodeType, \
     ElementMapType, TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
@@ -59,9 +59,10 @@ def get_node_tree(root: RootArgType,
                 if root_node.uri is None:
                     root_node.uri = root.uri
                 return root_node
-        elif fragment is False and not isinstance(root, SchemaElementNode):
-            if isinstance(root, ElementNode):
-                return root.get_document_node(replace=False)
+        elif fragment is False and \
+                isinstance(root, ElementNode) and \
+                is_etree_element_instance(root.elem):
+            return root.get_document_node(replace=False)
 
         return root
 
@@ -191,7 +192,9 @@ def build_node_tree(root: ElementTreeRootType,
             except IndexError:
                 if document_node is not None:
                     return document_node
-                elif fragment is False:
+                elif fragment is False and \
+                        isinstance(root_node, ElementNode) and \
+                        is_etree_element_instance(root_node.elem):
                     return root_node.get_document_node(replace=False)
                 else:
                     return root_node
