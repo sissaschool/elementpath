@@ -169,7 +169,7 @@ class Integer(int, AnyAtomicType):
     def __subclasshook__(cls, subclass: Type[Any]) -> bool:
         if cls is Integer:
             return issubclass(subclass, int) and not issubclass(subclass, bool)
-        return NotImplemented
+        return NotImplemented  # type: ignore[no-any-return,unused-ignore]
 
     @classmethod
     def validate(cls, value: object) -> None:

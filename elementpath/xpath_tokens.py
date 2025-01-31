@@ -43,7 +43,7 @@ from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.tdop import Token, MultiLabel
 from elementpath.xpath_context import ContextType, ItemType, ValueType, ItemArgType, \
     FunctionArgType, XPathSchemaContext
-from elementpath.decoder import get_atomic_value
+from elementpath.decoder import get_simple_value
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser  # noqa: F401
@@ -489,10 +489,20 @@ class XPathToken(Token[XPathTokenType]):
                         namespaces = context.namespaces
 
                     try:
-                        value = get_atomic_value(xsd_type, value, namespaces)
+                        v = get_simple_value(xsd_type, value, namespaces)
                     except (TypeError, ValueError):
                         msg = "Type {!r} is not appropriate for the context"
                         raise self.error('XPTY0004', msg.format(type(value)))
+                    else:
+                        if isinstance(v, list):
+                            if len(v) > 1:
+                                msg = "atomized operand is a sequence of length greater than one"
+                                raise self.error('XPTY0004', msg)
+                            elif not v:
+                                return None
+                            else:
+                                return v[0]
+                        return v
 
             return value
 

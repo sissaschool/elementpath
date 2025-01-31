@@ -26,7 +26,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_T
     XSD_UNTYPED, get_namespace, get_expanded_name
 from elementpath.datatypes import UntypedAtomic, QName, AnyURI, \
     Duration, Integer, DoubleProxy10, AnyAtomicType, AtomicType, NumericType
-from elementpath.decoder import get_atomic_value
+from elementpath.decoder import get_simple_value
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
@@ -102,7 +102,7 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
                 else:
                     if self.parser.schema is not None:
                         xsd_type = self.parser.schema.get_type(type_name)
-                        return cast(AnyAtomicType, get_atomic_value(xsd_type))
+                        return cast(AnyAtomicType, get_simple_value(xsd_type))
 
             return UntypedAtomic('1')
 

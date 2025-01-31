@@ -21,9 +21,9 @@ from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS
 from elementpath.protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
-    XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol
+    XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol, DocumentType
 from elementpath.helpers import match_wildcard, is_absolute_uri
-from elementpath.decoder import get_atomic_value
+from elementpath.decoder import get_simple_value
 from elementpath.etree import etree_iter_strings, is_etree_element_instance
 
 __all__ = ['SchemaElemType', 'TypedNodeType', 'ParentNodeType',
@@ -77,6 +77,10 @@ class XPathNode:
 
     @property
     def is_idrefs(self) -> Optional[bool]:
+        return None
+
+    @property
+    def is_list(self) -> Optional[bool]:
         return None
 
     @property
@@ -176,6 +180,10 @@ class AttributeNode(XPathNode):
         return root_type.name == XSD_IDREF or root_type.name == XSD_IDREFS
 
     @property
+    def is_list(self) -> bool:
+        return self.xsd_type is not None and self.xsd_type.is_list()
+
+    @property
     def name(self) -> Optional[str]:
         return self._name
 
@@ -189,19 +197,17 @@ class AttributeNode(XPathNode):
     def string_value(self) -> str:
         if isinstance(self.value, str):
             return self.value
-        return str(get_atomic_value(self.value.type))
+        return str(get_simple_value(self.value.type))
 
     @property
     def typed_value(self) -> Optional[SequenceType[AtomicType]]:
         if not isinstance(self.value, str):
-            return get_atomic_value(self.value.type)
+            return get_simple_value(self.value.type)
         elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
             return UntypedAtomic(self.value)
 
         nsmap = None if self.parent is None else self.parent.nsmap
-        if self.xsd_type.is_list() and self.xsd_type.is_valid(self.value, namespaces=nsmap):
-            return [get_atomic_value(self.xsd_type, x, nsmap) for x in self.value.split()]
-        return get_atomic_value(self.xsd_type, self.value, nsmap)
+        return get_simple_value(self.xsd_type, self.value, nsmap)
 
     def as_item(self) -> Tuple[Optional[str], Union[str, XsdAttributeProtocol]]:
         return self._name, self.value
@@ -508,6 +514,10 @@ class ElementNode(XPathNode):
         return False
 
     @property
+    def is_list(self) -> bool:
+        return self.xsd_type is not None and self.xsd_type.is_list()
+
+    @property
     def name(self) -> str:
         return self.elem.tag
 
@@ -556,15 +566,11 @@ class ElementNode(XPathNode):
         elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
             return None
         elif self.elem.text is not None:
-            if self.xsd_type.is_list() and \
-                    self.xsd_type.is_valid(self.value, namespaces=self.nsmap):
-                return [get_atomic_value(self.xsd_type, x, self.nsmap)
-                        for x in self.elem.text.split()]
-            return get_atomic_value(self.xsd_type, self.elem.text, self.nsmap)
+            return get_simple_value(self.xsd_type, self.elem.text, self.nsmap)
         elif self.elem.get(XSI_NIL) in ('1', 'true'):
             return ''
         else:
-            return get_atomic_value(self.xsd_type, '')
+            return get_simple_value(self.xsd_type, '')
 
     @property
     def namespace_nodes(self) -> List['NamespaceNode']:
@@ -784,7 +790,7 @@ class DocumentNode(XPathNode):
 
     __slots__ = 'document', 'uri', 'elements', 'children'
 
-    def __init__(self, document: DocumentProtocol,
+    def __init__(self, document: DocumentType,
                  uri: Optional[str] = None,
                  position: int = 1) -> None:
         self.document = document
@@ -978,14 +984,14 @@ class SchemaElementNode(ElementNode):
         if not hasattr(self.elem, 'type'):
             return ''
         schema_node = cast(XsdElementProtocol, self.elem)
-        return str(get_atomic_value(schema_node.type))
+        return str(get_simple_value(schema_node.type))
 
     @property
     def typed_value(self) -> SequenceType[AtomicType]:
         if not hasattr(self.elem, 'type'):
             return UntypedAtomic('')
         schema_node = cast(XsdElementProtocol, self.elem)
-        return get_atomic_value(schema_node.type)
+        return get_simple_value(schema_node.type)
 
     def iter(self) -> Iterator[XPathNode]:
         yield self

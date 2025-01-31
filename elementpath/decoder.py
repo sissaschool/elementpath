@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Any, Optional, Type, TYPE_CHECKING
 
 from elementpath._typing import MutableMapping
-from elementpath.aliases import AnyNsmapType
+from elementpath.aliases import AnyNsmapType, SequenceType
 from elementpath.protocols import XsdTypeProtocol
 from elementpath.exceptions import xpath_error
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_UNTYPED_ATOMIC
@@ -128,10 +128,10 @@ def get_builder(xsd_type: Optional[XsdTypeProtocol],
     return ATOMIC_BUILDERS[root_type.name]
 
 
-def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
+def get_simple_value(xsd_type: Optional[XsdTypeProtocol] = None,
                      text: Optional[str] = None,
                      namespaces: AnyNsmapType = None,
-                     token: Optional['XPathToken'] = None) -> dt.AtomicType:
+                     token: Optional['XPathToken'] = None) -> SequenceType[dt.AtomicType]:
     """Gets an atomic value for an XSD type instance and a source text/value."""
 
     def decode_value(v: Any) -> dt.AtomicType:
@@ -170,7 +170,9 @@ def get_atomic_value(xsd_type: Optional[XsdTypeProtocol] = None,
         return decode_value(builder.value)
 
     xsd_type.validate(text, namespaces=namespaces)
+    if xsd_type.is_list():
+        return [decode_value(x) for x in text.split()]
     return decode_value(text)
 
 
-__all__ = ['get_atomic_value']
+__all__ = ['get_simple_value']

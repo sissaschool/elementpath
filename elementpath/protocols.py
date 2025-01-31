@@ -12,6 +12,7 @@ Define type hints protocols for XPath related objects.
 """
 from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, ItemsView, \
     Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
+from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath._typing import MutableMapping
 from elementpath.aliases import NamespacesType, NsmapType
@@ -44,14 +45,6 @@ class LxmlAttribProtocol(Protocol):
     def __len__(self) -> int: ...
 
 
-AttribType = Union[
-    MutableMapping[str, Any],
-    MutableMapping[Optional[str], Any],
-    LxmlAttribProtocol,
-    'XsdAttributeGroupProtocol'
-]
-
-
 class ElementProtocol(Sized, Hashable, Protocol):
     """A protocol for generic ElementTree elements."""
 
@@ -80,7 +73,7 @@ class ElementProtocol(Sized, Hashable, Protocol):
     def tail(self) -> Optional[str]: ...
 
     @property
-    def attrib(self) -> AttribType: ...
+    def attrib(self) -> 'AttribType': ...
 
 
 class EtreeElementProtocol(ElementProtocol, Protocol):
@@ -353,8 +346,18 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
     def attrib(self) -> MutableMapping[Optional[str], 'XsdAttributeProtocol']: ...
 
 
+DocumentType = Union[ElementTree, DocumentProtocol]
+ElementType = Union[Element, ElementProtocol, XsdElementProtocol]
+AttribType = Union[
+    MutableMapping[str, Any],
+    MutableMapping[Optional[str], Any],
+    LxmlAttribProtocol,
+    XsdAttributeGroupProtocol
+]
+
 __all__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlAttribProtocol',
            'LxmlElementProtocol', 'DocumentProtocol', 'LxmlDocumentProtocol',
            'XsdValidatorProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
            'XsdAttributeProtocol', 'XsdAttributeGroupProtocol',
-           'XsdElementProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol',]
+           'XsdElementProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol',
+           'DocumentType', 'ElementType', 'AttribType']

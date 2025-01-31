@@ -37,7 +37,7 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     xsd10_atomic_types, xsd11_atomic_types
 from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.datetime import OrderedDateTime
-from elementpath.decoder import get_atomic_value
+from elementpath.decoder import get_simple_value
 
 
 class AtomicTypesTest(unittest.TestCase):
@@ -76,30 +76,30 @@ class AtomicTypesTest(unittest.TestCase):
               </xs:simpleType>
             </xs:schema>"""))
 
-        self.assertEqual(get_atomic_value(schema.elements['d'].type), UntypedAtomic('1'))
+        self.assertEqual(get_simple_value(schema.elements['d'].type), UntypedAtomic('1'))
 
         with self.assertRaises(AttributeError):
-            get_atomic_value(schema)
+            get_simple_value(schema)
 
-        self.assertEqual(get_atomic_value(xsd_type=None), UntypedAtomic(value=''))
+        self.assertEqual(get_simple_value(xsd_type=None), UntypedAtomic(value=''))
 
-        value = get_atomic_value(schema.elements['a'].type)
+        value = get_simple_value(schema.elements['a'].type)
         self.assertIsInstance(value, UntypedAtomic)
         self.assertEqual(value, UntypedAtomic(value='1'))
 
-        value = get_atomic_value(schema.elements['b'].type)
+        value = get_simple_value(schema.elements['b'].type)
         self.assertIsInstance(value, int)
         self.assertEqual(value, 1)
 
-        value = get_atomic_value(schema.elements['c'].type)
+        value = get_simple_value(schema.elements['c'].type)
         self.assertIsInstance(value, UntypedAtomic)
         self.assertEqual(value, UntypedAtomic(value='1'))
 
-        value = get_atomic_value(schema.elements['d'].type)
+        value = get_simple_value(schema.elements['d'].type)
         self.assertIsInstance(value, float)
         self.assertEqual(value, 1.0)
 
-        value = get_atomic_value(schema.elements['e'].type)
+        value = get_simple_value(schema.elements['e'].type)
         self.assertIsInstance(value, str)
         self.assertEqual(value, '  alpha\t')
 

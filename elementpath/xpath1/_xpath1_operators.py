@@ -829,7 +829,7 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
     if context is None:
         raise self.missing_context()
 
-    for _ in context.inner_focus_select(self[0]):
+    for _ in context.inner_focus_select(self[0], True):
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')

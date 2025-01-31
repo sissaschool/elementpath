@@ -313,11 +313,25 @@ class XPathContext:
             item = self.get_context_item(items)
             return [item] if isinstance(item, XPathNode) else []
 
-    def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis']) \
+    def inner_focus_select(self, token: Union['XPathToken', 'XPathAxis'], predicate: bool = False) \
             -> Iterator[ItemType]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
-        results = [x for x in token.select(copy(self))]
+        if predicate:
+            results: list[ItemType] = []
+            for item in token.select(copy(self)):
+                # With predicate select nodes that have not single list value
+                # must be replaced by value.
+                if isinstance(item, (AttributeNode, ElementNode)) and item.is_list:
+                    value = item.typed_value
+                    if isinstance(value, list):
+                        results.extend(value)
+                        continue
+
+                results.append(item)
+        else:
+             results = [x for x in token.select(copy(self))]
+
         self.axis = None
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:
