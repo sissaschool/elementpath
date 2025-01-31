@@ -348,6 +348,9 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
 
 DocumentType = Union[ElementTree, DocumentProtocol]
 ElementType = Union[Element, ElementProtocol, XsdElementProtocol]
+SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
+CommentType = Union[Element, ElementProtocol]
+ProcessingInstructionType = Union[Element, ElementProtocol]
 AttribType = Union[
     MutableMapping[str, Any],
     MutableMapping[Optional[str], Any],
@@ -358,6 +361,6 @@ AttribType = Union[
 __all__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlAttribProtocol',
            'LxmlElementProtocol', 'DocumentProtocol', 'LxmlDocumentProtocol',
            'XsdValidatorProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
-           'XsdAttributeProtocol', 'XsdAttributeGroupProtocol',
-           'XsdElementProtocol', 'GlobalMapsProtocol', 'XsdSchemaProtocol',
-           'DocumentType', 'ElementType', 'AttribType']
+           'XsdAttributeProtocol', 'XsdAttributeGroupProtocol', 'XsdElementProtocol',
+           'GlobalMapsProtocol', 'XsdSchemaProtocol', 'DocumentType', 'ElementType',
+           'SchemaElemType', 'CommentType', 'ProcessingInstructionType', 'AttribType']

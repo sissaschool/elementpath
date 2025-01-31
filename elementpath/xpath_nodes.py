@@ -21,23 +21,23 @@ from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS
 from elementpath.protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
-    XsdAttributeProtocol, XsdTypeProtocol, XsdSchemaProtocol, DocumentType
+    XsdAttributeProtocol, XsdTypeProtocol, DocumentType, ElementType, SchemaElemType, \
+    CommentType, ProcessingInstructionType
 from elementpath.helpers import match_wildcard, is_absolute_uri
 from elementpath.decoder import get_simple_value
 from elementpath.etree import etree_iter_strings, is_etree_element_instance
 
-__all__ = ['SchemaElemType', 'TypedNodeType', 'ParentNodeType',
-           'ChildNodeType', 'ElementMapType', 'XPathNode', 'AttributeNode',
-           'NamespaceNode', 'TextNode', 'CommentNode', 'ProcessingInstructionNode',
-           'ElementNode', 'LazyElementNode', 'SchemaElementNode', 'DocumentNode']
+__all__ = ['TypedNodeType', 'ParentNodeType', 'ChildNodeType', 'ElementMapType',
+           'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode', 'CommentNode',
+           'ProcessingInstructionNode', 'ElementNode', 'LazyElementNode',
+           'SchemaElementNode', 'DocumentNode']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
-SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
 TypedNodeType = Union['AttributeNode', 'ElementNode']
 ParentNodeType = Union['DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
-ElementMapType = Dict[Union[ElementProtocol, SchemaElemType], 'ElementNode']
+ElementMapType = Dict[ElementType, 'ElementNode']
 
 
 ###
@@ -357,7 +357,7 @@ class CommentNode(XPathNode):
     __slots__ = 'elem',
 
     def __init__(self,
-                 elem: ElementProtocol,
+                 elem: CommentType,
                  parent: Union['ElementNode', 'DocumentNode', None] = None,
                  position: int = 1) -> None:
         self.elem = elem
@@ -368,7 +368,7 @@ class CommentNode(XPathNode):
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
     @property
-    def value(self) -> ElementProtocol:
+    def value(self) -> CommentType:
         return self.elem
 
     @property
@@ -402,7 +402,7 @@ class ProcessingInstructionNode(XPathNode):
     __slots__ = 'elem',
 
     def __init__(self,
-                 elem: ElementProtocol,
+                 elem: ProcessingInstructionType,
                  parent: Union['ElementNode', 'DocumentNode', None] = None,
                  position: int = 1) -> None:
         self.elem = elem
@@ -413,14 +413,14 @@ class ProcessingInstructionNode(XPathNode):
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
 
     @property
-    def value(self) -> ElementProtocol:
+    def value(self) -> ProcessingInstructionType:
         return self.elem
 
     @property
     def name(self) -> str:
         try:
             # an lxml PI
-            return cast(str, self.elem.target)  # type: ignore[attr-defined]
+            return cast(str, self.elem.target)  # type: ignore[union-attr]
         except AttributeError:
             return cast(str, self.elem.text).split(' ', maxsplit=1)[0]
 
@@ -454,7 +454,7 @@ class ElementNode(XPathNode):
     document_uri: None
 
     kind = 'element'
-    elem: Union[ElementProtocol, SchemaElemType]
+    elem: ElementType
     nsmap: MutableMapping[Optional[str], str]
     elements: Optional[ElementMapType]
     _namespace_nodes: Optional[List['NamespaceNode']]
@@ -466,7 +466,7 @@ class ElementNode(XPathNode):
                 '_namespace_nodes', '_attributes', 'children', '__dict__'
 
     def __init__(self,
-                 elem: Union[ElementProtocol, SchemaElemType],
+                 elem: ElementType,
                  parent: Optional[Union['ElementNode', 'DocumentNode']] = None,
                  position: int = 1,
                  nsmap: Optional[MutableMapping[Any, str]] = None,

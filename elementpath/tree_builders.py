@@ -12,20 +12,19 @@ from typing import cast, Any, List, Optional, Union
 from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType
 from elementpath.exceptions import ElementPathTypeError
-from elementpath.protocols import ElementProtocol, LxmlElementProtocol, \
-    DocumentProtocol, LxmlDocumentProtocol, XsdElementProtocol
+from elementpath.protocols import LxmlElementProtocol, DocumentProtocol, \
+    LxmlDocumentProtocol, XsdElementProtocol, DocumentType, ElementType, SchemaElemType
 from elementpath.etree import is_etree_document, is_etree_element, is_etree_element_instance
-from elementpath.xpath_nodes import SchemaElemType, ChildNodeType, \
-    ElementMapType, TextNode, CommentNode, ProcessingInstructionNode, \
+from elementpath.xpath_nodes import ChildNodeType, ElementMapType, \
+    TextNode, CommentNode, ProcessingInstructionNode, \
     ElementNode, SchemaElementNode, DocumentNode
 
 __all__ = ['RootArgType', 'get_node_tree', 'build_node_tree',
            'build_lxml_node_tree', 'build_schema_node_tree']
 
-RootArgType = Union[DocumentProtocol, ElementProtocol, SchemaElemType,
-                    'DocumentNode', 'ElementNode']
+RootArgType = Union[DocumentType, ElementType, SchemaElemType, 'DocumentNode', 'ElementNode']
 
-ElementTreeRootType = Union[DocumentProtocol, ElementProtocol]
+ElementTreeRootType = Union[DocumentType, ElementType]
 LxmlRootType = Union[LxmlDocumentProtocol, LxmlElementProtocol]
 
 
@@ -67,7 +66,7 @@ def get_node_tree(root: RootArgType,
         return root
 
     if not is_etree_document(root) and \
-            (not is_etree_element(root) or callable(cast(ElementProtocol, root).tag)):
+            (not is_etree_element(root) or callable(cast(ElementType, root).tag)):
         msg = "invalid root {!r}, an Element or an ElementTree or a schema node required"
         raise ElementPathTypeError(msg.format(root))
     elif hasattr(root, 'xpath'):
@@ -101,7 +100,7 @@ def build_node_tree(root: ElementTreeRootType,
     `False` is provided creates a dummy document when the root is an Element instance. \
     For default the root node kind is preserved.
     """
-    elem: ElementProtocol
+    elem: ElementType
     parent: Any
     elements: Any
     child: ChildNodeType
