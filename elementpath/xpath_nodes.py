@@ -219,13 +219,17 @@ class AttributeNode(XPathNode):
     def path(self) -> str:
         if self.parent is None:
             return f'@{self._name}'
-        return f'{self.parent.path}/@{self._name}'
+
+        path = self.parent.path
+        return f'/@{self._name}' if path == '/' else f'{path}/@{self._name}'
 
     def is_schema_node(self) -> bool:
         return hasattr(self.value, 'name') and hasattr(self.value, 'type')
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
-        if self._name is None:
+        if not self._name:
+            if not isinstance(self.value, str):
+                return self.value.is_matching(name, default_namespace)
             return False
         elif '*' in name:
             return match_wildcard(self._name, name)
@@ -608,7 +612,7 @@ class ElementNode(XPathNode):
 
             item = item.parent
             if item is None:
-                return '/{}'.format('/'.join(reversed(path)))
+                return f"/{'/'.join(reversed(path))}"
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -806,6 +810,10 @@ class DocumentNode(XPathNode):
     @property
     def base_uri(self) -> Optional[str]:
         return self.uri.strip() if self.uri is not None else None
+
+    @property
+    def path(self) -> str:
+        return '/'
 
     def getroot(self) -> ElementNode:
         for child in self.children:
@@ -1055,6 +1063,16 @@ class SchemaElementNode(ElementNode):
                     children = iterators.pop()
                 except IndexError:
                     return
+
+    @property
+    def path(self) -> str:
+        path: List[str] = []
+        item: Any = self
+        while True:
+            if item.parent is None:
+                return '/{}'.format('/'.join(reversed(path)))
+            path.append(item.elem.tag)
+            item = item.parent
 
 
 XPathNodeType = Union[DocumentNode, NamespaceNode, AttributeNode, TextNode,

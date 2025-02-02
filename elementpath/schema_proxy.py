@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
 
 from elementpath._typing import Iterator
@@ -76,6 +77,11 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :return: The first matching schema component, or ``None`` if there is no match.
         """
         return self._schema.find(path, namespaces)
+
+    @lru_cache(maxsize=None)
+    def cached_find(self, expanded_path: str) \
+            -> Optional[Union[XsdSchemaProtocol, XsdElementProtocol]]:
+        return self._schema.find(expanded_path)
 
     @property
     def xsd_version(self) -> str:

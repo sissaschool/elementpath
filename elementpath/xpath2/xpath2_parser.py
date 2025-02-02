@@ -520,8 +520,22 @@ class XPath2Parser(XPath1Parser):
         if self.schema is not None:
             # Tokens tree labeling with XSD types using a dynamic schema context
             context = self.schema.get_context()
+            if source == '(@a and not(@b)) or (not(@a) and @b)':
+                pass  # breakpoint()
             for _ in root_token.select(context):
                 pass
+
+            untyped = False
+            for tk in root_token.iter():
+                if tk.xsd_types is not None:
+                    if tk.symbol == '@':
+                        print(tk.symbol, tk.label, tk[:])
+                        print(self.source)
+                elif tk.symbol in ('(name)',):
+                    # print(tk, tk.symbol)
+                    # print(self.source)
+                    untyped = True
+
 
         return root_token
 
