@@ -484,9 +484,9 @@ class XPath2TokenTest(XPath1TokenTest):
 
             # With the schema as base element all the global elements are added.
             root_token = self.parser.parse('.')
-            self.assertEqual(root_token.xsd_types['a1'], schema.meta_schema.types['int'])
-            self.assertEqual(root_token.xsd_types['a2'], schema.meta_schema.types['string'])
-            self.assertEqual(root_token.xsd_types['a3'], schema.meta_schema.types['boolean'])
+            self.assertEqual(root_token.xsd_types['/a1'], schema.meta_schema.types['int'])
+            self.assertEqual(root_token.xsd_types['/a2'], schema.meta_schema.types['string'])
+            self.assertEqual(root_token.xsd_types['/a3'], schema.meta_schema.types['boolean'])
 
             self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema, schema.elements['a2'])
             root_token = self.parser.parse('.')
@@ -698,22 +698,22 @@ class XPath2TokenTest(XPath1TokenTest):
             xsd_type = root_token.get_xsd_type('/node')
             self.assertEqual(xsd_type, schema.meta_schema.types['decimal'])
 
-            xsd_type = root_token.get_xsd_type(AttributeNode('/node', 'false'))
-            self.assertEqual(xsd_type, schema.meta_schema.types['boolean'])
+            xsd_type = root_token.get_xsd_type(AttributeNode('node', 'false'))
+            self.assertIsNone(xsd_type)
             xsd_type = root_token.get_xsd_type(AttributeNode('node', 'alpha'))
-            self.assertEqual(xsd_type, schema.meta_schema.types['float'])
+            self.assertIsNone(xsd_type)
 
             elem = ElementTree.Element('node')
             elem.text = 'false'
             xsd_type = root_token.get_xsd_type(ElementNode(elem))
-            self.assertEqual(xsd_type, schema.meta_schema.types['boolean'])
+            self.assertEqual(xsd_type, schema.meta_schema.types['decimal'])
 
             typed_element = ElementNode(elem, xsd_type=xsd_type)
             self.assertIs(xsd_type, root_token.get_xsd_type(typed_element))
 
             elem.text = 'alpha'
             xsd_type = root_token.get_xsd_type(ElementNode(elem))
-            self.assertEqual(xsd_type, schema.meta_schema.types['float'])
+            self.assertEqual(xsd_type, schema.meta_schema.types['decimal'])
 
         finally:
             self.parser.schema = None
@@ -742,20 +742,11 @@ class XPath2TokenTest(XPath1TokenTest):
                 root_token.get_xsd_type(ElementNode(elem)), schema.types['aType']
             )
 
-            TestElement = namedtuple('XsdElement', 'name xsd_version type')
+            TestElement = namedtuple('XsdElement', 'value xsd_version type')
             root_token.add_xsd_type(TestElement('a', '1.0', schema.meta_schema.types['float']))
             self.assertEqual(
                 root_token.get_xsd_type(ElementNode(elem)), schema.types['aType']
             )
-
-            root_token.xsd_types['a'].insert(0, schema.meta_schema.types['boolean'])
-            self.assertEqual(
-                root_token.get_xsd_type(ElementNode(elem)), schema.types['aType']
-            )
-
-            del elem[1]
-            self.assertEqual(root_token.get_xsd_type(ElementNode(elem)),
-                             schema.meta_schema.types['boolean'])
         finally:
             self.parser.schema = None
 

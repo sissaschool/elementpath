@@ -330,7 +330,7 @@ class XPathContext:
 
                 results.append(item)
         else:
-             results = [x for x in token.select(copy(self))]
+            results = [x for x in token.select(copy(self))]
 
         self.axis = None
 

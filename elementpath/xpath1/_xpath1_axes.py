@@ -20,11 +20,13 @@ from elementpath.xpath_tokens import XPathAxis
 
 from ._xpath1_functions import XPath1Parser
 
+
+register = XPath1Parser.register
 method = XPath1Parser.method
 axis = XPath1Parser.axis
 
 
-@method('@', bp=80)
+@method(register('@', lbp=80, rbp=80, label="attribute reference"))
 def nud_attribute_reference(self: XPathAxis) -> XPathAxis:
     self.parser.expected_next(
         '*', '(name)', ':', '{', 'Q{', message="invalid attribute specification")

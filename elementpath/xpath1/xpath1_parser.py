@@ -16,8 +16,8 @@ from typing import cast, Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, 
 
 from elementpath._typing import Callable, MutableMapping, Sequence
 from elementpath.aliases import NamespacesType, NargsType
-from elementpath.exceptions import MissingContextError, UnsupportedFeatureError, \
-    ElementPathValueError, ElementPathNameError, ElementPathKeyError, xpath_error
+from elementpath.exceptions import xpath_error, UnsupportedFeatureError, \
+    ElementPathValueError, ElementPathNameError, ElementPathKeyError
 from elementpath.helpers import upper_camel_case
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
@@ -242,11 +242,14 @@ class XPath1Parser(Parser[XPathTokenType]):
         return cast(Type[XPathFunction], cls.register(symbol, **kwargs))
 
     def parse(self, source: str) -> XPathToken:
-        root_token = super(XPath1Parser, self).parse(source)
-        try:
-            root_token.evaluate()  # Static context evaluation
-        except MissingContextError:
-            pass
+        if self.tokenizer is None:
+            self.tokenizer = self.create_tokenizer(self.symbol_table)
+
+        root_token = super().parse(source)
+        if root_token.label in ('sequence type', 'function test'):
+            raise root_token.error('XPST0003', "not allowed in XPath expression")
+
+        root_token.static_evaluation()
         return root_token
 
     def expected_next(self, *symbols: str, message: Optional[str] = None) -> None:

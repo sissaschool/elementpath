@@ -184,8 +184,8 @@ class XMLSchemaContextTest(unittest.TestCase):
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root])
         self.assertIsNotNone(token.xsd_types)
-        self.assertEqual(token.xsd_types.get("{http://xpath.test/ns}a"), elem_a.type)
-        self.assertEqual(token.xsd_types.get("{http://xpath.test/ns}b3"), elem_b3.type)
+        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}a"), elem_a.type)
+        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}b3"), elem_b3.type)
 
         context = XPathSchemaContext(self.schema1, item=self.schema1)
         token = parser.parse('.')
@@ -193,8 +193,8 @@ class XMLSchemaContextTest(unittest.TestCase):
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root])
         self.assertIsNotNone(token.xsd_types)
-        self.assertEqual(token.xsd_types.get("{http://xpath.test/ns}a"), elem_a.type)
-        self.assertEqual(token.xsd_types.get("{http://xpath.test/ns}b3"), elem_b3.type)
+        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}a"), elem_a.type)
+        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}b3"), elem_b3.type)
 
         context = XPathSchemaContext(self.schema1, item=self.schema2)
         schema2_node = context.item
@@ -202,7 +202,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
         self.assertListEqual(result, [schema2_node])
-        self.assertIsNone(token.xsd_types)
+        self.assertIsNotNone(token.xsd_types.get("/root"))
 
     def test_schema_variables(self):
         variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}

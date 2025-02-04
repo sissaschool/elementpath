@@ -133,6 +133,15 @@ class _PrefixedReferenceToken(XPathToken):
         else:
             return ':'.join(tk.source for tk in self)
 
+    @property
+    def name(self) -> str:
+        prefix = self[0].value
+        assert isinstance(prefix, str)
+        if prefix == '*':
+            return '*:%s' % self[1].value
+        else:
+            return f'{{{self.get_namespace(prefix)}}}{self[1].value}'
+
     def led(self: XPathToken, left: XPathToken) -> XPathToken:
         version = self.parser.version
         if self.is_spaced():
@@ -164,6 +173,9 @@ class _PrefixedReferenceToken(XPathToken):
             raise self.wrong_syntax()
 
         self[:] = left, self.parser.expression(95)
+        self[0].untyped = True
+        self[1].untyped = True
+
         if self[1].label.endswith('function'):
             self.value = f'{self[0].value}:{self[1].symbol}'
         else:
@@ -185,26 +197,19 @@ class _PrefixedReferenceToken(XPathToken):
                 yield value
             return
 
-        prefix = self[0].value
-        assert isinstance(prefix, str)
-        if prefix == '*':
-            name = '*:%s' % self[1].value
-        else:
-            name = f'{{{self.get_namespace(prefix)}}}{self[1].value}'
-
         if context is None:
             raise self.missing_context()
         elif isinstance(context, XPathSchemaContext):
             # Static XSD typed evaluation
-            for item in context.iter_matching_nodes(name):
+            for item in context.iter_matching_nodes(self.name):
                 self.add_xsd_type(item)
                 yield item
         elif self.parser.schema is None:
             # Untyped dynamic evaluation
-            yield from context.iter_matching_nodes(name)
+            yield from context.iter_matching_nodes(self.name)
         else:
             # XSD typed dynamic evaluation
-            for item in context.iter_matching_nodes(name):
+            for item in context.iter_matching_nodes(self.name):
                 if item.xsd_type is None:
                     item.xsd_type = self.get_xsd_type(item)
                 yield item
@@ -295,6 +300,7 @@ def select_namespace_uri(self: XPathToken, context: ContextType = None) \
 def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
+    self[-1].untyped = True
     if not isinstance(self[0].value, str) or ':' in self[0].value:
         raise self[0].wrong_syntax("variable reference requires a simple reference name")
     return self
@@ -341,7 +347,7 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
                 self.add_xsd_type(item)
                 yield item
 
-    elif self.xsd_types is None:
+    elif self.parser.schema is None:
         for item in context.iter_children_or_self():
             if item is None:
                 pass  # '*' wildcard doesn't match document nodes
@@ -372,7 +378,7 @@ def select_self_shortcut(self: XPathToken, context: ContextType = None) -> Itera
                 self.add_xsd_type(item)
             yield item
 
-    elif self.xsd_types is None:
+    elif self.parser.schema is None:
         yield from context.iter_self()
     else:
         for item in context.iter_self():
@@ -394,12 +400,22 @@ def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
 # Logical Operators
 @method(infix('or', bp=20))
 def evaluate_or_operator(self: XPathToken, context: ContextType = None) -> bool:
+    if isinstance(context, XPathSchemaContext):
+        op1 = self.boolean_value(self[0].select(copy(context)))
+        op2 = self.boolean_value(self[1].select(copy(context)))
+        return op1 or op2
+
     return self.boolean_value(self[0].select(copy(context))) or \
         self.boolean_value(self[1].select(copy(context)))
 
 
 @method(infix('and', bp=25))
 def evaluate_and_operator(self: XPathToken, context: ContextType = None) -> bool:
+    if isinstance(context, XPathSchemaContext):
+        op1 = self.boolean_value(self[0].select(copy(context)))
+        op2 = self.boolean_value(self[1].select(copy(context)))
+        return op1 and op2
+
     return self.boolean_value(self[0].select(copy(context))) and \
         self.boolean_value(self[1].select(copy(context)))
 
@@ -754,8 +770,6 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
                     else:
                         items.add(result)
                         yield result
-                        if isinstance(context, XPathSchemaContext) and False:
-                            self[1].add_xsd_type(result)
 
     else:
         if isinstance(context.document, DocumentNode):
@@ -777,8 +791,6 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
                         items.add(result)
                 else:
                     items.add(result)
-                    if isinstance(context, XPathSchemaContext) and False:
-                        self[0].add_xsd_type(result)
 
         yield from sorted(items, key=node_position)
 
@@ -801,8 +813,8 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
-        elif False and isinstance(context, XPathSchemaContext):
-            yield context.item
+        elif isinstance(context, XPathSchemaContext):
+            yield context.item  # Predicates are always true with a schema context
             continue
 
         predicate: Sequence[NumericType]

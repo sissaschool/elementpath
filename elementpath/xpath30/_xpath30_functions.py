@@ -1592,7 +1592,7 @@ def evaluate_function_name_function(self: XPathFunction, context: ContextType = 
     if not isinstance(func, XPathFunction):
         raise self.error('XPTY0004', "argument is not a function")
     else:
-        name = func.name
+        name = func.qname
         return [] if name is None else name
 
 

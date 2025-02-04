@@ -24,14 +24,14 @@ import urllib.parse
 from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.aliases import NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.protocols import ElementProtocol, DocumentProtocol, \
-    XsdAttributeProtocol, XsdElementProtocol, XsdTypeProtocol, XsdSchemaProtocol
+    XsdAttributeProtocol, XsdTypeProtocol
 from elementpath.exceptions import ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError, xpath_error
 from elementpath.helpers import ordinal, get_double, split_function_test
 from elementpath.etree import is_etree_element, is_etree_document
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_SCHEMA, XSD_DECIMAL, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
+    XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
     DocumentNode, NamespaceNode, SchemaElementNode
@@ -101,6 +101,7 @@ class XPathToken(Token[XPathTokenType]):
     namespace = None  # for namespace binding of names and wildcards
     occurrence = None  # occurrence indicator for item types
     concatenated = False  # a flag for infix operators that can be concatenated
+    untyped = False  # used for marking a token as explicitly untyped
 
     def evaluate(self, context: ContextType = None) -> ValueType:
         """
@@ -121,6 +122,64 @@ class XPathToken(Token[XPathTokenType]):
             yield from item
         else:
             yield item
+
+    def static_evaluation(self, check_types: bool = False) -> None:
+        try:
+            self.evaluate()  # Static context evaluation
+        except MissingContextError:
+            pass
+
+        if self.parser.schema is None:
+            return
+
+        # Static evaluation using a schema context
+        context = self.parser.schema.get_context()
+
+        if not check_types:
+            # Default, used after parse.
+            for _ in self.select(context):
+                pass
+        else:
+            # Checks tokens tree labeling with XSD types, against the types
+            # defined in the schema context.
+
+            typed_token_symbols = ('(name)', '.', '*', '{', ':', 'attribute')
+
+            for tk in self.iter():
+                tk.__dict__.pop('xsd_types', None)
+
+            for _ in self.select(context):
+                pass
+
+            for tk in self.iter():
+                if tk.untyped:
+                    pass  # part of a composite token, skip
+                elif tk.symbol in ('(string)', '(float)', '(decimal)', '(integer)'):
+                    # typed literal: maybe labeled or not
+                    if tk.xsd_types is not None:
+                        for xsd_type in tk.xsd_types.values():
+                            if not xsd_type.is_valid(tk.value):
+                                msg = f"{tk} is not a valid with {xsd_type}"
+                                raise ElementPathTypeError(msg)
+
+                elif tk.symbol not in typed_token_symbols:
+                    if tk.xsd_types is not None:
+                        msg = f"{tk} erroneously labeled with {tk.xsd_types}"
+                        raise ElementPathTypeError(msg)
+
+                elif tk.xsd_types is None:
+                    if tk.symbol == '*' and len(tk):
+                        continue  # not a wildcard
+                    if tk.symbol == ':':
+                        if not len(tk) or isinstance(tk[-1], XPathFunction):
+                            continue
+                        name: str = tk.name
+                        if self.parser.schema.get_attribute(name) is None and \
+                                self.parser.schema.get_element(name) is None:
+                            continue
+
+                    msg = f"{tk} has not XSD types associated with it"
+                    raise ElementPathTypeError(msg)
 
     def __str__(self) -> str:
         if self.symbol == '$':
@@ -173,9 +232,13 @@ class XPathToken(Token[XPathTokenType]):
         elif symbol == 'if':
             return 'if (%s) then %s else %s' % (self[0].source, self[1].source, self[2].source)
         elif symbol == 'instance':
-            return '%s instance of %s' % (self[0].source, ''.join(t.source for t in self[1:]))
+            return '%s instance of %s' % (
+                self[0].source, ''.join(str(t.source) for t in self[1:])
+            )
         elif symbol in ('treat', 'cast', 'castable'):
-            return '%s %s as %s' % (self[0].source, symbol, ''.join(t.source for t in self[1:]))
+            return '%s %s as %s' % (
+                self[0].source, symbol, ''.join(str(t.source) for t in self[1:])
+            )
         elif symbol == 'for':
             return 'for %s return %s' % (
                 ', '.join('%s in %s' % (self[k].source, self[k + 1].source)
@@ -198,6 +261,22 @@ class XPathToken(Token[XPathTokenType]):
         elif symbol in ('-', '+') and len(self) == 1:
             return symbol + self[0].source
         return super(XPathToken, self).source
+
+    @property
+    def name(self) -> str:
+        if self.symbol == '@':
+            return self[0].name
+        if self.symbol != '(name)':
+            return ''
+
+        local_name = self[0].value
+        assert isinstance(local_name, str)
+        if self.namespace:
+            return f'{{{self.namespace}}}{local_name}'
+        elif namespace := self.parser.default_namespace:
+            return f'{{{namespace}}}{local_name}'
+        else:
+            return local_name
 
     @property
     def child_axis(self) -> bool:
@@ -471,8 +550,11 @@ class XPathToken(Token[XPathTokenType]):
             elif isinstance(value, UntypedAtomic):
                 value = str(value)
 
-            if isinstance(value, str) and context is not None and \
-                    not isinstance(context, XPathSchemaContext):
+            if isinstance(context, XPathSchemaContext):
+                if isinstance(context.item, (AttributeNode, ElementNode)):
+                        self.add_xsd_type(context.item)
+
+            elif isinstance(value, str) and context is not None:
                 if isinstance(context.item, (AttributeNode, ElementNode)):
                     xsd_type = self.get_xsd_type(context.item)
                     if xsd_type is not None and xsd_type.name not in _XSD_SPECIAL_TYPES:
@@ -490,7 +572,8 @@ class XPathToken(Token[XPathTokenType]):
                         else:
                             if isinstance(v, list):
                                 if len(v) > 1:
-                                    msg = "atomized operand is a sequence of length greater than one"
+                                    msg = ("atomized operand is a sequence "
+                                           "of length greater than one")
                                     raise self.error('XPTY0004', msg)
                                 elif not v:
                                     return None
@@ -813,7 +896,9 @@ class XPathToken(Token[XPathTokenType]):
         Adds an XSD type associations from a schema item. The associations are added during
         the static evaluation using a schema context and is related to node path.
         """
-        if self.symbol == '@':
+        if self.untyped:
+            return None
+        elif self.symbol == '@':
             return self[0].add_xsd_type(node)
         elif isinstance(node, SchemaElementNode) and node.parent is None:
             # A schema, add all global elements
@@ -821,7 +906,7 @@ class XPathToken(Token[XPathTokenType]):
                 self.xsd_types = {
                     e.path: e.elem.type for e in node.children
                     if isinstance(e, SchemaElementNode) and hasattr(e.elem, 'type')
-                       and e.elem.type is not None
+                    and e.elem.type is not None
                 }
             else:
                 for e in node.children:
@@ -869,7 +954,8 @@ class XPathToken(Token[XPathTokenType]):
 
         return xsd_type
 
-    def get_xsd_type(self, item: Union[str, AttributeNode, ElementNode]) -> Optional[XsdTypeProtocol]:
+    def get_xsd_type(self, item: Union[str, AttributeNode, ElementNode]) \
+            -> Optional[XsdTypeProtocol]:
         """
         Returns the XSD type associated with an attribute or element node during
         the dynamic evaluation. Match by item's path and name with saved types
@@ -881,7 +967,9 @@ class XPathToken(Token[XPathTokenType]):
           https://www.w3.org/TR/xpath20/#id-static-analysis
           https://www.w3.org/TR/xquery-semantics/
         """
-        if isinstance(item, str):
+        if self.symbol == '@':
+            return self[0].get_xsd_type(item)
+        elif isinstance(item, str):
             if self.xsd_types is None:
                 return None
             return self.xsd_types.get(item)
@@ -1175,7 +1263,7 @@ class XPathFunction(XPathToken):
     A token for processing XPath functions.
     """
     __name__: str
-    _name: Optional[QName] = None
+    _qname: Optional[QName] = None
     pattern = r'(?<!\$)\b[^\d\W][\w.\-\xb7\u0300-\u036F\u203F\u2040]*' \
               r'(?=\s*(?:\(\:.*\:\))?\s*\((?!\:))'
 
@@ -1203,7 +1291,7 @@ class XPathFunction(XPathToken):
                 self.nargs = nargs
 
     def __repr__(self) -> str:
-        qname = self.name
+        qname = self.qname
         if qname is None:
             return '<%s object at %#x>' % (self.__class__.__name__, id(self))
         elif not isinstance(self.nargs, int):
@@ -1323,30 +1411,30 @@ class XPathFunction(XPathToken):
         return '%s(%s)' % (self.symbol, ', '.join(item.source for item in self))
 
     @property
-    def name(self) -> Optional[QName]:
-        if self._name is not None:
-            return self._name
+    def qname(self) -> Optional[QName]:
+        if self._qname is not None:
+            return self._qname
         elif self.symbol == 'function':
             return None
         elif self.label == 'partial function':
             return None
         elif not self.namespace:
-            self._name = QName(None, self.symbol)
+            self._qname = QName(None, self.symbol)
         elif self.namespace == XPATH_FUNCTIONS_NAMESPACE:
-            self._name = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
+            self._qname = QName(XPATH_FUNCTIONS_NAMESPACE, 'fn:%s' % self.symbol)
         elif self.namespace == XSD_NAMESPACE:
-            self._name = QName(XSD_NAMESPACE, 'xs:%s' % self.symbol)
+            self._qname = QName(XSD_NAMESPACE, 'xs:%s' % self.symbol)
         elif self.namespace == XPATH_MATH_FUNCTIONS_NAMESPACE:
-            self._name = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
+            self._qname = QName(XPATH_MATH_FUNCTIONS_NAMESPACE, 'math:%s' % self.symbol)
         else:
             for pfx, uri in self.parser.namespaces.items():
                 if uri == self.namespace:
-                    self._name = QName(uri, f'{pfx}:{self.symbol}')
+                    self._qname = QName(uri, f'{pfx}:{self.symbol}')
                     break
             else:
-                self._name = QName(self.namespace, self.symbol)
+                self._qname = QName(self.namespace, self.symbol)
 
-        return self._name
+        return self._qname
 
     @property
     def arity(self) -> int:
@@ -1437,6 +1525,9 @@ class XPathFunction(XPathToken):
         self.parser.advance(')')
         if any(tk.symbol == '?' and not tk for tk in self._items):
             self.to_partial_function()
+        elif self.label in ('kind test', 'sequence type', 'function test'):
+            for tk in self._items:
+                tk.untyped = True
 
         return self
 
@@ -1499,7 +1590,7 @@ class XPathFunction(XPathToken):
             setattr(self, 'evaluate', evaluate)
             setattr(self, 'select', select)
 
-        self._name = None
+        self._qname = None
         self.label = 'partial function'
         self.nargs = nargs
 
@@ -1510,7 +1601,7 @@ class XPathFunction(XPathToken):
         def wrapper(*args: FunctionArgType, context: ContextType = None) -> ValueType:
             return self.__call__(*args, context=context)
 
-        qname = self.name
+        qname = self.qname
         if self.is_reference():
             ref_part = f'#{self.nargs}'
         else:

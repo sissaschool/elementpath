@@ -504,41 +504,6 @@ class XPath2Parser(XPath1Parser):
     def is_schema_bound(self) -> bool:
         return self.schema is not None and 'symbol_table' in self.__dict__
 
-    def parse(self, source: str) -> XPathToken:
-        if self.tokenizer is None:
-            self.tokenizer = self.create_tokenizer(self.symbol_table)
-
-        root_token = super(XPath1Parser, self).parse(source)
-        if root_token.label in ('sequence type', 'function test'):
-            raise root_token.error('XPST0003', "not allowed in XPath expression")
-
-        try:
-            root_token.evaluate()  # Static context evaluation
-        except MissingContextError:
-            pass
-
-        if self.schema is not None:
-            # Tokens tree labeling with XSD types using a dynamic schema context
-            context = self.schema.get_context()
-            if source == '(@a and not(@b)) or (not(@a) and @b)':
-                pass  # breakpoint()
-            for _ in root_token.select(context):
-                pass
-
-            untyped = False
-            for tk in root_token.iter():
-                if tk.xsd_types is not None:
-                    if tk.symbol == '@':
-                        print(tk.symbol, tk.label, tk[:])
-                        print(self.source)
-                elif tk.symbol in ('(name)',):
-                    # print(tk, tk.symbol)
-                    # print(self.source)
-                    untyped = True
-
-
-        return root_token
-
     def check_variables(self, values: MutableMapping[str, Any]) -> None:
         if self.variable_types is None:
             return

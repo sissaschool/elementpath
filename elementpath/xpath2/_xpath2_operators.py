@@ -61,6 +61,7 @@ def nud_auxiliary_symbols(self: XPathToken) -> XPathToken:
 def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)', 'Q{')
     self[:] = self.parser.expression(rbp=90),
+    self[-1].untyped = True
     return self
 
 
@@ -385,6 +386,7 @@ def led_cast_expressions(self: XPathToken, left: XPathToken) -> XPathToken:
     if self.parser.next_token.symbol == '?':
         self[1].occurrence = '?'
         self.parser.advance()
+    self[-1].untyped = True
     return self
 
 
@@ -779,13 +781,9 @@ def select_element_kind_test(self: XPathFunction, context: ContextType = None) \
             if len(self) == 1:
                 yield cast(ElementNode, item)  # Already selected by sequence type test
             elif isinstance(item, ElementNode):
-                try:
-                    type_annotation = get_expanded_name(self[1].source, self.parser.namespaces)
-                except KeyError:
-                    type_annotation = self[1].source
-
+                type_annotation = self[1].name
                 if item.nilled:
-                    if type_annotation[-1] in '*?':
+                    if self[1].occurrence in ('*', '?'):
                         yield item
                 elif item.xsd_type is not None:
                     if type_annotation == item.xsd_type.name:
@@ -868,6 +866,7 @@ def nud_schema_node_kind_test(self: XPathFunction) -> XPathFunction:
     self.parser.expected_next('(name)', ':', 'Q{', message='a QName expected')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
+    self[0].untyped = True
     return self
 
 
@@ -909,6 +908,9 @@ def nud_attribute_kind_test_or_axis(self: XPathToken) -> XPathToken:
                 self[1:] = self.parser.expression(5),
 
         self.parser.advance(')')
+
+        for tk in self:
+            tk.untyped = True
 
         if self.namespace:
             msg = f"{self.value!r} is not allowed as function name"
