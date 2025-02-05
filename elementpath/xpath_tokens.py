@@ -24,7 +24,7 @@ import urllib.parse
 from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.aliases import NargsType, ClassCheckType, AnyNsmapType, Emptiable
 from elementpath.protocols import ElementProtocol, DocumentProtocol, \
-    XsdAttributeProtocol, XsdTypeProtocol
+    XsdAttributeProtocol, XsdTypeProtocol, XsdElementProtocol
 from elementpath.exceptions import ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError, xpath_error
 from elementpath.helpers import ordinal, get_double, split_function_test
@@ -134,7 +134,6 @@ class XPathToken(Token[XPathTokenType]):
 
         # Static evaluation using a schema context
         context = self.parser.schema.get_context()
-
         if not check_types:
             # Default, used after parse.
             for _ in self.select(context):
@@ -486,18 +485,18 @@ class XPathToken(Token[XPathTokenType]):
             msg = f"{ordinal(index+1)} argument has type {type(item)!r} instead of {cls!r}"
         raise self.error(code, msg)
 
-    def iter_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
+    def select_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
 
-        def _iter_flatten(items: Iterable[ItemType]) -> Iterator[ItemType]:
+        def iter_flatten(items: Iterable[ItemType]) -> Iterator[ItemType]:
             for item in items:
                 if isinstance(item, list):
-                    yield from _iter_flatten(item)
+                    yield from iter_flatten(item)
                 elif isinstance(item, XPathArray):
                     yield from item.iter_flatten(context)
                 else:
                     yield item
 
-        yield from _iter_flatten(self.select(context))
+        yield from iter_flatten(self.select(context))
 
     def atomization(self, context: ContextType = None) \
             -> Iterator[AtomicType]:
@@ -508,8 +507,14 @@ class XPathToken(Token[XPathTokenType]):
 
         :param context: the XPath dynamic context.
         """
-        for item in self.iter_flatten(context):
+        for item in self.select_flatten(context):
             if isinstance(item, XPathNode):
+                if isinstance(item, (AttributeNode, ElementNode)):
+                    if isinstance(context, XPathSchemaContext):
+                        self.add_xsd_type(item)
+                    elif item.xsd_type is None:
+                        item.xsd_type = self.get_xsd_type(item)
+
                 try:
                     value = item.typed_value
                 except (TypeError, ValueError) as err:
@@ -540,48 +545,17 @@ class XPathToken(Token[XPathTokenType]):
         :return: the atomized value of a single length sequence or `None` if the sequence is empty.
         """
         value = None
-        for k, value in enumerate(self.atomization(context)):
-            if k:
+        first = True
+        for value in self.atomization(context):
+            if not first:
                 msg = "atomized operand is a sequence of length greater than one"
                 raise self.error('XPTY0004', msg)
+            first = False
         else:
-            if value is None:
-                return None
-            elif isinstance(value, UntypedAtomic):
-                value = str(value)
-
-            if isinstance(context, XPathSchemaContext):
-                if isinstance(context.item, (AttributeNode, ElementNode)):
-                        self.add_xsd_type(context.item)
-
-            elif isinstance(value, str) and context is not None:
-                if isinstance(context.item, (AttributeNode, ElementNode)):
-                    xsd_type = self.get_xsd_type(context.item)
-                    if xsd_type is not None and xsd_type.name not in _XSD_SPECIAL_TYPES:
-                        namespaces: AnyNsmapType
-                        if isinstance(context.item, XPathNode):
-                            namespaces = context.item.nsmap
-                        else:
-                            namespaces = context.namespaces
-
-                        try:
-                            v = get_simple_value(xsd_type, value, namespaces)
-                        except (TypeError, ValueError):
-                            msg = "Type {!r} is not appropriate for the context"
-                            raise self.error('XPTY0004', msg.format(type(value)))
-                        else:
-                            if isinstance(v, list):
-                                if len(v) > 1:
-                                    msg = ("atomized operand is a sequence "
-                                           "of length greater than one")
-                                    raise self.error('XPTY0004', msg)
-                                elif not v:
-                                    return None
-                                else:
-                                    return v[0]
-                            return v
-
-            return value
+            if isinstance(value, UntypedAtomic):
+                return str(value)
+            else:
+                return value
 
     def iter_comparison_data(self, context: ContextType) -> Iterator[Any]:
         """
@@ -898,6 +872,8 @@ class XPathToken(Token[XPathTokenType]):
         """
         if self.untyped:
             return None
+        elif self.symbol in ('//', '/'):
+            return self[-1].add_xsd_type(node)
         elif self.symbol == '@':
             return self[0].add_xsd_type(node)
         elif isinstance(node, SchemaElementNode) and node.parent is None:
@@ -915,8 +891,8 @@ class XPathToken(Token[XPathTokenType]):
                         self.xsd_types[e.path] = e.elem.type
             return None
 
-        item = node.value
-        if not hasattr(item, 'type') or not hasattr(item, 'xsd_version'):
+        item = cast(Union[XsdAttributeProtocol, XsdElementProtocol], node.value)
+        if not hasattr(item, 'type') or isinstance(item, str):
             return None
 
         path: str = node.path
@@ -926,27 +902,24 @@ class XPathToken(Token[XPathTokenType]):
             if not isinstance(self.value, str):
                 return None
 
-            if isinstance(node, AttributeNode):
-                if isinstance(node.value, str):
-                    return None
+            if hasattr(item, 'maps'):
+                if isinstance(node, AttributeNode):
+                    xsd_attribute = item.maps.attributes.get(self.value)
+                    if xsd_attribute is None or isinstance(xsd_attribute, tuple) \
+                            or xsd_attribute.type is None:
+                        return None
 
-                xsd_attribute = node.value.maps.attributes.get(self.value)
-                if xsd_attribute is None or isinstance(xsd_attribute, tuple) \
-                        or xsd_attribute.type is None:
-                    return None
-
-                path += f'@{self.value}'
-                xsd_type = xsd_attribute.type
-            elif not hasattr(node.value, 'maps'):
-                return None
-            else:
-                xsd_element = node.value.maps.elements.get(self.value)
-                if xsd_element is None or xsd_element.type is None:
-                    return None
-
-                path += self.value
-                xsd_type = xsd_element.type
-
+                    path += f'@{self.value}'
+                    xsd_type = xsd_attribute.type
+                else:
+                    xsd_element = item.maps.elements.get(self.value)
+                    if xsd_element is None:
+                        return None
+                    if hasattr(xsd_element, 'type') and not isinstance(xsd_element, tuple):
+                        path += self.value
+                        xsd_type = xsd_element.type
+        if xsd_type is None:
+            return None
         if self.xsd_types is None:
             self.xsd_types = {path: xsd_type}
         else:
@@ -967,6 +940,8 @@ class XPathToken(Token[XPathTokenType]):
           https://www.w3.org/TR/xpath20/#id-static-analysis
           https://www.w3.org/TR/xquery-semantics/
         """
+        if self.symbol in ('//', '/'):
+            return self[-1].get_xsd_type(item)
         if self.symbol == '@':
             return self[0].get_xsd_type(item)
         elif isinstance(item, str):

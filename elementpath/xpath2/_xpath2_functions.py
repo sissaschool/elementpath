@@ -1575,7 +1575,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
                     continue
 
                 xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
-                if xsd_element is None:
+                if xsd_element is None or not hasattr(xsd_element, 'attrib'):
                     continue
 
                 try:

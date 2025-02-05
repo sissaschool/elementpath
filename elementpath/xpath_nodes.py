@@ -9,6 +9,7 @@
 #
 import importlib
 from collections import deque
+from functools import cached_property
 from urllib.parse import urljoin
 from typing import cast, Any, Dict, List, Optional, Tuple, Union
 from xml.etree import ElementTree
@@ -155,7 +156,7 @@ class AttributeNode(XPathNode):
 
     kind = 'attribute'
 
-    __slots__ = '_name', 'value', 'xsd_type'
+    __slots__ = '_name', 'value', 'xsd_type', '__dict__'
 
     def __init__(self,
                  name: Optional[str], value: Union[str, XsdAttributeProtocol],
@@ -601,7 +602,7 @@ class ElementNode(XPathNode):
             ]
         return self._attributes
 
-    @property
+    @cached_property
     def path(self) -> str:
         """Returns an absolute path for the node."""
         path = []

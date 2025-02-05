@@ -22,6 +22,8 @@ from elementpath.xpath_context import XPathSchemaContext
 if TYPE_CHECKING:
     from elementpath.xpath_tokens import XPath2ParserType
 
+PathResult = Union[XsdSchemaProtocol, XsdElementProtocol, XsdAttributeProtocol]
+
 
 class AbstractSchemaProxy(metaclass=ABCMeta):
     """
@@ -31,6 +33,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance compatible with the XsdSchemaProtocol.
     :param base_element: the schema element used as base item for static analysis.
     """
+
     def __init__(self, schema: XsdSchemaProtocol,
                  base_element: Optional[XsdElementProtocol] = None) -> None:
         if not is_etree_element(schema):
@@ -68,7 +71,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         return XPathSchemaContext(root=self._schema, item=self._base_element)
 
     def find(self, path: str, namespaces: Optional[Dict[str, str]] = None) \
-            -> Optional[Union[XsdSchemaProtocol, XsdElementProtocol]]:
+            -> Optional[PathResult]:
         """
         Find a schema element or attribute using an XPath expression.
 
@@ -79,8 +82,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         return self._schema.find(path, namespaces)
 
     @lru_cache(maxsize=None)
-    def cached_find(self, expanded_path: str) \
-            -> Optional[Union[XsdSchemaProtocol, XsdElementProtocol]]:
+    def cached_find(self, expanded_path: str) -> Optional[PathResult]:
         return self._schema.find(expanded_path)
 
     @property
