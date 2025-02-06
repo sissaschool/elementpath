@@ -813,13 +813,21 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
         if (self[1].label in ('axis', 'kind test') or self[1].symbol == '..') \
                 and not isinstance(context.item, XPathNode):
             raise self.error('XPTY0020')
-        elif isinstance(context, XPathSchemaContext):
-            yield context.item  # Predicates are always true with a schema context
-            continue
 
         predicate: Sequence[NumericType]
         predicate = [x for x in cast(Iterator[NumericType], self[1].select(copy(context)))]
-        if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
+
+        if isinstance(context, XPathSchemaContext):
+            if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
+                if context.position == predicate[0]:
+                    if isinstance(context.item, (AttributeNode, ElementNode)):
+                        self.add_xsd_type(context.item)
+                    yield context.item
+            elif self.boolean_value(predicate):
+                if isinstance(context.item, (AttributeNode, ElementNode)):
+                    yield context.item
+
+        elif len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
                 yield context.item
         elif self.boolean_value(predicate):

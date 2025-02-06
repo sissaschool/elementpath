@@ -318,7 +318,7 @@ class XPathContext:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
         if predicate:
-            results: list[ItemType] = []
+            results: List[ItemType] = []
             for item in token.select(copy(self)):
                 # With predicate select nodes that have not single list value
                 # must be replaced by value.

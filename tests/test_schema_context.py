@@ -167,7 +167,7 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertEqual(token[0].xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
         self.assertDictEqual(
             token[1].xsd_types,
-        {'/{http://xpath.test/ns}a/b1': elem_a.type.content[0].type,
+            {'/{http://xpath.test/ns}a/b1': elem_a.type.content[0].type,
              '/{http://xpath.test/ns}a/b2': elem_a.type.content[1].type,
              '/{http://xpath.test/ns}a/{http://xpath.test/ns}b3': elem_b3.type}
         )
