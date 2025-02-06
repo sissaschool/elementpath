@@ -1533,6 +1533,8 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
         raise self.error('XPTY0004')
 
     if isinstance(context, XPathSchemaContext):
+        if isinstance(node, ElementNode):
+            self.add_xsd_type(node)
         return
 
     assert context is not None
@@ -1547,7 +1549,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
 
         if element.elem.text in idrefs:
             if self.parser.schema is not None:
-                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
+                xsd_element = self.parser.schema.find(element.path)
                 if xsd_element is None or not hasattr(xsd_element, 'type') or \
                         xsd_element.type is None or not xsd_element.type.is_key():
                     continue
@@ -1574,7 +1576,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
                 if self.parser.schema is None:
                     continue
 
-                xsd_element = self.parser.schema.find(element.path, self.parser.namespaces)
+                xsd_element = self.parser.schema.find(element.path)
                 if xsd_element is None or not hasattr(xsd_element, 'attrib'):
                     continue
 

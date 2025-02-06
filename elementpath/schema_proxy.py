@@ -17,6 +17,7 @@ from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
+from elementpath.xpath_nodes import AttributeNode, ElementNode, DocumentNode
 from elementpath.xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -79,11 +80,20 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: The first matching schema component, or ``None`` if there is no match.
         """
+        @lru_cache(maxsize=None)
+        def cached_find(path_: str) -> Optional[PathResult]:
+            return self._schema.find(path_)
+
+        if not namespaces:
+            return cached_find(path)
         return self._schema.find(path, namespaces)
 
-    @lru_cache(maxsize=None)
-    def cached_find(self, expanded_path: str) -> Optional[PathResult]:
-        return self._schema.find(expanded_path)
+    def set_types(self, root: Union[ElementNode, DocumentNode]) -> None:
+        for node in root.iter():
+            if isinstance(node, (AttributeNode, ElementNode)):
+                xsd_component = self.find(node.path)
+                if xsd_component is not None and hasattr(xsd_component, 'type'):
+                    node.xsd_type = xsd_component.type
 
     @property
     def xsd_version(self) -> str:

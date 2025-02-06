@@ -604,3 +604,44 @@ class XPathSchemaContext(XPathContext):
     XML instances.
     """
     root: ElementNode
+
+    def iter_matching_nodes(self, name: str, default_namespace: Optional[str] = None) \
+            -> Iterator[Union[AttributeNode, ElementNode]]:
+        """
+        Iterator for matching elements or attributes. For default uses 'child'
+        forward axis if no axis is active, otherwise tests the current item.
+        """
+        if self.axis is not None:
+            if isinstance(self.item, (AttributeNode, ElementNode)):
+                if self.item.match_name(name, default_namespace):
+                    if not self.item.name:
+                        if isinstance(self.item, ElementNode):
+                            for element_node in self.root:
+                                assert isinstance(element_node, ElementNode)
+                                if element_node.match_name(name, default_namespace):
+                                    self.item = element_node
+                                    break
+                        else:
+                            for attribute_node in self.root.attributes:
+                                if attribute_node.match_name(name, default_namespace):
+                                    self.item = attribute_node
+                                    break
+
+                    yield self.item
+
+        elif isinstance(self.item, ElementNode):
+            _status = self.item, self.axis
+            self.axis = 'child'
+
+            for self.item in self.item:
+                if self.item.match_name(name, default_namespace):
+                    if not self.item.name:
+                        for element_node in self.root:
+                            if element_node.match_name(name, default_namespace):
+                                self.item = element_node
+                                break
+
+                    assert isinstance(self.item, ElementNode)
+                    yield self.item
+
+            self.item, self.axis = _status

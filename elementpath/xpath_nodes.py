@@ -1065,7 +1065,7 @@ class SchemaElementNode(ElementNode):
                 except IndexError:
                     return
 
-    @property
+    @cached_property
     def path(self) -> str:
         path: List[str] = []
         item: Any = self

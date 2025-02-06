@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, cast, Dict, List, Optional, SupportsFloat
 import urllib.parse
 
 from elementpath._typing import Callable, Iterable, Iterator
-from elementpath.aliases import NargsType, ClassCheckType, AnyNsmapType, Emptiable
+from elementpath.aliases import NargsType, ClassCheckType, Emptiable
 from elementpath.protocols import ElementProtocol, DocumentProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, XsdElementProtocol
 from elementpath.exceptions import ElementPathError, ElementPathValueError, \
@@ -42,7 +42,6 @@ from elementpath.sequence_types import is_sequence_type_restriction, match_seque
 from elementpath.tdop import Token, MultiLabel
 from elementpath.xpath_context import ContextType, ItemType, ValueType, ItemArgType, \
     FunctionArgType, XPathSchemaContext
-from elementpath.decoder import get_simple_value
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser  # noqa: F401
@@ -486,17 +485,13 @@ class XPathToken(Token[XPathTokenType]):
         raise self.error(code, msg)
 
     def select_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
-
-        def iter_flatten(items: Iterable[ItemType]) -> Iterator[ItemType]:
-            for item in items:
-                if isinstance(item, list):
-                    yield from iter_flatten(item)
-                elif isinstance(item, XPathArray):
-                    yield from item.iter_flatten(context)
-                else:
-                    yield item
-
-        yield from iter_flatten(self.select(context))
+        for item in self.select(context):
+            if isinstance(item, list):
+                yield from item
+            elif isinstance(item, XPathArray):
+                yield from item.iter_flatten(context)
+            else:
+                yield item
 
     def atomization(self, context: ContextType = None) \
             -> Iterator[AtomicType]:
@@ -951,11 +946,11 @@ class XPathToken(Token[XPathTokenType]):
         elif item.xsd_type is not None:
             return item.xsd_type
 
-        path: Optional[str] = item.path
+        path: str = item.path
         if self.xsd_types is not None and path in self.xsd_types:
             return self.xsd_types.get(path)
         elif self.parser.schema is not None:
-            xsd_node = self.parser.schema.cached_find(path)
+            xsd_node = self.parser.schema.find(path)
             if xsd_node is not None and hasattr(xsd_node, 'type'):
                 return xsd_node.type
 
