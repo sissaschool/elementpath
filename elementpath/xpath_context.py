@@ -10,6 +10,7 @@
 import datetime
 import importlib
 from copy import copy
+from functools import cached_property
 from types import ModuleType
 from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Set, Union
 
@@ -92,15 +93,16 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: Optional[RootNodeType] = None
-    document: Optional[DocumentNode] = None
+    root: Optional[RootNodeType]
+    document: Optional[DocumentNode]
     item: ItemType
-    total_nodes: int = 0  # Number of nodes associated to the context
 
     variables: Dict[str, ValueType]
     documents: Optional[Dict[str, DocumentNode]] = None
     collections = None
     default_collection = None
+
+    __slots__ = ('document', 'root', 'item', 'namespaces', 'size', 'position', 'variables', 'axis', '__dict__')
 
     def __init__(self,
                  root: Optional[RootArgType] = None,
@@ -139,6 +141,7 @@ class XPathContext:
                 self.item = self.root
 
         elif item is not None:
+            self.root = None
             self.item = self.get_context_item(item, self.namespaces, uri, fragment)
         else:
             raise ElementPathTypeError("Missing both the root node and the context item!")
@@ -150,6 +153,8 @@ class XPathContext:
                 is_etree_element_instance(self.root.elem):
             # Creates a dummy document that will be not included in results
             self.document = self.root.get_document_node(replace=False, as_parent=False)
+        else:
+            self.document = None
 
         self.position = position
         self.size = size
@@ -199,27 +204,30 @@ class XPathContext:
     def __copy__(self) -> 'XPathContext':
         obj: XPathContext = object.__new__(self.__class__)
         obj.__dict__.update(self.__dict__)
+        obj.document = self.document
+        obj.root = self.root
+        obj.item = self.item
+        obj.size = self.size
+        obj.position = self.position
         obj.axis = None
+        obj.namespaces = {k: v for k, v in self.namespaces.items()}
         obj.variables = {k: v for k, v in self.variables.items()}
         return obj
 
-    @property
+    @cached_property
     def etree(self) -> ModuleType:
-        if self._etree is None:
-            if isinstance(self.root, (DocumentNode, ElementNode)):
-                module_name = self.root.value.__class__.__module__
-            elif isinstance(self.item, (DocumentNode, ElementNode, CommentNode,
-                                        ProcessingInstructionNode)):
-                module_name = self.item.value.__class__.__module__
-            else:
-                module_name = 'xml.etree.ElementTree'
+        if isinstance(self.root, (DocumentNode, ElementNode)):
+            module_name = self.root.value.__class__.__module__
+        elif isinstance(self.item, (DocumentNode, ElementNode, CommentNode,
+                                    ProcessingInstructionNode)):
+            module_name = self.item.value.__class__.__module__
+        else:
+            module_name = 'xml.etree.ElementTree'
 
-            if module_name in ('lxml.etree', 'lxml.html'):
-                self._etree: ModuleType = importlib.import_module('lxml.etree')
-            else:
-                self._etree = importlib.import_module('xml.etree.ElementTree')
-
-        return self._etree
+        if module_name in ('lxml.etree', 'lxml.html'):
+            return importlib.import_module('lxml.etree')
+        else:
+            return importlib.import_module('xml.etree.ElementTree')
 
     def get_root(self, node: Any) -> Optional[RootNodeType]:
         if isinstance(self.root, (DocumentNode, ElementNode)):
