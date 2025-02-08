@@ -162,7 +162,7 @@ class XPathToken(Token[XPathTokenType]):
 
                 elif tk.symbol not in typed_token_symbols:
                     if tk.xsd_types is not None:
-                        msg = f"{tk} erroneously labeled with {tk.xsd_types}"
+                        msg = f"{tk} ({tk.source}) erroneously labeled with {tk.xsd_types}"
                         raise ElementPathTypeError(msg)
 
                 elif tk.xsd_types is None:
@@ -176,7 +176,7 @@ class XPathToken(Token[XPathTokenType]):
                                 self.parser.schema.get_element(name) is None:
                             continue
 
-                    msg = f"{tk} has not XSD types associated with it"
+                    msg = f"{tk} ({tk.source}) has not XSD types associated"
                     raise ElementPathTypeError(msg)
 
     def __str__(self) -> str:
@@ -621,6 +621,9 @@ class XPathToken(Token[XPathTokenType]):
             yield from cast(Iterator[AtomicType], self.select(context))
         else:
             self.parser.check_variables(context.variables)
+            if self.parser.schema is not None and context.schema is None:
+                if (root_node := context.root) is not None:
+                    self.parser.schema.set_node_tree_types(root_node)
 
             for result in self.select(context):
                 if not isinstance(result, XPathNode):
@@ -654,6 +657,9 @@ class XPathToken(Token[XPathTokenType]):
             results = [x for x in cast(Iterator[AtomicType], self.select(context))]
         else:
             self.parser.check_variables(context.variables)
+            if self.parser.schema is not None and context.schema is None:
+                if (root_node := context.root) is not None:
+                    self.parser.schema.set_node_tree_types(root_node)
 
             results = []
             for item in self.select(context):

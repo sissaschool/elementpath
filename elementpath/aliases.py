@@ -30,8 +30,7 @@ InputType = Union[None, T, List[T], Tuple[T, ...]]
 
 if TYPE_CHECKING:
     from elementpath.datatypes import AtomicType, ArithmeticType, NumericType
-    from elementpath.xpath_nodes import ChildNodeType, ParentNodeType
-    from elementpath.tree_builders import RootArgType
+    from elementpath.xpath_nodes import ChildNodeType, ParentNodeType, RootArgType
     from elementpath.xpath_context import ContextType, FunctionArgType, ItemType, \
         ItemArgType, ValueType
     from elementpath.xpath_tokens import XPathParserType, XPathTokenType

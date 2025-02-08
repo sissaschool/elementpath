@@ -17,7 +17,7 @@ from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
-from elementpath.xpath_nodes import AttributeNode, ElementNode, DocumentNode
+from elementpath.xpath_nodes import AttributeNode, ElementNode, RootNodeType
 from elementpath.xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -88,12 +88,25 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
             return cached_find(path)
         return self._schema.find(path, namespaces)
 
-    def set_types(self, root: Union[ElementNode, DocumentNode]) -> None:
-        for node in root.iter():
-            if isinstance(node, (AttributeNode, ElementNode)):
+    def set_node_tree_types(self, root_node: RootNodeType, reset: bool = False) -> None:
+        """Set node tree types using schema proxy."""
+        if not reset and root_node.is_typed():
+            return
+
+        for node in root_node.iter_lazy():
+            if isinstance(node, (ElementNode, AttributeNode)):
                 xsd_component = self.find(node.path)
-                if xsd_component is not None and hasattr(xsd_component, 'type'):
-                    node.xsd_type = xsd_component.type
+                if xsd_component is None:
+                    node.xsd_type = None
+                    continue
+
+                try:
+                    xsd_type = xsd_component.type  # type: ignore[union-attr]
+                except AttributeError:
+                    raise ElementPathTypeError(f"found a non XSD component {xsd_component}")
+
+                assert xsd_type is not None
+                node.xsd_type = xsd_type
 
     @property
     def xsd_version(self) -> str:

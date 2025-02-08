@@ -21,10 +21,11 @@ from elementpath.tdop import Token
 from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode
-from elementpath.tree_builders import RootArgType, get_node_tree
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, RootArgType
+from elementpath.tree_builders import get_node_tree
 
 if TYPE_CHECKING:
+    from elementpath.schema_proxy import AbstractSchemaProxy
     from .xpath_tokens import XPathToken, XPathAxis, XPathFunction  # noqa: F401
 
 __all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
@@ -91,7 +92,7 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
-    root: Union[DocumentNode, ElementNode, None] = None
+    root: Optional[RootNodeType] = None
     document: Optional[DocumentNode] = None
     item: ItemType
     total_nodes: int = 0  # Number of nodes associated to the context
@@ -110,6 +111,7 @@ class XPathContext:
                  position: int = 1,
                  size: int = 1,
                  axis: Optional[str] = None,
+                 schema: Optional['AbstractSchemaProxy'] = None,
                  variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
@@ -130,7 +132,7 @@ class XPathContext:
             self.namespaces = {}
 
         if root is not None:
-            self.root = get_node_tree(root, self.namespaces, uri, fragment)
+            self.root = get_node_tree(root, self.namespaces, uri, fragment, schema)
             if item is not None:
                 self.item = self.get_context_item(item, self.namespaces)
             else:
@@ -166,6 +168,7 @@ class XPathContext:
                 if v is not None else v for k, v in documents.items()
             }
 
+        self.schema = schema
         self.variables = {}
         if variables is not None:
             for varname, value in variables.items():
@@ -218,7 +221,7 @@ class XPathContext:
 
         return self._etree
 
-    def get_root(self, node: Any) -> Union[None, ElementNode, DocumentNode]:
+    def get_root(self, node: Any) -> Optional[RootNodeType]:
         if isinstance(self.root, (DocumentNode, ElementNode)):
             if any(node is x for x in self.root.iter_lazy()):
                 return self.root
@@ -454,7 +457,7 @@ class XPathContext:
 
             self.item, self.axis = _status
 
-    def iter_parent(self) -> Iterator[Union[ElementNode, DocumentNode]]:
+    def iter_parent(self) -> Iterator[Optional[RootNodeType]]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, XPathNode):
 
@@ -549,7 +552,7 @@ class XPathContext:
 
     def iter_preceding(self) -> Iterator[Union[DocumentNode, ChildNodeType]]:
         """Iterator for 'preceding' reverse axis."""
-        ancestors: Set[Union[ElementNode, DocumentNode]]
+        ancestors: Set[RootNodeType]
         item: XPathNode
 
         if isinstance(self.item, XPathNode):

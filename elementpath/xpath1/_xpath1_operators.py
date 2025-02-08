@@ -821,7 +821,7 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
             if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
                 if context.position == predicate[0]:
                     if isinstance(context.item, (AttributeNode, ElementNode)):
-                        self.add_xsd_type(context.item)
+                        self[0].add_xsd_type(context.item)
                     yield context.item
             elif self.boolean_value(predicate):
                 if isinstance(context.item, (AttributeNode, ElementNode)):

@@ -31,7 +31,7 @@ from elementpath.etree import etree_iter_strings, is_etree_element_instance
 __all__ = ['TypedNodeType', 'ParentNodeType', 'ChildNodeType', 'ElementMapType',
            'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode', 'CommentNode',
            'ProcessingInstructionNode', 'ElementNode', 'LazyElementNode',
-           'SchemaElementNode', 'DocumentNode']
+           'SchemaElementNode', 'DocumentNode', 'RootNodeType', 'RootArgType']
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -121,6 +121,9 @@ class XPathNode:
         return self.parent.nsmap if self.parent is not None else {}
 
     def is_schema_node(self) -> Optional[bool]:
+        return None
+
+    def is_typed(self) -> Optional[bool]:
         return None
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
@@ -216,7 +219,7 @@ class AttributeNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(name=%r, value=%r)' % (self.__class__.__name__, self._name, self.value)
 
-    @property
+    @cached_property
     def path(self) -> str:
         if self.parent is None:
             return f'@{self._name}'
@@ -226,6 +229,9 @@ class AttributeNode(XPathNode):
 
     def is_schema_node(self) -> bool:
         return hasattr(self.value, 'name') and hasattr(self.value, 'type')
+
+    def is_typed(self) -> Optional[bool]:
+        return self.xsd_type is not None
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if not self._name:
@@ -605,15 +611,9 @@ class ElementNode(XPathNode):
     @cached_property
     def path(self) -> str:
         """Returns an absolute path for the node."""
-        path = []
-        item: Any = self
-        while True:
-            if isinstance(item, ElementNode):
-                path.append(item.elem.tag)
-
-            item = item.parent
-            if item is None:
-                return f"/{'/'.join(reversed(path))}"
+        if not isinstance(self.parent, ElementNode):
+            return f'/{self.elem.tag}'
+        return f'{self.parent.path}/{self.elem.tag}'
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -626,6 +626,9 @@ class ElementNode(XPathNode):
         return hasattr(self.elem, 'name') and hasattr(self.elem, 'type')
 
     is_schema_element = is_schema_node
+
+    def is_typed(self) -> Optional[bool]:
+        return self.xsd_type is not None
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if '*' in name:
@@ -890,6 +893,13 @@ class DocumentNode(XPathNode):
         else:
             return None
 
+    def is_typed(self) -> Optional[bool]:
+        for child in self.children:
+            if isinstance(child, ElementNode):
+                return child.xsd_type is not None
+        else:
+            return None
+
     def is_extended(self) -> bool:
         """
         Returns `True` if the document node can't be represented with an
@@ -1076,5 +1086,9 @@ class SchemaElementNode(ElementNode):
             item = item.parent
 
 
+###
+# Type annotation aliases
 XPathNodeType = Union[DocumentNode, NamespaceNode, AttributeNode, TextNode,
                       ElementNode, CommentNode, ProcessingInstructionNode]
+RootNodeType = Union[DocumentNode, ElementNode]
+RootArgType = Union[DocumentType, ElementType, SchemaElemType, RootNodeType]

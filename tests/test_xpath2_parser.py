@@ -25,7 +25,12 @@ import locale
 import os
 from decimal import Decimal
 from textwrap import dedent
+from typing import Any
 import xml.etree.ElementTree as ET
+
+xmlschema: Any
+XMLSchemaProxy: Any
+lxml_etree: Any
 
 try:
     import lxml.etree as lxml_etree
@@ -34,15 +39,17 @@ except ImportError:
 
 try:
     import xmlschema
+    from xmlschema.xpath import XMLSchemaProxy
 except ImportError:
     xmlschema = None
+    XMLSchemaProxy = None
 else:
     xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import XPath2Parser, XPathContext, XPathSchemaContext, \
-    MissingContextError, ElementNode, select, iter_select
+    MissingContextError, ElementNode, select, iter_select, get_node_tree
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
-    Date, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
+    Date, Date10, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
 from elementpath.sequence_types import is_instance
@@ -541,19 +548,22 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
                 root = self.etree.XML('<root>11</root>')
-                self.check_value('. le 10', False, context=XPathContext(root))
-                self.check_value('. le 20', True, context=XPathContext(root))
+                context = XPathContext(root, schema=self.parser.schema)
+                self.check_value('. le 10', False, context)
+                self.check_value('. le 20', True, context)
 
                 root = self.etree.XML('<root>eleven</root>')
-                self.wrong_type('. le 10', 'XPDY0050', context=XPathContext(root))
+                context = XPathContext(root, schema=self.parser.schema)
+                self.wrong_type('. le 10', 'XPDY0050', context=context)
 
                 root = self.etree.XML('<value>12</value>')
+                context = XPathContext(root, schema=self.parser.schema)
                 with self.assertRaises(TypeError) as err:
-                    self.check_value('. le "11"', context=XPathContext(root))
+                    self.check_value('. le "11"', context)
                 self.assertIn('XPTY0004', str(err.exception))  # Static schema context error
 
                 with self.assertRaises(TypeError) as err:
-                    self.check_value('. le 10', context=XPathContext(root))
+                    self.check_value('. le 10', context=context)
                 self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
 
             schema = xmlschema.XMLSchema("""
@@ -1404,9 +1414,6 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
     @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
     def test_raw_resolution_for_issue_73(self):
-        from xmlschema.xpath import XMLSchemaProxy
-        from elementpath import get_node_tree, XPath2Parser, XPathContext
-        from elementpath.datatypes import Date10
 
         xsd_source = dedent("""\
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

@@ -8,17 +8,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType, InputType
-from elementpath.tree_builders import RootArgType
+from elementpath.xpath_nodes import RootArgType
 from elementpath.xpath_context import ItemArgType, XPathContext
 from elementpath.xpath2 import XPath2Parser
 from elementpath.datatypes import Timezone
-
-if TYPE_CHECKING:
-    from elementpath.xpath_tokens import ParserClassType
+from elementpath.schema_proxy import AbstractSchemaProxy
+from elementpath.xpath_tokens import ParserClassType
 
 
 def select(root: Optional[RootArgType],
@@ -31,6 +30,7 @@ def select(root: Optional[RootArgType],
            position: int = 1,
            size: int = 1,
            axis: Optional[str] = None,
+           schema: Optional[AbstractSchemaProxy] = None,
            variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
            current_dt: Optional[datetime.datetime] = None,
            timezone: Optional[Union[str, Timezone]] = None,
@@ -56,6 +56,8 @@ def select(root: Optional[RootArgType],
     :param position: the current position of the node within the input sequence.
     :param size: the number of items in the input sequence.
     :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
+    :param schema: an optional schema proxy instance for applying XSD type annotations \
+    on element and attribute nodes.
     :param variables: dictionary of context variables that maps a QName to a value.
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
@@ -67,7 +69,7 @@ def select(root: Optional[RootArgType],
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
     context = XPathContext(root, namespaces, uri, fragment, item, position, size,
-                           axis, variables, current_dt, timezone)
+                           axis, schema, variables, current_dt, timezone)
     return root_token.get_results(context)
 
 
@@ -81,6 +83,7 @@ def iter_select(root: Optional[RootArgType],
                 position: int = 1,
                 size: int = 1,
                 axis: Optional[str] = None,
+                schema: Optional[AbstractSchemaProxy] = None,
                 variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
                 current_dt: Optional[datetime.datetime] = None,
                 timezone: Optional[Union[str, Timezone]] = None,
@@ -107,6 +110,8 @@ def iter_select(root: Optional[RootArgType],
     :param position: the current position of the node within the input sequence.
     :param size: the number of items in the input sequence.
     :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
+    :param schema: an optional schema proxy instance for applying XSD type annotations \
+    on element and attribute nodes.
     :param variables: dictionary of context variables that maps a QName to a value.
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
@@ -117,7 +122,7 @@ def iter_select(root: Optional[RootArgType],
     _parser = (parser or XPath2Parser)(namespaces, **kwargs)
     root_token = _parser.parse(path)
     context = XPathContext(root, namespaces, uri, fragment, item, position, size,
-                           axis, variables, current_dt, timezone)
+                           axis, schema, variables, current_dt, timezone)
     return root_token.select_results(context)
 
 
@@ -168,6 +173,8 @@ class Selector(object):
         :return: a list with XPath nodes or a basic type for expressions based on \
         a function or literal.
         """
+        if 'schema' not in kwargs:
+            kwargs['schema'] = self.parser.schema
         if 'variables' not in kwargs and self._variables:
             kwargs['variables'] = self._variables
 
