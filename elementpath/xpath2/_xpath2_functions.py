@@ -1533,8 +1533,6 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
         raise self.error('XPTY0004')
 
     if isinstance(context, XPathSchemaContext):
-        if isinstance(node, ElementNode):
-            self.add_xsd_type(node)
         return
 
     assert context is not None

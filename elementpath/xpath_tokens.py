@@ -24,7 +24,7 @@ import urllib.parse
 from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.aliases import NargsType, ClassCheckType, Emptiable
 from elementpath.protocols import ElementProtocol, DocumentProtocol, \
-    XsdAttributeProtocol, XsdTypeProtocol, XsdElementProtocol
+    XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError, ElementPathValueError, \
     ElementPathTypeError, MissingContextError, xpath_error
 from elementpath.helpers import ordinal, get_double, split_function_test
@@ -33,8 +33,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    DocumentNode, NamespaceNode, SchemaElementNode
+from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
@@ -92,15 +91,9 @@ class XPathToken(Token[XPathTokenType]):
     parser: XPathParserType
     value: ValueType
 
-    xsd_types: Optional[Dict[str, XsdTypeProtocol]]
-    namespace: Optional[str]
-    occurrence: Optional[str]
-
-    xsd_types = None  # for XPath 2.0+ XML Schema types labeling
-    namespace = None  # for namespace binding of names and wildcards
-    occurrence = None  # occurrence indicator for item types
+    namespace: Optional[str] = None  # for namespace binding of names and wildcards
+    occurrence: Optional[str] = None  # occurrence indicator for item types
     concatenated = False  # a flag for infix operators that can be concatenated
-    untyped = False  # used for marking a token as explicitly untyped
 
     def evaluate(self, context: ContextType = None) -> ValueType:
         """
@@ -121,63 +114,6 @@ class XPathToken(Token[XPathTokenType]):
             yield from item
         else:
             yield item
-
-    def static_evaluation(self, check_types: bool = False) -> None:
-        try:
-            self.evaluate()  # Static context evaluation
-        except MissingContextError:
-            pass
-
-        if self.parser.schema is None:
-            return
-
-        # Static evaluation using a schema context
-        context = self.parser.schema.get_context()
-        if not check_types:
-            # Default, used after parse.
-            for _ in self.select(context):
-                pass
-        else:
-            # Checks tokens tree labeling with XSD types, against the types
-            # defined in the schema context.
-
-            typed_token_symbols = ('(name)', '.', '*', '{', ':', 'attribute')
-
-            for tk in self.iter():
-                tk.__dict__.pop('xsd_types', None)
-
-            for _ in self.select(context):
-                pass
-
-            for tk in self.iter():
-                if tk.untyped:
-                    pass  # part of a composite token, skip
-                elif tk.symbol in ('(string)', '(float)', '(decimal)', '(integer)'):
-                    # typed literal: maybe labeled or not
-                    if tk.xsd_types is not None:
-                        for xsd_type in tk.xsd_types.values():
-                            if not xsd_type.is_valid(tk.value):
-                                msg = f"{tk} is not a valid with {xsd_type}"
-                                raise ElementPathTypeError(msg)
-
-                elif tk.symbol not in typed_token_symbols:
-                    if tk.xsd_types is not None:
-                        msg = f"{tk} ({tk.source}) erroneously labeled with {tk.xsd_types}"
-                        raise ElementPathTypeError(msg)
-
-                elif tk.xsd_types is None:
-                    if tk.symbol == '*' and len(tk):
-                        continue  # not a wildcard
-                    if tk.symbol == ':':
-                        if not len(tk) or isinstance(tk[-1], XPathFunction):
-                            continue
-                        name: str = tk.name
-                        if self.parser.schema.get_attribute(name) is None and \
-                                self.parser.schema.get_element(name) is None:
-                            continue
-
-                    msg = f"{tk} ({tk.source}) has not XSD types associated"
-                    raise ElementPathTypeError(msg)
 
     def __str__(self) -> str:
         if self.symbol == '$':
@@ -504,12 +440,6 @@ class XPathToken(Token[XPathTokenType]):
         """
         for item in self.select_flatten(context):
             if isinstance(item, XPathNode):
-                if isinstance(item, (AttributeNode, ElementNode)):
-                    if isinstance(context, XPathSchemaContext):
-                        self.add_xsd_type(item)
-                    elif item.xsd_type is None:
-                        item.xsd_type = self.get_xsd_type(item)
-
                 try:
                     value = item.typed_value
                 except (TypeError, ValueError) as err:
@@ -622,8 +552,8 @@ class XPathToken(Token[XPathTokenType]):
         else:
             self.parser.check_variables(context.variables)
             if self.parser.schema is not None and context.schema is None:
-                if (root_node := context.root) is not None:
-                    self.parser.schema.set_node_tree_types(root_node)
+                raise AssertionError()
+
 
             for result in self.select(context):
                 if not isinstance(result, XPathNode):
@@ -658,8 +588,7 @@ class XPathToken(Token[XPathTokenType]):
         else:
             self.parser.check_variables(context.variables)
             if self.parser.schema is not None and context.schema is None:
-                if (root_node := context.root) is not None:
-                    self.parser.schema.set_node_tree_types(root_node)
+                raise AssertionError()
 
             results = []
             for item in self.select(context):
@@ -866,102 +795,6 @@ class XPathToken(Token[XPathTokenType]):
 
     ###
     # XSD types related methods
-    def add_xsd_type(self, node: Union[AttributeNode, ElementNode]) -> Optional[XsdTypeProtocol]:
-        """
-        Adds an XSD type associations from a schema item. The associations are added during
-        the static evaluation using a schema context and is related to node path.
-        """
-        if self.untyped:
-            return None
-        elif self.symbol in ('//', '/'):
-            return self[-1].add_xsd_type(node)
-        elif self.symbol == '@':
-            return self[0].add_xsd_type(node)
-        elif isinstance(node, SchemaElementNode) and node.parent is None:
-            # A schema, add all global elements
-            if self.xsd_types is None:
-                self.xsd_types = {
-                    e.path: e.elem.type for e in node.children
-                    if isinstance(e, SchemaElementNode) and hasattr(e.elem, 'type')
-                    and e.elem.type is not None
-                }
-            else:
-                for e in node.children:
-                    if isinstance(e, SchemaElementNode) and hasattr(e.elem, 'type') \
-                            and e.elem.type is not None:
-                        self.xsd_types[e.path] = e.elem.type
-            return None
-
-        item = cast(Union[XsdAttributeProtocol, XsdElementProtocol], node.value)
-        if not hasattr(item, 'type') or isinstance(item, str):
-            return None
-
-        path: str = node.path
-        xsd_type: Optional[XsdTypeProtocol] = item.type
-        if xsd_type is None:
-            # Node wraps a wildcard
-            if not isinstance(self.value, str):
-                return None
-
-            if hasattr(item, 'maps'):
-                if isinstance(node, AttributeNode):
-                    xsd_attribute = item.maps.attributes.get(self.value)
-                    if xsd_attribute is None or isinstance(xsd_attribute, tuple) \
-                            or xsd_attribute.type is None:
-                        return None
-
-                    path += f'@{self.value}'
-                    xsd_type = xsd_attribute.type
-                else:
-                    xsd_element = item.maps.elements.get(self.value)
-                    if xsd_element is None:
-                        return None
-                    if hasattr(xsd_element, 'type') and not isinstance(xsd_element, tuple):
-                        path += self.value
-                        xsd_type = xsd_element.type
-        if xsd_type is None:
-            return None
-        if self.xsd_types is None:
-            self.xsd_types = {path: xsd_type}
-        else:
-            self.xsd_types[path] = xsd_type
-
-        return xsd_type
-
-    def get_xsd_type(self, item: Union[str, AttributeNode, ElementNode]) \
-            -> Optional[XsdTypeProtocol]:
-        """
-        Returns the XSD type associated with an attribute or element node during
-        the dynamic evaluation. Match by item's path and name with saved types
-        associations, otherwise try to resolve the path dynamically. Returns
-        `None` if no XSD type is matching.
-
-        Ref:
-          https://www.w3.org/TR/xpath20/#id-processing-model
-          https://www.w3.org/TR/xpath20/#id-static-analysis
-          https://www.w3.org/TR/xquery-semantics/
-        """
-        if self.symbol in ('//', '/'):
-            return self[-1].get_xsd_type(item)
-        if self.symbol == '@':
-            return self[0].get_xsd_type(item)
-        elif isinstance(item, str):
-            if self.xsd_types is None:
-                return None
-            return self.xsd_types.get(item)
-        elif item.xsd_type is not None:
-            return item.xsd_type
-
-        path: str = item.path
-        if self.xsd_types is not None and path in self.xsd_types:
-            return self.xsd_types.get(path)
-        elif self.parser.schema is not None:
-            xsd_node = self.parser.schema.find(path)
-            if xsd_node is not None and hasattr(xsd_node, 'type'):
-                return xsd_node.type
-
-        return None
-
     def cast_to_qname(self, qname: str) -> QName:
         """Cast a prefixed qname string to a QName object."""
         try:
@@ -1501,9 +1334,6 @@ class XPathFunction(XPathToken):
         self.parser.advance(')')
         if any(tk.symbol == '?' and not tk for tk in self._items):
             self.to_partial_function()
-        elif self.label in ('kind test', 'sequence type', 'function test'):
-            for tk in self._items:
-                tk.untyped = True
 
         return self
 

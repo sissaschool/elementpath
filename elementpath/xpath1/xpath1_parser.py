@@ -17,7 +17,7 @@ from typing import cast, Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, 
 from elementpath._typing import Callable, MutableMapping, Sequence
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.exceptions import xpath_error, UnsupportedFeatureError, \
-    ElementPathValueError, ElementPathNameError, ElementPathKeyError
+    ElementPathValueError, ElementPathNameError, ElementPathKeyError, MissingContextError
 from elementpath.helpers import upper_camel_case
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION
 from elementpath.datatypes import QName
@@ -249,7 +249,17 @@ class XPath1Parser(Parser[XPathTokenType]):
         if root_token.label in ('sequence type', 'function test'):
             raise root_token.error('XPST0003', "not allowed in XPath expression")
 
-        root_token.static_evaluation()
+        try:
+            root_token.evaluate()  # Static context evaluation
+        except MissingContextError:
+            pass
+
+        if self.schema is not None:
+            # Static evaluation using a schema context
+            context = self.schema.get_context()
+            for _ in root_token.select(context):
+                pass
+
         return root_token
 
     def expected_next(self, *symbols: str, message: Optional[str] = None) -> None:

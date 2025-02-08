@@ -814,7 +814,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                   </xs:complexType>
                 </xs:schema>""")
 
-            with self.schema_bound_parser(schema.elements['A'].xpath_proxy):
+            schema_proxy = schema.elements['A'].xpath_proxy
+            with self.schema_bound_parser(schema_proxy):
+                context = XPathContext(root, schema=schema_proxy)
                 self.check_select("attribute(a, xs:int)", [10], context)
                 self.check_select("attribute(*, xs:int)", {10, 20}, context)
                 self.check_select("attribute(a, xs:string)", [], context)
@@ -1460,10 +1462,9 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         assert date_node.xsd_type is None
         assert date_node.typed_value == '2018-01-23'
 
-        context = XPathContext(root_node)
+        context = XPathContext(root_node, schema=schema_proxy)
         result = root_token.get_results(context)
 
-        assert date_node.xsd_type is xmlschema.XMLSchema10.meta_schema.types['date']
         assert date_node.typed_value == Date10(2018, 1, 23)
         assert len(result) == 5
         assert result[-1] == Date10(2018, 1, 23)

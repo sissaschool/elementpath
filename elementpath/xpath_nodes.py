@@ -11,22 +11,25 @@ import importlib
 from collections import deque
 from functools import cached_property
 from urllib.parse import urljoin
-from typing import cast, Any, Dict, List, Optional, Tuple, Union
+from typing import cast, Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING, Union
 from xml.etree import ElementTree
 
 from elementpath._typing import Deque, Iterator, MutableMapping
 from elementpath.aliases import SequenceType
-from elementpath.exceptions import ElementPathRuntimeError
+from elementpath.exceptions import ElementPathRuntimeError, ElementPathTypeError
 from elementpath.datatypes import UntypedAtomic, AtomicType
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
-    XML_ID, XSD_IDREF, XSD_IDREFS
+    XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
 from elementpath.protocols import ElementProtocol, DocumentProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, DocumentType, ElementType, SchemaElemType, \
     CommentType, ProcessingInstructionType
 from elementpath.helpers import match_wildcard, is_absolute_uri
 from elementpath.decoder import get_simple_value
 from elementpath.etree import etree_iter_strings, is_etree_element_instance
+
+if TYPE_CHECKING:
+    from elementpath.schema_proxy import AbstractSchemaProxy
 
 __all__ = ['TypedNodeType', 'ParentNodeType', 'ChildNodeType', 'ElementMapType',
            'XPathNode', 'AttributeNode', 'NamespaceNode', 'TextNode', 'CommentNode',
@@ -56,7 +59,7 @@ class XPathNode:
     # Accessors, empty sequences are represented with None values.
     kind: str = ''
     children: Optional[List[ChildNodeType]]
-    parent: Union['ElementNode', 'DocumentNode', None]
+    parent: Optional[ParentNodeType]
 
     __slots__ = 'parent', 'position'
 
@@ -98,6 +101,10 @@ class XPathNode:
 
     @property
     def type_name(self) -> Optional[str]:
+        return None
+
+    @property
+    def xsd_type(self) -> Optional[XsdTypeProtocol]:
         return None
 
     @property
@@ -147,7 +154,7 @@ class AttributeNode(XPathNode):
     :param value: a string value or an XSD attribute when XPath is applied on a schema.
     :param parent: the parent element node.
     :param position: the position of the node in the document.
-    :param xsd_type: an optional XSD type associated with the attribute node.
+    :param schema: an optional schema proxy instance for set the XSD type annotation.
     """
     attributes: None
     children: None = None
@@ -159,18 +166,19 @@ class AttributeNode(XPathNode):
 
     kind = 'attribute'
 
-    __slots__ = '_name', 'value', 'xsd_type', '__dict__'
+    __slots__ = '_name', 'value', 'schema', '__dict__'
 
     def __init__(self,
-                 name: Optional[str], value: Union[str, XsdAttributeProtocol],
+                 name: Optional[str],
+                 value: Union[str, XsdAttributeProtocol],
                  parent: Optional['ElementNode'] = None,
                  position: int = 1,
-                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
+                 schema: Optional['AbstractSchemaProxy'] = None) -> None:
         self._name = name
         self.value: Union[str, XsdAttributeProtocol] = value
         self.parent = parent
         self.position = position
-        self.xsd_type = xsd_type
+        self.schema = schema
 
     @property
     def is_id(self) -> bool:
@@ -193,9 +201,34 @@ class AttributeNode(XPathNode):
 
     @property
     def type_name(self) -> Optional[str]:
-        if self.xsd_type is None:
+        return XSD_UNTYPED_ATOMIC if self.xsd_type is None else self.xsd_type.name
+
+    @cached_property
+    def xsd_type(self) -> Optional[XsdTypeProtocol]:
+        if self.schema is None:
             return None
-        return self.xsd_type.name
+
+        validity = self.schema.validity
+        validation_attempted = self.schema.validation_attempted
+        if validity is None or validation_attempted is None:
+            return None
+        elif validity != 'valid' or validation_attempted != 'full':
+            return self.schema.get_type(XSD_ANY_SIMPLE_TYPE)
+
+        xsd_attribute = self.schema.find(self.path)
+        if xsd_attribute is None:
+            return None
+
+        try:
+            xsd_type = xsd_attribute.type  # type: ignore[union-attr]
+        except AttributeError:
+            raise ElementPathTypeError(f"found a non XSD attribute {xsd_attribute}")
+        else:
+            if xsd_type is None and self._name is not None:
+                xsd_attribute = self.schema.get_attribute(self._name)
+                if xsd_attribute is not None:
+                    return xsd_attribute.type
+            return xsd_type
 
     @property
     def string_value(self) -> str:
@@ -459,7 +492,7 @@ class ElementNode(XPathNode):
     :param parent: the parent document node or element node.
     :param position: the position of the node in the document.
     :param nsmap: an optional mapping from prefix to namespace URI.
-    :param xsd_type: an optional XSD type associated with the element node.
+    :param schema: an optional schema proxy instance for set the XSD type annotation.
     """
     children: List[ChildNodeType]
     document_uri: None
@@ -473,24 +506,24 @@ class ElementNode(XPathNode):
 
     uri: Optional[str] = None
 
-    __slots__ = 'nsmap', 'elem', 'xsd_type', 'elements', \
-                '_namespace_nodes', '_attributes', 'children', '__dict__'
+    __slots__ = 'elem', 'schema', 'children', 'elements', 'nsmap', \
+                '_namespace_nodes', '_attributes', '__dict__'
 
     def __init__(self,
                  elem: ElementType,
                  parent: Optional[Union['ElementNode', 'DocumentNode']] = None,
                  position: int = 1,
                  nsmap: Optional[MutableMapping[Any, str]] = None,
-                 xsd_type: Optional[XsdTypeProtocol] = None) -> None:
+                 schema: Optional['AbstractSchemaProxy'] = None) -> None:
 
         self.elem = elem
         self.parent = parent
         self.position = position
-        self.xsd_type = xsd_type
+        self.schema = schema
+        self.children = []
         self.elements = None
         self._namespace_nodes = None
         self._attributes = None
-        self.children = []
 
         if nsmap is not None:
             self.nsmap = nsmap
@@ -533,12 +566,6 @@ class ElementNode(XPathNode):
         return self.elem.tag
 
     @property
-    def type_name(self) -> Optional[str]:
-        if self.xsd_type is None:
-            return None
-        return self.xsd_type.name
-
-    @property
     def base_uri(self) -> Optional[str]:
         base_uri = self.elem.get(XML_BASE)
         if isinstance(base_uri, str):
@@ -558,6 +585,42 @@ class ElementNode(XPathNode):
     @property
     def nilled(self) -> bool:
         return self.elem.get(XSI_NIL) in ('true', '1')
+
+    @property
+    def type_name(self) -> Optional[str]:
+        return XSD_UNTYPED if self.xsd_type is None else self.xsd_type.name
+
+    @cached_property
+    def xsd_type(self) -> Optional[XsdTypeProtocol]:
+        if self.schema is None:
+            return None
+
+        validity = self.schema.validity
+        validation_attempted = self.schema.validation_attempted
+        if validity is None or validation_attempted is None:
+            return None
+        elif validity != 'valid' or validation_attempted != 'full':
+            return self.schema.get_type(XSD_ANY_TYPE)
+
+        xsd_element = self.schema.find(self.path)
+        if xsd_element is None:
+            return None if self.parent is None else self.parent.xsd_type
+
+        try:
+            xsd_type = xsd_element.type  # type: ignore[union-attr]
+        except AttributeError:
+            raise ElementPathTypeError(f"found a non XSD element {xsd_element}")
+        else:
+            if xsd_type is None:
+                xsd_element = self.schema.get_element(self.elem.tag)
+                if xsd_element is not None:
+                    return xsd_element.type
+                elif not isinstance(self.parent, ElementNode):
+                    return None
+                else:
+                    return self.parent.xsd_type
+
+            return xsd_type
 
     @property
     def string_value(self) -> str:
@@ -603,7 +666,7 @@ class ElementNode(XPathNode):
         if self._attributes is None:
             position = self.position + len(self.nsmap) + int('xml' not in self.nsmap) + 1
             self._attributes = [
-                AttributeNode(name, cast(str, value), self, pos)
+                AttributeNode(name, cast(str, value), self, pos, self.schema)
                 for pos, (name, value) in enumerate(self.elem.attrib.items(), position)
             ]
         return self._attributes
@@ -983,7 +1046,7 @@ class SchemaElementNode(ElementNode):
         if self._attributes is None:
             position = self.position + len(self.nsmap) + int('xml' not in self.nsmap)
             self._attributes = [
-                AttributeNode(name, attr, self, pos, attr.type)
+                AttributeNode(name, attr, self, pos)
                 for pos, (name, attr) in enumerate(self.elem.attrib.items(), position)
             ]
         return self._attributes
@@ -997,6 +1060,18 @@ class SchemaElementNode(ElementNode):
             return self.parent.base_uri
         else:
             return urljoin(self.parent.base_uri or '', base_uri)
+
+    @property
+    def type_name(self) -> Optional[str]:
+        if hasattr(self.value, 'type') and self.value.type is not None:
+            return cast(Optional[str], self.value.type.name)
+        return None
+
+    @property
+    def xsd_type(self) -> Optional[XsdTypeProtocol]:
+        if hasattr(self.value, 'type'):
+            return cast(Optional[XsdTypeProtocol], self.value.type)
+        return None
 
     @property
     def string_value(self) -> str:

@@ -446,7 +446,8 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
             def validate(self, obj, *args, **kwargs):
                 Date10.validate(obj)
 
-        context.item = AttributeNode('a', 'true', xsd_type=DummyXsdDateType())
+        context.item = AttributeNode('a', 'true')
+        context.item.__dict__['xsd_type'] = DummyXsdDateType()
         self.check_value('xs:date(.)', TypeError, context=context)
 
         context.item = AttributeNode('a', str(Date10(2017, 1, 19)))

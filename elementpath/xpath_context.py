@@ -457,7 +457,7 @@ class XPathContext:
 
             self.item, self.axis = _status
 
-    def iter_parent(self) -> Iterator[Optional[RootNodeType]]:
+    def iter_parent(self) -> Iterator[RootNodeType]:
         """Iterator for 'parent' reverse axis and '..' shortcut."""
         if isinstance(self.item, XPathNode):
 

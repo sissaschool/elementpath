@@ -61,7 +61,6 @@ def nud_auxiliary_symbols(self: XPathToken) -> XPathToken:
 def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)', 'Q{')
     self[:] = self.parser.expression(rbp=90),
-    self[-1].untyped = True
     return self
 
 
@@ -386,7 +385,6 @@ def led_cast_expressions(self: XPathToken, left: XPathToken) -> XPathToken:
     if self.parser.next_token.symbol == '?':
         self[1].occurrence = '?'
         self.parser.advance()
-    self[-1].untyped = True
     return self
 
 
@@ -866,7 +864,6 @@ def nud_schema_node_kind_test(self: XPathFunction) -> XPathFunction:
     self.parser.expected_next('(name)', ':', 'Q{', message='a QName expected')
     self[0:] = self.parser.expression(5),
     self.parser.advance(')')
-    self[0].untyped = True
     return self
 
 
@@ -909,9 +906,6 @@ def nud_attribute_kind_test_or_axis(self: XPathToken) -> XPathToken:
 
         self.parser.advance(')')
 
-        for tk in self:
-            tk.untyped = True
-
         if self.namespace:
             msg = f"{self.value!r} is not allowed as function name"
             raise self.error('XPST0003', msg)
@@ -943,17 +937,12 @@ def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = 
         for attribute in context.iter_attributes():
             if attribute.match_name(name):
                 if isinstance(context, XPathSchemaContext):
-                    self.add_xsd_type(attribute)
                     continue
 
-                if attribute.xsd_type is None:
-                    attribute.xsd_type = self.get_xsd_type(attribute)
-
-                if type_name and attribute.xsd_type is None:
-                    if type_name == XSD_UNTYPED and name != '*':
+                if type_name == XSD_UNTYPED == attribute.type_name:
+                    if name != '*':
                         yield attribute.value
-                elif not type_name or attribute.xsd_type is not None and \
-                        attribute.xsd_type.name == type_name or \
+                elif not type_name or attribute.type_name == type_name or \
                         is_instance(attribute.typed_value, type_name, self.parser):
                     typed_value = attribute.typed_value
                     if typed_value is not None:

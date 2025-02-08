@@ -53,7 +53,6 @@ class XMLSchemaContextTest(unittest.TestCase):
 
         elem_a = self.schema1.elements['a']
         token = parser.parse('a')
-        self.assertIsNone(token.xsd_types)
 
         context = copy(schema_context)
         element_node = context.root[0]
@@ -61,13 +60,10 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertIs(element_node.xsd_type, elem_a.type)
 
         result = token.evaluate(context)
-        self.assertEqual(token.xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
         self.assertListEqual(result, [element_node])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('a/b1')
-        self.assertIsNone(token[0].xsd_types)
-        self.assertIsNone(token[1].xsd_types)
 
         context = copy(schema_context)
         element_node = context.root[0][0]
@@ -75,8 +71,6 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertIs(element_node.xsd_type, elem_b1.type)
 
         result = token.evaluate(context)
-        self.assertEqual(token[0].xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-        self.assertEqual(token[1].xsd_types, {"/{http://xpath.test/ns}a/b1": elem_b1.type})
         self.assertListEqual(result, [element_node])
 
     def test_colon_token(self):
@@ -86,42 +80,29 @@ class XMLSchemaContextTest(unittest.TestCase):
         elem_a = self.schema1.elements['a']
         token = parser.parse('tst:a')
         self.assertEqual(token.symbol, ':')
-        self.assertIsNone(token.xsd_types)
 
         result = token.evaluate(copy(context))
-        self.assertEqual(token.xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
         self.assertListEqual(result, [context.root[0]])
 
         elem_b1 = elem_a.type.content[0]
         token = parser.parse('tst:a/b1')
         self.assertEqual(token.symbol, '/')
         self.assertEqual(token[0].symbol, ':')
-        self.assertIsNone(token[0].xsd_types)
-        self.assertIsNone(token[1].xsd_types)
 
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [context.root[0][0]])
-        self.assertEqual(token[0].xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-        self.assertEqual(token[1].xsd_types, {"/{http://xpath.test/ns}a/b1": elem_b1.type})
 
         token = parser.parse('tst:a/tst:b1')
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [])
-        self.assertEqual(token[0].xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-        self.assertIsNone(token[1].xsd_types)
 
         elem_b3 = elem_a.type.content[2]
         token = parser.parse('tst:a/tst:b3')
         self.assertEqual(token.symbol, '/')
         self.assertEqual(token[0].symbol, ':')
-        self.assertIsNone(token[0].xsd_types)
-        self.assertIsNone(token[1].xsd_types)
 
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [context.root[0][2]])
-        self.assertEqual(token[0].xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-        self.assertEqual(token[1].xsd_types,
-                         {"/{http://xpath.test/ns}a/{http://xpath.test/ns}b3": elem_b3.type})
 
     def test_extended_name_token(self):
         parser = XPath2Parser(strict=False)
@@ -130,16 +111,12 @@ class XMLSchemaContextTest(unittest.TestCase):
         elem_a = self.schema1.elements['a']
         token = parser.parse('{http://xpath.test/ns}a')
         self.assertEqual(token.symbol, '{')
-        self.assertIsNone(token.xsd_types)
         self.assertEqual(token[0].symbol, '(string)')
         self.assertEqual(token[1].symbol, '(name)')
         self.assertEqual(token[1].value, 'a')
 
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root[0]])
-        self.assertEqual(token.xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-        self.assertIsNone(token[0].xsd_types)
-        self.assertIsNone(token[1].xsd_types)
 
     def test_wildcard_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
@@ -149,12 +126,9 @@ class XMLSchemaContextTest(unittest.TestCase):
         elem_b3 = self.schema1.elements['b3']
         token = parser.parse('*')
         self.assertEqual(token.symbol, '*')
-        self.assertIsNone(token.xsd_types)
 
         result = token.evaluate(context)
         self.assertListEqual([e.value for e in result], [elem_a, elem_b3])
-        self.assertEqual(token.xsd_types, {"/{http://xpath.test/ns}a": elem_a.type,
-                                           "/{http://xpath.test/ns}b3": elem_b3.type})
 
         token = parser.parse('a/*')
         self.assertEqual(token.symbol, '/')
@@ -163,14 +137,6 @@ class XMLSchemaContextTest(unittest.TestCase):
 
         result = token.evaluate(context)
         self.assertListEqual([e.value for e in result], elem_a.type.content[:])
-        self.assertIsNone(token.xsd_types)
-        self.assertEqual(token[0].xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-        self.assertDictEqual(
-            token[1].xsd_types,
-            {'/{http://xpath.test/ns}a/b1': elem_a.type.content[0].type,
-             '/{http://xpath.test/ns}a/b2': elem_a.type.content[1].type,
-             '/{http://xpath.test/ns}a/{http://xpath.test/ns}b3': elem_b3.type}
-        )
 
     def test_dot_shortcut_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
@@ -180,29 +146,19 @@ class XMLSchemaContextTest(unittest.TestCase):
         elem_b3 = self.schema1.elements['b3']
 
         token = parser.parse('.')
-        self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root])
-        self.assertIsNotNone(token.xsd_types)
-        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}a"), elem_a.type)
-        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}b3"), elem_b3.type)
 
         context = XPathSchemaContext(self.schema1, item=self.schema1)
         token = parser.parse('.')
-        self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root])
-        self.assertIsNotNone(token.xsd_types)
-        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}a"), elem_a.type)
-        self.assertEqual(token.xsd_types.get("/{http://xpath.test/ns}b3"), elem_b3.type)
 
         context = XPathSchemaContext(self.schema1, item=self.schema2)
         schema2_node = context.item
         token = parser.parse('.')
-        self.assertIsNone(token.xsd_types)
         result = token.evaluate(context)
         self.assertListEqual(result, [schema2_node])
-        self.assertIsNotNone(token.xsd_types.get("/root"))
 
     def test_schema_variables(self):
         variable_types = {'a': 'item()', 'b': 'xs:integer?', 'c': 'xs:string'}
@@ -259,42 +215,12 @@ class XMLSchemaContextTest(unittest.TestCase):
         elem_b2 = self.schema1.elements['a'].type.content[1]
 
         token = parser.parse('if ($x > 1) then a/b1 else a/b2')
-        for tk in token.iter():
-            self.assertIsNone(tk.xsd_types)
-
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root[0][1]])
-        self.assertIsNone(token.xsd_types)
-        self.assertIsNone(token[0].xsd_types)
-
-        for tk in token.iter():
-            if tk.value == 'a':
-                self.assertEqual(tk.xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-            elif tk.value == 'b1':
-                self.assertEqual(tk.xsd_types, {"/{http://xpath.test/ns}a/b1": elem_b1.type})
-            elif tk.value == 'b2':
-                self.assertEqual(tk.xsd_types, {"/{http://xpath.test/ns}a/b2": elem_b2.type})
-            else:
-                self.assertIsNone(tk.xsd_types)
 
         token = parser.parse('if ($x > xs:date("2010-01-01")) then a/b1 else a/b2')
-        for tk in token.iter():
-            self.assertIsNone(tk.xsd_types)
-
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root[0][1]])
-        self.assertIsNone(token.xsd_types)
-        self.assertIsNone(token[0].xsd_types)
-
-        for tk in token.iter():
-            if tk.value == 'a':
-                self.assertEqual(tk.xsd_types, {"/{http://xpath.test/ns}a": elem_a.type})
-            elif tk.value == 'b1':
-                self.assertEqual(tk.xsd_types, {"/{http://xpath.test/ns}a/b1": elem_b1.type})
-            elif tk.value == 'b2':
-                self.assertEqual(tk.xsd_types, {"/{http://xpath.test/ns}a/b2": elem_b2.type})
-            else:
-                self.assertIsNone(tk.xsd_types)
 
 
 if __name__ == '__main__':

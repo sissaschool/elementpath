@@ -69,13 +69,15 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = ElementNode(elem=root, xsd_type=xsd_type)
+            typed_root = ElementNode(elem=root)
+            typed_root.__dict__['xsd_type'] = xsd_type
             self.assertListEqual(list(etree_iter_strings(typed_root.elem)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
-            typed_root = ElementNode(elem=root, xsd_type=xsd_type)
+            typed_root = ElementNode(elem=root)
+            typed_root.__dict__['xsd_type'] = xsd_type
             self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
             comment = ElementTree.Comment('foo')
@@ -303,10 +305,12 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            attribute = AttributeNode('id', '0212349350', xsd_type=xsd_type)
+            attribute = AttributeNode('id', '0212349350')
+            attribute.__dict__['xsd_type'] = xsd_type
             self.assertEqual(attribute.kind, 'attribute')
 
-            typed_element = ElementNode(element.elem, xsd_type=xsd_type)
+            typed_element = ElementNode(element.elem)
+            typed_element.__dict__['xsd_type'] = xsd_type
             self.assertEqual(typed_element.kind, 'element')
 
     def test_name_property(self):
@@ -321,10 +325,12 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
 
-            typed_elem = ElementNode(elem=root.elem, xsd_type=xsd_type)
+            typed_elem = ElementNode(elem=root.elem)
+            typed_elem.__dict__['xsd_type'] = xsd_type
             self.assertEqual(typed_elem.name, 'root')
 
-            typed_attr = AttributeNode('a1', value='20', xsd_type=xsd_type)
+            typed_attr = AttributeNode('a1', value='20')
+            typed_attr.__dict__['xsd_type'] = xsd_type
             self.assertEqual(typed_attr.name, 'a1')
 
     def test_path_property(self):

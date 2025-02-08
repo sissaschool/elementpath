@@ -78,23 +78,8 @@ def select_name_literal(self: XPathToken, context: ContextType = None) \
         -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
-
     assert isinstance(self.value, str)
-
-    if isinstance(context, XPathSchemaContext):
-        # Static XSD typed evaluation
-        for item in context.iter_matching_nodes(self.value, self.parser.default_namespace):
-            self.add_xsd_type(item)
-            yield item
-    elif self.parser.schema is None:
-        # Untyped dynamic evaluation
-        yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
-    else:
-        # XSD typed dynamic evaluation
-        for item in context.iter_matching_nodes(self.value, self.parser.default_namespace):
-            if item.xsd_type is None:
-                item.xsd_type = self.get_xsd_type(item)
-            yield item
+    yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
 
 
 ###
@@ -173,8 +158,6 @@ class _PrefixedReferenceToken(XPathToken):
             raise self.wrong_syntax()
 
         self[:] = left, self.parser.expression(95)
-        self[0].untyped = True
-        self[1].untyped = True
 
         if self[1].label.endswith('function'):
             self.value = f'{self[0].value}:{self[1].symbol}'
@@ -199,20 +182,7 @@ class _PrefixedReferenceToken(XPathToken):
 
         if context is None:
             raise self.missing_context()
-        elif isinstance(context, XPathSchemaContext):
-            # Static XSD typed evaluation
-            for item in context.iter_matching_nodes(self.name):
-                self.add_xsd_type(item)
-                yield item
-        elif self.parser.schema is None:
-            # Untyped dynamic evaluation
-            yield from context.iter_matching_nodes(self.name)
-        else:
-            # XSD typed dynamic evaluation
-            for item in context.iter_matching_nodes(self.name):
-                if item.xsd_type is None:
-                    item.xsd_type = self.get_xsd_type(item)
-                yield item
+        yield from context.iter_matching_nodes(self.name)
 
 
 XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
@@ -275,23 +245,8 @@ def select_namespace_uri(self: XPathToken, context: ContextType = None) \
         return
     elif context is None:
         raise self.missing_context()
-    elif not isinstance(self.value, str):
-        return
-
-    if isinstance(context, XPathSchemaContext):
-        # Static XSD typed evaluation
-        for item in context.iter_matching_nodes(self.value):
-            self.add_xsd_type(item)
-            yield item
-    elif self.parser.schema is None:
-        # Untyped dynamic evaluation
+    elif isinstance(self.value, str):
         yield from context.iter_matching_nodes(self.value)
-    else:
-        # XSD typed dynamic evaluation
-        for item in context.iter_matching_nodes(self.value):
-            if item.xsd_type is None:
-                item.xsd_type = self.get_xsd_type(item)
-            yield item
 
 
 ###
@@ -300,7 +255,6 @@ def select_namespace_uri(self: XPathToken, context: ContextType = None) \
 def nud_variable_reference(self: XPathToken) -> XPathToken:
     self.parser.expected_next('(name)')
     self[:] = self.parser.expression(rbp=90),
-    self[-1].untyped = True
     if not isinstance(self[0].value, str) or ':' in self[0].value:
         raise self[0].wrong_syntax("variable reference requires a simple reference name")
     return self
@@ -344,7 +298,6 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
     elif isinstance(context, XPathSchemaContext):
         for item in context.iter_children_or_self():
             if isinstance(item, (ElementNode, AttributeNode)):
-                self.add_xsd_type(item)
                 yield item
 
     elif self.parser.schema is None:
@@ -362,8 +315,6 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
         for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
                 if isinstance(item, (ElementNode, AttributeNode)):
-                    if item.xsd_type is None:
-                        item.xsd_type = self.get_xsd_type(item)
                     yield item
 
 
@@ -371,21 +322,7 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
 def select_self_shortcut(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
-
-    elif isinstance(context, XPathSchemaContext):
-        for item in context.iter_self():
-            if isinstance(item, (AttributeNode, ElementNode)):
-                self.add_xsd_type(item)
-            yield item
-
-    elif self.parser.schema is None:
-        yield from context.iter_self()
-    else:
-        for item in context.iter_self():
-            if isinstance(item, (AttributeNode, ElementNode)):
-                if item.xsd_type is None:
-                    item.xsd_type = self.get_xsd_type(item)
-            yield item
+    yield from context.iter_self()
 
 
 @method(nullary('..'))
@@ -393,6 +330,7 @@ def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
         -> Iterator[ParentNodeType]:
     if context is None:
         raise self.missing_context()
+
     yield from context.iter_parent()
 
 
@@ -817,17 +755,7 @@ def select_predicate(self: XPathToken, context: ContextType = None) -> Iterator[
         predicate: Sequence[NumericType]
         predicate = [x for x in cast(Iterator[NumericType], self[1].select(copy(context)))]
 
-        if isinstance(context, XPathSchemaContext):
-            if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
-                if context.position == predicate[0]:
-                    if isinstance(context.item, (AttributeNode, ElementNode)):
-                        self[0].add_xsd_type(context.item)
-                    yield context.item
-            elif self.boolean_value(predicate):
-                if isinstance(context.item, (AttributeNode, ElementNode)):
-                    yield context.item
-
-        elif len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
+        if len(predicate) == 1 and isinstance(predicate[0], NumericProxy):
             if context.position == predicate[0]:
                 yield context.item
         elif self.boolean_value(predicate):

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, cast, Any, Optional
 from elementpath.exceptions import ElementPathKeyError, xpath_error
 from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Patterns
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
-    get_expanded_name
+    get_expanded_name, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
 from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType, \
     QName, NumericProxy
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
@@ -360,8 +360,7 @@ def match_sequence_type(value: Any,
                 return False
 
             if type_name == 'xs:untyped':
-                if isinstance(v, (ElementNode, AttributeNode)) \
-                        and v.xsd_type is not None:
+                if isinstance(v, (ElementNode, AttributeNode)) and v.type_name != XSD_UNTYPED:
                     return False
             else:
                 try:

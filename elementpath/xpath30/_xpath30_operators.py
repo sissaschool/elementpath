@@ -160,9 +160,6 @@ def select_simple_map_operator(self: XPathToken, context: ContextType = None) \
     for context.item in context.inner_focus_select(self[0]):
         for result in self[1].select(copy(context)):
             yield result
-            if isinstance(context, XPathSchemaContext) and \
-                    isinstance(result, (AttributeNode, ElementNode)):
-                self[1].add_xsd_type(result)
 
 
 ###

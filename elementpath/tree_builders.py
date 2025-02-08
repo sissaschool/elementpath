@@ -139,14 +139,14 @@ def build_node_tree(root: ElementTreeRootType,
             return document_node
 
         elem = root_elem
-        root_node = ElementNode(elem, document_node, position, namespaces)
+        root_node = ElementNode(elem, document_node, position, namespaces, schema)
         elements = document_node.elements
         document_node.children.append(root_node)
     else:
         assert root_elem is not None
         document_node = None
         elem = root_elem
-        root_node = ElementNode(elem, None, position, namespaces)
+        root_node = ElementNode(elem, None, position, namespaces, schema)
         root_node.elements = elements = {}
         if uri is not None:
             root_node.uri = uri
@@ -166,7 +166,7 @@ def build_node_tree(root: ElementTreeRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = ElementNode(elem, parent, position, namespaces)
+                child = ElementNode(elem, parent, position, namespaces, schema)
                 position += elem_pos_offset + len(elem.attrib)
 
                 if elem.text is not None:
@@ -197,9 +197,6 @@ def build_node_tree(root: ElementTreeRootType,
             try:
                 children, parent = iterators.pop(), ancestors.pop()
             except IndexError:
-                if schema is not None:
-                    schema.set_node_tree_types(root_node)
-
                 if document_node is not None:
                     return document_node
                 elif fragment is False and \
@@ -272,7 +269,7 @@ def build_lxml_node_tree(root: LxmlRootType,
             document_node.children.append(child)
             position += 1
 
-        root_node = ElementNode(root_elem, document_node, position, root_elem.nsmap)
+        root_node = ElementNode(root_elem, document_node, position, root_elem.nsmap, schema)
         document_node.children.append(root_node)
     else:
         if hasattr(root, 'parse'):
@@ -288,7 +285,7 @@ def build_lxml_node_tree(root: LxmlRootType,
             raise ElementPathTypeError(msg)
 
         document_node = None
-        root_node = ElementNode(root_elem, None, position, root_elem.nsmap)
+        root_node = ElementNode(root_elem, None, position, root_elem.nsmap, schema)
         root_node.elements = elements = {}
         if uri is not None:
             root_node.uri = uri
@@ -312,7 +309,7 @@ def build_lxml_node_tree(root: LxmlRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = ElementNode(elem, parent, position, elem.nsmap)
+                child = ElementNode(elem, parent, position, elem.nsmap, schema)
                 if 'xml' in elem.nsmap:
                     position += len(elem.nsmap) + len(elem.attrib) + 1
                 else:
@@ -347,8 +344,6 @@ def build_lxml_node_tree(root: LxmlRootType,
                 children, parent = iterators.pop(), ancestors.pop()
             except IndexError:
                 if document_node is None:
-                    if schema is not None:
-                        schema.set_node_tree_types(root_node)
                     return root_node
 
                 # Add root following siblings (comments and processing instructions)
@@ -362,8 +357,6 @@ def build_lxml_node_tree(root: LxmlRootType,
                     document_node.children.append(child)
                     position += 1
 
-                if schema is not None:
-                    schema.set_node_tree_types(root_node)
                 return document_node
             else:
                 if (tail := parent.children[-1].elem.tail) is not None:
@@ -427,7 +420,7 @@ def build_schema_node_tree(root: SchemaElemType,
 
     while True:
         for elem in children:
-            child = SchemaElementNode(elem, parent, position, elem.namespaces, elem.type)
+            child = SchemaElementNode(elem, parent, position, elem.namespaces)
             position += elem_pos_offset + len(elem.attrib)
 
             _elements[elem] = child

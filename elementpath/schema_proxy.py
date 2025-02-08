@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from functools import lru_cache
+from functools import lru_cache, cached_property
 from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
 
 from elementpath._typing import Iterator
@@ -17,7 +17,6 @@ from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
-from elementpath.xpath_nodes import AttributeNode, ElementNode, RootNodeType
 from elementpath.xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -88,30 +87,18 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
             return cached_find(path)
         return self._schema.find(path, namespaces)
 
-    def set_node_tree_types(self, root_node: RootNodeType, reset: bool = False) -> None:
-        """Set node tree types using schema proxy."""
-        if not reset and root_node.is_typed():
-            return
-
-        for node in root_node.iter_lazy():
-            if isinstance(node, (ElementNode, AttributeNode)):
-                xsd_component = self.find(node.path)
-                if xsd_component is None:
-                    node.xsd_type = None
-                    continue
-
-                try:
-                    xsd_type = xsd_component.type  # type: ignore[union-attr]
-                except AttributeError:
-                    raise ElementPathTypeError(f"found a non XSD component {xsd_component}")
-
-                assert xsd_type is not None
-                node.xsd_type = xsd_type
-
     @property
     def xsd_version(self) -> str:
         """The XSD version, returns '1.0' or '1.1'."""
         return self._schema.xsd_version
+
+    @cached_property
+    def validity(self) -> Optional[str]:
+        return getattr(self._schema, 'validity', None)
+
+    @cached_property
+    def validation_attempted(self) -> Optional[str]:
+        return getattr(self._schema, 'validation_attempted', None)
 
     def get_type(self, qname: str) -> Optional[XsdTypeProtocol]:
         """

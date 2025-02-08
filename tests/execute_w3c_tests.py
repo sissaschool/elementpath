@@ -794,6 +794,7 @@ class TestCase(object):
             context = XPathContext(
                 root=self.etree.XML("<empty/>"),
                 namespaces=test_namespaces,
+                schema=self.parser.schema,
                 timezone='Z',
                 default_language=self.default_language,
                 default_calendar=self.calendar,
@@ -840,6 +841,8 @@ class TestCase(object):
 
             if test_namespaces:
                 kwargs['namespaces'] = test_namespaces
+            if self.parser.schema:
+                kwargs['schema'] = self.parser.schema
             if variables:
                 kwargs['variables'] = variables
             if documents:
