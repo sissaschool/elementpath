@@ -78,8 +78,8 @@ def select_name_literal(self: XPathToken, context: ContextType = None) \
         -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
-    assert isinstance(self.value, str)
-    yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
+    elif isinstance(self.value, str):
+        yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
 
 
 ###
@@ -295,11 +295,6 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
         raise self.missing_context()
 
     # Wildcard literal
-    elif isinstance(context, XPathSchemaContext):
-        for item in context.iter_children_or_self():
-            if isinstance(item, (ElementNode, AttributeNode)):
-                yield item
-
     elif self.parser.schema is None:
         for item in context.iter_children_or_self():
             if item is None:
@@ -309,7 +304,6 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
                     yield item
             elif isinstance(item, ElementNode):
                 yield item
-
     else:
         # XSD typed selection
         for item in context.iter_children_or_self():
@@ -330,7 +324,6 @@ def select_parent_shortcut(self: XPathToken, context: ContextType = None) \
         -> Iterator[ParentNodeType]:
     if context is None:
         raise self.missing_context()
-
     yield from context.iter_parent()
 
 

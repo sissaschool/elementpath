@@ -360,7 +360,9 @@ def match_sequence_type(value: Any,
                 return False
 
             if type_name == 'xs:untyped':
-                if isinstance(v, (ElementNode, AttributeNode)) and v.type_name != XSD_UNTYPED:
+                if isinstance(v, AttributeNode) and v.type_name != XSD_UNTYPED_ATOMIC:
+                    return False
+                if isinstance(v, ElementNode) and v.type_name != XSD_UNTYPED:
                     return False
             else:
                 try:

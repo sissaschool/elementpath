@@ -521,7 +521,7 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertIsInstance(obj[0], AttributeNode)
             self.assertEqual(obj[0], attribute)
             self.assertIsInstance(obj[0].value, xmlschema.XsdAttribute)
-            self.assertIsInstance(obj[0].typed_value, str)
+            self.assertIsInstance(next(iter(obj[0].iter_typed_values), None), str)
 
         finally:
             self.parser.schema = None
@@ -540,7 +540,8 @@ class XPath2TokenTest(XPath1TokenTest):
             context = XPathContext(schema)
 
             try:
-                value = token.string_value(context.root[0])  # 'root' element
+                root = context.root[0]
+                value = token.string_value(root)  # 'root' element
                 self.assertIsInstance(value, str)
                 self.assertEqual(value, '1')
             finally:

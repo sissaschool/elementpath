@@ -203,7 +203,7 @@ class XPathToken(Token[XPathTokenType]):
         if self.symbol != '(name)':
             return ''
 
-        local_name = self[0].value
+        local_name = self.value
         assert isinstance(local_name, str)
         if self.namespace:
             return f'{{{self.namespace}}}{local_name}'
@@ -440,18 +440,16 @@ class XPathToken(Token[XPathTokenType]):
         """
         for item in self.select_flatten(context):
             if isinstance(item, XPathNode):
+                value = None
                 try:
-                    value = item.typed_value
+                    for value in item.iter_typed_values:
+                        yield value
                 except (TypeError, ValueError) as err:
                     raise self.error('XPDY0050', str(err))
                 else:
                     if value is None:
                         msg = f"argument node {item!r} does not have a typed value"
                         raise self.error('FOTY0012', msg)
-                    elif isinstance(value, list):
-                        yield from value
-                    else:
-                        yield value
 
             elif isinstance(item, XPathFunction) and not isinstance(item, XPathArray):
                 raise self.error('FOTY0013', f"{item.label!r} has no typed value")
@@ -553,7 +551,6 @@ class XPathToken(Token[XPathTokenType]):
             self.parser.check_variables(context.variables)
             if self.parser.schema is not None and context.schema is None:
                 raise AssertionError()
-
 
             for result in self.select(context):
                 if not isinstance(result, XPathNode):

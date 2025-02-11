@@ -102,7 +102,8 @@ class XPathContext:
     collections = None
     default_collection = None
 
-    __slots__ = ('document', 'root', 'item', 'namespaces', 'size', 'position', 'variables', 'axis', '__dict__')
+    __slots__ = ('document', 'root', 'item', 'namespaces', 'size',
+                 'position', 'variables', 'axis', '__dict__')
 
     def __init__(self,
                  root: Optional[RootArgType] = None,
@@ -334,7 +335,7 @@ class XPathContext:
                 # With predicate select nodes that have not single list value
                 # must be replaced by value.
                 if isinstance(item, (AttributeNode, ElementNode)) and item.is_list:
-                    value = item.typed_value
+                    value = item.iter_typed_values
                     if isinstance(value, list):
                         results.extend(value)
                         continue

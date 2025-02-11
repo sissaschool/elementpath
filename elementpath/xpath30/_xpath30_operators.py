@@ -16,10 +16,9 @@ from typing import Any, cast, List, Type, Union
 from elementpath._typing import Iterator
 from elementpath.aliases import InputType
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
-from elementpath.xpath_nodes import AttributeNode, ElementNode
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
     XPathMap, XPathArray
-from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
+from elementpath.xpath_context import ContextType, ItemType
 from elementpath.datatypes import QName
 
 from .xpath30_parser import XPath30Parser
@@ -95,7 +94,7 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
 
 @method('(')
 def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, List[ItemType]]:
+        -> Union[ItemType, List[ItemType], XPathToken]:
     if not self:
         return []
 

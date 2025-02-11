@@ -37,7 +37,7 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     xsd10_atomic_types, xsd11_atomic_types
 from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.datetime import OrderedDateTime
-from elementpath.decoder import get_simple_value
+from elementpath.decoder import get_atomic_sequence
 
 
 class AtomicTypesTest(unittest.TestCase):
@@ -76,30 +76,33 @@ class AtomicTypesTest(unittest.TestCase):
               </xs:simpleType>
             </xs:schema>"""))
 
-        self.assertEqual(get_simple_value(schema.elements['d'].type), UntypedAtomic('1'))
+        self.assertEqual(
+            list(get_atomic_sequence(schema.elements['d'].type)), [UntypedAtomic('1')]
+        )
 
         with self.assertRaises(AttributeError):
-            get_simple_value(schema)
+            list(get_atomic_sequence(schema))
 
-        self.assertEqual(get_simple_value(xsd_type=None), UntypedAtomic(value=''))
+        self.assertEqual(next(iter(get_atomic_sequence(xsd_type=None))),
+                         UntypedAtomic(value=''))
 
-        value = get_simple_value(schema.elements['a'].type)
+        value = next(iter(get_atomic_sequence(schema.elements['a'].type)), None)
         self.assertIsInstance(value, UntypedAtomic)
         self.assertEqual(value, UntypedAtomic(value='1'))
 
-        value = get_simple_value(schema.elements['b'].type)
+        value = next(iter(get_atomic_sequence(schema.elements['b'].type)), None)
         self.assertIsInstance(value, int)
         self.assertEqual(value, 1)
 
-        value = get_simple_value(schema.elements['c'].type)
+        value = next(iter(get_atomic_sequence(schema.elements['c'].type)), None)
         self.assertIsInstance(value, UntypedAtomic)
         self.assertEqual(value, UntypedAtomic(value='1'))
 
-        value = get_simple_value(schema.elements['d'].type)
+        value = next(iter(get_atomic_sequence(schema.elements['d'].type)), None)
         self.assertIsInstance(value, float)
         self.assertEqual(value, 1.0)
 
-        value = get_simple_value(schema.elements['e'].type)
+        value = next(iter(get_atomic_sequence(schema.elements['e'].type)), None)
         self.assertIsInstance(value, str)
         self.assertEqual(value, '  alpha\t')
 

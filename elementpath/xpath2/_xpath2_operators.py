@@ -17,7 +17,7 @@ from decimal import Decimal, DivisionByZero
 from typing import cast, List, Type, Union
 
 from elementpath._typing import Iterator
-from elementpath.aliases import Emptiable
+from elementpath.aliases import Emptiable, SequenceType
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_not_equal, \
@@ -25,8 +25,8 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, numeric_equal, numeric_no
 from elementpath.namespaces import XSD_NAMESPACE, XSD_NOTATION, XSD_ANY_ATOMIC_TYPE, \
     XSD_UNTYPED, get_namespace, get_expanded_name
 from elementpath.datatypes import UntypedAtomic, QName, AnyURI, \
-    Duration, Integer, DoubleProxy10, AnyAtomicType, AtomicType, NumericType
-from elementpath.decoder import get_simple_value
+    Duration, Integer, DoubleProxy10, AtomicType, NumericType
+from elementpath.decoder import get_atomic_sequence
 from elementpath.xpath_nodes import ElementNode, DocumentNode, XPathNode, AttributeNode
 from elementpath.sequence_types import is_instance
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
@@ -66,7 +66,7 @@ def nud_variable_reference(self: XPathToken) -> XPathToken:
 
 @method('$')
 def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
-        -> Emptiable[Union[ItemType, List[ItemType]]]:
+        -> Emptiable[SequenceType[ItemType]]:
     if context is None:
         raise self.missing_context()
 
@@ -102,7 +102,11 @@ def evaluate_variable_reference(self: XPathToken, context: ContextType = None) \
                 else:
                     if self.parser.schema is not None:
                         xsd_type = self.parser.schema.get_type(type_name)
-                        return cast(AnyAtomicType, get_simple_value(xsd_type))
+                        result = [v for v in get_atomic_sequence(xsd_type)]
+                        if len(result) == 1:
+                            return result[0]
+                        else:
+                            return cast(Emptiable[AtomicType], result)
 
             return UntypedAtomic('1')
 
@@ -945,11 +949,10 @@ def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = 
                 elif not type_name or attribute.type_name == type_name or \
                         is_instance(attribute.typed_value, type_name, self.parser):
                     typed_value = attribute.typed_value
-                    if typed_value is not None:
-                        if isinstance(typed_value, list):
-                            yield from typed_value
-                        else:
-                            yield typed_value
+                    if isinstance(typed_value, list):
+                        yield from typed_value
+                    else:
+                        yield typed_value
 
 
 # XPath 2.0 definitions continue into module xpath2_functions

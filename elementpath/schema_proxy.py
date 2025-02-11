@@ -15,6 +15,7 @@ from elementpath._typing import Iterator
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol
+from elementpath.namespaces import XSD_ANY_SIMPLE_TYPE, XSD_ANY_TYPE
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
 from elementpath.xpath_context import XPathSchemaContext
@@ -113,6 +114,55 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         if isinstance(xsd_type, tuple):
             return None
         return xsd_type
+
+    def get_attribute_node_type(self, path: str, name: Optional[str]) \
+            -> Optional[XsdTypeProtocol]:
+
+        validity = self.validity
+        validation_attempted = self.validation_attempted
+        if validity is None or validation_attempted is None:
+            return None
+        elif validity != 'valid' or validation_attempted != 'full':
+            return self.get_type(XSD_ANY_SIMPLE_TYPE)
+
+        xsd_attribute = self.find(path)
+        if xsd_attribute is None:
+            return None
+
+        try:
+            xsd_type = xsd_attribute.type  # type: ignore[union-attr]
+        except AttributeError:
+            raise ElementPathTypeError(f"found a non XSD attribute {xsd_attribute}")
+        else:
+            if xsd_type is None and name is not None:
+                xsd_attribute = self.get_attribute(name)
+                if xsd_attribute is not None:
+                    return xsd_attribute.type
+            return xsd_type
+
+    def get_element_node_type(self, path: str, name: Optional[str]) \
+            -> Optional[XsdTypeProtocol]:
+        validity = self.validity
+        validation_attempted = self.validation_attempted
+        if validity is None or validation_attempted is None:
+            return None
+        elif validity != 'valid' or validation_attempted != 'full':
+            return self.get_type(XSD_ANY_TYPE)
+
+        xsd_element = self.find(path)
+        if xsd_element is None:
+            return None
+
+        try:
+            xsd_type = xsd_element.type  # type: ignore[union-attr]
+        except AttributeError:
+            raise ElementPathTypeError(f"found a non XSD element {xsd_element}")
+        else:
+            if xsd_type is None and name is not None:
+                xsd_element = self.get_element(name)
+                if xsd_element is not None:
+                    return xsd_element.type
+            return xsd_type
 
     def get_attribute(self, qname: str) -> Optional[XsdAttributeProtocol]:
         """

@@ -11,12 +11,12 @@ import importlib
 from collections import deque
 from functools import cached_property
 from urllib.parse import urljoin
-from typing import cast, Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING, Union
+from typing import cast, Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from xml.etree import ElementTree
 
 from elementpath._typing import Deque, Iterator, MutableMapping
-from elementpath.aliases import SequenceType
 from elementpath.exceptions import ElementPathRuntimeError, ElementPathTypeError
+from elementpath.aliases import SequenceType
 from elementpath.datatypes import UntypedAtomic, AtomicType
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
@@ -25,7 +25,7 @@ from elementpath.protocols import ElementProtocol, DocumentProtocol, XsdElementP
     XsdAttributeProtocol, XsdTypeProtocol, DocumentType, ElementType, SchemaElemType, \
     CommentType, ProcessingInstructionType
 from elementpath.helpers import match_wildcard, is_absolute_uri
-from elementpath.decoder import get_simple_value
+from elementpath.decoder import get_atomic_sequence
 from elementpath.etree import etree_iter_strings, is_etree_element_instance
 
 if TYPE_CHECKING:
@@ -104,20 +104,25 @@ class XPathNode:
         return None
 
     @property
-    def xsd_type(self) -> Optional[XsdTypeProtocol]:
-        return None
-
-    @property
     def string_value(self) -> str:
         raise NotImplementedError()
 
     @property
-    def typed_value(self) -> Optional[SequenceType[AtomicType]]:
+    def iter_typed_values(self) -> Iterator[AtomicType]:
         raise NotImplementedError()
+
+    @property
+    def typed_value(self) -> SequenceType[AtomicType]:
+        values = [v for v in self.iter_typed_values]
+        if len(values) == 1:
+            return values[0]
+        else:
+            return values
 
     # Other common attributes, properties and methods
     value: Any
     position: int  # for document total order
+    xsd_type: Optional[XsdTypeProtocol] = None
 
     @property
     def root_node(self) -> 'XPathNode':
@@ -163,10 +168,11 @@ class AttributeNode(XPathNode):
     namespace_nodes: None
     nilled: None
     parent: Optional['ElementNode']
+    _nsmap: MutableMapping[Optional[str], str]
 
     kind = 'attribute'
 
-    __slots__ = '_name', 'value', 'schema', '__dict__'
+    __slots__ = '_name', 'value', 'schema', 'xsd_type', '_nsmap', '__dict__'
 
     def __init__(self,
                  name: Optional[str],
@@ -179,6 +185,14 @@ class AttributeNode(XPathNode):
         self.parent = parent
         self.position = position
         self.schema = schema
+        self._nsmap = {} if parent is None else parent.nsmap
+
+        if not isinstance(value, str):
+            self.xsd_type = value.type
+        elif schema is None:
+            self.xsd_type = None
+        else:
+            self.xsd_type = schema.get_attribute_node_type(self.path, name)
 
     @property
     def is_id(self) -> bool:
@@ -203,48 +217,18 @@ class AttributeNode(XPathNode):
     def type_name(self) -> Optional[str]:
         return XSD_UNTYPED_ATOMIC if self.xsd_type is None else self.xsd_type.name
 
-    @cached_property
-    def xsd_type(self) -> Optional[XsdTypeProtocol]:
-        if self.schema is None:
-            return None
-
-        validity = self.schema.validity
-        validation_attempted = self.schema.validation_attempted
-        if validity is None or validation_attempted is None:
-            return None
-        elif validity != 'valid' or validation_attempted != 'full':
-            return self.schema.get_type(XSD_ANY_SIMPLE_TYPE)
-
-        xsd_attribute = self.schema.find(self.path)
-        if xsd_attribute is None:
-            return None
-
-        try:
-            xsd_type = xsd_attribute.type  # type: ignore[union-attr]
-        except AttributeError:
-            raise ElementPathTypeError(f"found a non XSD attribute {xsd_attribute}")
-        else:
-            if xsd_type is None and self._name is not None:
-                xsd_attribute = self.schema.get_attribute(self._name)
-                if xsd_attribute is not None:
-                    return xsd_attribute.type
-            return xsd_type
-
     @property
     def string_value(self) -> str:
         if isinstance(self.value, str):
             return self.value
-        return str(get_simple_value(self.value.type))
+        return str(get_atomic_sequence(self.value.type))
 
     @property
-    def typed_value(self) -> Optional[SequenceType[AtomicType]]:
+    def iter_typed_values(self) -> Iterator[AtomicType]:
         if not isinstance(self.value, str):
-            return get_simple_value(self.value.type)
-        elif self.xsd_type is None or self.xsd_type.name in _XSD_SPECIAL_TYPES:
-            return UntypedAtomic(self.value)
-
-        nsmap = None if self.parent is None else self.parent.nsmap
-        return get_simple_value(self.xsd_type, self.value, nsmap)
+            yield from get_atomic_sequence(self.xsd_type)
+        else:
+            yield from get_atomic_sequence(self.xsd_type, self.value, self._nsmap)
 
     def as_item(self) -> Tuple[Optional[str], Union[str, XsdAttributeProtocol]]:
         return self._name, self.value
@@ -329,8 +313,8 @@ class NamespaceNode(XPathNode):
         return self.uri
 
     @property
-    def typed_value(self) -> str:
-        return self.uri
+    def iter_typed_values(self) -> Iterator[str]:
+        yield self.uri
 
 
 class TextNode(XPathNode):
@@ -374,8 +358,8 @@ class TextNode(XPathNode):
         return self.value
 
     @property
-    def typed_value(self) -> UntypedAtomic:
-        return UntypedAtomic(self.value)
+    def iter_typed_values(self) -> Iterator[UntypedAtomic]:
+        yield UntypedAtomic(self.value)
 
 
 class CommentNode(XPathNode):
@@ -420,8 +404,8 @@ class CommentNode(XPathNode):
         return self.elem.text or ''
 
     @property
-    def typed_value(self) -> str:
-        return self.elem.text or ''
+    def iter_typed_values(self) -> Iterator[str]:
+        yield self.elem.text or ''
 
 
 class ProcessingInstructionNode(XPathNode):
@@ -479,8 +463,8 @@ class ProcessingInstructionNode(XPathNode):
             return ''
 
     @property
-    def typed_value(self) -> str:
-        return self.string_value
+    def iter_typed_values(self) -> Iterator[str]:
+        yield self.string_value
 
 
 class ElementNode(XPathNode):
@@ -501,13 +485,15 @@ class ElementNode(XPathNode):
     elem: ElementType
     nsmap: MutableMapping[Optional[str], str]
     elements: Optional[ElementMapType]
+
+    _typed_value: Optional[bool]
     _namespace_nodes: Optional[List['NamespaceNode']]
     _attributes: Optional[List['AttributeNode']]
 
     uri: Optional[str] = None
 
-    __slots__ = 'elem', 'schema', 'children', 'elements', 'nsmap', \
-                '_namespace_nodes', '_attributes', '__dict__'
+    __slots__ = 'elem', 'schema', 'children', 'elements', 'nsmap', 'xsd_type', \
+                '_typed_value', '_namespace_nodes', '_attributes', '__dict__'
 
     def __init__(self,
                  elem: ElementType,
@@ -532,6 +518,18 @@ class ElementNode(XPathNode):
                 self.nsmap = cast(Dict[Any, str], getattr(elem, 'nsmap'))
             except AttributeError:
                 self.nsmap = {}
+
+        if isinstance(self, SchemaElementNode):
+            assert not hasattr(elem, 'append')
+        else:
+            assert hasattr(elem, 'append')
+
+        if hasattr(elem, 'type'):
+            self.xsd_type = elem.type
+        elif schema is None:
+            self.xsd_type = None
+        else:
+            self.xsd_type = schema.get_element_node_type(self.path, elem.tag)
 
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.elem)
@@ -590,38 +588,6 @@ class ElementNode(XPathNode):
     def type_name(self) -> Optional[str]:
         return XSD_UNTYPED if self.xsd_type is None else self.xsd_type.name
 
-    @cached_property
-    def xsd_type(self) -> Optional[XsdTypeProtocol]:
-        if self.schema is None:
-            return None
-
-        validity = self.schema.validity
-        validation_attempted = self.schema.validation_attempted
-        if validity is None or validation_attempted is None:
-            return None
-        elif validity != 'valid' or validation_attempted != 'full':
-            return self.schema.get_type(XSD_ANY_TYPE)
-
-        xsd_element = self.schema.find(self.path)
-        if xsd_element is None:
-            return None if self.parent is None else self.parent.xsd_type
-
-        try:
-            xsd_type = xsd_element.type  # type: ignore[union-attr]
-        except AttributeError:
-            raise ElementPathTypeError(f"found a non XSD element {xsd_element}")
-        else:
-            if xsd_type is None:
-                xsd_element = self.schema.get_element(self.elem.tag)
-                if xsd_element is not None:
-                    return xsd_element.type
-                elif not isinstance(self.parent, ElementNode):
-                    return None
-                else:
-                    return self.parent.xsd_type
-
-            return xsd_type
-
     @property
     def string_value(self) -> str:
         if self.xsd_type is not None and self.xsd_type.is_element_only():
@@ -630,21 +596,21 @@ class ElementNode(XPathNode):
         return ''.join(etree_iter_strings(self.elem))
 
     @property
-    def typed_value(self) -> Optional[SequenceType[AtomicType]]:
+    def iter_typed_values(self) -> Iterator[AtomicType]:
         if self.xsd_type is None or \
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
-            return UntypedAtomic(''.join(etree_iter_strings(self.elem)))
+            yield UntypedAtomic(''.join(etree_iter_strings(self.elem)))
         elif self.xsd_type.is_element_only() or self.xsd_type.is_empty():
-            return None
+            return
         elif self.elem.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
-            return None
+            return
         elif self.elem.text is not None:
-            return get_simple_value(self.xsd_type, self.elem.text, self.nsmap)
+            yield from get_atomic_sequence(self.xsd_type, self.elem.text, self.nsmap)
         elif self.elem.get(XSI_NIL) in ('1', 'true'):
-            return ''
+            yield ''
         else:
-            return get_simple_value(self.xsd_type, '')
+            yield from get_atomic_sequence(self.xsd_type, '')
 
     @property
     def namespace_nodes(self) -> List['NamespaceNode']:
@@ -946,8 +912,8 @@ class DocumentNode(XPathNode):
         return ''.join(child.string_value for child in self.children)
 
     @property
-    def typed_value(self) -> UntypedAtomic:
-        return UntypedAtomic(self.string_value)
+    def iter_typed_values(self) -> Iterator[UntypedAtomic]:
+        yield UntypedAtomic(self.string_value)
 
     @property
     def document_uri(self) -> Optional[str]:
@@ -1034,6 +1000,7 @@ class SchemaElementNode(ElementNode):
 
     ref: Optional['SchemaElementNode'] = None
     elem: SchemaElemType
+    xsd_type: XsdTypeProtocol
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         if self.ref is None:
@@ -1068,24 +1035,12 @@ class SchemaElementNode(ElementNode):
         return None
 
     @property
-    def xsd_type(self) -> Optional[XsdTypeProtocol]:
-        if hasattr(self.value, 'type'):
-            return cast(Optional[XsdTypeProtocol], self.value.type)
-        return None
-
-    @property
     def string_value(self) -> str:
         if not hasattr(self.elem, 'type'):
             return ''
-        schema_node = cast(XsdElementProtocol, self.elem)
-        return str(get_simple_value(schema_node.type))
-
-    @property
-    def typed_value(self) -> SequenceType[AtomicType]:
-        if not hasattr(self.elem, 'type'):
-            return UntypedAtomic('')
-        schema_node = cast(XsdElementProtocol, self.elem)
-        return get_simple_value(schema_node.type)
+        for item in get_atomic_sequence(self.xsd_type):
+            return str(item)
+        return ''
 
     def iter(self) -> Iterator[XPathNode]:
         yield self
