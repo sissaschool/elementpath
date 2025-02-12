@@ -12,7 +12,7 @@ import unittest
 from xml.etree import ElementTree
 
 from elementpath import XPath2Parser
-from elementpath.xpath_nodes import ElementNode
+from elementpath.xpath_nodes import EtreeElementNode
 from elementpath.tree_builders import get_node_tree
 from elementpath.compare import deep_equal, deep_compare, get_key_function
 
@@ -36,10 +36,10 @@ class CompareTest(unittest.TestCase):
 
         root = ElementTree.Element('root')
         elem = ElementTree.Element('elem')
-        element = ElementNode(elem)
+        element = EtreeElementNode(elem)
         self.assertTrue(deep_equal([element], [element]))
         self.assertFalse(deep_equal([1], [element]))
-        self.assertFalse(deep_equal([ElementNode(root)], [element]))
+        self.assertFalse(deep_equal([EtreeElementNode(root)], [element]))
 
         root = ElementTree.XML('<root a="1">text<child b="2"/>tail<child/></root>')
         element = get_node_tree(root)
@@ -82,13 +82,13 @@ class CompareTest(unittest.TestCase):
 
         root = ElementTree.Element('root')
         elem = ElementTree.Element('elem')
-        element = ElementNode(elem)
+        element = EtreeElementNode(elem)
         self.assertEqual(deep_compare([element], [element]), 0)
 
         with self.assertRaises(TypeError):
             deep_compare([1], [element])
 
-        self.assertEqual(deep_compare([ElementNode(root)], [element]), 1)
+        self.assertEqual(deep_compare([EtreeElementNode(root)], [element]), 1)
 
         root = ElementTree.XML('<root a="1">text<child b="2"/>tail<child/></root>')
         element = get_node_tree(root)

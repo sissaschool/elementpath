@@ -44,7 +44,8 @@ else:
 
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
     MissingContextError, select, Selector, datatypes, get_node_tree, \
-    AttributeNode, NamespaceNode, TextNode
+    NamespaceNode, TextNode
+from elementpath.xpath_nodes import TextAttributeNode
 from elementpath.namespaces import XSI_NAMESPACE, XML_NAMESPACE, XML_ID
 from elementpath.datatypes import DateTime10, DateTime, Date10, Date, Time, \
     Timezone, DayTimeDuration, YearMonthDuration, QName, UntypedAtomic
@@ -1290,7 +1291,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         context = XPathContext(doc, item=root)
         context.variables = {
-            'x': AttributeNode(XML_ID, 'ID21256', parent=context.root[0])
+            'x': TextAttributeNode(XML_ID, 'ID21256', parent=context.root[0])
         }
         self.check_value("idref('ID21256', $x)", [], context=context)
 
@@ -1370,8 +1371,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         self.check_value('deep-equal($a, $b)', False, context=context)
 
         context = XPathContext(root)
-        context.variables = {'a': [AttributeNode('a', '10')],
-                             'b': [AttributeNode('b', '10')]}
+        context.variables = {'a': [TextAttributeNode('a', '10')],
+                             'b': [TextAttributeNode('b', '10')]}
         self.check_value('deep-equal($a, $a)', True, context=context)
         self.check_value('deep-equal($a, $b)', False, context=context)
 

@@ -38,7 +38,7 @@ from elementpath.datatypes import xsd10_atomic_types, NumericProxy, QName, Date1
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml, etree_iter_paths
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
-    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode
+    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode, EtreeElementNode
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, XPathConstructor
 from elementpath.serialization import get_serialization_params, serialize_to_xml, \
@@ -1108,16 +1108,17 @@ def evaluate_path_function(self: XPathFunction, context: ContextType = None) -> 
         return []
 
     if isinstance(context.root, DocumentNode):
-        root = context.root.getroot().elem
-        if root.tag.startswith('{'):
-            path = f'/Q{root.tag}[1]'
+        root_node = context.root.getroot()
+        assert root_node.name is not None
+        if root_node.name.startswith('{'):
+            path = f'/Q{root_node.name}[1]'
         else:
-            path = f'/Q{{}}{root.tag}[1]'
+            path = f'/Q{{}}{root_node.name}[1]'
     elif context.root is None:
         return []
     else:
         # If root is an element use the function that returns the root of the tree
-        root = context.root.elem
+        root_node = context.root
         path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
 
     if isinstance(item, ProcessingInstructionNode):
@@ -1127,7 +1128,10 @@ def evaluate_path_function(self: XPathFunction, context: ContextType = None) -> 
         if item.parent is None or isinstance(item.parent, DocumentNode):
             return f'/comment()[{context.position}]'
 
-    for e, path in etree_iter_paths(root, path):
+    if not isinstance(root_node, EtreeElementNode):
+        return []
+
+    for e, path in etree_iter_paths(root_node.elem, path):
         if e is elem:
             return path + suffix
     else:
@@ -1153,7 +1157,7 @@ def evaluate_has_children_function(self: XPathFunction, context: ContextType = N
             raise self.error('XPTY0004', 'argument must be a node')
 
     return isinstance(item, DocumentNode) or \
-        isinstance(item, ElementNode) and (len(item.elem) > 0 or item.elem.text is not None)
+        isinstance(item, EtreeElementNode) and (len(item.elem) > 0 or item.elem.text is not None)
 
 
 @method(function('innermost', nargs=1, sequence_types=('node()*', 'node()*')))

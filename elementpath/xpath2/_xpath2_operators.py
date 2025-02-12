@@ -853,7 +853,7 @@ def select_schema_element_kind_test(self: XPathFunction, context: ContextType = 
                     and self.parser.schema.get_substitution_group(qname) is None:
                 raise self.error('XPST0008', "element %r not found in schema" % element_name)
 
-            if isinstance(context.item, ElementNode) and context.item.elem.tag == qname:
+            if isinstance(context.item, ElementNode) and context.item.name == qname:
                 yield context.item
                 return
 
@@ -927,7 +927,7 @@ def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = 
             yield from cast(Iterator[AttributeNode], self[0].select(context))
     elif not self:
         for attribute in context.iter_attributes():
-            yield attribute.value
+            yield attribute
     else:
         name = self[0].value
         assert isinstance(name, str)
@@ -945,14 +945,10 @@ def select_attribute_kind_test_or_axis(self: XPathToken, context: ContextType = 
 
                 if type_name == XSD_UNTYPED == attribute.type_name:
                     if name != '*':
-                        yield attribute.value
+                        yield attribute
                 elif not type_name or attribute.type_name == type_name or \
                         is_instance(attribute.typed_value, type_name, self.parser):
-                    typed_value = attribute.typed_value
-                    if isinstance(typed_value, list):
-                        yield from typed_value
-                    else:
-                        yield typed_value
+                    yield attribute
 
 
 # XPath 2.0 definitions continue into module xpath2_functions

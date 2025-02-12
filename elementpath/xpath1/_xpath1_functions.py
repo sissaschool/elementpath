@@ -21,7 +21,7 @@ from elementpath.datatypes import Duration, DayTimeDuration, YearMonthDuration, 
     StringProxy, AnyURI, Float10, AnyAtomicType, AtomicType, NumericType
 from elementpath.namespaces import XML_ID, XML_LANG, get_prefixed_name
 from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, CommentNode, \
-    ProcessingInstructionNode, DocumentNode, SchemaElementNode
+    ProcessingInstructionNode, DocumentNode, EtreeElementNode
 from elementpath.xpath_context import ContextType, XPathSchemaContext
 from elementpath.xpath_tokens import XPathFunction
 
@@ -146,7 +146,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) \
 
     if isinstance(item, (ElementNode, DocumentNode)):
         for element in item.iter_descendants():
-            if isinstance(element, ElementNode) and element.elem.get(XML_ID) == value:
+            if isinstance(element, EtreeElementNode) and element.elem.get(XML_ID) == value:
                 yield element
 
 
@@ -373,15 +373,14 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
     elif context is None:
         raise self.missing_context()
 
-    if not isinstance(context.item, ElementNode) \
-            or isinstance(context.item, SchemaElementNode):
+    if not isinstance(context.item, EtreeElementNode):
         return False
     else:
         try:
             attr = context.item.elem.attrib[XML_LANG]
         except KeyError:
             for e in context.iter_ancestors():
-                if isinstance(e, ElementNode) and XML_LANG in e.elem.attrib:
+                if isinstance(e, EtreeElementNode) and XML_LANG in e.elem.attrib:
                     lang = e.elem.attrib[XML_LANG]
                     if not isinstance(lang, str):
                         return False

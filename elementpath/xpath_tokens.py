@@ -71,7 +71,7 @@ XPathTokenType = Union['XPathToken', 'XPathAxis', 'XPathFunction', 'XPathConstru
 
 _ResultType = Union[
     AtomicType, ElementProtocol, XsdAttributeProtocol, Tuple[Optional[str], str],
-    DocumentProtocol, DocumentNode, 'XPathFunction'
+    DocumentProtocol, DocumentNode, 'XPathFunction', object
 ]
 _MapDictType = Dict[Optional[AtomicType], ValueType]
 _SequenceTypesType = Union[str, List[str], Tuple[str, ...]]

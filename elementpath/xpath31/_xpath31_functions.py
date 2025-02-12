@@ -37,7 +37,7 @@ from elementpath.etree import etree_iter_strings, is_etree_element
 from elementpath.collations import CollationManager
 from elementpath.compare import get_key_function, same_key
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode
+from elementpath.xpath_nodes import XPathNode, DocumentNode, EtreeElementNode
 from elementpath.xpath_tokens import XPathFunction, XPathConstructor, XPathMap, XPathArray
 from elementpath.xpath_context import ContextType, ItemType, FunctionArgType, XPathSchemaContext
 from elementpath.validators import validate_json_to_xml
@@ -1240,8 +1240,8 @@ def evaluate_xml_to_json_function(self: XPathFunction, context: ContextType = No
 
     if isinstance(input_node, DocumentNode):
         return elem_to_json(child.value for child in input_node
-                            if isinstance(child, ElementNode))
-    elif isinstance(input_node, ElementNode):
+                            if isinstance(child, EtreeElementNode))
+    elif isinstance(input_node, EtreeElementNode):
         return elem_to_json((input_node.value,))
     else:
         raise self.error('FOJS0006')

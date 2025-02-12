@@ -34,7 +34,8 @@ from elementpath.namespaces import XML_NAMESPACE, get_namespace, split_expanded_
 from elementpath.compare import deep_equal
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
-from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, SchemaElementNode
+from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, EtreeElementNode, \
+    SchemaElementNode
 from elementpath.xpath_tokens import XPathFunction
 from elementpath.regex import RegexError, translate_pattern
 from elementpath.collations import CollationManager
@@ -152,6 +153,8 @@ def evaluate_namespace_uri_for_prefix_function(
     elem = self.get_argument(context, index=1)
     if not isinstance(elem, ElementNode):
         raise self.error('FORG0006', '2nd argument %r is not an element node' % elem)
+    if not isinstance(elem, EtreeElementNode):
+        return []
 
     ns_uris = {get_namespace(e.tag) for e in elem.elem.iter() if not callable(e.tag)}
     for p, uri in self.parser.namespaces.items():
@@ -1476,35 +1479,34 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
 
     if not isinstance(item, ElementNode):
         raise self.error('XPTY0004')
-    elif isinstance(item, SchemaElementNode):
-        return False
+    elif isinstance(item, EtreeElementNode):
+        try:
+            attr = item.elem.attrib[XML_LANG]
+        except KeyError:
+            if len(self) > 1 or context is None:
+                return False
 
-    try:
-        attr = item.elem.attrib[XML_LANG]
-    except KeyError:
-        if len(self) > 1 or context is None:
-            return False
-
-        for elem in context.iter_ancestors():
-            if isinstance(elem, ElementNode):
-                if XML_LANG in elem.elem.attrib:
-                    lang = cast(str, elem.elem.attrib[XML_LANG])
-                    break
+            for elem in context.iter_ancestors():
+                if isinstance(elem, EtreeElementNode):
+                    if XML_LANG in elem.elem.attrib:
+                        lang = cast(str, elem.elem.attrib[XML_LANG])
+                        break
+            else:
+                return False
         else:
-            return False
+            if not isinstance(attr, str):
+                return False
+            lang = attr.strip()
+
+        test_lang: str = self.get_argument(context, cls=str)
+        if test_lang is None:
+            test_lang = ''
+
+        test_lang = test_lang.strip().lower()
+        lang = lang.strip().lower()
+        return lang == test_lang or lang.startswith(test_lang) and lang[len(test_lang)] == '-'
     else:
-        if not isinstance(attr, str):
-            return False
-        lang = attr.strip()
-
-    test_lang: str = self.get_argument(context, cls=str)
-    if test_lang is None:
-        test_lang = ''
-
-    test_lang = test_lang.strip().lower()
-    lang = lang.strip().lower()
-    return lang == test_lang or lang.startswith(test_lang) and lang[len(test_lang)] == '-'
-
+        return False
 
 ###
 # Functions that generate sequences
@@ -1542,7 +1544,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
 
     # TODO: PSVI bindings with also xsi:type evaluation
     for element in root.iter_descendants():
-        if not isinstance(element, ElementNode):
+        if not isinstance(element, EtreeElementNode):
             continue
 
         if element.elem.text in idrefs:
@@ -1605,9 +1607,9 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
         return
     elif not isinstance(node, XPathNode):
         raise self.error('XPTY0004')
-    elif isinstance(node, (ElementNode, DocumentNode)):
+    elif isinstance(node, (EtreeElementNode, DocumentNode)):
         for element in node.iter_descendants():
-            if not isinstance(element, ElementNode):
+            if not isinstance(element, EtreeElementNode):
                 continue
 
             text = element.elem.text

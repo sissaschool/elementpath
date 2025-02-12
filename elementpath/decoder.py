@@ -111,7 +111,7 @@ def get_builders(xsd_type: XsdTypeProtocol) -> list[Builder]:
 
 
 def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
-                        text: Optional[str] = None,
+                        text: object = None,
                         namespaces: AnyNsmapType = None) -> Iterator[dt.AtomicType]:
     """Returns a decoder function for atomic values of an XSD type instance."""
     def decode(value: str) -> dt.AtomicType:
@@ -129,13 +129,13 @@ def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
                 return cls(namespaces[value.split(':')[0]], value)
 
     if xsd_type is None:
-        yield dt.UntypedAtomic(text if text is not None else '')
+        yield dt.UntypedAtomic(text if isinstance(text, str) else '')
         return
 
     for k, builder in enumerate(get_builders(xsd_type), start=1):
         cls: Type[dt.AtomicType] = builder.cls
 
-        _text = text if text is not None else builder.text
+        _text = text if isinstance(text, str) else builder.text
         if len(builder) < k and not xsd_type.is_valid(text, namespaces=namespaces):
             continue
 
@@ -159,9 +159,9 @@ def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
             return
     else:
         if hasattr(xsd_type, 'decode'):
-            yield xsd_type.decode(text if text is not None else '')
+            yield xsd_type.decode(text if isinstance(text, str) else '')
         else:
-            yield dt.UntypedAtomic(text if text is not None else '')
+            yield dt.UntypedAtomic(text if isinstance(text, str) else '')
 
 
 __all__ = ['get_atomic_sequence']

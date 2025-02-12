@@ -34,8 +34,8 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextError, \
-    AttributeNode, NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, \
-    ElementNode, select, XPathFunction
+    NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, select, XPathFunction
+from elementpath.xpath_nodes import TextAttributeNode, EtreeElementNode
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import is_sequence_type
@@ -384,7 +384,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
     def test_node_types(self):
         element = self.etree.Element('schema')
         context = XPathContext(element)
-        attribute = AttributeNode('id', '0212349350')
+        attribute = TextAttributeNode('id', '0212349350')
         namespace = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
         comment = CommentNode(self.etree.Comment('nothing important'))
         pi = ProcessingInstructionNode(self.etree.ProcessingInstruction('action'))
@@ -1328,16 +1328,16 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         root = self.etree.XML("<A><B><C><D><E/></D></C></B></A>")
         context = XPathContext(root)
-        expected = list(e for e in context.root.iter() if isinstance(e, ElementNode))
+        expected = list(e for e in context.root.iter() if isinstance(e, EtreeElementNode))
         self.check_value('//*', expected=expected, context=context)
 
         context = XPathContext(root, item=root[0][0])
-        expected = list(e for e in context.root.iter() if isinstance(e, ElementNode))
+        expected = list(e for e in context.root.iter() if isinstance(e, EtreeElementNode))
         self.check_value('//*', expected=expected, context=context)
 
         root = self.etree.XML("<A><A><A><A><A/></A></A></A></A>")
         context = XPathContext(root)
-        expected = list(e for e in context.root.iter() if isinstance(e, ElementNode))
+        expected = list(e for e in context.root.iter() if isinstance(e, EtreeElementNode))
         self.check_value('//A', expected=expected, context=context)
 
     def test_double_slash_shortcut_pr16(self):

@@ -346,12 +346,12 @@ class SerializationTest(unittest.TestCase):
         self.assertEqual(result, '"a=\\"bar\\""')
 
         comment = ElementTree.Comment(' foo')
-        comment_node = CommentNode(elem=comment)
+        comment_node = CommentNode(comment=comment)
         result = serialize_to_json([comment_node])
         self.assertEqual(result, '"<!-- foo-->"')
 
         pi = ElementTree.ProcessingInstruction('foo bar')
-        pi_node = ProcessingInstructionNode(elem=pi)
+        pi_node = ProcessingInstructionNode(pi=pi)
         result = serialize_to_json([pi_node])
         self.assertEqual(result, '"<?foo bar?>"')
 

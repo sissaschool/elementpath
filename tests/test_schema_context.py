@@ -77,14 +77,12 @@ class XMLSchemaContextTest(unittest.TestCase):
         parser = XPath2Parser(namespaces={'tst': "http://xpath.test/ns"})
         context = XPathSchemaContext(self.schema1)
 
-        elem_a = self.schema1.elements['a']
         token = parser.parse('tst:a')
         self.assertEqual(token.symbol, ':')
 
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [context.root[0]])
 
-        elem_b1 = elem_a.type.content[0]
         token = parser.parse('tst:a/b1')
         self.assertEqual(token.symbol, '/')
         self.assertEqual(token[0].symbol, ':')
@@ -96,7 +94,6 @@ class XMLSchemaContextTest(unittest.TestCase):
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [])
 
-        elem_b3 = elem_a.type.content[2]
         token = parser.parse('tst:a/tst:b3')
         self.assertEqual(token.symbol, '/')
         self.assertEqual(token[0].symbol, ':')
@@ -108,7 +105,6 @@ class XMLSchemaContextTest(unittest.TestCase):
         parser = XPath2Parser(strict=False)
         context = XPathSchemaContext(self.schema1)
 
-        elem_a = self.schema1.elements['a']
         token = parser.parse('{http://xpath.test/ns}a')
         self.assertEqual(token.symbol, '{')
         self.assertEqual(token[0].symbol, '(string)')
@@ -141,9 +137,6 @@ class XMLSchemaContextTest(unittest.TestCase):
     def test_dot_shortcut_token(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
         context = XPathSchemaContext(self.schema1)
-
-        elem_a = self.schema1.elements['a']
-        elem_b3 = self.schema1.elements['b3']
 
         token = parser.parse('.')
         result = token.evaluate(context)
@@ -209,10 +202,6 @@ class XMLSchemaContextTest(unittest.TestCase):
     def test_if_statement(self):
         parser = XPath2Parser(default_namespace="http://xpath.test/ns")
         context = XPathSchemaContext(self.schema1)
-
-        elem_a = self.schema1.elements['a']
-        elem_b1 = self.schema1.elements['a'].type.content[0]
-        elem_b2 = self.schema1.elements['a'].type.content[1]
 
         token = parser.parse('if ($x > 1) then a/b1 else a/b2')
         result = token.evaluate(context)

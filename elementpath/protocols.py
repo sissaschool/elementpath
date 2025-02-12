@@ -347,7 +347,7 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
 
 
 DocumentType = Union[ElementTree, DocumentProtocol]
-ElementType = Union[Element, ElementProtocol, XsdElementProtocol]
+ElementType = Union[Element, ElementProtocol]
 SchemaElemType = Union[XsdSchemaProtocol, XsdElementProtocol]
 CommentType = Union[Element, ElementProtocol]
 ProcessingInstructionType = Union[Element, ElementProtocol]

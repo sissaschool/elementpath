@@ -17,7 +17,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError
+from elementpath import AttributeNode, XPathContext, XPath2Parser, MissingContextError, get_node_tree
 from elementpath.namespaces import XML_LANG, XSD_NAMESPACE, XSD_ANY_ATOMIC_TYPE, XSD_NOTATION
 
 try:
@@ -331,6 +331,16 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
             </xs:schema>''')
         parser = XPath2Parser(namespaces={'': "http://xpath.test/ns", 'xs': XSD_NAMESPACE},
                               schema=XMLSchemaProxy(schema))
+
+        root = ElementTree.XML(
+            '<values xmlns="http://xpath.test/ns">'
+            '<a>foo</a><b>8</b><c>true</c><d>2.0</d></values>'
+        )
+        root_node = get_node_tree(
+            root, namespaces={'': "http://xpath.test/ns"}, schema=parser.schema
+        )
+        for node in root_node.iter():
+            print(node, node.name, getattr(node, 'xsd_type', None))
 
     def test_elements_and_attributes_type(self):
         schema = xmlschema.XMLSchema('''

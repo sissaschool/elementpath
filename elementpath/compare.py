@@ -18,8 +18,8 @@ from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import xpath_error
 from elementpath.datatypes import UntypedAtomic, AnyURI, AbstractQName
 from elementpath.collations import UNICODE_CODEPOINT_COLLATION, CollationManager
-from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, \
-    NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, DocumentNode
+from elementpath.xpath_nodes import XPathNode, EtreeElementNode, TextAttributeNode, \
+    NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, EtreeDocumentNode
 from elementpath.xpath_tokens import XPathToken, XPathFunction, XPathMap, XPathArray
 
 
@@ -28,7 +28,7 @@ def deep_equal(seq1: Iterable[Any],
                collation: Optional[str] = None,
                token: Optional[XPathToken] = None) -> bool:
 
-    etree_node_types = (ElementNode, CommentNode, ProcessingInstructionNode)
+    etree_node_types = (EtreeElementNode, CommentNode, ProcessingInstructionNode)
 
     def etree_deep_equal(e1: ElementProtocol, e2: ElementProtocol) -> bool:
         if cm.ne(e1.tag, e2.tag):
@@ -78,8 +78,8 @@ def deep_equal(seq1: Iterable[Any],
                     assert isinstance(value2, etree_node_types)
                     if not etree_deep_equal(value1.elem, value2.elem):
                         return False
-                elif isinstance(value1, DocumentNode):
-                    assert isinstance(value2, DocumentNode)
+                elif isinstance(value1, EtreeDocumentNode):
+                    assert isinstance(value2, EtreeDocumentNode)
                     for child1, child2 in zip_longest(value1, value2):
                         if child1 is None or child2 is None:
                             return False
@@ -96,7 +96,7 @@ def deep_equal(seq1: Iterable[Any],
 
                 elif cm.ne(value1.value, value2.value):
                     return False
-                elif isinstance(value1, AttributeNode):
+                elif isinstance(value1, TextAttributeNode):
                     if cm.ne(value1.name, value2.name):
                         return False
                 elif isinstance(value1, NamespaceNode):
@@ -174,7 +174,7 @@ def deep_compare(obj1: Any,
                  token: Optional[XPathToken] = None) -> int:
 
     msg_tmpl = "Sorting failed, cannot compare {!r} with {!r}"
-    etree_node_types = (ElementNode, CommentNode, ProcessingInstructionNode)
+    etree_node_types = (EtreeElementNode, CommentNode, ProcessingInstructionNode)
     result: int = 0
 
     def iter_object(obj: Any) -> Iterator[Any]:
@@ -252,8 +252,8 @@ def deep_compare(obj1: Any,
                     result = etree_deep_compare(value1.elem, value2.elem)
                     if result:
                         return result
-                elif isinstance(value1, DocumentNode):
-                    assert isinstance(value2, DocumentNode)
+                elif isinstance(value1, EtreeDocumentNode):
+                    assert isinstance(value2, EtreeDocumentNode)
                     for child1, child2 in zip_longest(value1, value2):
                         if child1 is None:
                             return -1
@@ -274,21 +274,21 @@ def deep_compare(obj1: Any,
                             )
                             if result:
                                 return result
-                else:
+                elif isinstance(value1, TextNode):
+                    assert isinstance(value2, TextNode)
                     result = cm.strcoll(value1.value, value2.value)
                     if result:
                         return result
-
-                    if isinstance(value1, AttributeNode):
-                        assert isinstance(value2, AttributeNode)
-                        result = cm.strcoll(value1.name or '', value2.name or '')
-                        if result:
-                            return result
-                    elif isinstance(value1, NamespaceNode):
-                        assert isinstance(value2, NamespaceNode)
-                        result = cm.strcoll(value1.prefix or '', value2.prefix or '')
-                        if result:
-                            return result
+                elif isinstance(value1, TextAttributeNode):
+                    assert isinstance(value2, TextAttributeNode)
+                    result = cm.strcoll(value1.name or '', value2.name or '')
+                    if result:
+                        return result
+                elif isinstance(value1, NamespaceNode):
+                    assert isinstance(value2, NamespaceNode)
+                    result = cm.strcoll(value1.prefix or '', value2.prefix or '')
+                    if result:
+                        return result
             else:
                 try:
                     if isinstance(value1, bool):

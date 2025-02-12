@@ -13,7 +13,6 @@ from unittest.mock import patch
 import io
 import math
 import xml.etree.ElementTree as ElementTree
-from collections import namedtuple
 from decimal import Decimal
 
 try:
@@ -27,9 +26,9 @@ from elementpath.exceptions import MissingContextError
 from elementpath.datatypes import UntypedAtomic, Int
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.xpath_nodes import ElementNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, TextNode, DocumentNode
+    CommentNode, ProcessingInstructionNode, TextNode, DocumentNode, \
+    SchemaAttributeNode, TextAttributeNode, EtreeElementNode
 from elementpath.helpers import ordinal
-from elementpath.tree_builders import build_schema_node_tree
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.xpath1 import XPath1Parser
 from elementpath.xpath2 import XPath2Parser
@@ -238,8 +237,11 @@ class XPath1TokenTest(unittest.TestCase):
             context.root.xsd_type = xsd_type
             self.assertEqual(token.data_value(context.root), 19)
 
-        context = XPathContext(ElementTree.XML('<dummy/>'))
         obj = AttributeNode('age', '19')
+        self.assertEqual(token.data_value(obj), UntypedAtomic('19'))
+        self.assertIsInstance(obj, TextAttributeNode)
+
+        obj = TextAttributeNode('age', '19')
         self.assertEqual(token.data_value(obj), UntypedAtomic('19'))
 
         obj = NamespaceNode('tns', 'http://xpath.test/ns')
@@ -250,6 +252,10 @@ class XPath1TokenTest(unittest.TestCase):
 
         obj = ElementTree.XML('<root>a<e1>b</e1>c<e2>d</e2>e</root>')
         element_node = ElementNode(obj)
+        self.assertEqual(token.data_value(element_node), UntypedAtomic('abcde'))
+        self.assertIsInstance(element_node, EtreeElementNode)
+
+        element_node = EtreeElementNode(obj)
         self.assertEqual(token.data_value(element_node), UntypedAtomic('abcde'))
 
         obj = ElementTree.parse(io.StringIO('<root>a<e1>b</e1>c<e2>d</e2>e</root>'))
@@ -285,7 +291,7 @@ class XPath1TokenTest(unittest.TestCase):
 
         context = XPathContext(element)
         element_node = context.root
-        attribute_node = AttributeNode('id', '0212349350')
+        attribute_node = TextAttributeNode('id', '0212349350')
         namespace_node = NamespaceNode('xs', 'http://www.w3.org/2001/XMLSchema')
         comment_node = CommentNode(comment)
         pi_node = ProcessingInstructionNode(pi)
@@ -322,7 +328,7 @@ class XPath1TokenTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
             element.text = '10'
-            typed_elem = ElementNode(elem=element)
+            typed_elem = EtreeElementNode(elem=element)
             typed_elem.__dict__['xsd_type'] = xsd_type
             self.assertEqual(token.string_value(typed_elem), '10')
             self.assertEqual(token.data_value(typed_elem), 10)
@@ -457,7 +463,6 @@ class XPath2TokenTest(XPath1TokenTest):
         self.parser.schema = xmlschema.xpath.XMLSchemaProxy(schema)
 
         try:
-            root_token = self.parser.parse('.')
             context = XPathSchemaContext(root=schema, axis='self', schema=self.parser.schema)
             self.assertListEqual(list(context.iter_matching_nodes('root')), [])
 
@@ -502,7 +507,7 @@ class XPath2TokenTest(XPath1TokenTest):
             context = XPathSchemaContext(root=schema.meta_schema, axis='self')
             xsd_attribute = schema.attributes['a']
             context.item = AttributeNode('a', xsd_attribute)
-            context.item.__dict__['xsd_type'] = xsd_attribute.type
+            context.item.xsd_type = xsd_attribute.type
 
 
             obj = list(context.iter_matching_nodes('a'))
@@ -515,7 +520,7 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertIsNone(root_token.xsd_types)
 
             context = XPathSchemaContext(root=schema.meta_schema, axis='self')
-            attribute = context.item = AttributeNode('a', schema.attributes['a'])
+            attribute = context.item = SchemaAttributeNode('a', schema.attributes['a'])
 
             obj = list(context.iter_matching_nodes('a'))
             self.assertIsInstance(obj[0], AttributeNode)

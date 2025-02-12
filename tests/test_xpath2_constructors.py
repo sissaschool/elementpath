@@ -18,11 +18,12 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath import XPathContext, AttributeNode, select
+from elementpath import XPathContext, select
 from elementpath.datatypes import Timezone, DateTime10, DateTime, DateTimeStamp, \
     GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10, GregorianYearMonth10, \
     Duration, YearMonthDuration, DayTimeDuration, Date10, Time, QName, UntypedAtomic, \
     Base64Binary, HexBinary
+from elementpath.xpath_nodes import TextAttributeNode
 from elementpath.namespaces import XSD_NAMESPACE
 from elementpath.xpath_tokens import XPathConstructor
 
@@ -356,10 +357,10 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         context = XPathContext(root)
         self.check_value('xs:dateTime(@a)', DateTime10(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode('a', str(DateTime10(1969, 7, 20, 20, 18)))
+        context.item = TextAttributeNode('a', str(DateTime10(1969, 7, 20, 20, 18)))
         self.check_value('xs:dateTime(.)', DateTime10(1969, 7, 20, 20, 18), context=context)
 
-        context.item = AttributeNode('a', 'true')
+        context.item = TextAttributeNode('a', 'true')
         self.check_value('xs:dateTime(.)', ValueError, context=context)
 
         context.item = DateTime10(1969, 7, 20, 20, 18)
@@ -446,14 +447,14 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
             def validate(self, obj, *args, **kwargs):
                 Date10.validate(obj)
 
-        context.item = AttributeNode('a', 'true')
+        context.item = TextAttributeNode('a', 'true')
         context.item.xsd_type = DummyXsdDateType()
         self.check_value('xs:date(.)', TypeError, context=context)
 
-        context.item = AttributeNode('a', str(Date10(2017, 1, 19)))
+        context.item = TextAttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)
 
-        context.item = AttributeNode('a', 'true')
+        context.item = TextAttributeNode('a', 'true')
         self.check_value('xs:date(.)', ValueError, context=context)
 
         root = self.etree.XML("<root>2017-10-02</root>")
