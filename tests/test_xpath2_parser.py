@@ -25,26 +25,7 @@ import locale
 import os
 from decimal import Decimal
 from textwrap import dedent
-from typing import Any
 import xml.etree.ElementTree as ET
-
-xmlschema: Any
-XMLSchemaProxy: Any
-lxml_etree: Any
-
-try:
-    import lxml.etree as lxml_etree
-except ImportError:
-    lxml_etree = None
-
-try:
-    import xmlschema
-    from xmlschema.xpath import XMLSchemaProxy
-except ImportError:
-    xmlschema = None
-    XMLSchemaProxy = None
-else:
-    xmlschema.XMLSchema.meta_schema.build()
 
 from elementpath import XPath2Parser, XPathContext, XPathSchemaContext, \
     MissingContextError, ElementNode, select, iter_select, get_node_tree
@@ -59,6 +40,20 @@ try:
     from tests import test_xpath1_parser
 except ImportError:
     import test_xpath1_parser
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
+
+try:
+    import xmlschema
+    from xmlschema.xpath import XMLSchemaProxy
+except ImportError:
+    xmlschema = None
+    XMLSchemaProxy = None
+else:
+    xmlschema.XMLSchema.meta_schema.build()
 
 
 def get_sequence_type(value, xsd_version='1.0'):
@@ -799,10 +794,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_attribute_accessor(self):
         root = self.etree.XML('<A a="10" b="20">text<B/>tail<B/></A>')
         context = XPathContext(root)
-        self.check_select("attribute()", {'10', '20'}, context)
-        self.check_select("attribute(*)", {'10', '20'}, context)
-        self.check_select("attribute(a)", ['10'], context)
-        self.check_select("attribute(a, xs:int)", ['10'], context)
+        a = context.root.attributes[0]
+        b = context.root.attributes[1]
+        self.check_select("attribute()", [a, b], context)
+        self.check_select("attribute(*)", [a, b], context)
+        self.check_select("attribute(a)", [a], context)
+        self.check_select("attribute(a, xs:int)", [a], context)
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema("""
@@ -817,8 +814,10 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             schema_proxy = schema.elements['A'].xpath_proxy
             with self.schema_bound_parser(schema_proxy):
                 context = XPathContext(root, schema=schema_proxy)
-                self.check_select("attribute(a, xs:int)", [10], context)
-                self.check_select("attribute(*, xs:int)", {10, 20}, context)
+                a = context.root.attributes[0]
+                b = context.root.attributes[1]
+                self.check_select("attribute(a, xs:int)", [a], context)
+                self.check_select("attribute(*, xs:int)", [a, b], context)
                 self.check_select("attribute(a, xs:string)", [], context)
                 self.check_select("attribute(*, xs:string)", [], context)
 
@@ -828,7 +827,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         context = XPathContext(root=element)
         self.check_select("self::node()", [context.root], context)
-        self.check_select("self::attribute()", ['0212349350'], context)
+        self.check_select("self::attribute()", [context.root.attributes[0]], context)
 
         context.item = 7
         self.check_select("node()", [], context)

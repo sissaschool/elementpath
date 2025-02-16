@@ -1752,17 +1752,15 @@ XPath30Parser.unregister('round')
 @method(function('data', nargs=(0, 1), sequence_types=('item()*', 'xs:anyAtomicType*')))
 def select_data_function(self: XPathFunction, context: ContextType = None) \
         -> Iterator[AtomicType]:
-    if not self:
-        item = self.get_argument(context, default_to_context=True)
-        value = self.data_value(item)
-        if value is None:
-            raise self.error('FOTY0012', "argument node does not have a typed value")
-        elif isinstance(value, list):
-            yield from value
-        else:
-            yield value
-    else:
+    if self.context is not None:
+        context = self.context
+
+    if self:
         yield from self[0].atomization(context)
+    elif context is None:
+        raise self.missing_context()
+    else:
+        yield from self.atomize_item(context.item)
 
 
 @method(function('document-uri', nargs=(0, 1), sequence_types=('node()?', 'xs:anyURI?')))

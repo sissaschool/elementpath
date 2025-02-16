@@ -45,7 +45,7 @@ __all__ = ['datatypes', 'protocols', 'etree', 'ElementPathError', 'MissingContex
            'ElementPathTypeError', 'ElementPathValueError', 'XPathContext',
            'XPathSchemaContext', 'XPathNode', 'AttributeNode', 'NamespaceNode',
            'CommentNode', 'ProcessingInstructionNode', 'TextNode', 'ElementNode',
-           'LazyElementNode','SchemaElementNode', 'DocumentNode', 'get_node_tree',
+           'LazyElementNode', 'SchemaElementNode', 'DocumentNode', 'get_node_tree',
            'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree', 'XPathToken',
            'XPathFunction', 'XPath1Parser', 'XPath2Parser', 'select', 'iter_select',
            'Selector', 'AbstractSchemaProxy', 'RegexError', 'translate_pattern',

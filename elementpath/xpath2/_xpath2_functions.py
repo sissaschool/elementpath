@@ -34,8 +34,7 @@ from elementpath.namespaces import XML_NAMESPACE, get_namespace, split_expanded_
 from elementpath.compare import deep_equal
 from elementpath.sequence_types import match_sequence_type
 from elementpath.xpath_context import ContextType, ItemType, XPathSchemaContext
-from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, EtreeElementNode, \
-    SchemaElementNode
+from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, EtreeElementNode
 from elementpath.xpath_tokens import XPathFunction
 from elementpath.regex import RegexError, translate_pattern
 from elementpath.collations import CollationManager
@@ -1507,6 +1506,7 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
         return lang == test_lang or lang.startswith(test_lang) and lang[len(test_lang)] == '-'
     else:
         return False
+
 
 ###
 # Functions that generate sequences

@@ -31,6 +31,7 @@ DecoderType = Callable[[str, AnyNsmapType], AtomicType]
 
 Builder = namedtuple('Builder', 'cls text nsmap', defaults=(None, None))
 
+
 class _Notation(dt.Notation):
     """An instantiable xs:NOTATION."""
 

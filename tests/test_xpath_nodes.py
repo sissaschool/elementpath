@@ -304,13 +304,7 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
-
-            attribute = AttributeNode('id', '0212349350')
-            attribute.__dict__['xsd_type'] = xsd_type
-            self.assertEqual(attribute.kind, 'attribute')
-
-            typed_element = EtreeElementNode(element.elem)
-            typed_element.__dict__['xsd_type'] = xsd_type
+            typed_element = EtreeElementNode(element.elem, xsd_type=xsd_type)
             self.assertEqual(typed_element.kind, 'element')
 
     def test_name_property(self):
@@ -321,17 +315,6 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(root.name, 'root')
         self.assertEqual(attr.name, 'a1')
         self.assertEqual(namespace.name, 'xs')
-
-        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
-            xsd_type = DummyXsdType()
-
-            typed_elem = EtreeElementNode(elem=root.elem)
-            typed_elem.__dict__['xsd_type'] = xsd_type
-            self.assertEqual(typed_elem.name, 'root')
-
-            typed_attr = AttributeNode('a1', '20')
-            typed_attr.__dict__['xsd_type'] = xsd_type
-            self.assertEqual(typed_attr.name, 'a1')
 
     def test_path_property(self):
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2 max="10"/></B3></A>')

@@ -15,7 +15,7 @@ from xml.etree import ElementTree
 
 from elementpath._typing import Deque, Iterator
 from elementpath.exceptions import ElementPathRuntimeError
-from elementpath.aliases import NsmapType, SequenceType
+from elementpath.aliases import NsmapType, SequenceType, Emptiable
 from elementpath.datatypes import UntypedAtomic, AtomicType
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
@@ -993,7 +993,6 @@ class EtreeElementNode(ElementNode):
                 document_node.elements = root_node.elements
 
         return document_node
-
 
 
 ###

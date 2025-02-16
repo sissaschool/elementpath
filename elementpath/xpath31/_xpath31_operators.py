@@ -19,8 +19,7 @@ from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.xpath_tokens import XPathParserType, XPathToken, ProxyToken, \
     XPathFunction, XPathMap, XPathArray
 from elementpath.datatypes import AtomicType
-from elementpath.xpath_context import ContextType, ItemType
-from elementpath.xpath_tokens import iter_items
+from elementpath.xpath_context import ContextType, ItemType, ValueType
 
 from .xpath31_parser import XPath31Parser
 
@@ -174,6 +173,14 @@ class LookupOperatorToken(XPathToken):
         return [x for x in self.select(context)]
 
     def select(self, context: ContextType = None) -> Iterator[ItemType]:
+
+        # flatten sequences, don't flatten arrays.
+        def flatten(v: ValueType) -> Iterator[ItemType]:
+            if isinstance(v, list):
+                yield from v
+            else:
+                yield v
+
         if not self:
             yield from iter_sequence(self.value)
             return
@@ -192,27 +199,27 @@ class LookupOperatorToken(XPathToken):
             if isinstance(item, XPathMap):
                 if symbol == '*':
                     for value in item.values(context):
-                        yield from iter_items(value)
+                        yield from flatten(value)
 
                 elif symbol in ('(name)', '(integer)'):
-                    yield from iter_items(
+                    yield from flatten(
                         item(cast(Union[str, int], self[-1].value), context=context)
                     )
                 elif symbol == '(':
                     for obj in self[-1].select(context):
-                        yield from iter_items(item(self.data_value(obj), context=context))
+                        yield from flatten(item(self.data_value(obj), context=context))
 
             elif isinstance(item, XPathArray):
                 if symbol == '*':
                     for value in item.items(context):
-                        yield from iter_items(value)
+                        yield from flatten(value)
                 elif symbol == '(name)':
                     raise self.error('XPTY0004')
                 elif symbol == '(integer)':
-                    yield from iter_items(item(cast(int, self[-1].value), context=context))
+                    yield from flatten(item(cast(int, self[-1].value), context=context))
                 elif symbol == '(':
                     for value in self[-1].select(context):
-                        yield from iter_items(item(self.data_value(value), context=context))
+                        yield from flatten(item(self.data_value(value), context=context))
 
             elif not item and isinstance(item, list):
                 continue

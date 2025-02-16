@@ -77,15 +77,6 @@ _MapDictType = Dict[Optional[AtomicType], ValueType]
 _SequenceTypesType = Union[str, List[str], Tuple[str, ...]]
 
 
-def iter_items(value: ValueType) -> Iterator[ItemType]:
-    """Iterate a result of the evaluation returning a sequence of items."""
-    if isinstance(value, (list, tuple)):
-        for item in value:
-            yield item
-    else:
-        yield value
-
-
 class XPathToken(Token[XPathTokenType]):
     """Base class for XPath tokens."""
     parser: XPathParserType
@@ -114,6 +105,16 @@ class XPathToken(Token[XPathTokenType]):
             yield from item
         else:
             yield item
+
+    def select_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
+        """A select that flattens XPath results, including arrays."""
+        for item in self.select(context):
+            if isinstance(item, list):
+                yield from item
+            elif isinstance(item, XPathArray):
+                yield from item.iter_flatten(context)
+            else:
+                yield item
 
     def __str__(self) -> str:
         if self.symbol == '$':
@@ -402,6 +403,7 @@ class XPathToken(Token[XPathTokenType]):
             code = 'XPTY0004'
         else:
             value = self.data_value(item)
+
             if isinstance(value, cls):
                 return value
             elif isinstance(value, AnyURI) and issubclass(cls, str):
@@ -412,7 +414,10 @@ class XPathToken(Token[XPathTokenType]):
                 except (TypeError, ValueError):
                     pass
 
-            code = 'FOTY0012' if value is None else 'XPTY0004'
+            if value is None or not value and isinstance(value, list):
+                code = 'FOTY0012'
+            else:
+                code = 'XPTY0004'
 
         if index is None:
             msg = f"item type is {type(item)!r} instead of {cls!r}"
@@ -420,17 +425,51 @@ class XPathToken(Token[XPathTokenType]):
             msg = f"{ordinal(index+1)} argument has type {type(item)!r} instead of {cls!r}"
         raise self.error(code, msg)
 
-    def select_flatten(self, context: ContextType = None) -> Iterator[ItemType]:
-        for item in self.select(context):
-            if isinstance(item, list):
-                yield from item
-            elif isinstance(item, XPathArray):
-                yield from item.iter_flatten(context)
-            else:
-                yield item
+    def atomize_item(self, item: ValueType) -> Iterator[AtomicType]:
+        """
+        Atomization of a sequence item. Yields typed values, as computed by
+        fn:data().
 
-    def atomization(self, context: ContextType = None) \
-            -> Iterator[AtomicType]:
+        Ref: https://www.w3.org/TR/xpath31/#id-atomization
+             https://www.w3.org/TR/xpath20/#dt-typed-value
+        """
+        if item is None:
+            return
+        elif isinstance(item, XPathNode):
+            value = None
+            try:
+                for value in item.iter_typed_values:
+                    yield value
+            except (TypeError, ValueError) as err:
+                raise self.error('XPDY0050', str(err))
+            else:
+                if value is None:
+                    msg = f"argument node {item!r} does not have a typed value"
+                    raise self.error('FOTY0012', msg)
+
+        elif isinstance(item, list):
+            for v in item:
+                yield from self.atomize_item(v)
+
+        elif isinstance(item, XPathFunction):
+            if not isinstance(item, XPathArray):
+                raise self.error('FOTY0013', f"{item.label!r} has no typed value")
+
+            for v in item.iter_flatten():
+                if isinstance(v, AnyAtomicType):
+                    yield v
+                else:
+                    yield from self.atomize_item(v)
+
+        elif isinstance(item, AnyAtomicType):
+            yield cast(AtomicType, item)
+        elif isinstance(item, bytes):
+            yield item.decode()
+        else:
+            msg = f"sequence item {item!r} is not appropriate for the context"
+            raise self.error('XPTY0004', msg)
+
+    def atomization(self, context: ContextType = None) -> Iterator[AtomicType]:
         """
         Helper method for value atomization of a sequence.
 
@@ -438,29 +477,10 @@ class XPathToken(Token[XPathTokenType]):
 
         :param context: the XPath dynamic context.
         """
-        for item in self.select_flatten(context):
-            if isinstance(item, XPathNode):
-                value = None
-                try:
-                    for value in item.iter_typed_values:
-                        yield value
-                except (TypeError, ValueError) as err:
-                    raise self.error('XPDY0050', str(err))
-                else:
-                    if value is None:
-                        msg = f"argument node {item!r} does not have a typed value"
-                        raise self.error('FOTY0012', msg)
+        for item in self.select(context):
+            yield from self.atomize_item(item)
 
-            elif isinstance(item, XPathFunction) and not isinstance(item, XPathArray):
-                raise self.error('FOTY0013', f"{item.label!r} has no typed value")
-            elif isinstance(item, AnyAtomicType):
-                yield cast(AtomicType, item)
-            else:
-                msg = f"sequence item {item!r} is not appropriate for the context"
-                raise self.error('XPTY0004', msg)
-
-    def get_atomized_operand(self, context: ContextType = None) \
-            -> Optional[AtomicType]:
+    def get_atomized_operand(self, context: ContextType = None) -> Optional[AtomicType]:
         """
         Get the atomized value for an XPath operator.
 
@@ -883,26 +903,18 @@ class XPathToken(Token[XPathTokenType]):
 
     def data_value(self, obj: Any) -> Optional[AtomicType]:
         """
-        The typed value, as computed by fn:data() on each item.
-        Returns an instance of UntypedAtomic for untyped data.
-
-        https://www.w3.org/TR/xpath20/#dt-typed-value
+        Returns the typed value. Raises an error if the atomization of the value
+        produces more than one typed value.
         """
-        if obj is None:
-            return None
-        elif isinstance(obj, XPathNode):
-            try:
-                return cast(AtomicType, obj.typed_value)
-            except (TypeError, ValueError) as err:
-                raise self.error('XPDY0050', str(err))
-        elif isinstance(obj, XPathFunction):
-            if not isinstance(obj, XPathArray):
-                raise self.error('FOTY0013', f"{obj.label!r} has no typed value")
-
-            values = [self.data_value(x) for x in obj.iter_flatten()]
-            return values[0] if len(values) == 1 else None
+        value = None
+        first = True
+        for value in self.atomize_item(obj):
+            if not first:
+                msg = "atomized value is a sequence of length greater than one"
+                raise self.error('XPTY0004', msg)
+            first = False
         else:
-            return cast(AtomicType, obj)
+            return value
 
     def string_value(self, obj: Any) -> str:
         """

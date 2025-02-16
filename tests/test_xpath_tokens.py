@@ -275,9 +275,9 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(token.data_value('19'), '19')
         self.assertFalse(token.data_value(False))
 
-        # Does not check type of non nodes, simply returns the object.
         tagged_object = Tagged()
-        self.assertIs(token.data_value(tagged_object), tagged_object)
+        with self.assertRaises(TypeError):
+            token.data_value(tagged_object)
 
     def test_string_value_function(self):
         token = self.parser.parse('true()')
@@ -501,14 +501,12 @@ class XPath2TokenTest(XPath1TokenTest):
             obj = list(context.iter_matching_nodes('root'))
             self.assertListEqual(obj, [])
 
-            xs_string_type = schema.meta_schema.types['string']
             root_token = self.parser.parse('@a')
 
             context = XPathSchemaContext(root=schema.meta_schema, axis='self')
             xsd_attribute = schema.attributes['a']
             context.item = AttributeNode('a', xsd_attribute)
             context.item.xsd_type = xsd_attribute.type
-
 
             obj = list(context.iter_matching_nodes('a'))
             self.assertIsInstance(obj[0], AttributeNode)
