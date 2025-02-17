@@ -78,8 +78,18 @@ def select_name_literal(self: XPathToken, context: ContextType = None) \
         -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
-    elif isinstance(self.value, str):
-        yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
+
+    # Workaround for xmlschema < 4.0 identities: bind schema to dynamic context
+    if context.schema is None:
+        if self.parser.schema is not None:
+            context.schema = self.parser.schema
+    elif self.parser.schema is None:
+        self.parser.schema = context.schema
+
+    if isinstance(self.value, str):
+        yield from context.typing_nodes(
+            context.iter_matching_nodes(self.value, self.parser.default_namespace)
+        )
 
 
 ###
@@ -182,7 +192,15 @@ class _PrefixedReferenceToken(XPathToken):
 
         if context is None:
             raise self.missing_context()
-        yield from context.iter_matching_nodes(self.name)
+
+        # Workaround for xmlschema < 4.0 identities: bind schema to dynamic context
+        if context.schema is None:
+            if self.parser.schema is not None:
+                context.schema = self.parser.schema
+        elif self.parser.schema is None:
+            self.parser.schema = context.schema
+
+        yield from context.typing_nodes(context.iter_matching_nodes(self.name))
 
 
 XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
@@ -245,8 +263,16 @@ def select_namespace_uri(self: XPathToken, context: ContextType = None) \
         return
     elif context is None:
         raise self.missing_context()
-    elif isinstance(self.value, str):
-        yield from context.iter_matching_nodes(self.value)
+
+    # Workaround for xmlschema < 4.0 identities: bind schema to dynamic context
+    if context.schema is None:
+        if self.parser.schema is not None:
+            context.schema = self.parser.schema
+    elif self.parser.schema is None:
+        self.parser.schema = context.schema
+
+    if isinstance(self.value, str):
+        yield from context.typing_nodes(context.iter_matching_nodes(self.value))
 
 
 ###
@@ -290,12 +316,19 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
                 yield context.item
         else:
             yield from item
-
+        return
     elif context is None:
         raise self.missing_context()
 
-    # Wildcard literal
+    # Workaround for xmlschema < 4.0 identities: bind schema to dynamic context
+    if context.schema is None:
+        if self.parser.schema is not None:
+            context.schema = self.parser.schema
     elif self.parser.schema is None:
+        self.parser.schema = context.schema
+
+    # Wildcard literal
+    if self.parser.schema is None:
         for item in context.iter_children_or_self():
             if item is None:
                 pass  # '*' wildcard doesn't match document nodes
@@ -306,7 +339,7 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
                 yield item
     else:
         # XSD typed selection
-        for item in context.iter_children_or_self():
+        for item in context.typing_nodes(context.iter_children_or_self()):
             if context.is_principal_node_kind():
                 if isinstance(item, (ElementNode, AttributeNode)):
                     yield item
@@ -316,7 +349,15 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
 def select_self_shortcut(self: XPathToken, context: ContextType = None) -> Iterator[ItemType]:
     if context is None:
         raise self.missing_context()
-    yield from context.iter_self()
+
+    # Workaround for xmlschema < 4.0 identities: bind schema to dynamic context
+    if context.schema is None:
+        if self.parser.schema is not None:
+            context.schema = self.parser.schema
+    elif self.parser.schema is None:
+        self.parser.schema = context.schema
+
+    yield from context.typing_nodes(context.iter_self())
 
 
 @method(nullary('..'))

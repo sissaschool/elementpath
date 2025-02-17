@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from functools import lru_cache, cached_property
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
 
 from elementpath._typing import Iterator
@@ -18,6 +18,7 @@ from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
 from elementpath.namespaces import XSD_ANY_SIMPLE_TYPE, XSD_ANY_TYPE
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
+from elementpath.xpath_nodes import EtreeElementNode
 from elementpath.xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance compatible with the XsdSchemaProtocol.
     :param base_element: the schema element used as base item for static analysis.
     """
+    __slots__ = ('_schema', '_base_element', '_element_type', '_attribute_type')
 
     def __init__(self, schema: XsdSchemaProtocol,
                  base_element: Optional[XsdElementProtocol] = None) -> None:
@@ -48,6 +50,31 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
 
         self._schema = schema
         self._base_element: Optional[XsdElementProtocol] = base_element
+
+        self._element_type = self.get_type(XSD_ANY_TYPE)
+        self._attribute_type = self.get_type(XSD_ANY_SIMPLE_TYPE)
+
+    @property
+    def element_type(self) -> Optional[XsdTypeProtocol]:
+        if self._element_type is None:
+            return None
+        elif self._schema.validity != 'valid' or self._schema.validation_attempted != 'full':
+            return self._element_type
+        else:
+            self._element_type = None
+            self._attribute_type = None
+            return None
+
+    @property
+    def attribute_type(self) -> Optional[XsdTypeProtocol]:
+        if self._attribute_type is None:
+            return None
+        elif self._schema.validity != 'valid' or self._schema.validation_attempted != 'full':
+            return self._attribute_type
+        else:
+            self._element_type = None
+            self._attribute_type = None
+            return None
 
     def bind_parser(self, parser: 'XPath2ParserType') -> None:
         """
@@ -69,7 +96,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
 
         :returns: an `XPathSchemaContext` instance.
         """
-        return XPathSchemaContext(root=self._schema, item=self._base_element)
+        return XPathSchemaContext(root=self._schema, item=self._base_element, schema=self)
 
     def find(self, path: str, namespaces: Optional[Dict[str, str]] = None) \
             -> Optional[PathResult]:
@@ -93,13 +120,12 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """The XSD version, returns '1.0' or '1.1'."""
         return self._schema.xsd_version
 
-    @cached_property
-    def validity(self) -> Optional[str]:
-        return getattr(self._schema, 'validity', None)
-
-    @cached_property
-    def validation_attempted(self) -> Optional[str]:
-        return getattr(self._schema, 'validation_attempted', None)
+    def is_assertion_base(self, element_node: EtreeElementNode) -> bool:
+        if self._base_element is None or element_node.xsd_element is None:
+            return False
+        elif self._base_element.parent is not self._base_element.type:
+            return False
+        return element_node.xsd_element.type is self._base_element.type
 
     def get_type(self, qname: str) -> Optional[XsdTypeProtocol]:
         """
@@ -114,55 +140,6 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         if isinstance(xsd_type, tuple):
             return None
         return xsd_type
-
-    def get_attribute_node_type(self, path: str, name: Optional[str]) \
-            -> Optional[XsdTypeProtocol]:
-
-        validity = self.validity
-        validation_attempted = self.validation_attempted
-        if validity is None or validation_attempted is None:
-            return None
-        elif validity != 'valid' or validation_attempted != 'full':
-            return self.get_type(XSD_ANY_SIMPLE_TYPE)
-
-        xsd_attribute = self.find(path)
-        if xsd_attribute is None:
-            return None
-
-        try:
-            xsd_type = xsd_attribute.type  # type: ignore[union-attr]
-        except AttributeError:
-            raise ElementPathTypeError(f"found a non XSD attribute {xsd_attribute}")
-        else:
-            if xsd_type is None and name is not None:
-                xsd_attribute = self.get_attribute(name)
-                if xsd_attribute is not None:
-                    return xsd_attribute.type
-            return xsd_type
-
-    def get_element_node_type(self, path: str, name: Optional[str]) \
-            -> Optional[XsdTypeProtocol]:
-        validity = self.validity
-        validation_attempted = self.validation_attempted
-        if validity is None or validation_attempted is None:
-            return None
-        elif validity != 'valid' or validation_attempted != 'full':
-            return self.get_type(XSD_ANY_TYPE)
-
-        xsd_element = self.find(path)
-        if xsd_element is None:
-            return None
-
-        try:
-            xsd_type = xsd_element.type  # type: ignore[union-attr]
-        except AttributeError:
-            raise ElementPathTypeError(f"found a non XSD element {xsd_element}")
-        else:
-            if xsd_type is None and name is not None:
-                xsd_element = self.get_element(name)
-                if xsd_element is not None:
-                    return xsd_element.type
-            return xsd_type
 
     def get_attribute(self, qname: str) -> Optional[XsdAttributeProtocol]:
         """

@@ -33,7 +33,8 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
+from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode, \
+    EtreeElementNode, TextAttributeNode
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
@@ -435,7 +436,11 @@ class XPathToken(Token[XPathTokenType]):
         """
         if item is None:
             return
-        elif isinstance(item, XPathNode):
+        elif isinstance(item, EtreeElementNode):
+            # workaround for previous releases of xmlschema: late typing from PSVI
+            if self.parser.schema is not None and item.schema is None:
+                item.set_schema(self.parser.schema)
+
             value = None
             try:
                 for value in item.iter_typed_values:
@@ -447,6 +452,12 @@ class XPathToken(Token[XPathTokenType]):
                     msg = f"argument node {item!r} does not have a typed value"
                     raise self.error('FOTY0012', msg)
 
+        elif isinstance(item, XPathNode):
+            if isinstance(item, TextAttributeNode):
+                # workaround: late typing from PSVI
+                if self.parser.schema is not None and item.schema is None:
+                    item.set_schema(self.parser.schema)
+            yield from item.iter_typed_values
         elif isinstance(item, list):
             for v in item:
                 yield from self.atomize_item(v)
@@ -604,8 +615,6 @@ class XPathToken(Token[XPathTokenType]):
             results = [x for x in cast(Iterator[AtomicType], self.select(context))]
         else:
             self.parser.check_variables(context.variables)
-            if self.parser.schema is not None and context.schema is None:
-                raise AssertionError()
 
             results = []
             for item in self.select(context):

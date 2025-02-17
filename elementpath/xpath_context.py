@@ -22,12 +22,13 @@ from elementpath.tdop import Token
 from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, RootArgType
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, EtreeElementNode, \
+    TextAttributeNode, RootNodeType, RootArgType
 from elementpath.tree_builders import get_node_tree
 
 if TYPE_CHECKING:
     from elementpath.schema_proxy import AbstractSchemaProxy
-    from .xpath_tokens import XPathToken, XPathAxis, XPathFunction  # noqa: F401
+    from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction
 
 __all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
            'ValueType', 'ItemArgType', 'FunctionArgType']
@@ -335,10 +336,12 @@ class XPathContext:
                 # With predicate select nodes that have not single list value
                 # must be replaced by value.
                 if isinstance(item, (AttributeNode, ElementNode)) and item.is_list:
-                    value = item.iter_typed_values
-                    if isinstance(value, list):
-                        results.extend(value)
-                        continue
+                    if self.schema is not None and item.xsd_type is None:
+                        if isinstance(item, (EtreeElementNode, TextAttributeNode)):
+                            if item.schema is None:
+                                item.set_schema(self.schema)
+                    results.extend(v for v in item.iter_typed_values)
+                    continue
 
                 results.append(item)
         else:
@@ -607,6 +610,16 @@ class XPathContext:
 
             self.item, self.axis = status
 
+    def typing_nodes(self, sequence: Iterator[ItemType]) -> Iterator[ItemType]:
+        if self.schema is not None:
+            for item in sequence:
+                if isinstance(item, (EtreeElementNode, TextAttributeNode)):
+                    if item.schema is None:
+                        item.set_schema(self.schema)
+                yield item
+        else:
+            yield from sequence
+
 
 class XPathSchemaContext(XPathContext):
     """
@@ -616,6 +629,15 @@ class XPathSchemaContext(XPathContext):
     XML instances.
     """
     root: ElementNode
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if self.schema is None:
+            # Workaround for binding schema to context and then to parser
+            self.schema = getattr(self.root.elem, 'xpath_proxy', None)
+
+    def typing_nodes(self, sequence: Iterator[ItemType]) -> Iterator[ItemType]:
+        yield from sequence
 
     def iter_matching_nodes(self, name: str, default_namespace: Optional[str] = None) \
             -> Iterator[Union[AttributeNode, ElementNode]]:

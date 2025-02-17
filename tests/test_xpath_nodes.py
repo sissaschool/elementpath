@@ -302,11 +302,6 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(pi.kind, 'processing-instruction')
         self.assertEqual(text.kind, 'text')
 
-        with patch.multiple(DummyXsdType, is_simple=lambda x: True):
-            xsd_type = DummyXsdType()
-            typed_element = EtreeElementNode(element.elem, xsd_type=xsd_type)
-            self.assertEqual(typed_element.kind, 'element')
-
     def test_name_property(self):
         root = self.context.root
         attr = AttributeNode('a1', '20')

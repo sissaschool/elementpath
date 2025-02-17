@@ -11,7 +11,6 @@ from typing import cast, Any, List, Optional, TYPE_CHECKING, Union
 
 from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType, NsmapType
-from elementpath.namespaces import XSD_ANY_TYPE
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import LxmlElementProtocol, DocumentProtocol, \
     LxmlDocumentProtocol, XsdElementProtocol, DocumentType, ElementType, \
@@ -127,14 +126,6 @@ def build_node_tree(root: ElementTreeRootType,
         nsmap = {}
         elem_pos_offset = 2
 
-    if not schema or schema.validity is None or schema.validation_attempted is None:
-        schema = None
-        xsd_type = None
-    elif schema.validity != 'valid' or schema.validation_attempted != 'full':
-        xsd_type = schema.get_type(XSD_ANY_TYPE)
-    else:
-        xsd_type = None
-
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
         root_elem = document.getroot()
@@ -153,14 +144,14 @@ def build_node_tree(root: ElementTreeRootType,
             return document_node
 
         elem = root_elem
-        root_node = EtreeElementNode(elem, document_node, position, nsmap, schema, xsd_type)
+        root_node = EtreeElementNode(elem, document_node, position, nsmap, schema)
         elements = document_node.elements
         document_node.children.append(root_node)
     else:
         assert root_elem is not None
         document_node = None
         elem = root_elem
-        root_node = EtreeElementNode(elem, None, position, nsmap, schema, xsd_type)
+        root_node = EtreeElementNode(elem, None, position, nsmap, schema)
         root_node.elements = elements = {}
         if uri is not None:
             root_node.uri = uri
@@ -180,7 +171,7 @@ def build_node_tree(root: ElementTreeRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = EtreeElementNode(elem, parent, position, nsmap, schema, xsd_type)
+                child = EtreeElementNode(elem, parent, position, nsmap, schema)
                 position += elem_pos_offset + len(elem.attrib)
 
                 if elem.text is not None:

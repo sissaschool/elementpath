@@ -449,7 +449,7 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
 
         context.item = TextAttributeNode('a', 'true')
         context.item.xsd_type = DummyXsdDateType()
-        self.check_value('xs:date(.)', TypeError, context=context)
+        self.check_value('xs:date(.)', ValueError, context=context)
 
         context.item = TextAttributeNode('a', str(Date10(2017, 1, 19)))
         self.check_value('xs:date(.)', Date10(2017, 1, 19), context=context)
