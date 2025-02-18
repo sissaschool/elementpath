@@ -70,14 +70,14 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = EtreeElementNode(elem=root)
-            typed_root.__dict__['xsd_type'] = xsd_type
+            setattr(typed_root, 'xsd_type', xsd_type)
             self.assertListEqual(list(etree_iter_strings(typed_root.elem)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = EtreeElementNode(elem=root)
-            typed_root.__dict__['xsd_type'] = xsd_type
+            setattr(typed_root, 'xsd_type', xsd_type)
             self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
             comment = ElementTree.Comment('foo')

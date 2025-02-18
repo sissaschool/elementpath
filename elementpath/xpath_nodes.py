@@ -60,7 +60,7 @@ class XPathNode:
     for type checking and for wrapping other types in a custom XPath node types.
     """
 
-    __slots__ = 'name', 'parent', 'position'
+    __slots__ = ('name', 'parent', 'position')
 
     ###
     # XDM accessors
@@ -184,7 +184,7 @@ class NamespaceNode(XPathNode):
 
     kind = 'namespace'
 
-    __slots__ = 'uri',
+    __slots__ = ('uri',)
 
     def __init__(self,
                  prefix: Optional[str], uri: str,
@@ -279,6 +279,13 @@ class AttributeNode(XPathNode):
         path = self.parent.path
         return f"/@{self.name or '*'}" if path == '/' else f"{path}/@{self.name or '*'}"
 
+    @property
+    def wildcard_path(self) -> str:
+        if self.parent is None:
+            return f"@*"
+        path = self.parent.path
+        return f"/@*" if path == '/' else f"{path}/@*"
+
     def is_typed(self) -> bool:
         return self.xsd_type is not None
 
@@ -335,7 +342,12 @@ class TextAttributeNode(AttributeNode):
                 if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
                     self.xsd_type = xsd_attribute.type
                 else:
-                    self.xsd_type = None
+                    wildcard_path = self.parent.wildcard_path + f'/@{self.name or "*"}'
+                    xsd_attribute = schema.find(wildcard_path)
+                    if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
+                        self.xsd_type = xsd_attribute.type
+                    else:
+                        self.xsd_type = None
         else:
             self.xsd_type = None
 
@@ -422,7 +434,7 @@ class TextNode(XPathNode):
     kind = 'text'
     value: str
 
-    __slots__ = 'value',
+    __slots__ = ('value',)
 
     def __init__(self,
                  value: str,
@@ -468,7 +480,7 @@ class CommentNode(XPathNode):
 
     kind = 'comment'
 
-    __slots__ = 'elem',
+    __slots__ = ('elem',)
 
     def __init__(self,
                  comment: Union[ElementType, str],
@@ -523,7 +535,7 @@ class ProcessingInstructionNode(XPathNode):
 
     kind = 'processing-instruction'
 
-    __slots__ = 'elem',
+    __slots__ = ('elem',)
 
     def __init__(self,
                  pi: Union[ProcessingInstructionType, str],
@@ -579,15 +591,16 @@ class ElementNode(XPathNode):
     elem: object
     nsmap: NsmapType
     children: List[ChildNodeType]
-
-    elements: Optional[ElementMapType] = None
-    _namespace_nodes: Optional[List['NamespaceNode']] = None
-    _attributes: Optional[List['AttributeNode']] = None
-
     document_uri: None
-    uri: Optional[str] = None
 
-    __slots__ = ('elem', 'xsd_type', 'children', '__dict__')
+    # Lazy protected attribute
+    _uri: str
+    _elements: ElementMapType
+    _namespace_nodes: List[NamespaceNode]
+    _attributes: List[AttributeNode]
+
+    __slots__ = ('elem', 'xsd_type', 'children', '_uri',
+                 '_elements', '_namespace_nodes', '_attributes')
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'ElementNode':
         if cls is ElementNode:
@@ -623,8 +636,24 @@ class ElementNode(XPathNode):
         return self.xsd_type is not None and self.xsd_type.is_list()
 
     @property
+    def uri(self) -> Optional[str]:
+        return getattr(self, '_uri', None)
+
+    @uri.setter
+    def uri(self, uri: str) -> None:
+        self._uri = uri
+
+    @property
+    def elements(self) -> Optional[ElementMapType]:
+        return getattr(self, '_elements', None)
+
+    @elements.setter
+    def elements(self, elements: ElementMapType) -> None:
+        self._elements = elements
+
+    @property
     def base_uri(self) -> Optional[str]:
-        base_uri = self.uri and self.uri.strip()
+        base_uri = self._uri.strip() if hasattr(self, '_uri') else None
         if self.parent is None:
             return base_uri
         elif base_uri is None:
@@ -641,8 +670,8 @@ class ElementNode(XPathNode):
         return XSD_UNTYPED if self.xsd_type is None else self.xsd_type.name
 
     @property
-    def namespace_nodes(self) -> List['NamespaceNode']:
-        if self._namespace_nodes is None:
+    def namespace_nodes(self) -> List[NamespaceNode]:
+        if not hasattr(self, '_namespace_nodes'):
             # Lazy generation of namespace nodes of the element
             position = self.position + 1
             self._namespace_nodes = [NamespaceNode('xml', XML_NAMESPACE, self, position)]
@@ -656,7 +685,7 @@ class ElementNode(XPathNode):
         return self._namespace_nodes
 
     @property
-    def attributes(self) -> List['AttributeNode']:
+    def attributes(self) -> List[AttributeNode]:
         return []
 
     @property
@@ -665,6 +694,13 @@ class ElementNode(XPathNode):
         if not isinstance(self.parent, ElementNode):
             return f'/{self.name}'
         return f'{self.parent.path}/{self.name}'
+
+    @property
+    def wildcard_path(self) -> str:
+        """Returns an absolute path for the node."""
+        if not isinstance(self.parent, ElementNode):
+            return f'/*'
+        return f'{self.parent.path}/*'
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -690,8 +726,8 @@ class ElementNode(XPathNode):
 
     def get_element_node(self, elem: Union[ElementProtocol, SchemaElemType]) \
             -> Optional['ElementNode']:
-        if self.elements is not None:
-            return self.elements.get(elem)
+        if hasattr(self, '_elements'):
+            return self._elements.get(elem)
 
         # Fallback if there is not the map of elements but do not expand lazy elements
         for node in self.iter():
@@ -774,9 +810,9 @@ class ElementNode(XPathNode):
         iterators: Deque[Any] = deque()  # slightly faster than list()
         children: Iterator[Any] = iter(self.children)
 
-        if self._namespace_nodes:
+        if hasattr(self, '_namespace_nodes'):
             yield from self._namespace_nodes
-        if self._attributes:
+        if hasattr(self, '_attributes'):
             yield from self._attributes
 
         while True:
@@ -784,9 +820,9 @@ class ElementNode(XPathNode):
                 yield child
 
                 if isinstance(child, ElementNode):
-                    if child._namespace_nodes:
+                    if hasattr(child, '_namespace_nodes'):
                         yield from child._namespace_nodes
-                    if child._attributes:
+                    if hasattr(child, '_attributes'):
                         yield from child._attributes
 
                     if child.children:
@@ -887,8 +923,8 @@ class EtreeElementNode(ElementNode):
         return self.elem
 
     @property
-    def attributes(self) -> List['AttributeNode']:
-        if self._attributes is None:
+    def attributes(self) -> List[AttributeNode]:
+        if not hasattr(self, '_attributes'):
             position = self.position + len(self.nsmap) + int('xml' not in self.nsmap) + 1
             self._attributes = [
                 TextAttributeNode(name, value, self, pos, self.schema)
@@ -903,8 +939,8 @@ class EtreeElementNode(ElementNode):
             base_uri = base_uri.strip()
         elif base_uri is not None:
             base_uri = ''
-        elif self.uri is not None:
-            base_uri = self.uri.strip()
+        elif hasattr(self, '_uri'):
+            base_uri = self._uri.strip()
 
         if self.parent is None:
             return base_uri
@@ -1070,7 +1106,7 @@ class SchemaElementNode(ElementNode):
     ref: Optional['SchemaElementNode'] = None
     elem: SchemaElemType
 
-    __slots__ = 'nsmap',
+    __slots__ = ('nsmap', '__dict__')
 
     def __init__(self,
                  elem: SchemaElemType,
@@ -1107,8 +1143,8 @@ class SchemaElementNode(ElementNode):
             return self.elem.tag == name  # a schema
 
     @property
-    def attributes(self) -> List['AttributeNode']:
-        if self._attributes is None:
+    def attributes(self) -> List[AttributeNode]:
+        if not hasattr(self, '_attributes'):
             position = self.position + len(self.nsmap) + int('xml' not in self.nsmap)
             self._attributes = [
                 SchemaAttributeNode(name, attr, self, pos)
@@ -1118,7 +1154,7 @@ class SchemaElementNode(ElementNode):
 
     @property
     def base_uri(self) -> Optional[str]:
-        base_uri = self.uri.strip() if self.uri is not None else None
+        base_uri = self._uri.strip() if hasattr(self, '_uri') else None
         if self.parent is None:
             return base_uri
         elif base_uri is None:
@@ -1150,9 +1186,9 @@ class SchemaElementNode(ElementNode):
         iterators: List[Any] = []
         children: Iterator[Any] = iter(self.children)
 
-        if self._namespace_nodes:
+        if hasattr(self, '_namespace_nodes'):
             yield from self._namespace_nodes
-        if self._attributes:
+        if hasattr(self, '_attributes'):
             yield from self._attributes
 
         elements = {self}
@@ -1164,9 +1200,9 @@ class SchemaElementNode(ElementNode):
                 elements.add(child)
 
                 if isinstance(child, ElementNode):
-                    if child._namespace_nodes:
+                    if hasattr(child, '_namespace_nodes'):
                         yield from child._namespace_nodes
-                    if child._attributes:
+                    if hasattr(child, '_attributes'):
                         yield from child._attributes
 
                     if child.children:

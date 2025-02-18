@@ -329,7 +329,7 @@ class XPath1TokenTest(unittest.TestCase):
             xsd_type = DummyXsdType()
             element.text = '10'
             typed_elem = EtreeElementNode(elem=element)
-            typed_elem.__dict__['xsd_type'] = xsd_type
+            setattr(typed_elem, 'xsd_type', xsd_type)
             self.assertEqual(token.string_value(typed_elem), '10')
             self.assertEqual(token.data_value(typed_elem), 10)
 
