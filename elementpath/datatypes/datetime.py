@@ -131,8 +131,15 @@ class AbstractDateTime(AnyAtomicType):
                  tzinfo: Optional[datetime.tzinfo] = None) -> None:
 
         if hour == 24 and minute == second == microsecond == 0:
-            delta = datetime.timedelta(days=1)
             hour = 0
+            if year == 9999 and month == 12 and day == 31:
+                delta = datetime.timedelta(0)
+                year = 10000
+                month = 1
+                day = 1
+            else:
+                delta = datetime.timedelta(days=1)
+                hour = 0
         else:
             delta = datetime.timedelta(0)
 

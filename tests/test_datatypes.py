@@ -563,6 +563,16 @@ class DateTimeTypesTest(unittest.TestCase):
         self.assertIsInstance(dt, DateTime)
         self.assertEqual(dt._dt, datetime.datetime(9999, 12, 31, 23, 59, 59, 999999))
 
+    def test_issue_84_error_parsing_midnight_hours(self):
+        dt1 = DateTime.fromstring('9998-12-31T24:00:00')
+        self.assertEqual(str(dt1), '9999-01-01T00:00:00')
+
+        dt1 = DateTime.fromstring('9999-12-31T24:00:00')
+        self.assertEqual(str(dt1), '10000-01-01T00:00:00')
+
+        dt2 = DateTime.fromstring('10000-01-01T00:00:00')
+        self.assertEqual(dt1, dt2)
+
     def test_date_fromstring(self):
         self.assertIsInstance(Date.fromstring('2000-10-07'), Date)
         self.assertIsInstance(Date.fromstring('-2000-10-07'), Date)
@@ -1316,6 +1326,19 @@ class DurationTypesTest(unittest.TestCase):
         self.assertTrue(issubclass(Duration, AnyAtomicType))
         self.assertTrue(issubclass(YearMonthDuration, AnyAtomicType))
         self.assertTrue(issubclass(DayTimeDuration, AnyAtomicType))
+
+    def test_max_min_months(self):
+        delta1 = YearMonthDuration(months=-119999)
+        self.assertEqual(delta1.months, -119999)
+        delta2 = YearMonthDuration(months=119999)
+        self.assertEqual(delta2.months, 119999)
+        self.assertEqual(delta2 + delta1, YearMonthDuration(0))
+
+        delta1 = YearMonthDuration(months=-150000)
+        self.assertEqual(delta1.months, -150000)
+        delta2 = YearMonthDuration(months=150000)
+        self.assertEqual(delta2.months, 150000)
+        self.assertEqual(delta2 + delta1, YearMonthDuration(0))
 
 
 class TimezoneTypeTest(unittest.TestCase):
