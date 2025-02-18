@@ -557,9 +557,16 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                     self.check_value('. le "11"', context)
                 self.assertIn('XPTY0004', str(err.exception))  # Static schema context error
 
-                with self.assertRaises(TypeError) as err:
-                    self.check_value('. le 10', context=context)
-                self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
+                self.check_value('. le 10', False, context=context)
+
+                # Schema information persists on parser (will be removed in v5.0)
+                context = XPathContext(root)
+                self.check_value('. le 10', False, context=context)
+
+            context = XPathContext(root)
+            with self.assertRaises(TypeError) as err:
+                self.check_value('. le 10', context=context)
+            self.assertIn('XPTY0004', str(err.exception))  # Dynamic context error
 
             schema = xmlschema.XMLSchema("""
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
