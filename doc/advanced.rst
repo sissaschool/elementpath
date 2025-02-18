@@ -73,7 +73,7 @@ represented by *XPathContext* objects.
     >>> root = ElementTree.XML('<root><child/><child attr="10"/></root>')
     >>> context = XPathContext(root)
     >>> token.evaluate(context)
-    [ElementNode(elem=<Element 'child' at ...)]
+    [EtreeElementNode(elem=<Element 'child' at ...)]
 
 In this case an error is raised if you don't provide a context:
 
@@ -124,9 +124,9 @@ Node trees are automatically created at dynamic context initialization:
     >>> root = ElementTree.XML('<root><child/><child attr="10"/></root>')
     >>> context = XPathContext(root)
     >>> context.root
-    ElementNode(elem=<Element 'root' at ...>)
+    EtreeElementNode(elem=<Element 'root' at ...>)
     >>> context.root.children
-    [ElementNode(elem=<Element 'child' at ...>), ElementNode(elem=<Element 'child' at ...>)]
+    [EtreeElementNode(elem=<Element 'child' at ...>), EtreeElementNode(elem=<Element 'child' at ...>)]
 
 If the same XML data is applied several times for dynamic evaluation it maybe
 convenient to build the node tree before, in the way to create it only once:
@@ -232,7 +232,7 @@ context item is set to context root:
 
     >>> context = XPathContext(doc)
     >>> context.root
-    DocumentNode(document=<xml.etree.ElementTree.ElementTree object at ...>)
+    EtreeDocumentNode(document=<xml.etree.ElementTree.ElementTree object at ...>)
     >>> context.item is context.root
     True
     >>> context.document is context.root
@@ -246,11 +246,11 @@ set to root element node. In this case the context document is a dummy document:
     >>> root = ElementTree.XML('<root><child1/><child2/><child3/></root>')
     >>> context = XPathContext(root)
     >>> context.root
-    ElementNode(elem=<Element 'root' at ...>)
+    EtreeElementNode(elem=<Element 'root' at ...>)
     >>> context.item is context.root
     True
     >>> context.document
-    DocumentNode(document=<xml.etree.ElementTree.ElementTree object at ...>)
+    EtreeDocumentNode(document=<xml.etree.ElementTree.ElementTree object at ...>)
     >>> context.root.parent is None
     True
 
@@ -263,7 +263,7 @@ the data with lxml:
     >>> root = etree.XML('<!-- comment --><root><child/></root>')
     >>> context = XPathContext(root)
     >>> context.root
-    DocumentNode(document=<lxml.etree._ElementTree object at ...>)
+    EtreeDocumentNode(document=<lxml.etree._ElementTree object at ...>)
     >>> context.item is context.root
     True
     >>> context.document is context.root
@@ -278,7 +278,7 @@ is set to `None`:
     >>> root = ElementTree.XML('<root><child1/><child2/><child3/></root>')
     >>> context = XPathContext(root, fragment=True)
     >>> context.root
-    ElementNode(elem=<Element 'root' at ...>)
+    EtreeElementNode(elem=<Element 'root' at ...>)
     >>> context.item is context.root
     True
     >>> context.document is None
