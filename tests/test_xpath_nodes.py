@@ -316,33 +316,45 @@ class XPathNodesTest(unittest.TestCase):
 
         context = XPathContext(root)
 
-        self.assertEqual(context.root.path, '/A')
-        self.assertEqual(context.root[0].path, '/A/B1')
-        self.assertEqual(context.root[0][0].path, '/A/B1/C1')
-        self.assertEqual(context.root[1].path, '/A/B2')
-        self.assertEqual(context.root[2].path, '/A/B3')
-        self.assertEqual(context.root[2][0].path, '/A/B3/C1')
-        self.assertEqual(context.root[2][1].path, '/A/B3/C2')
+        self.assertEqual(context.root.path, '/Q{}A[1]')
+        self.assertEqual(context.root[0].path, '/Q{}A[1]/Q{}B1[1]')
+        self.assertEqual(context.root[0][0].path, '/Q{}A[1]/Q{}B1[1]/Q{}C1[1]')
+        self.assertEqual(context.root[1].path, '/Q{}A[1]/Q{}B2[1]')
+        self.assertEqual(context.root[2].path, '/Q{}A[1]/Q{}B3[1]')
+        self.assertEqual(context.root[2][0].path, '/Q{}A[1]/Q{}B3[1]/Q{}C1[1]')
+        self.assertEqual(context.root[2][1].path, '/Q{}A[1]/Q{}B3[1]/Q{}C2[1]')
 
         attr = context.root[2][1].attributes[0]
-        self.assertEqual(attr.path, '/A/B3/C2/@max')
+        self.assertEqual(attr.path, '/Q{}A[1]/Q{}B3[1]/Q{}C2[1]/@max')
 
         document = ElementTree.ElementTree(root)
         context = XPathContext(root=document)
-        self.assertEqual(context.root[0][2][0].path, '/A/B3/C1')
+        self.assertEqual(context.root[0][2][0].path, '/Q{}A[1]/Q{}B3[1]/Q{}C1[1]')
+        self.assertEqual(context.root[0][2][0].extended_path, '/A[1]/B3[1]/C1[1]')
 
         root = ElementTree.XML('<A><B1>10</B1><B2 min="1"/><B3/></A>')
         context = XPathContext(root)
         with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
             elem = context.root[0]
             elem.xsd_type = xsd_type
-            self.assertEqual(elem.path, '/A/B1')
+            self.assertEqual(elem.path, '/Q{}A[1]/Q{}B1[1]')
 
         with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
             context = XPathContext(root)
             attr = context.root[1].attributes[0]
             attr.xsd_type = xsd_type
-            self.assertEqual(attr.path, '/A/B2/@min')
+            self.assertEqual(attr.path, '/Q{}A[1]/Q{}B2[1]/@min')
+
+    def test_path_property_with_namespaces(self):
+        root = ElementTree.XML('<tns:A xmlns:tns="foo"><B1><C1/></B1><B2/>'
+                               '<B3><C1/><C2 max="10"/></B3></tns:A>')
+
+        context = XPathContext(root, namespaces={'tns': 'foo'})
+        self.assertEqual(context.root.path, '/Q{foo}A[1]')
+        self.assertEqual(context.root.qname_path, '/tns:A[1]')
+
+        self.assertEqual(context.root[0].path, '/Q{foo}A[1]/Q{}B1[1]')
+        self.assertEqual(context.root[0][0].qname_path, '/tns:A[1]/B1[1]/C1[1]')
 
     def test_element_node_iter(self):
         root = ElementTree.XML('<A>text1\n<B1 a="10">text2</B1><B2/><B3><C1>text3</C1></B3></A>')

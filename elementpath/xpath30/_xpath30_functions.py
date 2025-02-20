@@ -36,9 +36,9 @@ from elementpath.datatypes import xsd10_atomic_types, NumericProxy, QName, Date1
     DateTime10, Time, AnyURI, UntypedAtomic, AtomicType, NumericType, NMToken, \
     Idref, Entity
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
-from elementpath.etree import defuse_xml, etree_iter_paths
-from elementpath.xpath_nodes import XPathNode, ElementNode, TextNode, AttributeNode, \
-    NamespaceNode, DocumentNode, ProcessingInstructionNode, CommentNode, EtreeElementNode
+from elementpath.etree import defuse_xml
+from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
+    DocumentNode, EtreeElementNode, SchemaElementNode
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, XPathConstructor
 from elementpath.serialization import get_serialization_params, serialize_to_xml, \
@@ -1073,69 +1073,24 @@ def evaluate_path_function(self: XPathFunction, context: ContextType = None) -> 
     elif context is None:
         raise self.missing_context()
 
-    if isinstance(context, XPathSchemaContext):
-        return []
-    elif not self:
+    if not self:
         item = context.item
     else:
         item = self.get_argument(context)
         if item is None:
             return []
 
-    suffix = ''
-    if isinstance(item, DocumentNode):
-        return '/'
-    elif isinstance(item, (ElementNode, CommentNode, ProcessingInstructionNode)):
-        elem = item.elem
-    elif not isinstance(item, XPathNode) or item.parent is None:
+    if not isinstance(item, XPathNode):
         return []
-    elif isinstance(item, TextNode):
-        elem = item.parent.elem
-        suffix = '/text()[1]'
-    elif isinstance(item, AttributeNode) and item.name is not None:
-        elem = item.parent.elem
-        if item.name.startswith('{'):
-            suffix = f'/@Q{item.name}'
-        else:
-            suffix = f'/@{item.name}'
-    elif isinstance(item, NamespaceNode):
-        elem = item.parent.elem
-        if item.prefix:
-            suffix = f'/namespace::{item.prefix}'
-        else:
-            suffix = f'/namespace::*[Q{{{XPATH_FUNCTIONS_NAMESPACE}}}local-name()=""]'
+    elif context.root is None or (root_node := item.root_node) is not context.root:
+        # The context has no root or the root is not the root of the item node
+        return []
+    elif not isinstance(root_node, (DocumentNode, SchemaElementNode)):
+        # It's a fragment: add fn:root() to select the root position
+        path = item.path[len(root_node.path):]
+        return f"Q{{{XPATH_FUNCTIONS_NAMESPACE}}}root(){path}"
     else:
-        return []
-
-    if isinstance(context.root, DocumentNode):
-        root_node = context.root.getroot()
-        assert root_node.name is not None
-        if root_node.name.startswith('{'):
-            path = f'/Q{root_node.name}[1]'
-        else:
-            path = f'/Q{{}}{root_node.name}[1]'
-    elif context.root is None:
-        return []
-    else:
-        # If root is an element use the function that returns the root of the tree
-        root_node = context.root
-        path = 'Q{%s}root()' % XPATH_FUNCTIONS_NAMESPACE
-
-    if isinstance(item, ProcessingInstructionNode):
-        if item.parent is None or isinstance(item.parent, DocumentNode):
-            return f'/processing-instruction({item.name})[{context.position}]'
-    elif isinstance(item, CommentNode):
-        if item.parent is None or isinstance(item.parent, DocumentNode):
-            return f'/comment()[{context.position}]'
-
-    if not isinstance(root_node, EtreeElementNode):
-        return []
-
-    for e, path in etree_iter_paths(root_node.elem, path):
-        if e is elem:
-            return path + suffix
-    else:
-        return []
+        return item.path or []
 
 
 @method(function('has-children', nargs=(0, 1), sequence_types=('node()?', 'xs:boolean')))

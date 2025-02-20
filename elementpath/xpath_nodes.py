@@ -19,7 +19,7 @@ from elementpath.aliases import NamespacesType, NsmapType, SequenceType
 from elementpath.datatypes import UntypedAtomic, AtomicType
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
-    XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
+    XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.protocols import ElementProtocol, XsdElementProtocol, \
     XsdAttributeProtocol, XsdTypeProtocol, DocumentType, ElementType, SchemaElemType, \
     CommentType, ProcessingInstructionType
@@ -35,6 +35,8 @@ __all__ = ['TypedNodeType', 'ParentNodeType', 'ChildNodeType', 'ElementMapType',
            'SchemaAttributeNode', 'TextNode', 'CommentNode', 'ProcessingInstructionNode',
            'ElementNode', 'EtreeElementNode', 'LazyElementNode', 'SchemaElementNode',
            'DocumentNode', 'EtreeDocumentNode', 'RootNodeType', 'RootArgType']
+
+_EMPTY_NAME_PATH = f'*[Q{{{XPATH_FUNCTIONS_NAMESPACE}}}local-name()=""'
 
 _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
@@ -137,6 +139,27 @@ class XPathNode:
         return self if self.parent is None else self.parent.root_node
 
     @property
+    def path(self) -> str:
+        """Returns the node path in XPath 3.0+ format."""
+        return ''
+
+    @property
+    def extended_path(self) -> str:
+        """Returns the node path in extended format."""
+        return self.path.replace('Q{}', '').replace('Q{', '{')
+
+    @property
+    def qname_path(self) -> str:
+        """Returns the node path with names in prefixed QName format."""
+        path = self.path
+        for prefix, namespace in self.nsmap.items():
+            path = path.replace(f'Q{{{namespace}}}', f'{prefix}:')
+        path = path.replace('Q{}', '')
+        if 'Q{' not in path:
+            return path
+        raise ElementPathRuntimeError(f'missing namespace prefix mapping in {path}')
+
+    @property
     def nsmap(self) -> Union[NsmapType, NamespacesType]:
         return self.parent.nsmap if self.parent is not None else {}
 
@@ -157,6 +180,19 @@ class XPathNode:
         The default is no-namespace.
         """
         return False
+
+    def get_child_position(self, child: ChildNodeType) -> int:
+        pos = 0
+        if self.children:
+            for c in self.children:
+                if isinstance(child, ElementNode):
+                    if c.name == child.name:
+                        pos += 1
+                elif isinstance(c, child.__class__):
+                    pos += 1
+                if c is child:
+                    break
+        return pos
 
 
 ###
@@ -199,15 +235,24 @@ class NamespaceNode(XPathNode):
     def prefix(self) -> Optional[str]:
         return self.name
 
-    @property
-    def value(self) -> str:
-        return self.uri
-
     def as_item(self) -> Tuple[Optional[str], str]:
         return self.name, self.uri
 
     def __repr__(self) -> str:
         return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.name, self.uri)
+
+    @property
+    def path(self) -> str:
+        name_path = self.prefix or _EMPTY_NAME_PATH
+        if self.parent is None:
+            return '/namespace::{name_path}'
+        elif isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/namespace::{name_path}"
+        return f"/namespace::{name_path}"
+
+    @property
+    def value(self) -> str:
+        return self.uri
 
     @property
     def string_value(self) -> str:
@@ -244,6 +289,16 @@ class AttributeNode(XPathNode):
         return object.__new__(cls)
 
     @property
+    def uri_qualified_name(self) -> Optional[str]:
+        """The URI qualified name of the attribute."""
+        if not self.name:
+            return self.name
+        elif self.name[0] == '{':
+            return f'Q{self.name}'
+        else:
+            return self.name
+
+    @property
     def is_id(self) -> bool:
         return self.name == XML_ID or self.xsd_type is not None and self.xsd_type.is_key()
 
@@ -274,17 +329,20 @@ class AttributeNode(XPathNode):
 
     @property
     def path(self) -> str:
+        name_path = self.uri_qualified_name or _EMPTY_NAME_PATH
         if self.parent is None:
-            return f"@{self.name or '*'}"
-        path = self.parent.path
-        return f"/@{self.name or '*'}" if path == '/' else f"{path}/@{self.name or '*'}"
+            return '/@{name_path}'
+        elif isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/@{name_path}"
+        return f"/@{name_path}"
 
     @property
-    def wildcard_path(self) -> str:
+    def schema_path(self) -> str:
         if self.parent is None:
-            return '@*'
-        path = self.parent.path
-        return '/@*' if path == '/' else f"{path}/@*"
+            return f"@{self.name or _EMPTY_NAME_PATH}"
+        elif isinstance(self.parent, ElementNode):
+            return f"{self.parent.schema_path}/@{self.name or _EMPTY_NAME_PATH}"
+        return f'/@{self.name or _EMPTY_NAME_PATH}'
 
     def is_typed(self) -> bool:
         return self.xsd_type is not None
@@ -364,9 +422,10 @@ class TextAttributeNode(AttributeNode):
     def schema_path(self) -> str:
         name = self.name if self.xsd_attribute is None else self.xsd_attribute.name
         if self.parent is None:
-            return f"@{name}"
-        path = self.parent.path
-        return f"/@{name}" if path == '/' else f"{path}/@{name}"
+            return f"@{name or _EMPTY_NAME_PATH}"
+        elif isinstance(self.parent, ElementNode):
+            return f"{self.parent.schema_path}/@{name or _EMPTY_NAME_PATH}"
+        return f'/@{name or _EMPTY_NAME_PATH}'
 
     @property
     def string_value(self) -> str:
@@ -465,6 +524,16 @@ class TextNode(XPathNode):
         return '%s(value=%r)' % (self.__class__.__name__, self.value)
 
     @property
+    def path(self) -> str:
+        if self.parent is None:
+            return '/text()[1]'
+
+        pos = self.parent.get_child_position(self)
+        if isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/text()[{pos}]"
+        return f"/text()[{pos}]"
+
+    @property
     def string_value(self) -> str:
         return self.value
 
@@ -514,6 +583,16 @@ class CommentNode(XPathNode):
 
     def __repr__(self) -> str:
         return '%s(comment=%r)' % (self.__class__.__name__, self.elem.text or '')
+
+    @property
+    def path(self) -> str:
+        if self.parent is None:
+            return '/comment()[1]'
+
+        pos = self.parent.get_child_position(self)
+        if isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/comment()[{pos}]"
+        return f"/comment()[{pos}]"
 
     @property
     def value(self) -> CommentType:
@@ -573,6 +652,16 @@ class ProcessingInstructionNode(XPathNode):
 
     def __repr__(self) -> str:
         return '%s(target=%r, text=%r)' % (self.__class__.__name__, self.name, self.text)
+
+    @property
+    def path(self) -> str:
+        if self.parent is None:
+            return '/processing-instruction({self.name})[1]'
+
+        pos = self.parent.get_child_position(self)
+        if isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/processing-instruction({self.name})[{pos}]"
+        return f"/processing-instruction({self.name})[{pos}]"
 
     @property
     def value(self) -> ProcessingInstructionType:
@@ -635,6 +724,16 @@ class ElementNode(XPathNode):
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         yield from self.children
+
+    @property
+    def uri_qualified_name(self) -> Optional[str]:
+        """The URI qualified name of the element."""
+        if not self.name:
+            return self.name
+        elif self.name[0] == '{':
+            return f'Q{self.name}'
+        else:
+            return f'Q{{}}{self.name}'
 
     @property
     def value(self) -> object:
@@ -707,10 +806,21 @@ class ElementNode(XPathNode):
 
     @property
     def path(self) -> str:
-        """Returns an absolute path for the node."""
-        if not isinstance(self.parent, ElementNode):
-            return f"/{self.name or '*'}"
-        return f"{self.parent.path}/{self.name or '*'}"
+        name_path = self.uri_qualified_name or _EMPTY_NAME_PATH
+        if self.parent is None:
+            return f'/{name_path}[1]'
+
+        pos = self.parent.get_child_position(self)
+        if isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/{name_path}[{pos}]"
+        return f"/{name_path}[{pos}]"
+
+    @property
+    def schema_path(self) -> str:
+        if isinstance(self.parent, EtreeElementNode):
+            return f"{self.parent.schema_path}/{self.name or _EMPTY_NAME_PATH}"
+        else:
+            return f"/{self.name or _EMPTY_NAME_PATH}"
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -946,7 +1056,7 @@ class EtreeElementNode(ElementNode):
         if hasattr(self, '_schema_path'):
             return self._schema_path
         elif self.xsd_element:
-            name = self.xsd_element.name or '*'
+            name = self.xsd_element.name or _EMPTY_NAME_PATH
             if not isinstance(self.parent, EtreeElementNode):
                 self._schema_path = f"/{name}"
             else:
@@ -1019,13 +1129,6 @@ class EtreeElementNode(ElementNode):
             yield ''
         else:
             yield from get_atomic_sequence(self.xsd_type, '')
-
-    @property
-    def path(self) -> str:
-        """Returns an absolute path for the node."""
-        if not isinstance(self.parent, ElementNode):
-            return f'/{self.elem.tag}'
-        return f'{self.parent.path}/{self.elem.tag}'
 
     def is_typed(self) -> bool:
         return self.xsd_type is not None
@@ -1284,13 +1387,9 @@ class SchemaElementNode(ElementNode):
 
     @property
     def path(self) -> str:
-        path: List[str] = []
-        item: Any = self
-        while True:
-            if item.parent is None:
-                return '/{}'.format('/'.join(reversed(path)))
-            path.append(item.elem.tag)
-            item = item.parent
+        if not hasattr(self, 'type'):
+            return '/'
+        return super().path
 
     def is_schema_node(self) -> bool:
         return True
