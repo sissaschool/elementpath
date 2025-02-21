@@ -341,7 +341,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         )
         for node in root_node.iter():
             if isinstance(node, ElementNode):
-                self.assertTrue(node.is_typed())
+                self.assertTrue(node.is_typed)
 
     def test_elements_and_attributes_type(self):
         schema = xmlschema.XMLSchema('''

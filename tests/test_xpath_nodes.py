@@ -28,6 +28,7 @@ else:
 
 from elementpath.etree import is_etree_element, etree_iter_strings, \
     etree_deep_equal, etree_iter_paths
+from elementpath.datatypes import UntypedAtomic
 from elementpath.xpath_nodes import DocumentNode, ElementNode, AttributeNode, TextNode, \
     NamespaceNode, CommentNode, ProcessingInstructionNode, EtreeElementNode, TextAttributeNode
 from elementpath.tree_builders import get_node_tree
@@ -242,9 +243,27 @@ class XPathNodesTest(unittest.TestCase):
         text_node = TextNode('alpha', parent)
         self.assertEqual(repr(text_node), "TextNode(value='alpha')")
 
+        self.assertIsNone(text_node.attributes)
+        self.assertIsNone(text_node.children)
+        self.assertIsNone(text_node.base_uri)
+        self.assertIsNone(text_node.document_uri)
+        self.assertIsNone(text_node.is_id)
+        self.assertIsNone(text_node.is_idrefs)
+        self.assertIsNone(text_node.namespace_nodes)
+        self.assertIsNone(text_node.nilled)
+        self.assertEqual(text_node.node_kind, 'text')
+        self.assertIsNone(text_node.node_name)
+        self.assertIsNotNone(text_node.parent)
+        self.assertEqual(text_node.string_value, 'alpha')
+        self.assertEqual(text_node.typed_value, UntypedAtomic('alpha'))
+        self.assertIsNone(text_node.unparsed_entity_public_id('foo'))
+        self.assertIsNone(text_node.unparsed_entity_system_id('foo'))
+
     def test_namespace_nodes(self):
         context = self.context
         namespace = NamespaceNode('tns', 'http://xpath.test/ns')
+
+        self.assertIsNone(namespace.attributes)
 
         self.assertEqual(repr(namespace),
                          "NamespaceNode(prefix='tns', uri='http://xpath.test/ns')")
@@ -294,13 +313,13 @@ class XPathNodesTest(unittest.TestCase):
         )
         text = TextNode('betelgeuse')
 
-        self.assertEqual(document.kind, 'document')
-        self.assertEqual(element.kind, 'element')
-        self.assertEqual(attribute.kind, 'attribute')
-        self.assertEqual(namespace.kind, 'namespace')
-        self.assertEqual(comment.kind, 'comment')
-        self.assertEqual(pi.kind, 'processing-instruction')
-        self.assertEqual(text.kind, 'text')
+        self.assertEqual(document.node_kind, 'document')
+        self.assertEqual(element.node_kind, 'element')
+        self.assertEqual(attribute.node_kind, 'attribute')
+        self.assertEqual(namespace.node_kind, 'namespace')
+        self.assertEqual(comment.node_kind, 'comment')
+        self.assertEqual(pi.node_kind, 'processing-instruction')
+        self.assertEqual(text.node_kind, 'text')
 
     def test_name_property(self):
         root = self.context.root
@@ -415,9 +434,9 @@ class XPathNodesTest(unittest.TestCase):
         root = ElementTree.XML('<root a="10">text</root>')
         context = XPathContext(root)
 
-        self.assertFalse(context.root.is_schema_node())
-        self.assertFalse(context.root.attributes[0].is_schema_node())
-        self.assertFalse(context.root.children[0].is_schema_node())
+        self.assertFalse(context.root.is_schema_node)
+        self.assertFalse(context.root.attributes[0].is_schema_node)
+        self.assertFalse(context.root.children[0].is_schema_node)
 
         if xmlschema is not None:
             schema = xmlschema.XMLSchema(dedent("""
@@ -427,9 +446,9 @@ class XPathNodesTest(unittest.TestCase):
                 </xs:schema>"""))
 
             context = XPathSchemaContext(schema)
-            self.assertTrue(context.root.is_schema_node())  # Is the schema
-            self.assertTrue(context.root.attributes[0].is_schema_node())
-            self.assertTrue(context.root.children[0].is_schema_node())
+            self.assertTrue(context.root.is_schema_node)  # Is the schema
+            self.assertTrue(context.root.attributes[0].is_schema_node)
+            self.assertTrue(context.root.children[0].is_schema_node)
 
     def test_etree_iter_paths(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')

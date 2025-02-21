@@ -592,7 +592,7 @@ class XPathToken(Token[XPathTokenType]):
                     else:
                         yield result.uri
                 elif isinstance(result, DocumentNode):
-                    if result.is_extended():
+                    if result.is_extended:
                         # cannot represent with an ElementTree: yield the document node
                         yield result
                     elif result is context.root or result is not context.document:
@@ -626,7 +626,7 @@ class XPathToken(Token[XPathTokenType]):
                     else:
                         results.append(item.uri)
                 elif isinstance(item, DocumentNode):
-                    if item.is_extended():
+                    if item.is_extended:
                         results.append(item)
                     elif item is not context.document or item is context.root:
                         results.append(item.value)

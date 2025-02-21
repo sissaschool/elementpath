@@ -321,7 +321,7 @@ def match_sequence_type(value: Any,
             return all(match_st(k, key_st) and match_st(v, value_st) for k, v in v.items())
 
         if isinstance(v, XPathNode):
-            value_kind = v.kind
+            node_kind = v.node_kind
         elif '(' in st:
             return False
         elif not strict and st == 'xs:anyURI' and isinstance(v, str):
@@ -334,11 +334,11 @@ def match_sequence_type(value: Any,
 
         if st == 'node()':
             return True
-        elif not st.startswith(value_kind) or not st.endswith(')'):
+        elif not st.startswith(node_kind) or not st.endswith(')'):
             return False
-        elif st == f'{value_kind}()':
+        elif st == f'{node_kind}()':
             return True
-        elif value_kind == 'document':
+        elif node_kind == 'document':
             element_test = st[14:-1]
             if not element_test:
                 return True
@@ -346,7 +346,7 @@ def match_sequence_type(value: Any,
             return any(
                 match_st(e, element_test) for e in document if isinstance(e, ElementNode)
             )
-        elif value_kind not in ('element', 'attribute'):
+        elif node_kind not in ('element', 'attribute'):
             return False
 
         _, params = st[:-1].split('(')

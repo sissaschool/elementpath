@@ -852,7 +852,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
             'fn:parse-xml-fragment("<alpha>abcd</alpha><beta>abcd</beta>")'
         ).evaluate(context)
         self.assertIsInstance(result, DocumentNode)
-        self.assertTrue(result.is_extended())
+        self.assertTrue(result.is_extended)
         self.assertTrue(is_etree_document(result.document))
         self.assertEqual(result[0].elem.tag, 'alpha')
         self.assertEqual(result[0].elem.text, 'abcd')
@@ -864,7 +864,7 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         ).evaluate(context)
         self.assertIsInstance(result, DocumentNode)
         if not is_lxml_etree_document(result.document):
-            self.assertTrue(result.is_extended())
+            self.assertTrue(result.is_extended)
 
         self.assertTrue(is_etree_document(result.document))
         self.assertEqual(result[0].value, 'He was ')

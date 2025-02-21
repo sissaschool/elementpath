@@ -72,7 +72,7 @@ def deep_equal(seq1: Iterable[Any],
                 return False
             elif isinstance(value1, XPathNode):
                 assert isinstance(value2, XPathNode)
-                if value1.kind != value2.kind:
+                if value1.__class__ != value2.__class__:
                     return False
                 elif isinstance(value1, etree_node_types):
                     assert isinstance(value2, etree_node_types)
@@ -83,7 +83,7 @@ def deep_equal(seq1: Iterable[Any],
                     for child1, child2 in zip_longest(value1, value2):
                         if child1 is None or child2 is None:
                             return False
-                        elif child1.kind != child2.kind:
+                        elif child1.__class__ != child2.__class__:
                             return False
                         elif isinstance(child1, etree_node_types):
                             assert isinstance(child2, etree_node_types)
@@ -244,7 +244,7 @@ def deep_compare(obj1: Any,
                 raise xpath_error('XPTY0004', msg, token=token)
             elif isinstance(value1, XPathNode):
                 assert isinstance(value2, XPathNode)
-                if value1.kind != value2.kind:
+                if value1.__class__ != value2.__class__:
                     msg = f"cannot compare {type(value1)} with {type(value2)}"
                     raise xpath_error('XPTY0004', msg, token=token)
                 elif isinstance(value1, etree_node_types):
@@ -259,7 +259,7 @@ def deep_compare(obj1: Any,
                             return -1
                         elif child2 is None:
                             return 1
-                        elif child1.kind != child2.kind:
+                        elif child1.__class__ != child2.__class__:
                             msg = f"cannot compare {type(child1)} with {type(child2)}"
                             raise xpath_error('XPTY0004', msg, token=token)
                         elif isinstance(child1, etree_node_types):

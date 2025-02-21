@@ -16,7 +16,7 @@ from xml.etree import ElementTree
 from elementpath._typing import Deque, Iterator
 from elementpath.exceptions import ElementPathRuntimeError
 from elementpath.aliases import NamespacesType, NsmapType, SequenceType
-from elementpath.datatypes import UntypedAtomic, AtomicType
+from elementpath.datatypes import UntypedAtomic, AtomicType, AnyURI
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, XPATH_FUNCTIONS_NAMESPACE
@@ -61,16 +61,10 @@ class XPathNode:
     derivation string and typed values are not implemented. Use these classes only
     for type checking and for wrapping other types in a custom XPath node types.
     """
-
-    __slots__ = ('name', 'parent', 'position')
+    __slots__ = ()
 
     ###
     # XDM accessors
-
-    kind: str = ''
-    children: Optional[List[ChildNodeType]]
-    parent: Optional[ParentNodeType]
-    name: Optional[str]
 
     @property
     def attributes(self) -> Optional[List['AttributeNode']]:
@@ -79,6 +73,10 @@ class XPathNode:
     @property
     def base_uri(self) -> Optional[str]:
         return self.parent.base_uri if self.parent is not None else None
+
+    @property
+    def children(self) -> Optional[List[ChildNodeType]]:
+        return None
 
     @property
     def document_uri(self) -> Optional[str]:
@@ -93,16 +91,25 @@ class XPathNode:
         return None
 
     @property
-    def is_list(self) -> Optional[bool]:
-        return None
-
-    @property
     def namespace_nodes(self) -> Optional[List['NamespaceNode']]:
         return None
 
     @property
     def nilled(self) -> Optional[bool]:
         return None
+
+    @property
+    def node_kind(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def node_name(self) -> Optional[str]:
+        return None
+
+    @property
+    def parent(self) -> Optional[ParentNodeType]:
+        return None
+    # parent: Optional[ParentNodeType]
 
     @property
     def type_name(self) -> Optional[str]:
@@ -113,10 +120,6 @@ class XPathNode:
         raise NotImplementedError()
 
     @property
-    def iter_typed_values(self) -> Iterator[AtomicType]:
-        raise NotImplementedError()
-
-    @property
     def typed_value(self) -> SequenceType[AtomicType]:
         values = [v for v in self.iter_typed_values]
         if len(values) == 1:
@@ -124,15 +127,28 @@ class XPathNode:
         else:
             return values
 
+    @staticmethod
+    def unparsed_entity_public_id(name: str) -> Optional[str]:
+        return None
+
+    @staticmethod
+    def unparsed_entity_system_id(name: str) -> Optional[AnyURI]:
+        return None
+
     ###
     # Other properties and methods
+    @property
+    def position(self) -> int:
+        """Position of the node, for document total order."""
+        raise NotImplementedError()
+
+    @property
+    def name(self) -> Optional[str]:
+        return None
 
     @property
     def value(self) -> object:
         raise NotImplementedError()
-
-    position: int  # for document total order
-    xsd_type: Optional[XsdTypeProtocol]
 
     @property
     def root_node(self) -> 'XPathNode':
@@ -163,11 +179,27 @@ class XPathNode:
     def nsmap(self) -> Union[NsmapType, NamespacesType]:
         return self.parent.nsmap if self.parent is not None else {}
 
-    def is_schema_node(self) -> bool:
-        return False
+    xsd_type: Optional[XsdTypeProtocol]
 
-    def is_typed(self) -> bool:
-        return False
+    @property
+    def iter_typed_values(self) -> Iterator[AtomicType]:
+        raise NotImplementedError()
+
+    @property
+    def is_schema_node(self) -> Optional[bool]:
+        return None
+
+    @property
+    def is_typed(self) -> Optional[bool]:
+        return None
+
+    @property
+    def is_extended(self) -> Optional[bool]:
+        return None
+
+    @property
+    def is_list(self) -> Optional[bool]:
+        return None
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         """
@@ -217,10 +249,10 @@ class NamespaceNode(XPathNode):
     nilled: None
     parent: Optional['ElementNode']
     type_name: None
+    position: int
+    name: Optional[str]
 
-    kind = 'namespace'
-
-    __slots__ = ('uri',)
+    __slots__ = ('name', 'parent', 'position', 'uri')
 
     def __init__(self,
                  prefix: Optional[str], uri: str,
@@ -240,6 +272,10 @@ class NamespaceNode(XPathNode):
 
     def __repr__(self) -> str:
         return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.name, self.uri)
+
+    @property
+    def node_kind(self) -> str:
+        return 'namespace'
 
     @property
     def path(self) -> str:
@@ -277,11 +313,10 @@ class AttributeNode(XPathNode):
     namespace_nodes: None
     nilled: None
     parent: Optional['ElementNode']
+    name: Optional[str]
     value: object
 
-    kind = 'attribute'
-
-    __slots__ = ()
+    __slots__ = ('name', 'parent', 'position')
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'AttributeNode':
         if cls is AttributeNode:
@@ -297,6 +332,14 @@ class AttributeNode(XPathNode):
             return f'Q{self.name}'
         else:
             return self.name
+
+    @property
+    def node_kind(self) -> str:
+        return 'attribute'
+
+    @property
+    def node_name(self) -> Optional[str]:
+        return self.name
 
     @property
     def is_id(self) -> bool:
@@ -344,6 +387,7 @@ class AttributeNode(XPathNode):
             return f"{self.parent.schema_path}/@{self.name or _EMPTY_NAME_PATH}"
         return f'/@{self.name or _EMPTY_NAME_PATH}'
 
+    @property
     def is_typed(self) -> bool:
         return self.xsd_type is not None
 
@@ -365,6 +409,8 @@ class TextAttributeNode(AttributeNode):
     """
     name: str
     value: str
+    position: int
+    parent: Optional['ElementNode']
     schema: Optional['AbstractSchemaProxy']
     xsd_attribute: Optional[XsdAttributeProtocol]
 
@@ -447,7 +493,9 @@ class TextAttributeNode(AttributeNode):
 
 class SchemaAttributeNode(AttributeNode):
     """A class for processing XML Schema attribute nodes."""
-
+    name: Optional[str]
+    parent: Optional['ElementNode']
+    position: int
     value: XsdAttributeProtocol
 
     __slots__ = ('value', 'xsd_type')
@@ -480,6 +528,7 @@ class SchemaAttributeNode(AttributeNode):
         else:
             return self.name == name
 
+    @property
     def is_schema_node(self) -> bool:
         return True
 
@@ -503,14 +552,13 @@ class TextNode(XPathNode):
     is_idrefs: None
     namespace_nodes: None
     nilled: None
-    name: None = None
+    position: int
+    name: None
     parent: Optional['ElementNode']
     type_name: None
-
-    kind = 'text'
     value: str
 
-    __slots__ = ('value',)
+    __slots__ = ('parent', 'position', 'value',)
 
     def __init__(self,
                  value: str,
@@ -532,6 +580,10 @@ class TextNode(XPathNode):
         if isinstance(self.parent, ElementNode):
             return f"{self.parent.path}/text()[{pos}]"
         return f"/text()[{pos}]"
+
+    @property
+    def node_kind(self) -> str:
+        return 'text'
 
     @property
     def string_value(self) -> str:
@@ -561,12 +613,12 @@ class CommentNode(XPathNode):
     is_idrefs: None
     namespace_nodes: None
     nilled: None
+    position: int
     name: None
+    parent: Optional[ParentNodeType]
     type_name: None
 
-    kind = 'comment'
-
-    __slots__ = ('elem',)
+    __slots__ = ('name', 'parent', 'position', 'elem')
 
     def __init__(self,
                  comment: Union[ElementType, str],
@@ -599,6 +651,10 @@ class CommentNode(XPathNode):
         return self.elem
 
     @property
+    def node_kind(self) -> str:
+        return 'comment'
+
+    @property
     def string_value(self) -> str:
         return self.elem.text or ''
 
@@ -627,11 +683,11 @@ class ProcessingInstructionNode(XPathNode):
     is_idrefs: None
     namespace_nodes: None
     nilled: None
+    parent: Optional[ParentNodeType]
+    position: int
     type_name: None
 
-    kind = 'processing-instruction'
-
-    __slots__ = ('elem',)
+    __slots__ = ('name', 'parent', 'position', 'elem')
 
     def __init__(self,
                  pi: Union[ProcessingInstructionType, str],
@@ -672,6 +728,10 @@ class ProcessingInstructionNode(XPathNode):
         return self.name
 
     @property
+    def node_kind(self) -> str:
+        return 'processing-instruction'
+
+    @property
     def string_value(self) -> str:
         if hasattr(self.elem, 'target'):
             return self.elem.text or ''
@@ -693,11 +753,12 @@ class ElementNode(XPathNode):
     Base class for XPath element nodes, used only for type checking. Element nodes
     use lazy properties to diminish the average load for a tree processing.
     """
-    kind = 'element'
+    name: Optional[str]
     elem: object
     nsmap: Union[NsmapType, NamespacesType]
     children: List[ChildNodeType]
     document_uri: None
+    parent: Optional[ParentNodeType]
 
     # Lazy protected attribute
     _uri: str
@@ -705,8 +766,8 @@ class ElementNode(XPathNode):
     _namespace_nodes: List[NamespaceNode]
     _attributes: List[AttributeNode]
 
-    __slots__ = ('elem', 'nsmap', 'xsd_type', 'children', '_uri',
-                 '_elements', '_namespace_nodes', '_attributes')
+    __slots__ = ('name', 'parent', 'position', 'elem', 'nsmap', 'xsd_type',
+                 '_uri', '_elements', '_namespace_nodes', '_attributes')
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'ElementNode':
         if cls is ElementNode:
@@ -738,6 +799,14 @@ class ElementNode(XPathNode):
     @property
     def value(self) -> object:
         return self.elem
+
+    @property
+    def node_kind(self) -> str:
+        return 'element'
+
+    @property
+    def node_name(self) -> Optional[str]:
+        return self.name
 
     @property
     def is_id(self) -> bool:
@@ -829,6 +898,7 @@ class ElementNode(XPathNode):
         else:
             return self.nsmap.get('')
 
+    @property
     def is_typed(self) -> bool:
         return self.xsd_type is not None
 
@@ -989,13 +1059,15 @@ class EtreeElementNode(ElementNode):
 
     """
     name: str
+    position: int
+    parent: Optional[ParentNodeType]
     elem: ElementType
     schema: Optional['AbstractSchemaProxy']
     xsd_type: Optional[XsdTypeProtocol]
     xsd_element: Optional[XsdElementProtocol]
     _schema_path: str
 
-    __slots__ = ('nsmap', 'schema', '_schema_path', 'xsd_element')
+    __slots__ = ('children', 'nsmap', 'schema', '_schema_path', 'xsd_element')
 
     def __init__(self,
                  elem: ElementType,
@@ -1130,6 +1202,7 @@ class EtreeElementNode(ElementNode):
         else:
             yield from get_atomic_sequence(self.xsd_type, '')
 
+    @property
     def is_typed(self) -> bool:
         return self.xsd_type is not None
 
@@ -1245,10 +1318,11 @@ class SchemaElementNode(ElementNode):
     The resulting structure can be a tree or a set of disjoint trees.
     With more roots only one of them is the schema node.
     """
+    position: int
     ref: Optional['SchemaElementNode'] = None
     elem: SchemaElemType
 
-    __slots__ = ('nsmap', '__dict__')
+    __slots__ = ('name', 'parent', 'children', 'nsmap', '__dict__')
 
     def __init__(self,
                  elem: SchemaElemType,
@@ -1391,6 +1465,7 @@ class SchemaElementNode(ElementNode):
             return '/'
         return super().path
 
+    @property
     def is_schema_node(self) -> bool:
         return True
 
@@ -1412,14 +1487,13 @@ class DocumentNode(XPathNode):
     is_idrefs: None
     namespace_nodes: None
     nilled: None
+    position: int
     name: None
     parent: None
     type_name: None
-
-    kind = 'document'
     elements: Dict[ElementProtocol, ElementNode]
 
-    __slots__ = 'document', 'uri', 'elements', 'children'
+    __slots__ = ('name', 'parent', 'position', 'children', 'document', 'uri', 'elements')
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'DocumentNode':
         if cls is DocumentNode:
@@ -1440,6 +1514,10 @@ class DocumentNode(XPathNode):
 
     def __repr__(self) -> str:
         return '%s(document=%r)' % (self.__class__.__name__, self.document)
+
+    @property
+    def node_kind(self) -> str:
+        return 'document'
 
     @property
     def base_uri(self) -> Optional[str]:
@@ -1513,6 +1591,7 @@ class DocumentNode(XPathNode):
         else:
             return None
 
+    @property
     def is_typed(self) -> bool:
         for child in self.children:
             if isinstance(child, ElementNode):
@@ -1520,6 +1599,7 @@ class DocumentNode(XPathNode):
         else:
             return False
 
+    @property
     def is_extended(self) -> bool:
         """
         Returns `True` if the document node can't be represented with an
@@ -1550,6 +1630,7 @@ class EtreeDocumentNode(DocumentNode):
             return ''.join(etree_iter_strings(root))
         return ''.join(child.string_value for child in self.children)
 
+    @property
     def is_extended(self) -> bool:
         """
         Returns `True` if the document node can't be represented with an
