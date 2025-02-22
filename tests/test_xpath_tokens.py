@@ -165,7 +165,7 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertListEqual(list(token.select_results(context)), [elem])
 
         context = XPathContext(elem, item=elem)
-        context.root.xsd_type = xsd_type
+        setattr(context.root, '_xsd_type', xsd_type)
         self.assertListEqual(list(token.select_results(context)), [elem])
 
         context = XPathContext(elem)
@@ -174,7 +174,7 @@ class XPath1TokenTest(unittest.TestCase):
 
         context = XPathContext(elem)
         context.item = context.root.attributes[0]
-        context.item.xsd_type = xsd_type
+        setattr(context.item, '_xsd_type', xsd_type)
         self.assertListEqual(list(token.select_results(context)), ['30'])
 
         context = XPathContext(elem, item=10)
@@ -234,7 +234,7 @@ class XPath1TokenTest(unittest.TestCase):
         if self.parser.version != '1.0':
             xsd_type = DummyXsdType()
             context = XPathContext(ElementTree.XML('<age>19</age>'))
-            context.root.xsd_type = xsd_type
+            setattr(context.root, '_xsd_type', xsd_type)
             self.assertEqual(token.data_value(context.root), 19)
 
         obj = AttributeNode('age', '19')
@@ -329,7 +329,7 @@ class XPath1TokenTest(unittest.TestCase):
             xsd_type = DummyXsdType()
             element.text = '10'
             typed_elem = EtreeElementNode(elem=element)
-            setattr(typed_elem, 'xsd_type', xsd_type)
+            setattr(typed_elem, '_xsd_type', xsd_type)
             self.assertEqual(token.string_value(typed_elem), '10')
             self.assertEqual(token.data_value(typed_elem), 10)
 
@@ -506,11 +506,11 @@ class XPath2TokenTest(XPath1TokenTest):
             context = XPathSchemaContext(root=schema.meta_schema, axis='self')
             xsd_attribute = schema.attributes['a']
             context.item = AttributeNode('a', xsd_attribute)
-            context.item.xsd_type = xsd_attribute.type
+            setattr(context.item, '_xsd_type', xsd_attribute.type)
 
             obj = list(context.iter_matching_nodes('a'))
             self.assertIsInstance(obj[0], AttributeNode)
-            self.assertIsNotNone(obj[0].xsd_type)
+            self.assertIsNotNone(obj[0]._xsd_type)
 
             root_token.xsd_types = None
             context = XPathSchemaContext(root=schema)
@@ -518,7 +518,7 @@ class XPath2TokenTest(XPath1TokenTest):
             self.assertIsNone(root_token.xsd_types)
 
             context = XPathSchemaContext(root=schema.meta_schema, axis='self')
-            attribute = context.item = SchemaAttributeNode('a', schema.attributes['a'])
+            attribute = context.item = SchemaAttributeNode(schema.attributes['a'])
 
             obj = list(context.iter_matching_nodes('a'))
             self.assertIsInstance(obj[0], AttributeNode)

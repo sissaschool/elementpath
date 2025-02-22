@@ -794,7 +794,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
             root = self.etree.XML('<root>hello</root>')
             context = XPathContext(root)
             with self.schema_bound_parser(schema.elements['root'].xpath_proxy):
-                context.root.xsd_type = schema.elements['root'].type
+                context.root._xsd_type = schema.elements['root'].type
                 self.check_select("self::element(*, xs:string)", [context.root], context)
                 self.check_select("self::element(*, xs:int)", [], context)
 

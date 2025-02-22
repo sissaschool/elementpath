@@ -66,7 +66,7 @@ def get_node_tree(root: RootArgType,
                 return root_node
         elif fragment is False and \
                 isinstance(root, ElementNode) and \
-                is_etree_element_instance(root.elem):
+                is_etree_element_instance(root.obj):
             return root.get_document_node(replace=False)
 
         return root
@@ -182,7 +182,7 @@ def build_node_tree(root: ElementTreeRootType,
                 child = CommentNode(elem, parent, position)
                 position += 1
             else:
-                child = ProcessingInstructionNode(elem, parent, position)
+                child = ProcessingInstructionNode(elem, None, parent, position)
                 position += 1
 
             elements[elem] = child
@@ -268,7 +268,7 @@ def build_lxml_node_tree(root: LxmlRootType,
             if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
                 child = CommentNode(elem, document_node, position)
             else:
-                child = ProcessingInstructionNode(elem, document_node, position)
+                child = ProcessingInstructionNode(elem, None, document_node, position)
 
             elements[elem] = child
             document_node.children.append(child)
@@ -328,7 +328,7 @@ def build_lxml_node_tree(root: LxmlRootType,
                 child = CommentNode(elem, parent, position)
                 position += 1
             else:
-                child = ProcessingInstructionNode(elem, parent, position)
+                child = ProcessingInstructionNode(elem, None, parent, position)
                 position += 1
 
             elements[elem] = child
@@ -356,7 +356,7 @@ def build_lxml_node_tree(root: LxmlRootType,
                     if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
                         child = CommentNode(elem, document_node, position)
                     else:
-                        child = ProcessingInstructionNode(elem, document_node, position)
+                        child = ProcessingInstructionNode(elem, None, document_node, position)
 
                     elements[elem] = child
                     document_node.children.append(child)

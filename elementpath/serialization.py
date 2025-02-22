@@ -138,7 +138,7 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
                 kwargs[key] = value
 
     elif isinstance(params, ElementNode):
-        root = cast(Union[EtreeElementProtocol, LxmlElementProtocol], params.elem)
+        root = cast(Union[EtreeElementProtocol, LxmlElementProtocol], params.obj)
         if root.tag != SERIALIZATION_PARAMS:
             msg = 'output:serialization-parameters tag expected'
             raise xpath_error('XPTY0004', msg, token)
@@ -289,14 +289,14 @@ def serialize_to_xml(elements: Iterable[Any],
     chunks = []
     for item in iter_normalized(elements, item_separator):
         if isinstance(item, ElementNode):
-            item = item.elem
+            item = item.obj
         elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise xpath_error('SENR0001', token=token)
         elif isinstance(item, TextNode):
             if item.parent is not None and item.parent.name in cdata_section:
-                chunks.append(f'<![CDATA[{item.value}]]>')
+                chunks.append(f'<![CDATA[{item.obj}]]>')
             else:
-                chunks.append(item.value)
+                chunks.append(item.obj)
             continue
         elif not isinstance(item, str):
             raise xpath_error('SENR0001', token=token)
@@ -347,7 +347,7 @@ def serialize_to_json(elements: Iterable[Any],
                 if isinstance(obj, DocumentNode):
                     return ''.join(self.default(child) for child in obj)
                 elif isinstance(obj, ElementNode):
-                    elem = obj.elem
+                    elem = obj.obj
                     assert etree_module is not None
 
                     try:
@@ -363,7 +363,7 @@ def serialize_to_json(elements: Iterable[Any],
                 elif isinstance(obj, (AttributeNode, NamespaceNode)):
                     return f'{obj.name}="{obj.string_value}"'
                 elif isinstance(obj, TextNode):
-                    return obj.value
+                    return obj.obj
                 elif isinstance(obj, CommentNode):
                     return f'<!--{obj.string_value}-->'
                 else:

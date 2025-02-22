@@ -296,7 +296,6 @@ def evaluate_instance_expression(self: XPathToken, context: ContextType = None) 
             raise self.missing_context()
 
         context = copy(context)
-
         for position, context.item in enumerate(self[0].select(context)):
             if context.axis is None:
                 context.axis = 'self'
@@ -787,12 +786,12 @@ def select_element_kind_test(self: XPathFunction, context: ContextType = None) \
                 if item.nilled:
                     if self[1].occurrence in ('*', '?'):
                         yield item
-                elif item.xsd_type is not None:
-                    if type_annotation == item.xsd_type.name:
+                elif item.type_name == type_annotation:
+                    if type_annotation != XSD_UNTYPED:
                         yield item
-                    elif is_instance(item.typed_value, type_annotation, self.parser):
+                    elif self[0].symbol != '*':
                         yield item
-                elif type_annotation == XSD_UNTYPED and self[0].symbol != '*':
+                elif is_instance(item.typed_value, type_annotation, self.parser):
                     yield item
 
 

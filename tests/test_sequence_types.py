@@ -212,11 +212,11 @@ class SequenceTypesTest(unittest.TestCase):
                   <xs:element name="root" type="xs:string"/>
                 </xs:schema>'''))
 
-            root.xsd_type = schema.maps.types[XSD_STRING]
+            root._xsd_type = schema.maps.types[XSD_STRING]
             self.assertFalse(match_sequence_type(root, 'element(root, xs:untyped)'))
-            root.xsd_type = None
+            root._xsd_type = None
 
-        root.elem.attrib[XSI_NIL] = 'true'
+        root.obj.attrib[XSI_NIL] = 'true'
         self.assertFalse(match_sequence_type(root, 'element(root, xs:untyped)'))
         self.assertTrue(match_sequence_type(root, 'element(root, xs:untyped?)'))
         root.elem.attrib.pop(XSI_NIL)

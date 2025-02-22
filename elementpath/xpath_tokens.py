@@ -596,9 +596,9 @@ class XPathToken(Token[XPathTokenType]):
                         # cannot represent with an ElementTree: yield the document node
                         yield result
                     elif result is context.root or result is not context.document:
-                        yield result.value
+                        yield result.obj
                 else:
-                    yield result.value
+                    yield result.obj
 
     def get_results(self, context: ContextType) \
             -> Union[List[_ResultType], AtomicType]:
@@ -629,9 +629,9 @@ class XPathToken(Token[XPathTokenType]):
                     if item.is_extended:
                         results.append(item)
                     elif item is not context.document or item is context.root:
-                        results.append(item.value)
+                        results.append(item.obj)
                 else:
-                    results.append(item.value)
+                    results.append(item.obj)
 
         if len(results) == 1 and not isinstance(item, (ElementNode, DocumentNode)):
             if isinstance(item, (bool, int, float, Decimal)):

@@ -155,7 +155,7 @@ def evaluate_namespace_uri_for_prefix_function(
     if not isinstance(elem, EtreeElementNode):
         return []
 
-    ns_uris = {get_namespace(e.tag) for e in elem.elem.iter() if not callable(e.tag)}
+    ns_uris = {get_namespace(e.tag) for e in elem.obj.iter() if not callable(e.tag)}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
             if p == prefix:
@@ -180,7 +180,7 @@ def select_in_scope_prefixes_function(self: XPathFunction, context: ContextType 
     if not isinstance(arg, ElementNode):
         raise self.error('XPTY0004', 'argument %r is not an element node' % arg)
 
-    elem = arg.elem
+    elem = arg.obj
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
         for pfx, uri in self.parser.namespaces.items():
@@ -1480,15 +1480,15 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
         raise self.error('XPTY0004')
     elif isinstance(item, EtreeElementNode):
         try:
-            attr = item.elem.attrib[XML_LANG]
+            attr = item.obj.attrib[XML_LANG]
         except KeyError:
             if len(self) > 1 or context is None:
                 return False
 
             for elem in context.iter_ancestors():
                 if isinstance(elem, EtreeElementNode):
-                    if XML_LANG in elem.elem.attrib:
-                        lang = cast(str, elem.elem.attrib[XML_LANG])
+                    if XML_LANG in elem.obj.attrib:
+                        lang = cast(str, elem.obj.attrib[XML_LANG])
                         break
             else:
                 return False
@@ -1547,14 +1547,14 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
         if not isinstance(element, EtreeElementNode):
             continue
 
-        if element.elem.text in idrefs:
+        if element.obj.text in idrefs:
             if self.parser.schema is not None:
                 xsd_element = self.parser.schema.find(element.schema_path)
                 if xsd_element is None or not hasattr(xsd_element, 'type') or \
                         xsd_element.type is None or not xsd_element.type.is_key():
                     continue
 
-            idrefs.remove(element.elem.text)
+            idrefs.remove(element.obj.text)
             if self.symbol == 'id':
                 yield element
             else:
@@ -1564,12 +1564,12 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
             continue  # pragma: no cover
 
         for attr in element.attributes:
-            if not isinstance(attr.value, str):
+            if not isinstance(attr.obj, str):
                 continue
 
-            if attr.value in idrefs:
+            if attr.obj in idrefs:
                 if attr.name == XML_ID:
-                    idrefs.remove(attr.value)
+                    idrefs.remove(attr.obj)
                     yield element
                     break
 
@@ -1588,7 +1588,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
                     if xsd_attribute.type is None or not xsd_attribute.type.is_key():
                         continue  # pragma: no cover
 
-                    idrefs.remove(attr.value)
+                    idrefs.remove(attr.obj)
                     yield element
                     break
 
@@ -1612,7 +1612,7 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
             if not isinstance(element, EtreeElementNode):
                 continue
 
-            text = element.elem.text
+            text = element.obj.text
             if text and is_idrefs(text) and \
                     any(v in text.split() for x in ids for v in x.split()):
                 yield element
@@ -1620,8 +1620,8 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
 
             if element.attributes:
                 for attr in element.attributes:  # pragma: no cover
-                    if attr.name != XML_ID and isinstance(attr.value, str) and \
-                            any(v in attr.value.split() for x in ids for v in x.split()):
+                    if attr.name != XML_ID and isinstance(attr.obj, str) and \
+                            any(v in attr.obj.split() for x in ids for v in x.split()):
                         yield element
                         break
 

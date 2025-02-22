@@ -152,7 +152,7 @@ class XPathContext:
             self.document = self.root
         elif fragment is None and \
                 isinstance(self.root, ElementNode) and \
-                is_etree_element_instance(self.root.elem):
+                is_etree_element_instance(self.root.obj):
             # Creates a dummy document that will be not included in results
             self.document = self.root.get_document_node(replace=False, as_parent=False)
         else:
@@ -197,9 +197,9 @@ class XPathContext:
 
     def __repr__(self) -> str:
         if self.root is not None:
-            return f'{self.__class__.__name__}(root={self.root.value})'
+            return f'{self.__class__.__name__}(root={self.root.obj})'
         elif isinstance(self.item, XPathNode):
-            return f'{self.__class__.__name__}(item={self.item.value})'
+            return f'{self.__class__.__name__}(item={self.item.obj})'
         else:
             return f'{self.__class__.__name__}(item={self.item!r})'
 
@@ -219,10 +219,10 @@ class XPathContext:
     @cached_property
     def etree(self) -> ModuleType:
         if isinstance(self.root, (DocumentNode, ElementNode)):
-            module_name = self.root.value.__class__.__module__
+            module_name = self.root.obj.__class__.__module__
         elif isinstance(self.item, (DocumentNode, ElementNode, CommentNode,
                                     ProcessingInstructionNode)):
-            module_name = self.item.value.__class__.__module__
+            module_name = self.item.obj.__class__.__module__
         else:
             module_name = 'xml.etree.ElementTree'
 
@@ -273,12 +273,12 @@ class XPathContext:
         if isinstance(item, (XPathNode, AnyAtomicType)):
             return item
         elif is_etree_document(item):
-            if self.root is not None and item is self.root.value:
+            if self.root is not None and item is self.root.obj:
                 return self.root
 
             if self.documents:
                 for doc in self.documents.values():
-                    if doc is not None and item is doc.value:
+                    if doc is not None and item is doc.obj:
                         return doc
 
         elif is_etree_element(item):
@@ -336,7 +336,7 @@ class XPathContext:
                 # With predicate select nodes that have not single list value
                 # must be replaced by value.
                 if isinstance(item, (AttributeNode, ElementNode)) and item.is_list:
-                    if self.schema is not None and item.xsd_type is None:
+                    if self.schema is not None and item._xsd_type is None:
                         if isinstance(item, (EtreeElementNode, TextAttributeNode)):
                             if item.schema is None:
                                 item.set_schema(self.schema)
@@ -634,7 +634,7 @@ class XPathSchemaContext(XPathContext):
         super().__init__(*args, **kwargs)
         if self.schema is None:
             # Workaround for binding schema to context and then to parser
-            self.schema = getattr(self.root.elem, 'xpath_proxy', None)
+            self.schema = getattr(self.root.obj, 'xpath_proxy', None)
 
     def typing_nodes(self, sequence: Iterator[ItemType]) -> Iterator[ItemType]:
         yield from sequence
