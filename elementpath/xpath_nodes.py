@@ -8,13 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import importlib
+from abc import ABCMeta, abstractmethod
 from collections import deque
 from urllib.parse import urljoin
 from typing import cast, Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from xml.etree import ElementTree
 
 from elementpath._typing import Deque, Iterator
-from elementpath.exceptions import ElementPathRuntimeError
+from elementpath.exceptions import ElementPathRuntimeError, ElementPathValueError, \
+    ElementPathKeyError
 from elementpath.aliases import NamespacesType, NsmapType, SequenceType
 from elementpath.datatypes import UntypedAtomic, AtomicType, AnyURI, QName
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
@@ -112,7 +114,7 @@ class XPathNode:
         try:
             namespace, local = name[1:].split('}')
         except ValueError:
-            raise ElementPathRuntimeError(f'invalid name format for {self!r}')
+            raise ElementPathValueError(f'invalid name format for {self!r}')
         else:
             if namespace == XML_NAMESPACE:
                 return QName(namespace, f'xml:{local}')
@@ -129,7 +131,7 @@ class XPathNode:
                 if not prefix:
                     return QName(namespace, local)
                 return QName(namespace, f"{prefix}:{local}")
-        raise ElementPathRuntimeError(f'missing namespace prefix mapping in {self!r}')
+        raise ElementPathKeyError(f'missing namespace prefix mapping in {self!r}')
 
     parent: Optional[ParentNodeType]
 
@@ -194,7 +196,7 @@ class XPathNode:
         path = path.replace('Q{}', '')
         if 'Q{' not in path:
             return path
-        raise ElementPathRuntimeError(f'missing namespace prefix mapping in {path}')
+        raise ElementPathKeyError(f'missing namespace prefix mapping in {path}')
 
     @property
     def iter_typed_values(self) -> Iterator[AtomicType]:
@@ -476,6 +478,11 @@ class TextAttributeNode(AttributeNode):
                     if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
                         self.xsd_attribute = cast(XsdAttributeProtocol, xsd_attribute)
                         self._xsd_type = xsd_attribute.type
+                        if self._xsd_type is None:
+                            xsd_attribute = schema.get_attribute(self.name)
+                            if xsd_attribute is not None:
+                                self.xsd_attribute = xsd_attribute
+                                self._xsd_type = xsd_attribute.type
 
         if schema.attribute_type is not None:
             self._xsd_type = schema.attribute_type
@@ -1219,8 +1226,12 @@ class EtreeElementNode(ElementNode):
             self._xsd_type = schema.element_type
         elif XSI_TYPE in self.obj.attrib and \
                 isinstance(xsi_type := self.obj.attrib[XSI_TYPE], str):
-            type_name = get_expanded_name(xsi_type, self.nsmap)
-            self._xsd_type = schema.get_type(type_name)
+            try:
+                type_name = get_expanded_name(xsi_type, self.nsmap)
+            except KeyError:
+                self._xsd_type = None
+            else:
+                self._xsd_type = schema.get_type(type_name)
         else:
             self._xsd_type = None
 
@@ -1238,7 +1249,12 @@ class EtreeElementNode(ElementNode):
         elif (xsd_element := schema.find(schema_path + '*')) is not None:
             if hasattr(xsd_element, 'type'):
                 self.xsd_element = cast(Optional[XsdElementProtocol], xsd_element)
-                if self._xsd_type is None:
+                if self._xsd_type is not None:
+                    pass
+                elif xsd_element.type is not None:
+                    self._xsd_type = xsd_element.type
+                elif (xsd_element := schema.get_element(self.name)) is not None:
+                    self.xsd_element = xsd_element
                     self._xsd_type = xsd_element.type
 
         if hasattr(self, '_schema_path'):
