@@ -18,10 +18,12 @@ from elementpath.exceptions import ElementPathRuntimeError
 from elementpath.aliases import NamespacesType, NsmapType, SequenceType
 from elementpath.datatypes import UntypedAtomic, AtomicType, AnyURI, QName
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
-    XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, XPATH_FUNCTIONS_NAMESPACE
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSI_TYPE, \
+    XML_ID, XSD_IDREF, XSD_IDREFS, XSD_UNTYPED, XSD_UNTYPED_ATOMIC, \
+    XPATH_FUNCTIONS_NAMESPACE, get_expanded_name
 from elementpath.protocols import ElementProtocol, XsdElementProtocol, \
-    XsdAttributeProtocol, XsdTypeProtocol, DocumentType, ElementType, SchemaElemType
+    XsdAttributeProtocol, XsdTypeProtocol, DocumentType, ElementType, \
+    SchemaElemType, CommentType, ProcessingInstructionType
 from elementpath.helpers import match_wildcard, is_absolute_uri
 from elementpath.decoder import get_atomic_sequence
 from elementpath.etree import etree_iter_strings, is_etree_element_instance
@@ -113,7 +115,7 @@ class XPathNode:
             raise ElementPathRuntimeError(f'invalid name format for {self!r}')
         else:
             if namespace == XML_NAMESPACE:
-                return QName(namespace, f'xml:{local}'  )
+                return QName(namespace, f'xml:{local}')
 
         if isinstance(self, ElementNode):
             nsmap = self.nsmap
@@ -647,12 +649,12 @@ class CommentNode(XPathNode):
     :param position: the position of the node in the document.
     """
     name: None
-    obj: ElementType
+    obj: CommentType
 
     __slots__ = ()
 
     def __init__(self,
-                 content: Union[ElementType, str],
+                 content: Union[CommentType, str],
                  parent: Union[ParentNodeType, None] = None,
                  position: int = 1) -> None:
 
@@ -668,7 +670,7 @@ class CommentNode(XPathNode):
         return '%s(%r)' % (self.__class__.__name__, self.obj.text or '')
 
     @property
-    def content(self) -> ElementType:
+    def content(self) -> CommentType:
         return self.obj
 
     elem = value = content
@@ -717,12 +719,12 @@ class ProcessingInstructionNode(XPathNode):
     :param position: the position of the node in the document.
     """
     name: str
-    obj: ElementType
+    obj: ProcessingInstructionType
 
     __slots__ = ()
 
     def __init__(self,
-                 target: Union[str, ElementType],
+                 target: Union[str, ProcessingInstructionType],
                  content: Optional[str] = None,
                  parent: Optional[ParentNodeType] = None,
                  position: int = 1) -> None:
@@ -754,7 +756,7 @@ class ProcessingInstructionNode(XPathNode):
             return (self.obj.text or '').partition(' ')[-1]
 
     @property
-    def elem(self) -> ElementType:
+    def elem(self) -> ProcessingInstructionType:
         return self.obj
     value = elem
 
@@ -1252,7 +1254,15 @@ class EtreeElementNode(ElementNode):
     def set_schema(self, schema: 'AbstractSchemaProxy') -> None:
         self.schema = schema
         self.xsd_element = None
-        self._xsd_type = None
+
+        if schema.element_type is not None:
+            self._xsd_type = schema.element_type
+        elif XSI_TYPE in self.obj.attrib and \
+                isinstance(xsi_type := self.obj.attrib[XSI_TYPE], str):
+            type_name = get_expanded_name(xsi_type, self.nsmap)
+            self._xsd_type = schema.get_type(type_name)
+        else:
+            self._xsd_type = None
 
         if isinstance(self.parent, EtreeElementNode):
             schema_path = f'{self.parent.schema_path}/'
@@ -1262,15 +1272,15 @@ class EtreeElementNode(ElementNode):
         xsd_element = schema.find(schema_path + self.name)
         if xsd_element is not None and hasattr(xsd_element, 'type'):
             self.xsd_element = cast(Optional[XsdElementProtocol], xsd_element)
-            self._xsd_type = xsd_element.type
+            if self._xsd_type is None:
+                self._xsd_type = xsd_element.type
 
         elif (xsd_element := schema.find(schema_path + '*')) is not None:
             if hasattr(xsd_element, 'type'):
                 self.xsd_element = cast(Optional[XsdElementProtocol], xsd_element)
-                self._xsd_type = xsd_element.type
+                if self._xsd_type is None:
+                    self._xsd_type = xsd_element.type
 
-        if schema.element_type is not None:
-            self._xsd_type = schema.element_type
         if hasattr(self, '_schema_path'):
             delattr(self, '_schema_path')
 
