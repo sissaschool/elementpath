@@ -78,14 +78,16 @@ class XMLSchemaContextTest(unittest.TestCase):
         context = XPathSchemaContext(self.schema1)
 
         token = parser.parse('tst:a')
-        self.assertEqual(token.symbol, ':')
+        self.assertEqual(token.symbol, '(root)')
+        self.assertEqual(token[0].symbol, ':')
 
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [context.root[0]])
 
         token = parser.parse('tst:a/b1')
-        self.assertEqual(token.symbol, '/')
-        self.assertEqual(token[0].symbol, ':')
+        self.assertEqual(token.symbol, '(root)')
+        self.assertEqual(token[0].symbol, '/')
+        self.assertEqual(token[0][0].symbol, ':')
 
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [context.root[0][0]])
@@ -95,8 +97,8 @@ class XMLSchemaContextTest(unittest.TestCase):
         self.assertListEqual(result, [])
 
         token = parser.parse('tst:a/tst:b3')
-        self.assertEqual(token.symbol, '/')
-        self.assertEqual(token[0].symbol, ':')
+        self.assertEqual(token[0].symbol, '/')
+        self.assertEqual(token[0][0].symbol, ':')
 
         result = token.evaluate(copy(context))
         self.assertListEqual(result, [context.root[0][2]])
@@ -106,10 +108,10 @@ class XMLSchemaContextTest(unittest.TestCase):
         context = XPathSchemaContext(self.schema1)
 
         token = parser.parse('{http://xpath.test/ns}a')
-        self.assertEqual(token.symbol, '{')
-        self.assertEqual(token[0].symbol, '(string)')
-        self.assertEqual(token[1].symbol, '(name)')
-        self.assertEqual(token[1].value, 'a')
+        self.assertEqual(token[0].symbol, '{')
+        self.assertEqual(token[0][0].symbol, '(string)')
+        self.assertEqual(token[0][1].symbol, '(name)')
+        self.assertEqual(token[0][1].value, 'a')
 
         result = token.evaluate(context)
         self.assertListEqual(result, [context.root[0]])
@@ -121,15 +123,15 @@ class XMLSchemaContextTest(unittest.TestCase):
         elem_a = self.schema1.elements['a']
         elem_b3 = self.schema1.elements['b3']
         token = parser.parse('*')
-        self.assertEqual(token.symbol, '*')
+        self.assertEqual(token[0].symbol, '*')
 
         result = token.evaluate(context)
         self.assertListEqual([e.value for e in result], [elem_a, elem_b3])
 
         token = parser.parse('a/*')
-        self.assertEqual(token.symbol, '/')
-        self.assertEqual(token[0].symbol, '(name)')
-        self.assertEqual(token[1].symbol, '*')
+        self.assertEqual(token[0].symbol, '/')
+        self.assertEqual(token[0][0].symbol, '(name)')
+        self.assertEqual(token[0][1].symbol, '*')
 
         result = token.evaluate(context)
         self.assertListEqual([e.value for e in result], elem_a.type.content[:])

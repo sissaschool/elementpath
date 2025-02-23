@@ -267,7 +267,7 @@ class SequenceTypesTest(unittest.TestCase):
             match_sequence_type('1', 'tns0:string', parser)
         self.assertIn('XPST0051', str(ctx.exception))
 
-        token = parser.parse('true()')
+        token = parser.parse('true()')[0]
         self.assertFalse(match_sequence_type(1.0, 'function(*)'))
         self.assertTrue(match_sequence_type(token, 'function(*)'))
         self.assertTrue(match_sequence_type(token, 'function() as xs:boolean'))
@@ -277,13 +277,13 @@ class SequenceTypesTest(unittest.TestCase):
         self.assertFalse(match_sequence_type(1.0, 'array(*)'))
         self.assertFalse(match_sequence_type(1.0, 'map(*)'))
 
-        token = parser.parse('[1, 2, 3]')
+        token = parser.parse('[1, 2, 3]')[0]
         self.assertTrue(match_sequence_type(token, 'array(*)'))
         self.assertTrue(match_sequence_type(token, 'array(xs:integer)'))
         self.assertFalse(match_sequence_type(token, 'array(xs:string)'))
         self.assertFalse(match_sequence_type(token, 'map(*)'))
 
-        token = parser.parse('map{1: 2}')
+        token = parser.parse('map{1: 2}')[0]
         self.assertFalse(match_sequence_type(token, 'array(*)'))
         self.assertTrue(match_sequence_type(token, 'map(*)'))
         self.assertTrue(match_sequence_type(token, 'map(xs:integer, xs:integer)'))

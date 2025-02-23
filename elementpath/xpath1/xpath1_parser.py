@@ -27,7 +27,7 @@ from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.xpath_context import ContextType
 from elementpath.xpath_tokens import XPathTokenType, XPathToken, XPathAxis, \
-    XPathFunction, ProxyToken
+    XPathFunction, ProxyToken, RootToken
 
 
 class XPath1Parser(Parser[XPathTokenType]):
@@ -260,7 +260,7 @@ class XPath1Parser(Parser[XPathTokenType]):
             for _ in root_token.select(context):
                 pass
 
-        return root_token
+        return RootToken(root_token)
 
     def expected_next(self, *symbols: str, message: Optional[str] = None) -> None:
         """

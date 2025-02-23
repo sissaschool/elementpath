@@ -1038,6 +1038,30 @@ class XPathAxis(XPathToken):
         return '%s::%s' % (self.symbol, self[0].source)
 
 
+class RootToken(XPathToken):
+    """
+    A proxy token for encapsulating a parsed token tree, checking the evaluation context
+    and selecting results.
+    """
+    symbol = '(root)'
+
+    def __init__(self, token: XPathToken) -> None:
+        super().__init__(token.parser)
+        self._items.append(token)
+
+    def select_results(self, context: ContextType) -> Iterator[_ResultType]:
+        return self[0].select_results(context)
+
+    def get_results(self, context: ContextType) -> Union[List[_ResultType], AtomicType]:
+        return self[0].get_results(context)
+
+    def select(self, context: ContextType = None) -> Iterator[ItemType]:
+        return self[0].select(context)
+
+    def evaluate(self, context: ContextType = None) -> ValueType:
+        return self[0].evaluate(context)
+
+
 class ValueToken(XPathToken):
     """
     A dummy token for encapsulating a value.

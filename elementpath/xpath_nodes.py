@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import importlib
-from abc import ABCMeta, abstractmethod
 from collections import deque
 from urllib.parse import urljoin
 from typing import cast, Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union

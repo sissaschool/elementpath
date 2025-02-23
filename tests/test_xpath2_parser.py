@@ -134,7 +134,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_variable_reference(self):
         root = self.etree.XML('<a><b1/><b2/></a>')
 
-        token = self.parser.parse('$var1')
+        token = self.parser.parse('$var1')[0]
         self.assertEqual(token.source, '$var1')
         self.assertEqual(
             repr(token), f"<{token.__class__.__name__} object at {hex(id(token))}>"
@@ -149,7 +149,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 
         # Test dynamic evaluation error
         parser = XPath2Parser(namespaces={'tns': 'http://xpath.test/ns'})
-        token = parser.parse('$tns:var1')
+        token = parser.parse('$tns:var1')[0]
         parser.namespaces.pop('tns')
         with self.assertRaises(NameError) as ctx:
             token.evaluate(context)
@@ -269,7 +269,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
     def test_if_expressions(self):
         root = self.etree.XML('<A><B1><C1/><C2/></B1><B2/><B3><C3/><C4/><C5/></B3></A>')
 
-        token = self.parser.parse("if (1) then 2 else 3")
+        token = self.parser.parse("if (1) then 2 else 3")[0]
         self.assertEqual(len(token), 3)
         self.assertEqual(token.source, 'if (1) then 2 else 3')
 
@@ -277,7 +277,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_selector("if (true()) then /A/B1 else /A/B2", root, root[:1])
         self.check_selector("if (false()) then /A/B1 else /A/B2", root, root[1:2])
 
-        token = self.parser.parse("if")
+        token = self.parser.parse("if")[0]
         self.assertEqual(token.symbol, '(name)')
         self.assertEqual(token.value, 'if')
 
@@ -331,7 +331,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.check_value('some $x in (1, 2, "cat") satisfies $x * 2 = 4', True, context)
         self.check_value('every $x in (1, 2, "cat") satisfies $x * 2 = 4', False, context)
 
-        token = self.parser.parse("some")
+        token = self.parser.parse("some")[0]
         self.assertEqual(token.symbol, '(name)')
         self.assertEqual(token.value, 'some')
 
