@@ -998,8 +998,7 @@ class ElementNode(XPathNode):
     def get_document_node(self, replace: bool = True, as_parent: bool = True) -> 'DocumentNode':
         """
         Returns a `DocumentNode` for the element node. If the element belongs to a tree that
-        already has a document root, returns the document, otherwise creates a dummy document
-        if the element node wraps an Element of an ElementTree structure or return `None`.
+        already has a document root, returns the document, otherwise creates a dummy document.
 
         :param replace: if `True` the root element of the tree is replaced by the \
         document node. This is usually useful for extended data models (more element \
@@ -1007,46 +1006,7 @@ class ElementNode(XPathNode):
         :param as_parent: if `True` the root node/s of parent attribute is set with \
         the dummy document node, otherwise is set to `None`.
         """
-        root_node: ParentNodeType = self
-        while root_node.parent is not None:
-            root_node = root_node.parent
-
-        if isinstance(root_node, DocumentNode):
-            return root_node
-
-        if root_node.obj.__class__.__module__ not in ('lxml.etree', 'lxml.html'):
-            etree = ElementTree
-        else:
-            etree = importlib.import_module('lxml.etree')
-
-        if replace:
-            document = etree.ElementTree()
-            if sum(isinstance(x, ElementNode) for x in root_node.children) == 1:
-                for child in root_node.children:
-                    if isinstance(child, ElementNode):
-                        document = etree.ElementTree(cast(ElementTree.Element, child.obj))
-                        break
-
-            document_node = DocumentNode(document, root_node.uri, root_node.position)
-            for child in root_node.children:
-                document_node.children.append(child)
-                child.parent = document_node if as_parent else None
-
-            if root_node.elements is not None:
-                root_node.elements.pop(root_node, None)  # type: ignore[call-overload]
-                document_node.elements = root_node.elements
-            del root_node
-
-        else:
-            document = etree.ElementTree(cast(ElementTree.Element, root_node.obj))
-            document_node = DocumentNode(document, root_node.uri, root_node.position - 1)
-            document_node.children.append(root_node)
-            if as_parent:
-                root_node.parent = document_node
-            if root_node.elements is not None:
-                document_node.elements = root_node.elements
-
-        return document_node
+        raise NotImplementedError()
 
     def iter(self) -> Iterator[XPathNode]:
         """Iterates the tree building lazy components."""

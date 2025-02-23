@@ -249,6 +249,14 @@ class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         """
         ...
 
+    @property
+    def simple_type(self) -> Optional['XsdTypeProtocol']:
+        """
+        The instance if it's a simpleType instance or the simpleType instance used for
+        deriving a complexType with simple content, `None` otherwise.
+        """
+        ...
+
 
 class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
 

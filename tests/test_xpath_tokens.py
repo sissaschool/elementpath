@@ -40,6 +40,8 @@ class DummyXsdType:
 
     @property
     def root_type(self): return self
+    @property
+    def simple_type(self): return self
     def is_matching(self, name, default_namespace): pass
     def is_empty(self): pass
     def is_simple(self): pass

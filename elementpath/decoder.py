@@ -106,8 +106,11 @@ def get_builders(xsd_type: XsdTypeProtocol) -> List[Builder]:
 
     if xsd_type.name in ATOMIC_BUILDERS:
         return [ATOMIC_BUILDERS[xsd_type.name]]
-
-    return [builder for builder in iter_builders(xsd_type.root_type, 1)]
+    elif xsd_type.is_simple() or (simple_type := xsd_type.simple_type) is None:
+        return [builder for builder in iter_builders(xsd_type.root_type, 1)]
+    elif simple_type.name in ATOMIC_BUILDERS:
+        return [ATOMIC_BUILDERS[simple_type.name]]
+    return [builder for builder in iter_builders(simple_type.root_type, 1)]
 
 
 def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
@@ -164,4 +167,4 @@ def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
             yield dt.UntypedAtomic(text if isinstance(text, str) else '')
 
 
-__all__ = ['get_atomic_sequence']
+__all__ = ['ATOMIC_BUILDERS', 'get_atomic_sequence']
