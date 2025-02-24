@@ -22,8 +22,7 @@ from elementpath.tdop import Token
 from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, EtreeElementNode, \
-    TextAttributeNode, RootNodeType, RootArgType
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, RootArgType
 from elementpath.tree_builders import get_node_tree
 
 if TYPE_CHECKING:
@@ -334,12 +333,8 @@ class XPathContext:
             results: List[ItemType] = []
             for item in token.select(copy(self)):
                 # With predicate select nodes that have not single list value
-                # must be replaced by value.
+                # must be replaced by typed values.
                 if isinstance(item, (AttributeNode, ElementNode)) and item.is_list:
-                    if self.schema is not None and item._xsd_type is None:
-                        if isinstance(item, (EtreeElementNode, TextAttributeNode)):
-                            if item.schema is None:
-                                item.set_schema(self.schema)
                     results.extend(v for v in item.iter_typed_values)
                     continue
 
@@ -609,16 +604,6 @@ class XPathContext:
                     yield cast(ChildNodeType, self.item)
 
             self.item, self.axis = status
-
-    def typing_nodes(self, sequence: Iterator[ItemType]) -> Iterator[ItemType]:
-        if self.schema is not None:
-            for item in sequence:
-                if isinstance(item, (EtreeElementNode, TextAttributeNode)):
-                    if item.schema is None:
-                        item.set_schema(self.schema)
-                yield item
-        else:
-            yield from sequence
 
 
 class XPathSchemaContext(XPathContext):

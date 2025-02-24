@@ -9,7 +9,7 @@
 #
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
+from typing import cast, TYPE_CHECKING, Any, Dict, Optional, Set, Union
 
 from elementpath._typing import Iterator
 from elementpath.exceptions import ElementPathTypeError
@@ -18,7 +18,7 @@ from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
 from elementpath.namespaces import XSD_ANY_SIMPLE_TYPE, XSD_ANY_TYPE
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
-from elementpath.xpath_nodes import EtreeElementNode
+from elementpath.xpath_nodes import EtreeElementNode, TextAttributeNode
 from elementpath.xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -126,6 +126,38 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         elif self._base_element.parent is not self._base_element.type:
             return False
         return element_node.xsd_element.type is self._base_element.type
+
+    def fetch_element(self, element_node: EtreeElementNode, base_path: Optional[str] = None) \
+            -> Optional[XsdElementProtocol]:
+        if base_path is None:
+            base_path = '' if element_node.parent is None else element_node.parent.schema_path
+
+        xsd_element = self.find(f'{base_path}/{element_node.name}')
+        if xsd_element is not None and hasattr(xsd_element, 'type'):
+            return cast(Optional[XsdElementProtocol], xsd_element)
+        elif (xsd_element := self.find(base_path + '*')) is not None:
+            if getattr(xsd_element, 'type', None) is not None:
+                return cast(Optional[XsdElementProtocol], xsd_element)
+            elif (xsd_element := self.get_element(element_node.name)) is not None:
+                return xsd_element
+
+        return None
+
+    def fetch_attribute(self, attr: TextAttributeNode, base_path: Optional[str] = None) \
+            -> Optional[XsdAttributeProtocol]:
+        if base_path is None:
+            base_path = '' if attr.parent is not None else attr.parent.schema_path
+
+        xsd_attribute = self.find(f'{base_path}/@{attr.name}')
+        if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
+            return cast(XsdAttributeProtocol, xsd_attribute)
+        elif (xsd_attribute := self.find(f'{base_path}/@*')) is not None:
+            if getattr(xsd_attribute, 'type', None) is not None:
+                return cast(Optional[XsdAttributeProtocol], xsd_attribute)
+            elif (xsd_attribute := self.get_attribute(attr.name)) is not None:
+                return xsd_attribute
+
+        return None
 
     def get_type(self, qname: str) -> Optional[XsdTypeProtocol]:
         """

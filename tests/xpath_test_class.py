@@ -152,15 +152,15 @@ class XPathTestCase(unittest.TestCase):
         self.assertIsInstance(root_token, RootToken)
 
         if expected is None:
-            self.assertEqual(root_token[0].evaluate(context), [])
+            self.assertEqual(root_token.evaluate(context), [])
         elif isinstance(expected, type):
             if issubclass(expected, Exception):
-                self.assertRaises(expected, root_token[0].evaluate, context)
+                self.assertRaises(expected, root_token.evaluate, context)
             else:
-                self.assertIsInstance(root_token[0].evaluate(context), expected)
+                self.assertIsInstance(root_token.evaluate(context), expected)
 
         elif isinstance(expected, float):
-            value = root_token[0].evaluate(context)
+            value = root_token.evaluate(context)
             if not math.isnan(expected):
                 self.assertAlmostEqual(value, expected)
             else:
@@ -173,13 +173,13 @@ class XPathTestCase(unittest.TestCase):
                 self.assertTrue(math.isnan(value))
 
         elif isinstance(expected, list):
-            self.assertListEqual(root_token[0].evaluate(context), expected)
+            self.assertListEqual(root_token.evaluate(context), expected)
         elif isinstance(expected, set):
-            self.assertEqual(set(root_token[0].evaluate(context)), expected)
+            self.assertEqual(set(root_token.evaluate(context)), expected)
         elif isinstance(expected, XPathFunction) or not callable(expected):
-            self.assertEqual(root_token[0].evaluate(context), expected)
+            self.assertEqual(root_token.evaluate(context), expected)
         else:
-            self.assertTrue(expected(root_token[0].evaluate(context)))
+            self.assertTrue(expected(root_token.evaluate(context)))
 
     def check_select(self, path, expected, context=None):
         """

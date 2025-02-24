@@ -87,9 +87,7 @@ def select_name_literal(self: XPathToken, context: ContextType = None) \
         self.parser.schema = context.schema
 
     if isinstance(self.value, str):
-        yield from context.typing_nodes(
-            context.iter_matching_nodes(self.value, self.parser.default_namespace)
-        )
+        yield from context.iter_matching_nodes(self.value, self.parser.default_namespace)
 
 
 ###
@@ -200,7 +198,7 @@ class _PrefixedReferenceToken(XPathToken):
         elif self.parser.schema is None:
             self.parser.schema = context.schema
 
-        yield from context.typing_nodes(context.iter_matching_nodes(self.name))
+        yield from context.iter_matching_nodes(self.name)
 
 
 XPath1Parser.symbol_table[':'] = _PrefixedReferenceToken
@@ -272,7 +270,7 @@ def select_namespace_uri(self: XPathToken, context: ContextType = None) \
         self.parser.schema = context.schema
 
     if isinstance(self.value, str):
-        yield from context.typing_nodes(context.iter_matching_nodes(self.value))
+        yield from context.iter_matching_nodes(self.value)
 
 
 ###
@@ -339,7 +337,7 @@ def select_wildcard(self: XPathToken, context: ContextType = None) -> Iterator[I
                 yield item
     else:
         # XSD typed selection
-        for item in context.typing_nodes(context.iter_children_or_self()):
+        for item in context.iter_children_or_self():
             if context.is_principal_node_kind():
                 if isinstance(item, (ElementNode, AttributeNode)):
                     yield item
@@ -357,7 +355,7 @@ def select_self_shortcut(self: XPathToken, context: ContextType = None) -> Itera
     elif self.parser.schema is None:
         self.parser.schema = context.schema
 
-    yield from context.typing_nodes(context.iter_self())
+    yield from context.iter_self()
 
 
 @method(nullary('..'))

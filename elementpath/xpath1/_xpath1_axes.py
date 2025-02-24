@@ -48,7 +48,7 @@ def select_attribute_reference_or_axis(self: XPathAxis, context: ContextType = N
     elif self.parser.schema is None:
         self.parser.schema = context.schema
 
-    for _ in context.typing_nodes(context.iter_attributes()):
+    for _ in context.iter_attributes():
         yield from cast(Iterator[AttributeNode], self[0].select(context))
 
 
@@ -77,7 +77,7 @@ def select_self_axis(self: XPathAxis, context: ContextType = None) \
     if context is None:
         raise self.missing_context()
     else:
-        for _ in context.typing_nodes(context.iter_self()):
+        for _ in context.iter_self():
             yield from self[0].select(context)
 
 
@@ -87,7 +87,7 @@ def select_child_axis(self: XPathAxis, context: ContextType = None) \
     if context is None:
         raise self.missing_context()
     else:
-        for _ in context.typing_nodes(context.iter_children_or_self()):
+        for _ in context.iter_children_or_self():
             yield from self[0].select(context)
 
 

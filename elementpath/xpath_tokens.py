@@ -34,14 +34,14 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode, \
-    EtreeElementNode, TextAttributeNode
+    EtreeElementNode
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
 from elementpath.tdop import Token, MultiLabel
 from elementpath.xpath_context import ContextType, ItemType, ValueType, ItemArgType, \
-    FunctionArgType, XPathSchemaContext
+    FunctionArgType, XPathSchemaContext, XPathContext
 
 if TYPE_CHECKING:
     from .xpath1 import XPath1Parser  # noqa: F401
@@ -437,10 +437,6 @@ class XPathToken(Token[XPathTokenType]):
         if item is None:
             return
         elif isinstance(item, EtreeElementNode):
-            # workaround for previous releases of xmlschema: late typing from PSVI
-            if self.parser.schema is not None and item.schema is None:
-                item.set_schema(self.parser.schema)
-
             value = None
             try:
                 for value in item.iter_typed_values:
@@ -453,10 +449,6 @@ class XPathToken(Token[XPathTokenType]):
                     raise self.error('FOTY0012', msg)
 
         elif isinstance(item, XPathNode):
-            if isinstance(item, TextAttributeNode):
-                # workaround: late typing from PSVI
-                if self.parser.schema is not None and item.schema is None:
-                    item.set_schema(self.parser.schema)
             yield from item.iter_typed_values
         elif isinstance(item, list):
             for v in item:
@@ -580,8 +572,6 @@ class XPathToken(Token[XPathTokenType]):
             yield from cast(Iterator[AtomicType], self.select(context))
         else:
             self.parser.check_variables(context.variables)
-            if self.parser.schema is not None and context.schema is None:
-                raise AssertionError()
 
             for result in self.select(context):
                 if not isinstance(result, XPathNode):
@@ -1049,17 +1039,39 @@ class RootToken(XPathToken):
         super().__init__(token.parser)
         self._items.append(token)
 
-    def select_results(self, context: ContextType) -> Iterator[_ResultType]:
-        return self[0].select_results(context)
+    def __str__(self) -> str:
+        return f'{self[0]!r} root'
 
-    def get_results(self, context: ContextType) -> Union[List[_ResultType], AtomicType]:
-        return self[0].get_results(context)
+    @property
+    def tree(self) -> str:
+        return f"({self.symbol} {self[0].tree})"
+
+    def check_context(self, context: XPathContext) -> None:
+        if context.schema is not self.parser.schema:
+            if self.parser.schema is not None:
+                context.schema = self.parser.schema
+                if context.root is not None and not context.root.is_schema_node:
+                    context.root.apply_schema(self.parser.schema)
 
     def select(self, context: ContextType = None) -> Iterator[ItemType]:
+        if context is not None:
+            self.check_context(context)
         return self[0].select(context)
 
     def evaluate(self, context: ContextType = None) -> ValueType:
+        if context is not None:
+            self.check_context(context)
         return self[0].evaluate(context)
+
+    def select_results(self, context: ContextType) -> Iterator[_ResultType]:
+        if context is not None:
+            self.check_context(context)
+        return self[0].select_results(context)
+
+    def get_results(self, context: ContextType) -> Union[List[_ResultType], AtomicType]:
+        if context is not None:
+            self.check_context(context)
+        return self[0].get_results(context)
 
 
 class ValueToken(XPathToken):

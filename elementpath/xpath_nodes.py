@@ -350,14 +350,6 @@ class AttributeNode(XPathNode):
         return f"/@{name_path}"
 
     @property
-    def schema_path(self) -> str:
-        if self.parent is None:
-            return f"@{self.name or _EMPTY_NAME_PATH}"
-        elif isinstance(self.parent, ElementNode):
-            return f"{self.parent.schema_path}/@{self.name or _EMPTY_NAME_PATH}"
-        return f'/@{self.name or _EMPTY_NAME_PATH}'
-
-    @property
     def xsd_type(self) -> Optional[XsdTypeProtocol]:
         return self._xsd_type
 
@@ -413,6 +405,9 @@ class AttributeNode(XPathNode):
     def iter_typed_values(self) -> Iterator[AtomicType]:
         raise NotImplementedError()
 
+    def set_schema(self, schema: 'AbstractSchemaProxy', base_path: Optional[str] = None) -> None:
+        raise NotImplementedError()
+
 
 class TextAttributeNode(AttributeNode):
     """
@@ -426,6 +421,7 @@ class TextAttributeNode(AttributeNode):
     """
     name: str
     obj: str
+    parent: Optional['EtreeElementNode']
     xsd_attribute: Optional[XsdAttributeProtocol]
 
     __slots__ = ('xsd_attribute',)
@@ -433,7 +429,7 @@ class TextAttributeNode(AttributeNode):
     def __init__(self,
                  name: str,
                  value: str,
-                 parent: Optional['ElementNode'] = None,
+                 parent: Optional['EtreeElementNode'] = None,
                  position: int = 1,
                  schema: Optional['AbstractSchemaProxy'] = None) -> None:
 
@@ -452,39 +448,25 @@ class TextAttributeNode(AttributeNode):
     def __repr__(self) -> str:
         return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.obj)
 
-    def set_schema(self, schema: 'AbstractSchemaProxy') -> None:
+    def set_schema(self, schema: 'AbstractSchemaProxy', base_path: Optional[str] = None) -> None:
         self.schema = schema
         self.xsd_attribute = None
-        self._xsd_type = None
 
-        if isinstance(self.parent, EtreeElementNode):
-            if self.parent.schema is None:
-                self.parent.set_schema(schema)
+        if self.parent is not None:
+            if self.parent.schema is not schema:
+                raise ElementPathValueError(f"parent schema does not match {schema!r}")
+            if self.parent.xsd_element is not None:
+                self.xsd_attribute = self.parent.xsd_element.attrib.get(self.name)
 
-            if self.parent.xsd_element is not None and \
-                    self.name in self.parent.xsd_element.attrib:
-                self.xsd_attribute = self.parent.xsd_element.attrib[self.name]
-                self._xsd_type = self.xsd_attribute.type
-            else:
-                schema_path = self.schema_path
-                xsd_attribute = schema.find(schema_path)
-                if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
-                    self.xsd_attribute = cast(XsdAttributeProtocol, xsd_attribute)
-                    self._xsd_type = xsd_attribute.type
-                elif not schema_path.endswith('*'):
-                    schema_path = schema_path.rpartition('@')[0] + '@*'
-                    xsd_attribute = schema.find(schema_path)
-                    if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
-                        self.xsd_attribute = cast(XsdAttributeProtocol, xsd_attribute)
-                        self._xsd_type = xsd_attribute.type
-                        if self._xsd_type is None:
-                            xsd_attribute = schema.get_attribute(self.name)
-                            if xsd_attribute is not None:
-                                self.xsd_attribute = xsd_attribute
-                                self._xsd_type = xsd_attribute.type
+        if self.xsd_attribute is None:
+            self.xsd_attribute = schema.fetch_attribute(self, base_path)
 
         if schema.attribute_type is not None:
             self._xsd_type = schema.attribute_type
+        elif self.xsd_attribute is not None:
+            self._xsd_type = self.xsd_attribute.type
+        else:
+            self._xsd_type = None
 
     @property
     def value(self) -> str:
@@ -494,10 +476,10 @@ class TextAttributeNode(AttributeNode):
     def schema_path(self) -> str:
         name = self.name if self.xsd_attribute is None else self.xsd_attribute.name
         if self.parent is None:
-            return f"@{name or _EMPTY_NAME_PATH}"
+            return f"@{self.name or _EMPTY_NAME_PATH}"
         elif isinstance(self.parent, ElementNode):
-            return f"{self.parent.schema_path}/@{name or _EMPTY_NAME_PATH}"
-        return f'/@{name or _EMPTY_NAME_PATH}'
+            return f"{self.parent.schema_path}/@{self.name or _EMPTY_NAME_PATH}"
+        return f'/@{self.name or _EMPTY_NAME_PATH}'
 
     def as_item(self) -> Tuple[str, str]:
         return self.name, self.obj
@@ -977,6 +959,13 @@ class ElementNode(XPathNode):
     def xsd_type(self) -> Optional[XsdTypeProtocol]:
         return self._xsd_type
 
+    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
+        """Set XSD types for element node subtree from schema proxy instance."""
+        raise NotImplementedError()
+
+    def set_schema(self, schema: 'AbstractSchemaProxy', base_path: str = None) -> None:
+        raise NotImplementedError()
+
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if self.name is None:
             return False
@@ -1064,7 +1053,7 @@ class ElementNode(XPathNode):
         if with_self:
             yield self
 
-        iterators: List[Any] = []
+        iterators: Deque[Any] = deque()
         children: Iterator[Any] = iter(self.children)
 
         while True:
@@ -1136,16 +1125,7 @@ class EtreeElementNode(ElementNode):
     @property
     def schema_path(self) -> str:
         """Returns an absolute path for finding the matching XSD node in the schema."""
-        if hasattr(self, '_schema_path'):
-            return self._schema_path
-        elif self.xsd_element:
-            name = self.xsd_element.name or _EMPTY_NAME_PATH
-            if not isinstance(self.parent, EtreeElementNode):
-                self._schema_path = f"/{name}"
-            else:
-                self._schema_path = f"{self.parent.schema_path}/{name}"
-            return self._schema_path
-        elif isinstance(self.parent, EtreeElementNode):
+        if isinstance(self.parent, EtreeElementNode):
             return f"{self.parent.schema_path}/{self.name}"
         else:
             return f"/{self.name}"
@@ -1217,47 +1197,51 @@ class EtreeElementNode(ElementNode):
         else:
             yield from get_atomic_sequence(self._xsd_type, '')
 
-    def set_schema(self, schema: 'AbstractSchemaProxy') -> None:
+    def set_schema(self, schema: 'AbstractSchemaProxy', base_path: str = None) -> None:
         self.schema = schema
-        self.xsd_element = None
+        self.xsd_element = schema.fetch_element(self, base_path)
 
         if schema.element_type is not None:
             self._xsd_type = schema.element_type
-        elif XSI_TYPE in self.obj.attrib and \
-                isinstance(xsi_type := self.obj.attrib[XSI_TYPE], str):
+        elif isinstance(xsi_type := self.obj.attrib.get(XSI_TYPE), str):
             try:
                 type_name = get_expanded_name(xsi_type, self.nsmap)
             except KeyError:
                 self._xsd_type = None
             else:
                 self._xsd_type = schema.get_type(type_name)
+        elif self.xsd_element is not None:
+            self._xsd_type = self.xsd_element.type
         else:
             self._xsd_type = None
 
-        if isinstance(self.parent, EtreeElementNode):
-            schema_path = f'{self.parent.schema_path}/'
-        else:
-            schema_path = '/'
+    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
+        """Set XSD types for element node subtree from schema proxy instance."""
+        path = [self.schema_path]
+        iterators: List[Any] = []  # slightly faster than list()
+        children: Iterator[Any] = iter((self.children,))
 
-        xsd_element = schema.find(schema_path + self.name)
-        if xsd_element is not None and hasattr(xsd_element, 'type'):
-            self.xsd_element = cast(Optional[XsdElementProtocol], xsd_element)
-            if self._xsd_type is None:
-                self._xsd_type = xsd_element.type
+        while True:
+            for child in children:
+                if isinstance(child, EtreeElementNode):
+                    self.set_schema(schema, path[-1])
+                    child_path = path[-1] + f"/{child.name}"
 
-        elif (xsd_element := schema.find(schema_path + '*')) is not None:
-            if hasattr(xsd_element, 'type'):
-                self.xsd_element = cast(Optional[XsdElementProtocol], xsd_element)
-                if self._xsd_type is not None:
-                    pass
-                elif xsd_element.type is not None:
-                    self._xsd_type = xsd_element.type
-                elif (xsd_element := schema.get_element(self.name)) is not None:
-                    self.xsd_element = xsd_element
-                    self._xsd_type = xsd_element.type
+                    if hasattr(self, '_attributes'):
+                        for attribute in self._attributes:
+                            attribute.set_schema(schema, child_path)
 
-        if hasattr(self, '_schema_path'):
-            delattr(self, '_schema_path')
+                    if child.children:
+                        path.append(child_path)
+                        iterators.append(children)
+                        children = iter(child.children)
+                        break
+            else:
+                try:
+                    children = iterators.pop()
+                    path.pop()
+                except IndexError:
+                    return
 
     @property
     def is_typed(self) -> bool:
@@ -1622,9 +1606,14 @@ class DocumentNode(XPathNode):
     def is_typed(self) -> bool:
         for child in self.children:
             if isinstance(child, ElementNode):
-                return child.xsd_type is not None
+                return child.is_typed
         else:
             return False
+
+    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
+        for child in self.children:
+            if isinstance(child, EtreeElementNode):
+                child.apply_schema(schema)
 
     @property
     def is_extended(self) -> bool:
