@@ -1050,8 +1050,12 @@ class RootToken(XPathToken):
         if context.schema is not self.parser.schema:
             if self.parser.schema is not None:
                 context.schema = self.parser.schema
-                if context.root is not None and not context.root.is_schema_node:
+                if isinstance(context, XPathSchemaContext):
+                    pass
+                elif context.root is not None:
                     context.root.apply_schema(self.parser.schema)
+                elif isinstance(context.item, (DocumentNode, ElementNode)):
+                    context.item.apply_schema(self.parser.schema)
 
     def select(self, context: ContextType = None) -> Iterator[ItemType]:
         if context is not None:

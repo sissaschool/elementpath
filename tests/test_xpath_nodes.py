@@ -71,14 +71,14 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, has_mixed_content=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = EtreeElementNode(elem=root)
-            setattr(typed_root, '_xsd_type', xsd_type)
+            setattr(typed_root, 'xsd_type', xsd_type)
             self.assertListEqual(list(etree_iter_strings(typed_root.elem)), result)
 
         norm_result = ['text1', 'text2', 'tail1', 'tail2', 'text3']
         with patch.multiple(DummyXsdType, is_element_only=lambda x: True):
             xsd_type = DummyXsdType()
             typed_root = EtreeElementNode(elem=root)
-            setattr(typed_root, '_xsd_type', xsd_type)
+            setattr(typed_root, 'xsd_type', xsd_type)
             self.assertListEqual(list(etree_iter_strings(typed_root.elem, True)), norm_result)
 
             comment = ElementTree.Comment('foo')
@@ -209,7 +209,7 @@ class XPathNodesTest(unittest.TestCase):
 
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
-            attribute._xsd_type = xsd_type
+            attribute.xsd_type = xsd_type
             self.assertEqual(attribute.as_item(), ('value', '10'))
 
     def test_typed_element_nodes(self):
@@ -218,7 +218,7 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
             context = XPathContext(element)
-            context.root._xsd_type = xsd_type
+            context.root.xsd_type = xsd_type
             self.assertTrue(repr(context.root).startswith(
                 "EtreeElementNode(elem=<Element 'schema' at 0x"
             ))
@@ -355,13 +355,13 @@ class XPathNodesTest(unittest.TestCase):
         context = XPathContext(root)
         with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
             elem = context.root[0]
-            elem._xsd_type = xsd_type
+            elem.xsd_type = xsd_type
             self.assertEqual(elem.path, '/Q{}A[1]/Q{}B1[1]')
 
         with patch.object(DummyXsdType(), 'is_simple', return_value=True) as xsd_type:
             context = XPathContext(root)
             attr = context.root[1].attributes[0]
-            attr._xsd_type = xsd_type
+            attr.xsd_type = xsd_type
             self.assertEqual(attr.path, '/Q{}A[1]/Q{}B2[1]/@min')
 
     def test_path_property_with_namespaces(self):

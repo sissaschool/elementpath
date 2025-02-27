@@ -135,11 +135,14 @@ class XPathContext:
             self.namespaces = {}
 
         if root is not None:
-            self.root = get_node_tree(root, self.namespaces, uri, fragment, schema)
+            self.root = get_node_tree(root, self.namespaces, uri, fragment)
             if item is not None:
                 self.item = self.get_context_item(item, self.namespaces)
             else:
                 self.item = self.root
+
+            if schema is not None and not self.root.is_schema_node:
+                self.root.apply_schema(schema)
 
         elif item is not None:
             self.root = None

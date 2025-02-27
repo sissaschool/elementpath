@@ -15,10 +15,8 @@ from elementpath._typing import Iterator
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol
-from elementpath.namespaces import XSD_ANY_SIMPLE_TYPE, XSD_ANY_TYPE
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
-from elementpath.xpath_nodes import EtreeElementNode, TextAttributeNode
 from elementpath.xpath_context import XPathSchemaContext
 
 if TYPE_CHECKING:
@@ -35,7 +33,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance compatible with the XsdSchemaProtocol.
     :param base_element: the schema element used as base item for static analysis.
     """
-    __slots__ = ('_schema', '_base_element', '_element_type', '_attribute_type')
+    __slots__ = ('_schema', '_base_element', '_find', '__dict__')
 
     def __init__(self, schema: XsdSchemaProtocol,
                  base_element: Optional[XsdElementProtocol] = None) -> None:
@@ -50,31 +48,27 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
 
         self._schema = schema
         self._base_element: Optional[XsdElementProtocol] = base_element
-
-        self._element_type = self.get_type(XSD_ANY_TYPE)
-        self._attribute_type = self.get_type(XSD_ANY_SIMPLE_TYPE)
+        if self._base_element is not None:
+            self._find = self._base_element.find
+        else:
+            self._find = self._schema.find
 
     @property
-    def element_type(self) -> Optional[XsdTypeProtocol]:
-        if self._element_type is None:
-            return None
-        elif self._schema.validity != 'valid' or self._schema.validation_attempted != 'full':
-            return self._element_type
-        else:
-            self._element_type = None
-            self._attribute_type = None
-            return None
+    def schema(self) -> XsdSchemaProtocol:
+        return self._schema
 
     @property
-    def attribute_type(self) -> Optional[XsdTypeProtocol]:
-        if self._attribute_type is None:
-            return None
-        elif self._schema.validity != 'valid' or self._schema.validation_attempted != 'full':
-            return self._attribute_type
-        else:
-            self._element_type = None
-            self._attribute_type = None
-            return None
+    def base_element(self) -> Optional[XsdElementProtocol]:
+        return self._base_element
+
+    def validity(self) -> str:
+        return self._schema.validity
+
+    def validation_attempted(self) -> str:
+        return self._schema.validation_attempted
+
+    def is_fully_valid(self) -> bool:
+        return self._schema.validity == 'valid' and self._schema.validation_attempted == 'full'
 
     def bind_parser(self, parser: 'XPath2ParserType') -> None:
         """
@@ -108,54 +102,60 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :return: The first matching schema component, or ``None`` if there is no match.
         """
         @lru_cache(maxsize=None)
-        def cached_find(path_: str) -> Optional[PathResult]:
-            return self._schema.find(path_)
+        def cached_find(extended_path: str) -> Optional[PathResult]:
+            return self._find(extended_path)
 
         if not namespaces:
             return cached_find(path)
-        return self._schema.find(path, namespaces)
+        return self._find(path, namespaces)
+
+    @lru_cache(maxsize=None)
+    def cached_find(self, expanded_path: str) -> Optional[PathResult]:
+        """
+        Find a schema element or attribute using an expanded path as XPath expression.
+
+        :param expanded_path: an XPath expression that selects an element or an attribute node, \
+        using an XPath expression that represents an expanded path.
+        :return: The first matching schema component, or ``None`` if there is no match.
+        """
+        return self._find(expanded_path)
 
     @property
     def xsd_version(self) -> str:
         """The XSD version, returns '1.0' or '1.1'."""
         return self._schema.xsd_version
 
-    def is_assertion_base(self, element_node: EtreeElementNode) -> bool:
-        if self._base_element is None or element_node.xsd_element is None:
-            return False
-        elif self._base_element.parent is not self._base_element.type:
-            return False
-        return element_node.xsd_element.type is self._base_element.type
+    def is_assertion_based(self) -> bool:
+        return self._base_element is not None and \
+            self._base_element.parent is self._base_element.type
 
-    def fetch_element(self, element_node: EtreeElementNode, base_path: Optional[str] = None) \
+    def find_element(self, name: Optional[str], base_path: str) \
             -> Optional[XsdElementProtocol]:
-        if base_path is None:
-            base_path = '' if element_node.parent is None else element_node.parent.schema_path
+        if name is not None:
+            if (xsd_element := self.cached_find(f'{base_path}{name}')) is not None:
+                if getattr(xsd_element, 'type', None) is not None:
+                    return cast(Optional[XsdElementProtocol], xsd_element)
+            if (xsd_element := self.get_element(name)) is not None:
+                return cast(Optional[XsdElementProtocol], xsd_element)
 
-        xsd_element = self.find(f'{base_path}/{element_node.name}')
-        if xsd_element is not None and hasattr(xsd_element, 'type'):
-            return cast(Optional[XsdElementProtocol], xsd_element)
-        elif (xsd_element := self.find(base_path + '*')) is not None:
+        if (xsd_element := self.cached_find(f'{base_path}*[local-name()=""]')) is not None:
             if getattr(xsd_element, 'type', None) is not None:
                 return cast(Optional[XsdElementProtocol], xsd_element)
-            elif (xsd_element := self.get_element(element_node.name)) is not None:
-                return xsd_element
 
         return None
 
-    def fetch_attribute(self, attr: TextAttributeNode, base_path: Optional[str] = None) \
+    def find_attribute(self, name: Optional[str], base_path: str) \
             -> Optional[XsdAttributeProtocol]:
-        if base_path is None:
-            base_path = '' if attr.parent is not None else attr.parent.schema_path
+        if name is not None:
+            if (xsd_attribute := self.cached_find(f'{base_path}@{name}')) is not None:
+                if getattr(xsd_attribute, 'type', None) is not None:
+                    return cast(Optional[XsdAttributeProtocol], xsd_attribute)
+            if (xsd_attribute := self.get_attribute(name)) is not None:
+                return cast(Optional[XsdAttributeProtocol], xsd_attribute)
 
-        xsd_attribute = self.find(f'{base_path}/@{attr.name}')
-        if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
-            return cast(XsdAttributeProtocol, xsd_attribute)
-        elif (xsd_attribute := self.find(f'{base_path}/@*')) is not None:
+        if (xsd_attribute := self.cached_find(f'{base_path}@*[local-name()=""]')) is not None:
             if getattr(xsd_attribute, 'type', None) is not None:
                 return cast(Optional[XsdAttributeProtocol], xsd_attribute)
-            elif (xsd_attribute := self.get_attribute(attr.name)) is not None:
-                return xsd_attribute
 
         return None
 
@@ -203,9 +203,10 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
 
     def get_substitution_group(self, qname: str) -> Optional[Set[XsdElementProtocol]]:
         """
-        Get a substitution group. A concrete implementation must returns a list containing
-        substitution elements or `None` if the substitution group is not found. Moreover each item
-        of the returned list must be an object that implements the `AbstractXsdElement` interface.
+        Get a substitution group. A concrete implementation must return a list containing
+        substitution elements or `None` if the substitution group is not found. Moreover,
+        each item of the returned list must be an object that implements the
+        `AbstractXsdElement` interface.
 
         :param qname: the fully qualified name of the substitution group to retrieve.
         :returns: a list containing substitution elements or `None`.

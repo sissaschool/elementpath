@@ -1549,7 +1549,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
 
         if element.obj.text in idrefs:
             if self.parser.schema is not None:
-                xsd_element = self.parser.schema.find(element.schema_path)
+                xsd_element = self.parser.schema.find(element.extended_path)
                 if xsd_element is None or not hasattr(xsd_element, 'type') or \
                         xsd_element.type is None or not xsd_element.type.is_key():
                     continue
@@ -1576,7 +1576,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
                 if self.parser.schema is None:
                     continue
 
-                xsd_element = self.parser.schema.find(element.schema_path)
+                xsd_element = self.parser.schema.find(element.extended_path)
                 if xsd_element is None or not hasattr(xsd_element, 'attrib'):
                     continue
 

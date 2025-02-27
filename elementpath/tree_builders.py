@@ -36,8 +36,7 @@ def is_schema(obj: Any) -> bool:
 def get_node_tree(root: RootArgType,
                   namespaces: Optional[NamespacesType] = None,
                   uri: Optional[str] = None,
-                  fragment: Optional[bool] = None,
-                  schema: Optional['AbstractSchemaProxy'] = None) -> RootNodeType:
+                  fragment: Optional[bool] = None) -> RootNodeType:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -49,8 +48,6 @@ def get_node_tree(root: RootArgType,
     case if `root` is an ElementTree instance skips it and use the root Element. If \
     `False` is provided creates a dummy document when the root is an Element instance. \
     For default the root node kind is preserved.
-    :param schema: an optional schema proxy instance for applying XSD type annotations \
-    on element and attribute nodes.
     """
     root_node: RootNodeType
 
@@ -78,7 +75,7 @@ def get_node_tree(root: RootArgType,
     elif hasattr(root, 'xpath'):
         # a lxml element tree data
         return build_lxml_node_tree(
-            cast(LxmlRootType, root), uri, fragment, schema
+            cast(LxmlRootType, root), uri, fragment
         )
     elif hasattr(root, 'xsd_version') and hasattr(root, 'maps'):
         # a schema or a schema node
@@ -87,7 +84,7 @@ def get_node_tree(root: RootArgType,
         )
     else:
         return build_node_tree(
-            cast(ElementTreeRootType, root), namespaces, uri, fragment, schema
+            cast(ElementTreeRootType, root), namespaces, uri, fragment
         )
 
 
@@ -144,14 +141,14 @@ def build_node_tree(root: ElementTreeRootType,
             return document_node
 
         elem = root_elem
-        root_node = EtreeElementNode(elem, document_node, position, nsmap, schema)
+        root_node = EtreeElementNode(elem, document_node, position, nsmap)
         elements = document_node.elements
         document_node.children.append(root_node)
     else:
         assert root_elem is not None
         document_node = None
         elem = root_elem
-        root_node = EtreeElementNode(elem, None, position, nsmap, schema)
+        root_node = EtreeElementNode(elem, None, position, nsmap)
         root_node.elements = elements = {}
         if uri is not None:
             root_node.uri = uri
@@ -171,7 +168,7 @@ def build_node_tree(root: ElementTreeRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = EtreeElementNode(elem, parent, position, nsmap, schema)
+                child = EtreeElementNode(elem, parent, position, nsmap)
                 position += elem_pos_offset + len(elem.attrib)
 
                 if elem.text is not None:
@@ -218,8 +215,7 @@ def build_node_tree(root: ElementTreeRootType,
 
 def build_lxml_node_tree(root: LxmlRootType,
                          uri: Optional[str] = None,
-                         fragment: Optional[bool] = None,
-                         schema: Optional['AbstractSchemaProxy'] = None) -> RootNodeType:
+                         fragment: Optional[bool] = None) -> RootNodeType:
     """
     Returns a tree of XPath nodes that wrap the provided lxml root tree.
 
@@ -229,8 +225,6 @@ def build_lxml_node_tree(root: LxmlRootType,
     case if `root` is an ElementTree instance skips it and use the root Element. If \
     `False` is provided creates a dummy document when the root is an Element instance. \
     For default the root node kind is preserved.
-    :param schema: an optional schema proxy instance for applying XSD type annotations \
-    on element and attribute nodes.
     """
     root_node: RootNodeType
     document: Optional[LxmlDocumentProtocol]
@@ -274,7 +268,7 @@ def build_lxml_node_tree(root: LxmlRootType,
             document_node.children.append(child)
             position += 1
 
-        root_node = EtreeElementNode(root_elem, document_node, position, root_elem.nsmap, schema)
+        root_node = EtreeElementNode(root_elem, document_node, position, root_elem.nsmap)
         document_node.children.append(root_node)
     else:
         if hasattr(root, 'parse'):
@@ -290,7 +284,7 @@ def build_lxml_node_tree(root: LxmlRootType,
             raise ElementPathTypeError(msg)
 
         document_node = None
-        root_node = EtreeElementNode(root_elem, None, position, root_elem.nsmap, schema)
+        root_node = EtreeElementNode(root_elem, None, position, root_elem.nsmap)
         root_node.elements = elements = {}
         if uri is not None:
             root_node.uri = uri
@@ -314,7 +308,7 @@ def build_lxml_node_tree(root: LxmlRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = EtreeElementNode(elem, parent, position, elem.nsmap, schema)
+                child = EtreeElementNode(elem, parent, position, elem.nsmap)
                 if 'xml' in elem.nsmap:
                     position += len(elem.nsmap) + len(elem.attrib) + 1
                 else:

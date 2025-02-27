@@ -239,7 +239,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'has_simple_content', return_value=True) as xsd_type:
             context = XPathContext(root)
-            context.root._xsd_type = xsd_type
+            context.root.xsd_type = xsd_type
             self.assertListEqual(list(context.iter_attributes()), context.root.attributes)
             self.assertNotEqual(attributes, context.root.attributes)
 
@@ -268,7 +268,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'has_simple_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root)
-            context.root._xsd_type = xsd_type
+            context.root.xsd_type = xsd_type
             self.assertListEqual(list(context.iter_parent()), [])
 
         root = ElementTree.XML('<A><B1><C1/></B1><B2/><B3><C1/><C2/></B3></A>')
@@ -280,7 +280,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'is_empty', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[2][0])
-            context.root[2][0]._xsd_type = xsd_type
+            context.root[2][0].xsd_type = xsd_type
             self.assertListEqual(list(e.obj for e in context.iter_parent()), [root[2]])
 
     def test_iter_siblings(self):
@@ -294,7 +294,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'is_element_only', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[2])
-            context.root[2]._xsd_type = xsd_type
+            context.root[2].xsd_type = xsd_type
             self.assertListEqual(list(e.obj for e in context.iter_siblings()), list(root[3:]))
 
         context = XPathContext(root, item=root[2])
@@ -304,7 +304,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'is_element_only', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[2])
-            context.root[2]._xsd_type = xsd_type
+            context.root[2].xsd_type = xsd_type
             self.assertListEqual(
                 list(e.obj for e in context.iter_siblings('preceding-sibling')), list(root[:2])
             )
@@ -349,7 +349,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root)
-            context.root._xsd_type = xsd_type
+            context.root.xsd_type = xsd_type
             self.assertListEqual(
                 list(e.obj for e in context.iter_descendants()), [root, root[0], root[1]]
             )
@@ -368,7 +368,7 @@ class XPathContextTest(unittest.TestCase):
         self.assertListEqual(result, [root])
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[1])
-            context.root[1]._xsd_type = xsd_type
+            context.root[1].xsd_type = xsd_type
             self.assertListEqual(list(context.iter_ancestors()), [context.root])
 
     def test_iter_preceding(self):
@@ -381,7 +381,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'has_simple_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root)
-            context.root._xsd_type = xsd_type
+            context.root.xsd_type = xsd_type
             self.assertListEqual(list(context.iter_preceding()), [])
 
         context = XPathContext(root, item='text')
@@ -411,7 +411,7 @@ class XPathContextTest(unittest.TestCase):
 
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[1])
-            context.root[1]._xsd_type = xsd_type
+            context.root[1].xsd_type = xsd_type
             self.assertListEqual(list(e.obj for e in context.iter_followings()), result)
 
 

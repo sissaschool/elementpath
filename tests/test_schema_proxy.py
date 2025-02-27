@@ -336,9 +336,12 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
             '<tns:values xmlns:tns="http://xpath.test/ns">'
             '<a>foo</a><b>8</b><c>true</c><d>2.0</d></tns:values>'
         )
-        root_node = get_node_tree(
-            root, namespaces={'': "http://xpath.test/ns"}, schema=parser.schema
-        )
+        root_node = get_node_tree(root, namespaces={'': "http://xpath.test/ns"})
+        for node in root_node.iter():
+            if isinstance(node, ElementNode):
+                self.assertFalse(node.is_typed)
+
+        root_node.apply_schema(parser.schema)
         for node in root_node.iter():
             if isinstance(node, ElementNode):
                 self.assertTrue(node.is_typed)
