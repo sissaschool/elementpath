@@ -244,6 +244,11 @@ class XPathNode:
     def is_list(self) -> Optional[bool]:
         return None
 
+    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
+        """Set XSD types for elements and attribute nodes from schema proxy instance."""
+        if self.parent is not None:
+            self.parent.apply_schema(schema)
+
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         """
         Returns `True` if the argument is matching the name of the node, `False` otherwise.
@@ -487,7 +492,6 @@ class TextAttributeNode(AttributeNode):
             yield from get_atomic_sequence(self.xsd_type, self.obj)
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        """Set XSD types for element node subtree from schema proxy instance."""
         if self.parent is not None:
             self.parent.apply_schema(schema)
         elif (xsd_attribute := schema.get_attribute(self.name)) is not None:
@@ -961,10 +965,6 @@ class ElementNode(XPathNode):
     def is_typed(self) -> bool:
         return self.xsd_type is not None
 
-    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        """Set XSD types for element node subtree from schema proxy instance."""
-        raise NotImplementedError()
-
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if self.name is None:
             return False
@@ -1176,7 +1176,7 @@ class EtreeElementNode(ElementNode):
             yield from get_atomic_sequence(self.xsd_type, '')
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        if self.schema is schema and schema.base_element is None:
+        if self.schema is schema and not schema.is_assertion_based():
             return
         self.schema = schema
 

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     import memray
     import xml.etree.ElementTree as ElementTree
 
-    from elementpath import DocumentNode, AttributeNode, ElementNode, \
+    from elementpath import DocumentNode, ElementNode, \
         CommentNode, ProcessingInstructionNode, TextNode
 
     def get_element_tree(source):

@@ -34,7 +34,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode, \
-    EtreeElementNode
+    EtreeElementNode, AttributeNode
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
@@ -1039,23 +1039,33 @@ class RootToken(XPathToken):
         super().__init__(token.parser)
         self._items.append(token)
 
+    def __repr__(self) -> str:
+        return '%s(token=%r)' % (self.__class__.__name__, self[0])
+
     def __str__(self) -> str:
-        return f'{self[0]!r} root'
+        return f'root of {self[0]}'
+
+    @property
+    def token(self) -> XPathToken:
+        return self[0]
 
     @property
     def tree(self) -> str:
-        return f"({self.symbol} {self[0].tree})"
+        return self[0].tree
+
+    @property
+    def source(self) -> str:
+        return self[0].source
 
     def check_context(self, context: XPathContext) -> None:
-        if context.schema is not self.parser.schema:
-            if self.parser.schema is not None:
-                context.schema = self.parser.schema
-                if isinstance(context, XPathSchemaContext):
-                    pass
-                elif context.root is not None:
-                    context.root.apply_schema(self.parser.schema)
-                elif isinstance(context.item, (DocumentNode, ElementNode)):
-                    context.item.apply_schema(self.parser.schema)
+        if context.schema is None and self.parser.schema is not None:
+            context.schema = self.parser.schema
+            if isinstance(context, XPathSchemaContext):
+                pass
+            elif context.root is not None:
+                context.root.apply_schema(self.parser.schema)
+            elif isinstance(context.item, (DocumentNode, ElementNode, AttributeNode)):
+                context.item.apply_schema(self.parser.schema)
 
     def select(self, context: ContextType = None) -> Iterator[ItemType]:
         if context is not None:
