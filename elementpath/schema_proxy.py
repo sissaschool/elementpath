@@ -9,7 +9,7 @@
 #
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
-from typing import cast, TYPE_CHECKING, Any, Dict, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
 
 from elementpath._typing import Iterator
 from elementpath.exceptions import ElementPathTypeError
@@ -33,7 +33,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     :param schema: a schema instance compatible with the XsdSchemaProtocol.
     :param base_element: the schema element used as base item for static analysis.
     """
-    __slots__ = ('_schema', '_base_element', '_find', '__dict__')
+    __slots__ = ('_schema', '_base_element', '_find', '_is_fully_valid')
 
     def __init__(self, schema: XsdSchemaProtocol,
                  base_element: Optional[XsdElementProtocol] = None) -> None:
@@ -48,10 +48,13 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
 
         self._schema = schema
         self._base_element: Optional[XsdElementProtocol] = base_element
+
         if self._base_element is not None:
             self._find = self._base_element.find
         else:
             self._find = self._schema.find
+
+        self._is_fully_valid = False
 
     @property
     def schema(self) -> XsdSchemaProtocol:
@@ -61,14 +64,25 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     def base_element(self) -> Optional[XsdElementProtocol]:
         return self._base_element
 
+    @property
     def validity(self) -> str:
-        return self._schema.validity
+        validity = self._schema.validity
+        if validity != 'valid':
+            self._is_fully_valid = False
+        return validity
 
+    @property
     def validation_attempted(self) -> str:
-        return self._schema.validation_attempted
+        validation_attempted = self._schema.validation_attempted
+        if validation_attempted != 'full':
+            self._is_fully_valid = False
+        return validation_attempted
 
     def is_fully_valid(self) -> bool:
-        return self._schema.validity == 'valid' and self._schema.validation_attempted == 'full'
+        if self._is_fully_valid:
+            return True
+        self._is_fully_valid = self.validity == 'valid' and self.validation_attempted == 'full'
+        return self._is_fully_valid
 
     def bind_parser(self, parser: 'XPath2ParserType') -> None:
         """
@@ -101,12 +115,6 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: The first matching schema component, or ``None`` if there is no match.
         """
-        @lru_cache(maxsize=None)
-        def cached_find(extended_path: str) -> Optional[PathResult]:
-            return self._find(extended_path)
-
-        if not namespaces:
-            return cached_find(path)
         return self._find(path, namespaces)
 
     @lru_cache(maxsize=None)
@@ -114,8 +122,8 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         Find a schema element or attribute using an expanded path as XPath expression.
 
-        :param expanded_path: an XPath expression that selects an element or an attribute node, \
-        using an XPath expression that represents an expanded path.
+        :param expanded_path: an XPath expression with qualified names already resolved \
+        to expanded form.
         :return: The first matching schema component, or ``None`` if there is no match.
         """
         return self._find(expanded_path)
@@ -128,36 +136,6 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
     def is_assertion_based(self) -> bool:
         return self._base_element is not None and \
             self._base_element.parent is self._base_element.type
-
-    def find_element(self, name: Optional[str], base_path: str) \
-            -> Optional[XsdElementProtocol]:
-        if name is not None:
-            if (xsd_element := self.cached_find(f'{base_path}{name}')) is not None:
-                if getattr(xsd_element, 'type', None) is not None:
-                    return cast(Optional[XsdElementProtocol], xsd_element)
-            if (xsd_element := self.get_element(name)) is not None:
-                return cast(Optional[XsdElementProtocol], xsd_element)
-
-        if (xsd_element := self.cached_find(f'{base_path}*[local-name()=""]')) is not None:
-            if getattr(xsd_element, 'type', None) is not None:
-                return cast(Optional[XsdElementProtocol], xsd_element)
-
-        return None
-
-    def find_attribute(self, name: Optional[str], base_path: str) \
-            -> Optional[XsdAttributeProtocol]:
-        if name is not None:
-            if (xsd_attribute := self.cached_find(f'{base_path}@{name}')) is not None:
-                if getattr(xsd_attribute, 'type', None) is not None:
-                    return cast(Optional[XsdAttributeProtocol], xsd_attribute)
-            if (xsd_attribute := self.get_attribute(name)) is not None:
-                return cast(Optional[XsdAttributeProtocol], xsd_attribute)
-
-        if (xsd_attribute := self.cached_find(f'{base_path}@*[local-name()=""]')) is not None:
-            if getattr(xsd_attribute, 'type', None) is not None:
-                return cast(Optional[XsdAttributeProtocol], xsd_attribute)
-
-        return None
 
     def get_type(self, qname: str) -> Optional[XsdTypeProtocol]:
         """
@@ -241,4 +219,4 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
 
 
-__all__ = ['AbstractSchemaProxy']
+__all__ = ['PathResult', 'AbstractSchemaProxy']

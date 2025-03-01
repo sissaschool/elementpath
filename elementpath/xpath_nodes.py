@@ -14,8 +14,8 @@ from typing import cast, Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from xml.etree import ElementTree
 
 from elementpath._typing import Deque, Iterator
-from elementpath.exceptions import ElementPathRuntimeError, ElementPathValueError, \
-    ElementPathKeyError, ElementPathTypeError
+from elementpath.exceptions import ElementPathRuntimeError, \
+    ElementPathValueError, ElementPathKeyError
 from elementpath.aliases import NamespacesType, NsmapType, SequenceType
 from elementpath.datatypes import UntypedAtomic, AtomicType, AnyURI, QName
 from elementpath.namespaces import XML_NAMESPACE, XML_BASE, XSI_NIL, \
@@ -48,9 +48,12 @@ ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstr
 ElementMapType = Dict[ElementType, 'ElementNode']
 
 
-class NodeTreeMeta:
+# TODO for v5.0: use an internal shared object for storing same data once. This
+#   will replace position argument and some attributes in element nodes. Position
+#   argument will be kept only for namespace and attribute nodes.
+class XPathNodeTree:
     """
-    Status of the node tree structure, shared between element nodes and the document node.
+    Status of the node tree structure, shared between nodes.
     """
     root: ParentNodeType
     elements: ElementMapType
@@ -483,6 +486,15 @@ class TextAttributeNode(AttributeNode):
         else:
             yield from get_atomic_sequence(self.xsd_type, self.obj)
 
+    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
+        """Set XSD types for element node subtree from schema proxy instance."""
+        if self.parent is not None:
+            self.parent.apply_schema(schema)
+        elif (xsd_attribute := schema.get_attribute(self.name)) is not None:
+            self.xsd_type = xsd_attribute.type
+        else:
+            self.xsd_type = None
+
 
 class SchemaAttributeNode(AttributeNode):
     """A class for processing XML Schema attribute nodes."""
@@ -904,11 +916,17 @@ class ElementNode(XPathNode):
 
     @property
     def schema(self) -> Optional['AbstractSchemaProxy']:
-        return getattr(self, '_uri', None)
+        root_node = self
+        while isinstance(root_node.parent, EtreeElementNode):
+            root_node = root_node.parent
+        return getattr(root_node, '_schema', None)
 
     @schema.setter
     def schema(self, schema: 'AbstractSchemaProxy') -> None:
-        self._schema = schema
+        root_node = self
+        while isinstance(root_node.parent, EtreeElementNode):
+            root_node = root_node.parent
+        root_node._schema = schema
 
     @property
     def elements(self) -> Optional[ElementMapType]:
@@ -1148,11 +1166,6 @@ class EtreeElementNode(ElementNode):
             yield UntypedAtomic(''.join(etree_iter_strings(self.obj)))
         elif self.xsd_type.is_element_only():
             return
-            # if self.schema and self.schema.is_assertion_base(self):
-            #    self.xsd_type = self.schema.get_type(XSD_ANY_TYPE)
-            #    yield UntypedAtomic(''.join(etree_iter_strings(self.obj)))
-        elif self.xsd_type.is_element_only():
-            return
         elif self.obj.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
             return
         elif self.obj.text is not None:
@@ -1163,13 +1176,9 @@ class EtreeElementNode(ElementNode):
             yield from get_atomic_sequence(self.xsd_type, '')
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        """Set XSD types for element node subtree from schema proxy instance."""
-        if self.schema is None:
-            self.schema = schema
-        elif self.schema is schema:
+        if self.schema is schema and schema.base_element is None:
             return
-        else:
-            raise ElementPathTypeError(f'{self!r} is already typed by another schema')
+        self.schema = schema
 
         if not schema.is_fully_valid():
             element_type = schema.get_type(XSD_ANY_TYPE)
@@ -1181,9 +1190,8 @@ class EtreeElementNode(ElementNode):
                         attr.xsd_type = attribute_type
             return
 
-        iterators: List[Any] = []
         if (xsd_element := schema.base_element) is not None:
-            path = ['./']
+            paths = ['./']
             children: Iterator[Any] = iter(self)
             if schema.is_assertion_based():
                 self.xsd_type = schema.get_type(XSD_ANY_TYPE)
@@ -1191,61 +1199,65 @@ class EtreeElementNode(ElementNode):
                 self.xsd_type = xsd_element.type
 
             for attr in self.attributes:
-                xsd_attribute = xsd_element.attrib.get(attr.name)
-                if xsd_attribute is None:
-                    xsd_attribute = schema.find_attribute(attr.name, './')
-                if xsd_attribute is not None:
-                    attr.xsd_type = xsd_attribute.type
+                if attr.name in xsd_element.attrib:
+                    attr.xsd_type = xsd_element.attrib[attr.name].type
                 else:
-                    attr.xsd_type = None
+                    xsd_attribute = schema.cached_find(f'./@{attr.name}')
+                    if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
+                        attr.xsd_type = xsd_attribute.type
+                    else:
+                        attr.xsd_type = None
         else:
             root_node: ParentNodeType = self
             while isinstance(root_node.parent, EtreeElementNode):
                 root_node = root_node.parent
 
-            path = ['/']
+            paths = ['/']
             children = iter((root_node,))
 
+        iterators: List[Any] = []
         while True:
             for elem in children:
                 if not isinstance(elem, EtreeElementNode):
                     continue
 
-                xsd_element = schema.find_element(elem.name, path[-1])
-                child_path = f"{path[-1]}{elem.name}/"
-
+                child_path = f'{paths[-1]}{elem.name}/'
                 if isinstance(xsi_type := elem.obj.attrib.get(XSI_TYPE), str):
+                    xsd_element = None
                     try:
                         type_name = get_expanded_name(xsi_type, elem.nsmap)
                     except KeyError:
-                        elem.xsd_type = None
+                        elem.clear_types()
+                        continue
                     else:
                         elem.xsd_type = schema.get_type(type_name)
-                elif xsd_element is not None:
-                    elem.xsd_type = xsd_element.type
+                else:
+                    result = schema.cached_find(f'{paths[-1]}{elem.name}')
+                    if result is not None and hasattr(result, 'type'):
+                        elem.xsd_type = cast(XsdElementProtocol, result).type
+                    else:
+                        elem.clear_types()
+                        continue
 
-                    for attr in elem.attributes:
-                        xsd_attribute = xsd_element.attrib.get(attr.name)
-                        if xsd_attribute is None:
-                            xsd_attribute = schema.find_attribute(attr.name, child_path)
-
-                        if xsd_attribute is not None:
+                for attr in elem.attributes:
+                    if xsd_element is not None and attr.name in xsd_element.attrib:
+                        attr.xsd_type = xsd_element.attrib[attr.name].type
+                    else:
+                        xsd_attribute = schema.cached_find(f'{child_path}@{attr.name}')
+                        if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
                             attr.xsd_type = xsd_attribute.type
                         else:
                             attr.xsd_type = None
-                else:
-                    elem.clear_types()
-                    continue
 
-                if elem.children:
-                    path.append(child_path)
+                if len(elem.obj):
+                    paths.append(child_path)
                     iterators.append(children)
-                    children = iter(elem.children)
+                    children = iter(elem)
                     break
             else:
                 try:
                     children = iterators.pop()
-                    path.pop()
+                    paths.pop()
                 except IndexError:
                     return
 
