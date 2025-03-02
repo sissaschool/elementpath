@@ -41,13 +41,6 @@ def select_attribute_reference_or_axis(self: XPathAxis, context: ContextType = N
     if context is None:
         raise self.missing_context()
 
-    # Workaround for xmlschema < 4.0 identities: bind schema to dynamic context
-    if context.schema is None:
-        if self.parser.schema is not None:
-            context.schema = self.parser.schema
-    elif self.parser.schema is None:
-        self.parser.schema = context.schema
-
     for _ in context.iter_attributes():
         yield from cast(Iterator[AttributeNode], self[0].select(context))
 

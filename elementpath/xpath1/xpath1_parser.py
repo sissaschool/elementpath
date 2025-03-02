@@ -259,8 +259,12 @@ class XPath1Parser(Parser[XPathTokenType]):
             context = self.schema.get_context()
             for _ in root_token.select(context):
                 pass
+            return RootToken(root_token)
+        elif self.__class__.__module__.startswith('xmlschema.'):
+            # Workaround for xmlschema < 4.0: returns a root token for sharing schema
+            return RootToken(root_token)
 
-        return RootToken(root_token)
+        return root_token
 
     def expected_next(self, *symbols: str, message: Optional[str] = None) -> None:
         """

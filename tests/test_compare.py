@@ -24,10 +24,10 @@ class CompareTest(unittest.TestCase):
         token = parser.parse('true()')
 
         with self.assertRaises(TypeError):
-            deep_equal([token[0]], [1])
+            deep_equal([token], [1])
 
         with self.assertRaises(TypeError):
-            deep_equal([1], [token[0]])
+            deep_equal([1], [token])
 
         self.assertTrue(deep_equal([1], [1]))
         self.assertFalse(deep_equal([1], [2]))

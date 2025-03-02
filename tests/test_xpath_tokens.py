@@ -86,23 +86,23 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertEqual(ordinal(34), '34th')
 
     def test_arity_property(self):
-        token = self.parser.parse('true()')[0]
+        token = self.parser.parse('true()')
         self.assertEqual(token.symbol, 'true')
         self.assertEqual(token.label, 'function')
         self.assertEqual(token.arity, 0)
 
-        token = self.parser.parse('2 + 5')[0]
+        token = self.parser.parse('2 + 5')
         self.assertEqual(token.symbol, '+')
         self.assertEqual(token.label, 'operator')
         self.assertEqual(token.arity, 2)
 
     def test_source_property(self):
-        token = self.parser.parse('last()')[0]
+        token = self.parser.parse('last()')
         self.assertEqual(token.symbol, 'last')
         self.assertEqual(token.label, 'function')
         self.assertEqual(token.source, 'last()')
 
-        token = self.parser.parse('2.0')[0]
+        token = self.parser.parse('2.0')
         self.assertEqual(token.symbol, '(decimal)')
         self.assertEqual(token.label, 'literal')
         self.assertEqual(token.source, '2.0')
@@ -111,19 +111,19 @@ class XPath1TokenTest(unittest.TestCase):
         parser = XPath2Parser()
 
         token = parser.parse("(1, 2, 3, 4)")
-        self.assertEqual(token[0].symbol, '(')
-        self.assertEqual(token[0].position, (1, 1))
+        self.assertEqual(token.symbol, '(')
+        self.assertEqual(token.position, (1, 1))
 
         token = parser.parse("(: Comment line :)\n\n (1, 2, 3, 4)")
-        self.assertEqual(token[0].symbol, '(')
-        self.assertEqual(token[0].position, (3, 2))
+        self.assertEqual(token.symbol, '(')
+        self.assertEqual(token.position, (3, 2))
 
     def test_iter_method(self):
-        token = self.parser.parse('2 + 5')[0]
+        token = self.parser.parse('2 + 5')
         items = [tk for tk in token.iter()]
         self.assertListEqual(items, [token[0], token, token[1]])
 
-        token = self.parser.parse('/A/B[C]/D/@a')[0]
+        token = self.parser.parse('/A/B[C]/D/@a')
         self.assertEqual(token.tree, '(/ (/ (/ (/ (A)) ([ (B) (C))) (D)) (@ (a)))')
         self.assertListEqual(list(tk.value for tk in token.iter()),
                              ['/', 'A', '/', 'B', '[', 'C', '/', 'D', '/', '@', 'a'])
@@ -134,16 +134,16 @@ class XPath1TokenTest(unittest.TestCase):
                              ['/A', '/A/B[C]', '/A/B[C]/D', '/A/B[C]/D/@a'])
 
     def test_iter_leaf_elements_method(self):
-        token = self.parser.parse('2 + 5')[0]
+        token = self.parser.parse('2 + 5')
         self.assertListEqual(list(token.iter_leaf_elements()), [])
 
-        token = self.parser.parse('/A/B[C]/D/@a')[0]
+        token = self.parser.parse('/A/B[C]/D/@a')
         self.assertListEqual(list(token.iter_leaf_elements()), [])
 
-        token = self.parser.parse('/A/B[C]/D')[0]
+        token = self.parser.parse('/A/B[C]/D')
         self.assertListEqual(list(token.iter_leaf_elements()), ['D'])
 
-        token = self.parser.parse('/A/B[C]')[0]
+        token = self.parser.parse('/A/B[C]')
         self.assertEqual(token.tree, '(/ (/ (A)) ([ (B) (C)))')
         self.assertListEqual(list(token.iter_leaf_elements()), ['B'])
 
@@ -336,19 +336,19 @@ class XPath1TokenTest(unittest.TestCase):
             self.assertEqual(token.data_value(typed_elem), 10)
 
     def test_number_value_function(self):
-        token = self.parser.parse('true()')[0]
+        token = self.parser.parse('true()')
         self.assertEqual(token.number_value("19"), 19)
         self.assertTrue(math.isnan(token.number_value("not a number")))
 
     def test_compare_operator(self):
-        token1 = self.parser.parse('true()')[0]
-        token2 = self.parser.parse('false()')[0]
+        token1 = self.parser.parse('true()')
+        token2 = self.parser.parse('false()')
         self.assertEqual(token1, token1)
         self.assertNotEqual(token1, token2)
         self.assertNotEqual(token2, 'false()')
 
     def test_expected_method(self):
-        token = self.parser.parse('.')[0]
+        token = self.parser.parse('.')
         self.assertIsNone(token.expected('.'))
 
         with self.assertRaises(SyntaxError) as ctx:
@@ -356,7 +356,7 @@ class XPath1TokenTest(unittest.TestCase):
         self.assertIn('XPST0003', str(ctx.exception))
 
     def test_unexpected_method(self):
-        token = self.parser.parse('.')[0]
+        token = self.parser.parse('.')
         self.assertIsNone(token.unexpected('*'))
 
         with self.assertRaises(SyntaxError) as ctx:
@@ -420,7 +420,7 @@ class XPath1TokenTest(unittest.TestCase):
 
         for path in ambiguous_names:
             root_token = self.parser.parse(path)
-            for tk in root_token[0].iter():
+            for tk in root_token.iter():
                 self.assertEqual(tk.symbol, '(name)', msg=tk.symbol)
 
 
@@ -431,14 +431,14 @@ class XPath2TokenTest(XPath1TokenTest):
         cls.parser = XPath2Parser(namespaces={'xs': XSD_NAMESPACE, 'tst': "http://xpath.test/ns"})
 
     def test_bind_namespace_method(self):
-        token = self.parser.parse('true()')[0]
+        token = self.parser.parse('true()')
         self.assertIsNone(token.bind_namespace(XPATH_FUNCTIONS_NAMESPACE))
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0017', str(ctx.exception))
         self.assertIn("a name, a wildcard or a constructor function", str(ctx.exception))
 
-        token = self.parser.parse("xs:string(10.1)")[0]
+        token = self.parser.parse("xs:string(10.1)")
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace(XSD_NAMESPACE)
         self.assertIn('XPST0017', str(ctx.exception))
@@ -449,7 +449,7 @@ class XPath2TokenTest(XPath1TokenTest):
             token[1].bind_namespace(XPATH_FUNCTIONS_NAMESPACE)
         self.assertIn("a function expected", str(ctx.exception))
 
-        token = self.parser.parse("tst:foo")[0]
+        token = self.parser.parse("tst:foo")
         with self.assertRaises(TypeError) as ctx:
             token.bind_namespace('http://xpath.test/ns')
         self.assertIn('XPST0017', str(ctx.exception))

@@ -22,12 +22,13 @@ from elementpath.tdop import Token
 from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
-    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, RootArgType
+    CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, \
+    RootArgType, SchemaElementNode
 from elementpath.tree_builders import get_node_tree
 
 if TYPE_CHECKING:
     from elementpath.schema_proxy import AbstractSchemaProxy
-    from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction
+    from elementpath.xpath_tokens import XPathToken, XPathAxis, XPathFunction  # noqa
 
 __all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
            'ValueType', 'ItemArgType', 'FunctionArgType']
@@ -72,6 +73,7 @@ class XPathContext:
     :param position: the current position of the node within the input sequence.
     :param size: the number of items in the input sequence.
     :param axis: the active axis. Used to choose when apply the default axis ('child' axis).
+    :param schema: an optional schema proxy instance to be applied on XDM root or item.
     :param variables: dictionary of context variables that maps a QName to a value.
     :param current_dt: current dateTime of the implementation, including explicit timezone.
     :param timezone: implicit timezone to be used when a date, time, or dateTime value does \
@@ -93,14 +95,15 @@ class XPathContext:
     and fn:available-environment-variables.
     """
     _etree: Optional[ModuleType] = None
+    _schema: Optional['AbstractSchemaProxy'] = None
     root: Optional[RootNodeType]
     document: Optional[DocumentNode]
     item: ItemType
 
     variables: Dict[str, ValueType]
     documents: Optional[Dict[str, DocumentNode]] = None
-    collections = None
-    default_collection = None
+    collections: Optional[Dict[str, List[XPathNode]]] = None
+    default_collection: Optional[List[XPathNode]] = None
 
     __slots__ = ('document', 'root', 'item', 'namespaces', 'size',
                  'position', 'variables', 'axis', '__dict__')
@@ -232,6 +235,19 @@ class XPathContext:
             return importlib.import_module('lxml.etree')
         else:
             return importlib.import_module('xml.etree.ElementTree')
+
+    @property
+    def schema(self) -> Optional['AbstractSchemaProxy']:
+        return self._schema
+
+    @schema.setter
+    def schema(self, schema: Optional['AbstractSchemaProxy']) -> None:
+        self._schema = schema
+        if schema is not None:
+            if self.root is not None:
+                self.root.apply_schema(schema)
+            elif isinstance(self.item, (DocumentNode, ElementNode, AttributeNode)):
+                self.item.apply_schema(schema)
 
     def get_root(self, node: Any) -> Optional[RootNodeType]:
         if isinstance(self.root, (DocumentNode, ElementNode)):
@@ -621,11 +637,19 @@ class XPathSchemaContext(XPathContext):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         if self.schema is None:
-            # Workaround for binding schema to context and then to parser
-            self.schema = getattr(self.root.obj, 'xpath_proxy', None)
+            if isinstance(self.root, SchemaElementNode):
+                try:
+                    self._schema = self.root.obj.xpath_proxy
+                except AttributeError:
+                    pass
 
-    def typing_nodes(self, sequence: Iterator[ItemType]) -> Iterator[ItemType]:
-        yield from sequence
+    @property
+    def schema(self) -> Optional['AbstractSchemaProxy']:
+        return self._schema
+
+    @schema.setter
+    def schema(self, schema: Optional['AbstractSchemaProxy']) -> None:
+        self._schema = schema
 
     def iter_matching_nodes(self, name: str, default_namespace: Optional[str] = None) \
             -> Iterator[Union[AttributeNode, ElementNode]]:

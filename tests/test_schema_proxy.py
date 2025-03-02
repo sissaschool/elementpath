@@ -183,28 +183,28 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         self.assertIn('XPST0080', str(ctx.exception))
 
         token = parser.parse('stringType("apple")')
-        self.assertEqual(token[0].symbol, 'stringType')
-        self.assertEqual(token[0].label, 'constructor function')
-        self.assertEqual(token[0].evaluate(), 'apple')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), 'apple')
 
         token = parser.parse('stringType(())')
-        self.assertEqual(token[0].symbol, 'stringType')
-        self.assertEqual(token[0].label, 'constructor function')
-        self.assertEqual(token[0].evaluate(), [])
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), [])
 
         token = parser.parse('stringType(10)')
-        self.assertEqual(token[0].symbol, 'stringType')
-        self.assertEqual(token[0].label, 'constructor function')
-        self.assertEqual(token[0].evaluate(), '10')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), '10')
 
         token = parser.parse('stringType(.)')
-        self.assertEqual(token[0].symbol, 'stringType')
-        self.assertEqual(token[0].label, 'constructor function')
+        self.assertEqual(token.symbol, 'stringType')
+        self.assertEqual(token.label, 'constructor function')
 
         token = parser.parse('intType(10)')
-        self.assertEqual(token[0].symbol, 'intType')
-        self.assertEqual(token[0].label, 'constructor function')
-        self.assertEqual(token[0].evaluate(), 10)
+        self.assertEqual(token.symbol, 'intType')
+        self.assertEqual(token.label, 'constructor function')
+        self.assertEqual(token.evaluate(), 10)
 
         with self.assertRaises(ValueError) as ctx:
             parser.parse('intType(true())')

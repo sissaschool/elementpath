@@ -33,8 +33,7 @@ from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
     XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode, \
-    EtreeElementNode, AttributeNode
+from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
 from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
@@ -302,7 +301,6 @@ class XPathToken(Token[XPathTokenType]):
         :param promote: a class or a tuple of classes that are promoted to `cls` class.
         """
         item: Optional[ItemType]
-
         try:
             token = self._items[index]
         except IndexError:
@@ -436,20 +434,15 @@ class XPathToken(Token[XPathTokenType]):
         """
         if item is None:
             return
-        elif isinstance(item, EtreeElementNode):
-            value = None
-            try:
-                for value in item.iter_typed_values:
-                    yield value
-            except (TypeError, ValueError) as err:
-                raise self.error('XPDY0050', str(err))
-            else:
-                if value is None:
-                    msg = f"argument node {item!r} does not have a typed value"
-                    raise self.error('FOTY0012', msg)
-
         elif isinstance(item, XPathNode):
-            yield from item.iter_typed_values
+            value = None
+            for value in item.iter_typed_values:
+                yield value
+
+            if value is None:
+                msg = f"argument node {item!r} does not have a typed value"
+                raise self.error('FOTY0012', msg)
+
         elif isinstance(item, list):
             for v in item:
                 yield from self.atomize_item(v)
@@ -1028,66 +1021,6 @@ class XPathAxis(XPathToken):
         return '%s::%s' % (self.symbol, self[0].source)
 
 
-class RootToken(XPathToken):
-    """
-    A proxy token for encapsulating a parsed token tree, checking the evaluation context
-    and selecting results.
-    """
-    symbol = '(root)'
-
-    def __init__(self, token: XPathToken) -> None:
-        super().__init__(token.parser)
-        self._items.append(token)
-
-    def __repr__(self) -> str:
-        return '%s(token=%r)' % (self.__class__.__name__, self[0])
-
-    def __str__(self) -> str:
-        return f'root of {self[0]}'
-
-    @property
-    def token(self) -> XPathToken:
-        return self[0]
-
-    @property
-    def tree(self) -> str:
-        return self[0].tree
-
-    @property
-    def source(self) -> str:
-        return self[0].source
-
-    def check_context(self, context: XPathContext) -> None:
-        if context.schema is None and self.parser.schema is not None:
-            context.schema = self.parser.schema
-            if isinstance(context, XPathSchemaContext):
-                pass
-            elif context.root is not None:
-                context.root.apply_schema(self.parser.schema)
-            elif isinstance(context.item, (DocumentNode, ElementNode, AttributeNode)):
-                context.item.apply_schema(self.parser.schema)
-
-    def select(self, context: ContextType = None) -> Iterator[ItemType]:
-        if context is not None:
-            self.check_context(context)
-        return self[0].select(context)
-
-    def evaluate(self, context: ContextType = None) -> ValueType:
-        if context is not None:
-            self.check_context(context)
-        return self[0].evaluate(context)
-
-    def select_results(self, context: ContextType) -> Iterator[_ResultType]:
-        if context is not None:
-            self.check_context(context)
-        return self[0].select_results(context)
-
-    def get_results(self, context: ContextType) -> Union[List[_ResultType], AtomicType]:
-        if context is not None:
-            self.check_context(context)
-        return self[0].get_results(context)
-
-
 class ValueToken(XPathToken):
     """
     A dummy token for encapsulating a value.
@@ -1133,6 +1066,68 @@ class ProxyToken(XPathToken):
             if self.parser.next_token.symbol == '#':
                 return token
             return token.nud()
+
+
+class RootToken(XPathToken):
+    """
+    A token class that is a proxy for a parsed token tree and act as mediator
+    between the static context (parser) and the dynamic context.
+    """
+    _token: XPathToken
+
+    def __init__(self, token: XPathToken) -> None:
+        self._token = token
+        self.parser = token.parser
+        self._items = token._items
+        self.value = token.value
+        self.span = token.span
+        self.symbol = token.symbol
+        self.label = token.label
+
+    def __repr__(self) -> str:
+        return '%s(token=%r)' % (self.__class__.__name__, self._token)
+
+    def __str__(self) -> str:
+        return self._token.__str__()
+
+    @property
+    def tree(self) -> str:
+        return self._token.tree
+
+    @property
+    def source(self) -> str:
+        return self._token.source
+
+    @property
+    def position(self) -> Tuple[int, int]:
+        return self._token.position
+
+    def align_schema(self, context: XPathContext) -> None:
+        if self.parser.schema is None:
+            if (schema := context.schema) is not None:
+                self.parser.schema = schema
+        elif context.schema is None:
+            context.schema = self.parser.schema
+
+    def select(self, context: ContextType = None) -> Iterator[ItemType]:
+        if context is not None:
+            self.align_schema(context)
+        yield from self._token.select(context)
+
+    def evaluate(self, context: ContextType = None) -> ValueType:
+        if context is not None:
+            self.align_schema(context)
+        return self._token.evaluate(context)
+
+    def select_results(self, context: ContextType) -> Iterator[_ResultType]:
+        if context is not None:
+            self.align_schema(context)
+        yield from self._token.select_results(context)
+
+    def get_results(self, context: ContextType) -> Union[List[_ResultType], AtomicType]:
+        if context is not None:
+            self.align_schema(context)
+        return self._token.get_results(context)
 
 
 class XPathFunction(XPathToken):

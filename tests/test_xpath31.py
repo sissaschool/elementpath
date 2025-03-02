@@ -95,7 +95,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.parser = XPath31Parser(namespaces=self.namespaces)
 
     def test_map_weekdays(self):
-        token = self.parser.parse(MAP_WEEKDAYS)[0]
+        token = self.parser.parse(MAP_WEEKDAYS)
         self.assertIsInstance(token, XPathMap)
 
         map_value = {'Su': 'Sunday',
@@ -122,7 +122,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         )
         self.assertEqual(str(token.evaluate()), f'map{map_value!r}')
 
-        token = self.parser.parse(f"{MAP_WEEKDAYS}('Mo')")[0]
+        token = self.parser.parse(f"{MAP_WEEKDAYS}('Mo')")
         self.assertEqual(token.evaluate(), 'Monday')
 
         token = self.parser.parse(f"{MAP_WEEKDAYS}('Mon')")
@@ -133,7 +133,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(token.evaluate(context), ['Monday'])
 
     def test_nested_map(self):
-        token = self.parser.parse(f'{NESTED_MAP}("book")("title")')[0]
+        token = self.parser.parse(f'{NESTED_MAP}("book")("title")')
         self.assertEqual(token.evaluate(), 'Data on the Web')
 
         self.assertEqual(token.symbol, '(')
@@ -145,10 +145,10 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         )
         self.assertEqual(str(token), "function call expression")
 
-        token = self.parser.parse(f'{NESTED_MAP}("book")("author")')[0]
+        token = self.parser.parse(f'{NESTED_MAP}("book")("author")')
         self.assertIsInstance(token.evaluate(), XPathArray)
 
-        token = self.parser.parse(f'{NESTED_MAP}("book")("author")(1)("last")')[0]
+        token = self.parser.parse(f'{NESTED_MAP}("book")("author")(1)("last")')
         self.assertEqual(token.evaluate(), 'Abiteboul')
 
     def test_map_ambiguity(self):
@@ -157,31 +157,31 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             with self.assertRaises(SyntaxError):
                 self.parser.parse('map{a:b}')
 
-            token = cast(XPathMap, self.parser.parse('map{a :b}')[0])
+            token = cast(XPathMap, self.parser.parse('map{a :b}'))
             self.assertEqual(token[0].symbol, '(name)')
             self.assertEqual(token[0].value, 'a')
             self.assertEqual(token._values[0].symbol, '(name)')
             self.assertEqual(token._values[0].value, 'b')
 
-            token = cast(XPathMap, self.parser.parse('map{a: b}'))[0]
+            token = cast(XPathMap, self.parser.parse('map{a: b}'))
             self.assertEqual(token[0].symbol, '(name)')
             self.assertEqual(token[0].value, 'a')
             self.assertEqual(token._values[0].symbol, '(name)')
             self.assertEqual(token._values[0].value, 'b')
 
-            token = self.parser.parse('map{a:b:c}')[0]
+            token = self.parser.parse('map{a:b:c}')
             self.assertEqual(token[0].symbol, ':')
             self.assertEqual(token[0].value, 'a:b')
             self.assertEqual(token._values[0].symbol, '(name)')
             self.assertEqual(token._values[0].value, 'c')
 
-            token = self.parser.parse('map{a:*:c}')[0]
+            token = self.parser.parse('map{a:*:c}')
             self.assertEqual(token[0].symbol, ':')
             self.assertEqual(token[0].value, 'a:*')
             self.assertEqual(token._values[0].symbol, '(name)')
             self.assertEqual(token._values[0].value, 'c')
 
-            token = self.parser.parse('map{*:b:c}')[0]
+            token = self.parser.parse('map{*:b:c}')
             self.assertEqual(token[0].symbol, ':')
             self.assertEqual(token[0].value, '*:b')
             self.assertEqual(token._values[0].symbol, '(name)')
@@ -190,7 +190,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
             self.parser.namespaces.pop('a')
 
     def test_curly_array_constructor(self):
-        token = self.parser.parse('array { 1, 2, 5, 7 }')[0]
+        token = self.parser.parse('array { 1, 2, 5, 7 }')
         self.assertIsInstance(token, XPathArray)
 
         self.assertEqual(token.symbol, 'array')
@@ -208,7 +208,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(str(array), '[1, 2, 5, 7]')
 
     def test_square_array_constructor(self):
-        token = self.parser.parse('[ 1, 2, 5, 7 ]')[0]
+        token = self.parser.parse('[ 1, 2, 5, 7 ]')
         self.assertIsInstance(token, XPathArray)
 
         self.assertEqual(token.symbol, '[')
@@ -228,7 +228,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(str(array), '[1, 2, 5, 7]')
 
     def test_array_lookup(self):
-        token = self.parser.parse('array { 1, 2, 5, 7 }(4)')[0]
+        token = self.parser.parse('array { 1, 2, 5, 7 }(4)')
         self.assertEqual(token.evaluate(), 7)
         self.assertEqual(token.source, 'array{1, 2, 5, 7}(4)')
         self.assertEqual(repr(token), f'<_LeftParenthesisExpression object at {hex(id(token))}>')
@@ -238,7 +238,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         )
         self.assertEqual(str(token), "function call expression")
 
-        token = self.parser.parse('[ 1, 2, 5, 7 ](4)')[0]
+        token = self.parser.parse('[ 1, 2, 5, 7 ](4)')
         self.assertEqual(token.evaluate(), 7)
         self.assertEqual(token.source, '[1, 2, 5, 7](4)')
         self.assertEqual(repr(token), f'<_LeftParenthesisExpression object at {hex(id(token))}>')
@@ -249,7 +249,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertEqual(str(token), "function call expression")
 
     def test_map_size_function(self):
-        token = self.parser.parse('map:size(map{})')[0]
+        token = self.parser.parse('map:size(map{})')
         self.assertEqual(token.evaluate(), 0)
         self.assertEqual(str(token), "'map:size' function")
         self.assertEqual(
@@ -260,7 +260,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.check_value('map:size(map{"true":1, "false":0})', 2)
 
     def test_map_keys_function(self):
-        token = self.parser.parse('map:keys(map{})')[0]
+        token = self.parser.parse('map:keys(map{})')
         self.assertListEqual(token.evaluate(), [])
         self.assertEqual(str(token), "'map:keys' function")
         self.assertEqual(
@@ -889,7 +889,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         context = None
 
         expression = 'random-number-generator()'
-        token = self.parser.parse(expression)[0]
+        token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
         result = token.evaluate()
         self.assertIsInstance(result, XPathMap)
@@ -905,7 +905,7 @@ class XPath31ParserTest(test_xpath30.XPath30ParserTest):
         self.assertListEqual(seq, list(_seq))
 
         expression = 'random-number-generator(1000)'
-        token = self.parser.parse(expression)[0]
+        token = self.parser.parse(expression)
         self.assertEqual(token.source, expression)
         result = token.evaluate()
         self.assertNotEqual(seq, result('permute', context=context)(seq))

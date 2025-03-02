@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v4.8.0`_ (2025-03-03)
+======================
+* Add full PSVI type labeling in XDM to solve type errors with XSD 1.1 assertions
+* Add *schema* optional argument to dynamic context
+* Add a RootToken as a proxy of the parsed token tree for compatibility with xmlschema<=3.4.3
+* Extend XDM to split ElementTree/lxml processing from schema nodes and to allow future extensions
+
 `v4.7.0`_ (2024-12-20)
 ======================
 * Fix *fragment* argument usage (issue #81)
@@ -484,3 +491,4 @@ CHANGELOG
 .. _v4.5.0: https://github.com/sissaschool/elementpath/compare/v4.4.0...v4.5.0
 .. _v4.6.0: https://github.com/sissaschool/elementpath/compare/v4.5.0...v4.6.0
 .. _v4.7.0: https://github.com/sissaschool/elementpath/compare/v4.6.0...v4.7.0
+.. _v4.8.0: https://github.com/sissaschool/elementpath/compare/v4.7.0...v4.8.0

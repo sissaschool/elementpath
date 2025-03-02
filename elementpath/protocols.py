@@ -11,11 +11,14 @@
 Define type hints protocols for XPath related objects.
 """
 from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, ItemsView, \
-    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, Set
+    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, TYPE_CHECKING, Set
 from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath._typing import MutableMapping
 from elementpath.aliases import NamespacesType, NsmapType
+
+if TYPE_CHECKING:
+    from elementpath.schema_proxy import AbstractSchemaProxy
 
 _T = TypeVar("_T")
 _AnyStr = Union[str, bytes]
@@ -318,6 +321,9 @@ class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
     @property
     def attrib(self) -> XsdAttributeGroupProtocol: ...
 
+    @property
+    def xpath_proxy(self) -> 'AbstractSchemaProxy': ...
+
 
 GT = TypeVar("GT")
 XsdGlobalValue = Union[GT, Tuple[ElementProtocol, Any]]
@@ -358,6 +364,9 @@ class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):
 
     @property
     def attrib(self) -> MutableMapping[Optional[str], 'XsdAttributeProtocol']: ...
+
+    @property
+    def xpath_proxy(self) -> 'AbstractSchemaProxy': ...
 
 
 DocumentType = Union[ElementTree, DocumentProtocol]

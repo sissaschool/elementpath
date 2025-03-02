@@ -29,7 +29,6 @@ from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     XPathFunction, select
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, \
     XSI_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
-from elementpath.xpath_tokens import RootToken
 
 
 class DummyXsdType:
@@ -115,8 +114,7 @@ class XPathTestCase(unittest.TestCase):
         :param expected: the expected result string.
         """
         token = self.parser.parse(path)
-        self.assertIsInstance(token, RootToken)
-        self.assertEqual(token[0].tree, expected)
+        self.assertEqual(token.tree, expected)
 
     def check_source(self, path, expected=None):
         """
@@ -126,8 +124,7 @@ class XPathTestCase(unittest.TestCase):
         :param expected: the expected result string.
         """
         token = self.parser.parse(path)
-        self.assertIsInstance(token, RootToken)
-        self.assertEqual(token[0].source, expected or path)
+        self.assertEqual(token.source, expected or path)
 
     def check_value(self, path, expected=None, context=None):
         """
@@ -148,8 +145,6 @@ class XPathTestCase(unittest.TestCase):
             if isinstance(expected, type) and isinstance(err, expected):
                 return
             raise
-
-        self.assertIsInstance(root_token, RootToken)
 
         if expected is None:
             self.assertEqual(root_token.evaluate(context), [])
@@ -199,17 +194,16 @@ class XPathTestCase(unittest.TestCase):
             context = copy(context)
 
         root_token = self.parser.parse(path)
-        self.assertIsInstance(root_token, RootToken)
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, root_token[0].select, context)
+            self.assertRaises(expected, root_token.select, context)
         elif isinstance(expected, list):
-            self.assertListEqual(list(root_token[0].select(context)), expected)
+            self.assertListEqual(list(root_token.select(context)), expected)
         elif isinstance(expected, set):
-            self.assertEqual(set(root_token[0].select(context)), expected)
+            self.assertEqual(set(root_token.select(context)), expected)
         elif callable(expected):
-            self.assertTrue(expected(list(root_token[0].parser.parse(path).select(context))))
+            self.assertTrue(expected(list(root_token.parser.parse(path).select(context))))
         else:
-            self.assertEqual(list(root_token[0].select(context)), expected)  # must fail
+            self.assertEqual(list(root_token.select(context)), expected)  # must fail
 
     def check_selector(self, path, root, expected, namespaces=None, **kwargs):
         """

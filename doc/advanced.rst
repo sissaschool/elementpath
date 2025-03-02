@@ -28,21 +28,13 @@ That token is a proxy token for the tree produced by TDOP parsing:
 .. doctest::
 
     >>> token
-    RootToken(token=<_SolidusOperator object at 0x...>)
-    >>> token.token
-    <_SolidusOperator object at 0x...>
+    <_SolidusOperator object at 0x...
     >>> str(token)
-    "root of '/' operator"
+    "'/' operator"
     >>> token.tree
     '(/ (/ (root)) ([ (child) (@ (attr))))'
     >>> token.source
     '/root/child[@attr]'
-
-.. note::
-    Root proxy tokens have been added in release v4.8.0, in order to associate XSD
-    declarations with their types just before the evaluation phase. Previously the
-    returned token was a generic token built by parser, not suitable for initializing
-    the dynamic context before evaluation.
 
 Providing a wrong expression an error is raised:
 
