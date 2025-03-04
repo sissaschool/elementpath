@@ -10,12 +10,12 @@
 """
 XPath 3.0 implementation - part 3 (functions)
 """
-import sys
 import decimal
 import os
 import re
 import codecs
 import math
+import zoneinfo
 from collections.abc import Iterator
 from copy import copy
 from itertools import zip_longest
@@ -52,11 +52,6 @@ from .xpath30_helpers import UNICODE_DIGIT_PATTERN, DECIMAL_DIGIT_PATTERN, \
     MODIFIER_PATTERN, decimal_to_string, int_to_roman, int_to_alphabetic, \
     format_digits, int_to_words, parse_datetime_picture, parse_datetime_marker, \
     ordinal_suffix
-
-if sys.version_info < (3, 9):
-    zoneinfo = None
-else:
-    import zoneinfo
 
 FORMAT_INTEGER_TOKENS = {'A', 'a', 'i', 'I', 'w', 'W', 'Ww'}
 

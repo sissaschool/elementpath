@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='elementpath',
-    version='4.8.0',
+    version='5.0.0',
     packages=find_packages(include=['elementpath', 'elementpath.*']),
     package_data={
         'elementpath': ['py.typed'],
@@ -29,7 +29,7 @@ setup(
     license_file='LICENSE',
     description='XPath 1.0/2.0/3.0/3.1 parsers and selectors for ElementTree and lxml',
     long_description=long_description,
-    python_requires='>=3.8',
+    python_requires='>=3.9',
     extras_require={
         'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=3.3.2', 'Sphinx',
                 'memory-profiler', 'memray', 'flake8', 'mypy', 'lxml-stubs']
@@ -44,7 +44,6 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
