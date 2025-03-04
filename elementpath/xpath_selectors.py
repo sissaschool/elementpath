@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
-from typing import Any, Dict, Optional, Union
+from collections.abc import Iterator
+from typing import Any, Optional, Union
 
-from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType, InputType
 from elementpath.xpath_nodes import RootArgType
 from elementpath.xpath_context import ItemArgType, XPathContext
@@ -31,7 +31,7 @@ def select(root: Optional[RootArgType],
            size: int = 1,
            axis: Optional[str] = None,
            schema: Optional[AbstractSchemaProxy] = None,
-           variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
+           variables: Optional[dict[str, InputType[ItemArgType]]] = None,
            current_dt: Optional[datetime.datetime] = None,
            timezone: Optional[Union[str, Timezone]] = None,
            **kwargs: Any) -> Any:
@@ -84,7 +84,7 @@ def iter_select(root: Optional[RootArgType],
                 size: int = 1,
                 axis: Optional[str] = None,
                 schema: Optional[AbstractSchemaProxy] = None,
-                variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
+                variables: Optional[dict[str, InputType[ItemArgType]]] = None,
                 current_dt: Optional[datetime.datetime] = None,
                 timezone: Optional[Union[str, Timezone]] = None,
                 **kwargs: Any) -> Iterator[Any]:
@@ -159,7 +159,7 @@ class Selector(object):
         )
 
     @property
-    def namespaces(self) -> Dict[str, str]:
+    def namespaces(self) -> dict[str, str]:
         """A dictionary with mapping from namespace prefixes into URIs."""
         return self.parser.namespaces
 

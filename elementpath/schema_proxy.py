@@ -8,10 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterator
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Dict, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
-from elementpath._typing import Iterator
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
     XsdElementProtocol, XsdSchemaProtocol
@@ -106,7 +106,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return XPathSchemaContext(root=self._schema, item=self._base_element, schema=self)
 
-    def find(self, path: str, namespaces: Optional[Dict[str, str]] = None) \
+    def find(self, path: str, namespaces: Optional[dict[str, str]] = None) \
             -> Optional[PathResult]:
         """
         Find a schema element or attribute using an XPath expression.
@@ -179,7 +179,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
             return None
         return xsd_element
 
-    def get_substitution_group(self, qname: str) -> Optional[Set[XsdElementProtocol]]:
+    def get_substitution_group(self, qname: str) -> Optional[set[XsdElementProtocol]]:
         """
         Get a substitution group. A concrete implementation must return a list containing
         substitution elements or `None` if the substitution group is not found. Moreover,

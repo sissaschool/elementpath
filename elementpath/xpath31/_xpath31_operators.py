@@ -10,9 +10,9 @@
 """
 XPath 3.1 implementation - part 2 (operators and constructors)
 """
+from collections.abc import Iterator, Iterable
 from typing import cast, Optional, Union
 
-from elementpath._typing import Iterator, Iterable
 from elementpath.aliases import SequenceType
 from elementpath.helpers import iter_sequence
 from elementpath.sequence_types import is_sequence_type, match_sequence_type

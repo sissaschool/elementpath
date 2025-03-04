@@ -12,9 +12,9 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 """
 import re
 from abc import ABCMeta
-from typing import cast, Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union
+from collections.abc import Callable, MutableMapping, Sequence
+from typing import cast, Any, ClassVar, Optional, Union
 
-from elementpath._typing import Callable, MutableMapping, Sequence
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.exceptions import xpath_error, UnsupportedFeatureError, \
     ElementPathValueError, ElementPathNameError, ElementPathKeyError, MissingContextError
@@ -53,25 +53,25 @@ class XPath1Parser(Parser[XPathTokenType]):
         'comment', 'element', 'node', 'processing-instruction', 'text'
     }
 
-    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {'xml': XML_NAMESPACE}
+    DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {'xml': XML_NAMESPACE}
     """Namespaces known statically by default."""
 
     # Labels and symbols admitted after a path step
-    PATH_STEP_LABELS: ClassVar[Tuple[str, ...]] = ('axis', 'kind test')
-    PATH_STEP_SYMBOLS: ClassVar[Set[str]] = {
+    PATH_STEP_LABELS: ClassVar[tuple[str, ...]] = ('axis', 'kind test')
+    PATH_STEP_SYMBOLS: ClassVar[set[str]] = {
         '(integer)', '(string)', '(float)', '(decimal)', '(name)', '*', '@', '..', '.', '{'
     }
 
     # Class attributes for compatibility with XPath 2.0+
     schema: Optional[AbstractSchemaProxy] = None
-    variable_types: Optional[Dict[str, str]] = None
-    document_types: Optional[Dict[str, str]] = None
+    variable_types: Optional[dict[str, str]] = None
+    document_types: Optional[dict[str, str]] = None
     collection_types: Optional[NamespacesType] = None
     default_collection_type: str = 'node()*'
     base_uri: Optional[str] = None
     function_namespace = XPATH_FUNCTIONS_NAMESPACE
-    function_signatures: Dict[Tuple[QName, int], str] = {}
-    decimal_formats: Dict[Optional[str], Any] = {}
+    function_signatures: dict[tuple[QName, int], str] = {}
+    decimal_formats: dict[Optional[str], Any] = {}
     parse_arguments: bool = True
     defuse_xml: bool = True
 
@@ -93,7 +93,7 @@ class XPath1Parser(Parser[XPathTokenType]):
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  strict: bool = True) -> None:
         super(XPath1Parser, self).__init__()
-        self.namespaces: Dict[str, str] = self.DEFAULT_NAMESPACES.copy()
+        self.namespaces: dict[str, str] = self.DEFAULT_NAMESPACES.copy()
         if namespaces is not None:
             self.namespaces.update(namespaces)
         self.strict: bool = strict
@@ -107,7 +107,7 @@ class XPath1Parser(Parser[XPathTokenType]):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
     @property
-    def other_namespaces(self) -> Dict[str, str]:
+    def other_namespaces(self) -> dict[str, str]:
         """The subset of namespaces not known by default."""
         return {k: v for k, v in self.namespaces.items()
                 if k not in self.DEFAULT_NAMESPACES or self.DEFAULT_NAMESPACES[k] != v}
@@ -132,12 +132,12 @@ class XPath1Parser(Parser[XPathTokenType]):
 
     @classmethod
     def create_restricted_parser(cls, name: str, symbols: Sequence[str]) \
-            -> Type['XPath1Parser']:
+            -> type['XPath1Parser']:
         """Get a parser subclass with a restricted set of symbols.s"""
         symbol_table = {
             k: v for k, v in cls.symbol_table.items() if k in symbols
         }
-        return cast(Type['XPath1Parser'], ABCMeta(
+        return cast(type['XPath1Parser'], ABCMeta(
             f"{name}{cls.__name__}", (cls,), {'symbol_table': symbol_table}
         ))
 
@@ -149,7 +149,7 @@ class XPath1Parser(Parser[XPathTokenType]):
             return string_literal[1:-1].replace('""', '"')
 
     @classmethod
-    def proxy(cls, symbol: str, label: str = 'proxy', bp: int = 90) -> Type[ProxyToken]:
+    def proxy(cls, symbol: str, label: str = 'proxy', bp: int = 90) -> type[ProxyToken]:
         """Register a proxy token class for a symbol."""
         if symbol in cls.symbol_table and not issubclass(cls.symbol_table[symbol], ProxyToken):
             # Move the token class before register the proxy token
@@ -171,7 +171,7 @@ class XPath1Parser(Parser[XPathTokenType]):
         return token_class
 
     @classmethod
-    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> Type[XPathAxis]:
+    def axis(cls, symbol: str, reverse_axis: bool = False, bp: int = 80) -> type[XPathAxis]:
         """Register a token class for a symbol that represents an XPath *axis*."""
         token_class = cls.register(symbol, bases=(XPathAxis,),
                                    reverse_axis=reverse_axis, lbp=bp, rbp=bp)
@@ -183,8 +183,8 @@ class XPath1Parser(Parser[XPathTokenType]):
                  prefix: Optional[str] = None,
                  label: str = 'function',
                  nargs: NargsType = None,
-                 sequence_types: Tuple[str, ...] = (),
-                 bp: int = 90) -> Type[XPathFunction]:
+                 sequence_types: tuple[str, ...] = (),
+                 bp: int = 90) -> type[XPathFunction]:
         """
         Registers a token class for a symbol that represents an XPath function.
         """
@@ -197,7 +197,7 @@ class XPath1Parser(Parser[XPathTokenType]):
         }
         if 'function' not in label:
             # kind test or sequence type
-            return cast(Type[XPathFunction], cls.register(symbol, **kwargs))
+            return cast(type[XPathFunction], cls.register(symbol, **kwargs))
         elif symbol in cls.RESERVED_FUNCTION_NAMES:
             raise ElementPathValueError(f'{symbol!r} is a reserved function name')
 
@@ -239,7 +239,7 @@ class XPath1Parser(Parser[XPathTokenType]):
                         ', '.join(sequence_types[:arity]), sequence_types[-1]
                     )
 
-        return cast(Type[XPathFunction], cls.register(symbol, **kwargs))
+        return cast(type[XPathFunction], cls.register(symbol, **kwargs))
 
     def parse(self, source: str) -> XPathToken:
         if self.tokenizer is None:
@@ -281,7 +281,7 @@ class XPath1Parser(Parser[XPathTokenType]):
                 not isinstance(self.next_token, (XPathFunction, XPathAxis)) and \
                 self.name_pattern.match(self.next_token.symbol) is not None:
             # Disambiguation replacing the next token with a '(name)' token
-            cls = cast(Type[XPathToken], self.symbol_table['(name)'])
+            cls = cast(type[XPathToken], self.symbol_table['(name)'])
             self.next_token = cls(self, self.next_token.symbol)
         else:
             raise self.next_token.wrong_syntax(message)
@@ -346,8 +346,8 @@ class XPath1Parser(Parser[XPathTokenType]):
     # Unsupported methods in XPath 1.0
     @classmethod
     def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,
-                    sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
-                    label: Union[str, Tuple[str, ...]] = 'constructor function') \
+                    sequence_types: Union[tuple[()], tuple[str, ...], list[str]] = (),
+                    label: Union[str, tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Statically creates a constructor token class, that is registered in the globals
@@ -357,7 +357,7 @@ class XPath1Parser(Parser[XPathTokenType]):
                                       "classes requires an XPath 2.0+ parser")
 
     def schema_constructor(self, atomic_type_name: str, bp: int = 90) \
-            -> Type[XPathFunction]:
+            -> type[XPathFunction]:
         """Dynamically registers a token class for a schema atomic type constructor function."""
         raise UnsupportedFeatureError("Dynamic definition of schema constructors token "
                                       "classes requires an XPath 2.0+ parser")
@@ -366,8 +366,8 @@ class XPath1Parser(Parser[XPathTokenType]):
                           callback: Callable[..., Any],
                           name: Optional[str] = None,
                           prefix: Optional[str] = None,
-                          sequence_types: Tuple[str, ...] = (),
-                          bp: int = 90) -> Type[XPathFunction]:
+                          sequence_types: tuple[str, ...] = (),
+                          bp: int = 90) -> type[XPathFunction]:
         """Registers a token class for an external function."""
         raise UnsupportedFeatureError(
             "Registration of external functions requires an XPath 2.0+ parser"

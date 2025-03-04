@@ -9,7 +9,7 @@
 #
 import math
 import re
-from typing import Any, Optional, SupportsFloat, SupportsInt, Union, Type
+from typing import Any, Optional, SupportsFloat, SupportsInt, Union
 
 from elementpath.helpers import NUMERIC_INF_OR_NAN, INVALID_NUMERIC, collapse_white_spaces
 from .atomic_types import AnyAtomicType
@@ -166,7 +166,7 @@ class Integer(int, AnyAtomicType):
         int.__init__(self)
 
     @classmethod
-    def __subclasshook__(cls, subclass: Type[Any]) -> bool:
+    def __subclasshook__(cls, subclass: type[Any]) -> bool:
         if cls is Integer:
             return issubclass(subclass, int) and not issubclass(subclass, bool)
         return NotImplemented  # type: ignore[no-any-return,unused-ignore]

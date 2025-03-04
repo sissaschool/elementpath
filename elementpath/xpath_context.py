@@ -9,12 +9,12 @@
 #
 import datetime
 import importlib
+from collections.abc import Iterator, Sequence, Callable
 from copy import copy
 from functools import cached_property
 from types import ModuleType
-from typing import TYPE_CHECKING, cast, Any, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
-from elementpath._typing import Iterator, Sequence, Callable
 from elementpath.aliases import NamespacesType, SequenceType, InputType
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath.exceptions import ElementPathTypeError
@@ -34,7 +34,7 @@ __all__ = ['XPathContext', 'XPathSchemaContext', 'ContextType', 'ItemType',
            'ValueType', 'ItemArgType', 'FunctionArgType']
 
 ###
-# Type annotations aliases for context and tokens classes
+# type annotations aliases for context and tokens classes
 ContextType = Union['XPathContext', 'XPathSchemaContext', None]
 ItemType = Union[XPathNode, AtomicType, 'XPathFunction']
 ValueType = SequenceType[ItemType]
@@ -100,10 +100,10 @@ class XPathContext:
     document: Optional[DocumentNode]
     item: ItemType
 
-    variables: Dict[str, ValueType]
-    documents: Optional[Dict[str, DocumentNode]] = None
-    collections: Optional[Dict[str, List[XPathNode]]] = None
-    default_collection: Optional[List[XPathNode]] = None
+    variables: dict[str, ValueType]
+    documents: Optional[dict[str, DocumentNode]] = None
+    collections: Optional[dict[str, list[XPathNode]]] = None
+    default_collection: Optional[list[XPathNode]] = None
 
     __slots__ = ('document', 'root', 'item', 'namespaces', 'size',
                  'position', 'variables', 'axis', '__dict__')
@@ -118,14 +118,14 @@ class XPathContext:
                  size: int = 1,
                  axis: Optional[str] = None,
                  schema: Optional['AbstractSchemaProxy'] = None,
-                 variables: Optional[Dict[str, InputType[ItemArgType]]] = None,
+                 variables: Optional[dict[str, InputType[ItemArgType]]] = None,
                  current_dt: Optional[datetime.datetime] = None,
                  timezone: Optional[Union[str, Timezone]] = None,
-                 documents: Optional[Dict[str, RootArgType]] = None,
-                 collections: Optional[Dict[str, CollectionArgType]] = None,
+                 documents: Optional[dict[str, RootArgType]] = None,
+                 collections: Optional[dict[str, CollectionArgType]] = None,
                  default_collection: CollectionArgType = None,
-                 text_resources: Optional[Dict[str, str]] = None,
-                 resource_collections: Optional[Dict[str, List[str]]] = None,
+                 text_resources: Optional[dict[str, str]] = None,
+                 resource_collections: Optional[dict[str, list[str]]] = None,
                  default_resource_collection: Optional[str] = None,
                  allow_environment: bool = False,
                  default_language: Optional[str] = None,
@@ -335,7 +335,7 @@ class XPathContext:
             return self.get_context_item(item, *args, **kwargs)
         return [self.get_context_item(x, *args, **kwargs) for x in item]
 
-    def get_collection(self, items: CollectionArgType) -> List[XPathNode]:
+    def get_collection(self, items: CollectionArgType) -> list[XPathNode]:
         if items is None:
             return []
         elif isinstance(items, (list, tuple)):
@@ -349,7 +349,7 @@ class XPathContext:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
         if predicate:
-            results: List[ItemType] = []
+            results: list[ItemType] = []
             for item in token.select(copy(self)):
                 # With predicate select nodes that have not single list value
                 # must be replaced by typed values.
@@ -559,7 +559,7 @@ class XPathContext:
             status = self.item, self.axis
             self.axis = axis or 'ancestor'
 
-            ancestors: List[XPathNode] = []
+            ancestors: list[XPathNode] = []
             if axis == 'ancestor-or-self':
                 ancestors.append(self.item)
 
@@ -578,7 +578,7 @@ class XPathContext:
 
     def iter_preceding(self) -> Iterator[Union[DocumentNode, ChildNodeType]]:
         """Iterator for 'preceding' reverse axis."""
-        ancestors: Set[RootNodeType]
+        ancestors: set[RootNodeType]
         item: XPathNode
 
         if isinstance(self.item, XPathNode):

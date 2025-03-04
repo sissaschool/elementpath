@@ -15,14 +15,14 @@ Refs:
   - https://www.w3.org/TR/xpath-functions-30/
 """
 from copy import deepcopy
-from typing import Any, ClassVar, Dict, Optional, Tuple
+from typing import Any, ClassVar, Optional
 
 from elementpath.namespaces import XPATH_MATH_FUNCTIONS_NAMESPACE
 from elementpath.datatypes import QName
 from elementpath.xpath2 import XPath2Parser
 
 
-DecimalFormatsType = Dict[Optional[str], Dict[str, str]]
+DecimalFormatsType = dict[Optional[str], dict[str, str]]
 
 
 class XPath30Parser(XPath2Parser):
@@ -38,7 +38,7 @@ class XPath30Parser(XPath2Parser):
     """
     version = '3.0'
 
-    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
+    DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {
         'math': XPATH_MATH_FUNCTIONS_NAMESPACE, **XPath2Parser.DEFAULT_NAMESPACES
     }
     PATH_STEP_SYMBOLS = {
@@ -53,7 +53,7 @@ class XPath30Parser(XPath2Parser):
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 
-    function_signatures: Dict[Tuple[QName, int], str] = XPath2Parser.function_signatures.copy()
+    function_signatures: dict[tuple[QName, int], str] = XPath2Parser.function_signatures.copy()
 
     decimal_formats: DecimalFormatsType = {
         None: {

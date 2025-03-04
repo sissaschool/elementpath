@@ -16,14 +16,14 @@ import math
 import pathlib
 import random
 import re
+from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import product
-from typing import Any, cast, Dict, List, Optional, Tuple
+from typing import Any, cast, Optional
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-from elementpath._typing import Callable, Iterable, Iterator
 from elementpath.aliases import SequenceType, Emptiable
 from elementpath.protocols import ElementProtocol, EtreeElementProtocol
 from elementpath.datatypes import AnyAtomicType, AbstractBinary, AbstractDateTime, \
@@ -105,7 +105,7 @@ def evaluate_map_size_function(self: XPathFunction, context: ContextType = None)
 @method(function('keys', prefix='map', nargs=1,
                  sequence_types=('map(*)', 'xs:anyAtomicType*')))
 def evaluate_map_keys_function(self: XPathFunction, context: ContextType = None) \
-        -> List[AtomicType]:
+        -> list[AtomicType]:
     if self.context is not None:
         context = self.context
 
@@ -217,7 +217,7 @@ def evaluate_map_merge_function(self: XPathFunction, context: ContextType = None
                 else:
                     raise self.error('FOJS0005')
 
-    items: Dict[Any, Any] = {}
+    items: dict[Any, Any] = {}
     for map_ in self[0].select(context):
         assert isinstance(map_, XPathMap)
         for k1, v in map_.items(context):
@@ -407,7 +407,7 @@ def evaluate_array_remove_function(self: XPathFunction, context: ContextType = N
     if positions_ is None:
         return array_
 
-    positions: List[int] = []
+    positions: list[int] = []
     for p in positions_ if isinstance(positions_, list) else [positions_]:
         if isinstance(p, int) and 0 < p <= len(array_):
             positions.append(p)
@@ -513,11 +513,11 @@ def evaluate_array_join_function(self: XPathFunction, context: ContextType = Non
 @method(function('flatten', prefix='array', nargs=1,
                  sequence_types=('item()*', 'item()*')))
 def evaluate_array_flatten_function(self: XPathFunction, context: ContextType = None) \
-        -> List[ItemType]:
+        -> list[ItemType]:
     if self.context is not None:
         context = self.context
 
-    items: List[ItemType] = []
+    items: list[ItemType] = []
     for obj in self[0].select(context):
         if isinstance(obj, XPathArray):
             items.extend(obj.iter_flatten(context))
@@ -763,8 +763,8 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
             for x in value
         )
 
-    def json_object_pairs_to_map(obj: Iterable[Tuple[str, SequenceType[ItemType]]]) -> XPathMap:
-        items: Dict[ItemType, SequenceType[ItemType]] = {}
+    def json_object_pairs_to_map(obj: Iterable[tuple[str, SequenceType[ItemType]]]) -> XPathMap:
+        items: dict[ItemType, SequenceType[ItemType]] = {}
 
         for item in obj:
             key, value = decode_value(item[0]), decode_value(item[1])
@@ -782,7 +782,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
 
         return XPathMap(self.parser, items)
 
-    kwargs: Dict[str, Any] = {'object_pairs_hook': json_object_pairs_to_map}
+    kwargs: dict[str, Any] = {'object_pairs_hook': json_object_pairs_to_map}
     if liberal or escape:
         kwargs['strict'] = False
     if liberal:
@@ -871,7 +871,7 @@ def evaluate_random_number_generator_function(self: XPathFunction, context: Cont
         nargs = 1
         sequence_types = ('item()*', 'item()*')
 
-        def __call__(self, *args: Any, **kwargs: Any) -> List[ItemType]:
+        def __call__(self, *args: Any, **kwargs: Any) -> list[ItemType]:
             if not args:
                 return []
 
@@ -1361,7 +1361,7 @@ def evaluate_json_to_xml_function(self: XPathFunction, context: ContextType = No
 
         return cast(ElementProtocol, elem)
 
-    def json_object_to_etree(obj: Iterable[Tuple[str, Optional[ItemType]]]) -> ElementProtocol:
+    def json_object_to_etree(obj: Iterable[tuple[str, Optional[ItemType]]]) -> ElementProtocol:
         keys = set()
         items = []
         for k, v in obj:
@@ -1391,7 +1391,7 @@ def evaluate_json_to_xml_function(self: XPathFunction, context: ContextType = No
             elem.append(item)
         return cast(ElementProtocol, elem)
 
-    kwargs: Dict[str, Any] = {'object_pairs_hook': json_object_to_etree}
+    kwargs: dict[str, Any] = {'object_pairs_hook': json_object_to_etree}
     if liberal or escape:
         kwargs['strict'] = False
     if liberal:

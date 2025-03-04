@@ -10,23 +10,23 @@
 """
 Common type hints aliases for elementpath.
 """
-from typing import Any, List, Optional, NoReturn, Tuple, Type, TYPE_CHECKING, TypeVar, Union
+from typing import Any, Optional, NoReturn, TYPE_CHECKING, TypeVar, Union
 
-from elementpath._typing import MutableMapping
+from collections.abc import MutableMapping
 
 ##
-# Type aliases
+# type aliases
 NamespacesType = MutableMapping[str, str]
 NsmapType = MutableMapping[Optional[str], str]  # compatible with the nsmap of lxml Element
 AnyNsmapType = Union[NamespacesType, NsmapType, None]  # for composition and function arguments
 
-NargsType = Optional[Union[int, Tuple[int, Optional[int]]]]
-ClassCheckType = Union[Type[Any], Tuple[Type[Any], ...]]
+NargsType = Optional[Union[int, tuple[int, Optional[int]]]]
+ClassCheckType = Union[type[Any], tuple[type[Any], ...]]
 
 T = TypeVar('T')
-Emptiable = Union[T, List[NoReturn]]
-SequenceType = Union[T, List[T]]
-InputType = Union[None, T, List[T], Tuple[T, ...]]
+Emptiable = Union[T, list[NoReturn]]
+SequenceType = Union[T, list[T]]
+InputType = Union[None, T, list[T], tuple[T, ...]]
 
 if TYPE_CHECKING:
     from elementpath.datatypes import AtomicType, ArithmeticType, NumericType

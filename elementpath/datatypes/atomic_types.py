@@ -8,10 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Optional
 import re
-
-from elementpath._typing import Pattern
 
 XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 
@@ -21,10 +19,10 @@ XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 # into a dictionary. Some classes of XSD primitive types are defined
 # as proxies of basic Python datatypes.
 
-xsd10_atomic_types: Dict[Optional[str], 'AtomicTypeMeta'] = {}
+xsd10_atomic_types: dict[Optional[str], 'AtomicTypeMeta'] = {}
 """Dictionary of builtin XSD 1.0 atomic types."""
 
-xsd11_atomic_types: Dict[Optional[str], 'AtomicTypeMeta'] = {}
+xsd11_atomic_types: dict[Optional[str], 'AtomicTypeMeta'] = {}
 """Dictionary of builtin XSD 1.1 atomic types."""
 
 
@@ -36,10 +34,10 @@ class AtomicTypeMeta(ABCMeta):
     of XSD atomic types and also the expanded name is added.
     """
     xsd_version: str
-    pattern: Pattern[str]
+    pattern: re.Pattern[str]
     name: Optional[str] = None
 
-    def __new__(mcs, class_name: str, bases: Tuple[Type[Any], ...], dict_: Dict[str, Any]) \
+    def __new__(mcs, class_name: str, bases: tuple[type[Any], ...], dict_: dict[str, Any]) \
             -> 'AtomicTypeMeta':
         try:
             name = dict_['name']
@@ -70,7 +68,7 @@ class AtomicTypeMeta(ABCMeta):
 
         return cls
 
-    def validate(cls: Type[Any], value: object) -> None:
+    def validate(cls: type[Any], value: object) -> None:
         if isinstance(value, cls):
             return
         elif isinstance(value, str):
@@ -79,7 +77,7 @@ class AtomicTypeMeta(ABCMeta):
         else:
             raise cls.invalid_type(value)
 
-    def is_valid(cls: Type[Any], value: object) -> bool:
+    def is_valid(cls: type[Any], value: object) -> bool:
         try:
             cls.validate(value)
         except (TypeError, ValueError):
@@ -87,12 +85,12 @@ class AtomicTypeMeta(ABCMeta):
         else:
             return True
 
-    def invalid_type(cls: Type[Any], value: object) -> TypeError:
+    def invalid_type(cls: type[Any], value: object) -> TypeError:
         if cls.name:
             return TypeError('invalid type {!r} for xs:{}'.format(type(value), cls.name))
         return TypeError('invalid type {!r} for {!r}'.format(type(value), cls))
 
-    def invalid_value(cls: Type[Any], value: object) -> ValueError:
+    def invalid_value(cls: type[Any], value: object) -> ValueError:
         if cls.name:
             return ValueError('invalid value {!r} for xs:{}'.format(value, cls.name))
         return ValueError('invalid value {!r} for {!r}'.format(value, cls))

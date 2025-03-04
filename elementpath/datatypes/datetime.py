@@ -8,15 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
+from collections.abc import Callable
 import re
 import math
 import operator
 import datetime
 from calendar import isleap
 from decimal import Decimal, Context
-from typing import cast, Any, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import cast, Any, Optional, TypeVar, Union
 
-from elementpath._typing import Callable
 from elementpath.helpers import MONTH_DAYS_LEAP, MONTH_DAYS, DAYS_IN_4Y, \
     DAYS_IN_100Y, DAYS_IN_400Y, days_from_common_era, adjust_day, \
     normalized_seconds, months2days, round_number
@@ -63,7 +63,7 @@ class Timezone(datetime.tzinfo):
             raise ValueError("{!r} has not an integral number of minutes".format(duration))
         return cls(datetime.timedelta(seconds=int(duration.seconds)))
 
-    def __getinitargs__(self) -> Tuple[datetime.timedelta]:
+    def __getinitargs__(self) -> tuple[datetime.timedelta]:
         return self.offset,
 
     def __hash__(self) -> int:
@@ -267,11 +267,11 @@ class AbstractDateTime(AnyAtomicType):
     def astimezone(self, tz: Optional[datetime.tzinfo] = None) -> datetime.datetime:
         return self._dt.astimezone(tz)
 
-    def isocalendar(self) -> Tuple[int, int, int]:
+    def isocalendar(self) -> tuple[int, int, int]:
         return self._dt.isocalendar()
 
     @classmethod
-    def fromstring(cls: Type[_DT], datetime_string: str, tzinfo: Optional[Timezone] = None) \
+    def fromstring(cls: type[_DT], datetime_string: str, tzinfo: Optional[Timezone] = None) \
             -> _DT:
         """
         Creates an XSD date/time instance from a string formatted value.
@@ -293,7 +293,7 @@ class AbstractDateTime(AnyAtomicType):
             raise ValueError(msg.format(datetime_string, cls))
 
         match_dict = match.groupdict()
-        kwargs: Dict[str, int] = {
+        kwargs: dict[str, int] = {
             k: int(v) for k, v in match_dict.items() if k != 'tzinfo' and v is not None
         }
 
@@ -322,7 +322,7 @@ class AbstractDateTime(AnyAtomicType):
         return cls(tzinfo=tzinfo, **kwargs)
 
     @classmethod
-    def fromdatetime(cls: Type[_DT], dt: Union[datetime.datetime, datetime.date, datetime.time],
+    def fromdatetime(cls: type[_DT], dt: Union[datetime.datetime, datetime.date, datetime.time],
                      year: Optional[int] = None) -> _DT:
         """
         Creates an XSD date/time instance from a datetime.datetime/date/time instance.
@@ -343,7 +343,7 @@ class AbstractDateTime(AnyAtomicType):
         return cls(**kwargs)
 
     # Python can't compare offset-naive and offset-aware datetimes
-    def _get_operands(self, other: object) -> Tuple[datetime.datetime, datetime.datetime]:
+    def _get_operands(self, other: object) -> tuple[datetime.datetime, datetime.datetime]:
         if isinstance(other, (self.__class__, datetime.datetime)) or \
                 isinstance(self, other.__class__):
             dt: datetime.datetime = getattr(other, '_dt', cast(datetime.datetime, other))
@@ -831,7 +831,7 @@ class Duration(AnyAtomicType):
         return value
 
     @classmethod
-    def fromstring(cls: Type[_D], text: str) -> _D:
+    def fromstring(cls: type[_D], text: str) -> _D:
         """
         Creates a Duration instance from a formatted XSD duration string.
 

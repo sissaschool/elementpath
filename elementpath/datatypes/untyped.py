@@ -9,7 +9,7 @@
 #
 import operator
 from decimal import Decimal
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from elementpath.helpers import BOOLEAN_VALUES, get_double
 from .atomic_types import AnyAtomicType
@@ -52,7 +52,7 @@ class UntypedAtomic(AnyAtomicType):
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def _get_operands(self, other: Any, force_float: bool = True) -> Tuple[Any, Any]:
+    def _get_operands(self, other: Any, force_float: bool = True) -> tuple[Any, Any]:
         """
         Returns a couple of operands, applying a cast to the instance value based on
         the type of the *other* argument.

@@ -11,10 +11,10 @@ import calendar
 import datetime
 import decimal
 import re
-from typing import Any, List, Optional, Tuple, Union
+from collections.abc import Iterator
+from typing import Any, Optional, Union
 from unicodedata import category
 
-from elementpath._typing import Iterator
 from elementpath.exceptions import xpath_error
 from elementpath.regex import translate_pattern
 
@@ -337,7 +337,7 @@ def int_to_words(num: int, lang: Optional[str] = None, fmt_modifier: str = '') -
         return result
 
 
-def parse_datetime_picture(picture: str) -> Tuple[List[str], List[str]]:
+def parse_datetime_picture(picture: str) -> tuple[list[str], list[str]]:
     """
     Analyze a picture argument of XPath 3.0+ formatting functions.
 
@@ -685,7 +685,7 @@ def parse_datetime_marker(marker: str, dt: datetime.datetime, lang: Optional[str
     return sign + fmt_chunk
 
 
-def parse_width(width: str) -> Tuple[int, Optional[int]]:
+def parse_width(width: str) -> tuple[int, Optional[int]]:
     min_width: Union[str, int]
     max_width: Union[str, int, None]
 

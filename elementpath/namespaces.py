@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Tuple, Union
+from typing import cast, Union
 
 from elementpath.aliases import NamespacesType, NsmapType
 from elementpath.helpers import Patterns
@@ -68,7 +68,7 @@ def get_namespace(name: str) -> str:
         return ''
 
 
-def split_expanded_name(name: str) -> Tuple[str, str]:
+def split_expanded_name(name: str) -> tuple[str, str]:
     match = Patterns.expanded_name.match(name)
     if match is None:
         raise ValueError(f"{name!r} is not an expanded QName")

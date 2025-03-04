@@ -10,11 +10,11 @@
 """
 Define type hints protocols for XPath related objects.
 """
-from typing import overload, Any, Dict, Iterator, Iterable, Optional, Sequence, ItemsView, \
-    Protocol, Sized, Hashable, Union, TypeVar, Mapping, Tuple, TYPE_CHECKING, Set
+from collections.abc import Hashable, Iterator, Iterable, ItemsView, Mapping, Sequence, Sized
+from typing import overload, Any, Optional, Protocol, Union, TypeVar, TYPE_CHECKING
 from xml.etree.ElementTree import Element, ElementTree
 
-from elementpath._typing import MutableMapping
+from collections.abc import MutableMapping
 from elementpath.aliases import NamespacesType, NsmapType
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ class LxmlAttribProtocol(Protocol):
     """A minimal protocol for attributes of lxml Element objects."""
     def get(self, *args: Any, **kwargs: Any) -> Optional[str]: ...
 
-    def items(self) -> Sequence[Tuple[Any, Any]]: ...
+    def items(self) -> Sequence[tuple[Any, Any]]: ...
 
     def __contains__(self, key: Any) -> bool: ...
 
@@ -54,7 +54,7 @@ class ElementProtocol(Sized, Hashable, Protocol):
     def __iter__(self) -> Iterator['ElementProtocol']: ...
 
     def find(
-            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+            self, path: str, namespaces: Optional[dict[str, str]] = ...
     ) -> Optional['ElementProtocol']: ...
     def iter(self, tag: Optional[str] = ...) -> Iterator['ElementProtocol']: ...
 
@@ -84,12 +84,12 @@ class EtreeElementProtocol(ElementProtocol, Protocol):
     def __iter__(self) -> Iterator['EtreeElementProtocol']: ...
 
     def find(
-            self, path: str, namespaces: Optional[Dict[str, str]] = ...
+            self, path: str, namespaces: Optional[dict[str, str]] = ...
     ) -> Optional['EtreeElementProtocol']: ...
     def iter(self, tag: Optional[str] = ...) -> Iterator['EtreeElementProtocol']: ...
 
     @property
-    def attrib(self) -> Dict[str, str]: ...
+    def attrib(self) -> dict[str, str]: ...
 
 
 class LxmlElementProtocol(ElementProtocol, Protocol):
@@ -326,7 +326,7 @@ class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
 
 
 GT = TypeVar("GT")
-XsdGlobalValue = Union[GT, Tuple[ElementProtocol, Any]]
+XsdGlobalValue = Union[GT, tuple[ElementProtocol, Any]]
 
 
 class GlobalMapsProtocol(Protocol):
@@ -341,7 +341,7 @@ class GlobalMapsProtocol(Protocol):
     def elements(self) -> Mapping[str, XsdGlobalValue[XsdElementProtocol]]: ...
 
     @property
-    def substitution_groups(self) -> Mapping[str, Set[Any]]: ...
+    def substitution_groups(self) -> Mapping[str, set[Any]]: ...
 
 
 class XsdSchemaProtocol(XsdValidatorProtocol, ElementProtocol, Protocol):

@@ -8,12 +8,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
+from collections.abc import Iterator, Iterable
 from decimal import Decimal, ROUND_UP
 from types import ModuleType
-from typing import cast, Any, Dict, Optional, Set, Union, Tuple
+from typing import cast, Any, Optional, Union
 from xml.etree import ElementTree
 
-from elementpath._typing import Iterator, Iterable
 from elementpath.exceptions import ElementPathError, xpath_error
 from elementpath.namespaces import XSLT_XQUERY_SERIALIZATION_NAMESPACE
 from elementpath.datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
@@ -38,10 +38,10 @@ SER_PARAM_ITEM_SEPARATOR = '{%s}item-separator' % XSLT_XQUERY_SERIALIZATION_NAME
 
 
 def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
-                             token: Optional[XPathToken] = None) -> Dict['str', Any]:
+                             token: Optional[XPathToken] = None) -> dict['str', Any]:
 
-    kwargs: Dict[str, Any] = {}
-    character_map: Dict[str, str]
+    kwargs: dict[str, Any] = {}
+    character_map: dict[str, str]
     value: Any
 
     if isinstance(params, XPathMap):
@@ -271,7 +271,7 @@ def serialize_to_xml(elements: Iterable[Any],
     item_separator = params.get('item_separator')
     character_map = params.get('character_map')
 
-    cdata_section: Union[Set[str], Tuple[()]]
+    cdata_section: Union[set[str], tuple[()]]
     kwargs = {}
     if 'xml_declaration' in params:
         kwargs['xml_declaration'] = params['xml_declaration']
@@ -395,7 +395,7 @@ def serialize_to_json(elements: Iterable[Any],
             else:
                 return super().default(obj)
 
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         'cls': XPathEncoder,
         'ensure_ascii': True,
         'separators': (',', ':'),

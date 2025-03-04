@@ -10,14 +10,13 @@
 """
 This module defines common definitions and helper functions for regex subpackage.
 """
-from typing import Set, Tuple, Union
+from collections.abc import Iterable, Iterator
+from typing import Union
 
-from elementpath._typing import Iterable, Iterator
-
-CHARACTER_CLASS_ESCAPED: Set[int] = {ord(c) for c in r'-|.^?*+{}()[]\\'}
+CHARACTER_CLASS_ESCAPED: set[int] = {ord(c) for c in r'-|.^?*+{}()[]\\'}
 """Code Points of escaped chars in a character class."""
 
-CodePoint = Union[int, Tuple[int, int]]
+CodePoint = Union[int, tuple[int, int]]
 
 
 class RegexError(Exception):

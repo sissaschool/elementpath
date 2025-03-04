@@ -32,7 +32,7 @@ unregister = XPath2Parser.unregister
 method = XPath2Parser.method
 constructor = XPath2Parser.constructor
 
-# Type annotations aliases
+# type annotations aliases
 OtherDateTimeTypes = Union[
     Date10, GregorianDay, GregorianMonth, GregorianMonthDay, GregorianYear10,
     GregorianYear, GregorianYearMonth10, GregorianYearMonth, Time

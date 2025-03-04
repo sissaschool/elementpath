@@ -13,11 +13,11 @@ classes for other XSD built-in types. This subpackage raises only built-in
 exceptions in order to be reusable in other packages.
 """
 from collections import namedtuple
+from collections.abc import Callable, Iterator, MutableMapping
 from decimal import Decimal
 from functools import lru_cache
-from typing import List, Optional, Type
+from typing import Optional
 
-from elementpath._typing import Callable, Iterator, MutableMapping
 from elementpath.aliases import AnyNsmapType
 from elementpath.datatypes import AtomicType
 from elementpath.protocols import XsdTypeProtocol
@@ -90,7 +90,7 @@ ATOMIC_BUILDERS: MutableMapping[Optional[str], Builder] = {
 
 
 @lru_cache(maxsize=None)
-def get_builders(xsd_type: XsdTypeProtocol) -> List[Builder]:
+def get_builders(xsd_type: XsdTypeProtocol) -> list[Builder]:
     """
     Returns a list of atomic builtin XSD types that are in the base type of
     the XSD type argument.
@@ -136,7 +136,7 @@ def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
         return
 
     for k, builder in enumerate(get_builders(xsd_type), start=1):
-        cls: Type[dt.AtomicType] = builder.cls
+        cls: type[dt.AtomicType] = builder.cls
 
         _text = text if isinstance(text, str) else builder.text
         if len(builder) < k and not xsd_type.is_valid(text, namespaces=namespaces):

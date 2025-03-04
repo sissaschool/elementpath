@@ -11,9 +11,9 @@
 XPath 3.0 implementation - part 2 (symbols, operators and expressions)
 """
 from copy import copy
-from typing import Any, cast, List, Type, Union
+from collections.abc import Iterator
+from typing import Any, cast, Union
 
-from elementpath._typing import Iterator
 from elementpath.aliases import InputType
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
 from elementpath.xpath_tokens import XPathToken, ValueToken, XPathFunction, \
@@ -94,7 +94,7 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
 
 @method('(')
 def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, List[ItemType], XPathToken]:
+        -> Union[ItemType, list[ItemType], XPathToken]:
     if not self:
         return []
 
@@ -115,7 +115,7 @@ def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = N
                 func.to_partial_function()
                 return func
 
-            arguments: List[InputType[ItemType]]
+            arguments: list[InputType[ItemType]]
             arguments = [tk.evaluate(context) for tk in tokens]
 
             if func.label == 'partial function' and func[0].symbol == '?' and len(func[0]):
@@ -212,7 +212,7 @@ def led_function_reference(self: XPathToken, left: XPathToken) -> XPathToken:
 
 @method('#')
 def evaluate_function_reference(self: XPathToken, context: ContextType = None) -> XPathFunction:
-    token_class: Type[Union[XPathFunction, XPathToken]]
+    token_class: type[Union[XPathFunction, XPathToken]]
     namespace: Any
     name: Any
 

@@ -11,7 +11,7 @@ import locale
 import threading
 from contextlib import AbstractContextManager
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import urljoin, urlsplit
 
 from elementpath.exceptions import xpath_error
@@ -76,9 +76,9 @@ class CollationManager(context_class_base):
     """
     Context Manager for collations. Provide helper operators as methods.
     """
-    lc_collate: Union[None, str, Tuple[Optional[str], Optional[str]]]
+    lc_collate: Union[None, str, tuple[Optional[str], Optional[str]]]
     fallback: bool = False
-    _current_lc_collate: Optional[Tuple[Optional[str], Optional[str]]] = None
+    _current_lc_collate: Optional[tuple[Optional[str], Optional[str]]] = None
 
     def __init__(self,
                  collation: Optional[str],
@@ -149,7 +149,7 @@ class CollationManager(context_class_base):
 
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]],
+    def __exit__(self, exc_type: Optional[type[BaseException]],
                  exc_val: Optional[BaseException],
                  exc_tb: Optional[TracebackType]) -> None:
         if self._current_lc_collate is not None:

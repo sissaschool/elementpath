@@ -7,9 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, List, Optional, TYPE_CHECKING, Union
+from collections.abc import Iterator
+from typing import cast, Any, Optional, TYPE_CHECKING, Union
 
-from elementpath._typing import Iterator
 from elementpath.aliases import NamespacesType, NsmapType
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import LxmlElementProtocol, DocumentProtocol, \
@@ -161,8 +161,8 @@ def build_node_tree(root: ElementTreeRootType,
         position += 1
 
     children = iter(elem)
-    iterators: List[Any] = []
-    ancestors: List[Any] = []
+    iterators: list[Any] = []
+    ancestors: list[Any] = []
     parent = root_node
 
     while True:
@@ -301,8 +301,8 @@ def build_lxml_node_tree(root: LxmlRootType,
         position += 1
 
     children = iter(root_elem)
-    iterators: List[Any] = []
-    ancestors: List[Any] = []
+    iterators: list[Any] = []
+    ancestors: list[Any] = []
     parent = root_node
 
     while True:
@@ -366,7 +366,7 @@ def build_lxml_node_tree(root: LxmlRootType,
 def build_schema_node_tree(root: SchemaElemType,
                            uri: Optional[str] = None,
                            elements: Optional[ElementMapType] = None,
-                           global_elements: Optional[List[ChildNodeType]] = None) \
+                           global_elements: Optional[list[ChildNodeType]] = None) \
         -> SchemaElementNode:
     """
     Returns a graph of XPath nodes that wrap the provided XSD schema structure.
@@ -410,11 +410,11 @@ def build_schema_node_tree(root: SchemaElemType,
         global_elements = []
 
     local_nodes = {root: root_node}  # Irrelevant even if it's the schema
-    ref_nodes: List[SchemaElementNode] = []
+    ref_nodes: list[SchemaElementNode] = []
 
     children = iter(root)
-    iterators: List[Any] = []
-    ancestors: List[Any] = []
+    iterators: list[Any] = []
+    ancestors: list[Any] = []
     parent = root_node
 
     while True:

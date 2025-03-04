@@ -21,7 +21,7 @@ from .datetime import AbstractDateTime, Duration
 FloatArgType = Union[SupportsFloat, str, bytes]
 
 ####
-# Type proxies for basic Python datatypes: a proxy class creates
+# type proxies for basic Python datatypes: a proxy class creates
 # and validates its Python datatype and virtual registered types.
 
 
@@ -155,7 +155,7 @@ class StringProxy(AnyAtomicType):
 
 
 ####
-# Type proxies for multiple type-checking in XPath expressions
+# type proxies for multiple type-checking in XPath expressions
 class NumericTypeMeta(type):
     """Metaclass for checking numeric classes and instances."""
 

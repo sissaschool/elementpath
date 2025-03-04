@@ -13,13 +13,11 @@ This module contains base classes and helper functions for defining Pratt parser
 import sys
 import re
 from abc import ABCMeta
+from collections.abc import Callable, Iterator, MutableMapping, MutableSequence
 from unicodedata import name as unicode_name
 from decimal import Decimal, DecimalException
-from typing import Any, cast,  Dict, List, overload, Generic, Optional, Union, \
-    Tuple, Type, Iterator, TypeVar
+from typing import Any, cast, overload, Generic, Optional, Union, TypeVar
 
-from elementpath._typing import Callable, Match, MutableMapping, \
-    MutableSequence, Pattern
 #
 # Simple top-down parser based on Vaughan Pratt's algorithm (Top Down Operator Precedence).
 #
@@ -162,10 +160,10 @@ class Token(MutableSequence[TK]):
 
     __slots__ = '_items', 'parser', 'value', 'span'
 
-    _items: List[TK]
+    _items: list[TK]
     parser: 'Parser[TK]'
     value: Any
-    span: Tuple[int, int]
+    span: tuple[int, int]
 
     def __init__(self, parser: 'Parser[TK]',
                  value: Optional[Any] = None) -> None:
@@ -254,7 +252,7 @@ class Token(MutableSequence[TK]):
                 return '%s %s' % (symbol, ' '.join(item.source for item in self))
 
     @property
-    def position(self) -> Tuple[int, int]:
+    def position(self) -> tuple[int, int]:
         """A tuple with the position of the token in terms of line and column."""
         token_index = self.span[0]
         line = self.parser.source[:token_index].count('\n') + 1
@@ -321,7 +319,7 @@ class Token(MutableSequence[TK]):
 
     def iter(self: TK, *symbols: str) -> Iterator[TK]:
         """Returns a generator for iterating the token's tree."""
-        status: List[Tuple[Optional[TK], Iterator[TK]]] = []
+        status: list[tuple[Optional[TK], Iterator[TK]]] = []
         parent: Optional[TK] = self
         children: Iterator[TK] = iter(self)
         tk: TK
@@ -393,13 +391,13 @@ class Token(MutableSequence[TK]):
 
 class ParserMeta(ABCMeta):
 
-    token_base_class: Type[Any]
-    literals_pattern: Pattern[str]
-    name_pattern: Pattern[str]
-    tokenizer: Optional[Pattern[str]]
-    symbol_table: MutableMapping[str, Type[Any]]
+    token_base_class: type[Any]
+    literals_pattern: re.Pattern[str]
+    name_pattern: re.Pattern[str]
+    tokenizer: Optional[re.Pattern[str]]
+    symbol_table: MutableMapping[str, type[Any]]
 
-    def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], namespace: Dict[str, Any]) \
+    def __new__(mcs, name: str, bases: tuple[type[Any], ...], namespace: dict[str, Any]) \
             -> 'ParserMeta':
         cls = super(ParserMeta, mcs).__new__(mcs, name, bases, namespace)
 
@@ -442,17 +440,17 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
     :cvar tokenizer: the language tokenizer compiled regexp.
     """
     token_base_class = Token
-    tokenizer: Optional[Pattern[str]] = None
-    symbol_table: Dict[str, Type[TK_co]] = {}
+    tokenizer: Optional[re.Pattern[str]] = None
+    symbol_table: dict[str, type[TK_co]] = {}
 
     _start_token: TK_co
     source: str
-    tokens: Iterator[Match[str]]
+    tokens: Iterator[re.Match[str]]
     token: TK_co
     next_token: TK_co
-    next_match: Optional[Match[str]]
-    literals_pattern: Pattern[str]
-    name_pattern: Pattern[str]
+    next_match: Optional[re.Match[str]]
+    literals_pattern: re.Pattern[str]
+    name_pattern: re.Pattern[str]
 
     __slots__ = 'source', 'tokens', 'next_match', '_start_token', 'token', 'next_token'
 
@@ -587,7 +585,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             raise self.next_token.wrong_syntax()
 
         self.token = self.next_token
-        source_chunk: List[str] = []
+        source_chunk: list[str] = []
         while True:
             try:
                 self.next_match = next(self.tokens)
@@ -628,7 +626,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cast(TK_co, left)
 
     @property
-    def position(self) -> Tuple[int, int]:
+    def position(self) -> tuple[int, int]:
         """Property that returns the current line and column indexes."""
         return self.token.position
 
@@ -663,7 +661,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return string_literal[1:-1].replace("\\'", "'").replace('\\"', '"')
 
     @classmethod
-    def register(cls, symbol: Union[str, Type[TK_co]], **kwargs: Any) -> Type[TK_co]:
+    def register(cls, symbol: Union[str, type[TK_co]], **kwargs: Any) -> type[TK_co]:
         """
         Register/update a token class in the symbol table.
 
@@ -671,7 +669,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         :param kwargs: Optional attributes/methods for the token class.
         :return: A token class.
         """
-        token_class: Type[TK_co]
+        token_class: type[TK_co]
 
         if isinstance(symbol, str):
             if ' ' in symbol:
@@ -705,7 +703,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
                     '__return__': None
                 })
                 token_class = cast(
-                    Type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs)
+                    type[TK_co], ABCMeta(token_class_name, token_class_bases, kwargs)
                 )
                 cls.symbol_table[lookup_name] = token_class
                 setattr(sys.modules[cls.__module__], token_class_name, token_class)
@@ -733,7 +731,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         del cls.symbol_table[symbol.strip()]
 
     @classmethod
-    def duplicate(cls, symbol: str, new_symbol: str, **kwargs: Any) -> Type[TK_co]:
+    def duplicate(cls, symbol: str, new_symbol: str, **kwargs: Any) -> type[TK_co]:
         """Duplicate a token class with a new symbol."""
         token_class = cls.symbol_table[symbol]
         new_token_class = cls.register(new_symbol, **kwargs)
@@ -744,7 +742,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return new_token_class
 
     @classmethod
-    def literal(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
+    def literal(cls, symbol: str, bp: int = 0) -> type[TK_co]:
         """Register a token for a symbol that represents a *literal*."""
         def nud(self: Token[TK_co]) -> Token[TK_co]:
             return self
@@ -755,14 +753,14 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cls.register(symbol, label='literal', lbp=bp, evaluate=evaluate, nud=nud)
 
     @classmethod
-    def nullary(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
+    def nullary(cls, symbol: str, bp: int = 0) -> type[TK_co]:
         """Register a token for a symbol that represents a *nullary* operator."""
         def nud(self: Token[TK_co]) -> Token[TK_co]:
             return self
         return cls.register(symbol, label='operator', lbp=bp, nud=nud)
 
     @classmethod
-    def prefix(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
+    def prefix(cls, symbol: str, bp: int = 0) -> type[TK_co]:
         """Register a token for a symbol that represents a *prefix* unary operator."""
         def nud(self: Token[TK_co]) -> Token[TK_co]:
             self[:] = self.parser.expression(rbp=bp),
@@ -770,7 +768,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cls.register(symbol, label='prefix operator', lbp=bp, rbp=bp, nud=nud)
 
     @classmethod
-    def postfix(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
+    def postfix(cls, symbol: str, bp: int = 0) -> type[TK_co]:
         """Register a token for a symbol that represents a *postfix* unary operator."""
         def led(self: Token[TK_co], left: Token[TK_co]) -> Token[TK_co]:
             self[:] = left,
@@ -778,7 +776,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cls.register(symbol, label='postfix operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infix(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
+    def infix(cls, symbol: str, bp: int = 0) -> type[TK_co]:
         """Register a token for a symbol that represents an *infix* binary operator."""
         def led(self: Token[TK_co], left: Token[TK_co]) -> Token[TK_co]:
             self[:] = left, self.parser.expression(rbp=bp)
@@ -786,7 +784,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp, led=led)
 
     @classmethod
-    def infixr(cls, symbol: str, bp: int = 0) -> Type[TK_co]:
+    def infixr(cls, symbol: str, bp: int = 0) -> type[TK_co]:
         """Register a token for a symbol that represents an *infixr* binary operator."""
         def led(self: Token[TK_co], left: Token[TK_co]) -> Token[TK_co]:
             self[:] = left, self.parser.expression(rbp=bp - 1)
@@ -794,7 +792,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         return cls.register(symbol, label='operator', lbp=bp, rbp=bp - 1, led=led)
 
     @classmethod
-    def method(cls, symbol: Union[str, Type[TK_co]], bp: int = 0) \
+    def method(cls, symbol: Union[str, type[TK_co]], bp: int = 0) \
             -> Callable[[Callable[..., RT]], Callable[..., RT]]:
         """
         Register a token for a symbol that represents a custom operator or redefine
@@ -829,7 +827,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
         cls.tokenizer = cls.create_tokenizer(cls.symbol_table)
 
     @classmethod
-    def create_tokenizer(cls, symbol_table: MutableMapping[str, Type[TK_co]]) -> Pattern[str]:
+    def create_tokenizer(cls, symbol_table: MutableMapping[str, type[TK_co]]) -> re.Pattern[str]:
         """
         Returns a regex based tokenizer built from a symbol table of token classes.
         The returned tokenizer skips extra spaces between symbols.
@@ -857,7 +855,7 @@ class Parser(Generic[TK_co], metaclass=ParserMeta):
             else:
                 string_patterns.append(re.escape(symbol))
 
-        symbols_patterns: List[str] = []
+        symbols_patterns: list[str] = []
         if string_patterns:
             symbols_patterns.append('|'.join(sorted(string_patterns, key=lambda x: -len(x))))
         if character_patterns:

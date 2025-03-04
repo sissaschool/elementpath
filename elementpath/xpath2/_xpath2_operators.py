@@ -13,10 +13,10 @@ XPath 2.0 implementation - part 2 (operators, expressions and multi-role tokens)
 import math
 import operator
 from copy import copy
+from collections.abc import Iterator
 from decimal import Decimal, DivisionByZero
-from typing import cast, List, Type, Union
+from typing import cast, Union
 
-from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable, SequenceType
 from elementpath.protocols import XsdAttributeProtocol
 from elementpath.exceptions import ElementPathError
@@ -131,9 +131,9 @@ def select_intersect_and_except_operators(self: XPathToken, context: ContextType
         raise self.error('XPTY0004', 'only XPath nodes are allowed')
 
     if self.symbol == 'except':
-        yield from cast(List[XPathNode], sorted(s1 - s2, key=node_position))
+        yield from cast(list[XPathNode], sorted(s1 - s2, key=node_position))
     else:
-        yield from cast(List[XPathNode], sorted(s1 & s2, key=node_position))
+        yield from cast(list[XPathNode], sorted(s1 & s2, key=node_position))
 
 
 ###
@@ -155,7 +155,7 @@ def nud_if_expression(self: XPathToken) -> XPathToken:
 
 @method('if')
 def evaluate_if_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, List[ItemType]]:
+        -> Union[ItemType, list[ItemType]]:
     if self.boolean_value(self[0].select(copy(context))):
         if isinstance(context, XPathSchemaContext):
             self[2].evaluate(copy(context))
@@ -330,7 +330,7 @@ def evaluate_instance_expression(self: XPathToken, context: ContextType = None) 
 
 @method('treat')
 def evaluate_treat_expression(self: XPathToken, context: ContextType = None) \
-        -> List[ItemType]:
+        -> list[ItemType]:
     occurs = self[1].occurrence
     position = None
     castable_expr = []
@@ -434,7 +434,7 @@ def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
         else:
             local_name = atomic_type.split('}')[1]
             try:
-                token_class = cast(Type[XPathConstructor], self.parser.symbol_table[local_name])
+                token_class = cast(type[XPathConstructor], self.parser.symbol_table[local_name])
             except KeyError:
                 msg = f"atomic type {type_name!r} not found in the in-scope schema types"
                 raise self.error('XPST0051', msg)
@@ -474,7 +474,7 @@ def evaluate_cast_expressions(self: XPathToken, context: ContextType = None) \
 # Comma operator - concatenate items or sequences
 @method(infix(',', bp=5))
 def evaluate_comma_operator(self: XPathToken, context: ContextType = None) \
-        -> List[ItemType]:
+        -> list[ItemType]:
     results = []
     for op in self:
         result = op.evaluate(context)
@@ -526,7 +526,7 @@ def led_parenthesized_expression(self: XPathToken, left: XPathToken) -> XPathTok
 
 @method('(')
 def evaluate_parenthesized_expression(self: XPathToken, context: ContextType = None) \
-        -> Union[ItemType, List[ItemType]]:
+        -> Union[ItemType, list[ItemType]]:
     return self[0].evaluate(context) if self else []
 
 
@@ -572,10 +572,10 @@ def evaluate_value_comparison_operators(self: XPathToken, context: ContextType =
     elif all(isinstance(x, DoubleProxy10) for x in operands):
         # Special case of two <class 'float'> values: use custom operators
         if self.symbol == 'eq':
-            return numeric_equal(*cast(List[float], operands))
+            return numeric_equal(*cast(list[float], operands))
         elif self.symbol == 'ne':
-            return numeric_not_equal(*cast(List[float], operands))
-        elif numeric_equal(*cast(List[float], operands)):
+            return numeric_not_equal(*cast(list[float], operands))
+        elif numeric_equal(*cast(list[float], operands)):
             return self.symbol in ('le', 'ge')
 
     cls0, cls1 = type(operands[0]), type(operands[1])
@@ -670,7 +670,7 @@ def led_range_expression(self: XPathToken, left: XPathToken) -> XPathToken:
 
 
 @method('to')
-def evaluate_range_expression(self: XPathToken, context: ContextType = None) -> List[int]:
+def evaluate_range_expression(self: XPathToken, context: ContextType = None) -> list[int]:
     start, stop = self.get_operands(context, cls=Integer)
     try:
         return [x for x in range(start, stop + 1)]
@@ -680,7 +680,7 @@ def evaluate_range_expression(self: XPathToken, context: ContextType = None) -> 
 
 @method('to')
 def select_range_expression(self: XPathToken, context: ContextType = None) -> Iterator[int]:
-    yield from cast(List[int], self.evaluate(context))
+    yield from cast(list[int], self.evaluate(context))
 
 
 ###

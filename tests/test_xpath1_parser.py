@@ -25,7 +25,7 @@ import math
 import pickle
 from decimal import Decimal
 from textwrap import dedent
-from typing import Optional, List, Tuple
+from typing import Optional
 from xml.etree import ElementTree
 
 try:
@@ -1737,7 +1737,7 @@ class LxmlXPath1ParserTest(XPath1ParserTest):
 
     def test_namespace_axis(self):
         root = self.etree.XML('<A xmlns:tst="http://xpath.test/ns"><tst:B1/></A>')
-        namespaces: List[Tuple[Optional[str], str]] = []
+        namespaces: list[tuple[Optional[str], str]] = []
         namespaces.extend(self.parser.DEFAULT_NAMESPACES.items())
         namespaces += [('tst', 'http://xpath.test/ns')]
 

@@ -9,11 +9,11 @@
 #
 import importlib
 from collections import deque
+from collections.abc import Iterator
 from urllib.parse import urljoin
-from typing import cast, Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
+from typing import cast, Any, Optional, TYPE_CHECKING, Union
 from xml.etree import ElementTree
 
-from elementpath._typing import Deque, Iterator
 from elementpath.exceptions import ElementPathRuntimeError, \
     ElementPathValueError, ElementPathKeyError
 from elementpath.aliases import NamespacesType, NsmapType, SequenceType
@@ -45,7 +45,7 @@ _XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 TypedNodeType = Union['AttributeNode', 'ElementNode']
 ParentNodeType = Union['DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', 'ElementNode', 'CommentNode', 'ProcessingInstructionNode']
-ElementMapType = Dict[ElementType, 'ElementNode']
+ElementMapType = dict[ElementType, 'ElementNode']
 
 
 # TODO for v5.0: use an internal shared object for storing same data once. This
@@ -96,14 +96,14 @@ class XPathNode:
     # XDM accessors
 
     @property
-    def attributes(self) -> Optional[List['AttributeNode']]:
+    def attributes(self) -> Optional[list['AttributeNode']]:
         return None
 
     @property
     def base_uri(self) -> Optional[str]:
         return self.parent.base_uri if self.parent is not None else None
 
-    children: Optional[List[ChildNodeType]]
+    children: Optional[list[ChildNodeType]]
 
     @property
     def document_uri(self) -> Optional[str]:
@@ -118,7 +118,7 @@ class XPathNode:
         return None
 
     @property
-    def namespace_nodes(self) -> Optional[List['NamespaceNode']]:
+    def namespace_nodes(self) -> Optional[list['NamespaceNode']]:
         return None
 
     @property
@@ -245,7 +245,7 @@ class XPathNode:
         return None
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        """Set XSD types for elements and attribute nodes from schema proxy instance."""
+        """set XSD types for elements and attribute nodes from schema proxy instance."""
         if self.parent is not None:
             self.parent.apply_schema(schema)
 
@@ -314,7 +314,7 @@ class NamespaceNode(XPathNode):
 
     value = uri
 
-    def as_item(self) -> Tuple[Optional[str], str]:
+    def as_item(self) -> tuple[Optional[str], str]:
         return self.name, self.obj
 
     @property
@@ -474,7 +474,7 @@ class TextAttributeNode(AttributeNode):
     def value(self) -> str:
         return self.obj
 
-    def as_item(self) -> Tuple[str, str]:
+    def as_item(self) -> tuple[str, str]:
         return self.name, self.obj
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
@@ -527,7 +527,7 @@ class SchemaAttributeNode(AttributeNode):
         return self.obj
     value = xsd_attribute
 
-    def as_item(self) -> Tuple[Optional[str], object]:
+    def as_item(self) -> tuple[Optional[str], object]:
         return self.name, self.obj
 
     @property
@@ -797,7 +797,7 @@ class ElementNode(XPathNode):
     name: Optional[str]
     obj: object
     nsmap: Union[NsmapType, NamespacesType]
-    children: List[ChildNodeType]
+    children: list[ChildNodeType]
     parent: Optional[ParentNodeType]
     xsd_type: Optional[XsdTypeProtocol]
 
@@ -805,8 +805,8 @@ class ElementNode(XPathNode):
     _uri: str
     _schema: 'AbstractSchemaProxy'
     _elements: ElementMapType
-    _namespace_nodes: List[NamespaceNode]
-    _attributes: List[AttributeNode]
+    _namespace_nodes: list[NamespaceNode]
+    _attributes: list[AttributeNode]
 
     __slots__ = ('children', 'nsmap', 'xsd_type', '_uri', '_schema',
                  '_elements', '_namespace_nodes', '_attributes')
@@ -819,7 +819,7 @@ class ElementNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(elem=%r)' % (self.__class__.__name__, self.obj)
 
-    def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, List[ChildNodeType]]:
+    def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, list[ChildNodeType]]:
         return self.children[i]
 
     def __len__(self) -> int:
@@ -839,7 +839,7 @@ class ElementNode(XPathNode):
             return f'Q{{}}{self.name}'
 
     @property
-    def attributes(self) -> List[AttributeNode]:
+    def attributes(self) -> list[AttributeNode]:
         return []
 
     @property
@@ -864,7 +864,7 @@ class ElementNode(XPathNode):
         return root_type.name == XSD_IDREF or root_type.name == XSD_IDREFS
 
     @property
-    def namespace_nodes(self) -> List[NamespaceNode]:
+    def namespace_nodes(self) -> list[NamespaceNode]:
         if not hasattr(self, '_namespace_nodes'):
             # Lazy generation of namespace nodes of the element
             position = self.position + 1
@@ -1020,7 +1020,7 @@ class ElementNode(XPathNode):
         """Iterates the tree not including the not built lazy components."""
         yield self
 
-        iterators: Deque[Any] = deque()  # slightly faster than list()
+        iterators: deque[Any] = deque()  # slightly faster than list()
         children: Iterator[Any] = iter(self.children)
 
         if hasattr(self, '_namespace_nodes'):
@@ -1052,7 +1052,7 @@ class ElementNode(XPathNode):
         if with_self:
             yield self
 
-        iterators: Deque[Any] = deque()
+        iterators: deque[Any] = deque()
         children: Iterator[Any] = iter(self.children)
 
         while True:
@@ -1102,7 +1102,7 @@ class EtreeElementNode(ElementNode):
             self.nsmap = nsmap
         else:
             try:
-                self.nsmap = cast(Dict[Any, str], getattr(elem, 'nsmap'))
+                self.nsmap = cast(dict[Any, str], getattr(elem, 'nsmap'))
             except AttributeError:
                 self.nsmap = {}
 
@@ -1113,7 +1113,7 @@ class EtreeElementNode(ElementNode):
     elem = value = content
 
     @property
-    def attributes(self) -> List[AttributeNode]:
+    def attributes(self) -> list[AttributeNode]:
         if not hasattr(self, '_attributes'):
             position = self.position + len(self.nsmap) + int('xml' not in self.nsmap) + 1
             self._attributes = [
@@ -1215,7 +1215,7 @@ class EtreeElementNode(ElementNode):
             paths = ['/']
             children = iter((root_node,))
 
-        iterators: List[Any] = []
+        iterators: list[Any] = []
         while True:
             for elem in children:
                 if not isinstance(elem, EtreeElementNode):
@@ -1357,7 +1357,7 @@ class LazyElementNode(EtreeElementNode):
             if len(self.obj):
                 for elem in self.obj:
                     if not callable(elem.tag):
-                        nsmap = cast(Dict[Any, str], getattr(elem, 'nsmap', self.nsmap))
+                        nsmap = cast(dict[Any, str], getattr(elem, 'nsmap', self.nsmap))
                         self.children.append(LazyElementNode(elem, self, nsmap=nsmap))
                     elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
                         self.children.append(CommentNode(elem, self))
@@ -1445,7 +1445,7 @@ class SchemaElementNode(ElementNode):
             return self.obj.tag == name  # a schema
 
     @property
-    def attributes(self) -> List[AttributeNode]:
+    def attributes(self) -> list[AttributeNode]:
         if not hasattr(self, '_attributes'):
             position = self.position + len(self.nsmap) + int('xml' not in self.nsmap)
             self._attributes = [
@@ -1485,7 +1485,7 @@ class SchemaElementNode(ElementNode):
     def iter(self) -> Iterator[XPathNode]:
         yield self
 
-        iterators: List[Any] = []
+        iterators: list[Any] = []
         children: Iterator[Any] = iter(self.children)
 
         if hasattr(self, '_namespace_nodes'):
@@ -1521,7 +1521,7 @@ class SchemaElementNode(ElementNode):
         if with_self:
             yield self
 
-        iterators: List[Any] = []
+        iterators: list[Any] = []
         children: Iterator[Any] = iter(self.children)
 
         elements = {self}
@@ -1557,8 +1557,8 @@ class DocumentNode(XPathNode):
     obj: object
     parent: None
     uri: Optional[str]
-    children: List[ChildNodeType]
-    elements: Dict[ElementProtocol, ElementNode]
+    children: list[ChildNodeType]
+    elements: dict[ElementProtocol, ElementNode]
 
     __slots__ = ('children', 'uri', 'elements')
 
@@ -1570,7 +1570,7 @@ class DocumentNode(XPathNode):
     def __repr__(self) -> str:
         return '%s(document=%r)' % (self.__class__.__name__, self.document)
 
-    def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, List[ChildNodeType]]:
+    def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, list[ChildNodeType]]:
         return self.children[i]
 
     def __len__(self) -> int:
@@ -1745,7 +1745,7 @@ class EtreeDocumentNode(DocumentNode):
 
 
 ###
-# Type annotation aliases
+# type annotation aliases
 XPathNodeType = Union[DocumentNode, NamespaceNode, AttributeNode, TextNode,
                       ElementNode, CommentNode, ProcessingInstructionNode]
 RootNodeType = Union[DocumentNode, ElementNode]

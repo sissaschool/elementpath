@@ -10,7 +10,7 @@
 """
 XPath 3.1 implementation
 """
-from typing import ClassVar, Dict, Tuple
+from typing import ClassVar
 
 from elementpath.namespaces import XPATH_MAP_FUNCTIONS_NAMESPACE, \
     XPATH_ARRAY_FUNCTIONS_NAMESPACE  # , XSLT_XQUERY_SERIALIZATION_NAMESPACE
@@ -24,7 +24,7 @@ class XPath31Parser(XPath30Parser):
     """
     version = '3.1'
 
-    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
+    DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {
         'map': XPATH_MAP_FUNCTIONS_NAMESPACE,
         'array': XPATH_ARRAY_FUNCTIONS_NAMESPACE,
         **XPath30Parser.DEFAULT_NAMESPACES
@@ -37,4 +37,4 @@ class XPath31Parser(XPath30Parser):
         'schema-attribute', 'schema-element', 'switch', 'text', 'typeswitch',
     }
 
-    function_signatures: Dict[Tuple[QName, int], str] = XPath30Parser.function_signatures.copy()
+    function_signatures: dict[tuple[QName, int], str] = XPath30Parser.function_signatures.copy()

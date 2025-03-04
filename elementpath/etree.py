@@ -14,9 +14,10 @@ import sys
 import re
 import io
 import importlib
-from typing import cast, Any, Optional, Tuple, Union
+from collections import Counter
+from collections.abc import Iterator, MutableMapping
+from typing import cast, Any, Optional, Union
 
-from elementpath._typing import Counter, Iterator, MutableMapping
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 
 ###
@@ -180,7 +181,7 @@ def etree_deep_equal(e1: ElementProtocol, e2: ElementProtocol) -> bool:
 
 
 def etree_iter_paths(elem: ElementProtocol, path: str = '.') \
-        -> Iterator[Tuple[ElementProtocol, str]]:
+        -> Iterator[tuple[ElementProtocol, str]]:
 
     yield elem, path
     comment_nodes = 0

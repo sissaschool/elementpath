@@ -10,12 +10,11 @@
 import re
 import math
 from calendar import isleap, leapdays
+from collections.abc import Iterator
 from decimal import Decimal
 from operator import attrgetter
-from typing import Any, List, Optional, overload, SupportsFloat, Type, Union
+from typing import Any, Optional, overload, SupportsFloat, Union
 from urllib.parse import urlsplit
-
-from elementpath._typing import Iterator, Match, Pattern
 
 ###
 # Common sets constants
@@ -35,22 +34,22 @@ class LazyPattern:
     A descriptor for creating lazy regexp patterns. The compiled pattern is built
     only when the descriptor attribute is accessed (e.g. a hasattr() call).
     """
-    _compiled: Pattern[str]
+    _compiled: re.Pattern[str]
 
     def __init__(self, pattern: str, flags: Union[int, re.RegexFlag] = 0) -> None:
         self._pattern = pattern
         self._flags = flags
 
-    def __set_name__(self, owner: Type[Any], name: str) -> None:
+    def __set_name__(self, owner: type[Any], name: str) -> None:
         self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: Type[Any]) -> Pattern[str]: ...
+    def __get__(self, instance: None, owner: type[Any]) -> re.Pattern[str]: ...
 
     @overload
-    def __get__(self, instance: Any, owner: Type[Any]) -> Pattern[str]: ...
+    def __get__(self, instance: Any, owner: type[Any]) -> re.Pattern[str]: ...
 
-    def __get__(self, instance: Optional[Any], owner: Type[Any]) -> Pattern[str]:
+    def __get__(self, instance: Optional[Any], owner: type[Any]) -> re.Pattern[str]:
         try:
             return self._compiled
         except AttributeError:
@@ -287,7 +286,7 @@ def escape_json_string(s: str, escaped: bool = False) -> str:
 
 def unescape_json_string(s: str) -> str:
 
-    def unicode_escape_callback(match: Match[str]) -> str:
+    def unicode_escape_callback(match: re.Match[str]) -> str:
         group = match.group(1) or match.group(2)
         return chr(int(group.upper(), 16))
 
@@ -313,7 +312,7 @@ def iter_sequence(obj: Any) -> Iterator[Any]:
         yield obj
 
 
-def split_function_test(function_test: str) -> List[str]:
+def split_function_test(function_test: str) -> list[str]:
     if not function_test.startswith('function('):
         return []
     elif function_test == 'function(*)':

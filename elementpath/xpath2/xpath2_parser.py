@@ -12,10 +12,10 @@ XPath 2.0 implementation - part 1 (parser class and symbols)
 """
 from abc import ABCMeta
 import locale
+from collections.abc import Callable, MutableMapping
 from urllib.parse import urlparse
-from typing import cast, Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from typing import cast, Any, ClassVar, Optional, Union
 
-from elementpath._typing import Callable, MutableMapping
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.helpers import upper_camel_case, is_ncname, ordinal
 from elementpath.exceptions import ElementPathError, ElementPathTypeError, \
@@ -73,7 +73,7 @@ class XPath2Parser(XPath1Parser):
     """
     version = '2.0'
 
-    DEFAULT_NAMESPACES: ClassVar[Dict[str, str]] = {
+    DEFAULT_NAMESPACES: ClassVar[dict[str, str]] = {
         'xml': XML_NAMESPACE,
         'xs': XSD_NAMESPACE,
         'fn': XPATH_FUNCTIONS_NAMESPACE,
@@ -92,8 +92,8 @@ class XPath2Parser(XPath1Parser):
         'schema-element', 'text', 'typeswitch',
     }
 
-    function_signatures: Dict[Tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
-    namespaces: Dict[str, str]
+    function_signatures: dict[tuple[QName, int], str] = XPath1Parser.function_signatures.copy()
+    namespaces: dict[str, str]
     token: XPathToken
     next_token: XPathToken
 
@@ -106,8 +106,8 @@ class XPath2Parser(XPath1Parser):
                  xsd_version: Optional[str] = None,
                  schema: Optional[AbstractSchemaProxy] = None,
                  base_uri: Optional[str] = None,
-                 variable_types: Optional[Dict[str, str]] = None,
-                 document_types: Optional[Dict[str, str]] = None,
+                 variable_types: Optional[dict[str, str]] = None,
+                 document_types: Optional[dict[str, str]] = None,
                  collection_types: Optional[NamespacesType] = None,
                  default_collection_type: str = 'node()*') -> None:
 
@@ -198,7 +198,7 @@ class XPath2Parser(XPath1Parser):
             return f"{repr_string}{', '.join(args)})"
         return f"{repr_string}, {', '.join(args)})"
 
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
         state.pop('symbol_table', None)
         state.pop('tokenizer', None)
@@ -241,8 +241,8 @@ class XPath2Parser(XPath1Parser):
 
     @classmethod
     def constructor(cls, symbol: str, bp: int = 90, nargs: NargsType = 1,
-                    sequence_types: Union[Tuple[()], Tuple[str, ...], List[str]] = (),
-                    label: Union[str, Tuple[str, ...]] = 'constructor function') \
+                    sequence_types: Union[tuple[()], tuple[str, ...], list[str]] = (),
+                    label: Union[str, tuple[str, ...]] = 'constructor function') \
             -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Statically creates a constructor token class, that is registered in the globals
@@ -267,7 +267,7 @@ class XPath2Parser(XPath1Parser):
                 return self
 
         def evaluate_(self: XPathConstructor, context: Optional[XPathContext] = None) \
-                -> Union[List[None], AtomicType]:
+                -> Union[list[None], AtomicType]:
             if self.context is not None:
                 context = self.context
 
@@ -305,7 +305,7 @@ class XPath2Parser(XPath1Parser):
         return bind
 
     def schema_constructor(self, atomic_type_name: str, bp: int = 90) \
-            -> Type[XPathFunction]:
+            -> type[XPathFunction]:
         """Dynamically registers a token class for a schema atomic type constructor function."""
         if atomic_type_name in (XSD_ANY_ATOMIC_TYPE, XSD_NOTATION):
             raise xpath_error('XPST0080')
@@ -322,7 +322,7 @@ class XPath2Parser(XPath1Parser):
             return self_
 
         def evaluate_(self_: XPathFunction, context: Optional[XPathContext] = None) \
-                -> Union[List[None], AtomicType]:
+                -> Union[list[None], AtomicType]:
             arg = self_.get_argument(context)
             if arg is None or self_.parser.schema is None:
                 return []
@@ -351,7 +351,7 @@ class XPath2Parser(XPath1Parser):
             '__return__': None
         }
         token_class = cast(
-            Type[XPathFunction], ABCMeta(token_class_name, (XPathFunction,), kwargs)
+            type[XPathFunction], ABCMeta(token_class_name, (XPathFunction,), kwargs)
         )
 
         if self.symbol_table is self.__class__.symbol_table:
@@ -365,8 +365,8 @@ class XPath2Parser(XPath1Parser):
                           callback: Callable[..., Any],
                           name: Optional[str] = None,
                           prefix: Optional[str] = None,
-                          sequence_types: Tuple[str, ...] = (),
-                          bp: int = 90) -> Type[XPathFunction]:
+                          sequence_types: tuple[str, ...] = (),
+                          bp: int = 90) -> type[XPathFunction]:
         """Registers a token class for an external function."""
         import inspect
 
@@ -432,7 +432,7 @@ class XPath2Parser(XPath1Parser):
                 '__return__': None
             }
             self.symbol_table[symbol] = cast(
-                Type[ProxyToken], ABCMeta(class_name, (ProxyToken,), kwargs)
+                type[ProxyToken], ABCMeta(class_name, (ProxyToken,), kwargs)
             )
 
         def evaluate_external_function(self_: XPathFunction,
@@ -495,7 +495,7 @@ class XPath2Parser(XPath1Parser):
                     )
 
         token_class = cast(
-            Type[XPathFunction], ABCMeta(class_name, (XPathFunction,), kwargs)
+            type[XPathFunction], ABCMeta(class_name, (XPathFunction,), kwargs)
         )
         self.symbol_table[lookup_name] = token_class
         self.tokenizer = None

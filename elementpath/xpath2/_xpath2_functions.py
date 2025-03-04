@@ -16,13 +16,13 @@ import time
 import re
 import os.path
 import unicodedata
+from collections.abc import Iterator
 from copy import copy
 from decimal import Decimal, DecimalException
 from string import ascii_letters
-from typing import cast, List, Optional, Type, Union
+from typing import cast, Optional, Union
 from urllib.parse import urlsplit, quote as urllib_quote
 
-from elementpath._typing import Iterator
 from elementpath.aliases import Emptiable, AnyNsmapType
 from elementpath.exceptions import ElementPathValueError
 from elementpath.helpers import Patterns, is_idrefs, is_xml_codepoint, round_number
@@ -411,7 +411,7 @@ def evaluate_avg_function(self: XPathFunction, context: ContextType = None) \
     if self.context is not None:
         context = self.context
 
-    values: List[AtomicType] = []
+    values: list[AtomicType] = []
     for item in self[0].atomization(context):
         if isinstance(item, UntypedAtomic):
             values.append(self.cast_to_double(item.value))
@@ -433,10 +433,10 @@ def evaluate_avg_function(self: XPathFunction, context: ContextType = None) \
                 return []
             raise self.error('FORG0006', err)
     elif all(isinstance(x, int) for x in values):
-        result = sum(cast(List[int], values)) / Decimal(len(values))
+        result = sum(cast(list[int], values)) / Decimal(len(values))
         return int(result) if result % 1 == 0 else result
     elif all(isinstance(x, (int, Decimal)) for x in values):
-        return sum(cast(List[Decimal], values)) / Decimal(len(values))
+        return sum(cast(list[Decimal], values)) / Decimal(len(values))
     elif all(not isinstance(x, DoubleProxy) for x in values):
         try:
             return sum(
@@ -470,25 +470,25 @@ def evaluate_max_min_functions(self: XPathFunction, context: ContextType = None)
         elif all(isinstance(x, str) for x in values):
             if to_any_uri:
                 return AnyURI(aggregate_func(
-                    cast(List[str], values)
+                    cast(list[str], values)
                 ))
         elif any(isinstance(x, str) for x in values):
             if any(isinstance(x, ArithmeticProxy) for x in values):
                 raise self.error('FORG0006', "cannot compare strings with numeric data")
         elif all(isinstance(x, (Decimal, int)) for x in values):
             return aggregate_func(
-                cast(List[str], values)
+                cast(list[str], values)
             )
         elif any(isinstance(x, float) and math.isnan(x) for x in values):
             return float_class('NaN')
         elif all(isinstance(x, (int, float, Decimal)) for x in values):
             return float_class(
-                aggregate_func(cast(List[NumericType], values))
+                aggregate_func(cast(list[NumericType], values))
             )
         return aggregate_func(values)  # type: ignore[type-var]
 
-    values: List[AtomicType] = []
-    float_class: Union[Type[Float10], Type[float]] = Float10
+    values: list[AtomicType] = []
+    float_class: Union[type[Float10], type[float]] = Float10
     to_any_uri = None
     aggregate_func = max if self.symbol == 'max' else min
 
@@ -567,7 +567,7 @@ def select_distinct_values_function(self: XPathFunction, context: ContextType = 
 
     def distinct_values(case_insensitive: bool = False) -> Iterator[AtomicType]:
         nan = False
-        results: List[AtomicType] = []
+        results: list[AtomicType] = []
         for value in self[0].atomization(context):
             if case_insensitive and isinstance(value, (str, bytes)):
                 value = value.casefold()
@@ -852,7 +852,7 @@ def evaluate_replace_function(self: XPathFunction, context: ContextType = None) 
 @method(function('tokenize', nargs=(1, 3),
                  sequence_types=('xs:string?', 'xs:string', 'xs:string', 'xs:string*')))
 def evaluate_tokenize_function(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[Union[List[str], str]]:
+        -> Emptiable[Union[list[str], str]]:
     if self.context is not None:
         context = self.context
 
@@ -964,7 +964,7 @@ def evaluate_codepoints_to_string_function(
 @method(function('string-to-codepoints', nargs=1,
                  sequence_types=('xs:string?', 'xs:integer*')))
 def evaluate_string_to_codepoints_function(self: XPathFunction, context: ContextType = None) \
-        -> List[int]:
+        -> list[int]:
     arg = self.get_argument(self.context or context, cls=str)
     return [ord(c) for c in arg] if arg else []
 
@@ -1681,7 +1681,7 @@ def evaluate_doc_functions(self: XPathFunction, context: ContextType = None) \
         sequence_type = 'document-node()'
 
     if not match_sequence_type(doc, sequence_type, self.parser):
-        msg = f"Type does not match sequence type {sequence_type!r}"
+        msg = f"type does not match sequence type {sequence_type!r}"
         raise self.error('XPDY0050', msg)
 
     return doc if self.symbol == 'doc' else True
@@ -1689,7 +1689,7 @@ def evaluate_doc_functions(self: XPathFunction, context: ContextType = None) \
 
 @method(function('collection', nargs=(0, 1), sequence_types=('xs:string?', 'node()*')))
 def evaluate_collection_function(self: XPathFunction, context: ContextType = None) \
-        -> Emptiable[List[XPathNode]]:
+        -> Emptiable[list[XPathNode]]:
     if self.context is not None:
         context = self.context
 
@@ -1719,7 +1719,7 @@ def evaluate_collection_function(self: XPathFunction, context: ContextType = Non
             return collection
 
     if not match_sequence_type(collection, sequence_type, self.parser):
-        msg = f"Type does not match sequence type {sequence_type!r}"
+        msg = f"type does not match sequence type {sequence_type!r}"
         raise self.error('XPDY0050', msg)
 
     return collection

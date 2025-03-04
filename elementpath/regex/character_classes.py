@@ -10,10 +10,10 @@
 import re
 from sys import maxunicode
 from collections import Counter
+from collections.abc import Callable, Iterator, MutableSet
 from itertools import chain
-from typing import AbstractSet, Any, Callable, Dict, Optional, Union
+from typing import AbstractSet, Any, Optional, Union
 
-from elementpath._typing import Iterator, MutableSet
 from .codepoints import RegexError
 from .unicode_subsets import UnicodeSubset, lazy_subset, unicode_subset, unicode_category
 
@@ -54,7 +54,7 @@ def w_shortcut() -> UnicodeSubset:
 
 
 # Single and Multi character escapes
-CHARACTER_ESCAPES: Dict[str, Union[str, Callable[[], UnicodeSubset]]] = {
+CHARACTER_ESCAPES: dict[str, Union[str, Callable[[], UnicodeSubset]]] = {
     # Single-character escapes
     '\\n': '\n',
     '\\r': '\r',
