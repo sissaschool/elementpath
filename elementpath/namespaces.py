@@ -140,3 +140,59 @@ def get_expanded_name(name: str, namespaces: Union[NamespacesType, NsmapType]) -
         if not uri:
             raise ValueError(f"prefix {prefix!r} is mapped to an empty URI")
         return f'{{{uri}}}{local_name}'
+
+
+def get_expanded_path(path: str, namespaces: Union[NamespacesType, NsmapType]) -> str:
+    """
+    Similar to get_expanded_name, but can be applied to the whole path.
+    """
+    def expand_chunk(chunk: str) -> None:
+        p = 0
+        for m in Patterns.unbound_qname.finditer(chunk):
+            s, e = m.span()
+            if p < s:
+                if ':' in chunk[p:s]:
+                    idx = pos + p + chunk[p:s].index(':')
+                    raise ValueError(f'unexpected colon character at position {idx}')
+                chunks.append(chunk[p:s])
+
+            prefix, local_part = m.groups()
+            if prefix:
+                uri = namespaces[prefix]
+                chunks.append(f'{{{uri}}}{local_part}')
+            elif default_ns:
+                uri = default_ns
+                chunks.append(f'{{{uri}}}{local_part}')
+            else:
+                chunks.append(local_part)
+
+            p = e
+        else:
+            if p < len(chunk):
+                if ':' in chunk[p:]:
+                    idx = pos + p + chunk[p:].index(':')
+                    raise ValueError(f'unexpected colon character at position {idx}')
+                chunks.append(chunk[p:])
+
+    chunks: list[str] = []
+    pos = 0
+    if None in namespaces:
+        default_ns = namespaces[None]  # type: ignore[index, unused-ignore]
+    else:
+        default_ns = namespaces.get('', '')
+
+    for match in Patterns.unbound_expanded_name.finditer(path):
+        start, end = match.span()
+        if pos < start:
+            expand_chunk(path[pos:start])
+
+        if path[start] == 'Q':
+            chunks.append(path[start+1:end])
+        else:
+            chunks.append(path[start:end])
+        pos = end
+    else:
+        if pos < len(path):
+            expand_chunk(path[pos:])
+
+    return ''.join(chunks)

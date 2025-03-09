@@ -87,6 +87,13 @@ class Patterns:
         r'^(?:{(?P<namespace>[^}]+)})?'
         r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
     )
+    unbound_expanded_name = LazyPattern(
+        r'(?:Q{|{)([^}]*)}[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*'
+    )
+    unbound_qname = LazyPattern(
+        r'(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
+        r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)',
+    )
 
 
 def upper_camel_case(s: str) -> str:
