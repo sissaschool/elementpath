@@ -27,7 +27,7 @@ from elementpath.sequence_types import match_sequence_type
 from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.xpath_context import ContextType
 from elementpath.xpath_tokens import XPathTokenType, XPathToken, XPathAxis, \
-    XPathFunction, ProxyToken, RootToken
+    XPathFunction, ProxyToken
 
 
 class XPath1Parser(Parser[XPathTokenType]):
@@ -259,10 +259,6 @@ class XPath1Parser(Parser[XPathTokenType]):
             context = self.schema.get_context()
             for _ in root_token.select(context):
                 pass
-            return RootToken(root_token)
-        elif self.__class__.__module__.startswith('xmlschema.'):
-            # Workaround for xmlschema < 4.0: returns a root token for sharing schema
-            return RootToken(root_token)
 
         return root_token
 

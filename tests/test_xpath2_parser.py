@@ -560,7 +560,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
                 self.check_value('. le 10', False, context=context)
 
                 # Schema information persists on parser (will be removed in v5.0)
-                context = XPathContext(root)
+                context = XPathContext(root, schema=self.parser.schema)
                 self.check_value('. le 10', False, context=context)
 
             context = XPathContext(root)

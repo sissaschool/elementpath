@@ -1151,9 +1151,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
         root = doc.getroot()
 
         self.check_selector("id('ID21256')", doc, [root])
-        self.check_selector("id('E21256')", doc, [root[0]])
+        self.check_selector("id('E21256')", doc, [])
         self.check_selector('element-with-id("ID21256")', doc, [root])
-        self.check_selector('element-with-id("E21256")', doc, [root])
+        self.check_selector('element-with-id("E21256")', doc, [])
 
         with self.assertRaises(MissingContextError) as err:
             self.check_value("id('ID21256')")
@@ -1174,7 +1174,7 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
 
         # Id on root element
         root = self.etree.XML("<empnr>E21256</empnr>")
-        self.check_selector("id('E21256')", root, [root])
+        self.check_selector("id('E21256')", root, [])
         self.check_selector('element-with-id("E21256")', root, [])
 
     @unittest.skipIf(xmlschema is None, "xmlschema library is not installed ...")
@@ -1204,10 +1204,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             </xs:schema>"""))
 
         self.assertTrue(schema.is_valid(root))
-        with self.schema_bound_parser(schema.xpath_proxy):
-            context = XPathContext(doc)
-            self.check_select("id('ID21256')", [context.root.getroot()], context)
-            # self.check_select("id('E21256')", [root[0]], context)
+        context = XPathContext(doc, schema=schema.xpath_proxy)
+        self.check_select("id('ID21256')", [context.root.getroot()], context)
 
         # Test with matching value of type xs:string
         schema = xmlschema.XMLSchema(dedent("""\
@@ -1226,9 +1224,8 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             </xs:schema>"""))
 
         self.assertTrue(schema.is_valid(root))
-        with self.schema_bound_parser(schema.xpath_proxy):
-            context = XPathContext(doc)
-            self.check_select("id('E21256')", [], context)
+        context = XPathContext(doc, schema=self.parser.schema)
+        self.check_select("id('E21256')", [], context)
 
     @unittest.skipIf(xmlschema is None, "xmlschema library is not installed ...")
     def test_node_set_id_function_with_wrong_schema(self):
@@ -1246,10 +1243,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             </xs:schema>"""))
 
         self.assertFalse(schema.is_valid(root))
-        with self.schema_bound_parser(schema.xpath_proxy):
-            context = XPathContext(doc)
-            self.check_select("id('ID21256')", [context.root.getroot()], context)
-            self.check_select("id('E21256')", [], context)
+        context = XPathContext(doc, schema=schema.xpath_proxy)
+        self.check_select("id('ID21256')", [context.root.getroot()], context)
+        self.check_select("id('E21256')", [], context)
 
         schema = xmlschema.XMLSchema(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -1257,10 +1253,9 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
             </xs:schema>"""))
 
         self.assertFalse(schema.is_valid(root))
-        with self.schema_bound_parser(schema.xpath_proxy):
-            context = XPathContext(doc)
-            self.check_select("id('ID21256')", [context.root.getroot()], context)
-            self.check_select("id('E21256')", [], context)
+        context = XPathContext(doc, schema=schema.xpath_proxy)
+        self.check_select("id('ID21256')", [context.root.getroot()], context)
+        self.check_select("id('E21256')", [], context)
 
     def test_node_set_idref_function(self):
         doc = self.etree.parse(io.StringIO("""

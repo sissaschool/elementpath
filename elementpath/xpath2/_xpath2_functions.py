@@ -1542,55 +1542,26 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
     if root is None:
         return
 
-    # TODO: PSVI bindings with also xsi:type evaluation
     for element in root.iter_descendants():
         if not isinstance(element, EtreeElementNode):
             continue
 
-        if element.obj.text in idrefs:
-            if self.parser.schema is not None:
-                xsd_element = self.parser.schema.find(element.extended_path)
-                if xsd_element is None or not hasattr(xsd_element, 'type') or \
-                        xsd_element.type is None or not xsd_element.type.is_key():
-                    continue
-
+        if element.obj.text in idrefs and element.is_id:
             idrefs.remove(element.obj.text)
             if self.symbol == 'id':
                 yield element
             else:
                 parent = element.parent
-                if isinstance(parent, ElementNode):
+                if isinstance(parent, EtreeElementNode):
                     yield parent
-            continue  # pragma: no cover
+        else:
+            for attr in element.attributes:
+                if not isinstance(attr.obj, str):
+                    continue
 
-        for attr in element.attributes:
-            if not isinstance(attr.obj, str):
-                continue
-
-            if attr.obj in idrefs:
-                if attr.name == XML_ID:
+                if attr.obj in idrefs and attr.is_id:
                     idrefs.remove(attr.obj)
                     yield element
-                    break
-
-                if self.parser.schema is None:
-                    continue
-
-                xsd_element = self.parser.schema.find(element.extended_path)
-                if xsd_element is None or not hasattr(xsd_element, 'attrib'):
-                    continue
-
-                try:
-                    xsd_attribute = xsd_element.attrib[attr.name]
-                except KeyError:
-                    continue
-                else:
-                    if xsd_attribute.type is None or not xsd_attribute.type.is_key():
-                        continue  # pragma: no cover
-
-                    idrefs.remove(attr.obj)
-                    yield element
-                    break
 
 
 @method(function('idref', nargs=(1, 2), sequence_types=('xs:string*', 'node()', 'node()*')))
