@@ -11,19 +11,20 @@
 import sys
 import unittest
 import platform
-import importlib
 import io
 from pathlib import Path
+from xml.dom import pulldom
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
     lxml_etree = None
 
-from elementpath.etree import ElementTree, PyElementTree, \
-    SafeXMLParser, defuse_xml, etree_tostring, is_etree_document, \
-    is_lxml_etree_element, is_lxml_etree_document, etree_deep_equal, \
-    etree_iter_paths
+from elementpath.etree import SafeExpatParser, defuse_xml, \
+    etree_tostring, is_etree_document, is_lxml_etree_element, \
+    is_lxml_etree_document, etree_deep_equal, etree_iter_paths
+from elementpath.exceptions import XMLResourceForbidden
 
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
@@ -31,14 +32,78 @@ XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
                       '</pfa:root>'
 
 
-class TestElementTree(unittest.TestCase):
+class TestDefuse(unittest.TestCase):
 
-    @unittest.skipUnless(platform.python_implementation() == 'CPython', "requires CPython")
-    def test_imported_modules(self):
-        self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
-        self.assertIs(importlib.import_module('xml.etree').ElementTree, ElementTree)
-        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py,
-                         msg="cElementTree is not available!")
+    def test_safe_expat_parser(self):
+        parser = SafeExpatParser()
+        resource = io.StringIO(XML_WITH_NAMESPACES)
+        nodes = []
+
+        for event, node in pulldom.parse(resource, parser):
+            self.assertIn(event, (
+                'START_DOCUMENT', 'START_ELEMENT', 'CHARACTERS', 'END_ELEMENT',
+            ))
+            nodes.append(node)
+        self.assertEqual(len(nodes), 8)
+
+    def test_defuse_xml_entities(self):
+        xml_file = Path(__file__).parent.joinpath('resources/with_entity.xml')
+
+        elem = ElementTree.parse(str(xml_file)).getroot()
+        self.assertEqual(elem.text, 'abc')
+
+        with self.assertRaises(XMLResourceForbidden) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Entities are forbidden (entity_name='e')", str(ctx.exception))
+
+    def test_defuse_xml_external_entities(self):
+        xml_file = Path(__file__).parent.joinpath('resources/external_entity.xml')
+
+        with self.assertRaises(ElementTree.ParseError) as ctx:
+            ElementTree.parse(str(xml_file))
+        self.assertIn("undefined entity &ee", str(ctx.exception))
+
+        with self.assertRaises(XMLResourceForbidden) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
+
+    def test_defuse_xml_unused_external_entities(self):
+        xml_file = str(Path(__file__).parent.joinpath('resources/unused_external_entity.xml'))
+
+        elem = ElementTree.parse(xml_file).getroot()
+        self.assertEqual(elem.text, 'abc')
+
+        with self.assertRaises(XMLResourceForbidden) as ctx:
+            with open(xml_file) as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
+
+    def test_defuse_xml_unparsed_entities(self):
+        xml_file = Path(__file__).parent.joinpath('resources/unparsed_entity.xml')
+
+        with self.assertRaises(XMLResourceForbidden) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
+                         str(ctx.exception))
+
+    def test_defuse_xml_unused_unparsed_entities(self):
+        xml_file = Path(__file__).parent.joinpath('resources/unused_unparsed_entity.xml')
+
+        elem = ElementTree.parse(str(xml_file)).getroot()
+        self.assertIsNone(elem.text)
+
+        with self.assertRaises(XMLResourceForbidden) as ctx:
+            with xml_file.open() as fp:
+                defuse_xml(fp.read())
+        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
+                         str(ctx.exception))
+
+
+# noinspection PyTypeChecker
+class TestElementTree(unittest.TestCase):
 
     def test_element_string_serialization(self):
         self.assertRaises(TypeError, etree_tostring, '<element/>')
@@ -127,66 +192,6 @@ class TestElementTree(unittest.TestCase):
                    '</root>'
         self.assertEqual(etree_tostring(root, namespaces), expected)
 
-    def test_py_element_string_serialization(self):
-        elem = PyElementTree.Element('element')
-        self.assertEqual(etree_tostring(elem), '<element />')
-        self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element />')
-
-        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element />')
-        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
-                         b'    <element />')
-
-        elem.text = '\t'
-        self.assertEqual(etree_tostring(elem), '<element>    </element>')
-        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
-        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
-        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
-        elem.text = None
-
-        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element />')
-        self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
-                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element />')
-
-        self.assertEqual(etree_tostring(elem, encoding='ascii'),
-                         b"<?xml version='1.0' encoding='ascii'?>\n<element />")
-        self.assertEqual(etree_tostring(elem, encoding='ascii', xml_declaration=False),
-                         b'<element />')
-        self.assertEqual(etree_tostring(elem, encoding='utf-8'), b'<element />')
-        self.assertEqual(etree_tostring(elem, encoding='utf-8', xml_declaration=True),
-                         b'<?xml version="1.0" encoding="utf-8"?>\n<element />')
-
-        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1'),
-                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element />")
-        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
-                         b"<element />")
-
-        self.assertEqual(etree_tostring(elem, method='html'), '<element></element>')
-        self.assertEqual(etree_tostring(elem, method='text'), '')
-
-        root = PyElementTree.XML('<root>\n'
-                                 '  text1\n'
-                                 '  <elem>text2</elem>\n'
-                                 '</root>')
-        self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
-
-        root = PyElementTree.XML(XML_WITH_NAMESPACES)
-        result = etree_tostring(root)
-        self.assertNotEqual(result, XML_WITH_NAMESPACES)
-        self.assertNotIn('pxa', result)
-        self.assertNotIn('pxa', result)
-        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsa')
-        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsb')
-
-        namespaces = {
-            'pxa': "http://xpath.test/nsa",
-            'pxb': "http://xpath.test/nsb"
-        }
-        expected = '<pxa:root xmlns:pxa="http://xpath.test/nsa" ' \
-                   'xmlns:pxb="http://xpath.test/nsb">\n' \
-                   '  <pxb:elem />\n' \
-                   '</pxa:root>'
-        self.assertEqual(etree_tostring(root, namespaces), expected)
-
     @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
     def test_lxml_element_string_serialization(self):
         elem = lxml_etree.Element('element')
@@ -242,88 +247,6 @@ class TestElementTree(unittest.TestCase):
         for prefix, uri in namespaces.items():
             lxml_etree.register_namespace(prefix, uri)
         self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
-
-    def test_defuse_xml_entities(self):
-        xml_file = Path(__file__).parent.joinpath('resources/with_entity.xml')
-
-        elem = ElementTree.parse(str(xml_file)).getroot()
-        self.assertEqual(elem.text, 'abc')
-
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            ElementTree.parse(xml_file, parser=parser)
-        self.assertEqual("Entities are forbidden (entity_name='e')", str(ctx.exception))
-
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            with xml_file.open() as fp:
-                defuse_xml(fp.read())
-        self.assertEqual("Entities are forbidden (entity_name='e')", str(ctx.exception))
-
-    def test_defuse_xml_external_entities(self):
-        xml_file = Path(__file__).parent.joinpath('resources/external_entity.xml')
-
-        with self.assertRaises(ElementTree.ParseError) as ctx:
-            ElementTree.parse(str(xml_file))
-        self.assertIn("undefined entity &ee", str(ctx.exception))
-
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            ElementTree.parse(str(xml_file), parser=parser)
-        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
-
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            with xml_file.open() as fp:
-                defuse_xml(fp.read())
-        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
-
-    def test_defuse_xml_unused_external_entities(self):
-        xml_file = str(Path(__file__).parent.joinpath('resources/unused_external_entity.xml'))
-
-        elem = ElementTree.parse(xml_file).getroot()
-        self.assertEqual(elem.text, 'abc')
-
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            ElementTree.parse(xml_file, parser=parser)
-        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
-
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            with open(xml_file) as fp:
-                defuse_xml(fp.read())
-        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
-
-    def test_defuse_xml_unparsed_entities(self):
-        xml_file = Path(__file__).parent.joinpath('resources/unparsed_entity.xml')
-
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            ElementTree.parse(str(xml_file), parser=parser)
-        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
-                         str(ctx.exception))
-
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            with xml_file.open() as fp:
-                defuse_xml(fp.read())
-        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
-                         str(ctx.exception))
-
-    def test_defuse_xml_unused_unparsed_entities(self):
-        xml_file = Path(__file__).parent.joinpath('resources/unused_unparsed_entity.xml')
-
-        elem = ElementTree.parse(str(xml_file)).getroot()
-        self.assertIsNone(elem.text)
-
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            ElementTree.parse(str(xml_file), parser=parser)
-        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
-                         str(ctx.exception))
-
-        with self.assertRaises(PyElementTree.ParseError) as ctx:
-            with xml_file.open() as fp:
-                defuse_xml(fp.read())
-        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
-                         str(ctx.exception))
 
     def test_is_etree_document_function(self):
         document = ElementTree.parse(io.StringIO('<A/>'))

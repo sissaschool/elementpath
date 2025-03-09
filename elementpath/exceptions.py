@@ -56,6 +56,10 @@ class UnsupportedFeatureError(ElementPathError, NotImplementedError):
     """Raised when an XPath feature is not supported in the current context."""
 
 
+class XMLResourceForbidden(ElementPathError):
+    """Raised when the parsing of an XML resource is forbidden for safety reasons."""
+
+
 class ElementPathKeyError(ElementPathError, KeyError):
     pass
 
@@ -65,6 +69,10 @@ class ElementPathZeroDivisionError(ElementPathError, ZeroDivisionError):
 
 
 class ElementPathNameError(ElementPathError, NameError):
+    pass
+
+
+class ElementPathOSError(ElementPathError, OSError):
     pass
 
 
