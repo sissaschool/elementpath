@@ -62,6 +62,7 @@ class TreeBuildersTest(unittest.TestCase):
         node = build_node_tree(root, self.namespaces)
 
         self.assertIsInstance(node, ElementNode)
+        self.assertIn(root, node.elements)
         self.assertEqual(len(node.children), 7)
         self.assertIsInstance(node.children[0], TextNode)
         self.assertIsInstance(node.children[1], ElementNode)
@@ -96,8 +97,6 @@ class TreeBuildersTest(unittest.TestCase):
         for k, node in enumerate(node.iter(), start=1):
             self.assertEqual(k, node.position, msg=node)
 
-    @unittest.skipIf(sys.version_info <= (3, 8),
-                     "Comments not available in ElementTree")
     def test_build_node_tree_with_comments_and_pis(self):
         parser = ElementTree.XMLParser(
             target=ElementTree.TreeBuilder(
@@ -229,8 +228,10 @@ class TreeBuildersTest(unittest.TestCase):
             </xs:schema>"""))
 
         root_node = build_schema_node_tree(schema)
+
         self.assertIs(root_node.elem, schema)
         self.assertIsInstance(root_node.elements, dict)
+        self.assertIn(schema, root_node.elements)
 
         for node in root_node.elements.values():
             self.assertIs(node.elements, root_node.elements)

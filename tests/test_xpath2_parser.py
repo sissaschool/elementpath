@@ -1453,7 +1453,7 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         root = ET.fromstring(xml_source)
 
         root_node = get_node_tree(root)
-        date_node = root_node.get_element_node(root[4])
+        date_node = root_node.elements.get(root[4])
         assert date_node.name == 'date_value'
         assert date_node.xsd_type is None
         assert date_node.typed_value == '2018-01-23'

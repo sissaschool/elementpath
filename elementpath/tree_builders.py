@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import Iterator
-from typing import cast, Any, Optional, TYPE_CHECKING, Union
+from typing import cast, Any, Optional, Union
 
-from elementpath.aliases import NamespacesType, NsmapType
+from elementpath.aliases import NamespacesType
 from elementpath.exceptions import ElementPathTypeError
 from elementpath.protocols import LxmlElementProtocol, DocumentProtocol, \
     LxmlDocumentProtocol, XsdElementProtocol, DocumentType, ElementType, \
@@ -19,9 +19,6 @@ from elementpath.etree import is_etree_document, is_etree_element, is_etree_elem
 from elementpath.xpath_nodes import ChildNodeType, ElementMapType, TextNode, \
     ElementNode, SchemaElementNode, DocumentNode, RootNodeType, RootArgType, \
     EtreeElementNode, EtreeDocumentNode, CommentNode, ProcessingInstructionNode
-
-if TYPE_CHECKING:
-    from elementpath.schema_proxy import AbstractSchemaProxy
 
 __all__ = ['get_node_tree', 'build_node_tree', 'build_lxml_node_tree', 'build_schema_node_tree']
 
@@ -53,7 +50,7 @@ def get_node_tree(root: RootArgType,
 
     if isinstance(root, (DocumentNode, ElementNode)):
         if uri is not None and root.uri is None:
-            root.uri = uri
+            root.tree.uri = uri
 
         if fragment:
             if isinstance(root, DocumentNode):
@@ -91,8 +88,7 @@ def get_node_tree(root: RootArgType,
 def build_node_tree(root: ElementTreeRootType,
                     namespaces: Optional[NamespacesType] = None,
                     uri: Optional[str] = None,
-                    fragment: Optional[bool] = None,
-                    schema: Optional['AbstractSchemaProxy'] = None) -> RootNodeType:
+                    fragment: Optional[bool] = None) -> RootNodeType:
     """
     Returns a tree of XPath nodes that wrap the provided root tree.
 
@@ -103,8 +99,6 @@ def build_node_tree(root: ElementTreeRootType,
     case if `root` is an ElementTree instance skips it and use the root Element. If \
     `False` is provided creates a dummy document when the root is an Element instance. \
     For default the root node kind is preserved.
-    :param schema: an optional schema proxy instance for applying XSD type annotations \
-    on element and attribute nodes.
     """
     elem: ElementType
     parent: Any
@@ -114,14 +108,9 @@ def build_node_tree(root: ElementTreeRootType,
     document: Optional[DocumentProtocol]
 
     position = 1
-
-    nsmap: Optional[NsmapType]
-    if namespaces:
-        nsmap = {k: v for k, v in namespaces.items()}
-        elem_pos_offset = len(namespaces) + int('xml' not in namespaces) + 1
-    else:
-        nsmap = {}
-        elem_pos_offset = 2
+    if namespaces is None:
+        namespaces = {}
+    ns_pos_offset = len(namespaces) + int('xml' not in namespaces) + 1
 
     if hasattr(root, 'parse'):
         document = cast(DocumentProtocol, root)
@@ -141,23 +130,20 @@ def build_node_tree(root: ElementTreeRootType,
             return document_node
 
         elem = root_elem
-        root_node = EtreeElementNode(elem, document_node, position, nsmap)
-        elements = document_node.elements
-        document_node.children.append(root_node)
+        root_node = EtreeElementNode(elem, document_node, position)
     else:
         assert root_elem is not None
         document_node = None
         elem = root_elem
-        root_node = EtreeElementNode(elem, None, position, nsmap)
-        root_node.elements = elements = {}
+
+        root_node = EtreeElementNode(elem, None, position)
         if uri is not None:
             root_node.uri = uri
 
-    # Complete the root element node build
-    elements[elem] = root_node
-    position += elem_pos_offset + len(elem.attrib)
+    root_node.tree.namespaces = namespaces
+    position += ns_pos_offset + len(elem.attrib)
     if elem.text is not None:
-        root_node.children.append(TextNode(elem.text, root_node, position))
+        TextNode(elem.text, root_node, position)
         position += 1
 
     children = iter(elem)
@@ -168,11 +154,11 @@ def build_node_tree(root: ElementTreeRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = EtreeElementNode(elem, parent, position, nsmap)
-                position += elem_pos_offset + len(elem.attrib)
+                child = EtreeElementNode(elem, parent, position)
+                position += ns_pos_offset + len(elem.attrib)
 
                 if elem.text is not None:
-                    child.children.append(TextNode(elem.text, child, position))
+                    TextNode(elem.text, child, position)
                     position += 1
 
             elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
@@ -182,9 +168,6 @@ def build_node_tree(root: ElementTreeRootType,
                 child = ProcessingInstructionNode(elem, None, parent, position)
                 position += 1
 
-            elements[elem] = child
-            parent.children.append(child)
-
             if len(elem):
                 ancestors.append(parent)
                 parent = child
@@ -193,7 +176,7 @@ def build_node_tree(root: ElementTreeRootType,
                 break
 
             if elem.tail is not None:
-                parent.children.append(TextNode(elem.tail, parent, position))
+                TextNode(elem.tail, parent, position)
                 position += 1
         else:
             try:
@@ -209,7 +192,7 @@ def build_node_tree(root: ElementTreeRootType,
                     return root_node
             else:
                 if (tail := parent.children[-1].elem.tail) is not None:
-                    parent.children.append(TextNode(tail, parent, position))
+                    TextNode(tail, parent, position)
                     position += 1
 
 
@@ -250,7 +233,6 @@ def build_lxml_node_tree(root: LxmlRootType,
 
     if document is not None:
         document_node = EtreeDocumentNode(document, uri, position)
-        elements = document_node.elements
         position += 1
 
         root_elem = document.getroot()
@@ -260,16 +242,13 @@ def build_lxml_node_tree(root: LxmlRootType,
         # Add root siblings (comments and processing instructions)
         for elem in reversed([x for x in root_elem.itersiblings(preceding=True)]):
             if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-                child = CommentNode(elem, document_node, position)
+                CommentNode(elem, document_node, position)
+                position += 1
             else:
-                child = ProcessingInstructionNode(elem, None, document_node, position)
+                ProcessingInstructionNode(elem, None, document_node, position)
+                position += 1
 
-            elements[elem] = child
-            document_node.children.append(child)
-            position += 1
-
-        root_node = EtreeElementNode(root_elem, document_node, position, root_elem.nsmap)
-        document_node.children.append(root_node)
+        root_node = EtreeElementNode(root_elem, document_node, position)
     else:
         if hasattr(root, 'parse'):
             root_elem = cast(LxmlDocumentProtocol, root).getroot()
@@ -284,20 +263,18 @@ def build_lxml_node_tree(root: LxmlRootType,
             raise ElementPathTypeError(msg)
 
         document_node = None
-        root_node = EtreeElementNode(root_elem, None, position, root_elem.nsmap)
-        root_node.elements = elements = {}
+        root_node = EtreeElementNode(root_elem)
         if uri is not None:
             root_node.uri = uri
 
     # Complete the root element node build
-    elements[root_elem] = root_node
     if 'xml' in root_elem.nsmap:
         position += len(root_elem.nsmap) + len(root_elem.attrib) + 1
     else:
         position += len(root_elem.nsmap) + len(root_elem.attrib) + 2
 
     if root_elem.text is not None:
-        root_node.children.append(TextNode(root_elem.text, root_node, position))
+        TextNode(root_elem.text, root_node, position)
         position += 1
 
     children = iter(root_elem)
@@ -308,14 +285,14 @@ def build_lxml_node_tree(root: LxmlRootType,
     while True:
         for elem in children:
             if not callable(elem.tag):
-                child = EtreeElementNode(elem, parent, position, elem.nsmap)
+                child = EtreeElementNode(elem, parent, position)
                 if 'xml' in elem.nsmap:
                     position += len(elem.nsmap) + len(elem.attrib) + 1
                 else:
                     position += len(elem.nsmap) + len(elem.attrib) + 2
 
                 if elem.text is not None:
-                    child.children.append(TextNode(elem.text, child, position))
+                    TextNode(elem.text, child, position)
                     position += 1
 
             elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
@@ -325,9 +302,6 @@ def build_lxml_node_tree(root: LxmlRootType,
                 child = ProcessingInstructionNode(elem, None, parent, position)
                 position += 1
 
-            elements[elem] = child
-            parent.children.append(child)
-
             if len(elem):
                 ancestors.append(parent)
                 parent = child
@@ -336,7 +310,7 @@ def build_lxml_node_tree(root: LxmlRootType,
                 break
 
             if elem.tail is not None:
-                parent.children.append(TextNode(elem.tail, parent, position))
+                TextNode(elem.tail, parent, position)
                 position += 1
         else:
             try:
@@ -348,18 +322,16 @@ def build_lxml_node_tree(root: LxmlRootType,
                 # Add root following siblings (comments and processing instructions)
                 for elem in root_elem.itersiblings():
                     if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
-                        child = CommentNode(elem, document_node, position)
+                        CommentNode(elem, document_node, position)
+                        position += 1
                     else:
-                        child = ProcessingInstructionNode(elem, None, document_node, position)
-
-                    elements[elem] = child
-                    document_node.children.append(child)
-                    position += 1
+                        ProcessingInstructionNode(elem, None, document_node, position)
+                        position += 1
 
                 return document_node
             else:
                 if (tail := parent.children[-1].elem.tail) is not None:
-                    parent.children.append(TextNode(tail, parent, position))
+                    TextNode(tail, parent, position)
                     position += 1
 
 
@@ -386,20 +358,19 @@ def build_schema_node_tree(root: SchemaElemType,
     children: Iterator[Any]
 
     position = 1
-    _elements = {} if elements is None else elements
-
-    nsmap: Optional[NsmapType] = getattr(root, 'namespaces', None)
-    if nsmap:
-        elem_pos_offset = len(nsmap) + int('xml' not in nsmap) + 1
+    if hasattr(root, 'namespaces'):
+        namespaces: NamespacesType = root.namespaces
+        ns_pos_offset = len(namespaces) + int('xml' not in namespaces) + 1
     else:
-        elem_pos_offset = 2
+        namespaces = {}
+        ns_pos_offset = 2
 
-    root_node = SchemaElementNode(root, None, position, nsmap)
-    _elements[root] = root_node
-    root_node.elements = _elements
-    position += elem_pos_offset + len(root.attrib)
-    if uri is not None:
-        root_node.uri = uri
+    root_node = SchemaElementNode(root, None, position)
+    if elements is not None:
+        elements.update(root_node.tree.elements)
+        root_node.tree.elements = elements
+    root_node.tree.namespaces = namespaces
+    position += ns_pos_offset + len(root.attrib)
 
     if global_elements is not None:
         global_elements.append(root_node)
@@ -419,12 +390,8 @@ def build_schema_node_tree(root: SchemaElemType,
 
     while True:
         for elem in children:
-            child = SchemaElementNode(elem, parent, position, elem.namespaces)
-            position += elem_pos_offset + len(elem.attrib)
-
-            _elements[elem] = child
-            child.elements = _elements
-            parent.children.append(child)
+            child = SchemaElementNode(elem, parent, position)
+            position += ns_pos_offset + len(elem.attrib)
 
             if elem in local_nodes:
                 if elem.ref is None:
@@ -458,7 +425,7 @@ def build_schema_node_tree(root: SchemaElemType,
                     else:
                         # Extend node tree with other globals
                         element_node.ref = build_schema_node_tree(
-                            ref, elements=_elements, global_elements=global_elements
+                            ref, elements=root_node.elements, global_elements=global_elements
                         )
 
                 return root_node

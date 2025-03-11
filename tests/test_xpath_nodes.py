@@ -289,7 +289,7 @@ class XPathNodesTest(unittest.TestCase):
 
         document = DocumentNode(ElementTree.parse(io.StringIO("<A><B1/><B2/></A>")))
         self.assertListEqual(document.children, [])  # not built document
-        document.children.append(EtreeElementNode(document.value.getroot(), document))
+        EtreeElementNode(document.value.getroot(), document)
         self.assertListEqual(document.children, [document.getroot()])
 
         self.assertIsNone(TextNode('a text node').children)

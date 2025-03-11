@@ -59,7 +59,7 @@ if __name__ == '__main__':
         def build_element_node() -> ElementNode:
             global position
 
-            node = ElementNode(elem, parent, position, nsmap)
+            node = ElementNode(elem, parent, position)
             position += 1
 
             position += len(nsmap) if 'xml' in nsmap else len(nsmap) + 1
@@ -87,7 +87,7 @@ if __name__ == '__main__':
             parent = None
             root_node = parent = build_element_node()
 
-        # elements = {elem: parent}  # Enable for building a reverse map elem -> node
+        root_node.tree.namespaces = nsmap
         children = iter(elem)
         iterators = []
         ancestors = []
@@ -101,8 +101,6 @@ if __name__ == '__main__':
                     position += 1
                 else:
                     child = ProcessingInstructionNode(elem, parent, position)
-
-                # elements[elem] = child
 
                 parent.children.append(child)
                 if elem.tail is not None:
@@ -121,8 +119,8 @@ if __name__ == '__main__':
                 except IndexError:
                     break
 
-    print(f"Number of elements: {len(list(root.iter()))}")
-    print(f"Number of nodes: {len(list(root_node.iter()))}")
+    print(f"Number of elements: {sum(1 for _ in root.iter())}")
+    print(f"Number of nodes: {sum(1 for _ in root_node.iter())}")
 
     element_nodes = list(x for x in root_node.iter() if isinstance(x, ElementNode))
     print(f"Number of element nodes: {len(element_nodes)}")
