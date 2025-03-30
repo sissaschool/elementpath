@@ -1278,7 +1278,7 @@ class EtreeElementNode(ElementNode):
             return match_wildcard(self.obj.tag, name)
         elif not name:
             return not self.obj.tag
-        elif hasattr(self.obj, 'type'):
+        elif hasattr(self.obj, 'type') and hasattr(self.obj, 'is_matching'):
             return cast(XsdElementProtocol, self.obj).is_matching(name, default_namespace)
         elif name[0] == '{' or not default_namespace:
             return self.obj.tag == name
