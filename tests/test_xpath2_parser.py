@@ -43,8 +43,10 @@ except ImportError:
 
 try:
     import lxml.etree as lxml_etree
+    import lxml.html as lxml_html
 except ImportError:
     lxml_etree = None
+    lxml_html = None
 
 try:
     import xmlschema
@@ -1525,6 +1527,12 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath2ParserTest(XPath2ParserTest):
     etree = lxml_etree
+
+    def test_input_selector(self):
+        body = '<input/>'
+        root = self.etree.fromstring(body, parser=lxml_html.HTMLParser())
+        result = select(root, '//input')
+        self.assertEqual(len(result), 1)
 
 
 if __name__ == '__main__':
