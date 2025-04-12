@@ -144,7 +144,7 @@ class XPathContext:
             else:
                 self.item = self.root
 
-            if schema is not None and not self.root.is_schema_node:
+            if schema is not None:
                 self.root.apply_schema(schema)
 
         elif item is not None:
@@ -246,7 +246,7 @@ class XPathContext:
         if schema is not None:
             if self.root is not None:
                 self.root.apply_schema(schema)
-            elif isinstance(self.item, (DocumentNode, ElementNode, AttributeNode)):
+            elif isinstance(self.item, XPathNode):
                 self.item.apply_schema(schema)
 
     def get_root(self, node: Any) -> Optional[RootNodeType]:
@@ -308,7 +308,7 @@ class XPathContext:
             if self.documents:
                 for doc in self.documents.values():
                     if doc is not None and doc.elements is not None and item in doc.elements:
-                        return doc.elements[item]  # type: ignore[index]
+                        return doc.elements[item]
 
             if callable(item.tag):  # type: ignore[union-attr]
                 if item.tag.__name__ == 'Comment':  # type: ignore[union-attr]

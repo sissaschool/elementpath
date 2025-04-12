@@ -22,8 +22,11 @@ from xml.etree import ElementTree
 from xml.sax import SAXParseException
 from xml.sax import expatreader  # type: ignore[attr-defined, unused-ignore]
 
-from elementpath.protocols import ElementProtocol, DocumentProtocol
+from elementpath.protocols import ElementProtocol, DocumentProtocol, EtreeElementProtocol, \
+    LxmlElementProtocol
 from elementpath.exceptions import XMLResourceForbidden, ElementPathOSError
+
+ElementType = Union[EtreeElementProtocol, LxmlElementProtocol, ElementTree.Element]
 
 
 class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc, unused-ignore]
@@ -186,7 +189,7 @@ def etree_iter_paths(elem: ElementProtocol, path: str = '.') \
         yield from etree_iter_paths(child, child_path)
 
 
-def etree_tostring(elem: ElementProtocol,
+def etree_tostring(elem: ElementType,
                    namespaces: Optional[MutableMapping[str, str]] = None,
                    indent: str = '',
                    max_lines: Optional[int] = None,
@@ -201,7 +204,7 @@ def etree_tostring(elem: ElementProtocol,
     :param namespaces: is an optional mapping from namespace prefix to URI. \
     Provided namespaces are registered before serialization. Ignored if the \
     provided *elem* argument is a lxml Element instance.
-    :param indent: the base line indentation.
+    :param indent: the baseline indentation.
     :param max_lines: if truncate serialization after a number of lines \
     (default: do not truncate).
     :param spaces_for_tab: number of spaces for replacing tab characters. For \

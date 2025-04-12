@@ -46,7 +46,7 @@ TypedNodeType = Union['AttributeNode', 'ElementNode']
 TaggedNodeType = Union['ElementNode', 'CommentNode', 'ProcessingInstructionNode']
 ParentNodeType = Union['DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', TaggedNodeType]
-ElementMapType = dict[ElementType, TaggedNodeType]
+ElementMapType = dict[object, TaggedNodeType]
 
 
 class XPathNodeTree:
@@ -812,16 +812,13 @@ class ElementNode(XPathNode):
     children: list[ChildNodeType]
     parent: Optional[ParentNodeType]
     xsd_type: Optional[XsdTypeProtocol]
+    _nsmap: Union[NsmapType, NamespacesType, None]
 
     # Lazy protected attributes
-    _uri: str
-    _schema: 'AbstractSchemaProxy'
-    _elements: ElementMapType
     _namespace_nodes: list[NamespaceNode]
     _attributes: list[AttributeNode]
 
-    __slots__ = ('children', 'tree', 'xsd_type', '_uri', '_schema',
-                 '_elements', '_namespace_nodes', '_attributes')
+    __slots__ = ('children', 'tree', 'xsd_type', '_nsmap', '_namespace_nodes', '_attributes')
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'ElementNode':
         if cls is ElementNode:
@@ -844,8 +841,14 @@ class ElementNode(XPathNode):
     def nsmap(self) -> Union[NsmapType, NamespacesType]:
         if hasattr(self.obj, 'nsmap'):
             return cast(NsmapType, self.obj.nsmap)
+        elif self._nsmap is not None:
+            return self._nsmap
         else:
             return self.tree.namespaces
+
+    @nsmap.setter
+    def nsmap(self, nsmap: Union[NsmapType, NamespacesType]) -> None:
+        self._nsmap = nsmap
 
     @property
     def uri_qualified_name(self) -> Optional[str]:
@@ -931,11 +934,11 @@ class ElementNode(XPathNode):
 
     @property
     def uri(self) -> Optional[str]:
-        return getattr(self, '_uri', None)
+        return self.tree.uri
 
     @uri.setter
     def uri(self, uri: str) -> None:
-        self._uri = uri
+        self.tree.uri = uri
 
     @property
     def schema(self) -> Optional['AbstractSchemaProxy']:
@@ -977,6 +980,12 @@ class ElementNode(XPathNode):
     @property
     def is_typed(self) -> bool:
         return self.xsd_type is not None
+
+    def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
+        return
+
+    def clear_types(self) -> None:
+        return
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if self.name is None:
@@ -1079,7 +1088,7 @@ class EtreeElementNode(ElementNode):
     """
     XPath element nodes for wrapping ElementTree elements.
 
-    :param elem: the wrapped Element or XSD schema/element.
+    :param elem: the wrapped Element.
     :param parent: the parent document node or element node.
     :param position: the position of the node in the document.
     """
@@ -1092,7 +1101,8 @@ class EtreeElementNode(ElementNode):
     def __init__(self,
                  elem: ElementType,
                  parent: Optional[ParentNodeType] = None,
-                 position: int = 1):
+                 position: int = 1,
+                 nsmap: Union[NsmapType, NamespacesType, None] = None) -> None:
 
         self.name = elem.tag
         self.obj = elem
@@ -1100,6 +1110,7 @@ class EtreeElementNode(ElementNode):
         self.position = position
         self.children = []
         self.xsd_type = None
+        self._nsmap = nsmap
 
         if parent is not None:
             self.tree = parent.tree
@@ -1153,14 +1164,6 @@ class EtreeElementNode(ElementNode):
             # Element-only text content is normalized
             return ''.join(etree_iter_strings(self.obj, normalize=True))
         return ''.join(etree_iter_strings(self.obj))
-
-    @property
-    def typed_value(self) -> SequenceType[AtomicType]:
-        values = [v for v in self.iter_typed_values]
-        if len(values) == 1:
-            return values[0]
-        else:
-            return values
 
     @property
     def iter_typed_values(self) -> Iterator[AtomicType]:
@@ -1401,7 +1404,8 @@ class SchemaElementNode(ElementNode):
     def __init__(self,
                  elem: SchemaElemType,
                  parent: Optional[ParentNodeType] = None,
-                 position: int = 1):
+                 position: int = 1,
+                 nsmap: Union[NsmapType, NamespacesType, None] = None):
 
         self.name = elem.tag
         self.obj = elem
@@ -1409,6 +1413,7 @@ class SchemaElementNode(ElementNode):
         self.position = position
         self.children = []
         self.xsd_type = getattr(elem, 'type', None)
+        self._nsmap = nsmap
 
         try:
             self.tree = parent.tree  # type: ignore[union-attr, unused-ignore]
@@ -1437,10 +1442,6 @@ class SchemaElementNode(ElementNode):
         return self.obj
 
     elem = value = content
-
-    @property
-    def nsmap(self) -> NamespacesType:
-        return self.tree.namespaces
 
     @property
     def path(self) -> str:
@@ -1607,7 +1608,7 @@ class DocumentNode(XPathNode):
         return self.tree.uri
 
     @property
-    def elements(self) -> dict[ElementProtocol, TaggedNodeType]:
+    def elements(self) -> dict[object, TaggedNodeType]:
         return self.tree.elements
 
     @property
@@ -1664,12 +1665,12 @@ class DocumentNode(XPathNode):
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
         for child in self.children:
-            if isinstance(child, EtreeElementNode):
+            if isinstance(child, ElementNode):
                 child.apply_schema(schema)
 
     def clear_types(self) -> None:
         for child in self.children:
-            if isinstance(child, EtreeElementNode):
+            if isinstance(child, ElementNode):
                 child.clear_types()
 
     @property

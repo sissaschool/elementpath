@@ -102,7 +102,6 @@ def build_node_tree(root: ElementTreeRootType,
     """
     elem: ElementType
     parent: Any
-    elements: Any
     child: ChildNodeType
     children: Iterator[Any]
     document: Optional[DocumentProtocol]
@@ -212,7 +211,6 @@ def build_lxml_node_tree(root: LxmlRootType,
     root_node: RootNodeType
     document: Optional[LxmlDocumentProtocol]
     parent: Any
-    elements: Any
     child: ChildNodeType
     children: Iterator[Any]
 
