@@ -10,7 +10,6 @@
 #
 import unittest
 import io
-import sys
 import xml.etree.ElementTree as ElementTree
 from textwrap import dedent
 
