@@ -10,6 +10,8 @@
 """
 This module defines a class for handling Unicode subsets with less usage of memory.
 """
+import sys
+import warnings
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, MutableSet
 from functools import wraps
@@ -484,7 +486,14 @@ class UnicodeData:
         elif self.version in unicode_categories.UNICODE_VERSIONS:
             self._categories = get_categories(version_info, unicode_categories)
         else:
-            raise TypeError(f"can't get version {version} from module")
+            from . import categories_fallback
+
+            py_version = '.'.join(str(n) for n in sys.version_info[:2])
+            msg = (f"unexpected Unicode version {version} for Python {py_version}, "
+                   f"use unicodedata module for building categories map.")
+            warnings.warn(UnicodeWarning(msg))
+
+            self._categories = categories_fallback.get_unicodedata_categories()
 
         # Build blocks dict for version
         superseded_blocks = []

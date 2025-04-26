@@ -22,7 +22,11 @@ try:
 except ImportError:
     xmlschema = None
 
-from xpath_test_class import XPathTestCase
+try:
+    from tests import xpath_test_class
+except ImportError:
+    import xpath_test_class
+
 from elementpath import XPathContext
 # from elementpath.decoder import get_atomic_sequence
 from elementpath.datatypes import DateTime
@@ -30,7 +34,7 @@ from elementpath.datatypes import DateTime
 
 # noinspection PyUnresolvedReferences
 @unittest.skipIf(xmlschema is None, "xmlschema library is not installed")
-class DecoderTest(XPathTestCase):
+class DecoderTest(xpath_test_class.XPathTestCase):
     etree = ElementTree
 
     def test_decode_union(self):
