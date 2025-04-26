@@ -32,7 +32,7 @@ setup(
     python_requires='>=3.9',
     extras_require={
         'dev': ['tox', 'coverage', 'lxml', 'xmlschema>=3.3.2', 'Sphinx',
-                'memory-profiler', 'memray', 'flake8', 'mypy', 'lxml-stubs']
+                'psutil', 'memray', 'flake8', 'mypy', 'lxml-stubs']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

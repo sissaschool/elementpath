@@ -1411,6 +1411,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('catalog', metavar='CATALOG_FILE',
+                        nargs='?', default='../qt3tests/catalog.xml',
                         help='the path to the main index file of test suite (catalog.xml)')
     parser.add_argument('pattern', nargs='?', default='.*', metavar='PATTERN',
                         help='run only test cases which name matches a regex pattern')

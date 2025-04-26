@@ -10,12 +10,20 @@
 #
 # flake8: noqa
 
-from memory_profiler import profile
+def profile_memory(func):
+    def wrapper(*a, **kw):
+        mem = this_process.memory_info().rss
+        result = func(*a, **kw)
+        mem = this_process.memory_info().rss - mem
+        print("Memory usage by %s(): %.2f MB (%d)" % (func.__name__, mem / 1024 ** 2, mem))
+        return result
+
+    return wrapper
 
 
 # noinspection PyUnresolvedReferences
-@profile(precision=3)
-def elementpath_memory_usage():
+@profile_memory
+def elementpath_deps_memory_usage():
     # Memory relevant standard library imports
     import pathlib
     import decimal
@@ -23,6 +31,9 @@ def elementpath_memory_usage():
     import xml.etree.ElementTree
     import unicodedata
 
+
+@profile_memory
+def elementpath_memory_usage():
     # elementpath imports
     #
     # Note: comments out all subpackages imports in elementpath/__init__.py
@@ -30,6 +41,8 @@ def elementpath_memory_usage():
     #
     import elementpath
 
+@profile_memory
+def elementpath_subpackages_memory_usage():
     import elementpath.regex
     import elementpath.datatypes
     import elementpath.xpath_nodes
@@ -38,10 +51,21 @@ def elementpath_memory_usage():
     import elementpath.xpath1
     import elementpath.xpath2
 
+
+@profile_memory
+def elementpath_optional_memory_usage():
     # Optional elementpath imports
     import elementpath.xpath30
     import elementpath.xpath31
 
 
 if __name__ == '__main__':
+    import os
+    import psutil
+
+    this_process = psutil.Process(os.getpid())
+
+    elementpath_deps_memory_usage()
     elementpath_memory_usage()
+    elementpath_subpackages_memory_usage()
+    elementpath_optional_memory_usage()

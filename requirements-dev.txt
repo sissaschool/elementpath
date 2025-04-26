@@ -3,9 +3,9 @@ setuptools
 tox>=4.0
 coverage
 lxml
-xmlschema>=3.3.2
+xmlschema>=4.0
 Sphinx
-memory-profiler
+psutil
 memray
 flake8
 mypy
