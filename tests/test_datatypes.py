@@ -34,7 +34,7 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
     XsdToken, Language, Float, Float10, Integer, Short, NegativeInteger, AnyURI, \
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy, \
-    xsd10_atomic_types, xsd11_atomic_types
+    xsd_atomic_types
 from elementpath.datatypes.atomic_types import AtomicTypeMeta
 from elementpath.datatypes.datetime import OrderedDateTime
 from elementpath.decoder import get_atomic_sequence
@@ -43,11 +43,10 @@ from elementpath.decoder import get_atomic_sequence
 class AtomicTypesTest(unittest.TestCase):
 
     def test_xsd_atomic_types_maps(self):
-        self.assertEqual(len(xsd10_atomic_types), 45 * 2)
-        self.assertEqual(len(xsd11_atomic_types), 46 * 2)
+        self.assertEqual(len(xsd_atomic_types['1.0']), 45)
+        self.assertEqual(len(xsd_atomic_types['1.1']), 46)
         self.assertSetEqual(
-            set(xsd11_atomic_types) - set(xsd10_atomic_types),
-            {'{http://www.w3.org/2001/XMLSchema}dateTimeStamp', 'dateTimeStamp'}
+            set(xsd_atomic_types['1.1']) - set(xsd_atomic_types['1.0']), {'dateTimeStamp'}
         )
 
     @unittest.skipIf(xmlschema is None, "xmlschema library required.")
@@ -116,8 +115,9 @@ class AnyAtomicTypeTest(unittest.TestCase):
                 name = b'invalid'
 
     def test_validation(self):
-        class AnotherAtomicType(metaclass=AtomicTypeMeta):
-            pass
+        class AnotherAtomicType(AnyAtomicType):
+            def __init__(self) -> None:
+                pass
 
         self.assertIsNone(AnotherAtomicType.validate(AnotherAtomicType()))
         self.assertIsNone(AnotherAtomicType.validate(''))

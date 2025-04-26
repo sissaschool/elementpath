@@ -14,8 +14,7 @@ from elementpath.exceptions import ElementPathKeyError, xpath_error
 from elementpath.helpers import collapse_white_spaces, OCCURRENCE_INDICATORS, Patterns
 from elementpath.namespaces import XSD_NAMESPACE, XSD_ERROR, XSD_ANY_SIMPLE_TYPE, XSD_NUMERIC, \
     get_expanded_name, XSD_UNTYPED, XSD_UNTYPED_ATOMIC
-from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, AnyAtomicType, \
-    QName, NumericProxy
+from elementpath.datatypes import xsd_atomic_types, AnyAtomicType, QName, NumericProxy
 from elementpath.xpath_nodes import XPathNode, DocumentNode, ElementNode, AttributeNode
 from elementpath import xpath_tokens
 
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
     from elementpath.xpath_tokens import XPathParserType
 
 XSD_EXTENDED_PREFIX = f'{{{XSD_NAMESPACE}}}'
+xsd11_atomic_types = xsd_atomic_types['1.1']
 
 COMMON_SEQUENCE_TYPES = {
     'xs:anyType', 'xs:anySimpleType', 'xs:anyAtomicType',
@@ -142,9 +142,7 @@ def is_instance(obj: Any, type_qname: str, parser: Optional['XPathParserType'] =
 
     if type_qname.startswith(XSD_EXTENDED_PREFIX):
         try:
-            if xsd_version == '1.1':
-                return isinstance(obj, xsd11_atomic_types[type_qname])
-            return isinstance(obj, xsd10_atomic_types[type_qname])
+            return isinstance(obj, xsd_atomic_types[xsd_version][type_qname[34:]])
         except KeyError:
             pass
 

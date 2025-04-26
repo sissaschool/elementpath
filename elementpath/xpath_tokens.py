@@ -29,11 +29,11 @@ from elementpath.exceptions import ElementPathError, ElementPathValueError, \
 from elementpath.helpers import ordinal, get_double, split_function_test
 from elementpath.etree import is_etree_element, is_etree_document
 from elementpath.namespaces import XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE, \
-    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_DECIMAL, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
+    XPATH_MATH_FUNCTIONS_NAMESPACE, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, \
     XSD_ANY_ATOMIC_TYPE
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode, ElementNode, DocumentNode, NamespaceNode
-from elementpath.datatypes import xsd10_atomic_types, AbstractDateTime, AnyURI, \
+from elementpath.datatypes import DecimalProxy, AbstractDateTime, AnyURI, \
     UntypedAtomic, Timezone, DateTime10, Date10, DayTimeDuration, Duration, \
     Integer, DoubleProxy10, DoubleProxy, QName, AtomicType, AnyAtomicType
 from elementpath.sequence_types import is_sequence_type_restriction, match_sequence_type
@@ -836,8 +836,7 @@ class XPathToken(Token[XPathTokenType]):
             try:
                 if isinstance(v, (UntypedAtomic, AnyURI)):
                     return token.cast(v)
-                elif isinstance(v, float) or \
-                        isinstance(v, xsd10_atomic_types[XSD_DECIMAL]):
+                elif isinstance(v, (float, DecimalProxy)):
                     if type_name in ('double', 'float'):
                         return token.cast(v)
             except (ValueError, TypeError):

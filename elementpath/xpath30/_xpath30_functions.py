@@ -32,9 +32,8 @@ from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
     is_xml_codepoint, node_position
 from elementpath.namespaces import get_expanded_name, split_expanded_name, \
     XPATH_FUNCTIONS_NAMESPACE, XSD_NAMESPACE
-from elementpath.datatypes import xsd10_atomic_types, NumericProxy, QName, Date10, \
-    DateTime10, Time, AnyURI, UntypedAtomic, AtomicType, NumericType, NMToken, \
-    Idref, Entity
+from elementpath.datatypes import NumericProxy, QName, Date10, DateTime10, Time, \
+    AnyURI, UntypedAtomic, AtomicType, NumericType, NMToken, Idref, Entity
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
 from elementpath.etree import defuse_xml
 from elementpath.xpath_nodes import XPathNode, ElementNode, NamespaceNode, \
@@ -311,7 +310,7 @@ class _InlineFunction(XPathFunction):
         nargs = len([tk and not tk for tk in self._items if tk.symbol == '?'])
         assert nargs, "a partial function requires at least a placeholder token"
 
-        self._name = None
+        self._name = None  # noqa
         self.label = 'inline partial function'
         self.nargs = nargs
 
@@ -1686,7 +1685,7 @@ def select_namespace_node_kind_test(self: XPathFunction, context: ContextType = 
     elif isinstance(context.item, ElementNode):
         elem = context.item
         for context.item in elem.namespace_nodes:
-            yield context.item
+            yield context.item  # noqa
 
 
 ###
@@ -1838,9 +1837,7 @@ def evaluate_round_function(self: XPathFunction, context: ContextType = None) \
 # XSD list-based constructors
 
 @XPath30Parser.constructor('NMTOKENS', sequence_types=('xs:NMTOKEN*',))
-def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) \
-        -> list[NMToken]:
-    cast_func = xsd10_atomic_types['NMTOKEN']
+def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) -> list[NMToken]:
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
     elif hasattr(value, 'split'):
@@ -1849,15 +1846,13 @@ def cast_nmtokens_list_type(self: XPathConstructor, value: AtomicType) \
         raise self.error('FORG0001')
 
     try:
-        return [cast_func(x) for x in values]
+        return [NMToken(x) for x in values]
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 
 
 @XPath30Parser.constructor('IDREFS', sequence_types=('xs:IDREF*',))
-def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) \
-        -> list[Idref]:
-    cast_func = xsd10_atomic_types['IDREF']
+def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) -> list[Idref]:
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
     elif hasattr(value, 'split'):
@@ -1866,15 +1861,13 @@ def cast_idrefs_list_type(self: XPathConstructor, value: AtomicType) \
         raise self.error('FORG0001')
 
     try:
-        return [cast_func(x) for x in values]
+        return [Idref(x) for x in values]
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 
 
 @XPath30Parser.constructor('ENTITIES', sequence_types=('xs:ENTITY*',))
-def cast_entities_list_type(self: XPathConstructor, value: AtomicType) \
-        -> list[Entity]:
-    cast_func = xsd10_atomic_types['ENTITY']
+def cast_entities_list_type(self: XPathConstructor, value: AtomicType) -> list[Entity]:
     if isinstance(value, UntypedAtomic):
         values = value.value.split() or [value.value]
     elif hasattr(value, 'split'):
@@ -1883,7 +1876,7 @@ def cast_entities_list_type(self: XPathConstructor, value: AtomicType) \
         raise self.error('FORG0001')
 
     try:
-        return [cast_func(x) for x in values]
+        return [Entity(x) for x in values]
     except ValueError as err:
         raise self.error('FORG0001', err) from None
 

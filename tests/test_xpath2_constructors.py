@@ -435,6 +435,9 @@ class XPath2ConstructorsTest(xpath_test_class.XPathTestCase):
         self.check_value('xs:date(@a)', Date10(2017, 1, 19), context=context)
 
         class DummyXsdDateType(xpath_test_class.DummyXsdType):
+            name = local_name = None
+            xsd_version = '1.0'
+
             def is_list(self): pass
             def is_union(self): pass
 

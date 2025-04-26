@@ -29,8 +29,8 @@ import xml.etree.ElementTree as ET
 
 from elementpath import XPath2Parser, XPathContext, XPathSchemaContext, \
     MissingContextError, ElementNode, select, iter_select, get_node_tree
-from elementpath.datatypes import xsd10_atomic_types, xsd11_atomic_types, DateTime, \
-    Date, Date10, Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
+from elementpath.datatypes import xsd_atomic_types, DateTime, Date, Date10, \
+    Time, Timezone, DayTimeDuration, YearMonthDuration, UntypedAtomic, QName
 from elementpath.namespaces import XPATH_FUNCTIONS_NAMESPACE
 from elementpath.collations import get_locale_category
 from elementpath.sequence_types import is_instance
@@ -79,18 +79,15 @@ def get_sequence_type(value, xsd_version='1.0'):
         if QName.is_valid(value) and ':' in str(value):
             return 'xs:QName'
 
-        if xsd_version == '1.0':
-            atomic_types = xsd10_atomic_types
-        else:
-            atomic_types = xsd11_atomic_types
-            if atomic_types['dateTimeStamp'].is_valid(value):
+        if xsd_version == '1.1':
+            if xsd_atomic_types['1.1']['dateTimeStamp'].is_valid(value):
                 return 'xs:dateTimeStamp'
 
         for type_name in ['string', 'boolean', 'decimal', 'float', 'double',
                           'date', 'dateTime', 'gDay', 'gMonth', 'gMonthDay', 'anyURI',
                           'gYear', 'gYearMonth', 'time', 'duration', 'dayTimeDuration',
                           'yearMonthDuration', 'base64Binary', 'hexBinary']:
-            if atomic_types[type_name].is_valid(value):
+            if xsd_atomic_types[xsd_version][type_name].is_valid(value):
                 return 'xs:%s' % type_name
 
     raise ValueError("Inconsistent sequence type for {!r}".format(value))

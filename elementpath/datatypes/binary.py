@@ -9,7 +9,7 @@
 #
 import re
 from abc import abstractmethod
-from typing import Any, Callable, Union
+from typing import Union
 import codecs
 
 from elementpath.helpers import collapse_white_spaces
@@ -25,7 +25,6 @@ class AbstractBinary(AnyAtomicType):
     :param ordered: a boolean that enable total ordering for the instance, `False` for default.
     """
     value: bytes
-    invalid_type: Callable[[Any], TypeError]
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AbstractBinary'],
                  ordered: bool = False) -> None:
