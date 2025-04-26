@@ -74,6 +74,10 @@ show_error_code_links = true
 [tool.coverage.run]
 branch = true
 source = ["elementpath"]
+omit = [
+    "elementpath/protocols.py",
+    "elementpath/regex/categories_fallback.py"
+]
 
 [tool.coverage.report]
 exclude_lines = [
