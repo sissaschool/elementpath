@@ -348,19 +348,7 @@ class XPathContext:
             -> Iterator[ItemType]:
         """Apply the token's selector with an inner focus."""
         status = self.item, self.size, self.position, self.axis
-        if predicate:
-            results: list[ItemType] = []
-            for item in token.select(copy(self)):
-                # With predicate select nodes that have not single list value
-                # must be replaced by typed values.
-                if isinstance(item, (AttributeNode, ElementNode)) and item.is_list:
-                    results.extend(v for v in item.iter_typed_values)
-                    continue
-
-                results.append(item)
-        else:
-            results = [x for x in token.select(copy(self))]
-
+        results = [x for x in token.select(copy(self))]
         self.axis = None
 
         if token.label == 'axis' and cast('XPathAxis', token).reverse_axis:

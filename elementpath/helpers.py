@@ -258,8 +258,10 @@ def not_equal(op1: Any, op2: Any) -> bool:
     return bool(op1 != op2)
 
 
-def match_wildcard(name: str, wildcard: str) -> bool:
-    if wildcard == '*' or wildcard == '*:*':
+def match_wildcard(name: Optional[str], wildcard: str) -> bool:
+    if name is None:
+        return False
+    elif wildcard == '*' or wildcard == '*:*':
         return True
     elif wildcard.startswith('*:'):
         if name.startswith('{'):

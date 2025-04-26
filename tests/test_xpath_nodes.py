@@ -37,6 +37,7 @@ from elementpath.xpath_context import XPathContext, XPathSchemaContext
 
 class DummyXsdType:
     name = local_name = None
+    xsd_version = '1.0'
 
     def is_matching(self, name, default_namespace): pass
     def is_empty(self): pass
@@ -195,14 +196,13 @@ class XPathNodesTest(unittest.TestCase):
         self.assertEqual(repr(attribute),
                          "TextAttributeNode(name='id', value='0212349350')")
         self.assertNotEqual(attribute, AttributeNode('id', '0212349350'))
-        self.assertEqual(attribute.as_item(), ('id', '0212349350'))
-        self.assertNotEqual(attribute.as_item(),
-                            AttributeNode('id', '0212349350'))
+        self.assertEqual(attribute.name, 'id')
+        self.assertEqual(attribute.value, '0212349350')
         self.assertNotEqual(attribute, AttributeNode('id', '0212349350', parent))
 
         attribute = AttributeNode('id', '0212349350', parent)
         self.assertNotEqual(attribute, AttributeNode('id', '0212349350', parent))
-        self.assertEqual(attribute.as_item(), ('id', '0212349350'))
+        self.assertEqual(attribute.value, '0212349350')
 
         attribute = AttributeNode('value', '10', parent)
         self.assertEqual(repr(attribute), "TextAttributeNode(name='value', value='10')")
@@ -210,7 +210,7 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
             attribute.xsd_type = xsd_type
-            self.assertEqual(attribute.as_item(), ('value', '10'))
+            self.assertEqual(attribute.obj, '10')
 
     def test_typed_element_nodes(self):
         element = ElementTree.Element('schema')
@@ -269,7 +269,8 @@ class XPathNodesTest(unittest.TestCase):
                          "NamespaceNode(prefix='tns', uri='http://xpath.test/ns')")
         self.assertEqual(namespace.value, 'http://xpath.test/ns')
         self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
-        self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
+        self.assertEqual(namespace.prefix, 'tns')
+        self.assertEqual(namespace.uri, 'http://xpath.test/ns')
         self.assertNotEqual(
             namespace, NamespaceNode('tns', 'http://xpath.test/ns', parent=context.root)
         )
@@ -279,7 +280,8 @@ class XPathNodesTest(unittest.TestCase):
 
         self.assertNotEqual(namespace,
                             NamespaceNode('tns', 'http://xpath.test/ns', parent=context.root))
-        self.assertEqual(namespace.as_item(), ('tns', 'http://xpath.test/ns'))
+        self.assertEqual(namespace.prefix, 'tns')
+        self.assertEqual(namespace.uri, 'http://xpath.test/ns')
         self.assertNotEqual(namespace, NamespaceNode('tns', 'http://xpath.test/ns'))
 
     def test_node_children_function(self):

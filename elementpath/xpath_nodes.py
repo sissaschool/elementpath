@@ -313,9 +313,6 @@ class NamespaceNode(XPathNode):
 
     value = uri
 
-    def as_item(self) -> tuple[Optional[str], str]:
-        return self.name, self.obj
-
     @property
     def name_path(self) -> str:
         return self.prefix or _EMPTY_NAME_PATH
@@ -354,7 +351,6 @@ class AttributeNode(XPathNode):
     """
     name: Optional[str]
     parent: Optional['ElementNode']
-    schema: Optional['AbstractSchemaProxy']
     xsd_type: Optional[XsdTypeProtocol]
 
     __slots__ = ('xsd_type',)
@@ -363,6 +359,9 @@ class AttributeNode(XPathNode):
         if cls is AttributeNode:
             return object.__new__(TextAttributeNode)
         return object.__new__(cls)
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(name={self.name!r}, value={self.value!r})'
 
     @property
     def uri_qualified_name(self) -> Optional[str]:
@@ -395,8 +394,6 @@ class AttributeNode(XPathNode):
         return self.xsd_type is not None and self.xsd_type.is_list()
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
-        if self.name is None:
-            return False
         return self.name == name or '*' in name and match_wildcard(self.name, name)
 
     @property
@@ -473,12 +470,6 @@ class TextAttributeNode(AttributeNode):
     def value(self) -> str:
         return self.obj
 
-    def as_item(self) -> tuple[str, str]:
-        return self.name, self.obj
-
-    def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
-        return self.name == name or '*' in name and match_wildcard(self.name, name)
-
     @property
     def string_value(self) -> str:
         return self.obj
@@ -525,9 +516,6 @@ class SchemaAttributeNode(AttributeNode):
     def xsd_attribute(self) -> XsdAttributeProtocol:
         return self.obj
     value = xsd_attribute
-
-    def as_item(self) -> tuple[Optional[str], object]:
-        return self.name, self.obj
 
     @property
     def string_value(self) -> str:

@@ -37,6 +37,7 @@ from elementpath.xpath3 import XPath30Parser, XPath31Parser
 
 class DummyXsdType:
     name = local_name = None
+    xsd_version = '1.0'
 
     @property
     def root_type(self): return self

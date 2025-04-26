@@ -8,163 +8,160 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-XSD atomic datatypes subpackage. Includes a class for UntypedAtomic data and
-classes for other XSD built-in types. This subpackage raises only built-in
-exceptions in order to be reusable in other packages.
+A module for providing XSD atomic values for schema context evaluation
+and for decoding text into XSD atomic data values.
 """
-from collections import namedtuple
-from collections.abc import Callable, Iterator, MutableMapping
+from collections.abc import Iterator
 from decimal import Decimal
-from functools import lru_cache
-from typing import Optional
+from typing import Optional, Union
 
 from elementpath.aliases import AnyNsmapType
-from elementpath.datatypes import AtomicType
 from elementpath.protocols import XsdTypeProtocol
 from elementpath.exceptions import xpath_error
 from elementpath.namespaces import XSD_NAMESPACE
-
 import elementpath.datatypes as dt
-
-DecoderType = Callable[[str, AnyNsmapType], AtomicType]
-
-Builder = namedtuple('Builder', 'cls text nsmap', defaults=(None, None))
 
 
 class _Notation(dt.Notation):
     """An instantiable xs:NOTATION."""
 
 
-# noinspection PyArgumentList
-ATOMIC_BUILDERS: MutableMapping[Optional[str], Builder] = {
-    f'{{{XSD_NAMESPACE}}}untypedAtomic': Builder(dt.UntypedAtomic, '1'),
-    f'{{{XSD_NAMESPACE}}}anyType': Builder(dt.UntypedAtomic, '1'),
-    f'{{{XSD_NAMESPACE}}}anySimpleType': Builder(dt.UntypedAtomic, '1'),
-    f'{{{XSD_NAMESPACE}}}anyAtomicType': Builder(dt.UntypedAtomic, '1'),
-    f'{{{XSD_NAMESPACE}}}boolean': Builder(bool, 'true'),
-    f'{{{XSD_NAMESPACE}}}decimal': Builder(Decimal, '1.0'),
-    f'{{{XSD_NAMESPACE}}}double': Builder(float, '1.0'),
-    f'{{{XSD_NAMESPACE}}}float': Builder(dt.Float10, '1.0'),
-    f'{{{XSD_NAMESPACE}}}string': Builder(str, '  alpha\t'),
-    f'{{{XSD_NAMESPACE}}}date': Builder(dt.Date, '2000-01-01'),
-    f'{{{XSD_NAMESPACE}}}dateTime': Builder(dt.DateTime, '2000-01-01T12:00:00'),
-    f'{{{XSD_NAMESPACE}}}gDay': Builder(dt.GregorianDay, '---31'),
-    f'{{{XSD_NAMESPACE}}}gMonth': Builder(dt.GregorianMonth, '--12'),
-    f'{{{XSD_NAMESPACE}}}gMonthDay': Builder(dt.GregorianMonthDay, '--12-01'),
-    f'{{{XSD_NAMESPACE}}}gYear': Builder(dt.GregorianYear, '1999'),
-    f'{{{XSD_NAMESPACE}}}gYearMonth': Builder(dt.GregorianYearMonth, '1999-09'),
-    f'{{{XSD_NAMESPACE}}}time': Builder(dt.Time, '09:26:54'),
-    f'{{{XSD_NAMESPACE}}}duration': Builder(dt.Duration, 'P1MT1S'),
-    f'{{{XSD_NAMESPACE}}}dayTimeDuration': Builder(dt.DayTimeDuration, 'P1DT1S'),
-    f'{{{XSD_NAMESPACE}}}yearMonthDuration': Builder(dt.YearMonthDuration, 'P1Y1M'),
-    f'{{{XSD_NAMESPACE}}}QName': Builder(dt.QName, 'xs:element'),
-    f'{{{XSD_NAMESPACE}}}NOTATION': Builder(_Notation, 'xs:element'),
-    f'{{{XSD_NAMESPACE}}}anyURI': Builder(dt.AnyURI, 'https://example.com'),
-    f'{{{XSD_NAMESPACE}}}normalizedString': Builder(dt.NormalizedString, ' alpha  '),
-    f'{{{XSD_NAMESPACE}}}token': Builder(dt.XsdToken, 'a token'),
-    f'{{{XSD_NAMESPACE}}}language': Builder(dt.Language, 'en-US'),
-    f'{{{XSD_NAMESPACE}}}Name': Builder(dt.Name, '_a.name::'),
-    f'{{{XSD_NAMESPACE}}}NCName': Builder(dt.NCName, 'nc-name'),
-    f'{{{XSD_NAMESPACE}}}ID': Builder(dt.Id, 'id1'),
-    f'{{{XSD_NAMESPACE}}}IDREF': Builder(dt.Idref, 'id_ref1'),
-    f'{{{XSD_NAMESPACE}}}ENTITY': Builder(dt.Entity, 'entity1'),
-    f'{{{XSD_NAMESPACE}}}NMTOKEN': Builder(dt.NMToken, 'a_token'),
-    f'{{{XSD_NAMESPACE}}}base64Binary': Builder(dt.Base64Binary, 'YWxwaGE='),
-    f'{{{XSD_NAMESPACE}}}hexBinary': Builder(dt.HexBinary, '31'),
-    f'{{{XSD_NAMESPACE}}}dateTimeStamp':
-        Builder(dt.DateTimeStamp.fromstring, '2000-01-01T12:00:00+01:00'),
-    f'{{{XSD_NAMESPACE}}}integer': Builder(dt.Integer, '1'),
-    f'{{{XSD_NAMESPACE}}}long': Builder(dt.Long, '1'),
-    f'{{{XSD_NAMESPACE}}}int': Builder(dt.Int, '1'),
-    f'{{{XSD_NAMESPACE}}}short': Builder(dt.Short, '1'),
-    f'{{{XSD_NAMESPACE}}}byte': Builder(dt.Byte, '1'),
-    f'{{{XSD_NAMESPACE}}}positiveInteger': Builder(dt.PositiveInteger, '1'),
-    f'{{{XSD_NAMESPACE}}}negativeInteger': Builder(dt.NegativeInteger, '-1'),
-    f'{{{XSD_NAMESPACE}}}nonPositiveInteger': Builder(dt.NonPositiveInteger, '0'),
-    f'{{{XSD_NAMESPACE}}}nonNegativeInteger': Builder(dt.NonNegativeInteger, '0'),
-    f'{{{XSD_NAMESPACE}}}unsignedLong': Builder(dt.UnsignedLong, '1'),
-    f'{{{XSD_NAMESPACE}}}unsignedInt': Builder(dt.UnsignedInt, '1'),
-    f'{{{XSD_NAMESPACE}}}unsignedShort': Builder(dt.UnsignedShort, '1'),
-    f'{{{XSD_NAMESPACE}}}unsignedByte': Builder(dt.UnsignedByte, '1'),
-}
+ATOMIC_VALUES: dict[str, dict[str, dt.AtomicType]] = {'1.0': {
+    f'{{{XSD_NAMESPACE}}}untypedAtomic': dt.UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}anyType': dt.UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}anySimpleType': dt.UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}anyAtomicType': dt.UntypedAtomic('1'),
+    f'{{{XSD_NAMESPACE}}}boolean': True,
+    f'{{{XSD_NAMESPACE}}}decimal': Decimal('1.0'),
+    f'{{{XSD_NAMESPACE}}}double': float('1.0'),
+    f'{{{XSD_NAMESPACE}}}float': dt.Float10('1.0'),
+    f'{{{XSD_NAMESPACE}}}string': '  alpha\t',
+    f'{{{XSD_NAMESPACE}}}date': dt.Date10.fromstring('2000-01-01'),
+    f'{{{XSD_NAMESPACE}}}dateTime': dt.DateTime10.fromstring('2000-01-01T12:00:00'),
+    f'{{{XSD_NAMESPACE}}}gDay': dt.GregorianDay.fromstring('---31'),
+    f'{{{XSD_NAMESPACE}}}gMonth': dt.GregorianMonth.fromstring('--12'),
+    f'{{{XSD_NAMESPACE}}}gMonthDay': dt.GregorianMonthDay.fromstring('--12-01'),
+    f'{{{XSD_NAMESPACE}}}gYear': dt.GregorianYear10.fromstring('1999'),
+    f'{{{XSD_NAMESPACE}}}gYearMonth': dt.GregorianYearMonth10.fromstring('1999-09'),
+    f'{{{XSD_NAMESPACE}}}time': dt.Time.fromstring('09:26:54'),
+    f'{{{XSD_NAMESPACE}}}duration': dt.Duration.fromstring('P1MT1S'),
+    f'{{{XSD_NAMESPACE}}}dayTimeDuration': dt.DayTimeDuration.fromstring('P1DT1S'),
+    f'{{{XSD_NAMESPACE}}}yearMonthDuration': dt.YearMonthDuration.fromstring('P1Y1M'),
+    f'{{{XSD_NAMESPACE}}}QName': dt.QName(XSD_NAMESPACE, 'xs:element'),
+    f'{{{XSD_NAMESPACE}}}NOTATION': _Notation(XSD_NAMESPACE, 'xs:element'),
+    f'{{{XSD_NAMESPACE}}}anyURI': dt.AnyURI('https://example.com'),
+    f'{{{XSD_NAMESPACE}}}normalizedString': dt.NormalizedString(' alpha  '),
+    f'{{{XSD_NAMESPACE}}}token': dt.XsdToken('a token'),
+    f'{{{XSD_NAMESPACE}}}language': dt.Language('en-US'),
+    f'{{{XSD_NAMESPACE}}}Name': dt.Name('_a.name::'),
+    f'{{{XSD_NAMESPACE}}}NCName': dt.NCName('nc-name'),
+    f'{{{XSD_NAMESPACE}}}ID': dt.Id('id1'),
+    f'{{{XSD_NAMESPACE}}}IDREF': dt.Idref('id_ref1'),
+    f'{{{XSD_NAMESPACE}}}ENTITY': dt.Entity('entity1'),
+    f'{{{XSD_NAMESPACE}}}NMTOKEN': dt.NMToken('a_token'),
+    f'{{{XSD_NAMESPACE}}}base64Binary': dt.Base64Binary('YWxwaGE='),
+    f'{{{XSD_NAMESPACE}}}hexBinary': dt.HexBinary('31'),
+    f'{{{XSD_NAMESPACE}}}integer': dt.Integer('1'),
+    f'{{{XSD_NAMESPACE}}}long': dt.Long('1'),
+    f'{{{XSD_NAMESPACE}}}int': dt.Int('1'),
+    f'{{{XSD_NAMESPACE}}}short': dt.Short('1'),
+    f'{{{XSD_NAMESPACE}}}byte': dt.Byte('1'),
+    f'{{{XSD_NAMESPACE}}}positiveInteger': dt.PositiveInteger('1'),
+    f'{{{XSD_NAMESPACE}}}negativeInteger': dt.NegativeInteger('-1'),
+    f'{{{XSD_NAMESPACE}}}nonPositiveInteger': dt.NonPositiveInteger('0'),
+    f'{{{XSD_NAMESPACE}}}nonNegativeInteger': dt.NonNegativeInteger('0'),
+    f'{{{XSD_NAMESPACE}}}unsignedLong': dt.UnsignedLong('1'),
+    f'{{{XSD_NAMESPACE}}}unsignedInt': dt.UnsignedInt('1'),
+    f'{{{XSD_NAMESPACE}}}unsignedShort': dt.UnsignedShort('1'),
+    f'{{{XSD_NAMESPACE}}}unsignedByte': dt.UnsignedByte('1'),
+}}
+
+ATOMIC_VALUES['1.1'] = ATOMIC_VALUES['1.0'].copy()
+ATOMIC_VALUES['1.1'].update({
+    f'{{{XSD_NAMESPACE}}}float': dt.Float('1.0'),
+    f'{{{XSD_NAMESPACE}}}date': dt.Date.fromstring('2000-01-01'),
+    f'{{{XSD_NAMESPACE}}}dateTime': dt.DateTime.fromstring('2000-01-01T12:00:00'),
+    f'{{{XSD_NAMESPACE}}}gYear': dt.GregorianYear.fromstring('1999'),
+    f'{{{XSD_NAMESPACE}}}gYearMonth': dt.GregorianYearMonth.fromstring('1999-09'),
+    f'{{{XSD_NAMESPACE}}}dateTimeStamp': dt.DateTimeStamp.fromstring('2000-01-01T12:00:00+01:00'),
+})
 
 
-@lru_cache(maxsize=None)
-def get_builders(xsd_type: XsdTypeProtocol) -> list[Builder]:
-    """
-    Returns a list of atomic builtin XSD types that are in the base type of
-    the XSD type argument.
-    """
-    def iter_builders(root_type: XsdTypeProtocol, depth: int) -> Iterator[Builder]:
+def iter_atomic_values(xsd_type: XsdTypeProtocol) -> Iterator[dt.AtomicType]:
+    """Generates a list of XSD atomic values related to provided XSD type."""
+
+    def _iter_values(root_type: XsdTypeProtocol, depth: int) -> Iterator[dt.AtomicType]:
         if depth > 15:
             return
-        if root_type.name in ATOMIC_BUILDERS:
-            yield ATOMIC_BUILDERS[root_type.name]
+        if root_type.name in atomic_values:
+            yield atomic_values[root_type.name]
         elif hasattr(root_type, 'member_types'):
             for member_type in root_type.member_types:
-                yield from iter_builders(member_type, depth + 1)
+                yield from _iter_values(member_type, depth + 1)
 
-    if xsd_type.name in ATOMIC_BUILDERS:
-        return [ATOMIC_BUILDERS[xsd_type.name]]
+    atomic_values = ATOMIC_VALUES[xsd_type.xsd_version]
+    if xsd_type.name in atomic_values:
+        yield atomic_values[xsd_type.name]
     elif xsd_type.is_simple() or (simple_type := xsd_type.simple_type) is None:
-        return [builder for builder in iter_builders(xsd_type.root_type, 1)]
-    elif simple_type.name in ATOMIC_BUILDERS:
-        return [ATOMIC_BUILDERS[simple_type.name]]
-    return [builder for builder in iter_builders(simple_type.root_type, 1)]
+        yield from _iter_values(xsd_type.root_type, 1)
+    elif simple_type.name in atomic_values:
+        yield atomic_values[simple_type.name]
+    else:
+        yield from _iter_values(simple_type.root_type, 1)
 
 
 def get_atomic_sequence(xsd_type: Optional[XsdTypeProtocol],
-                        text: object = None,
+                        text: Optional[str] = None,
                         namespaces: AnyNsmapType = None) -> Iterator[dt.AtomicType]:
     """Returns a decoder function for atomic values of an XSD type instance."""
-    def decode(value: str) -> dt.AtomicType:
-        if issubclass(cls, (dt.AbstractDateTime, dt.Duration)):
-            return cls.fromstring(value)
-        elif not issubclass(cls, dt.AbstractQName):
-            return cls(value)
+    def decode(s: str) -> dt.AtomicType:
+        if isinstance(value, (dt.AbstractDateTime, dt.Duration)):
+            return value.fromstring(s)
+        elif not isinstance(value, dt.AbstractQName):
+            return value.__class__(s)
         else:
             nonlocal namespaces
             if namespaces is None:
-                namespaces = {'xs': XSD_NAMESPACE}
-            if ':' not in value:
-                return cls(namespaces.get(''), value)
+                namespaces = {}
+            if ':' not in s:
+                return value.__class__(namespaces.get(''), s)
             else:
-                return cls(namespaces[value.split(':')[0]], value)
+                return value.__class__(namespaces[s.split(':')[0]], s)
 
     if xsd_type is None:
-        yield dt.UntypedAtomic(text if isinstance(text, str) else '')
-        return
-
-    for k, builder in enumerate(get_builders(xsd_type), start=1):
-        cls: type[dt.AtomicType] = builder.cls
-
-        _text = text if isinstance(text, str) else builder.text
-        if len(builder) < k and not xsd_type.is_valid(text, namespaces=namespaces):
-            continue
-
-        try:
-            if xsd_type.is_list():
-                for item in _text.split():
-                    yield decode(item)
-            else:
-                yield decode(_text)
-
-        except ValueError as err:
-            raise xpath_error('FORG0001', err, namespaces=namespaces)
-        except ArithmeticError as err:
-            if issubclass(cls, dt.AbstractDateTime):
-                raise xpath_error('FODT0001', err, namespaces=namespaces)
-            elif issubclass(cls, dt.Duration):
-                raise xpath_error('FODT0002', err, namespaces=namespaces)
-            else:
-                raise xpath_error('FOCA0002', err, namespaces=namespaces)
-        else:
-            return
+        yield dt.UntypedAtomic(text or '')
+    elif text is None:
+        yield from iter_atomic_values(xsd_type)
     else:
-        if hasattr(xsd_type, 'decode'):
-            yield xsd_type.decode(text if isinstance(text, str) else '')
+        error: Union[None, ValueError, ArithmeticError] = None
+        code = 'FORG0001'
+
+        for value in iter_atomic_values(xsd_type):
+            try:
+                if xsd_type.is_list():
+                    for item in text.split():
+                        yield decode(item)
+                else:
+                    yield decode(text)
+            except (ArithmeticError, ValueError) as err:
+                if error is None:
+                    error = err
+                    if isinstance(err, ArithmeticError):
+                        if isinstance(value, dt.AbstractDateTime):
+                            code = 'FODT0001'
+                        elif isinstance(value, dt.Duration):
+                            code = 'FODT0002'
+                        else:
+                            code = 'FOCA0002'
+            else:
+                return
         else:
-            yield dt.UntypedAtomic(text if isinstance(text, str) else '')
+            if error is not None:
+                raise xpath_error(code, error, namespaces=namespaces)
+            elif hasattr(xsd_type, 'decode'):
+                yield xsd_type.decode(text or '')
+            else:
+                yield dt.UntypedAtomic(text if isinstance(text, str) else '')
 
 
-__all__ = ['ATOMIC_BUILDERS', 'get_atomic_sequence']
+__all__ = ['get_atomic_sequence']

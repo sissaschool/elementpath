@@ -68,7 +68,7 @@ class ValidatorsTest(unittest.TestCase):
 
 @unittest.skipIf(xmlschema is None, "xmlschema library is not installed")
 @unittest.skipIf(lxml_etree is None, "lxml library is not installed")
-class ValidatorsTest(ValidatorsTest):
+class ValidatorsLxmlTest(ValidatorsTest):
     etree = lxml_etree
 
 

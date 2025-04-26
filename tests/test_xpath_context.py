@@ -26,6 +26,7 @@ from elementpath import XPathContext, DocumentNode, ElementNode, datatypes, \
 
 class DummyXsdType:
     name = local_name = None
+    xsd_version = '1.0'
 
     @property
     def root_type(self): return self
