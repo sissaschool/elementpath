@@ -30,7 +30,7 @@ class PackageTest(unittest.TestCase):
             r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")"
         )
         cls.get_python_requires = re.compile(
-            r"(?:\bpython_requires\s*=\s*)(\'[^\']*\'|\"[^\"]*\")"
+            r"(?:\brequires-python\s*=\s*)(\'[^\']*\'|\"[^\"]*\")"
         )
         cls.get_classifier_version = re.compile(
             r"(?:'Programming\s+Language\s+::\s+Python\s+::\s+)(3\.\d+)(?:\s*')"
@@ -61,7 +61,7 @@ class PackageTest(unittest.TestCase):
         message = "\nFound a different version at line %d of file %r: %r (maybe %r)."
         files = [
             os.path.join(self.source_dir, '__init__.py'),
-            os.path.join(self.package_dir, 'setup.py'),
+            os.path.join(self.package_dir, 'pyproject.toml'),
         ]
         version = filename = None
         for line in fileinput.input(files):
@@ -81,8 +81,8 @@ class PackageTest(unittest.TestCase):
 
     def test_python_requirement(self):
         files = [
-            os.path.join(self.package_dir, 'setup.py'),
-            os.path.join(self.package_dir, 'setup.py'),
+            os.path.join(self.package_dir, 'pyproject.toml'),
+            os.path.join(self.package_dir, 'pyproject.toml'),
         ]
 
         min_version = None
@@ -94,7 +94,7 @@ class PackageTest(unittest.TestCase):
                     min_version = match.group(1).strip('\'\"')
                     self.assertTrue(
                         min_version.startswith('>=3.') and min_version[4:].isdigit(),
-                        msg="Wrong python_requires directive in setup.py: %s" % min_version
+                        msg="Wrong python_requires directive in pyproject.toml: %s" % min_version
                     )
                     min_version = min_version[2:]
             else:
@@ -104,7 +104,7 @@ class PackageTest(unittest.TestCase):
                     self.assertEqual(python_version[:2], min_version[:2])
                     self.assertGreaterEqual(int(python_version[2:]), int(min_version[2:]))
 
-        self.assertIsNotNone(min_version, msg="Missing python_requires directive in setup.py")
+        self.assertIsNotNone(min_version, msg="Missing python_requires in pyproject.toml")
 
 
 if __name__ == '__main__':

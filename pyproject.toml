@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools >= 77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "elementpath"
+version = "5.0.0"
+description = "XPath 1.0/2.0/3.0/3.1 parsers and selectors for ElementTree and lxml"
+readme = "README.rst"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [
+    { name = "Davide Brunato", email = "brunato@sissa.it" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Markup :: XML",
+]
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
+    "flake8",
+    "lxml",
+    "lxml-stubs",
+    "memray",
+    "mypy",
+    "psutil",
+    "sphinx",
+    "tox",
+    "xmlschema>=4.0.1",
+]
+docs = [
+    "sphinx",
+    "readthedocs-sphinx-search",
+]
+
+[project.urls]
+Homepage = "https://github.com/sissaschool/elementpath"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.package-data]
+elementpath = [
+    "py.typed",
+    "validators/*.xsd",
+]
+
+[tool.setuptools.packages.find]
+include = ["elementpath*"]
+namespaces = false
+
+[tool.mypy]
+show_error_code_links = true
+
+[tool.coverage.run]
+branch = true
+source = ["elementpath"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError()",
+]

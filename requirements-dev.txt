@@ -1,10 +1,10 @@
 # Requirements for setup a development environment
-setuptools
+setuptools>=77.0
 tox>=4.0
 coverage
 lxml
 xmlschema>=4.0
-Sphinx
+sphinx
 psutil
 memray
 flake8
