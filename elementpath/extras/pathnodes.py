@@ -31,22 +31,34 @@ class PathElementNode(ElementNode):
 
     def __init__(self,
                  path: Path,
-                 parent: Optional[ParentNodeType] = None) -> None:
+                 parent: Optional[ParentNodeType] = None,
+                 fragment: bool = False) -> None:
+
+        if parent is not None:
+            self.parent = parent
+            self.tree = parent.tree
+        elif fragment:
+            self.parent = parent
+            path = path.resolve(strict=True)
+            self.tree = XPathNodeTree(self, uri=path.as_uri())
+        else:
+            path = path.resolve(strict=True)
+
+            parents = [p for p in reversed(path.parents)]
+            parent = PathDocumentNode(parents[0], uri=path.as_uri())
+            self.tree = parent.tree
+
+            for p in parents:
+                parent = PathElementNode(p, parent)
+            self.parent = parent
 
         self.name = path.name
         self.obj = path
         self.stat = path.stat()
-        self.parent = parent
         self.position = self.stat.st_ino
         self.children = []
         self.xsd_type = None
         self._nsmap = None
-
-        if parent is not None:
-            self.tree = parent.tree
-        else:
-            self.tree = XPathNodeTree(self, uri=path.as_uri())
-
         self.tree.elements[path] = self
 
     @property
@@ -57,11 +69,35 @@ class PathElementNode(ElementNode):
 
     @property
     def attributes(self) -> list[AttributeNode]:
+        """Stat slots as attributes."""
         if not hasattr(self, '_attributes'):
-            self._attributes = [
-
-            ]
+            self._attributes = []
+            for name in dir(self.stat):
+                if name[:3] != 'st_':
+                    continue
+                elif name in ('st_atime_ns', 'st_ctime_ns', 'st_mtime_ns', 'st_birthtime_ns'):
+                    dt = datetime.fromtimestamp(getattr(self.stat, name) / 1e9)
+                    self._attributes.append(DatetimeAttributeNode(name[3:-3], dt, self))
+                elif name[-4:] != 'time':
+                    value: int = getattr(self.stat, name)
+                    if name == 'st_mode':
+                        self._attributes.append(ModeAttributeNode(name[3:], value, self))
+                    else:
+                        self._attributes.append(IntAttributeNode(name[3:], value, self))
         return self._attributes
+
+    @property
+    def name_path(self) -> str:
+        return self.name
+
+    @property
+    def path(self) -> str:
+        if self.parent is None:
+            return f'/{self.name_path}'
+
+        if isinstance(self.parent, ElementNode):
+            return f"{self.parent.path}/{self.name_path}"
+        return f"/{self.name_path}"
 
     @property
     def string_value(self) -> str:
@@ -118,15 +154,15 @@ class PathDocumentNode(DocumentNode):
 
     __slots__ = ('stat',)
 
-    def __init__(self, document: Path,
-                 uri: Optional[str] = None,
-                 position: int = 1) -> None:
+    def __init__(self, document: Path, uri: Optional[str] = None) -> None:
 
-        assert document.is_dir()
+        if not document.is_dir() or len(document.parts) > 1 or not document.is_absolute():
+            raise ValueError(f'{document} must be a root directory')
+
         self.obj = document
         self.name = None
         self.parent = None
-        self.position = position
+        self.position = document.stat().st_ino
         self.children = []
         self.tree = XPathNodeTree(self, uri=uri)
 
@@ -184,6 +220,13 @@ class IntAttributeNode(AttributeNode):
         return f'{{{XSD_NAMESPACE}}}int'
 
 
+class ModeAttributeNode(IntAttributeNode):
+
+    @property
+    def string_value(self) -> str:
+        return oct(self.obj)
+
+
 class DatetimeAttributeNode(AttributeNode):
     name: str
     obj: datetime
@@ -217,17 +260,3 @@ class DatetimeAttributeNode(AttributeNode):
     @property
     def type_name(self) -> Optional[str]:
         return f'{{{XSD_NAMESPACE}}}dateTime'
-
-
-def build_path_node_tree(path: Path, fragment: Optional[bool] = None) -> ParentNodeType:
-    path = path.resolve(strict=True)
-
-    if fragment:
-        # Explicitly requested a fragment: create only one parentless element node
-        return PathElementNode(path)
-
-    parents = [p for p in reversed(path.parents)]
-    parent: ParentNodeType = PathDocumentNode(parents[0], uri=path.as_uri())
-    for p in parents:
-        parent = PathElementNode(p, parent)
-    return PathElementNode(path, parent)

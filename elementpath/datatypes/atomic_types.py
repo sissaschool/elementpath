@@ -56,8 +56,11 @@ class AtomicTypeMeta(ABCMeta):
         # Register ony derived classes with a name
         if name:
             for xsd_version, atomic_types in _xsd_atomic_types.items():
-                if cls.xsd_version <= xsd_version and name not in atomic_types:
+                if cls.xsd_version <= xsd_version and (
+                    name not in atomic_types or atomic_types[name].xsd_version < cls.xsd_version
+                ):
                     atomic_types[name] = cls
+
         return cls
 
 
