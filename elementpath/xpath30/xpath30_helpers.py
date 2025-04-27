@@ -253,7 +253,7 @@ def to_ordinal_en(num_as_words: str) -> str:
         return num_as_words + 'th'
 
 
-def to_ordinal_it(num_as_words: str, fmt_modifier: str) -> str:
+def to_ordinal_it(num_as_words: str, fmt_modifier: str = '') -> str:
     if '%spellout-ordinal-feminine' in fmt_modifier:
         suffix = 'a'
     elif fmt_modifier.startswith('o(-'):
@@ -278,7 +278,7 @@ def to_ordinal_it(num_as_words: str, fmt_modifier: str) -> str:
     try:
         value = ordinal_map[num_as_words]
     except KeyError:
-        if num_as_words[-1] in 'eo':
+        if num_as_words[-1] in 'eo' or num_as_words[-2:] == 'ci':
             value = num_as_words[:-1] + 'esimo'
         else:
             value = num_as_words + 'esimo'
