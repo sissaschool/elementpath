@@ -2,6 +2,15 @@
 CHANGELOG
 *********
 
+`v5.0.0`_ (2025-04-27)
+======================
+* Replace SafeXMLParser with SafeExpatParser
+* Drop compatibility with Python 3.8
+* Restruct node trees with XPathNodeTree backbone
+* Unicode categories fallback with a warning (issue #85)
+* Rewriting decoder module (issue #87)
+* Add extras subpackage for experiment XDM and XPath on Path objects
+
 `v4.8.0`_ (2025-03-03)
 ======================
 * Add full PSVI type labeling in XDM to solve type errors with XSD 1.1 assertions
@@ -492,3 +501,4 @@ CHANGELOG
 .. _v4.6.0: https://github.com/sissaschool/elementpath/compare/v4.5.0...v4.6.0
 .. _v4.7.0: https://github.com/sissaschool/elementpath/compare/v4.6.0...v4.7.0
 .. _v4.8.0: https://github.com/sissaschool/elementpath/compare/v4.7.0...v4.8.0
+.. _v5.0.0: https://github.com/sissaschool/elementpath/compare/v4.8.0...v5.0.0

@@ -32,7 +32,7 @@ class TestTyping(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.cases_dir = Path(__file__).parent.joinpath('mypy_tests')
-        cls.config_file = Path(__file__).parent.parent.joinpath('mypy.ini')
+        cls.config_file = Path(__file__).parent.parent.joinpath('pyproject.toml')
 
     def test_selectors(self):
         result = mypy_api.run([

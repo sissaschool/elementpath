@@ -2,12 +2,9 @@ include LICENSE
 include MANIFEST.in
 include README.rst
 include CHANGELOG.rst
-include setup.py
-include setup.cfg
+include pyproject.toml
 include requirements-dev.txt
 include tox.ini
-include .coveragerc
-include mypy.ini
 include doc/*
 
 recursive-include elementpath *
