@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Copyright (c), 2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
