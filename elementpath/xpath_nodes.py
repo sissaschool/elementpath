@@ -991,14 +991,14 @@ class ElementNode(XPathNode):
             -> Optional[TaggedNodeType]:
         return self.tree.elements.get(elem)
 
-    def get_document_node(self, replace: bool = True, as_parent: bool = True) -> 'DocumentNode':
+    def get_document_node(self, replace: bool = False, as_parent: bool = True) -> 'DocumentNode':
         """
         Returns a `DocumentNode` for the element node. If the element belongs to a tree that
         already has a document root, returns the document, otherwise creates a dummy document.
 
         :param replace: if `True` the root element of the tree is replaced by the \
         document node. This is usually useful for extended data models (more element \
-        children, text nodes).
+        children, text nodes). Default is `False`.
         :param as_parent: if `True` the root node/s of parent attribute is set with \
         the dummy document node, otherwise is set to `None`.
         """
@@ -1280,7 +1280,7 @@ class EtreeElementNode(ElementNode):
         else:
             return self.obj.tag == f'{{{default_namespace}}}{name}'
 
-    def get_document_node(self, replace: bool = True, as_parent: bool = True) -> 'DocumentNode':
+    def get_document_node(self, replace: bool = False, as_parent: bool = True) -> 'DocumentNode':
         """
         Returns a `DocumentNode` for the element node. If the element belongs to a tree that
         already has a document root, returns the document, otherwise creates a dummy document
@@ -1288,7 +1288,7 @@ class EtreeElementNode(ElementNode):
 
         :param replace: if `True` the root element of the tree is replaced by the \
         document node. This is usually useful for extended data models (more element \
-        children, text nodes).
+        children, text nodes). Default is `False`.
         :param as_parent: if `True` the root node/s of parent attribute is set with \
         the dummy document node, otherwise is set to `None`.
         """

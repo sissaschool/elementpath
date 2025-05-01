@@ -159,7 +159,7 @@ class XPathContext:
                 isinstance(self.root, ElementNode) and \
                 is_etree_element_instance(self.root.obj):
             # Creates a dummy document that will be not included in results
-            self.document = self.root.get_document_node(replace=False, as_parent=False)
+            self.document = self.root.get_document_node(as_parent=False)
         else:
             self.document = None
 

@@ -61,7 +61,7 @@ def get_node_tree(root: RootArgType,
         elif fragment is False and \
                 isinstance(root, ElementNode) and \
                 is_etree_element_instance(root.obj):
-            return root.get_document_node(replace=False)
+            return root.get_document_node()
 
         return root
 
@@ -186,7 +186,7 @@ def build_node_tree(root: ElementTreeRootType,
                 elif fragment is False and \
                         isinstance(root_node, ElementNode) and \
                         is_etree_element_instance(root_node.elem):
-                    return root_node.get_document_node(replace=False)
+                    return root_node.get_document_node()
                 else:
                     return root_node
             else:
