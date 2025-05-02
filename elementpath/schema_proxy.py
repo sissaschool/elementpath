@@ -146,10 +146,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the type to retrieve.
         :returns: an object that represents an XSD type or `None`.
         """
-        xsd_type = self._schema.maps.types.get(qname)
-        if isinstance(xsd_type, tuple):
-            return None
-        return xsd_type
+        return self._schema.maps.types.get(qname)
 
     def get_attribute(self, qname: str) -> Optional[XsdAttributeProtocol]:
         """
@@ -160,10 +157,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the attribute to retrieve.
         :returns: an object that represents an XSD attribute or `None`.
         """
-        xsd_attribute = self._schema.maps.attributes.get(qname)
-        if isinstance(xsd_attribute, tuple):
-            return None
-        return xsd_attribute
+        return self._schema.maps.attributes.get(qname)
 
     def get_element(self, qname: str) -> Optional[XsdElementProtocol]:
         """
@@ -174,10 +168,7 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         :param qname: the fully qualified name of the element to retrieve.
         :returns: an object that represents an XSD element or `None`.
         """
-        xsd_element = self._schema.maps.elements.get(qname)
-        if isinstance(xsd_element, tuple):
-            return None
-        return xsd_element
+        return self._schema.maps.elements.get(qname)
 
     def get_substitution_group(self, qname: str) -> Optional[set[XsdElementProtocol]]:
         """
