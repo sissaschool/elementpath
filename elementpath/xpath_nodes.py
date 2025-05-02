@@ -47,6 +47,8 @@ TaggedNodeType = Union['ElementNode', 'CommentNode', 'ProcessingInstructionNode'
 ParentNodeType = Union['DocumentNode', 'ElementNode']
 ChildNodeType = Union['TextNode', TaggedNodeType]
 ElementMapType = dict[object, TaggedNodeType]
+FindAttrType = Optional[XsdAttributeProtocol]
+FindElemType = Optional[XsdElementProtocol]
 
 
 class XPathNodeTree:
@@ -1181,27 +1183,31 @@ class EtreeElementNode(ElementNode):
             for elem in self.iter_descendants(with_self=True):
                 if isinstance(elem, EtreeElementNode):
                     elem.xsd_type = element_type
-                    for attr in elem.attributes:
-                        attr.xsd_type = attribute_type
+                    if elem.obj.attrib:
+                        for attribute_node in elem.attributes:
+                            attribute_node.xsd_type = attribute_type
             return
 
-        if (xsd_element := schema.base_element) is not None:
+        find = schema.cached_find
+        if schema.base_element is not None:
             paths = ['./']
             children: Iterator[Any] = iter(self)
             if schema.is_assertion_based():
                 self.xsd_type = schema.get_type(XSD_ANY_TYPE)
             else:
-                self.xsd_type = xsd_element.type
+                self.xsd_type = schema.base_element.type
 
-            for attr in self.attributes:
-                if attr.name in xsd_element.attrib:
-                    attr.xsd_type = xsd_element.attrib[attr.name].type
-                else:
-                    xsd_attribute = schema.cached_find(f'./@{attr.name}')
-                    if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
-                        attr.xsd_type = xsd_attribute.type
-                    else:
-                        attr.xsd_type = None
+            if self.obj.attrib:
+                for attr in self.attributes:
+                    if isinstance(attr, TextAttributeNode):
+                        xsd_attribute = cast(FindAttrType, find(f'./@{attr.name}'))
+                        if xsd_attribute is None:
+                            attr.xsd_type = None
+                            continue
+                        elif xsd_attribute.name is None:
+                            # an attribute wildcard
+                            xsd_attribute = schema.get_attribute(attr.name)
+                        attr.xsd_type = getattr(xsd_attribute, 'type', None)
         else:
             root_node: ParentNodeType = self
             while isinstance(root_node.parent, EtreeElementNode):
@@ -1218,7 +1224,6 @@ class EtreeElementNode(ElementNode):
 
                 child_path = f'{paths[-1]}{elem.name}/'
                 if isinstance(xsi_type := elem.obj.attrib.get(XSI_TYPE), str):
-                    xsd_element = None
                     try:
                         type_name = get_expanded_name(xsi_type, elem.nsmap)
                     except KeyError:
@@ -1227,22 +1232,35 @@ class EtreeElementNode(ElementNode):
                     else:
                         elem.xsd_type = schema.get_type(type_name)
                 else:
-                    result = schema.cached_find(f'{paths[-1]}{elem.name}')
-                    if result is not None and hasattr(result, 'type'):
-                        elem.xsd_type = cast(XsdElementProtocol, result).type
-                    else:
+                    xsd_element = cast(FindElemType, find(f'{paths[-1]}{elem.name}'))
+                    if xsd_element is None:
                         elem.clear_types()
                         continue
+                    elif xsd_element.name != elem.name:
+                        # a match for substitution or wildcard
+                        global_element = schema.get_element(elem.name)
+                        if global_element is not None:
+                            xsd_element = global_element
 
-                for attr in elem.attributes:
-                    if xsd_element is not None and attr.name in xsd_element.attrib:
-                        attr.xsd_type = xsd_element.attrib[attr.name].type
-                    else:
-                        xsd_attribute = schema.cached_find(f'{child_path}@{attr.name}')
-                        if xsd_attribute is not None and hasattr(xsd_attribute, 'type'):
-                            attr.xsd_type = xsd_attribute.type
-                        else:
-                            attr.xsd_type = None
+                    elem.xsd_type = xsd_element.type
+
+                if elem.xsd_type is None:
+                    elem.clear_types()
+                    continue
+
+                if elem.obj.attrib:
+                    for attr in self.attributes:
+                        if isinstance(attr, TextAttributeNode):
+                            xsd_attribute = cast(
+                                FindAttrType, find(f'{child_path}@{attr.name}')
+                            )
+                            if xsd_attribute is None:
+                                attr.xsd_type = None
+                                continue
+                            elif xsd_attribute.name is None:
+                                # an attribute wildcard
+                                xsd_attribute = schema.get_attribute(attr.name)
+                            attr.xsd_type = getattr(xsd_attribute, 'type', None)
 
                 if len(elem.obj):
                     paths.append(child_path)
