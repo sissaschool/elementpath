@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v5.0.1`_ (2025-05-03)
+======================
+* Fix XDM type labeling with substitutions (issue #89)
+
 `v5.0.0`_ (2025-04-27)
 ======================
 * Replace SafeXMLParser with SafeExpatParser
@@ -502,3 +506,4 @@ CHANGELOG
 .. _v4.7.0: https://github.com/sissaschool/elementpath/compare/v4.6.0...v4.7.0
 .. _v4.8.0: https://github.com/sissaschool/elementpath/compare/v4.7.0...v4.8.0
 .. _v5.0.0: https://github.com/sissaschool/elementpath/compare/v4.8.0...v5.0.0
+.. _v5.0.1: https://github.com/sissaschool/elementpath/compare/v5.0.0...v5.0.1

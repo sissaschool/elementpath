@@ -1184,8 +1184,8 @@ class EtreeElementNode(ElementNode):
                 if isinstance(elem, EtreeElementNode):
                     elem.xsd_type = element_type
                     if elem.obj.attrib:
-                        for attribute_node in elem.attributes:
-                            attribute_node.xsd_type = attribute_type
+                        for attr in elem.attributes:
+                            attr.xsd_type = attribute_type
             return
 
         find = schema.cached_find
@@ -1200,13 +1200,18 @@ class EtreeElementNode(ElementNode):
             if self.obj.attrib:
                 for attr in self.attributes:
                     if isinstance(attr, TextAttributeNode):
+                        if attr.name in schema.base_element.attrib:
+                            attr.xsd_type = schema.base_element.attrib[attr.name].type
+                            continue
+
                         xsd_attribute = cast(FindAttrType, find(f'./@{attr.name}'))
                         if xsd_attribute is None:
                             attr.xsd_type = None
                             continue
                         elif xsd_attribute.name is None:
-                            # an attribute wildcard
+                            # matched an attribute wildcard
                             xsd_attribute = schema.get_attribute(attr.name)
+
                         attr.xsd_type = getattr(xsd_attribute, 'type', None)
         else:
             root_node: ParentNodeType = self
@@ -1221,17 +1226,28 @@ class EtreeElementNode(ElementNode):
             for elem in children:
                 if not isinstance(elem, EtreeElementNode):
                     continue
-
-                child_path = f'{paths[-1]}{elem.name}/'
-                if isinstance(xsi_type := elem.obj.attrib.get(XSI_TYPE), str):
+                elif XSI_TYPE in elem.obj.attrib:
+                    xsi_type = cast(str, elem.obj.attrib[XSI_TYPE])
                     try:
                         type_name = get_expanded_name(xsi_type, elem.nsmap)
-                    except KeyError:
+                    except (KeyError, TypeError):
                         elem.clear_types()
                         continue
                     else:
-                        elem.xsd_type = schema.get_type(type_name)
+                        elem.xsd_type = xsd_type = schema.get_type(type_name)
+                        if elem.obj.attrib and xsd_type is not None \
+                                and hasattr(xsd_type, 'attributes'):
+                            for attr in elem.attributes:
+                                if attr.name in xsd_type.attributes:
+                                    attr.xsd_type = xsd_type.attributes[attr.name].type
+
+                        if len(elem.obj):
+                            paths.append('/')
+                            iterators.append(children)
+                            children = iter(elem)
+                            break
                 else:
+                    child_path = f'{paths[-1]}{elem.name}/'
                     xsd_element = cast(FindElemType, find(f'{paths[-1]}{elem.name}'))
                     if xsd_element is None:
                         elem.clear_types()
@@ -1244,29 +1260,29 @@ class EtreeElementNode(ElementNode):
 
                     elem.xsd_type = xsd_element.type
 
-                if elem.xsd_type is None:
-                    elem.clear_types()
-                    continue
+                    if elem.obj.attrib:
+                        for attr in elem.attributes:
+                            if isinstance(attr, TextAttributeNode):
+                                if attr.name in xsd_element.attrib:
+                                    attr.xsd_type = xsd_element.attrib[attr.name].type
+                                    continue
 
-                if elem.obj.attrib:
-                    for attr in self.attributes:
-                        if isinstance(attr, TextAttributeNode):
-                            xsd_attribute = cast(
-                                FindAttrType, find(f'{child_path}@{attr.name}')
-                            )
-                            if xsd_attribute is None:
-                                attr.xsd_type = None
-                                continue
-                            elif xsd_attribute.name is None:
-                                # an attribute wildcard
-                                xsd_attribute = schema.get_attribute(attr.name)
-                            attr.xsd_type = getattr(xsd_attribute, 'type', None)
+                                xsd_attribute = cast(
+                                    FindAttrType, find(f'{child_path}@{attr.name}')
+                                )
+                                if xsd_attribute is None:
+                                    attr.xsd_type = None
+                                    continue
+                                elif xsd_attribute.name is None:
+                                    # an attribute wildcard
+                                    xsd_attribute = schema.get_attribute(attr.name)
+                                attr.xsd_type = getattr(xsd_attribute, 'type', None)
 
-                if len(elem.obj):
-                    paths.append(child_path)
-                    iterators.append(children)
-                    children = iter(elem)
-                    break
+                    if len(elem.obj):
+                        paths.append(child_path)
+                        iterators.append(children)
+                        children = iter(elem)
+                        break
             else:
                 try:
                     children = iterators.pop()

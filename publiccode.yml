@@ -2,20 +2,18 @@
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/italia/publiccode.yml
 
-publiccodeYmlVersion: '0.2'
+publiccodeYmlVersion: '0.4'
 name: elementpath
 url: 'https://github.com/sissaschool/elementpath'
 landingURL: 'https://github.com/sissaschool/elementpath'
-releaseDate: '2025-04-27'
-softwareVersion: v5.0.0
+releaseDate: '2025-05-03'
+softwareVersion: v5.0.1
 developmentStatus: stable
 platforms:
   - linux
   - windows
   - mac
 softwareType: library
-inputTypes:
-  - text/XML
 categories:
   - data-analytics
   - data-collection
@@ -34,19 +32,18 @@ localisation:
   availableLanguages:
     - en
 it:
-  countryExtensionVersion: '0.2'
+  countryExtensionVersion: '1.0'
   riuso:
     codiceIPA: sissa
 description:
   en:
-    genericName: elementpath
     apiDocumentation: 'https://elementpath.readthedocs.io/en/latest/xpath_api.html'
     documentation: 'https://elementpath.readthedocs.io/en/latest/'
     shortDescription: >-
       Python library that provides XPath 1.0/2.0/3.0/3.1 parsers and selectors 
       for ElementTree and lxml
     longDescription: |
-      This is a library for Python 3.8+ that provides XPath 1.0, 2.0, 3.0 and 3.1
+      This is a library for Python 3.9+ that provides XPath 1.0, 2.0, 3.0 and 3.1
       selectors for Python's ElementTree XML data structures, both for the
       standard **ElementTree** library and for the **lxml** library. For lxml
       this package can be useful for providing XPath 2.0+ selectors, because lxml
@@ -55,7 +52,7 @@ description:
 
       ## Installation and usage
 
-      You can install the package with _pip_ in a Python 3.7+ environment:
+      You can install the package with _pip_ in a Python 3.9+ environment:
 
       ~~~~  
 
