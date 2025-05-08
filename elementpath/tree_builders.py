@@ -381,7 +381,11 @@ def build_schema_node_tree(root: SchemaElemType,
     local_nodes = {root: root_node}  # Irrelevant even if it's the schema
     ref_nodes: list[SchemaElementNode] = []
 
-    children = iter(root)
+    if is_schema(root):
+        children = iter(e for e in root.maps.elements.values() if e.maps is root.maps)
+    else:
+        children = iter(root)
+
     iterators: list[Any] = []
     ancestors: list[Any] = []
     parent = root_node

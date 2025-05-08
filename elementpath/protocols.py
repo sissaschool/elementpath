@@ -382,4 +382,5 @@ __all__ = ['ElementProtocol', 'EtreeElementProtocol', 'LxmlAttribProtocol',
            'XsdValidatorProtocol', 'XsdComponentProtocol', 'XsdTypeProtocol',
            'XsdAttributeProtocol', 'XsdAttributeGroupProtocol', 'XsdElementProtocol',
            'GlobalMapsProtocol', 'XsdSchemaProtocol', 'DocumentType', 'ElementType',
-           'SchemaElemType', 'CommentType', 'ProcessingInstructionType', 'AttribType']
+           'SchemaElemType', 'CommentType', 'ProcessingInstructionType',
+           'AttribType', 'XsdXPathNodeType']

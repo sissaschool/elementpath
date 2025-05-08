@@ -13,14 +13,15 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from elementpath.exceptions import ElementPathTypeError
+from elementpath.aliases import NamespacesType
 from elementpath.protocols import XsdTypeProtocol, XsdAttributeProtocol, \
-    XsdElementProtocol, XsdSchemaProtocol
+    XsdElementProtocol, XsdSchemaProtocol, GlobalMapsProtocol, \
+    XsdComponentProtocol, XsdAttributeGroupProtocol, XsdXPathNodeType
 from elementpath.datatypes import AtomicType
 from elementpath.etree import is_etree_element
 from elementpath.xpath_context import XPathSchemaContext
-
-if TYPE_CHECKING:
-    from elementpath.xpath_tokens import XPath2ParserType
+from elementpath.xpath_tokens import XPath2ParserType
+from elementpath.xpath2 import XPath2Parser
 
 PathResult = Union[XsdSchemaProtocol, XsdElementProtocol, XsdAttributeProtocol]
 
@@ -128,6 +129,12 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return self._find(expanded_path)
 
+    @staticmethod
+    def node_find(expanded_path: str, xpath_node) -> Optional[PathResult]:
+        parser = XPath2Parser(strict=False)
+        context = XPathSchemaContext(xpath_node)
+        return next(parser.parse(expanded_path).select_results(context), None)
+
     @property
     def xsd_version(self) -> str:
         """The XSD version, returns '1.0' or '1.1'."""
@@ -208,6 +215,65 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         Returns an iterator for not builtin atomic types defined in the schema's scope. A concrete
         implementation must yield objects that implement the protocol `XsdTypeProtocol`.
         """
+
+
+class SchemaXsiElement:
+
+    def __init__(self, xsd_element: XsdElementProtocol, xsd_type: XsdTypeProtocol) -> None:
+        self.xsd_element = xsd_element
+        self.xsd_type = xsd_type
+
+    def is_matching(self, name: Optional[str],
+                    default_namespace: Optional[str] = None) -> bool:
+        return self.xsd_element.is_matching(name, default_namespace)
+
+    @property
+    def name(self) -> Optional[str]:
+        return self.xsd_element.name
+
+    @property
+    def xsd_version(self) -> str:
+        return self.xsd_element.xsd_version
+
+    @property
+    def maps(self) -> 'GlobalMapsProtocol':
+        return self.xsd_element.maps
+
+    @property
+    def parent(self) -> Optional['XsdComponentProtocol']:
+        return self.xsd_element.parent
+
+    def __iter__(self) -> Iterator['XsdElementProtocol']:
+        pass
+
+    def find(self, path: str, namespaces: Optional[NamespacesType] = None) \
+            -> Optional[XsdXPathNodeType]:
+        if namespaces is None:
+            parser = XPath2Parser(self.xsd_element.schema.namespaces, strict=False)
+        else:
+            parser = XPath2Parser(namespaces, strict=False)
+
+        context = XPathSchemaContext(self.xpath_node)
+        return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
+
+
+    def iter(self, tag: Optional[str] = ...) -> Iterator['XsdElementProtocol']: ...
+
+    @property
+    def type(self) -> Optional[XsdTypeProtocol]:
+        return self.xsd_type
+
+    @property
+    def ref(self) -> Optional[Any]:
+        return self.xsd_element.ref
+
+    @property
+    def attrib(self) -> XsdAttributeGroupProtocol:
+        return self.xsd_element.attrib
+
+    @property
+    def xpath_proxy(self) -> 'AbstractSchemaProxy':
+        return self.xsd_element.xpath_proxy
 
 
 __all__ = ['PathResult', 'AbstractSchemaProxy']

@@ -14,7 +14,7 @@ from abc import ABCMeta
 import locale
 from collections.abc import Callable, MutableMapping
 from urllib.parse import urlparse
-from typing import cast, Any, ClassVar, Optional, Union
+from typing import cast, Any, ClassVar, Optional, Union, TYPE_CHECKING
 
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.helpers import upper_camel_case, is_ncname, ordinal
@@ -28,8 +28,10 @@ from elementpath.datatypes import UntypedAtomic, AtomicType, QName
 from elementpath.xpath_tokens import XPathToken, ProxyToken, XPathFunction, XPathConstructor
 from elementpath.xpath_context import XPathContext, XPathSchemaContext
 from elementpath.sequence_types import is_sequence_type, match_sequence_type
-from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.xpath1 import XPath1Parser
+
+if TYPE_CHECKING:
+    from elementpath.schema_proxy import AbstractSchemaProxy
 
 
 class XPath2Parser(XPath1Parser):
@@ -104,7 +106,7 @@ class XPath2Parser(XPath1Parser):
                  default_namespace: Optional[str] = None,
                  function_namespace: Optional[str] = None,
                  xsd_version: Optional[str] = None,
-                 schema: Optional[AbstractSchemaProxy] = None,
+                 schema: Optional['AbstractSchemaProxy'] = None,
                  base_uri: Optional[str] = None,
                  variable_types: Optional[dict[str, str]] = None,
                  document_types: Optional[dict[str, str]] = None,
@@ -136,13 +138,12 @@ class XPath2Parser(XPath1Parser):
         if function_namespace is not None:
             self.function_namespace = function_namespace
 
-        if schema is None:
-            pass
-        elif not isinstance(schema, AbstractSchemaProxy):
-            msg = "argument 'schema' must be an instance of AbstractSchemaProxy"
-            raise ElementPathTypeError(msg)
-        else:
-            schema.bind_parser(self)
+        if schema is not None:
+            try:
+                schema.bind_parser(self)
+            except AttributeError:
+                msg = "argument 'schema' must be an instance of AbstractSchemaProxy"
+                raise ElementPathTypeError(msg)
 
         if not variable_types:
             self.variable_types = {}
