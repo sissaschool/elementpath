@@ -23,7 +23,7 @@ from elementpath.datatypes import AnyAtomicType, AtomicType, Timezone, Language
 from elementpath.etree import is_etree_element, is_etree_element_instance, is_etree_document
 from elementpath.xpath_nodes import ChildNodeType, XPathNode, AttributeNode, NamespaceNode, \
     CommentNode, ProcessingInstructionNode, ElementNode, DocumentNode, RootNodeType, \
-    RootArgType, SchemaElementNode
+    RootArgType
 from elementpath.tree_builders import get_node_tree
 
 if TYPE_CHECKING:
@@ -624,12 +624,6 @@ class XPathSchemaContext(XPathContext):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        if self.schema is None:
-            if isinstance(self.root, SchemaElementNode):
-                try:
-                    self._schema = self.root.obj.xpath_proxy
-                except AttributeError:
-                    pass
 
     @property
     def schema(self) -> Optional['AbstractSchemaProxy']:

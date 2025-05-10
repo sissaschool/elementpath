@@ -350,8 +350,8 @@ def build_schema_node_tree(root: SchemaElemType,
     :param global_elements: a list for schema global elements, used for linking \
     the elements declared by reference.
     """
-    parent: Any
-    elem: Any
+    parent: SchemaElementNode
+    elem: XsdElementProtocol
     child: SchemaElementNode
     children: Iterator[Any]
 
@@ -416,7 +416,7 @@ def build_schema_node_tree(root: SchemaElemType,
             except IndexError:
                 # connect references to proper nodes
                 for element_node in ref_nodes:
-                    elem = element_node.elem
+                    elem = cast(XsdElementProtocol, element_node.elem)
                     ref = cast(XsdElementProtocol, elem.ref)
 
                     other: Any

@@ -848,8 +848,7 @@ def select_schema_element_kind_test(self: XPathFunction, context: ContextType = 
 
     if self.parser.schema is not None:
         for _ in context.iter_children_or_self():
-            if self.parser.schema.get_element(qname) is None \
-                    and self.parser.schema.get_substitution_group(qname) is None:
+            if self.parser.schema.get_element(qname) is None:
                 raise self.error('XPST0008', "element %r not found in schema" % element_name)
 
             if isinstance(context.item, ElementNode) and context.item.name == qname:
