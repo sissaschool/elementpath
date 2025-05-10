@@ -260,6 +260,24 @@ class XsdTypeProtocol(XsdComponentProtocol, Protocol):
         """
         ...
 
+    @property
+    def model_group(self) -> Optional['XsdGroupProtocol']:
+        """
+        A model group if it's a complexType with mixed or element-only content, `None` otherwise.
+        """
+        ...
+
+
+class XsdComplexTypeProtocol(XsdComponentProtocol, Protocol):
+
+    @property
+    def attributes(self) -> 'XsdAttributeGroupProtocol': ...
+
+
+class XsdGroupProtocol(XsdComponentProtocol, Protocol):
+
+    def iter_elements(self) -> Iterator['XsdElementProtocol']: ...
+
 
 class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
 
@@ -291,7 +309,7 @@ class XsdAttributeGroupProtocol(XsdComponentProtocol, Protocol):
     def __hash__(self) -> int: ...
 
 
-class XsdElementProtocol(XsdComponentProtocol, Protocol):
+class XsdElementProtocol(XsdComponentProtocol, ElementProtocol, Protocol):
 
     @property
     def name(self) -> Optional[str]: ...
@@ -300,15 +318,12 @@ class XsdElementProtocol(XsdComponentProtocol, Protocol):
     def type(self) -> Optional[XsdTypeProtocol]: ...
 
     @property
-    def tag(self) -> str: ...
-
-    @property
     def attrib(self) -> XsdAttributeGroupProtocol: ...
 
     def __iter__(self) -> Iterator['XsdElementProtocol']: ...
 
     def find(self, path: str, namespaces: Optional[NamespacesType] = ...) \
-            -> Optional['XsdXPathNodeType']: ...
+        -> Union['XsdElementProtocol', None]: ...
 
 
 class GlobalMapsProtocol(Protocol):
@@ -343,7 +358,7 @@ class XsdSchemaProtocol(XsdValidatorProtocol, Protocol):
     def __iter__(self) -> Iterator['XsdXPathNodeType']: ...
 
     def find(self, path: str, namespaces: Optional[NamespacesType] = ...) \
-            -> Optional['XsdXPathNodeType']: ...
+        -> Union['XsdSchemaProtocol', 'XsdElementProtocol', None]: ...
 
 
 XsdXPathNodeType = Union[XsdSchemaProtocol, XsdElementProtocol]

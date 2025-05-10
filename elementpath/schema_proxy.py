@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta, abstractmethod
-from collections.abc import Iterator, MutableMapping
+from collections.abc import Iterator
 from typing import cast, Any, Optional, Union
 
 from elementpath.exceptions import ElementPathTypeError
@@ -143,15 +143,13 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         if xsd_type is None:
             return self._schema.maps.attributes.get(name)
+        elif hasattr(xsd_type, 'attributes'):
+            if name in xsd_type.attributes:
+                return cast(XsdAttributeProtocol, xsd_type.attributes[name])
+            elif None not in xsd_type.attributes or \
+                    not xsd_type.attributes[None].is_matching(name):
+                return None
 
-        attributes = getattr(xsd_type, 'attributes', None)
-        if not isinstance(attributes, (dict, MutableMapping)):
-            return None
-        elif name in attributes:
-            return cast(XsdAttributeProtocol, attributes[name])
-        elif None not in attributes or \
-                not attributes[None].is_matching(name):
-            return None
         return self._schema.maps.attributes.get(name)
 
     def get_element(self, name: str, xsd_type: Optional[XsdTypeProtocol] = None) \
@@ -167,15 +165,14 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         if xsd_type is None:
             return self._schema.maps.elements.get(name)
 
-        content = getattr(xsd_type, 'content', None)
-        if content is None or not hasattr(content, 'iter_elements'):
-            return None
-
-        for xsd_element in content.iter_elements():
-            if xsd_element.is_matching(name):
-                if xsd_element.name != name:
-                    return self._schema.maps.elements.get(name)
-                return cast(XsdElementProtocol, xsd_element)
+        content = xsd_type.model_group
+        if content is not None:
+            for xsd_element in content.iter_elements():
+                if xsd_element.is_matching(name):
+                    if xsd_element.name != name:
+                        # a wildcard or a substitute
+                        return self._schema.maps.elements.get(name)
+                    return xsd_element
         return None
 
     def get_substitution_group(self, qname: str) -> Optional[set[XsdElementProtocol]]:
