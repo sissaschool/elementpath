@@ -2,9 +2,9 @@
 CHANGELOG
 *********
 
-`v5.0.1`_ (2025-05-03)
+`v5.0.1`_ (2025-05-11)
 ======================
-* Fix XDM type labeling with substitutions (issue #89)
+* Fix XDM type labeling with element and xsi:type substitutions (issue #89)
 
 `v5.0.0`_ (2025-04-27)
 ======================

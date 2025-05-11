@@ -246,9 +246,14 @@ class XPathNode:
         return None
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        """set XSD types for elements and attribute nodes from schema proxy instance."""
+        """Set XSD types for elements and attribute nodes from schema proxy instance."""
         if self.parent is not None:
             self.parent.apply_schema(schema)
+
+    def clear_types(self) -> None:
+        """Clear XSD types for elements and attribute nodes."""
+        if self.parent is not None:
+            self.parent.clear_types()
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         """
@@ -1199,8 +1204,7 @@ class EtreeElementNode(ElementNode):
             if self.obj.attrib:
                 for attr in self.attributes:
                     if isinstance(attr, TextAttributeNode):
-                        xsd_attribute = schema.get_attribute(attr.name, xsd_types[-1])
-                        attr.xsd_type = getattr(xsd_attribute, 'type', None)
+                        attr.xsd_type = schema.get_attribute_type(attr.name, xsd_types[-1])
         else:
             root_node: ParentNodeType = self
             while isinstance(root_node.parent, EtreeElementNode):
@@ -1222,23 +1226,22 @@ class EtreeElementNode(ElementNode):
                         elem.clear_types()
                         continue
                     else:
-                        elem.xsd_type = schema.get_type(type_name)
+                        xsd_type = schema.get_type(type_name)
                 else:
-                    xsd_element = schema.get_element(elem.name, xsd_types[-1])
-                    if xsd_element is None:
-                        elem.clear_types()
-                        continue
+                    xsd_type = schema.get_child_type(elem.name, xsd_types[-1])
 
-                    elem.xsd_type = xsd_element.type
+                if xsd_type is None:
+                    elem.clear_types()
+                    continue
 
+                elem.xsd_type = xsd_type
                 if elem.obj.attrib:
                     for attr in elem.attributes:
                         if isinstance(attr, TextAttributeNode):
-                            xsd_attribute = schema.get_attribute(attr.name, elem.xsd_type)
-                            attr.xsd_type = getattr(xsd_attribute, 'type', None)
+                            attr.xsd_type = schema.get_attribute_type(attr.name, xsd_type)
 
                 if len(elem.obj):
-                    xsd_types.append(elem.xsd_type)
+                    xsd_types.append(xsd_type)
                     iterators.append(children)
                     children = iter(elem)
                     break

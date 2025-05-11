@@ -13,7 +13,7 @@ XPath 1.0 implementation - part 1 (parser class and symbols)
 import re
 from abc import ABCMeta
 from collections.abc import Callable, MutableMapping, Sequence
-from typing import cast, Any, ClassVar, Optional, Union, TYPE_CHECKING
+from typing import cast, Any, ClassVar, Optional, Union
 
 from elementpath.aliases import NamespacesType, NargsType
 from elementpath.exceptions import xpath_error, UnsupportedFeatureError, \
@@ -24,12 +24,10 @@ from elementpath.datatypes import QName
 from elementpath.tdop import Parser
 from elementpath.namespaces import XML_NAMESPACE, XSD_NAMESPACE, XPATH_FUNCTIONS_NAMESPACE
 from elementpath.sequence_types import match_sequence_type
+from elementpath.schema_proxy import AbstractSchemaProxy
 from elementpath.xpath_context import ContextType
 from elementpath.xpath_tokens import XPathTokenType, XPathToken, XPathAxis, \
     XPathFunction, ProxyToken
-
-if TYPE_CHECKING:
-    from elementpath.schema_proxy import AbstractSchemaProxy
 
 
 class XPath1Parser(Parser[XPathTokenType]):
@@ -65,7 +63,7 @@ class XPath1Parser(Parser[XPathTokenType]):
     }
 
     # Class attributes for compatibility with XPath 2.0+
-    schema: Optional['AbstractSchemaProxy'] = None
+    schema: Optional[AbstractSchemaProxy] = None
     variable_types: Optional[dict[str, str]] = None
     document_types: Optional[dict[str, str]] = None
     collection_types: Optional[NamespacesType] = None

@@ -144,9 +144,6 @@ class XPathContext:
             else:
                 self.item = self.root
 
-            if schema is not None:
-                self.root.apply_schema(schema)
-
         elif item is not None:
             self.root = None
             self.item = self.get_context_item(item, self.namespaces, uri, fragment)
@@ -180,7 +177,9 @@ class XPathContext:
                 if v is not None else v for k, v in documents.items()
             }
 
-        self.schema = schema
+        if schema is not None:
+            self.schema = schema
+
         self.variables = {}
         if variables is not None:
             for varname, value in variables.items():
@@ -243,11 +242,21 @@ class XPathContext:
     @schema.setter
     def schema(self, schema: Optional['AbstractSchemaProxy']) -> None:
         self._schema = schema
-        if schema is not None:
+        if schema is None:
             if self.root is not None:
+                self.root.clear_types()
+            elif isinstance(self.item, XPathNode):
+                self.item.clear_types()
+        elif hasattr(schema, 'is_assertion_based'):
+            if self.root is not None:
+                self.root.clear_types()
                 self.root.apply_schema(schema)
             elif isinstance(self.item, XPathNode):
+                self.item.clear_types()
                 self.item.apply_schema(schema)
+        else:
+            msg = f"{schema!r} is not an instance of AbstractSchemaProxy"
+            raise ElementPathTypeError(msg)
 
     def get_root(self, node: Any) -> Optional[RootNodeType]:
         if isinstance(self.root, (DocumentNode, ElementNode)):
@@ -621,9 +630,6 @@ class XPathSchemaContext(XPathContext):
     XML instances.
     """
     root: ElementNode
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
 
     @property
     def schema(self) -> Optional['AbstractSchemaProxy']:

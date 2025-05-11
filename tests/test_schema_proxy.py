@@ -342,7 +342,7 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
                 self.assertFalse(node.is_typed)
 
         root_node.apply_schema(parser.schema)
-        for node in root_node.iter():
+        for node in root_node.iter_lazy():
             if isinstance(node, ElementNode):
                 self.assertTrue(node.is_typed)
 
@@ -413,6 +413,246 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
         #  A fix for xmlschema.xpath.ElementPathMixin._get_xpath_namespaces() is required.
         root = schema.find('root', namespaces={'': 'http://xpath.test/ns#'})
         self.assertEqual(getattr(root, 'tag', None), '{http://xpath.test/ns#}root')
+
+    def test_element_substitution(self):
+        schema = xmlschema.XMLSchema(dedent("""
+            <xs:schema xmlns="http://xpath.test/ns"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    targetNamespace="http://xpath.test/ns">
+                <xs:element name="values">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element ref="a" minOccurs="0"/>
+                            <xs:element name="b" type="xs:string" minOccurs="0"/>
+                            <xs:element ref="c" minOccurs="0"/>
+                            <xs:element name="d" type="xs:float" minOccurs="0"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="a" type="xs:integer"/>
+                <xs:element name="ax" type="rangeType" substitutionGroup="a"/>
+                <xs:element name="c" type="paramsType"/>
+                <xs:element name="cx" type="extraParamsType" substitutionGroup="c"/>
+
+                <xs:complexType name="rangeType">
+                    <xs:simpleContent>
+                        <xs:extension base="xs:integer">
+                            <xs:attribute name="min" type="xs:integer"/>
+                            <xs:attribute name="max" type="xs:integer"/>
+                        </xs:extension>
+                    </xs:simpleContent>
+                </xs:complexType>
+
+                <xs:complexType name="paramsType">
+                    <xs:sequence>
+                        <xs:element name="p0" type="xs:float" minOccurs="0"/>
+                    </xs:sequence>
+                </xs:complexType>
+
+                <xs:complexType name="extraParamsType">
+                    <xs:complexContent>
+                        <xs:extension base="paramsType">
+                            <xs:sequence>
+                                <xs:element name="p1" type="xs:string" minOccurs="0"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+
+            </xs:schema>"""))
+
+        schema_proxy = schema.xpath_proxy
+
+        # Some tests to recall difference between local and ref elements
+        xml_data = '<values xmlns="http://xpath.test/ns"><a>77</a></values>'
+        self.assertTrue(schema.is_valid(xml_data))
+
+        xml_data = '<values xmlns="http://xpath.test/ns"><d>1e10</d></values>'
+        self.assertFalse(schema.is_valid(xml_data))
+
+        xml_data = '<p:values xmlns:p="http://xpath.test/ns"><d>1e10</d></p:values>'
+        self.assertTrue(schema.is_valid(xml_data))
+
+        xml_data = '<p:values xmlns:p="http://xpath.test/ns"><a>77</a><d>1e10</d></p:values>'
+        self.assertFalse(schema.is_valid(xml_data))
+
+        xml_data = '<p:values xmlns:p="http://xpath.test/ns"><p:a>77</p:a><d>1e10</d></p:values>'
+        self.assertTrue(schema.is_valid(xml_data))
+
+        # Apply schema to invalid XML data
+        xml_data = '<p:values xmlns:p="http://xpath.test/ns"><b min="19"/></p:values>'
+        self.assertFalse(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+
+        with self.assertRaises(TypeError):
+            XPathContext(root, schema=schema)
+
+        context = XPathContext(root, namespaces={'p': "http://xpath.test/ns"})
+        context.root.apply_schema(schema_proxy)
+
+        for node in context.root.iter_lazy():
+            if isinstance(node, ElementNode):
+                self.assertIsNotNone(node.xsd_type)
+
+        self.assertEqual(context.root.children[0].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}string')
+        self.assertIsNone(context.root.children[0].attributes[0].xsd_type)  # not found
+
+        xml_data = '<values xmlns="http://xpath.test/ns"><b>foo</b></values>'
+        self.assertFalse(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
+        context.root.apply_schema(schema_proxy)
+        self.assertIsNone(context.root.children[0].xsd_type)
+
+        # Substitution of simple content
+        xml_data = '<values xmlns="http://xpath.test/ns"><a>80</a></values>'
+        self.assertTrue(schema.is_valid(xml_data))
+
+        xml_data = '<values xmlns="http://xpath.test/ns"><a min="19">80</a></values>'
+        self.assertFalse(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+
+        context = XPathContext(root, namespaces={'': "http://xpath.test/ns"})
+        context.root.apply_schema(schema_proxy)
+        self.assertEqual(context.root.children[0].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}integer')
+        self.assertIsNone(context.root.children[0].attributes[0].xsd_type)  # not found
+
+        xml_data = '<values xmlns="http://xpath.test/ns"><ax min="19">80</ax></values>'
+        self.assertTrue(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+
+        context = XPathContext(root)
+        context.root.apply_schema(schema_proxy)
+        self.assertEqual(context.root.children[0].type_name,
+                         '{http://xpath.test/ns}rangeType')
+        self.assertEqual(context.root.children[0].attributes[0].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}integer')
+
+        # Substitution of complex content
+        xml_data = ('<p:values xmlns:p="http://xpath.test/ns">'
+                    '<p:c><p0>1.0</p0><p1>foo</p1></p:c></p:values>')
+        self.assertFalse(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+
+        context = XPathContext(root, namespaces={'p': "http://xpath.test/ns"})
+        context.root.apply_schema(schema_proxy)
+        self.assertEqual(context.root.children[0].type_name,
+                         '{http://xpath.test/ns}paramsType')
+        self.assertEqual(context.root.children[0].children[0].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}float')
+        self.assertEqual(context.root.children[0].children[1].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}untyped')
+
+        xml_data = ('<p:values xmlns:p="http://xpath.test/ns">'
+                    '<p:cx><p0>1.0</p0><p1>foo</p1></p:cx></p:values>')
+        self.assertTrue(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+
+        context = XPathContext(root, namespaces={'p': "http://xpath.test/ns"})
+        context.root.apply_schema(schema_proxy)
+        self.assertEqual(context.root.children[0].type_name,
+                         '{http://xpath.test/ns}extraParamsType')
+        self.assertEqual(context.root.children[0].children[0].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}float')
+        self.assertEqual(context.root.children[0].children[1].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}string')
+
+    def test_type_substitution(self):
+        schema = xmlschema.XMLSchema(dedent("""
+            <xs:schema xmlns="http://xpath.test/ns"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    targetNamespace="http://xpath.test/ns">
+                <xs:element name="values">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element ref="a" minOccurs="0"/>
+                            <xs:element ref="b" minOccurs="0"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="a" type="xs:integer"/>
+                <xs:element name="b" type="paramsType"/>
+
+                <xs:complexType name="rangeType">
+                    <xs:simpleContent>
+                        <xs:extension base="xs:integer">
+                            <xs:attribute name="min" type="xs:integer"/>
+                            <xs:attribute name="max" type="xs:integer"/>
+                        </xs:extension>
+                    </xs:simpleContent>
+                </xs:complexType>
+
+                <xs:complexType name="paramsType">
+                    <xs:sequence>
+                        <xs:element name="p0" type="xs:float" minOccurs="0"/>
+                    </xs:sequence>
+                </xs:complexType>
+
+                <xs:complexType name="extraParamsType">
+                    <xs:complexContent>
+                        <xs:extension base="paramsType">
+                            <xs:sequence>
+                                <xs:element name="p1" type="xs:string" minOccurs="0"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+
+            </xs:schema>"""))
+
+        schema_proxy = schema.xpath_proxy
+
+        # Substitution of simple content
+        xml_data = dedent("""\
+            <values xmlns="http://xpath.test/ns"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <a xsi:type="rangeType" min="19">80</a>
+            </values>""")
+
+        self.assertTrue(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+        namespaces = {'': "http://xpath.test/ns",
+                      'xsi': "http://www.w3.org/2001/XMLSchema-instance"}
+
+        context = XPathContext(root, namespaces=namespaces)
+        context.root.apply_schema(schema_proxy)
+
+        self.assertEqual(context.root.children[1].type_name,
+                         '{http://xpath.test/ns}rangeType')
+        self.assertEqual(context.root.children[1].attributes[0].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}anyAtomicType')
+        self.assertEqual(context.root.children[1].attributes[1].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}integer')
+
+        # Substitution of complex content
+        xml_data = dedent("""\
+            <p:values xmlns:p="http://xpath.test/ns"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <p:b xsi:type="p:extraParamsType">
+                    <p0>1.0</p0>
+                    <p1>foo</p1>
+                </p:b>
+            </p:values>""")
+
+        self.assertTrue(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+        namespaces = {'p': "http://xpath.test/ns",
+                      'xsi': "http://www.w3.org/2001/XMLSchema-instance"}
+
+        context = XPathContext(root, namespaces=namespaces)
+        context.root.apply_schema(schema_proxy)
+
+        self.assertEqual(context.root.children[1].type_name,
+                         '{http://xpath.test/ns}extraParamsType')
+        self.assertEqual(context.root.children[1].children[1].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}float')
+        self.assertEqual(context.root.children[1].children[3].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}string')
 
 
 @unittest.skipIf(xmlschema is None or lxml_etree is None, "both xmlschema and lxml required")
