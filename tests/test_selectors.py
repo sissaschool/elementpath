@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import warnings
 import xml.etree.ElementTree as ElementTree
 
 from elementpath import select, iter_select, Selector, XPath2Parser
@@ -47,7 +48,16 @@ class XPathSelectorsTest(unittest.TestCase):
         self.assertListEqual(selector.select(self.root), ['Dickens'])
         self.assertListEqual(list(selector.iter_select(self.root)), ['Dickens'])
 
-        selector = Selector('$a', variables={'a': 1})
+        selector = Selector('$a')
+        self.assertEqual(selector.select(self.root, variables={'a': 1}), 1)
+        self.assertListEqual(list(selector.iter_select(self.root, variables={'a': 1})), [1])
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            selector = Selector('$a', variables={'a': 1})
+            self.assertEqual(len(w), 1)
+            self.assertEqual(w[0].category, DeprecationWarning)
+
         self.assertEqual(selector.select(self.root), 1)
         self.assertListEqual(list(selector.iter_select(self.root)), [1])
 

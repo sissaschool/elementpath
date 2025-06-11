@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+import warnings
 from collections.abc import Iterator
 from typing import Any, Optional, Union
 
@@ -66,8 +67,12 @@ def select(root: Optional[RootArgType],
     :return: a list with XPath nodes or a basic type for expressions based \
     on a function or literal.
     """
-    _parser = (parser or XPath2Parser)(namespaces, **kwargs)
-    root_token = _parser.parse(path)
+    if parser is None:
+        parser = XPath2Parser
+    if schema is not None and parser.version > '1.0':
+        kwargs['schema'] = schema
+
+    root_token = parser(namespaces, **kwargs).parse(path)
     context = XPathContext(root, namespaces, uri, fragment, item, position, size,
                            axis, schema, variables, current_dt, timezone)
     return root_token.get_results(context)
@@ -119,8 +124,12 @@ def iter_select(root: Optional[RootArgType],
     :param kwargs: other optional parameters for the parser instance.
     :return: a generator of the XPath expression results.
     """
-    _parser = (parser or XPath2Parser)(namespaces, **kwargs)
-    root_token = _parser.parse(path)
+    if parser is None:
+        parser = XPath2Parser
+    if schema is not None and parser.version > '1.0':
+        kwargs['schema'] = schema
+
+    root_token = parser(namespaces, **kwargs).parse(path)
     context = XPathContext(root, namespaces, uri, fragment, item, position, size,
                            axis, schema, variables, current_dt, timezone)
     return root_token.select_results(context)
@@ -148,7 +157,13 @@ class Selector(object):
                  parser: Optional['ParserClassType'] = None,
                  **kwargs: Any) -> None:
 
-        self._variables = kwargs.pop('variables', None)  # For backward compatibility
+        if 'variables' in kwargs:
+            msg = ("Argument 'variables' here is deprecated and will be"
+                   "be removed in the next major release. Provide this "
+                   "argument later to Selector.select/iter_select.")
+            warnings.warn(DeprecationWarning(msg))
+
+        self._variables = kwargs.pop('variables', None)
         self.parser = (parser or XPath2Parser)(namespaces, **kwargs)
         self.path = path
         self.root_token = self.parser.parse(path)
@@ -191,6 +206,8 @@ class Selector(object):
         :param kwargs: other optional parameters for the XPath dynamic context.
         :return: a generator of the XPath expression results.
         """
+        if 'schema' not in kwargs:
+            kwargs['schema'] = self.parser.schema
         if 'variables' not in kwargs and self._variables:
             kwargs['variables'] = self._variables
 
