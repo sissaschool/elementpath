@@ -46,18 +46,13 @@ def get_node_tree(root: RootArgType,
     `False` is provided creates a dummy document when the root is an Element instance. \
     For default the root node kind is preserved.
     """
-    root_node: RootNodeType
-
     if isinstance(root, (DocumentNode, ElementNode)):
         if uri is not None and root.uri is None:
             root.tree.uri = uri
 
         if fragment:
             if isinstance(root, DocumentNode):
-                root_node = root.getroot()
-                if root_node.uri is None:
-                    root_node.uri = root.uri
-                return root_node
+                return root.getroot()
         elif fragment is False and \
                 isinstance(root, ElementNode) and \
                 is_etree_element_instance(root.obj):
@@ -80,9 +75,7 @@ def get_node_tree(root: RootArgType,
             cast(SchemaElemType, root), uri
         )
     else:
-        return build_node_tree(
-            cast(ElementTreeRootType, root), namespaces, uri, fragment
-        )
+        return build_node_tree(root, namespaces, uri, fragment)
 
 
 def build_node_tree(root: ElementTreeRootType,
@@ -160,7 +153,7 @@ def build_node_tree(root: ElementTreeRootType,
                     TextNode(elem.text, child, position)
                     position += 1
 
-            elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+            elif elem.tag.__name__ == 'Comment':
                 child = CommentNode(elem, parent, position)
                 position += 1
             else:
@@ -239,7 +232,8 @@ def build_lxml_node_tree(root: LxmlRootType,
 
         # Add root siblings (comments and processing instructions)
         for elem in reversed([x for x in root_elem.itersiblings(preceding=True)]):
-            if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+            assert callable(elem.tag)
+            if elem.tag.__name__ == 'Comment':
                 CommentNode(elem, document_node, position)
                 position += 1
             else:
@@ -293,7 +287,7 @@ def build_lxml_node_tree(root: LxmlRootType,
                     TextNode(elem.text, child, position)
                     position += 1
 
-            elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+            elif elem.tag.__name__ == 'Comment':
                 child = CommentNode(elem, parent, position)
                 position += 1
             else:
@@ -319,7 +313,8 @@ def build_lxml_node_tree(root: LxmlRootType,
 
                 # Add root following siblings (comments and processing instructions)
                 for elem in root_elem.itersiblings():
-                    if elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                    assert callable(elem.tag)
+                    if elem.tag.__name__ == 'Comment':
                         CommentNode(elem, document_node, position)
                         position += 1
                     else:

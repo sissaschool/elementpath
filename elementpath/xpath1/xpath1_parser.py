@@ -277,8 +277,10 @@ class XPath1Parser(Parser[XPathTokenType]):
                 not isinstance(self.next_token, (XPathFunction, XPathAxis)) and \
                 self.name_pattern.match(self.next_token.symbol) is not None:
             # Disambiguation replacing the next token with a '(name)' token
-            cls = cast(type[XPathToken], self.symbol_table['(name)'])
-            self.next_token = cls(self, self.next_token.symbol)
+            cls = self.symbol_table['(name)']
+            assert not issubclass(cls, XPathFunction)
+            value = self.next_token.symbol
+            self.next_token = cls(self, value)
         else:
             raise self.next_token.wrong_syntax(message)
 

@@ -187,9 +187,10 @@ def deep_compare(obj1: Any,
 
     def etree_deep_compare(e1: ElementProtocol, e2: ElementProtocol) -> int:
         nonlocal result
-        result = cm.strcoll(e1.tag, e2.tag)
-        if result:
-            return result
+        if not callable(e1.tag) and not callable(e2.tag):
+            result = cm.strcoll(e1.tag, e2.tag)
+            if result:
+                return result
 
         result = cm.strcoll((e1.text or '').strip(), (e2.text or '').strip())
         if result:

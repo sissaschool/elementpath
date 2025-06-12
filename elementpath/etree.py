@@ -156,7 +156,7 @@ def etree_iter_paths(elem: ElementProtocol, path: str = '.') \
 
     for child in elem:
         if callable(child.tag):
-            if child.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+            if child.tag.__name__ == 'Comment':
                 comment_nodes += 1
                 yield child, f'{path}/comment()[{comment_nodes}]'
                 continue

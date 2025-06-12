@@ -1099,6 +1099,7 @@ class EtreeElementNode(ElementNode):
                  position: int = 1,
                  nsmap: Union[NsmapType, NamespacesType, None] = None) -> None:
 
+        assert not callable(elem.tag)
         self.name = elem.tag
         self.obj = elem
         self.parent = parent
@@ -1266,15 +1267,15 @@ class EtreeElementNode(ElementNode):
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if '*' in name:
-            return match_wildcard(self.obj.tag, name)
+            return match_wildcard(self.name, name)
         elif not name:
-            return not self.obj.tag
+            return not self.name
         elif hasattr(self.obj, 'type') and hasattr(self.obj, 'is_matching'):
             return cast(XsdElementProtocol, self.obj).is_matching(name, default_namespace)
         elif name[0] == '{' or not default_namespace:
-            return self.obj.tag == name
+            return self.name == name
         else:
-            return self.obj.tag == f'{{{default_namespace}}}{name}'
+            return self.name == f'{{{default_namespace}}}{name}'
 
     def get_document_node(self, replace: bool = False, as_parent: bool = True) -> 'DocumentNode':
         """
@@ -1353,7 +1354,7 @@ class LazyElementNode(EtreeElementNode):
                 for elem in self.obj:
                     if not callable(elem.tag):
                         LazyElementNode(elem, self)
-                    elif elem.tag.__name__ == 'Comment':  # type: ignore[attr-defined]
+                    elif elem.tag.__name__ == 'Comment':
                         CommentNode(elem, self)
                     else:
                         ProcessingInstructionNode(elem, parent=self)
@@ -1439,9 +1440,9 @@ class SchemaElementNode(ElementNode):
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if '*' in name:
-            return match_wildcard(self.obj.tag, name)
+            return match_wildcard(self.name, name)
         elif not name:
-            return not self.obj.tag
+            return not self.name
         elif hasattr(self.obj, 'type'):
             return self.obj.is_matching(name, default_namespace)
         else:

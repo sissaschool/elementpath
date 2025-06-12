@@ -617,7 +617,7 @@ class XPathContext:
             for item in root.iter_descendants(with_self=False):
                 if position < item.position and item not in descendants:
                     self.item = item
-                    yield cast(ChildNodeType, self.item)
+                    yield item
 
             self.item, self.axis = status
 

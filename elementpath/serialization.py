@@ -20,6 +20,7 @@ from elementpath.datatypes import AnyAtomicType, AnyURI, AbstractDateTime, \
     AbstractBinary, UntypedAtomic, QName
 from elementpath.xpath_nodes import XPathNode, ElementNode, AttributeNode, DocumentNode, \
     NamespaceNode, TextNode, CommentNode
+from elementpath.xpath_nodes import EtreeElementNode
 from elementpath.xpath_tokens import XPathToken, XPathMap, XPathArray
 from elementpath.protocols import EtreeElementProtocol, LxmlElementProtocol
 
@@ -147,7 +148,9 @@ def get_serialization_params(params: Union[None, ElementNode, XPathMap] = None,
             raise xpath_error('SEPM0019', token=token)
 
         for child in root:
-            if child.tag == SER_PARAM_OMIT_XML_DECLARATION:
+            if callable(child.tag):
+                continue
+            elif child.tag == SER_PARAM_OMIT_XML_DECLARATION:
                 value = child.get('value')
                 if value not in ('yes', 'no') or len(child.attrib) > 1:
                     raise xpath_error('SEPM0017', token=token)
@@ -289,7 +292,8 @@ def serialize_to_xml(elements: Iterable[Any],
     chunks = []
     for item in iter_normalized(elements, item_separator):
         if isinstance(item, ElementNode):
-            item = item.obj
+            assert isinstance(item, EtreeElementNode)
+            elem = item.obj
         elif isinstance(item, (AttributeNode, NamespaceNode)):
             raise xpath_error('SENR0001', token=token)
         elif isinstance(item, TextNode):
@@ -306,15 +310,15 @@ def serialize_to_xml(elements: Iterable[Any],
 
         try:
             cks = etree_module.tostringlist(
-                item, encoding='utf-8', method=method, **kwargs
+                elem, encoding='utf-8', method=method, **kwargs
             )
         except TypeError:
-            ck = etree_module.tostring(item, encoding='utf-8', method=method)
-            chunks.append(ck.decode('utf-8').rstrip(item.tail))
+            ck = etree_module.tostring(elem, encoding='utf-8', method=method)
+            chunks.append(ck.decode('utf-8').rstrip(elem.tail))
         else:
             if cks and cks[0].startswith(b'<?'):
                 cks[0] = cks[0].replace(b'\'', b'"')
-            chunks.append(b'\n'.join(cks).decode('utf-8').rstrip(item.tail))
+            chunks.append(b'\n'.join(cks).decode('utf-8').rstrip(elem.tail))
 
     if not character_map:
         return (item_separator or '').join(chunks)
@@ -347,6 +351,7 @@ def serialize_to_json(elements: Iterable[Any],
                 if isinstance(obj, DocumentNode):
                     return ''.join(self.default(child) for child in obj)
                 elif isinstance(obj, ElementNode):
+                    assert isinstance(obj, EtreeElementNode)
                     elem = obj.obj
                     assert etree_module is not None
 

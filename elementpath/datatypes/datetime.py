@@ -258,7 +258,7 @@ class AbstractDateTime(AnyAtomicType):
         return cast(Timezone, self._dt.tzinfo)
 
     @tzinfo.setter
-    def tzinfo(self, tz: Timezone) -> None:
+    def tzinfo(self, tz: Optional[Timezone]) -> None:
         self._dt = self._dt.replace(tzinfo=tz)
 
     def tzname(self) -> Optional[str]:

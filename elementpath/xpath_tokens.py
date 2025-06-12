@@ -567,7 +567,7 @@ class XPathToken(Token[XPathTokenType]):
 
             for result in self.select(context):
                 if not isinstance(result, XPathNode):
-                    yield cast(Union[AtomicType, XPathFunction], result)
+                    yield result
                 elif isinstance(result, NamespaceNode):
                     if self.parser.compatibility_mode:
                         yield result.prefix, result.uri
@@ -797,7 +797,7 @@ class XPathToken(Token[XPathTokenType]):
                 return _item
             raise self.error('FODT0001', str(err)) from None
 
-        if not isinstance(_item, DayTimeDuration):
+        if isinstance(_item, AbstractDateTime):
             _item.tzinfo = timezone
         return _item
 

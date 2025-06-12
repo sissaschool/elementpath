@@ -10,7 +10,8 @@
 """
 Define type hints protocols for XPath related objects.
 """
-from collections.abc import Hashable, Iterator, Iterable, ItemsView, Mapping, Sequence, Sized
+from collections.abc import Callable, Hashable, Iterator, Iterable, \
+    ItemsView, Mapping, Sequence, Sized
 from typing import overload, Any, Optional, Protocol, Union, TypeVar
 from xml.etree.ElementTree import Element, ElementTree
 
@@ -64,7 +65,7 @@ class ElementProtocol(Sized, Hashable, Protocol):
     def get(self, key: str, default: Optional[_T] = None) -> Union[str, _T, None]: ...
 
     @property
-    def tag(self) -> str: ...
+    def tag(self) -> Union[str, Callable[[], 'ElementProtocol']]: ...
 
     @property
     def text(self) -> Optional[str]: ...

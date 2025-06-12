@@ -660,7 +660,7 @@ def evaluate_format_number_function(self: XPathFunction, context: ContextType = 
 
     minus_sign = decimal_format['minus-sign']
 
-    prefix = ''
+    prefix: str = ''
     if value >= 0:
         subpic = sub_pictures[0]
     else:
@@ -683,7 +683,8 @@ def evaluate_format_number_function(self: XPathFunction, context: ContextType = 
         suffix = percent_sign
         subpic = subpic[:-1]
 
-        if value.as_tuple().exponent < 0:
+        exponent = value.as_tuple().exponent
+        if isinstance(exponent, int) and exponent < 0:
             value *= 100
         else:
             value = decimal.Decimal(int(value) * 100)
@@ -692,7 +693,8 @@ def evaluate_format_number_function(self: XPathFunction, context: ContextType = 
         suffix = per_mille_sign
         subpic = subpic[:-1]
 
-        if value.as_tuple().exponent < 0:
+        exponent = value.as_tuple().exponent
+        if isinstance(exponent, int) and exponent < 0:
             value *= 1000
         else:
             value = decimal.Decimal(int(value) * 1000)
