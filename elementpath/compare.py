@@ -66,10 +66,17 @@ def deep_equal(seq1: Iterable[Any],
 
             if (value1 is None) ^ (value2 is None):
                 return False
+            elif isinstance(value1, (XPathArray, XPathMap, XPathNode)) ^ \
+                    isinstance(value2, (XPathArray, XPathMap, XPathNode)):
+                return False
             elif value1 is None:
                 return True
-            elif isinstance(value1, XPathNode) ^ isinstance(value2, XPathNode):
-                return False
+            elif isinstance(value1, XPathMap):
+                assert isinstance(value2, XPathMap)
+                return value1 == value2
+            elif isinstance(value1, XPathArray):
+                assert isinstance(value2, XPathArray)
+                return value1 == value2
             elif isinstance(value1, XPathNode):
                 assert isinstance(value2, XPathNode)
                 if value1.__class__ != value2.__class__:
@@ -316,7 +323,8 @@ def deep_compare(obj1: Any,
 
                     elif isinstance(value1, float):
                         if math.isnan(value1):
-                            if not math.isnan(value2):
+                            if not isinstance(value2, (float, Decimal)) \
+                                    or not math.isnan(value2):
                                 return -1
                         elif math.isinf(value1):
                             if value1 != value2:
