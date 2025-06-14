@@ -108,16 +108,16 @@ class XPathNodesTest(unittest.TestCase):
         attr = AttributeNode('a1', '10', parent=None)
         self.assertTrue(attr.match_name('*'))
         self.assertTrue(attr.match_name('a1'))
-        self.assertTrue(attr.match_name('*:a1'))
+        self.assertTrue(attr.match_name('{*}a1'))
         self.assertFalse(attr.match_name('{foo}*'))
-        self.assertFalse(attr.match_name('foo:*'))
+        self.assertFalse(attr.match_name('{foo}*'))
 
         self.assertTrue(
             AttributeNode('{foo}a1', '10').match_name('{foo}*')
         )
 
         attr = AttributeNode('{http://xpath.test/ns}a1', '10', parent=None)
-        self.assertTrue(attr.match_name('*:a1'))
+        self.assertTrue(attr.match_name('{*}a1'))
 
     def test_node_base_uri(self):
         xml_test = '<A xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:base="/" />'

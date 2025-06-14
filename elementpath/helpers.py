@@ -84,7 +84,7 @@ class Patterns:
     # Regex patterns related to names and namespaces
     namespace_uri = LazyPattern(r'{([^}]+)}')
     expanded_name = LazyPattern(
-        r'^(?:{(?P<namespace>[^}]+)})?'
+        r'^(?:(?:Q{|{)(?P<namespace>[^}]*)})?'
         r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
     )
     unbound_expanded_name = LazyPattern(
@@ -259,19 +259,20 @@ def not_equal(op1: Any, op2: Any) -> bool:
 
 
 def match_wildcard(name: Optional[str], wildcard: str) -> bool:
-    if name is None:
+    if not name:
         return False
-    elif wildcard == '*' or wildcard == '*:*':
+    elif wildcard in ('*', '{*}*'):
         return True
-    elif wildcard.startswith('*:'):
-        if name.startswith('{'):
-            return name.endswith(f'}}{wildcard[2:]}')
-        else:
-            return name == wildcard[2:]
-    elif wildcard.startswith('{') and wildcard.endswith('}*') or wildcard.endswith(':*'):
+    elif wildcard == '{}*':
+        return name[0] != '{' or name[:2] == '{}'
+    elif wildcard[-1] == '*':
         return name.startswith(wildcard[:-1])
-    else:
+    elif not wildcard.startswith('{*}'):
         return False
+    elif name[0] == '{':
+        return name.endswith(wildcard[2:])
+    else:
+        return name == wildcard[3:]
 
 
 def escape_json_string(s: str, escaped: bool = False) -> str:

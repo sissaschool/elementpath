@@ -1085,6 +1085,12 @@ class XPath2FunctionsTest(xpath_test_class.XPathTestCase):
                          'no prefix found for namespace http://xpath.test/ns0',
                          context=XPathContext(root))
 
+    def test_node_name_function__issue__091(self):
+        root = self.etree.XML('<A xmlns:tns="http://xpath.test/tns" id="10" />')
+        root.tag = '{}A'
+        context = XPathContext(root)
+        self.check_value('node-name(.)', QName('', 'A'), context=context)
+
     def test_string_and_data_functions(self):
         root = self.etree.XML('<A id="10"><B1> a text, <C1 /><C2>an inner text, </C2>a tail, </B1>'
                               '<B2 /><B3>an ending text </B3></A>')

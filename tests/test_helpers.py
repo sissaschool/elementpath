@@ -196,13 +196,18 @@ class HelperFunctionsTest(unittest.TestCase):
 
     def test_match_wildcard_function(self):
         self.assertTrue(match_wildcard('foo', '*'))
-        self.assertTrue(match_wildcard('foo', '*:*'))
-        self.assertTrue(match_wildcard('foo', '*:foo'))
-        self.assertFalse(match_wildcard('foo', '*:bar'))
-        self.assertTrue(match_wildcard('{ns}foo', '*:foo'))
-        self.assertFalse(match_wildcard('{ns}foo', '*:bar'))
-        self.assertTrue(match_wildcard('tns:foo', 'tns:*'))
-        self.assertFalse(match_wildcard('tns:foo', 'bar:*'))
+        self.assertTrue(match_wildcard('foo', '{*}*'))
+
+        # Use only universal names in Clark’s notation:
+        # ref. http://www.jclark.com/xml/xmlns.htm
+        self.assertFalse(match_wildcard('foo', '*:*'))
+
+        self.assertTrue(match_wildcard('foo', '{*}foo'))
+        self.assertFalse(match_wildcard('foo', '{*}bar'))
+        self.assertTrue(match_wildcard('{ns}foo', '{*}foo'))
+        self.assertFalse(match_wildcard('{ns}foo', '{*}bar'))
+        self.assertTrue(match_wildcard('{tns}foo', '{tns}*'))
+        self.assertFalse(match_wildcard('{tns}foo', '{bar}*'))
         self.assertTrue(match_wildcard('{ns}foo', '{ns}*'))
         self.assertFalse(match_wildcard('{ns}foo', '{ns}foo'))  # is not a wildcard
         self.assertFalse(match_wildcard('{ns}foo', '{ns}bar'))

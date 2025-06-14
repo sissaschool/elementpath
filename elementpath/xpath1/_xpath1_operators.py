@@ -124,7 +124,7 @@ class _PrefixedReferenceToken(XPathToken):
         prefix = self[0].value
         assert isinstance(prefix, str)
         if prefix == '*':
-            return '*:%s' % self[1].value
+            return '{*}%s' % self[1].value
         else:
             return f'{{{self.get_namespace(prefix)}}}{self[1].value}'
 
@@ -224,10 +224,12 @@ def nud_namespace_uri(self: XPathToken) -> XPathToken:
     cls: type[XPathToken] = self.parser.symbol_table['(string)']
     self[:] = cls(self.parser, namespace), self.parser.expression(90)
 
-    if not self[0].value:
-        self.value = self[1].value
-    else:
+    if self[0].value:
         self.value = f'{{{self[0].value}}}{self[1].value}'
+    elif self[1].value == '*':
+        self.value = '{}*'
+    else:
+        self.value = self[1].value
     return self
 
 

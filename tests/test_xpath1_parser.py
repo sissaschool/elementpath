@@ -355,23 +355,32 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             <tst:B2/>
             <tst:B3 b2="tst:beta2" b3="beta3"/>
             <tst:B2/>
+            <B4/>
         </A>""")
 
         self.parser.strict = False
-        self.check_tree('{%s}string' % XSD_NAMESPACE,
-                        "({ ('http://www.w3.org/2001/XMLSchema') (string))")
-        self.check_tree('string({%s}unknown)' % XSD_NAMESPACE,
-                        "(string ({ ('http://www.w3.org/2001/XMLSchema') (unknown)))")
-        self.wrong_syntax("{%s" % XSD_NAMESPACE)
-        self.wrong_syntax("{%s}1" % XSD_NAMESPACE)
-        self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
-        self.check_value("string({%s}true())" % XPATH_FUNCTIONS_NAMESPACE, 'true')
+        try:
+            self.check_tree('{%s}string' % XSD_NAMESPACE,
+                            "({ ('http://www.w3.org/2001/XMLSchema') (string))")
+            self.check_tree('string({%s}unknown)' % XSD_NAMESPACE,
+                            "(string ({ ('http://www.w3.org/2001/XMLSchema') (unknown)))")
+            self.wrong_syntax("{%s" % XSD_NAMESPACE)
+            self.wrong_syntax("{%s}1" % XSD_NAMESPACE)
+            self.check_value("{%s}true()" % XPATH_FUNCTIONS_NAMESPACE, True)
+            self.check_value("string({%s}true())" % XPATH_FUNCTIONS_NAMESPACE, 'true')
 
-        context = XPathContext(root)
-        name = '{%s}alpha' % XPATH_FUNCTIONS_NAMESPACE
-        self.check_value(name, [], context)  # it's not an error to use 'fn' namespace for a name
+            context = XPathContext(root)
+            name = '{%s}alpha' % XPATH_FUNCTIONS_NAMESPACE
+            # it's not an error to use 'fn' namespace for a name
+            self.check_value(name, [], context)
 
-        self.parser.strict = True
+            context = XPathContext(root, item=root)
+            expected = [e for e in context.root if isinstance(e, EtreeElementNode)]
+            self.check_value('{}*', [context.root[-2]], context=context)
+            self.check_value('{*}*', expected, context=context)
+        finally:
+            self.parser.strict = True
+
         self.wrong_syntax('{%s}string' % XSD_NAMESPACE)
 
         if not hasattr(self.etree, 'LxmlError') or self.parser.version > '1.0':
@@ -379,7 +388,7 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
             self.check_selector(
                 "./{http://www.w3.org/2001/04/xmlenc#}EncryptedData", root, [], strict=False)
             self.check_selector("./{http://xpath.test/ns}B1", root, [root[0]], strict=False)
-            self.check_selector("./{http://xpath.test/ns}*", root, root[:], strict=False)
+            self.check_selector("./{http://xpath.test/ns}*", root, root[:-1], strict=False)
 
     def test_node_types(self):
         element = self.etree.Element('schema')
