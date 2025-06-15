@@ -25,7 +25,6 @@ from urllib.request import urlopen
 from urllib.error import URLError
 
 from elementpath.aliases import Emptiable
-from elementpath.protocols import ElementProtocol
 from elementpath.exceptions import ElementPathError
 from elementpath.tdop import MultiLabel
 from elementpath.helpers import OCCURRENCE_INDICATORS, Patterns, \
@@ -933,7 +932,7 @@ def evaluate_format_date_time_functions(self: XPathFunction, context: ContextTyp
                  sequence_types=('xs:string?', 'xs:string', 'xs:string',
                                  'element(fn:analyze-string-result)')))
 def evaluate_analyze_string_function(self: XPathFunction, context: ContextType = None) \
-        -> ElementProtocol:
+        -> ElementNode:
     if self.context is not None:
         context = self.context
 
@@ -1057,7 +1056,7 @@ def evaluate_analyze_string_function(self: XPathFunction, context: ContextType =
     else:
         root = context.etree.XML(''.join(lines))
 
-    return cast(ElementProtocol, get_node_tree(root=root, namespaces=self.parser.namespaces))
+    return cast(ElementNode, get_node_tree(root=root, namespaces=self.parser.namespaces))
 
 
 ###

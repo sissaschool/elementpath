@@ -709,7 +709,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
         if json_text is None:
             return []
 
-    def _fallback(*args: Any, context: ContextType = None) -> str:
+    def _fallback(*a: Any, **kw: Any) -> str:
         return '\uFFFD'
 
     liberal = False
@@ -748,7 +748,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
                 fallback = cast(Callable[..., str], v)
                 escape = False
 
-    def decode_value(value: SequenceType[ItemType]) -> ItemType:
+    def decode_value(value: SequenceType[ItemType]) -> Emptiable[ItemType]:
         if value is None:
             return []
         elif isinstance(value, list):
@@ -765,6 +765,8 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
 
     def json_object_pairs_to_map(obj: Iterable[tuple[str, SequenceType[ItemType]]]) -> XPathMap:
         items: dict[ItemType, SequenceType[ItemType]] = {}
+        key: Any
+        value: Any
 
         for item in obj:
             key, value = decode_value(item[0]), decode_value(item[1])
@@ -775,7 +777,7 @@ def evaluate_parse_json_functions(self: XPathFunction, context: ContextType = No
                     raise self.error('FOJS0003')
 
             if isinstance(value, list):
-                values = [decode_value(x) for x in value]
+                values: Any = [decode_value(x) for x in value]
                 items[key] = XPathArray(self.parser, values) if values else values
             else:
                 items[key] = value
@@ -1262,7 +1264,7 @@ def evaluate_json_to_xml_function(self: XPathFunction, context: ContextType = No
     else:
         raise self.missing_context()
 
-    def _fallback(*args: Any, context: ContextType = None) -> str:
+    def _fallback(*a: Any, **kw: Any) -> str:
         return '&#xFFFD;'
 
     liberal = False

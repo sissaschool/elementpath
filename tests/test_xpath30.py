@@ -796,6 +796,37 @@ class XPath30FunctionsTest(test_xpath2_functions.XPath2FunctionsTest):
         )
         self.assertEqual(str(token), "'fn:outermost' function")
 
+    def test_outermost_function_call__issue_092(self):
+        root = self.etree.XML('<a><b1><c1/></b1><b2/></a>')
+        document = self.etree.ElementTree(root)
+        context = XPathContext(root=document)
+
+        fn_outermost = self.parser.parse('fn:outermost#1').evaluate()
+
+        nodes_arg = [root, document, root[0], document]
+        nodes = fn_outermost(nodes_arg, context=context)
+
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
+
+        nodes_arg = [document, root[0][0], root, document, root[0], root[1]]
+        nodes = fn_outermost(nodes_arg, context=context)
+
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 1)
+        self.assertIsInstance(nodes[0], DocumentNode)
+        self.assertIs(nodes[0].value, document)
+
+        nodes_arg = [root[0][0], root[1], root[0]]
+        nodes = fn_outermost(nodes_arg, context=context)
+
+        self.assertIsInstance(nodes, list)
+        self.assertEqual(len(nodes), 2)
+        self.assertIs(nodes[0].value, root[0])
+        self.assertIs(nodes[1].value, root[1])
+
     def test_parse_xml_function(self):
         with self.assertRaises(MissingContextError):
             self.parser.parse('fn:parse-xml("<alpha>abcd</alpha>")').evaluate()
