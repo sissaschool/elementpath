@@ -10,6 +10,7 @@
 """
 XPath 2.0 implementation - part 1 (parser class and symbols)
 """
+import copy
 from abc import ABCMeta
 import locale
 from collections.abc import Callable, MutableMapping
@@ -355,7 +356,7 @@ class XPath2Parser(XPath1Parser):
         )
 
         if self.symbol_table is self.__class__.symbol_table:
-            self.symbol_table = dict(self.__class__.symbol_table)
+            self.symbol_table = copy.copy(self.symbol_table)
         self.symbol_table[symbol] = token_class
         self.tokenizer = None
 
@@ -399,7 +400,7 @@ class XPath2Parser(XPath1Parser):
         lookup_name = qname.expanded_name
 
         if self.symbol_table is self.__class__.symbol_table:
-            self.symbol_table = dict(self.__class__.symbol_table)
+            self.symbol_table = copy.copy(self.symbol_table)
 
         if lookup_name in self.symbol_table:
             msg = f'function {qname.qname!r} is already registered'
@@ -439,7 +440,13 @@ class XPath2Parser(XPath1Parser):
                                        context: Optional[XPathContext] = None) -> Any:
             args = []
             for k in range(len(self_)):
-                arg = self_.get_argument(context, index=k)
+                try:
+                    if sequence_types[k][-1] in '+*':
+                        arg = self_[k].evaluate(context)
+                    else:
+                        arg = self_.get_argument(context, index=k)
+                except IndexError:
+                    arg = self_.get_argument(context, index=k)
                 args.append(arg)
 
             if sequence_types:

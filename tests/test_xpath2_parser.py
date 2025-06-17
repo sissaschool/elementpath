@@ -1419,6 +1419,31 @@ class XPath2ParserTest(test_xpath1_parser.XPath1ParserTest):
         self.assertEqual(parser.parse('foo(77)').evaluate(), '77')
         self.assertRaises(TypeError, parser.parse, 'foo(77.0)')
 
+    def test_external_function_arguments__issue_92(self):
+
+        def select_first(nodes):
+            if not isinstance(nodes, list):
+                return nodes
+            return nodes[0]
+
+        namespaces = {"tst": "http://xmlschema.test/tst"}
+        parser = self.parser.__class__(namespaces)
+
+        fn_select_first = parser.external_function(
+            select_first, name='select-first', prefix='tst',
+            sequence_types=("element()+", "element()")
+        )
+        self.assertEqual(fn_select_first.nargs, 1)
+
+        xml_data = '<container>\n  <test/>\n  <test/></container>'
+        root = self.etree.XML(xml_data)
+
+        expression = "tst:select-first(//test)"
+        root_token = parser.parse(expression)
+        context = XPathContext(root)
+        result = root_token.get_results(context)
+        self.assertEqual(result, [root[0]])
+
     @unittest.skipIf(xmlschema is None, "xmlschema library is not installed!")
     def test_raw_resolution_for_issue_73(self):
 
