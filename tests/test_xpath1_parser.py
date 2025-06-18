@@ -1704,6 +1704,21 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
 
         self.assertEqual(func.as_function()('foo', 1, ' bar', 2), 'foo1 bar2')
 
+    def test_issue_093(self):
+        xml_data = dedent("""\
+            <container xmlns="http://www.w3.org/example">
+                <q1 xmlns:a="http://www.w3.org/test">a:blah</q1>
+                <q1 xmlns:b="http://www.w3.org/test">b:blah</q1>
+            </container>""")
+
+        root = self.etree.fromstring(xml_data)
+        namespaces = {"eg": "http://www.w3.org/example"}
+        context = XPathContext(root)
+
+        parser = self.parser.__class__(namespaces)
+        token = parser.parse("//eg:q1[1] = //eg:q1[2]")
+        self.assertIs(token.evaluate(context), False)
+
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")
 class LxmlXPath1ParserTest(XPath1ParserTest):
