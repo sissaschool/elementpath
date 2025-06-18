@@ -109,7 +109,7 @@ def main() -> None:
 
     check_xsd_schema(schema)
 
-    a = cast(BaseXsdType, schema.types['type1'])
+    a = schema.types['type1']
     check_simple_type(a)
 
     b = schema.attributes['attr1']

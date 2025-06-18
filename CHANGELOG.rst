@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v5.0.2`_ (2025-06-18)
+======================
+* Fix for XPath 2.0 *fn:node-name* (issue #91)
+* Workaround for processing arguments with multiple occurrences for external functions (issue #92)
+
 `v5.0.1`_ (2025-05-11)
 ======================
 * Fix XDM type labeling with element and xsi:type substitutions (issue #89)
@@ -507,3 +512,4 @@ CHANGELOG
 .. _v4.8.0: https://github.com/sissaschool/elementpath/compare/v4.7.0...v4.8.0
 .. _v5.0.0: https://github.com/sissaschool/elementpath/compare/v4.8.0...v5.0.0
 .. _v5.0.1: https://github.com/sissaschool/elementpath/compare/v5.0.0...v5.0.1
+.. _v5.0.2: https://github.com/sissaschool/elementpath/compare/v5.0.1...v5.0.2
