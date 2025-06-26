@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from collections import deque
 from collections.abc import Iterator
 from typing import cast, Any, Optional, Union
 
@@ -139,8 +140,8 @@ def build_node_tree(root: ElementTreeRootType,
         position += 1
 
     children = iter(elem)
-    iterators: list[Any] = []
-    ancestors: list[Any] = []
+    iterators: deque[Any] = deque()
+    ancestors: deque[Any] = deque()
     parent = root_node
 
     while True:
@@ -270,8 +271,8 @@ def build_lxml_node_tree(root: LxmlRootType,
         position += 1
 
     children = iter(root_elem)
-    iterators: list[Any] = []
-    ancestors: list[Any] = []
+    iterators: deque[Any] = deque()
+    ancestors: deque[Any] = deque()
     parent = root_node
 
     while True:

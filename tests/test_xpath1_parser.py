@@ -33,6 +33,11 @@ try:
 except ImportError:
     lxml_etree = None
 
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
+
 from elementpath import datatypes, XPath1Parser, XPathContext, MissingContextError, \
     NamespaceNode, TextNode, CommentNode, ProcessingInstructionNode, select, XPathFunction
 from elementpath.xpath_nodes import TextAttributeNode, EtreeElementNode
@@ -1718,6 +1723,40 @@ class XPath1ParserTest(xpath_test_class.XPathTestCase):
         parser = self.parser.__class__(namespaces)
         token = parser.parse("//eg:q1[1] = //eg:q1[2]")
         self.assertIs(token.evaluate(context), False)
+
+    @unittest.skipIf(xmlschema is None, "XPath schema not available")
+    def test_issue_093_with_schema(self):
+        xml_data = dedent("""\
+            <container xmlns="http://www.w3.org/example">
+                <q1 xmlns:a="http://www.w3.org/test">a:blah</q1>
+                <q1 xmlns:b="http://www.w3.org/test">b:blah</q1>
+            </container>""")
+
+        xsd_schema = dedent("""
+            <schema xmlns="http://www.w3.org/2001/XMLSchema"
+                        targetNamespace="http://www.w3.org/example">
+                <element id="container" name="container"/>
+                <element id="q1" name="q1" type="QName"/>
+            </schema>""")
+
+        schema = xmlschema.XMLSchema10(xsd_schema)
+        schema.validate(xml_data)
+
+        resource = xmlschema.XMLResource(xml_data)
+
+        resource.xpath_root.get_document_node(replace=False).apply_schema(schema.xpath_proxy)
+
+        root = self.etree.fromstring(xml_data)
+        namespaces = resource.get_namespaces(root_only=False)
+        context = XPathContext(root, schema=schema.xpath_proxy, namespaces=namespaces)
+
+        parser = self.parser.__class__(namespaces={"eg": "http://www.w3.org/example"})
+        token = parser.parse("//eg:q1[1] = //eg:q1[2]")
+
+        if self.parser.version == "1.0":
+            self.assertIs(token.evaluate(context), False)
+        else:
+            self.assertIs(token.evaluate(context), True)
 
 
 @unittest.skipIf(lxml_etree is None, "The lxml library is not installed")

@@ -119,7 +119,7 @@ class XPathToken(Token[XPathTokenType]):
         if self.symbol == '$':
             return '$%s variable reference' % (self[0].value if self._items else '')
         elif self.symbol == ',':
-            return 'comma operator' if self.parser.version > '1.0' else 'comma symbol'
+            return 'comma operator' if self.parser.version != '1.0' else 'comma symbol'
         elif self.symbol == '(':
             if not self or self[0].span[0] >= self.span[0]:
                 return 'parenthesized expression'
@@ -434,13 +434,17 @@ class XPathToken(Token[XPathTokenType]):
         if item is None:
             return
         elif isinstance(item, XPathNode):
-            value = None
-            for value in item.iter_typed_values:
-                yield value
+            if self.parser.version != '1.0':
+                value = None
+                for value in item.iter_typed_values:
+                    yield value
 
-            if value is None:
-                msg = f"argument node {item!r} does not have a typed value"
-                raise self.error('FOTY0012', msg)
+                if value is None:
+                    msg = f"argument node {item!r} does not have a typed value"
+                    raise self.error('FOTY0012', msg)
+            else:
+                value = item.compat_string_value
+                yield value
 
         elif isinstance(item, list):
             for v in item:
@@ -913,6 +917,8 @@ class XPathToken(Token[XPathTokenType]):
         if obj is None:
             return ''
         elif isinstance(obj, XPathNode):
+            if self.parser.version == '1.0':
+                return obj.compat_string_value
             return obj.string_value
         elif isinstance(obj, bool):
             return 'true' if obj else 'false'
@@ -951,7 +957,9 @@ class XPathToken(Token[XPathTokenType]):
         """
         try:
             if isinstance(obj, XPathNode):
-                return get_double(self.string_value(obj), self.parser.xsd_version)
+                if self.parser.version == '1.0':
+                    return get_double(obj.compat_string_value, self.parser.xsd_version)
+                return get_double(obj.string_value, self.parser.xsd_version)
             else:
                 return get_double(obj, self.parser.xsd_version)
         except (TypeError, ValueError):

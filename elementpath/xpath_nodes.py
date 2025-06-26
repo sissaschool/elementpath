@@ -195,6 +195,10 @@ class XPathNode:
         return self.obj
 
     @property
+    def compat_string_value(self) -> str:
+        return self.string_value
+
+    @property
     def root_node(self) -> 'XPathNode':
         return self if self.parent is None else self.parent.tree.root_node
 
@@ -1178,10 +1182,14 @@ class EtreeElementNode(ElementNode):
         else:
             yield from get_atomic_sequence(self.xsd_type, '')
 
+    @property
+    def compat_string_value(self) -> str:
+        return ''.join(etree_iter_strings(self.obj))
+
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
-        if self.schema is schema and not schema.is_assertion_based():
+        if self.tree.schema is schema and not schema.is_assertion_based():
             return
-        self.schema = schema
+        self.tree.schema = schema
 
         if not schema.is_fully_valid():
             element_type = schema.get_type(XSD_ANY_TYPE)
@@ -1214,7 +1222,7 @@ class EtreeElementNode(ElementNode):
             xsd_types = [None]
             children = iter((root_node,))
 
-        iterators: list[Any] = []
+        iterators: deque[Any] = deque()
         while True:
             for elem in children:
                 if not isinstance(elem, EtreeElementNode):
@@ -1733,6 +1741,12 @@ class EtreeDocumentNode(DocumentNode):
                 return ''
             return ''.join(etree_iter_strings(root))
         return ''.join(child.string_value for child in self.children)
+
+    @property
+    def compat_string_value(self) -> str:
+        if not self.children:
+            return self.string_value
+        return ''.join(child.compat_string_value for child in self.children)
 
     @property
     def is_extended(self) -> bool:

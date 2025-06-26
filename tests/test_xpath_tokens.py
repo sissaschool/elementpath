@@ -334,7 +334,9 @@ class XPath1TokenTest(unittest.TestCase):
             typed_elem = EtreeElementNode(elem=element)
             setattr(typed_elem, 'xsd_type', xsd_type)
             self.assertEqual(token.string_value(typed_elem), '10')
-            self.assertEqual(token.data_value(typed_elem), 10)
+
+            value = '10' if self.parser.version == '1.0' else 10
+            self.assertEqual(token.data_value(typed_elem), value)
 
     def test_number_value_function(self):
         token = self.parser.parse('true()')
