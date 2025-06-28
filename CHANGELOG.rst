@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v5.0.3`_ (2025-06-28)
+======================
+* Fix for XPath 1.0 processing of schema annotated XML data (issue #93)
+
 `v5.0.2`_ (2025-06-18)
 ======================
 * Fix for XPath 2.0 *fn:node-name* (issue #91)
@@ -513,3 +517,4 @@ CHANGELOG
 .. _v5.0.0: https://github.com/sissaschool/elementpath/compare/v4.8.0...v5.0.0
 .. _v5.0.1: https://github.com/sissaschool/elementpath/compare/v5.0.0...v5.0.1
 .. _v5.0.2: https://github.com/sissaschool/elementpath/compare/v5.0.1...v5.0.2
+.. _v5.0.3: https://github.com/sissaschool/elementpath/compare/v5.0.2...v5.0.3
