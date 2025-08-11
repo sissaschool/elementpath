@@ -154,7 +154,7 @@ class XPathContext:
             self.document = self.root
         elif fragment is None and \
                 isinstance(self.root, ElementNode) and \
-                is_etree_element_instance(self.root.obj):
+                is_etree_element_instance(self.root.value):
             # Creates a dummy document that will be not included in results
             self.document = self.root.get_document_node(as_parent=False)
         else:
@@ -201,9 +201,9 @@ class XPathContext:
 
     def __repr__(self) -> str:
         if self.root is not None:
-            return f'{self.__class__.__name__}(root={self.root.obj})'
+            return f'{self.__class__.__name__}(root={self.root.value})'
         elif isinstance(self.item, XPathNode):
-            return f'{self.__class__.__name__}(item={self.item.obj})'
+            return f'{self.__class__.__name__}(item={self.item.value})'
         else:
             return f'{self.__class__.__name__}(item={self.item!r})'
 
@@ -223,10 +223,10 @@ class XPathContext:
     @cached_property
     def etree(self) -> ModuleType:
         if isinstance(self.root, (DocumentNode, ElementNode)):
-            module_name = self.root.obj.__class__.__module__
+            module_name = self.root.value.__class__.__module__
         elif isinstance(self.item, (DocumentNode, ElementNode, CommentNode,
                                     ProcessingInstructionNode)):
-            module_name = self.item.obj.__class__.__module__
+            module_name = self.item.value.__class__.__module__
         else:
             module_name = 'xml.etree.ElementTree'
 
@@ -300,12 +300,12 @@ class XPathContext:
         if isinstance(item, (XPathNode, AnyAtomicType)):
             return item
         elif is_etree_document(item):
-            if self.root is not None and item is self.root.obj:
+            if self.root is not None and item is self.root.value:
                 return self.root
 
             if self.documents:
                 for doc in self.documents.values():
-                    if doc is not None and item is doc.obj:
+                    if doc is not None and item is doc.value:
                         return doc
 
         elif is_etree_element(item):

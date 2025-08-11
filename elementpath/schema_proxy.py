@@ -143,23 +143,47 @@ class AbstractSchemaProxy(metaclass=ABCMeta):
         """
         return self._schema.maps.types.get(qname)
 
-    def get_attribute(self, qname: str) -> Optional[XsdAttributeProtocol]:
+    def get_attribute(self, qname: str, parent_type: Optional[XsdTypeProtocol] = None) \
+            -> Optional[XsdAttributeProtocol]:
         """
         Get the XSD global attribute from the schema's scope.
 
         :param qname: the fully qualified name of the attribute to retrieve.
+        :param parent_type: an optional XSD type that represents the scope where matching \
+        the attribute name. If not provided, the scope is assumed to be the global scope.
         :returns: an object that represents an XSD type or `None`.
         """
-        return self._schema.maps.attributes.get(qname)
+        if parent_type is None:
+            return self._schema.maps.attributes.get(qname)
+        elif hasattr(parent_type, 'attributes'):
+            attributes = cast(XsdAttributeGroupProtocol, parent_type.attributes)
+            if qname in attributes:
+                return attributes[qname]
+            elif None in attributes and attributes[None].is_matching(qname):
+                return self._schema.maps.attributes[qname]
+        return None
 
-    def get_element(self, qname: str) -> Optional[XsdElementProtocol]:
+    def get_element(self, qname: str, parent_type: Optional[XsdTypeProtocol] = None) \
+            -> Optional[XsdElementProtocol]:
         """
         Get the XSD global element from the schema's scope.
 
-        :param qname: the fully qualified name of the element to retrieve.
+        :param qname: the fully qualified name of the attribute to retrieve.
+        :param parent_type: an optional XSD type that represents the scope where matching \
+        the child element name. If `None` or not provided the scope is the schema.
         :returns: an object that represents an XSD type or `None`.
         """
-        return self._schema.maps.elements.get(qname)
+        if parent_type is None:
+            return self._schema.maps.elements.get(qname)
+        elif (content := parent_type.model_group) is not None:
+            for xsd_element in content.iter_elements():
+                if xsd_element.is_matching(qname):
+                    if xsd_element.name == qname:
+                        return xsd_element
+                    else:
+                        # a wildcard or a substitute
+                        return self._schema.maps.elements.get(qname)
+        return None
 
     def get_substitution_group(self, qname: str) -> Optional[set[XsdElementProtocol]]:
         """

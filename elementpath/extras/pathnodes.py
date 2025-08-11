@@ -24,7 +24,7 @@ from elementpath.datatypes import DateTime, AtomicType
 
 class PathElementNode(ElementNode):
     name: str
-    obj: Path
+    value: Path
     xsd_element: Optional[XsdElementProtocol]
 
     __slots__ = ('stat',)
@@ -53,7 +53,7 @@ class PathElementNode(ElementNode):
             self.parent = parent
 
         self.name = path.name
-        self.obj = path
+        self.value = path
         self.stat = path.stat()
         self.position = self.stat.st_ino
         self.children = []
@@ -63,9 +63,9 @@ class PathElementNode(ElementNode):
 
     @property
     def content(self) -> Path:
-        return self.obj
+        return self.value
 
-    elem = value = content
+    elem = content
 
     @property
     def attributes(self) -> list[AttributeNode]:
@@ -101,10 +101,10 @@ class PathElementNode(ElementNode):
 
     @property
     def string_value(self) -> str:
-        if self.obj.is_dir():
+        if self.value.is_dir():
             return ''
-        if self.obj.is_file():
-            return self.obj.read_text()
+        if self.value.is_file():
+            return self.value.read_text()
         else:
             return ''
 
@@ -125,12 +125,12 @@ class PathElementNode(ElementNode):
             return self.name == f'{{{default_namespace}}}{name}'
 
     def get_document_node(self, replace: bool = True, as_parent: bool = True) -> 'DocumentNode':
-        return PathDocumentNode(Path(self.obj.absolute().root))
+        return PathDocumentNode(Path(self.value.absolute().root))
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         if not self.children:
-            if self.obj.is_dir():
-                for path in self.obj.iterdir():
+            if self.value.is_dir():
+                for path in self.value.iterdir():
                     if path in self.tree.elements:
                         self.children.append(self.tree.elements[path])
                     else:
@@ -150,7 +150,7 @@ class PathElementNode(ElementNode):
 
 
 class PathDocumentNode(DocumentNode):
-    obj: Path
+    value: Path
 
     __slots__ = ('stat',)
 
@@ -159,7 +159,7 @@ class PathDocumentNode(DocumentNode):
         if not document.is_dir() or len(document.parts) > 1 or not document.is_absolute():
             raise ValueError(f'{document} must be a root directory')
 
-        self.obj = document
+        self.value = document
         self.name = None
         self.parent = None
         self.position = document.stat().st_ino
@@ -168,15 +168,15 @@ class PathDocumentNode(DocumentNode):
 
     @property
     def document(self) -> Path:
-        return self.obj
+        return self.value
 
     @property
     def string_value(self) -> str:
-        return self.obj.read_text()
+        return self.value.read_text()
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         if not self.children:
-            for path in self.obj.iterdir():
+            for path in self.value.iterdir():
                 if path in self.tree.elements:
                     self.children.append(self.tree.elements[path])
                 else:
@@ -187,7 +187,7 @@ class PathDocumentNode(DocumentNode):
 
 class IntAttributeNode(AttributeNode):
     name: str
-    obj: int
+    value: int
     parent: Optional['PathElementNode']
 
     __slots__ = ()
@@ -198,22 +198,18 @@ class IntAttributeNode(AttributeNode):
                  parent: Optional['PathElementNode'] = None) -> None:
 
         self.name = name
-        self.obj = value
+        self.value = value
         self.parent = parent
         self.position = parent.position if parent is not None else 1
         self.xsd_type = None
 
     @property
-    def value(self) -> int:
-        return self.obj
-
-    @property
     def string_value(self) -> str:
-        return str(self.obj)
+        return str(self.value)
 
     @property
     def iter_typed_values(self) -> Iterator[AtomicType]:
-        yield self.obj
+        yield self.value
 
     @property
     def type_name(self) -> Optional[str]:
@@ -224,12 +220,12 @@ class ModeAttributeNode(IntAttributeNode):
 
     @property
     def string_value(self) -> str:
-        return oct(self.obj)
+        return oct(self.value)
 
 
 class DatetimeAttributeNode(AttributeNode):
     name: str
-    obj: datetime
+    value: datetime
     parent: Optional['PathElementNode']
 
     __slots__ = ()
@@ -240,22 +236,18 @@ class DatetimeAttributeNode(AttributeNode):
                  parent: Optional['PathElementNode'] = None) -> None:
 
         self.name = name
-        self.obj = value
+        self.value = value
         self.parent = parent
         self.position = parent.position if parent is not None else 1
         self.xsd_type = None
 
     @property
-    def value(self) -> datetime:
-        return self.obj
-
-    @property
     def string_value(self) -> str:
-        return str(self.obj)
+        return str(self.value)
 
     @property
     def iter_typed_values(self) -> Iterator[AtomicType]:
-        yield DateTime.fromdatetime(self.obj)
+        yield DateTime.fromdatetime(self.value)
 
     @property
     def type_name(self) -> Optional[str]:

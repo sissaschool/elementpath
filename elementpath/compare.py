@@ -83,7 +83,7 @@ def deep_equal(seq1: Iterable[Any],
                     return False
                 elif isinstance(value1, etree_node_types):
                     assert isinstance(value2, etree_node_types)
-                    if not etree_deep_equal(value1.obj, value2.obj):
+                    if not etree_deep_equal(value1.value, value2.value):
                         return False
                 elif isinstance(value1, EtreeDocumentNode):
                     assert isinstance(value2, EtreeDocumentNode)
@@ -94,14 +94,14 @@ def deep_equal(seq1: Iterable[Any],
                             return False
                         elif isinstance(child1, etree_node_types):
                             assert isinstance(child2, etree_node_types)
-                            if not etree_deep_equal(child1.obj, child2.obj):
+                            if not etree_deep_equal(child1.value, child2.value):
                                 return False
                         elif isinstance(child1, TextNode):
                             assert isinstance(child2, TextNode)
-                            if cm.ne(child1.obj, child2.obj):
+                            if cm.ne(child1.value, child2.value):
                                 return False
 
-                elif cm.ne(value1.obj, value2.obj):
+                elif cm.ne(value1.value, value2.value):
                     return False
                 elif isinstance(value1, TextAttributeNode):
                     if cm.ne(value1.name, value2.name):
@@ -257,7 +257,7 @@ def deep_compare(obj1: Any,
                     raise xpath_error('XPTY0004', msg, token=token)
                 elif isinstance(value1, etree_node_types):
                     assert isinstance(value2, etree_node_types)
-                    result = etree_deep_compare(value1.obj, value2.obj)
+                    result = etree_deep_compare(value1.value, value2.value)
                     if result:
                         return result
                 elif isinstance(value1, EtreeDocumentNode):
@@ -272,19 +272,19 @@ def deep_compare(obj1: Any,
                             raise xpath_error('XPTY0004', msg, token=token)
                         elif isinstance(child1, etree_node_types):
                             assert isinstance(child2, etree_node_types)
-                            result = etree_deep_compare(child1.obj, child2.obj)
+                            result = etree_deep_compare(child1.value, child2.value)
                             if result:
                                 return result
                         elif isinstance(child1, TextNode):
                             assert isinstance(child2, TextNode)
                             result = cm.strcoll(
-                                child1.obj.strip(), child2.obj.strip()
+                                child1.value.strip(), child2.value.strip()
                             )
                             if result:
                                 return result
                 elif isinstance(value1, TextNode):
                     assert isinstance(value2, TextNode)
-                    result = cm.strcoll(value1.obj, value2.obj)
+                    result = cm.strcoll(value1.value, value2.value)
                     if result:
                         return result
                 elif isinstance(value1, TextAttributeNode):

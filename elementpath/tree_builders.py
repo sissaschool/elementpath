@@ -56,7 +56,7 @@ def get_node_tree(root: RootArgType,
                 return root.getroot()
         elif fragment is False and \
                 isinstance(root, ElementNode) and \
-                is_etree_element_instance(root.obj):
+                is_etree_element_instance(root.value):
             return root.get_document_node()
 
         return root

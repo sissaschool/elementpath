@@ -210,7 +210,7 @@ class XPathNodesTest(unittest.TestCase):
         with patch.multiple(DummyXsdType, is_simple=lambda x: True):
             xsd_type = DummyXsdType()
             attribute.xsd_type = xsd_type
-            self.assertEqual(attribute.obj, '10')
+            self.assertEqual(attribute.value, '10')
 
     def test_typed_element_nodes(self):
         element = ElementTree.Element('schema')

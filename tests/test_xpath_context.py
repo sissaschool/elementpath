@@ -184,7 +184,7 @@ class XPathContextTest(unittest.TestCase):
     def test_is_principal_node_kind(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
         context = XPathContext(root)
-        self.assertTrue(hasattr(context.item.obj, 'tag'))
+        self.assertTrue(hasattr(context.item.value, 'tag'))
         self.assertTrue(context.is_principal_node_kind())
         context.item = context.root.attributes[0]
         self.assertFalse(context.is_principal_node_kind())
@@ -250,14 +250,14 @@ class XPathContextTest(unittest.TestCase):
         self.assertIsInstance(context.root, DocumentNode)
         self.assertIsInstance(context.root[0], ElementNode)
 
-        self.assertListEqual(list(e.obj for e in context.iter_children_or_self()), [self.root])
+        self.assertListEqual(list(e.value for e in context.iter_children_or_self()), [self.root])
 
         context.item = context.root[0]  # root element
         self.assertListEqual(list(context.iter_children_or_self()),
                              [context.root[0].children[0]])
 
         context.item = context.root  # document node
-        self.assertListEqual(list(e.obj for e in context.iter_children_or_self()), [self.root])
+        self.assertListEqual(list(e.value for e in context.iter_children_or_self()), [self.root])
 
     def test_iter_parent(self):
         root = ElementTree.XML('<A a1="10" a2="20"/>')
@@ -339,7 +339,7 @@ class XPathContextTest(unittest.TestCase):
         context = XPathContext(root)
         attr = context.root.attributes[0]
 
-        self.assertListEqual(list(e.obj for e in context.iter_descendants()),
+        self.assertListEqual(list(e.value for e in context.iter_descendants()),
                              [root, root[0], root[1]])
 
         context.item = attr
@@ -352,7 +352,7 @@ class XPathContextTest(unittest.TestCase):
             context = XPathContext(root, item=root)
             context.root.xsd_type = xsd_type
             self.assertListEqual(
-                list(e.obj for e in context.iter_descendants()), [root, root[0], root[1]]
+                list(e.value for e in context.iter_descendants()), [root, root[0], root[1]]
             )
 
     def test_iter_ancestors(self):
@@ -365,7 +365,7 @@ class XPathContextTest(unittest.TestCase):
         context.item = attr
         self.assertListEqual(list(context.iter_ancestors()), [context.root])
 
-        result = list(e.obj for e in XPathContext(root, item=root[1]).iter_ancestors())
+        result = list(e.value for e in XPathContext(root, item=root[1]).iter_ancestors())
         self.assertListEqual(result, [root])
         with patch.object(DummyXsdType(), 'has_mixed_content', return_value=True) as xsd_type:
             context = XPathContext(root, item=root[1])

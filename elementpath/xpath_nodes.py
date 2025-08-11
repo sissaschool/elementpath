@@ -40,7 +40,7 @@ __all__ = ['TypedNodeType', 'ParentNodeType', 'ChildNodeType', 'ElementMapType',
 
 _EMPTY_NAME_PATH = f'*[Q{{{XPATH_FUNCTIONS_NAMESPACE}}}local-name()=""]'
 
-_XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+_XSD_SPECIAL_TYPES = frozenset((XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE))
 
 TypedNodeType = Union['AttributeNode', 'ElementNode']
 TaggedNodeType = Union['ElementNode', 'CommentNode', 'ProcessingInstructionNode']
@@ -91,7 +91,7 @@ class XPathNode:
     derivation string and typed values are not implemented. Use these classes only
     for type checking and for wrapping other types in a custom XPath node types.
     """
-    __slots__ = ('name', 'obj', 'parent', 'position')
+    __slots__ = ('name', 'value', 'parent', 'position')
 
     ###
     # XDM accessors
@@ -186,13 +186,13 @@ class XPathNode:
     # Other properties and methods
 
     name: Optional[str]  # node name
-    obj: object          # the object wrapped in the node
+    value: object        # the object wrapped in the node
     position: int        # position of the node, for document total order
 
     @property
-    def value(self) -> object:
+    def obj(self) -> Any:
         """Access to wrapped object using the old API."""
-        return self.obj
+        return self.value
 
     @property
     def compat_string_value(self) -> str:
@@ -297,7 +297,7 @@ class NamespaceNode(XPathNode):
     :param parent: the parent element node.
     :param position: the position of the node in the document.
     """
-    obj: str
+    value: str
     parent: Optional['ElementNode']
 
     __slots__ = ()
@@ -307,12 +307,12 @@ class NamespaceNode(XPathNode):
                  parent: Optional['ElementNode'] = None,
                  position: int = 1) -> None:
         self.name = prefix
-        self.obj = uri
+        self.value = uri
         self.parent = parent
         self.position = position
 
     def __repr__(self) -> str:
-        return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.name, self.obj)
+        return '%s(prefix=%r, uri=%r)' % (self.__class__.__name__, self.name, self.value)
 
     @property
     def prefix(self) -> Optional[str]:
@@ -320,9 +320,7 @@ class NamespaceNode(XPathNode):
 
     @property
     def uri(self) -> str:
-        return self.obj
-
-    value = uri
+        return self.value
 
     @property
     def name_path(self) -> str:
@@ -346,11 +344,11 @@ class NamespaceNode(XPathNode):
 
     @property
     def string_value(self) -> str:
-        return self.obj
+        return self.value
 
     @property
     def iter_typed_values(self) -> Iterator[str]:
-        yield self.obj
+        yield self.value
 
 
 ###
@@ -457,7 +455,7 @@ class TextAttributeNode(AttributeNode):
     :param position: the position of the node in the document.
     """
     name: str
-    obj: str
+    value: str
     parent: Optional['EtreeElementNode']
 
     __slots__ = ()
@@ -469,28 +467,24 @@ class TextAttributeNode(AttributeNode):
                  position: int = 1) -> None:
 
         self.name = name
-        self.obj = value
+        self.value = value
         self.parent = parent
         self.position = position
         self.xsd_type = None
 
     def __repr__(self) -> str:
-        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.obj)
-
-    @property
-    def value(self) -> str:
-        return self.obj
+        return '%s(name=%r, value=%r)' % (self.__class__.__name__, self.name, self.value)
 
     @property
     def string_value(self) -> str:
-        return self.obj
+        return self.value
 
     @property
     def iter_typed_values(self) -> Iterator[AtomicType]:
         if self.parent is not None:
-            yield from get_atomic_sequence(self.xsd_type, self.obj, self.parent.nsmap)
+            yield from get_atomic_sequence(self.xsd_type, self.value, self.parent.nsmap)
         else:
-            yield from get_atomic_sequence(self.xsd_type, self.obj)
+            yield from get_atomic_sequence(self.xsd_type, self.value)
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
         if self.parent is not None:
@@ -504,7 +498,7 @@ class TextAttributeNode(AttributeNode):
 class SchemaAttributeNode(AttributeNode):
     """A class for processing XML Schema attribute nodes."""
     name: Optional[str]
-    obj: XsdAttributeProtocol
+    value: XsdAttributeProtocol
     parent: Optional['ElementNode']
 
     __slots__ = ()
@@ -515,18 +509,13 @@ class SchemaAttributeNode(AttributeNode):
                  position: int = 1):
 
         self.name = attr.name
-        self.obj = attr
+        self.value = attr
         self.parent = parent
         self.position = position
         self.xsd_type = attr.type
 
     def __repr__(self) -> str:
-        return '%s(attr=%r)' % (self.__class__.__name__, self.obj)
-
-    @property
-    def xsd_attribute(self) -> XsdAttributeProtocol:
-        return self.obj
-    value = xsd_attribute
+        return '%s(attr=%r)' % (self.__class__.__name__, self.value)
 
     @property
     def string_value(self) -> str:
@@ -538,7 +527,7 @@ class SchemaAttributeNode(AttributeNode):
 
     def match_name(self, name: str, default_namespace: Optional[str] = None) -> bool:
         if not self.name:
-            return self.obj.is_matching(name, default_namespace)
+            return self.value.is_matching(name, default_namespace)
         elif '*' in name:
             return match_wildcard(self.name, name)
         else:
@@ -562,7 +551,7 @@ class TextNode(XPathNode):
     :param position: the position of the node in the document.
     """
     name: None
-    obj: str
+    value: str
     parent: Optional['ElementNode']
     children: None = None
 
@@ -573,7 +562,7 @@ class TextNode(XPathNode):
                  parent: Optional['ElementNode'] = None,
                  position: int = 1) -> None:
         self.name = None
-        self.obj = content
+        self.value = content
         self.parent = parent
         self.position = position
 
@@ -581,13 +570,11 @@ class TextNode(XPathNode):
             parent.children.append(self)
 
     def __repr__(self) -> str:
-        return '%s(%r)' % (self.__class__.__name__, self.obj)
+        return '%s(%r)' % (self.__class__.__name__, self.value)
 
     @property
     def content(self) -> str:
-        return self.obj
-
-    value = content
+        return self.value
 
     @property
     def path(self) -> str:
@@ -612,7 +599,7 @@ class TextNode(XPathNode):
 
     @property
     def string_value(self) -> str:
-        return self.obj
+        return self.value
 
     @property
     def type_name(self) -> Optional[str]:
@@ -620,11 +607,11 @@ class TextNode(XPathNode):
 
     @property
     def typed_value(self) -> SequenceType[AtomicType]:
-        return UntypedAtomic(self.obj)
+        return UntypedAtomic(self.value)
 
     @property
     def iter_typed_values(self) -> Iterator[UntypedAtomic]:
-        yield UntypedAtomic(self.obj)
+        yield UntypedAtomic(self.value)
 
 
 ###
@@ -639,7 +626,7 @@ class CommentNode(XPathNode):
     :param position: the position of the node in the document.
     """
     name: None
-    obj: CommentType
+    value: CommentType
 
     __slots__ = ()
 
@@ -650,25 +637,25 @@ class CommentNode(XPathNode):
 
         self.name = None
         if isinstance(content, str):
-            self.obj = ElementTree.Comment(content)
+            self.value = ElementTree.Comment(content)
         else:
-            self.obj = content
+            self.value = content
 
         self.parent = parent
         self.position = position
 
         if parent is not None:
             parent.children.append(self)
-            parent.tree.elements[self.obj] = self
+            parent.tree.elements[self.value] = self
 
     def __repr__(self) -> str:
-        return '%s(%r)' % (self.__class__.__name__, self.obj.text or '')
+        return '%s(%r)' % (self.__class__.__name__, self.value.text or '')
 
     @property
     def content(self) -> CommentType:
-        return self.obj
+        return self.value
 
-    elem = value = content
+    elem = content
 
     @property
     def path(self) -> str:
@@ -690,7 +677,7 @@ class CommentNode(XPathNode):
 
     @property
     def string_value(self) -> str:
-        return self.obj.text or ''
+        return self.value.text or ''
 
     @property
     def typed_value(self) -> str:
@@ -714,7 +701,7 @@ class ProcessingInstructionNode(XPathNode):
     :param position: the position of the node in the document.
     """
     name: str
-    obj: ProcessingInstructionType
+    value: ProcessingInstructionType
 
     __slots__ = ()
 
@@ -726,20 +713,20 @@ class ProcessingInstructionNode(XPathNode):
 
         if isinstance(target, str):
             self.name = target
-            self.obj = ElementTree.ProcessingInstruction(self.name, content)
+            self.value = ElementTree.ProcessingInstruction(self.name, content)
         else:
             if hasattr(target, 'target'):
                 self.name = cast(str, target.target)  # lxml PI
             else:
                 self.name = (target.text or '').partition(' ')[0]
-            self.obj = target
+            self.value = target
 
         self.parent = parent
         self.position = position
 
         if parent is not None:
             parent.children.append(self)
-            parent.tree.elements[self.obj] = self
+            parent.tree.elements[self.value] = self
 
     def __repr__(self) -> str:
         return '%s(target=%r, content=%r)' % (self.__class__.__name__, self.name, self.content)
@@ -750,15 +737,14 @@ class ProcessingInstructionNode(XPathNode):
 
     @property
     def content(self) -> str:
-        if hasattr(self.obj, 'target'):
-            return self.obj.text or ''
+        if hasattr(self.value, 'target'):
+            return self.value.text or ''
         else:
-            return (self.obj.text or '').partition(' ')[-1]
+            return (self.value.text or '').partition(' ')[-1]
 
     @property
     def elem(self) -> ProcessingInstructionType:
-        return self.obj
-    value = elem
+        return self.value
 
     @property
     def path(self) -> str:
@@ -806,18 +792,20 @@ class ElementNode(XPathNode):
     use lazy properties to diminish the average load for a tree processing.
     """
     name: Optional[str]
-    obj: object
+    value: object
     tree: XPathNodeTree
     children: list[ChildNodeType]
     parent: Optional[ParentNodeType]
     xsd_type: Optional[XsdTypeProtocol]
+    xsd_element: Optional[XsdElementProtocol]
     _nsmap: Union[NsmapType, NamespacesType, None]
 
     # Lazy protected attributes
     _namespace_nodes: list[NamespaceNode]
     _attributes: list[AttributeNode]
 
-    __slots__ = ('children', 'tree', 'xsd_type', '_nsmap', '_namespace_nodes', '_attributes')
+    __slots__ = ('children', 'tree', 'xsd_type', 'xsd_element',
+                 '_nsmap', '_namespace_nodes', '_attributes')
 
     def __new__(cls, *args: Any, **kwargs: Any) -> 'ElementNode':
         if cls is ElementNode:
@@ -825,7 +813,7 @@ class ElementNode(XPathNode):
         return object.__new__(cls)
 
     def __repr__(self) -> str:
-        return '%s(elem=%r)' % (self.__class__.__name__, self.obj)
+        return '%s(elem=%r)' % (self.__class__.__name__, self.value)
 
     def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, list[ChildNodeType]]:
         return self.children[i]
@@ -838,8 +826,8 @@ class ElementNode(XPathNode):
 
     @property
     def nsmap(self) -> Union[NsmapType, NamespacesType]:
-        if hasattr(self.obj, 'nsmap'):
-            return cast(NsmapType, self.obj.nsmap)
+        if hasattr(self.value, 'nsmap'):
+            return cast(NsmapType, self.value.nsmap)
         elif self._nsmap is not None:
             return self._nsmap
         else:
@@ -1092,10 +1080,9 @@ class EtreeElementNode(ElementNode):
     :param position: the position of the node in the document.
     """
     name: str
-    obj: ElementType
-    xsd_element: Optional[XsdElementProtocol]
+    value: ElementType
 
-    __slots__ = ()
+    __slots__ = ('xsd_type', 'xsd_element')
 
     def __init__(self,
                  elem: ElementType,
@@ -1105,11 +1092,11 @@ class EtreeElementNode(ElementNode):
 
         assert not callable(elem.tag)
         self.name = elem.tag
-        self.obj = elem
+        self.value = elem
         self.parent = parent
         self.position = position
         self.children = []
-        self.xsd_type = None
+        self.xsd_type = self.xsd_element = None
         self._nsmap = nsmap
 
         if parent is not None:
@@ -1122,9 +1109,9 @@ class EtreeElementNode(ElementNode):
 
     @property
     def content(self) -> ElementType:
-        return self.obj
+        return self.value
 
-    elem = value = content
+    elem = content
 
     @property
     def attributes(self) -> list[AttributeNode]:
@@ -1133,13 +1120,38 @@ class EtreeElementNode(ElementNode):
             position = self.position + len(nsmap) + int('xml' not in nsmap) + 1
             self._attributes = [
                 TextAttributeNode(name, value, self, pos)
-                for pos, (name, value) in enumerate(self.obj.attrib.items(), position)
+                for pos, (name, value) in enumerate(self.value.attrib.items(), position)
             ]
+
+            if self._attributes and self.xsd_type is not None \
+                    and (schema := self.tree.schema) is not None:
+                if self.xsd_type.name == XSD_ANY_TYPE:
+                    attribute_type = schema.get_type(XSD_ANY_SIMPLE_TYPE)
+                    for attr in self._attributes:
+                        attr.xsd_type = attribute_type
+                else:
+                    for attr in self._attributes:
+                        assert attr.name is not None
+                        attr.xsd_type = schema.get_attribute_type(attr.name, self.xsd_type)
+
+            if self.xsd_element is not None:
+                # Add missing attributes with a default value, at the same
+                # position of the last attribute.
+                position = position + len(self.value.attrib)
+                for name, xsd_attribute in self.xsd_element.attrib.items():
+                    if name in self.value.attrib or name is None:
+                        continue
+
+                    if (value := getattr(xsd_attribute, 'value_constraint', None)) is not None:
+                        attr = TextAttributeNode(name, value, self, position)
+                        attr.xsd_type = xsd_attribute.type
+                        self._attributes.append(attr)
+
         return self._attributes
 
     @property
     def base_uri(self) -> Optional[str]:
-        base_uri = self.obj.get(XML_BASE)
+        base_uri = self.value.get(XML_BASE)
         if isinstance(base_uri, str):
             base_uri = base_uri.strip()
         elif base_uri is not None:
@@ -1156,35 +1168,38 @@ class EtreeElementNode(ElementNode):
 
     @property
     def nilled(self) -> bool:
-        return self.obj.get(XSI_NIL) in ('true', '1')
+        return self.value.get(XSI_NIL) in ('true', '1')
 
     @property
     def string_value(self) -> str:
         if self.xsd_type is not None and self.xsd_type.is_element_only():
             # Element-only text content is normalized
-            return ''.join(etree_iter_strings(self.obj, normalize=True))
-        return ''.join(etree_iter_strings(self.obj))
+            return ''.join(etree_iter_strings(self.value, normalize=True))
+
+        return ''.join(etree_iter_strings(self.value)) or \
+            getattr(self.xsd_element, 'value_constraint', None) or ''
 
     @property
     def iter_typed_values(self) -> Iterator[AtomicType]:
         if self.xsd_type is None or \
                 self.xsd_type.name in _XSD_SPECIAL_TYPES or \
                 self.xsd_type.has_mixed_content():
-            yield UntypedAtomic(''.join(etree_iter_strings(self.obj)))
+            yield UntypedAtomic(''.join(etree_iter_strings(self.value)))
         elif self.xsd_type.is_element_only():
             return
-        elif self.obj.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
+        elif self.value.get(XSI_NIL) and getattr(self.xsd_type.parent, 'nillable', None):
             return
-        elif self.obj.text is not None:
-            yield from get_atomic_sequence(self.xsd_type, self.obj.text, self.nsmap)
-        elif self.obj.get(XSI_NIL) in ('1', 'true'):
+        elif self.value.text is not None:
+            yield from get_atomic_sequence(self.xsd_type, self.value.text, self.nsmap)
+        elif self.value.get(XSI_NIL) in ('1', 'true'):
             yield ''
         else:
-            yield from get_atomic_sequence(self.xsd_type, '')
+            value = getattr(self.xsd_element, 'value_constraint', None)
+            yield from get_atomic_sequence(self.xsd_type, value or '')
 
     @property
     def compat_string_value(self) -> str:
-        return ''.join(etree_iter_strings(self.obj))
+        return ''.join(etree_iter_strings(self.value))
 
     def apply_schema(self, schema: 'AbstractSchemaProxy') -> None:
         if self.tree.schema is schema and not schema.is_assertion_based():
@@ -1193,13 +1208,11 @@ class EtreeElementNode(ElementNode):
 
         if not schema.is_fully_valid():
             element_type = schema.get_type(XSD_ANY_TYPE)
-            attribute_type = schema.get_type(XSD_ANY_SIMPLE_TYPE)
-            for elem in self.iter_descendants(with_self=True):
-                if isinstance(elem, EtreeElementNode):
-                    elem.xsd_type = element_type
-                    if elem.obj.attrib:
-                        for attr in elem.attributes:
-                            attr.xsd_type = attribute_type
+            for node in self.iter_descendants(with_self=True):
+                if isinstance(node, EtreeElementNode):
+                    node.xsd_type = element_type
+                    if hasattr(node, '_attributes'):
+                        delattr(node, '_attributes')
             return
 
         if schema.base_element is not None:
@@ -1210,10 +1223,8 @@ class EtreeElementNode(ElementNode):
             else:
                 self.xsd_type = schema.base_element.type
 
-            if self.obj.attrib:
-                for attr in self.attributes:
-                    if isinstance(attr, TextAttributeNode):
-                        attr.xsd_type = schema.get_attribute_type(attr.name, xsd_types[-1])
+            if hasattr(self, '_attributes'):
+                delattr(self, '_attributes')
         else:
             root_node: ParentNodeType = self
             while isinstance(root_node.parent, EtreeElementNode):
@@ -1222,37 +1233,41 @@ class EtreeElementNode(ElementNode):
             xsd_types = [None]
             children = iter((root_node,))
 
+            if hasattr(root_node, '_attributes'):
+                delattr(root_node, '_attributes')
+
         iterators: deque[Any] = deque()
         while True:
-            for elem in children:
-                if not isinstance(elem, EtreeElementNode):
+            for node in children:
+                if not isinstance(node, EtreeElementNode):
                     continue
-                elif XSI_TYPE in elem.obj.attrib:
-                    xsi_type = cast(str, elem.obj.attrib[XSI_TYPE])
+                elif XSI_TYPE in node.value.attrib:
+                    xsi_type = cast(str, node.value.attrib[XSI_TYPE])
                     try:
-                        type_name = get_expanded_name(xsi_type, elem.nsmap)
+                        type_name = get_expanded_name(xsi_type, node.nsmap)
                     except (KeyError, TypeError):
-                        elem.clear_types()
+                        node.clear_types()
                         continue
                     else:
                         xsd_type = schema.get_type(type_name)
+                        if xsd_type is None:
+                            node.clear_types()
+                            continue
                 else:
-                    xsd_type = schema.get_child_type(elem.name, xsd_types[-1])
+                    node.xsd_element = schema.get_element(node.name, xsd_types[-1])
+                    if node.xsd_element is None:
+                        node.clear_types()
+                        continue
+                    xsd_type = node.xsd_element.type
 
-                if xsd_type is None:
-                    elem.clear_types()
-                    continue
+                node.xsd_type = xsd_type
+                if hasattr(node, '_attributes'):
+                    delattr(node, '_attributes')
 
-                elem.xsd_type = xsd_type
-                if elem.obj.attrib:
-                    for attr in elem.attributes:
-                        if isinstance(attr, TextAttributeNode):
-                            attr.xsd_type = schema.get_attribute_type(attr.name, xsd_type)
-
-                if len(elem.obj):
+                if len(node.value):
                     xsd_types.append(xsd_type)
                     iterators.append(children)
-                    children = iter(elem)
+                    children = iter(node)
                     break
             else:
                 try:
@@ -1266,6 +1281,7 @@ class EtreeElementNode(ElementNode):
         for elem in self.iter_descendants(with_self=True):
             if isinstance(elem, EtreeElementNode):
                 elem.xsd_type = None
+                elem.xsd_element = None
                 for attr in elem.attributes:
                     attr.xsd_type = None
 
@@ -1278,8 +1294,8 @@ class EtreeElementNode(ElementNode):
             return match_wildcard(self.name, name)
         elif not name:
             return not self.name
-        elif hasattr(self.obj, 'type') and hasattr(self.obj, 'is_matching'):
-            return cast(XsdElementProtocol, self.obj).is_matching(name, default_namespace)
+        elif hasattr(self.value, 'type') and hasattr(self.value, 'is_matching'):
+            return cast(XsdElementProtocol, self.value).is_matching(name, default_namespace)
         elif name[0] == '{' or not default_namespace:
             return self.name == name
         else:
@@ -1303,7 +1319,7 @@ class EtreeElementNode(ElementNode):
         root_node = self.tree.root_node
         assert isinstance(root_node, EtreeElementNode)
 
-        if root_node.obj.__class__.__module__ not in ('lxml.etree', 'lxml.html'):
+        if root_node.value.__class__.__module__ not in ('lxml.etree', 'lxml.html'):
             etree = ElementTree
         else:
             etree = importlib.import_module('lxml.etree')
@@ -1319,21 +1335,21 @@ class EtreeElementNode(ElementNode):
             if sum(isinstance(x, ElementNode) for x in root_node.children) == 1:
                 for child in root_node.children:
                     if isinstance(child, ElementNode):
-                        document = etree.ElementTree(cast(ElementTree.Element, child.obj))
+                        document = etree.ElementTree(cast(ElementTree.Element, child.value))
                         break
 
-            document_node.obj = document
+            document_node.value = document
             document_node.position = root_node.position
             document_node.children = root_node.children
 
             for child in document_node.children:
                 child.parent = document_node if as_parent else None
 
-            root_node.tree.elements.pop(root_node.obj)
+            root_node.tree.elements.pop(root_node.value)
             del root_node
 
         else:
-            document_node.obj = etree.ElementTree(cast(ElementTree.Element, root_node.obj))
+            document_node.value = etree.ElementTree(cast(ElementTree.Element, root_node.value))
             document_node.position = root_node.position - 1
             document_node.children = [root_node]
 
@@ -1356,10 +1372,10 @@ class LazyElementNode(EtreeElementNode):
 
     def __iter__(self) -> Iterator[ChildNodeType]:
         if not self.children:
-            if self.obj.text is not None:
-                TextNode(self.obj.text, self)
-            if len(self.obj):
-                for elem in self.obj:
+            if self.value.text is not None:
+                TextNode(self.value.text, self)
+            if len(self.value):
+                for elem in self.value:
                     if not callable(elem.tag):
                         LazyElementNode(elem, self)
                     elif elem.tag.__name__ == 'Comment':
@@ -1389,10 +1405,10 @@ class SchemaElementNode(ElementNode):
     The resulting structure can be a tree or a set of disjoint trees.
     With more roots only one of them is the schema node.
     """
-    ref: Optional['SchemaElementNode'] = None
-    obj: SchemaElemType
+    value: SchemaElemType
+    ref: Optional['SchemaElementNode']
 
-    __slots__ = ('__dict__',)
+    __slots__ = ('ref',)
 
     def __init__(self,
                  elem: SchemaElemType,
@@ -1401,11 +1417,18 @@ class SchemaElementNode(ElementNode):
                  nsmap: Union[NsmapType, NamespacesType, None] = None):
 
         self.name = elem.name
-        self.obj = elem
+        self.value = elem
         self.parent = parent
         self.position = position
         self.children = []
-        self.xsd_type = getattr(elem, 'type', None)
+        self.ref = None
+
+        if hasattr(elem, 'type'):
+            self.xsd_element = cast(XsdElementProtocol, elem)
+            self.xsd_type = self.xsd_element.type
+        else:
+            self.xsd_element = self.xsd_type = None
+
         self._nsmap = nsmap
 
         try:
@@ -1424,17 +1447,10 @@ class SchemaElementNode(ElementNode):
             yield from self.ref.children
 
     @property
-    def xsd_element(self) -> Optional[XsdElementProtocol]:
-        if hasattr(self.obj, 'type'):
-            return cast(XsdElementProtocol, self.obj)
-        else:
-            return None
-
-    @property
     def content(self) -> SchemaElemType:
-        return self.obj
+        return self.value
 
-    elem = value = content
+    elem = content
 
     @property
     def path(self) -> str:
@@ -1451,10 +1467,10 @@ class SchemaElementNode(ElementNode):
             return match_wildcard(self.name, name)
         elif not name:
             return not self.name
-        elif hasattr(self.obj, 'type'):
-            return self.obj.is_matching(name, default_namespace)
+        elif hasattr(self.value, 'type'):
+            return self.value.is_matching(name, default_namespace)
         else:
-            return self.obj.tag == name  # a schema
+            return self.value.tag == name  # a schema
 
     @property
     def attributes(self) -> list[AttributeNode]:
@@ -1463,7 +1479,7 @@ class SchemaElementNode(ElementNode):
             position = self.position + len(nsmap) + int('xml' not in nsmap) + 1
             self._attributes = [
                 SchemaAttributeNode(attr, self, pos)
-                for pos, (_, attr) in enumerate(self.obj.attrib.items(), position)
+                for pos, (_, attr) in enumerate(self.value.attrib.items(), position)
             ]
         return self._attributes
 
@@ -1479,13 +1495,13 @@ class SchemaElementNode(ElementNode):
 
     @property
     def type_name(self) -> Optional[str]:
-        if (xsd_type := getattr(self.obj, 'type', None)) is not None:
+        if (xsd_type := getattr(self.value, 'type', None)) is not None:
             return cast(Optional[str], xsd_type.name)
         return None
 
     @property
     def string_value(self) -> str:
-        if not hasattr(self.obj, 'type'):
+        if not hasattr(self.value, 'type'):
             return ''
         for item in get_atomic_sequence(self.xsd_type):
             return str(item)
@@ -1567,7 +1583,7 @@ class DocumentNode(XPathNode):
     Base class for all XPath document nodes.
     """
     name: None
-    obj: object
+    value: object
     parent: None
     children: list[ChildNodeType]
     tree: XPathNodeTree
@@ -1580,7 +1596,7 @@ class DocumentNode(XPathNode):
         return object.__new__(cls)
 
     def __repr__(self) -> str:
-        return '%s(document=%r)' % (self.__class__.__name__, self.document)
+        return '%s(document=%r)' % (self.__class__.__name__, self.value)
 
     def __getitem__(self, i: Union[int, slice]) -> Union[ChildNodeType, list[ChildNodeType]]:
         return self.children[i]
@@ -1593,8 +1609,7 @@ class DocumentNode(XPathNode):
 
     @property
     def document(self) -> object:
-        return self.obj
-    value = document
+        return self.value
 
     @property
     def uri(self) -> Optional[str]:
@@ -1713,7 +1728,7 @@ class EtreeDocumentNode(DocumentNode):
     :param position: the position of the node in the document, usually 1, \
     or 0 for lxml standalone root elements with siblings.
     """
-    obj: DocumentType
+    value: DocumentType
 
     __slots__ = ()
 
@@ -1721,7 +1736,7 @@ class EtreeDocumentNode(DocumentNode):
                  uri: Optional[str] = None,
                  position: int = 1) -> None:
 
-        self.obj = document
+        self.value = document
         self.name = None
         self.parent = None
         self.position = position
@@ -1730,13 +1745,13 @@ class EtreeDocumentNode(DocumentNode):
 
     @property
     def document(self) -> DocumentType:
-        return self.obj
+        return self.value
 
     @property
     def string_value(self) -> str:
         if not self.children:
             # Fallback for not built documents
-            root = self.document.getroot()
+            root = self.value.getroot()
             if root is None:
                 return ''
             return ''.join(etree_iter_strings(root))
@@ -1754,7 +1769,7 @@ class EtreeDocumentNode(DocumentNode):
         Returns `True` if the document node can't be represented with an
         ElementTree structure, `False` otherwise.
         """
-        root = self.document.getroot()
+        root = self.value.getroot()
         if root is None or not is_etree_element_instance(root):
             return True
         elif not self.children:

@@ -655,6 +655,67 @@ class XMLSchemaProxyTest(xpath_test_class.XPathTestCase):
                          '{http://www.w3.org/2001/XMLSchema}string')
 
 
+    def test_default_and_fixed_values__issue_094(self):
+        schema = xmlschema.XMLSchema(dedent("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    xmlns="http://xpath.test/ns"
+                    targetNamespace="http://xpath.test/ns">
+                <xs:element id="container" name="container"/>
+                <xs:element id="q1" name="q1" type="xs:integer" default="1000"/>
+                <xs:element name="p1" type="pType"/>
+                <xs:complexType name="pType">
+                   <xs:attribute name="p0" type="xs:integer"/>
+                   <xs:attribute name="p1" type="xs:integer" default="1000"/>
+                </xs:complexType>
+            </xs:schema>"""))
+
+        schema_proxy = schema.xpath_proxy
+
+        # Substitution of simple content
+        xml_data = dedent("""\
+            <container xmlns="http://xpath.test/ns">
+                <q1>1000</q1>
+                <q1></q1>
+                <p1/>
+            </container>""")
+
+        self.assertTrue(schema.is_valid(xml_data))
+        root = self.etree.XML(xml_data)
+        namespaces = {'': "http://xpath.test/ns",
+                      'xsi': "http://www.w3.org/2001/XMLSchema-instance"}
+
+        context = XPathContext(root, namespaces=namespaces)
+        context.root.apply_schema(schema_proxy)
+
+        self.assertEqual(context.root.type_name,
+                         '{http://www.w3.org/2001/XMLSchema}anyType')
+        self.assertIsNotNone(context.root.xsd_element)
+        self.assertEqual(context.root.xsd_element.name,
+                         '{http://xpath.test/ns}container')
+
+        self.assertEqual(context.root.children[1].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}integer')
+        self.assertIsNotNone(context.root.children[1].xsd_element)
+        self.assertEqual(context.root.children[1].xsd_element.name,
+                         '{http://xpath.test/ns}q1')
+
+        self.assertEqual(context.root.children[3].type_name,
+                         '{http://www.w3.org/2001/XMLSchema}integer')
+        self.assertIsNotNone(context.root.children[3].xsd_element)
+        self.assertEqual(context.root.children[3].xsd_element.name,
+                         '{http://xpath.test/ns}q1')
+
+        self.assertEqual(context.root.children[1].typed_value, 1000)
+        self.assertEqual(context.root.children[3].typed_value, 1000)
+
+        self.assertEqual(context.root.children[5].type_name,
+                         '{http://xpath.test/ns}pType')
+        self.assertEqual(len(context.root.children[5].attributes), 1)
+        self.assertEqual(context.root.children[5].attributes[0].name, 'p1')
+        self.assertEqual(context.root.children[5].xsd_element.name,
+                         '{http://xpath.test/ns}p1')
+
+
 @unittest.skipIf(xmlschema is None or lxml_etree is None, "both xmlschema and lxml required")
 class LxmlXMLSchemaProxyTest(XMLSchemaProxyTest):
     etree = lxml_etree

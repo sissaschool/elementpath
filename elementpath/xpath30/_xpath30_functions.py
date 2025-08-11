@@ -1107,7 +1107,7 @@ def evaluate_has_children_function(self: XPathFunction, context: ContextType = N
             raise self.error('XPTY0004', 'argument must be a node')
 
     return isinstance(item, DocumentNode) or \
-        isinstance(item, EtreeElementNode) and (len(item.obj) > 0 or item.obj.text is not None)
+        isinstance(item, EtreeElementNode) and (len(item.value) > 0 or item.value.text is not None)
 
 
 @method(function('innermost', nargs=1, sequence_types=('node()*', 'node()*')))

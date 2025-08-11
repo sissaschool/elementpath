@@ -146,7 +146,7 @@ def select_id_function(self: XPathFunction, context: ContextType = None) \
 
     if isinstance(item, (ElementNode, DocumentNode)):
         for element in item.iter_descendants():
-            if isinstance(element, EtreeElementNode) and element.obj.get(XML_ID) == value:
+            if isinstance(element, EtreeElementNode) and element.value.get(XML_ID) == value:
                 yield element
 
 
@@ -380,11 +380,11 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
         return False
     else:
         try:
-            attr = context.item.obj.attrib[XML_LANG]
+            attr = context.item.value.attrib[XML_LANG]
         except KeyError:
             for e in context.iter_ancestors():
-                if isinstance(e, EtreeElementNode) and XML_LANG in e.obj.attrib:
-                    lang = e.obj.attrib[XML_LANG]
+                if isinstance(e, EtreeElementNode) and XML_LANG in e.value.attrib:
+                    lang = e.value.attrib[XML_LANG]
                     if not isinstance(lang, str):
                         return False
                     break

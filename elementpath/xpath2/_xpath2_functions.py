@@ -155,7 +155,7 @@ def evaluate_namespace_uri_for_prefix_function(
     if not isinstance(elem, EtreeElementNode):
         return []
 
-    ns_uris = {get_namespace(e.tag) for e in elem.obj.iter() if not callable(e.tag)}
+    ns_uris = {get_namespace(e.tag) for e in elem.value.iter() if not callable(e.tag)}
     for p, uri in self.parser.namespaces.items():
         if uri in ns_uris:
             if p == prefix:
@@ -180,7 +180,7 @@ def select_in_scope_prefixes_function(self: XPathFunction, context: ContextType 
     if not isinstance(arg, ElementNode):
         raise self.error('XPTY0004', 'argument %r is not an element node' % arg)
 
-    elem = arg.obj
+    elem = arg.value
     if isinstance(context, XPathSchemaContext):
         # For schema context returns prefixes of static namespaces
         for pfx, uri in self.parser.namespaces.items():
@@ -1485,15 +1485,15 @@ def evaluate_lang_function(self: XPathFunction, context: ContextType = None) -> 
         raise self.error('XPTY0004')
     elif isinstance(item, EtreeElementNode):
         try:
-            attr = item.obj.attrib[XML_LANG]
+            attr = item.value.attrib[XML_LANG]
         except KeyError:
             if len(self) > 1 or context is None:
                 return False
 
             for elem in context.iter_ancestors():
                 if isinstance(elem, EtreeElementNode):
-                    if XML_LANG in elem.obj.attrib:
-                        lang = cast(str, elem.obj.attrib[XML_LANG])
+                    if XML_LANG in elem.value.attrib:
+                        lang = cast(str, elem.value.attrib[XML_LANG])
                         break
             else:
                 return False
@@ -1551,8 +1551,8 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
         if not isinstance(element, EtreeElementNode):
             continue
 
-        if element.obj.text in idrefs and element.is_id:
-            idrefs.remove(element.obj.text)
+        if element.value.text in idrefs and element.is_id:
+            idrefs.remove(element.value.text)
             if self.symbol == 'id':
                 yield element
             else:
@@ -1561,11 +1561,11 @@ def select_id_function(self: XPathFunction, context: ContextType = None) -> Iter
                     yield parent
         else:
             for attr in element.attributes:
-                if not isinstance(attr.obj, str):
+                if not isinstance(attr.value, str):
                     continue
 
-                if attr.obj in idrefs and attr.is_id:
-                    idrefs.remove(attr.obj)
+                if attr.value in idrefs and attr.is_id:
+                    idrefs.remove(attr.value)
                     yield element
 
 
@@ -1588,7 +1588,7 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
             if not isinstance(element, EtreeElementNode):
                 continue
 
-            text = element.obj.text
+            text = element.value.text
             if text and is_idrefs(text) and \
                     any(v in text.split() for x in ids for v in x.split()):
                 yield element
@@ -1596,8 +1596,8 @@ def select_idref_function(self: XPathFunction, context: ContextType = None) \
 
             if element.attributes:
                 for attr in element.attributes:  # pragma: no cover
-                    if attr.name != XML_ID and isinstance(attr.obj, str) and \
-                            any(v in attr.obj.split() for x in ids for v in x.split()):
+                    if attr.name != XML_ID and isinstance(attr.value, str) and \
+                            any(v in attr.value.split() for x in ids for v in x.split()):
                         yield element
                         break
 

@@ -673,7 +673,7 @@ def select_child_path(self: XPathToken, context: ContextType = None) \
                 elif result in items:
                     pass
                 elif isinstance(result, ElementNode):
-                    if result.obj not in items:
+                    if result.value not in items:
                         items.add(result)
                         yield result
                 else:
@@ -700,7 +700,7 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
                     elif result in items:
                         pass
                     elif isinstance(result, ElementNode):
-                        if result.obj not in items:
+                        if result.value not in items:
                             items.add(result)
                             yield result
                     else:
@@ -723,7 +723,7 @@ def select_descendant_path(self: XPathToken, context: ContextType = None) \
                 elif result in items:
                     pass
                 elif isinstance(result, ElementNode):
-                    if result.obj not in items:
+                    if result.value not in items:
                         items.add(result)
                 else:
                     items.add(result)

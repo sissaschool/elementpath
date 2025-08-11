@@ -1241,10 +1241,10 @@ def evaluate_xml_to_json_function(self: XPathFunction, context: ContextType = No
         return ','.join(chunks)
 
     if isinstance(input_node, DocumentNode):
-        return elem_to_json(child.obj for child in input_node
+        return elem_to_json(child.value for child in input_node
                             if isinstance(child, EtreeElementNode))
     elif isinstance(input_node, EtreeElementNode):
-        return elem_to_json((input_node.obj,))
+        return elem_to_json((input_node.value,))
     else:
         raise self.error('FOJS0006')
 
