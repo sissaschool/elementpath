@@ -1123,29 +1123,41 @@ class EtreeElementNode(ElementNode):
                 for pos, (name, value) in enumerate(self.value.attrib.items(), position)
             ]
 
-            if self._attributes and self.xsd_type is not None \
-                    and (schema := self.tree.schema) is not None:
-                if self.xsd_type.name == XSD_ANY_TYPE:
-                    attribute_type = schema.get_type(XSD_ANY_SIMPLE_TYPE)
-                    for attr in self._attributes:
-                        attr.xsd_type = attribute_type
-                else:
-                    for attr in self._attributes:
-                        assert attr.name is not None
-                        attr.xsd_type = schema.get_attribute_type(attr.name, self.xsd_type)
+            if self.xsd_type is None or (schema := self.tree.schema) is None:
+                return self._attributes
+            elif not schema.is_fully_valid():
+                any_simple_type = schema.get_type(XSD_ANY_SIMPLE_TYPE)
+                for attr in self._attributes:
+                    attr.xsd_type = any_simple_type
+                return self._attributes
+            elif self.xsd_element is None or XSI_TYPE in self.value.attrib:
+                xsd_type = self.xsd_type
+            else:
+                xsd_type = cast(XsdTypeProtocol, self.xsd_element.type)
 
-            if self.xsd_element is not None:
+            if hasattr(xsd_type, 'attributes'):
+                attributes = xsd_type.attributes
+                for attr in self._attributes:
+                    assert attr.name is not None
+                    if attr.name.startswith('{http://www.w3.org/2001/XMLSchema-instance}'):
+                        attr.xsd_type = schema.get_type(XSD_ANY_ATOMIC_TYPE)
+                    if attr.name in attributes:
+                        attr.xsd_type = attributes[attr.name].type
+                    elif None in attributes and attributes[None].is_matching(attr.name):
+                        xsd_attribute = schema.get_attribute(attr.name)
+                        if xsd_attribute is not None:
+                            attr.xsd_type = xsd_attribute.type
+
                 # Add missing attributes with a default value, at the same
                 # position of the last attribute.
                 position = position + len(self.value.attrib)
-                for name, xsd_attribute in self.xsd_element.attrib.items():
-                    if name in self.value.attrib or name is None:
-                        continue
-
-                    if (value := getattr(xsd_attribute, 'value_constraint', None)) is not None:
-                        attr = TextAttributeNode(name, value, self, position)
-                        attr.xsd_type = xsd_attribute.type
-                        self._attributes.append(attr)
+                for name, xsd_attribute in attributes.items():
+                    if name is not None and name not in self.value.attrib:
+                        value = getattr(xsd_attribute, 'value_constraint', None)
+                        if value is not None:
+                            attr = TextAttributeNode(name, value, self, position)
+                            attr.xsd_type = xsd_attribute.type
+                            self._attributes.append(attr)
 
         return self._attributes
 
@@ -1216,7 +1228,8 @@ class EtreeElementNode(ElementNode):
             return
 
         if schema.base_element is not None:
-            xsd_types = [schema.base_element.type]
+            self.xsd_element = schema.base_element
+            xsd_types: list[Optional[XsdTypeProtocol]] = [schema.base_element.type]
             children: Iterator[Any] = iter(self)
             if schema.is_assertion_based():
                 self.xsd_type = schema.get_type(XSD_ANY_TYPE)
@@ -1250,15 +1263,27 @@ class EtreeElementNode(ElementNode):
                         continue
                     else:
                         xsd_type = schema.get_type(type_name)
-                        if xsd_type is None:
-                            node.clear_types()
-                            continue
                 else:
-                    node.xsd_element = schema.get_element(node.name, xsd_types[-1])
-                    if node.xsd_element is None:
-                        node.clear_types()
-                        continue
-                    xsd_type = node.xsd_element.type
+                    if xsd_types[-1] is None:
+                        xsd_element = schema.get_element(node.name)
+                    elif (content := xsd_types[-1].model_group) is None:
+                        xsd_element = None
+                    else:
+                        for xsd_element in content.iter_elements():
+                            if xsd_element.is_matching(node.name):
+                                if xsd_element.name != node.name:
+                                    # a wildcard or a substitute
+                                    xsd_element = schema.get_element(node.name)
+                                break
+                        else:
+                            xsd_element = None
+
+                    xsd_type = getattr(xsd_element, 'type', None)
+                    node.xsd_element = xsd_element
+
+                if xsd_type is None:
+                    node.clear_types()
+                    continue
 
                 node.xsd_type = xsd_type
                 if hasattr(node, '_attributes'):
@@ -1278,12 +1303,12 @@ class EtreeElementNode(ElementNode):
 
     def clear_types(self) -> None:
         """Clear XSD types for element node subtree."""
-        for elem in self.iter_descendants(with_self=True):
-            if isinstance(elem, EtreeElementNode):
-                elem.xsd_type = None
-                elem.xsd_element = None
-                for attr in elem.attributes:
-                    attr.xsd_type = None
+        for node in self.iter_descendants(with_self=True):
+            if isinstance(node, EtreeElementNode):
+                node.xsd_type = None
+                node.xsd_element = None
+                if hasattr(node, '_attributes'):
+                    delattr(node, '_attributes')
 
     @property
     def is_typed(self) -> bool:
