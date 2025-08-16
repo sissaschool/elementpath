@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "elementpath"
-version = "5.0.3"
+version = "5.0.4"
 description = "XPath 1.0/2.0/3.0/3.1 parsers and selectors for ElementTree and lxml"
 readme = "README.rst"
 license = "MIT"

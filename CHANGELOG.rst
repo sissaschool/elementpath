@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v5.0.4`_ (2025-08-16)
+======================
+* Fix default/fixed values processing of schema annotated XML data (issue #94)
+
 `v5.0.3`_ (2025-06-28)
 ======================
 * Fix for XPath 1.0 processing of schema annotated XML data (issue #93)
@@ -518,3 +522,4 @@ CHANGELOG
 .. _v5.0.1: https://github.com/sissaschool/elementpath/compare/v5.0.0...v5.0.1
 .. _v5.0.2: https://github.com/sissaschool/elementpath/compare/v5.0.1...v5.0.2
 .. _v5.0.3: https://github.com/sissaschool/elementpath/compare/v5.0.2...v5.0.3
+.. _v5.0.4: https://github.com/sissaschool/elementpath/compare/v5.0.3...v5.0.4
