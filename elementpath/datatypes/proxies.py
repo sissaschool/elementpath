@@ -90,16 +90,19 @@ class DecimalProxy(AnyAtomicType):
 
     @classmethod
     def validate(cls, value: object) -> None:
-        if isinstance(value, Decimal):
-            if math.isnan(value) or math.isinf(value):
-                raise cls.invalid_value(value)
-        elif isinstance(value, (int, Integer)) and not isinstance(value, bool):
-            return
-        elif isinstance(value, str):
-            if cls.pattern.match(value) is None:
-                raise cls.invalid_value(value)
-        else:
-            raise cls.invalid_type(value)
+        match value:
+            case Decimal():
+                if math.isnan(value) or math.isinf(value):
+                    raise cls.invalid_value(value)
+            case bool():
+                raise cls.invalid_type(value)
+            case int() | Integer():
+                return
+            case str():
+                if cls.pattern.match(value) is None:
+                    raise cls.invalid_value(value)
+            case _:
+                raise cls.invalid_type(value)
 
 
 class DoubleProxy10(AnyAtomicType):

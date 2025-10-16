@@ -52,94 +52,94 @@ class Float10(float, AnyAtomicType):
         float.__init__(self)
 
     def __hash__(self) -> int:
-        return super(Float10, self).__hash__()
+        return super().__hash__()
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            if super(Float10, self).__eq__(other):
+            if super().__eq__(other):
                 return True
             return math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
-        return super(Float10, self).__eq__(other)
+        return super().__eq__(other)
 
     def __ne__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            if super(Float10, self).__eq__(other):
+            if super().__eq__(other):
                 return False
             return not math.isclose(self, other, rel_tol=1e-7, abs_tol=0.0)
-        return super(Float10, self).__ne__(other)
+        return super().__ne__(other)
 
     def __add__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__add__(other))
+            return self.__class__(super().__add__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__add__(other)
+            return super().__add__(other)
         return NotImplemented
 
     def __radd__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__radd__(other))
+            return self.__class__(super().__radd__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__radd__(other)
+            return super().__radd__(other)
         return NotImplemented
 
     def __sub__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__sub__(other))
+            return self.__class__(super().__sub__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__sub__(other)
+            return super().__sub__(other)
         return NotImplemented
 
     def __rsub__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__rsub__(other))
+            return self.__class__(super().__rsub__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__rsub__(other)
+            return super().__rsub__(other)
         return NotImplemented
 
     def __mul__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__mul__(other))
+            return self.__class__(super().__mul__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__mul__(other)
+            return super().__mul__(other)
         return NotImplemented
 
     def __rmul__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__rmul__(other))
+            return self.__class__(super().__rmul__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__rmul__(other)
+            return super().__rmul__(other)
         return NotImplemented
 
     def __truediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__truediv__(other))
+            return self.__class__(super().__truediv__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__truediv__(other)
+            return super().__truediv__(other)
         return NotImplemented
 
     def __rtruediv__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__rtruediv__(other))
+            return self.__class__(super().__rtruediv__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__rtruediv__(other)
+            return super().__rtruediv__(other)
         return NotImplemented
 
     def __mod__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__mod__(other))
+            return self.__class__(super().__mod__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__mod__(other)
+            return super().__mod__(other)
         return NotImplemented
 
     def __rmod__(self, other: object) -> Union[float, 'Float10', 'Float']:
         if isinstance(other, (self.__class__, int)) and not isinstance(other, bool):
-            return self.__class__(super(Float10, self).__rmod__(other))
+            return self.__class__(super().__rmod__(other))
         elif isinstance(other, float):
-            return super(Float10, self).__rmod__(other)
+            return super().__rmod__(other)
         return NotImplemented
 
     def __abs__(self) -> Union['Float10', 'Float']:
-        return self.__class__(super(Float10, self).__abs__())
+        return self.__class__(super().__abs__())
 
 
 class Float(Float10):
@@ -155,13 +155,14 @@ class Integer(int, AnyAtomicType):
     """A wrapper for emulating xs:integer and limited integer types."""
     name = 'integer'
     pattern = re.compile(r'^[\-+]?[0-9]+$')
-    lower_bound: Optional[int] = None
-    higher_bound: Optional[int] = None
+
+    _lower_bound: Optional[int] = None
+    _higher_bound: Optional[int] = None
 
     def __init__(self, value: Union[str, SupportsInt]) -> None:
-        if self.lower_bound is not None and self < self.lower_bound:
+        if self._lower_bound is not None and self < self._lower_bound:
             raise ValueError("value {} is too low for {!r}".format(value, self.__class__))
-        elif self.higher_bound is not None and self >= self.higher_bound:
+        elif self._higher_bound is not None and self >= self._higher_bound:
             raise ValueError("value {} is too high for {!r}".format(value, self.__class__))
         int.__init__(self)
 
@@ -184,60 +185,60 @@ class Integer(int, AnyAtomicType):
 
 class NonPositiveInteger(Integer):
     name = 'nonPositiveInteger'
-    lower_bound, higher_bound = None, 1
+    _lower_bound, _higher_bound = None, 1
 
 
 class NegativeInteger(NonPositiveInteger):
     name = 'negativeInteger'
-    lower_bound, higher_bound = None, 0
+    _lower_bound, _higher_bound = None, 0
 
 
 class Long(Integer):
     name = 'long'
-    lower_bound, higher_bound = -2**63, 2**63
+    _lower_bound, _higher_bound = -2 ** 63, 2 ** 63
 
 
 class Int(Long):
     name = 'int'
-    lower_bound, higher_bound = -2**31, 2**31
+    _lower_bound, _higher_bound = -2 ** 31, 2 ** 31
 
 
 class Short(Int):
     name = 'short'
-    lower_bound, higher_bound = -2**15, 2**15
+    _lower_bound, _higher_bound = -2 ** 15, 2 ** 15
 
 
 class Byte(Short):
     name = 'byte'
-    lower_bound, higher_bound = -2**7, 2**7
+    _lower_bound, _higher_bound = -2 ** 7, 2 ** 7
 
 
 class NonNegativeInteger(Integer):
     name = 'nonNegativeInteger'
-    lower_bound = 0
-    higher_bound: Optional[int] = None
+    _lower_bound = 0
+    _higher_bound: Optional[int] = None
 
 
 class PositiveInteger(NonNegativeInteger):
     name = 'positiveInteger'
-    lower_bound, higher_bound = 1, None
+    _lower_bound, _higher_bound = 1, None
 
 
 class UnsignedLong(NonNegativeInteger):
     name = 'unsignedLong'
-    lower_bound, higher_bound = 0, 2**64
+    _lower_bound, _higher_bound = 0, 2 ** 64
 
 
 class UnsignedInt(UnsignedLong):
     name = 'unsignedInt'
-    lower_bound, higher_bound = 0, 2**32
+    _lower_bound, _higher_bound = 0, 2 ** 32
 
 
 class UnsignedShort(UnsignedInt):
     name = 'unsignedShort'
-    lower_bound, higher_bound = 0, 2**16
+    _lower_bound, _higher_bound = 0, 2 ** 16
 
 
 class UnsignedByte(UnsignedShort):
     name = 'unsignedByte'
-    lower_bound, higher_bound = 0, 2**8
+    _lower_bound, _higher_bound = 0, 2 ** 8

@@ -30,22 +30,24 @@ class AbstractBinary(AnyAtomicType):
                  ordered: bool = False) -> None:
         self.ordered = ordered
 
-        if isinstance(value, self.__class__):
-            self.value = value.value
-        elif isinstance(value, AbstractBinary):
-            self.value = self.encoder(value.decode())
-        else:
-            if isinstance(value, UntypedAtomic):
+        match value:
+            case x if isinstance(x, self.__class__):
+                self.value = value.value
+                return
+            case AbstractBinary():
+                self.value = self.encoder(value.decode())
+                return
+            case UntypedAtomic():
                 value = collapse_white_spaces(value.value)
-            elif isinstance(value, str):
+            case str():
                 value = collapse_white_spaces(value)
-            elif isinstance(value, bytes):
+            case bytes():
                 value = collapse_white_spaces(value.decode('utf-8'))
-            else:
-                raise self.invalid_type(value)
+            case _:
+                raise self.invalid_type(value)  # noqa
 
-            self.validate(value)
-            self.value = value.replace(' ', '').encode('ascii')
+        self.validate(value)
+        self.value = value.replace(' ', '').encode('ascii')
 
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)

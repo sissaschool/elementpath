@@ -853,7 +853,7 @@ class ElementNode(XPathNode):
 
     @property
     def base_uri(self) -> Optional[str]:
-        base_uri = self._uri.strip() if hasattr(self, '_uri') else None
+        base_uri: str = self._uri.strip() if hasattr(self, '_uri') else None
         if self.parent is None:
             return base_uri
         elif base_uri is None:

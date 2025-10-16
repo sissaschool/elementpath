@@ -27,6 +27,8 @@ class AbstractQName(AnyAtomicType):
         r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)$',
     )
 
+    __slots__ = ('uri', 'qname', 'prefix', 'local_name')
+
     def __new__(cls, *args: Any, **kwargs: Any) -> 'AbstractQName':
         if cls.__name__ == 'Notation':
             raise TypeError("can't instantiate xs:NOTATION objects")

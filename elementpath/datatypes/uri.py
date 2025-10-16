@@ -27,16 +27,17 @@ class AnyURI(AnyAtomicType):
     name = 'anyURI'
 
     def __init__(self, value: Union[str, bytes, UntypedAtomic, 'AnyURI']) -> None:
-        if isinstance(value, str):
-            self.value = collapse_white_spaces(value)
-        elif isinstance(value, bytes):
-            self.value = collapse_white_spaces(value.decode('utf-8'))
-        elif isinstance(value, self.__class__):
-            self.value = value.value
-        elif isinstance(value, UntypedAtomic):
-            self.value = collapse_white_spaces(value.value)
-        else:
-            raise TypeError('the argument has an invalid type %r' % type(value))
+        match value:
+            case str():
+                self.value = collapse_white_spaces(value)
+            case bytes():
+                self.value = collapse_white_spaces(value.decode('utf-8'))
+            case AnyURI():
+                self.value = value.value
+            case UntypedAtomic():
+                self.value = collapse_white_spaces(value.value)
+            case _:
+                raise TypeError('the argument has an invalid type %r' % type(value))
 
         self.validate(self.value)
 

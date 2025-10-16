@@ -34,9 +34,8 @@ from elementpath.datatypes import AnyAtomicType, DateTime, DateTime10, Date, Dat
     ArithmeticProxy, Id, Notation, QName, Base64Binary, HexBinary, NormalizedString, \
     XsdToken, Language, Float, Float10, Integer, Short, NegativeInteger, AnyURI, \
     BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, StringProxy, \
-    xsd_atomic_types
+    xsd_atomic_types, OrderedDateTime
 from elementpath.datatypes.atomic_types import AtomicTypeMeta
-from elementpath.datatypes.datetime import OrderedDateTime
 from elementpath.decoder import get_atomic_sequence
 
 

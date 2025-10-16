@@ -32,22 +32,23 @@ class UntypedAtomic(AnyAtomicType):
 
     def __init__(self, value: Union[str, bytes, bool, float, Decimal,
                                     'UntypedAtomic', AnyAtomicType]) -> None:
-        if isinstance(value, str):
-            self.value = value
-        elif isinstance(value, bytes):
-            self.value = value.decode('utf-8')
-        elif isinstance(value, bool):
-            self.value = 'true' if value else 'false'
-        elif isinstance(value, float):
-            self.value = str(value).rstrip('0').rstrip('.')
-        elif isinstance(value, Decimal):
-            self.value = str(value.normalize())
-        elif isinstance(value, UntypedAtomic):
-            self.value = value.value
-        elif isinstance(value, AnyAtomicType):
-            self.value = str(value)
-        else:
-            raise TypeError("{!r} is not an atomic value".format(value))
+        match value:
+            case str():
+                self.value = value
+            case bytes():
+                self.value = value.decode('utf-8')
+            case bool():
+                self.value = 'true' if value else 'false'
+            case float():
+                self.value = str(value).rstrip('0').rstrip('.')
+            case Decimal():
+                self.value = str(value.normalize())
+            case UntypedAtomic():
+                self.value = value.value
+            case AnyAtomicType():
+                self.value = str(value)
+            case _:
+                raise TypeError("{!r} is not an atomic value".format(value))
 
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, self.value)
@@ -61,20 +62,21 @@ class UntypedAtomic(AnyAtomicType):
         :param force_float: Force a conversion to float if *other* is an UntypedAtomic instance.
         :return: A couple of values.
         """
-        if isinstance(other, UntypedAtomic):
-            if force_float:
-                return get_double(self.value), get_double(other.value)
-            return self.value, other.value
-        elif isinstance(other, bool):
-            # Cast to xs:boolean
-            value = self.value.strip()
-            if value not in BOOLEAN_VALUES:
-                raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
-            return value in ('1', 'true'), other
-        elif isinstance(other, int):
-            return get_double(self.value), other
-        elif other is None or isinstance(other, (str, list)):
-            return self.value, other
+        match other:
+            case UntypedAtomic():
+                if force_float:
+                    return get_double(self.value), get_double(other.value)
+                return self.value, other.value
+            case bool():
+                # Cast to xs:boolean
+                value = self.value.strip()
+                if value not in BOOLEAN_VALUES:
+                    raise ValueError("{!r} cannot be cast to xs:boolean".format(self.value))
+                return value in ('1', 'true'), other
+            case int():
+                return get_double(self.value), other
+            case None | str() | list():
+                return self.value, other
 
         if hasattr(other, 'fromstring'):
             return type(other).fromstring(self.value), other

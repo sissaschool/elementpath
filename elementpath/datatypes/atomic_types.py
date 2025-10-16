@@ -53,7 +53,7 @@ class AtomicTypeMeta(ABCMeta):
 
         cls = super(AtomicTypeMeta, mcs).__new__(mcs, class_name, bases, dict_)
 
-        # Register ony derived classes with a name
+        # Register all the derived classes with a name
         if name:
             for xsd_version, atomic_types in _xsd_atomic_types.items():
                 if cls.xsd_version <= xsd_version and (

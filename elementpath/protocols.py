@@ -283,19 +283,21 @@ class XsdGroupProtocol(XsdComponentProtocol, Protocol):
 class XsdAttributeProtocol(XsdComponentProtocol, Protocol):
 
     @property
-    def type(self) -> Optional[XsdTypeProtocol]: ...
+    def type(self) -> XsdTypeProtocol: ...
+
+
+class XsdAnyAttributeProtocol(XsdComponentProtocol, Protocol):
+
+    @property
+    def type(self) -> None: ...
+
+
+XsdAttributeProtocolType = Union[XsdAnyAttributeProtocol, XsdAttributeProtocol]
 
 
 class XsdAttributeGroupProtocol(XsdComponentProtocol, Protocol):
 
-    @overload
-    def get(self, key: Optional[str]) -> Optional[XsdAttributeProtocol]: ...
-
-    @overload
-    def get(self, key: Optional[str], default: _T) -> Union[XsdAttributeProtocol, _T]: ...
-
-    def get(self, key: Optional[str], default: Optional[_T] = None) \
-        -> Union[XsdAttributeProtocol, _T, None]: ...
+    def get(self, key: Optional[str], /) -> Optional[XsdAttributeProtocolType]: ...
 
     def items(self) -> ItemsView[Optional[str], XsdAttributeProtocol]: ...
 

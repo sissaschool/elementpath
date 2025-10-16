@@ -28,9 +28,12 @@ from .binary import AbstractBinary, Base64Binary, HexBinary
 from .datetime import AbstractDateTime, DateTime10, DateTime, DateTimeStamp, \
     Date10, Date, GregorianDay, GregorianMonth, GregorianYear, GregorianYear10, \
     GregorianMonthDay, GregorianYearMonth, GregorianYearMonth10, Time, Timezone, \
-    Duration, DayTimeDuration, YearMonthDuration, OrderedDateTime
+    Duration, DayTimeDuration, YearMonthDuration
 from .proxies import BooleanProxy, DecimalProxy, DoubleProxy10, DoubleProxy, \
     StringProxy, NumericProxy, ArithmeticProxy
+
+OrderedDateTime = AbstractDateTime
+# Kept for backward compatibility, will be removed in v6.0
 
 ###
 # Aliases for type annotations
